@@ -19,6 +19,9 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       values ('org-a', 'user-a', 'owner');
       insert into fiscal_years (organization_id, year, starts_on, ends_on)
       values ('org-a', 2026, '2026-01-01', '2026-12-31');
+      insert into fiscal_periods
+        (organization_id,fiscal_year,period_number,starts_on,ends_on)
+      values ('org-a',2026,8,'2026-08-01','2026-08-31');
     `);
   });
 
@@ -240,5 +243,25 @@ describeDatabase("ERP-100 database tenant constraints", () => {
         (organization_id,allow_self_approval,self_approval_max_minor,updated_by)
         values ('org-b',false,1,'user-a')`),
     ).rejects.toMatchObject({ code: "23514" });
+  });
+
+  it("rejects overlapping periods and keeps close/reopen events organization scoped", async () => {
+    await expect(
+      pool!.query(`insert into fiscal_periods
+        (organization_id,fiscal_year,period_number,starts_on,ends_on)
+        values ('org-a',2026,9,'2026-08-15','2026-09-15')`),
+    ).rejects.toMatchObject({ code: "23514" });
+    await pool!.query(`insert into fiscal_period_events
+      (organization_id,id,fiscal_year,period_number,action,from_state,to_state,actor_id,reason,correlation_id)
+      values ('org-a','period-event-1',2026,8,'close','open','soft_locked','user-a','Month end','corr-period-1')`);
+    await expect(
+      pool!.query(`insert into fiscal_period_events
+        (organization_id,id,fiscal_year,period_number,action,from_state,to_state,actor_id,reason,correlation_id)
+        values ('org-b','period-event-x',2026,8,'close','open','soft_locked','user-a','Invalid','corr-x')`),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool!.query(`update fiscal_periods set state='soft_locked'
+        where organization_id='org-a' and fiscal_year=2026 and period_number=8`),
+    ).rejects.toMatchObject({ code: "42501" });
   });
 });

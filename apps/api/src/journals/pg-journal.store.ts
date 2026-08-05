@@ -130,13 +130,14 @@ export class PgJournalStore {
         await client.query("rollback");
         return { ...replay.rows[0].response_body, idempotencyReplayed: true };
       }
-      const journal = await client.query<{ state: string; version: string }>(
-        "select state,version from journal_entries where organization_id=$1 and id=$2 for update",
+      const journal = await client.query<{ state: string; version: string; journal_date: string }>(
+        "select state,version,journal_date::text from journal_entries where organization_id=$1 and id=$2 for update",
         [context.organizationId, journalId],
       );
       if (!journal.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
       if (journal.rows[0].state === "posted") throw new Error("JOURNAL_ALREADY_POSTED");
       if (journal.rows[0].state !== "approved") throw new Error("JOURNAL_NOT_APPROVED");
+      await this.assertPostingPeriodAllowed(client, context, journal.rows[0].journal_date);
       const totals = await client.query<{ debit: string; credit: string; count: string }>(
         `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit,count(*)::text count
          from journal_lines where organization_id=$1 and journal_id=$2`,
@@ -347,6 +348,7 @@ export class PgJournalStore {
       const current = original.rows[0];
       if (!current) throw new Error("RESOURCE_NOT_FOUND");
       if (current.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
+      await this.assertPostingPeriodAllowed(client, context, input.reversalDate);
       const existing = await client.query(
         "select 1 from journal_entries where organization_id=$1 and reversal_of_id=$2",
         [context.organizationId, journalId],
@@ -554,6 +556,33 @@ export class PgJournalStore {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async assertPostingPeriodAllowed(
+    client: pg.PoolClient,
+    context: JournalActorContext,
+    postingDate: string,
+  ): Promise<void> {
+    const periods = await client.query<{ state: string }>(
+      `select state from fiscal_periods
+       where organization_id=$1 and $2::date between starts_on and ends_on
+       order by fiscal_year,period_number limit 2`,
+      [context.organizationId, postingDate],
+    );
+    if (periods.rows.length === 0) throw new Error("FISCAL_PERIOD_NOT_FOUND");
+    if (periods.rows.length > 1) throw new Error("FISCAL_PERIOD_AMBIGUOUS");
+    const state = periods.rows[0]!.state;
+    if (state === "hard_locked") throw new Error("PERIOD_HARD_LOCKED");
+    if (state === "soft_locked") {
+      const policy = await client.query<{ soft_lock_posting_roles: string[] }>(
+        `select soft_lock_posting_roles from accounting_workflow_policies
+         where organization_id=$1`,
+        [context.organizationId],
+      );
+      const roles = policy.rows[0]?.soft_lock_posting_roles ?? ["owner", "finance_admin"];
+      if (!context.roles.some((role) => roles.includes(role)))
+        throw new Error("PERIOD_SOFT_LOCKED");
     }
   }
 }

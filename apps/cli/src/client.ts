@@ -21,7 +21,8 @@ export class NaaiErpClient {
   ): Promise<unknown> {
     const isJournal = resource === "journals";
     const isPostingRule = resource === "posting-rules";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isPeriodWorkflow = resource === "fiscal-periods" && ["close", "reopen"].includes(action);
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" || action === "get" || action === "export"
         ? "GET"
@@ -37,13 +38,15 @@ export class NaaiErpClient {
             ? `${base}/${key}/${action}`
             : isPostingRule && action === "evaluate"
               ? `${base}/evaluate`
-              : action === "deactivate"
-                ? `${base}/${key}/deactivate`
-                : action === "import"
-                  ? `${base}/import/dry-run`
-                  : action === "export"
-                    ? `${base}/export`
-                    : base;
+              : isPeriodWorkflow
+                ? `${base}/${action}`
+                : action === "deactivate"
+                  ? `${base}/${key}/deactivate`
+                  : action === "import"
+                    ? `${base}/import/dry-run`
+                    : action === "export"
+                      ? `${base}/export`
+                      : base;
     const correlationId = randomUUID();
     return this.fetchFn(url, {
       method,

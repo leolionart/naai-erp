@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:10:00+07:00
+updated_at: 2026-08-05T16:28:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
@@ -281,10 +281,26 @@ tasks:
   - id: ERP-230
     title: Period close and reopen
     phase: P2
-    status: ready
+    status: review
     dependencies: [ERP-220]
     business_rules: [BR-PER-001, BR-PER-002]
     tests: [T-PER-001, T-PER-002]
+    evidence: docs/implementation/evidence/ERP-230/
+    agent: codex-root
+    started_at: 2026-08-05T16:15:00+07:00
+    start_commit: 803fbc9466d9f178cf0d0224556387c4699111f0
+    planned_files:
+      - packages/domain/src/fiscal-period-workflow.ts
+      - packages/domain/src/fiscal-period-workflow.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/fiscal-periods/
+      - apps/api/src/journals/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-230/
 
   - id: ERP-240
     title: Trial Balance General Ledger and opening balances

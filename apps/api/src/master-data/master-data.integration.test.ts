@@ -17,6 +17,11 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
       insert into organizations (id, legal_name, base_currency, timezone)
       values ('org-api-a', 'API A', 'VND', 'Asia/Ho_Chi_Minh'),
              ('org-api-b', 'API B', 'VND', 'Asia/Ho_Chi_Minh');
+      insert into fiscal_years (organization_id,year,starts_on,ends_on)
+      values ('org-api-a',2026,'2026-01-01','2026-12-31');
+      insert into fiscal_periods
+        (organization_id,fiscal_year,period_number,starts_on,ends_on)
+      values ('org-api-a',2026,8,'2026-08-01','2026-08-31');
     `);
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles)
@@ -366,5 +371,130 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
       "select count(*)::int count from journal_entries where organization_id='org-api-a' and id='journal-eval-1'",
     );
     expect(effects.rows[0].count).toBe(0);
+  });
+
+  it("enforces soft and hard period locks and privileged audited reopen", async () => {
+    const close = async (targetState: "soft_locked" | "hard_locked", key: string) =>
+      app.inject({
+        method: "POST",
+        url: "/api/v1/organizations/org-api-a/fiscal-periods/close",
+        headers: { authorization: `Bearer ${token}`, "idempotency-key": key },
+        payload: {
+          fiscalYear: 2026,
+          periodNumber: 8,
+          targetState,
+          reason: `Close to ${targetState}`,
+        },
+      });
+    expect((await close("soft_locked", "period-close-soft")).statusCode).toBe(201);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "soft-journal-create" },
+      payload: {
+        id: "soft-journal",
+        journalDate: "2026-08-07",
+        description: "Soft lock test",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "100" },
+          { accountCode: "411", creditMinor: "100" },
+        ],
+      },
+    });
+    expect((await approve("soft-journal", "soft-journal-approve")).statusCode).toBe(201);
+    const accountantPost = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/soft-journal/post",
+      headers: {
+        authorization: `Bearer ${approverToken}`,
+        "idempotency-key": "soft-accountant-post",
+      },
+    });
+    expect(accountantPost.statusCode).toBe(409);
+    expect(accountantPost.json().error.code).toBe("PERIOD_SOFT_LOCKED");
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/organizations/org-api-a/journals/soft-journal/post",
+          headers: { authorization: `Bearer ${token}`, "idempotency-key": "soft-finance-post" },
+        })
+      ).statusCode,
+    ).toBe(201);
+
+    expect((await close("hard_locked", "period-close-hard")).statusCode).toBe(201);
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "hard-journal-create" },
+      payload: {
+        id: "hard-journal",
+        journalDate: "2026-08-08",
+        description: "Hard lock test",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "100" },
+          { accountCode: "411", creditMinor: "100" },
+        ],
+      },
+    });
+    expect((await approve("hard-journal", "hard-journal-approve")).statusCode).toBe(201);
+    const hardPost = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/hard-journal/post",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "hard-post" },
+    });
+    expect(hardPost.statusCode).toBe(409);
+    expect(hardPost.json().error.code).toBe("PERIOD_HARD_LOCKED");
+    const hardReverse = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/soft-journal/reverse",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "hard-reverse" },
+      payload: {
+        reason: "Backdated correction attempt",
+        reversalDate: "2026-08-09",
+        reversalJournalId: "hard-reversal-denied",
+      },
+    });
+    expect(hardReverse.statusCode).toBe(409);
+    expect(hardReverse.json().error.code).toBe("PERIOD_HARD_LOCKED");
+
+    const deniedReopen = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/fiscal-periods/reopen",
+      headers: {
+        authorization: `Bearer ${approverToken}`,
+        "idempotency-key": "period-reopen-denied",
+      },
+      payload: { fiscalYear: 2026, periodNumber: 8, targetState: "soft_locked", reason: "Denied" },
+    });
+    expect(deniedReopen.statusCode).toBe(403);
+    for (const [targetState, key] of [
+      ["soft_locked", "period-reopen-soft"],
+      ["open", "period-reopen-open"],
+    ] as const) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/organizations/org-api-a/fiscal-periods/reopen",
+        headers: { authorization: `Bearer ${token}`, "idempotency-key": key },
+        payload: {
+          fiscalYear: 2026,
+          periodNumber: 8,
+          targetState,
+          reason: `Approved reopen to ${targetState}`,
+        },
+      });
+      expect(response.statusCode).toBe(201);
+    }
+    const state = await pool.query(
+      "select state from fiscal_periods where organization_id='org-api-a' and fiscal_year=2026 and period_number=8",
+    );
+    const events = await pool.query(
+      "select count(*)::int count from fiscal_period_events where organization_id='org-api-a' and fiscal_year=2026 and period_number=8",
+    );
+    expect(state.rows[0].state).toBe("open");
+    expect(events.rows[0].count).toBe(4);
   });
 });

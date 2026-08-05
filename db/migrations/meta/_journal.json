@@ -57,6 +57,13 @@
       "when": 1785917603023,
       "tag": "0007_petite_trish_tilby",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785918303892,
+      "tag": "0008_oval_morlocks",
+      "breakpoints": true
     }
   ]
 }

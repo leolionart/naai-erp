@@ -26,8 +26,8 @@ export const MASTER_DATA_RESOURCES = {
     table: "fiscal_periods",
     organizationColumn: "organization_id",
     keyColumns: ["fiscal_year", "period_number"],
-    writableColumns: ["fiscal_year", "period_number", "starts_on", "ends_on", "state"],
-    mutableColumns: ["starts_on", "ends_on", "state"],
+    writableColumns: ["fiscal_year", "period_number", "starts_on", "ends_on"],
+    mutableColumns: ["starts_on", "ends_on"],
   },
   "exchange-rates": {
     table: "exchange_rates",
@@ -201,8 +201,18 @@ export const MASTER_DATA_RESOURCES = {
     table: "accounting_workflow_policies",
     organizationColumn: "organization_id",
     keyColumns: ["organization_id"],
-    writableColumns: ["allow_self_approval", "self_approval_max_minor", "updated_by"],
-    mutableColumns: ["allow_self_approval", "self_approval_max_minor", "updated_by"],
+    writableColumns: [
+      "allow_self_approval",
+      "self_approval_max_minor",
+      "soft_lock_posting_roles",
+      "updated_by",
+    ],
+    mutableColumns: [
+      "allow_self_approval",
+      "self_approval_max_minor",
+      "soft_lock_posting_roles",
+      "updated_by",
+    ],
   },
 } as const satisfies Record<string, ResourceDefinition>;
 

@@ -115,4 +115,27 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it.each(["close", "reopen"])("calls the fiscal period %s command", async (action) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("fiscal-periods", action, {
+      fiscalYear: 2026,
+      periodNumber: 8,
+      targetState: action === "close" ? "soft_locked" : "open",
+      reason: "Month-end control",
+    });
+    expect(fetchFn).toHaveBeenCalledWith(
+      `http://api/api/v1/organizations/org-a/fiscal-periods/${action}`,
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

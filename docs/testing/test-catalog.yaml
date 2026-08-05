@@ -264,6 +264,25 @@ tests:
     command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G2
 
+  - id: T-UNIT-ERP-230-001
+    aliases: [T-PER-001]
+    task: ERP-230
+    rules: [BR-PER-001, BR-PER-002]
+    title: Fiscal period state machine enforces open soft-lock hard-lock and controlled reopen
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G2
+
+  - id: T-INT-ERP-230-001
+    aliases: [T-PER-002]
+    task: ERP-230
+    rules: [BR-PER-001, BR-PER-002, BR-AI-002, BR-AUD-001]
+    title: Posting and reversal dates obey period locks while close and reopen are privileged audited idempotent commands
+    layer: integration
+    fixture: GF-PERIOD-001
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G2
+
   - id: T-E2E-ERP-300-001
     aliases: [T-INV-001]
     task: ERP-300

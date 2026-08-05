@@ -32,6 +32,8 @@
     "journals/post",
     "journals/reverse",
     "journals/repost",
+    "fiscal-periods/close",
+    "fiscal-periods/reopen",
     "posting-rules/evaluate"
   ],
   "paths": {
@@ -107,6 +109,16 @@
     "/api/v1/organizations/{organizationId}/posting-rules/evaluate": {
       "post": {
         "summary": "Evaluate effective posting rules into an exact balanced draft without posting"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/fiscal-periods/close": {
+      "post": {
+        "summary": "Move an open period to soft lock or a soft-locked period to hard lock"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/fiscal-periods/reopen": {
+      "post": {
+        "summary": "Privileged audited stepwise reopen of a locked fiscal period"
       }
     }
   },

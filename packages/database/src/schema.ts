@@ -788,6 +788,10 @@ export const accountingWorkflowPolicies = pgTable(
       .references(() => organizations.id),
     allowSelfApproval: boolean("allow_self_approval").notNull().default(false),
     selfApprovalMaxMinor: bigint("self_approval_max_minor", { mode: "bigint" }),
+    softLockPostingRoles: jsonb("soft_lock_posting_roles")
+      .$type<string[]>()
+      .notNull()
+      .default(["owner", "finance_admin"]),
     updatedBy: text("updated_by").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -796,6 +800,38 @@ export const accountingWorkflowPolicies = pgTable(
       "workflow_policy_self_approval_threshold",
       sql`(not ${table.allowSelfApproval} and ${table.selfApprovalMaxMinor} is null) or (${table.allowSelfApproval} and ${table.selfApprovalMaxMinor} is not null and ${table.selfApprovalMaxMinor} >= 0)`,
     ),
+  ],
+);
+
+export const fiscalPeriodEvents = pgTable(
+  "fiscal_period_events",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    fiscalYear: integer("fiscal_year").notNull(),
+    periodNumber: integer("period_number").notNull(),
+    action: text("action").notNull(),
+    fromState: fiscalPeriodState("from_state").notNull(),
+    toState: fiscalPeriodState("to_state").notNull(),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.fiscalYear, table.periodNumber],
+      foreignColumns: [
+        fiscalPeriods.organizationId,
+        fiscalPeriods.fiscalYear,
+        fiscalPeriods.periodNumber,
+      ],
+      name: "fiscal_period_events_period_fk",
+    }).onDelete("restrict"),
+    check("fiscal_period_event_action", sql`${table.action} in ('close','reopen')`),
+    check("fiscal_period_event_reason_not_blank", sql`btrim(${table.reason}) <> ''`),
+    check("fiscal_period_event_state_changes", sql`${table.fromState} <> ${table.toState}`),
   ],
 );
 
@@ -944,6 +980,7 @@ export const schema = {
   apiCredentials,
   journalEntries,
   accountingWorkflowPolicies,
+  fiscalPeriodEvents,
   journalLines,
   journalPostingCommands,
   outboxEvents,
