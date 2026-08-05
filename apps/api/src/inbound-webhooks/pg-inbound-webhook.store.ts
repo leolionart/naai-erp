@@ -149,7 +149,7 @@ export class PgInboundWebhookStore {
             ? "quarantined"
             : "retry_scheduled";
       await client.query(
-        `update inbound_messages set state=$3,attempt_count=$4,result_body=$5,last_error_code=$6,last_error_summary=$7,completed_at=case when $3 in ('processed','quarantined') then now() else null end,updated_at=now() where organization_id=$1 and id=$2`,
+        `update inbound_messages set state=$3::inbound_message_state,attempt_count=$4,result_body=$5,last_error_code=$6,last_error_summary=$7,completed_at=case when $3::text in ('processed','quarantined') then now() else null end,updated_at=now() where organization_id=$1 and id=$2`,
         [org, id, state, attempt, result ?? null, error?.code ?? null, error?.summary ?? null],
       );
       await client.query(
