@@ -1,0 +1,31 @@
+{
+  "name": "naai-erp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Management accounting and project profitability platform for NAAI Studio",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.30.1",
+  "engines": {
+    "node": ">=22 <25",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "clean": "turbo run clean && rm -rf .turbo node_modules"
+  },
+  "devDependencies": {
+    "turbo": "2.10.8",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

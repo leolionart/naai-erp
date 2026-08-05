@@ -1,0 +1,437 @@
+schema_version: 1
+project: NAAI ERP
+updated_at: 2026-08-05T13:14:00+07:00
+status_values: [blocked, ready, in_progress, review, done]
+
+current_gate: G0
+current_task: ERP-001
+
+tasks:
+  - id: ERP-000
+    title: Project organization
+    phase: P0
+    status: done
+    dependencies: []
+    business_rules: []
+    tests: []
+    evidence: docs/implementation/evidence/ERP-000/
+    notes: Project and canonical coding workspace created.
+
+  - id: ERP-001
+    title: Create repository and monorepo
+    phase: P0
+    status: in_progress
+    dependencies: [ERP-000]
+    business_rules: [BR-ORG-001, BR-AUD-001]
+    tests: [T-BOOT-001, T-BOOT-002, T-CI-001]
+    evidence: docs/implementation/evidence/ERP-001/
+    agent: codex-root
+    started_at: 2026-08-05T13:14:00+07:00
+    planned_files:
+      - package.json
+      - pnpm-workspace.yaml
+      - turbo.json
+      - apps/
+      - packages/
+      - deploy/
+      - db/
+      - docs/implementation/evidence/ERP-001/
+
+  - id: ERP-002
+    title: Architecture Decision Records
+    phase: P0
+    status: blocked
+    dependencies: [ERP-001]
+    business_rules: [BR-LED-001, BR-LED-002, BR-REV-001, BR-TAX-001]
+    tests: [T-DOC-001]
+    evidence: docs/implementation/evidence/ERP-002/
+
+  - id: ERP-003
+    title: Engineering toolchain
+    phase: P0
+    status: blocked
+    dependencies: [ERP-001, ERP-002]
+    business_rules: []
+    tests: [T-CI-001, T-CI-002, T-MIG-001]
+    evidence: docs/implementation/evidence/ERP-003/
+
+  - id: ERP-004
+    title: Security and operations baseline
+    phase: P0
+    status: blocked
+    dependencies: [ERP-001, ERP-002]
+    business_rules: [BR-ORG-001, BR-AUD-001, BR-SEC-001]
+    tests: [T-SEC-001, T-SEC-002, T-OPS-001]
+    evidence: docs/implementation/evidence/ERP-004/
+
+  - id: ERP-100
+    title: Organization identity and fiscal setup
+    phase: P1
+    status: blocked
+    dependencies: [G0]
+    business_rules: [BR-ORG-001, BR-PER-001, BR-CUR-001]
+    tests: [T-ORG-001, T-PER-001, T-CUR-001]
+
+  - id: ERP-110
+    title: Chart of Accounts and tax codes
+    phase: P1
+    status: blocked
+    dependencies: [ERP-100]
+    business_rules: [BR-COA-001, BR-COA-002, BR-TAX-001]
+    tests: [T-COA-001, T-COA-002, T-TAX-001]
+
+  - id: ERP-120
+    title: Dimensions and mappings
+    phase: P1
+    status: blocked
+    dependencies: [ERP-110]
+    business_rules: [BR-DIM-001, BR-DIM-002]
+    tests: [T-DIM-001, T-DIM-002]
+
+  - id: ERP-130
+    title: Parties and commercial references
+    phase: P1
+    status: blocked
+    dependencies: [ERP-100, ERP-120]
+    business_rules: [BR-PTY-001, BR-PRJ-001]
+    tests: [T-PTY-001, T-PRJ-001]
+
+  - id: ERP-200
+    title: Journal aggregate and balanced posting
+    phase: P2
+    status: blocked
+    dependencies: [G1]
+    business_rules: [BR-LED-001, BR-LED-002, BR-LED-003, BR-LED-004]
+    tests: [T-LED-001, T-LED-002, T-LED-P001, T-LED-I001]
+
+  - id: ERP-210
+    title: Posting rule engine
+    phase: P2
+    status: blocked
+    dependencies: [ERP-200]
+    business_rules: [BR-PST-001, BR-PST-002]
+    tests: [T-PST-001, T-PST-002]
+
+  - id: ERP-220
+    title: Accounting workflow
+    phase: P2
+    status: blocked
+    dependencies: [ERP-200, ERP-210]
+    business_rules: [BR-WFL-001, BR-WFL-002, BR-LED-003]
+    tests: [T-WFL-001, T-WFL-002]
+
+  - id: ERP-230
+    title: Period close and reopen
+    phase: P2
+    status: blocked
+    dependencies: [ERP-220]
+    business_rules: [BR-PER-001, BR-PER-002]
+    tests: [T-PER-001, T-PER-002]
+
+  - id: ERP-240
+    title: Trial Balance General Ledger and opening balances
+    phase: P2
+    status: blocked
+    dependencies: [ERP-200, ERP-230]
+    business_rules: [BR-RPT-001, BR-LED-005]
+    tests: [T-RPT-001, T-GLD-001]
+
+  - id: ERP-300
+    title: Sales and purchase documents
+    phase: P3
+    status: blocked
+    dependencies: [G2]
+    business_rules: [BR-INV-001, BR-INV-002, BR-AP-001, BR-AR-001]
+    tests: [T-INV-001, T-INV-002, T-AP-001, T-AR-001]
+
+  - id: ERP-310
+    title: Expense workflow
+    phase: P3
+    status: blocked
+    dependencies: [G2, ERP-130]
+    business_rules: [BR-EXP-001, BR-EXP-002, BR-TAX-002]
+    tests: [T-EXP-001, T-EXP-002, T-TAX-002]
+
+  - id: ERP-320
+    title: Evidence management
+    phase: P3
+    status: blocked
+    dependencies: [ERP-300, ERP-310]
+    business_rules: [BR-EVD-001, BR-EVD-002]
+    tests: [T-EVD-001, T-EVD-002, T-SEC-003]
+
+  - id: ERP-330
+    title: Inbound API and webhooks
+    phase: P3
+    status: blocked
+    dependencies: [ERP-300, ERP-310]
+    business_rules: [BR-INT-001, BR-INT-002, BR-INT-003]
+    tests: [T-INT-001, T-INT-002, T-CON-001]
+
+  - id: ERP-340
+    title: Outbound event delivery
+    phase: P3
+    status: blocked
+    dependencies: [ERP-330]
+    business_rules: [BR-OUT-001, BR-OUT-002]
+    tests: [T-OUT-001, T-OUT-002]
+
+  - id: ERP-400
+    title: Bank and cash accounts
+    phase: P4
+    status: blocked
+    dependencies: [G3]
+    business_rules: [BR-BNK-001, BR-BNK-002]
+    tests: [T-BNK-001, T-BNK-002]
+
+  - id: ERP-410
+    title: Reconciliation
+    phase: P4
+    status: blocked
+    dependencies: [ERP-400]
+    business_rules: [BR-REC-001, BR-REC-002, BR-REC-003]
+    tests: [T-REC-001, T-REC-002, T-REC-P001]
+
+  - id: ERP-420
+    title: Internal transfers
+    phase: P4
+    status: blocked
+    dependencies: [ERP-410]
+    business_rules: [BR-BNK-003]
+    tests: [T-BNK-003]
+
+  - id: ERP-430
+    title: AR AP aging
+    phase: P4
+    status: blocked
+    dependencies: [ERP-300, ERP-410]
+    business_rules: [BR-AR-002, BR-AP-002]
+    tests: [T-AR-002, T-AP-002]
+
+  - id: ERP-500
+    title: Timesheet and cost rates
+    phase: P5
+    status: blocked
+    dependencies: [G4]
+    business_rules: [BR-TIM-001, BR-CST-001]
+    tests: [T-TIM-001, T-CST-001]
+
+  - id: ERP-510
+    title: Direct project costs
+    phase: P5
+    status: blocked
+    dependencies: [ERP-500, ERP-310]
+    business_rules: [BR-CST-002, BR-ALL-001]
+    tests: [T-CST-002, T-ALL-001]
+
+  - id: ERP-520
+    title: Project budget and revenue recognition
+    phase: P5
+    status: blocked
+    dependencies: [ERP-500, ERP-300]
+    business_rules: [BR-REV-001, BR-REV-002, BR-BUD-001]
+    tests: [T-REV-001, T-REV-002, T-BUD-001]
+
+  - id: ERP-530
+    title: Overhead allocation
+    phase: P5
+    status: blocked
+    dependencies: [ERP-510, ERP-520]
+    business_rules: [BR-ALL-002, BR-ALL-003]
+    tests: [T-ALL-002, T-ALL-P001]
+
+  - id: ERP-540
+    title: Project profitability
+    phase: P5
+    status: blocked
+    dependencies: [ERP-530]
+    business_rules: [BR-PRF-001, BR-PRF-002]
+    tests: [T-PRF-001, T-PRF-002]
+
+  - id: ERP-600
+    title: Targets and forecast versions
+    phase: P6
+    status: blocked
+    dependencies: [G5]
+    business_rules: [BR-FCT-001, BR-FCT-002]
+    tests: [T-FCT-001, T-FCT-002]
+
+  - id: ERP-610
+    title: Revenue and expense forecast
+    phase: P6
+    status: blocked
+    dependencies: [ERP-600, ERP-520]
+    business_rules: [BR-FCT-003, BR-FCT-004]
+    tests: [T-FCT-003, T-FCT-004]
+
+  - id: ERP-620
+    title: Performance comparisons
+    phase: P6
+    status: blocked
+    dependencies: [ERP-610]
+    business_rules: [BR-KPI-001, BR-KPI-002]
+    tests: [T-KPI-001, T-KPI-002]
+
+  - id: ERP-630
+    title: Financial statements and tax reconciliation
+    phase: P6
+    status: blocked
+    dependencies: [G5, ERP-240]
+    business_rules: [BR-RPT-002, BR-RPT-003, BR-RPT-004, BR-TAX-003]
+    tests: [T-RPT-002, T-RPT-003, T-RPT-004, T-TAX-003]
+
+  - id: ERP-640
+    title: Executive metrics
+    phase: P6
+    status: blocked
+    dependencies: [ERP-620, ERP-630]
+    business_rules: [BR-KPI-003, BR-KPI-004, BR-KPI-005]
+    tests: [T-KPI-003, T-KPI-004, T-KPI-005]
+
+  - id: ERP-650
+    title: Accountant export and report snapshots
+    phase: P6
+    status: blocked
+    dependencies: [ERP-630]
+    business_rules: [BR-EXPOR-001, BR-SNP-001]
+    tests: [T-EXPOR-001, T-SNP-001]
+
+  - id: ERP-700
+    title: Dashboards and drill-down
+    phase: P7
+    status: blocked
+    dependencies: [G6]
+    business_rules: [BR-UI-001]
+    tests: [T-E2E-001, T-E2E-002]
+
+  - id: ERP-710
+    title: Onboarding review and replay UI
+    phase: P7
+    status: blocked
+    dependencies: [ERP-700]
+    business_rules: [BR-UI-002]
+    tests: [T-E2E-003]
+
+  - id: ERP-720
+    title: Observability
+    phase: P7
+    status: blocked
+    dependencies: [ERP-700]
+    business_rules: [BR-OPS-001]
+    tests: [T-OPS-002]
+
+  - id: ERP-730
+    title: Security hardening
+    phase: P7
+    status: blocked
+    dependencies: [ERP-700]
+    business_rules: [BR-SEC-001, BR-SEC-002]
+    tests: [T-SEC-004, T-SEC-005]
+
+  - id: ERP-740
+    title: Quality resilience and restore
+    phase: P7
+    status: blocked
+    dependencies: [ERP-720, ERP-730]
+    business_rules: [BR-OPS-002]
+    tests: [T-PERF-001, T-A11Y-001, T-OPS-003]
+
+  - id: ERP-800
+    title: Production Dockerfiles
+    phase: P8
+    status: blocked
+    dependencies: [G7]
+    business_rules: []
+    tests: [T-DKR-001, T-DKR-002]
+
+  - id: ERP-810
+    title: Docker Compose contract
+    phase: P8
+    status: blocked
+    dependencies: [ERP-800]
+    business_rules: [BR-OPS-003]
+    tests: [T-CMP-001, T-CMP-002]
+
+  - id: ERP-820
+    title: Pull request CI
+    phase: P8
+    status: blocked
+    dependencies: [ERP-810]
+    business_rules: []
+    tests: [T-CI-003]
+
+  - id: ERP-830
+    title: Main image release
+    phase: P8
+    status: blocked
+    dependencies: [ERP-820]
+    business_rules: [BR-REL-001]
+    tests: [T-REL-001, T-REL-002]
+
+  - id: ERP-840
+    title: Semantic release images
+    phase: P8
+    status: blocked
+    dependencies: [ERP-830]
+    business_rules: [BR-REL-002]
+    tests: [T-REL-003]
+
+  - id: ERP-850
+    title: Deploy and rollback workflow
+    phase: P8
+    status: blocked
+    dependencies: [ERP-830, ERP-840]
+    business_rules: [BR-DEP-001, BR-DEP-002]
+    tests: [T-DEP-001, T-DEP-002]
+
+  - id: ERP-900
+    title: Import inventory and templates
+    phase: P9
+    status: blocked
+    dependencies: [G8]
+    business_rules: [BR-MIG-001]
+    tests: [T-MIG-002]
+
+  - id: ERP-910
+    title: Dry-run import
+    phase: P9
+    status: blocked
+    dependencies: [ERP-900]
+    business_rules: [BR-MIG-002]
+    tests: [T-MIG-003]
+
+  - id: ERP-920
+    title: Parallel run
+    phase: P9
+    status: blocked
+    dependencies: [ERP-910]
+    business_rules: [BR-MIG-003]
+    tests: [T-MIG-004]
+
+  - id: ERP-930
+    title: Pilot and cutover
+    phase: P9
+    status: blocked
+    dependencies: [ERP-920]
+    business_rules: [BR-MIG-004]
+    tests: [T-MIG-005]
+
+  - id: ERP-940
+    title: Hypercare
+    phase: P9
+    status: blocked
+    dependencies: [ERP-930]
+    business_rules: [BR-OPS-004]
+    tests: [T-OPS-004]
+
+gates:
+  G0: [ERP-001, ERP-002, ERP-003, ERP-004]
+  G1: [ERP-100, ERP-110, ERP-120, ERP-130]
+  G2: [ERP-200, ERP-210, ERP-220, ERP-230, ERP-240]
+  G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-340]
+  G4: [ERP-400, ERP-410, ERP-420, ERP-430]
+  G5: [ERP-500, ERP-510, ERP-520, ERP-530, ERP-540]
+  G6: [ERP-600, ERP-610, ERP-620, ERP-630, ERP-640, ERP-650]
+  G7: [ERP-700, ERP-710, ERP-720, ERP-730, ERP-740]
+  G8: [ERP-800, ERP-810, ERP-820, ERP-830, ERP-840, ERP-850]
+  G9: [ERP-900, ERP-910, ERP-920, ERP-930, ERP-940]
