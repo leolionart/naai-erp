@@ -162,7 +162,11 @@ export class PgWorkforceStore {
       );
       if (updated.rowCount !== 1 || updated.rows[0]?.state !== state)
         throw new Error("TIMESHEET_TRANSITION_WRITE_FAILED");
-      return { resource: await this.view(q, c.organizationId, id), mutation: this.meta(c, v) };
+      const resource = await this.view(q, c.organizationId, id);
+      return {
+        resource: { ...resource, state, resourceVersion: v },
+        mutation: this.meta(c, v),
+      };
     });
   }
   async createAdjustment(c: WorkforceContext, id: string, i: Record<string, unknown>, key: string) {
