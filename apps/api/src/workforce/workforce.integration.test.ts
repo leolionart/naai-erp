@@ -53,7 +53,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
         })
       ).statusCode,
     ).toBe(201);
-    await server.inject({
+    const rateCreated = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/cost-rates",
       headers: { ...headers, "idempotency-key": "rate" },
@@ -67,13 +67,19 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
         effectiveFrom: "2026-08-01",
       },
     });
-    await server.inject({
+    expect(rateCreated.statusCode, rateCreated.body).toBe(201);
+    const rateApproved = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/cost-rates/rate/approve",
       headers: { ...reviewerHeaders, "idempotency-key": "rate-approve" },
-      payload: { schemaVersion: 1, expectedResourceVersion: "1", reason: "Approved" },
+      payload: {
+        schemaVersion: 1,
+        expectedResourceVersion: rateCreated.json().data.resource.resourceVersion,
+        reason: "Approved",
+      },
     });
-    await server.inject({
+    expect(rateApproved.statusCode, rateApproved.body).toBe(201);
+    const timesheetCreated = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/capacity-versions",
       headers: { ...headers, "idempotency-key": "capacity" },
@@ -87,7 +93,8 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
         reason: "Standard",
       },
     });
-    await server.inject({
+    expect(timesheetCreated.statusCode, timesheetCreated.body).toBe(201);
+    const submitted = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets",
       headers: { ...headers, "idempotency-key": "ts" },
@@ -115,15 +122,24 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/submit",
       headers: { ...headers, "idempotency-key": "submit" },
-      payload: { schemaVersion: 1, expectedResourceVersion: "1", reason: "Submit" },
+      payload: {
+        schemaVersion: 1,
+        expectedResourceVersion: timesheetCreated.json().data.resource.resourceVersion,
+        reason: "Submit",
+      },
     });
+    expect(submitted.statusCode, submitted.body).toBe(201);
     const approved = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/approve",
       headers: { ...reviewerHeaders, "idempotency-key": "approve" },
-      payload: { schemaVersion: 1, expectedResourceVersion: "2", reason: "Approve" },
+      payload: {
+        schemaVersion: 1,
+        expectedResourceVersion: submitted.json().data.resource.resourceVersion,
+        reason: "Approve",
+      },
     });
-    expect(approved.statusCode).toBe(201);
+    expect(approved.statusCode, approved.body).toBe(201);
     const detail = await server.inject({
       method: "GET",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts",
