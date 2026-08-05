@@ -7,4 +7,5 @@
 - `pnpm db:check` — migration directory valid with migration `0009_glorious_william_stryker.sql`.
 - `git diff --check` — passed.
 
-Local PostgreSQL was unavailable (`ECONNREFUSED localhost:5432`), so empty-database migration and ERP-240 API/PostgreSQL integration are pending exact-commit GitHub CI.
+Exact-commit GitHub CI passed the empty-database migration, database integration and API/PostgreSQL suites for `0135312bc55167610bb7bcd39c9157ad20b2b91c`:
+https://github.com/leolionart/naai-erp/actions/runs/30990167332

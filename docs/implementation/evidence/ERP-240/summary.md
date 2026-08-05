@@ -10,3 +10,5 @@ Implemented the core ledger reporting and opening-balance import slice.
 - GF-LEDGER-001 is a manually reviewed VND oracle with immutable hashes, cumulative movements of 709m/709m and closing-side Trial Balance of 535m/535m.
 
 Start commit: `8556ef02d7fa52444c49a903fddbb596c47d5b4f`.
+Implementation commit: `0135312bc55167610bb7bcd39c9157ad20b2b91c`.
+Verified CI: https://github.com/leolionart/naai-erp/actions/runs/30990167332

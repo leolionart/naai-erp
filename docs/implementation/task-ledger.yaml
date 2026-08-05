@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:43:00+07:00
+updated_at: 2026-08-05T15:47:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G2
-current_task: ERP-240
+current_gate: G3
+current_task: ERP-300
 
 tasks:
   - id: ERP-000
@@ -308,7 +308,7 @@ tasks:
   - id: ERP-240
     title: Trial Balance General Ledger and opening balances
     phase: P2
-    status: review
+    status: done
     dependencies: [ERP-200, ERP-230]
     business_rules: [BR-RPT-001, BR-LED-005]
     tests: [T-RPT-001, T-GLD-001]
@@ -316,6 +316,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T15:34:00+07:00
     start_commit: 8556ef02d7fa52444c49a903fddbb596c47d5b4f
+    completed_at: 2026-08-05T15:47:00+07:00
+    implementation_commit: 0135312bc55167610bb7bcd39c9157ad20b2b91c
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/30990167332
     planned_files:
       - packages/domain/src/ledger-reports.ts
       - packages/domain/src/ledger-reports.test.ts
@@ -332,7 +335,7 @@ tasks:
   - id: ERP-300
     title: Sales and purchase documents
     phase: P3
-    status: blocked
+    status: ready
     dependencies: [G2]
     business_rules: [BR-INV-001, BR-INV-002, BR-AP-001, BR-AR-001]
     tests: [T-INV-001, T-INV-002, T-AP-001, T-AR-001]
@@ -632,8 +635,8 @@ gates:
 gate_status:
   G0: done
   G1: done
-  G2: in_progress
-  G3: blocked
+  G2: done
+  G3: in_progress
   G4: blocked
   G5: blocked
   G6: blocked

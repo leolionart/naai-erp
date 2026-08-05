@@ -7,4 +7,7 @@
 - AI-native contract: versioned org-scoped REST/OpenAPI and first-party CLI cover reports plus opening-balance create/read/dry-run.
 - Independent oracle: GF-LEDGER-001 proves 535,000,000 VND closing debit equals 535,000,000 VND closing credit and preserves reversed original history.
 
-Final acceptance and Gate G2 remain pending exact-commit PostgreSQL CI.
+Final acceptance passed on implementation commit `0135312bc55167610bb7bcd39c9157ad20b2b91c`.
+
+- Exact-commit PostgreSQL CI: https://github.com/leolionart/naai-erp/actions/runs/30990167332
+- Gate G2: passed; ERP-300 is now ready.
