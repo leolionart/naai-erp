@@ -965,11 +965,11 @@ export class PgReconciliationStore implements ReconciliationStore {
       [org, id],
     );
     if (!result.rows[0]) throw new Error("RECONCILIATION_TARGET_INVALID");
-    const over = await c.query<{ over: boolean }>(
-      `select exists(select 1 from reconciliation_allocations a where a.organization_id=$1 and a.reconciliation_id=$2 and a.id=$3 and a.target_amount_minor > (select ${table === "commercial_documents" ? "gross_minor" : "gross_minor"} from ${table} where organization_id=$1 and id=$4)) over`,
+    const over = await c.query<{ overallocated: boolean }>(
+      `select exists(select 1 from reconciliation_allocations a where a.organization_id=$1 and a.reconciliation_id=$2 and a.id=$3 and a.target_amount_minor > (select ${table === "commercial_documents" ? "gross_minor" : "gross_minor"} from ${table} where organization_id=$1 and id=$4)) as overallocated`,
       [org, attemptId, (allocation as { id?: string }).id ?? "", id],
     );
-    if (over.rows[0]?.over) throw new Error("RECONCILIATION_OVERALLOCATION");
+    if (over.rows[0]?.overallocated) throw new Error("RECONCILIATION_OVERALLOCATION");
   }
   private async activeAttempt(c: PoolClient, org: string, transactionId: string, state: string) {
     const result = await c.query<{
