@@ -5,4 +5,10 @@
 - CLI contract covers organization-scoped inbox list/read and privileged replay routing.
 - Migration adds organization/source idempotency, external-ID uniqueness, immutable raw fields and append-only attempts.
 
-Full local quality gates and exact-commit PostgreSQL CI remain required before ERP-330 is marked done.
+Exact-commit PostgreSQL CI passed at https://github.com/leolionart/naai-erp/actions/runs/30997337079:
+
+- `pnpm check`
+- `pnpm db:check`
+- empty-database migrations
+- database tests
+- API tests including 20 PostgreSQL integration tests

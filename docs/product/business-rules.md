@@ -477,6 +477,12 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Review queues show validation reason, source payload, mapping gaps and safe remediation actions.
 - Replay is explicit, authorized, idempotent and audited; UI never silently drops failed events.
 
+### BR-UI-003 — Operational UI parity
+
+- Mỗi module backend đã công bố là khả dụng phải có danh sách và thao tác nghiệp vụ chính trên admin UI; JSON console chỉ là công cụ nâng cao.
+- UI gọi cùng REST application services với CLI/AI và không được bỏ qua organization scope, RBAC, audit, idempotency, maker-checker hoặc period locks.
+- Trạng thái lỗi API phải hiển thị rõ; UI không được giả lập thành công khi mutation thất bại.
+
 ### BR-RPT-001 — Trial Balance and General Ledger
 
 - Trial Balance balances to zero net debit/credit difference.

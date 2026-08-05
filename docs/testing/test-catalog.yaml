@@ -459,6 +459,22 @@ tests:
     command: pnpm test:e2e --filter T-E2E-ERP-410-001
     blocking_gate: G4
 
+  - id: T-E2E-ERP-335-001
+    task: ERP-335
+    rules: [BR-UI-003]
+    title: Implemented modules expose list create and lifecycle controls
+    layer: e2e
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G3
+
+  - id: T-E2E-ERP-335-002
+    task: ERP-335
+    rules: [BR-UI-002, BR-UI-003]
+    title: Local admin renders operational navigation and webhook review workspace
+    layer: e2e
+    command: pnpm test:e2e --filter T-E2E-ERP-335-002
+    blocking_gate: G3
+
   - id: T-E2E-ERP-540-001
     aliases: [T-PRF-001]
     task: ERP-540

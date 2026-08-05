@@ -8,4 +8,4 @@
 - Admin inbox inspection and manual replay enforce organization scope, privileged roles, reason and audit.
 - OpenAPI and CLI expose machine-readable receipt, inspection and replay contracts.
 
-Final acceptance is pending exact-commit PostgreSQL integration CI.
+Final acceptance passed on commit `67cbb186cc224aaeea479c358012fa250b610a31` through exact-commit PostgreSQL integration CI.

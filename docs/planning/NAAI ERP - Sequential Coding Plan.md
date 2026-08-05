@@ -286,6 +286,13 @@ Infrastructure research, fixture preparation và UI shell có thể song song. K
 - Inbox, quarantine, retry/replay và dead-letter.
 - Invalid payload không tạo business document.
 
+### ERP-335 — Operational admin UI for implemented modules
+
+- UI nghiệp vụ cho master data, journals, invoices, expenses, evidence và inbound inbox.
+- Danh sách, filter, form tạo mới và action theo lifecycle; không yêu cầu nhập JSON cho luồng chính.
+- UI gọi REST v1 và giữ nguyên organization scope, RBAC, audit, idempotency và maker-checker.
+- Local dev preview hoạt động không cần build Docker.
+
 ### ERP-340 — Outbound event delivery
 
 - Transactional outbox.

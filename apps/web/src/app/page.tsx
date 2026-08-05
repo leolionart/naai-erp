@@ -1,6 +1,7 @@
-import { AdminConsole } from "./admin-console";
+import { ModuleWorkspace } from "./module-workspace";
 
-type ModuleKey = "overview" | "master-data" | "ledger" | "documents" | "expenses" | "evidence";
+type ModuleKey =
+  "overview" | "master-data" | "ledger" | "documents" | "expenses" | "evidence" | "integrations";
 
 const modules: ReadonlyArray<{
   key: ModuleKey | string;
@@ -13,7 +14,8 @@ const modules: ReadonlyArray<{
   { key: "ledger", label: "Sổ kế toán", icon: "book", status: "available" },
   { key: "documents", label: "Hóa đơn", icon: "invoice", status: "available" },
   { key: "expenses", label: "Chi phí", icon: "wallet", status: "available" },
-  { key: "evidence", label: "Chứng từ", icon: "paperclip", status: "building" },
+  { key: "evidence", label: "Chứng từ", icon: "paperclip", status: "available" },
+  { key: "integrations", label: "Webhook inbox", icon: "inbox", status: "available" },
   { key: "banking", label: "Ngân hàng", icon: "bank", status: "planned" },
   { key: "forecast", label: "Dự báo", icon: "trend", status: "planned" },
   { key: "reports", label: "Báo cáo", icon: "chart", status: "planned" },
@@ -102,7 +104,7 @@ const views: Record<
   },
   evidence: {
     title: "Chứng từ đính kèm",
-    eyebrow: "ERP-320 · Đang phát triển",
+    eyebrow: "ERP-320 · Verified",
     description:
       "PDF, XML và ảnh sẽ được version hóa, kiểm tra hash/MIME, phát hiện trùng và cấp signed download URL sau phân quyền.",
     features: [
@@ -113,6 +115,20 @@ const views: Record<
     ],
     endpoint: "POST /api/v1/organizations/:org/evidence",
     cli: "pnpm cli evidence upload --organization <org> --data '<json>'",
+  },
+  integrations: {
+    title: "Webhook inbox",
+    eyebrow: "ERP-330 · Verified",
+    description:
+      "Theo dõi dữ liệu hóa đơn và chi phí gửi vào qua webhook, kiểm tra trạng thái xử lý, lỗi mapping và replay có kiểm soát.",
+    features: [
+      "HMAC và replay protection",
+      "Inbox & quarantine",
+      "Idempotency theo source",
+      "Review và replay có audit",
+    ],
+    endpoint: "GET /api/v1/organizations/:org/inbound-events",
+    cli: "pnpm cli inbound-events list --organization <org>",
   },
 };
 
@@ -134,7 +150,9 @@ function Icon({ name }: { name: string }) {
                   ? "M4 20V10m6 10V4m6 16v-7M2 20h20"
                   : name === "paperclip"
                     ? "m8 12 5-5a3 3 0 0 1 4 4l-7 7a5 5 0 0 1-7-7l8-8"
-                    : "M3 6h7l2 2h9v11H3z";
+                    : name === "inbox"
+                      ? "M4 5h16v14H4zm0 9h4l2 3h4l2-3h4"
+                      : "M3 6h7l2 2h9v11H3z";
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d={path} />
@@ -206,9 +224,7 @@ export default async function HomePage({
             <h2>{view.title}</h2>
             <p>{view.description}</p>
           </div>
-          <span className={`status-pill ${active === "evidence" ? "building" : "ready"}`}>
-            {active === "evidence" ? "Đang làm" : "Có thể dùng qua API/CLI"}
-          </span>
+          <span className="status-pill ready">Có thể thao tác trên UI</span>
         </section>
 
         <section className="feature-grid" aria-label={`Tính năng ${view.title}`}>
@@ -262,13 +278,13 @@ export default async function HomePage({
             <b>Hoàn tất</b>
             <span>Invoice & expense</span>
             <b>Hoàn tất</b>
-            <span>Evidence management</span>
-            <b className="progress">Đang làm</b>
+            <span>Evidence & inbound webhooks</span>
+            <b>Hoàn tất</b>
             <span>Banking, forecast, reporting</span>
             <b className="muted">Theo task ledger</b>
           </div>
         </section>
-        <AdminConsole moduleKey={active} />
+        <ModuleWorkspace moduleKey={active} />
       </main>
     </div>
   );

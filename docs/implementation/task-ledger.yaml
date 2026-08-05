@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T17:10:00+07:00
+updated_at: 2026-08-05T17:29:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
-current_task: ERP-330
+current_task: ERP-335
 
 tasks:
   - id: ERP-000
@@ -416,7 +416,7 @@ tasks:
   - id: ERP-330
     title: Inbound API and webhooks
     phase: P3
-    status: review
+    status: done
     dependencies: [ERP-300, ERP-310]
     business_rules: [BR-INT-001, BR-INT-002, BR-INT-003]
     tests: [T-INT-001, T-INT-002, T-CON-001]
@@ -424,6 +424,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T17:10:00+07:00
     start_commit: 97bb4da88a89afcc5dab5b6ddf052cbf442a3523
+    completed_at: 2026-08-05T17:28:00+07:00
+    implementation_commit: 67cbb186cc224aaeea479c358012fa250b610a31
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/30997337079
     planned_files:
       - packages/domain/src/inbound-webhooks.ts
       - packages/domain/src/inbound-webhooks.test.ts
@@ -435,11 +438,28 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-330/
 
+  - id: ERP-335
+    title: Operational admin UI for implemented modules
+    phase: P3
+    status: in_progress
+    dependencies: [ERP-330]
+    business_rules: [BR-UI-003]
+    tests: [T-E2E-ERP-335-001, T-E2E-ERP-335-002]
+    evidence: docs/implementation/evidence/ERP-335/
+    agent: codex-root
+    started_at: 2026-08-05T17:29:00+07:00
+    start_commit: 67cbb186cc224aaeea479c358012fa250b610a31
+    planned_files:
+      - apps/web/src/app/
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-335/
+
   - id: ERP-340
     title: Outbound event delivery
     phase: P3
     status: blocked
-    dependencies: [ERP-330]
+    dependencies: [ERP-335]
     business_rules: [BR-OUT-001, BR-OUT-002]
     tests: [T-OUT-001, T-OUT-002]
 
@@ -695,7 +715,7 @@ gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
   G2: [ERP-200, ERP-210, ERP-220, ERP-230, ERP-240]
-  G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-340]
+  G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-335, ERP-340]
   G4: [ERP-400, ERP-410, ERP-420, ERP-430]
   G5: [ERP-500, ERP-510, ERP-520, ERP-530, ERP-540]
   G6: [ERP-600, ERP-610, ERP-620, ERP-630, ERP-640, ERP-650]

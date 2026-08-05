@@ -12,3 +12,6 @@ Implemented versioned inbound webhooks with exact raw-body HMAC validation, time
 - REST/OpenAPI and first-party CLI expose inbox inspection and authorized replay.
 
 Start commit: `97bb4da88a89afcc5dab5b6ddf052cbf442a3523`.
+
+Verified implementation commit: `67cbb186cc224aaeea479c358012fa250b610a31`.
+Exact-commit CI: https://github.com/leolionart/naai-erp/actions/runs/30997337079
