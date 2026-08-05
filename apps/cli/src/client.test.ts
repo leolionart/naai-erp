@@ -994,4 +994,83 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it.each([
+    ["project-budgets", "project-budgets"],
+    ["scope-changes", "scope-changes"],
+    ["recognition-policies", "recognition-policies"],
+    ["milestone-acceptances", "milestone-acceptances"],
+    ["revenue-recognition-events", "revenue-recognition-events"],
+  ])("lists %s through project economics APIs", async (resource, path) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(resource, "list", { projectId: "project-1" });
+    expect(fetchFn).toHaveBeenCalledWith(
+      `http://api/api/v1/organizations/org-a/${path}?projectId=project-1`,
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it.each([
+    ["project-budgets", "approve"],
+    ["scope-changes", "approve"],
+    ["recognition-policies", "retire"],
+    ["milestone-acceptances", "accept"],
+    ["revenue-recognition-events", "post"],
+  ])("calls %s %s with idempotency and optimistic version", async (resource, action) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      resource,
+      action,
+      { schemaVersion: 1, expectedResourceVersion: "2", reason: "Reviewed" },
+      "resource-1",
+      "2",
+      `${resource}-${action}`,
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      `http://api/api/v1/organizations/org-a/${resource}/resource-1/${action}`,
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "if-match": "2",
+          "idempotency-key": `${resource}-${action}`,
+        }),
+      }),
+    );
+  });
+
+  it("reads separate project revenue axes without combining recognized invoiced and collected", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("project-revenue-axes", "get", { asOf: "2026-08-31" }, "project-1");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/project-revenue-position/project-1?asOf=2026-08-31",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

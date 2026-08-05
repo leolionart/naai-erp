@@ -286,6 +286,55 @@ export const directCostAllocationState = pgEnum("direct_cost_allocation_state", 
   "posted",
   "reversed",
 ]);
+export const projectBudgetState = pgEnum("project_budget_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+  "superseded",
+]);
+export const projectBudgetKind = pgEnum("project_budget_kind", ["baseline", "revision"]);
+export const projectBudgetCategory = pgEnum("project_budget_category", [
+  "revenue",
+  "labor",
+  "freelancer",
+  "vendor",
+  "tool",
+  "travel",
+  "overhead",
+]);
+export const scopeChangeState = pgEnum("scope_change_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+]);
+export const recognitionPolicyMethod = pgEnum("recognition_policy_method", [
+  "milestone",
+  "percentage_of_completion",
+  "invoice",
+]);
+export const recognitionPolicyState = pgEnum("recognition_policy_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+  "superseded",
+]);
+export const milestoneAcceptanceState = pgEnum("milestone_acceptance_state", [
+  "draft",
+  "submitted",
+  "accepted",
+  "rejected",
+]);
+export const recognitionEventState = pgEnum("recognition_event_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "posted",
+  "reversed",
+  "rejected",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1303,6 +1352,315 @@ export const milestones = pgTable(
     }).onDelete("restrict"),
     check("milestones_amount_nonnegative", sql`${table.amountMinor} >= 0`),
     check("milestones_sequence_positive", sql`${table.sequence} > 0`),
+  ],
+);
+
+export const scopeChanges = pgTable(
+  "scope_changes",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    projectId: text("project_id").notNull(),
+    reason: text("reason").notNull(),
+    expectedRevenueImpactMinor: bigint("expected_revenue_impact_minor", {
+      mode: "bigint",
+    }).notNull(),
+    expectedCostImpactMinor: bigint("expected_cost_impact_minor", { mode: "bigint" }).notNull(),
+    expectedScheduleImpactDays: integer("expected_schedule_impact_days").notNull(),
+    evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull().default([]),
+    state: scopeChangeState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    foreignKey({
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "scope_changes_project_fk",
+    }).onDelete("restrict"),
+    check("scope_changes_reason", sql`btrim(${t.reason}) <> ''`),
+    check("scope_changes_version", sql`${t.version} > 0`),
+    index("scope_changes_project_state_idx").on(t.organizationId, t.projectId, t.state),
+  ],
+);
+
+export const projectBudgetVersions = pgTable(
+  "project_budget_versions",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    projectId: text("project_id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    kind: projectBudgetKind("kind").notNull(),
+    previousVersionId: text("previous_version_id"),
+    scopeChangeId: text("scope_change_id"),
+    currency: text("currency").notNull(),
+    effectiveOn: date("effective_on").notNull(),
+    state: projectBudgetState("state").notNull().default("draft"),
+    revenueTotalMinor: bigint("revenue_total_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    directCostTotalMinor: bigint("direct_cost_total_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    overheadTotalMinor: bigint("overhead_total_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    unique("project_budget_version_number_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.versionNumber,
+    ),
+    foreignKey({
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "project_budget_versions_project_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.previousVersionId],
+      foreignColumns: [t.organizationId, t.id],
+      name: "project_budget_versions_previous_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.scopeChangeId],
+      foreignColumns: [scopeChanges.organizationId, scopeChanges.id],
+      name: "project_budget_versions_scope_fk",
+    }).onDelete("restrict"),
+    check("project_budget_version_number", sql`${t.versionNumber} > 0`),
+    check("project_budget_version_resource_version", sql`${t.version} > 0`),
+    check("project_budget_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "project_budget_totals",
+      sql`${t.revenueTotalMinor} >= 0 and ${t.directCostTotalMinor} >= 0 and ${t.overheadTotalMinor} >= 0`,
+    ),
+    check(
+      "project_budget_revision_links",
+      sql`(${t.kind}='baseline' and ${t.previousVersionId} is null and ${t.scopeChangeId} is null) or (${t.kind}='revision' and ${t.previousVersionId} is not null and ${t.scopeChangeId} is not null)`,
+    ),
+    index("project_budget_project_state_idx").on(t.organizationId, t.projectId, t.state),
+  ],
+);
+
+export const projectBudgetLines = pgTable(
+  "project_budget_lines",
+  {
+    organizationId: text("organization_id").notNull(),
+    budgetVersionId: text("budget_version_id").notNull(),
+    id: text("id").notNull(),
+    category: projectBudgetCategory("category").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    serviceLineCode: text("service_line_code"),
+    milestoneId: text("milestone_id"),
+    note: text("note"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.budgetVersionId, t.id] }),
+    foreignKey({
+      columns: [t.organizationId, t.budgetVersionId],
+      foreignColumns: [projectBudgetVersions.organizationId, projectBudgetVersions.id],
+      name: "project_budget_lines_budget_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.milestoneId],
+      foreignColumns: [milestones.organizationId, milestones.id],
+      name: "project_budget_lines_milestone_fk",
+    }).onDelete("restrict"),
+    check("project_budget_line_amount", sql`${t.amountMinor} >= 0`),
+  ],
+);
+
+export const revenueRecognitionPolicies = pgTable(
+  "revenue_recognition_policies",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    projectId: text("project_id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    method: recognitionPolicyMethod("method").notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    currency: text("currency").notNull(),
+    contractValueMinor: bigint("contract_value_minor", { mode: "bigint" }).notNull(),
+    revenueAccountCode: text("revenue_account_code").notNull(),
+    contractAssetAccountCode: text("contract_asset_account_code").notNull(),
+    contractLiabilityAccountCode: text("contract_liability_account_code").notNull(),
+    evidenceRequired: boolean("evidence_required").notNull().default(true),
+    state: recognitionPolicyState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    unique("recognition_policy_project_version_unique").on(
+      t.organizationId,
+      t.projectId,
+      t.versionNumber,
+    ),
+    foreignKey({
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "recognition_policies_project_fk",
+    }).onDelete("restrict"),
+    check("recognition_policy_version_number", sql`${t.versionNumber} > 0`),
+    check("recognition_policy_version", sql`${t.version} > 0`),
+    check("recognition_policy_contract_value", sql`${t.contractValueMinor} >= 0`),
+    check("recognition_policy_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "recognition_policy_dates",
+      sql`${t.effectiveTo} is null or ${t.effectiveTo} >= ${t.effectiveFrom}`,
+    ),
+    index("recognition_policy_effective_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.state,
+      t.effectiveFrom,
+      t.effectiveTo,
+    ),
+  ],
+);
+
+export const milestoneAcceptances = pgTable(
+  "milestone_acceptances",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    milestoneId: text("milestone_id").notNull(),
+    acceptedAmountMinor: bigint("accepted_amount_minor", { mode: "bigint" }).notNull(),
+    effectiveOn: date("effective_on").notNull(),
+    evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull().default([]),
+    state: milestoneAcceptanceState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    acceptedBy: text("accepted_by"),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    foreignKey({
+      columns: [t.organizationId, t.milestoneId],
+      foreignColumns: [milestones.organizationId, milestones.id],
+      name: "milestone_acceptances_milestone_fk",
+    }).onDelete("restrict"),
+    check("milestone_acceptance_amount", sql`${t.acceptedAmountMinor} > 0`),
+    check("milestone_acceptance_reason", sql`btrim(${t.reason}) <> ''`),
+    check("milestone_acceptance_version", sql`${t.version} > 0`),
+    index("milestone_acceptance_state_idx").on(t.organizationId, t.milestoneId, t.state),
+  ],
+);
+
+export const revenueRecognitionEvents = pgTable(
+  "revenue_recognition_events",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    projectId: text("project_id").notNull(),
+    policyId: text("policy_id").notNull(),
+    policyVersionNumber: integer("policy_version_number").notNull(),
+    milestoneAcceptanceId: text("milestone_acceptance_id"),
+    effectiveOn: date("effective_on").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull().default([]),
+    policySnapshot: jsonb("policy_snapshot").$type<Record<string, unknown>>().notNull(),
+    state: recognitionEventState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    postedBy: text("posted_by"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    journalId: text("journal_id"),
+    reversedBy: text("reversed_by"),
+    reversedAt: timestamp("reversed_at", { withTimezone: true }),
+    reversalJournalId: text("reversal_journal_id"),
+    reversalReason: text("reversal_reason"),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    foreignKey({
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "recognition_events_project_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.policyId],
+      foreignColumns: [revenueRecognitionPolicies.organizationId, revenueRecognitionPolicies.id],
+      name: "recognition_events_policy_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.milestoneAcceptanceId],
+      foreignColumns: [milestoneAcceptances.organizationId, milestoneAcceptances.id],
+      name: "recognition_events_acceptance_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "recognition_events_journal_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.reversalJournalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "recognition_events_reversal_fk",
+    }).onDelete("restrict"),
+    check("recognition_event_amount", sql`${t.amountMinor} > 0`),
+    check("recognition_event_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+    check("recognition_event_reason", sql`btrim(${t.reason}) <> ''`),
+    check("recognition_event_version", sql`${t.version} > 0`),
+    index("recognition_events_project_effective_idx").on(
+      t.organizationId,
+      t.projectId,
+      t.effectiveOn,
+      t.state,
+    ),
   ],
 );
 
@@ -3430,6 +3788,12 @@ export const schema = {
   directCostAllocationSplits,
   contracts,
   milestones,
+  scopeChanges,
+  projectBudgetVersions,
+  projectBudgetLines,
+  revenueRecognitionPolicies,
+  milestoneAcceptances,
+  revenueRecognitionEvents,
   resourceVersions,
   apiIdempotencyRecords,
   resourceAuditEvents,

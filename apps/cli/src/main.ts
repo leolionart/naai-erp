@@ -135,15 +135,30 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                       ...(values.cursor ? { cursor: values.cursor } : {}),
                       ...(values.limit ? { limit: values.limit } : {}),
                     }
-                  : resource.startsWith("bank-")
+                  : [
+                        "project-budgets",
+                        "scope-changes",
+                        "recognition-policies",
+                        "milestone-acceptances",
+                        "revenue-recognition-events",
+                        "project-revenue-axes",
+                      ].includes(resource)
                     ? {
-                        ...(values["account-id"]
-                          ? { financialAccountId: values["account-id"] }
-                          : {}),
+                        ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
+                        ...(values["as-of"] ? { asOf: values["as-of"] } : {}),
+                        ...(values.status ? { state: values.status } : {}),
                         ...(values.from ? { from: values.from } : {}),
                         ...(values.to ? { to: values.to } : {}),
                       }
-                    : undefined;
+                    : resource.startsWith("bank-")
+                      ? {
+                          ...(values["account-id"]
+                            ? { financialAccountId: values["account-id"] }
+                            : {}),
+                          ...(values.from ? { from: values.from } : {}),
+                          ...(values.to ? { to: values.to } : {}),
+                        }
+                      : undefined;
     const result = await client.request(
       resource,
       action,

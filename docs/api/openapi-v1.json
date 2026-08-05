@@ -1373,6 +1373,212 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/scope-changes": {
+      "get": {
+        "operationId": "listScopeChanges",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["draft", "submitted", "approved", "rejected"] }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Scope-change queue; filter by projectId and state" }
+        }
+      },
+      "post": {
+        "operationId": "createScopeChange",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Create a scope change" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/scope-changes/{id}": {
+      "get": {
+        "operationId": "getScopeChange",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Scope-change detail" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/scope-changes/{id}/{action}": {
+      "post": {
+        "operationId": "transitionScopeChange",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Submit, approve, or reject" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-budgets": {
+      "get": {
+        "operationId": "listProjectBudgets",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Versioned project budgets" } }
+      },
+      "post": {
+        "operationId": "createProjectBudget",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Create baseline or revision" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-budgets/{id}": {
+      "get": {
+        "operationId": "getProjectBudget",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Budget detail and lines" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-budgets/{id}/{action}": {
+      "post": {
+        "operationId": "transitionProjectBudget",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Submit, approve, or reject" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/recognition-policies": {
+      "get": {
+        "operationId": "listRecognitionPolicies",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Effective-dated recognition policies" } }
+      },
+      "post": {
+        "operationId": "createRecognitionPolicy",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Create policy version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/recognition-policies/{id}": {
+      "get": {
+        "operationId": "getRecognitionPolicy",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Recognition policy detail" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/recognition-policies/{id}/{action}": {
+      "post": {
+        "operationId": "transitionRecognitionPolicy",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Submit, approve, or reject" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/milestone-acceptances": {
+      "get": {
+        "operationId": "listMilestoneAcceptances",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Milestone acceptance evidence" } }
+      },
+      "post": {
+        "operationId": "createMilestoneAcceptance",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Create acceptance" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/milestone-acceptances/{id}": {
+      "get": {
+        "operationId": "getMilestoneAcceptance",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Milestone acceptance detail" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/milestone-acceptances/{id}/{action}": {
+      "post": {
+        "operationId": "transitionMilestoneAcceptance",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Submit, accept, or reject" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/revenue-recognition-events": {
+      "get": {
+        "operationId": "listRevenueRecognitionEvents",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Recognition event ledger" } }
+      },
+      "post": {
+        "operationId": "createRevenueRecognitionEvent",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Create recognition event" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/revenue-recognition-events/{id}": {
+      "get": {
+        "operationId": "getRevenueRecognitionEvent",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Recognition event detail with journal links and policy snapshot"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/revenue-recognition-events/{id}/{action}": {
+      "post": {
+        "operationId": "transitionRevenueRecognitionEvent",
+        "tags": ["project-economics"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": { "description": "Submit, approve, post, reverse, or reject atomically" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-revenue-position/{projectId}": {
+      "get": {
+        "operationId": "getProjectRevenueAxes",
+        "tags": ["project-economics"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": { "description": "Independent recognized, invoiced, and collected axes" }
+        }
+      }
     }
   },
   "components": {

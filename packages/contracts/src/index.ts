@@ -141,3 +141,21 @@ export {
   type ProjectCostSourceContract,
   type ProjectCostSourceTypeContract,
 } from "./project-costs.js";
+export {
+  PROJECT_ECONOMICS_CONTRACT_VERSION,
+  type AcceptMilestoneRequest,
+  type CreateMilestoneAcceptanceRequest,
+  type CreateProjectBudgetVersionRequest,
+  type CreateRevenueRecognitionEventRequest,
+  type CreateRevenueRecognitionPolicyRequest,
+  type CreateScopeChangeRequest,
+  type MilestoneAcceptanceContract,
+  type ProjectBudgetLineContract,
+  type ProjectBudgetVersionContract,
+  type ProjectEconomicsMutationResult,
+  type ProjectEconomicsTransitionRequest,
+  type ProjectRevenueAxesContract,
+  type RevenueRecognitionEventContract,
+  type RevenueRecognitionPolicyContract,
+  type ScopeChangeContract,
+} from "./project-economics.js";

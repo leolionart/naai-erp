@@ -152,6 +152,14 @@ export const adminNavigation = [
         icon: "project",
         status: "available",
       },
+      {
+        key: "project-revenue",
+        label: "Ngân sách & doanh thu",
+        href: "/revenue-recognition",
+        description: "Budget, scope change, milestone và revenue recognition.",
+        icon: "forecast",
+        status: "available",
+      },
     ],
   },
   {

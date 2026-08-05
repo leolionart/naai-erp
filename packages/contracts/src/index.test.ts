@@ -5,6 +5,7 @@ import {
   BANKING_CONTROL_CONTRACT_VERSION,
   TIME_CONTRACT_VERSION,
   PROJECT_COST_CONTRACT_VERSION,
+  PROJECT_ECONOMICS_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -25,6 +26,9 @@ import {
   type CreateDirectCostAllocationRequest,
   type DirectCostAllocationContract,
   type ProjectCostItemContract,
+  type CreateRevenueRecognitionEventRequest,
+  type ProjectBudgetVersionContract,
+  type ProjectRevenueAxesContract,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
@@ -429,5 +433,60 @@ describe("AI-native API contracts", () => {
     };
     expect(allocation.source.basis).toBe("ledger");
     expect(item.drilldown.evidenceIds).toEqual(["evidence-1"]);
+  });
+
+  it("keeps budget history and recognized invoiced collected axes separate", () => {
+    const budget: ProjectBudgetVersionContract = {
+      id: "budget-1",
+      projectId: "project-1",
+      versionNumber: 1,
+      kind: "baseline",
+      currency: "VND",
+      effectiveOn: "2026-08-01",
+      state: "approved",
+      lines: [{ id: "revenue", category: "revenue", amountMinor: "1000" }],
+      revenueTotalMinor: "1000",
+      directCostTotalMinor: "0",
+      overheadTotalMinor: "0",
+      resourceVersion: "3",
+      nextActions: [],
+    };
+    const recognition: CreateRevenueRecognitionEventRequest = {
+      schemaVersion: PROJECT_ECONOMICS_CONTRACT_VERSION,
+      projectId: "project-1",
+      contractId: "contract-1",
+      milestoneId: "milestone-1",
+      policyVersionId: "policy-1",
+      milestoneAcceptanceId: "acceptance-1",
+      recognitionDate: "2026-08-15",
+      currency: "VND",
+      amountMinor: "500",
+      baseAmountMinor: "500",
+      accountingRoute: "deferred_revenue",
+      sourceEvidenceIds: ["acceptance-document"],
+      reason: "Recognize phase one",
+    };
+    const axes: ProjectRevenueAxesContract = {
+      projectId: "project-1",
+      startsOn: "2026-08-01",
+      endsOn: "2026-08-31",
+      currency: "VND",
+      recognizedNetMinor: recognition.amountMinor,
+      invoicedNetMinor: "1000",
+      collectedGrossMinor: "550",
+      collectedNetMinor: "500",
+      deferredRevenueMinor: "500",
+      contractAssetMinor: "0",
+      recognitionEventIds: ["event-1"],
+      invoiceIds: ["invoice-1"],
+      reconciliationIds: ["rec-1"],
+      journalIds: ["journal-1"],
+    };
+    expect(budget.revenueTotalMinor).toBe("1000");
+    expect(axes).toMatchObject({
+      recognizedNetMinor: "500",
+      invoicedNetMinor: "1000",
+      collectedGrossMinor: "550",
+    });
   });
 });

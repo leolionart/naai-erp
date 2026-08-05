@@ -61,6 +61,10 @@ import { ProjectCostController } from "./project-costs/project-cost.controller.j
 import { ProjectCostService } from "./project-costs/project-cost.service.js";
 import { PROJECT_COST_STORE } from "./project-costs/project-cost.types.js";
 import { PgProjectCostStore } from "./project-costs/pg-project-cost.store.js";
+import { ProjectRecognitionController } from "./project-recognition/project-recognition.controller.js";
+import { ProjectRecognitionService } from "./project-recognition/project-recognition.service.js";
+import { PROJECT_RECOGNITION_STORE } from "./project-recognition/project-recognition.types.js";
+import { PgProjectRecognitionStore } from "./project-recognition/pg-project-recognition.store.js";
 
 @Module({
   controllers: [
@@ -84,6 +88,7 @@ import { PgProjectCostStore } from "./project-costs/pg-project-cost.store.js";
     BankingControlController,
     WorkforceController,
     ProjectCostController,
+    ProjectRecognitionController,
   ],
   providers: [
     MasterDataService,
@@ -128,6 +133,9 @@ import { PgProjectCostStore } from "./project-costs/pg-project-cost.store.js";
     ProjectCostService,
     PgProjectCostStore,
     { provide: PROJECT_COST_STORE, useExisting: PgProjectCostStore },
+    ProjectRecognitionService,
+    PgProjectRecognitionStore,
+    { provide: PROJECT_RECOGNITION_STORE, useExisting: PgProjectRecognitionStore },
   ],
 })
 export class AppModule {}

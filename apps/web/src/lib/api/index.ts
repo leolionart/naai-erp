@@ -6,4 +6,5 @@ export * from "./internal-transfers";
 export * from "./statement-sessions";
 export * from "./time";
 export * from "./project-costs";
+export * from "./project-revenue";
 export * from "./types";
