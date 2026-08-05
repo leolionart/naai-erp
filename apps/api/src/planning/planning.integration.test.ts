@@ -24,7 +24,18 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
     });
   beforeAll(async () => {
     await pool.query(
-      `insert into organizations(id,legal_name,base_currency,timezone)values($1,'ERP600','VND','Asia/Ho_Chi_Minh');insert into users(id,email,display_name)values('maker600','maker600@example.com','Maker'),('checker600','checker600@example.com','Checker');insert into organization_memberships(organization_id,user_id)values($1,'maker600'),($1,'checker600');insert into membership_roles(organization_id,user_id,role)values($1,'maker600','finance_admin'),($1,'checker600','approver')`,
+      `insert into organizations(id,legal_name,base_currency,timezone) values($1,'ERP600','VND','Asia/Ho_Chi_Minh')`,
+      [org],
+    );
+    await pool.query(
+      `insert into users(id,email,display_name) values('maker600','maker600@example.com','Maker'),('checker600','checker600@example.com','Checker')`,
+    );
+    await pool.query(
+      `insert into organization_memberships(organization_id,user_id) values($1,'maker600'),($1,'checker600')`,
+      [org],
+    );
+    await pool.query(
+      `insert into membership_roles(organization_id,user_id,role) values($1,'maker600','finance_admin'),($1,'checker600','approver')`,
       [org],
     );
     for (const [id, actor, token, roles] of [
