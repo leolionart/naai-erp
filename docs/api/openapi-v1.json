@@ -1579,6 +1579,136 @@
           "200": { "description": "Independent recognized, invoiced, and collected axes" }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-allocation-policies": {
+      "get": {
+        "operationId": "listOverheadAllocationPolicies",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "state", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Versioned overhead policies" } }
+      },
+      "post": {
+        "operationId": "createOverheadAllocationPolicy",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create revenue, labor-hours, headcount, fixed-percentage, or manual policy"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-allocation-policies/{id}": {
+      "get": {
+        "operationId": "getOverheadAllocationPolicy",
+        "tags": ["overhead-allocations"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Policy version detail" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-allocation-policies/{id}/{action}": {
+      "post": {
+        "operationId": "transitionOverheadAllocationPolicy",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Submit, approve, or reject policy" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-source-pools": {
+      "get": {
+        "operationId": "listOverheadSourcePools",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "periodStart",
+            "in": "query",
+            "schema": { "type": "string", "format": "date" }
+          },
+          { "name": "periodEnd", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Overhead source pools and exclusivity state" } }
+      },
+      "post": {
+        "operationId": "createOverheadSourcePool",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": { "description": "Claim overhead-reserved cost sources for an open period" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-source-pools/{id}": {
+      "get": {
+        "operationId": "getOverheadSourcePool",
+        "tags": ["overhead-allocations"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Pool detail and claimed sources" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-allocation-runs": {
+      "get": {
+        "operationId": "listOverheadAllocationRuns",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "periodStart",
+            "in": "query",
+            "schema": { "type": "string", "format": "date" }
+          },
+          { "name": "periodEnd", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Allocation run queue" } }
+      },
+      "post": {
+        "operationId": "createOverheadAllocationRun",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": { "description": "Generate deterministic project splits from the policy basis" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-allocation-runs/{id}": {
+      "get": {
+        "operationId": "getOverheadAllocationRun",
+        "tags": ["overhead-allocations"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": { "description": "Run detail, immutable basis snapshot, and splits" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/overhead-allocation-runs/{id}/{action}": {
+      "post": {
+        "operationId": "transitionOverheadAllocationRun",
+        "tags": ["overhead-allocations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": { "description": "Submit, approve, post, reverse, or reject in an open period" }
+        }
+      }
     }
   },
   "components": {

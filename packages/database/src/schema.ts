@@ -335,6 +335,30 @@ export const recognitionEventState = pgEnum("recognition_event_state", [
   "reversed",
   "rejected",
 ]);
+export const overheadAllocationMethod = pgEnum("overhead_allocation_method", [
+  "revenue",
+  "labor_hours",
+  "headcount",
+  "fixed_percentage",
+  "manual",
+]);
+export const overheadCostClass = pgEnum("overhead_cost_class", ["variable", "fixed"]);
+export const overheadPolicyState = pgEnum("overhead_policy_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+  "superseded",
+]);
+export const overheadPoolState = pgEnum("overhead_pool_state", ["ready", "allocated", "reversed"]);
+export const overheadRunState = pgEnum("overhead_run_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "posted",
+  "reversed",
+  "rejected",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1661,6 +1685,224 @@ export const revenueRecognitionEvents = pgTable(
       t.effectiveOn,
       t.state,
     ),
+  ],
+);
+
+export const overheadAllocationPolicies = pgTable(
+  "overhead_allocation_policies",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    policyCode: text("policy_code").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    name: text("name").notNull(),
+    method: overheadAllocationMethod("method").notNull(),
+    costClass: overheadCostClass("cost_class").notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull().default({}),
+    state: overheadPolicyState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    unique("overhead_policy_code_version_unique").on(
+      t.organizationId,
+      t.policyCode,
+      t.versionNumber,
+    ),
+    check("overhead_policy_code", sql`btrim(${t.policyCode}) <> ''`),
+    check("overhead_policy_name", sql`btrim(${t.name}) <> ''`),
+    check("overhead_policy_version_number", sql`${t.versionNumber} > 0`),
+    check("overhead_policy_version", sql`${t.version} > 0`),
+    check(
+      "overhead_policy_dates",
+      sql`${t.effectiveTo} is null or ${t.effectiveTo} >= ${t.effectiveFrom}`,
+    ),
+    index("overhead_policy_effective_idx").on(
+      t.organizationId,
+      t.policyCode,
+      t.state,
+      t.effectiveFrom,
+      t.effectiveTo,
+    ),
+  ],
+);
+
+export const overheadSourcePools = pgTable(
+  "overhead_source_pools",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    policyId: text("policy_id").notNull(),
+    policyVersionNumber: integer("policy_version_number").notNull(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    currency: text("currency").notNull(),
+    sourceAmountMinor: bigint("source_amount_minor", { mode: "bigint" }).notNull(),
+    sourceBaseAmountMinor: bigint("source_base_amount_minor", { mode: "bigint" }).notNull(),
+    state: overheadPoolState("state").notNull().default("ready"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    foreignKey({
+      columns: [t.organizationId, t.policyId],
+      foreignColumns: [overheadAllocationPolicies.organizationId, overheadAllocationPolicies.id],
+      name: "overhead_source_pools_policy_fk",
+    }).onDelete("restrict"),
+    check("overhead_pool_period", sql`${t.periodEnd} >= ${t.periodStart}`),
+    check("overhead_pool_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "overhead_pool_amount",
+      sql`${t.sourceAmountMinor} > 0 and ${t.sourceBaseAmountMinor} > 0`,
+    ),
+    check("overhead_pool_reason", sql`btrim(${t.reason}) <> ''`),
+    check("overhead_pool_version", sql`${t.version} > 0`),
+    index("overhead_pool_period_idx").on(t.organizationId, t.periodStart, t.periodEnd, t.state),
+  ],
+);
+
+export const overheadSourcePoolItems = pgTable(
+  "overhead_source_pool_items",
+  {
+    organizationId: text("organization_id").notNull(),
+    poolId: text("pool_id").notNull(),
+    sourceCostItemId: text("source_cost_item_id").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.poolId, t.sourceCostItemId] }),
+    unique("overhead_source_item_exclusive").on(t.organizationId, t.sourceCostItemId),
+    foreignKey({
+      columns: [t.organizationId, t.poolId],
+      foreignColumns: [overheadSourcePools.organizationId, overheadSourcePools.id],
+      name: "overhead_pool_items_pool_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.sourceCostItemId],
+      foreignColumns: [projectCostItems.organizationId, projectCostItems.id],
+      name: "overhead_pool_items_cost_fk",
+    }).onDelete("restrict"),
+    check("overhead_pool_item_amount", sql`${t.amountMinor} > 0 and ${t.baseAmountMinor} > 0`),
+  ],
+);
+
+export const overheadAllocationRuns = pgTable(
+  "overhead_allocation_runs",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    poolId: text("pool_id").notNull(),
+    policyId: text("policy_id").notNull(),
+    policyVersionNumber: integer("policy_version_number").notNull(),
+    method: overheadAllocationMethod("method").notNull(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    currency: text("currency").notNull(),
+    allocatableAmountMinor: bigint("allocatable_amount_minor", { mode: "bigint" }).notNull(),
+    basisSnapshot: jsonb("basis_snapshot").$type<readonly Record<string, unknown>[]>().notNull(),
+    policySnapshot: jsonb("policy_snapshot").$type<Record<string, unknown>>().notNull(),
+    state: overheadRunState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    postedBy: text("posted_by"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    journalId: text("journal_id"),
+    reversedBy: text("reversed_by"),
+    reversedAt: timestamp("reversed_at", { withTimezone: true }),
+    reversalJournalId: text("reversal_journal_id"),
+    reversalReason: text("reversal_reason"),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.id] }),
+    unique("overhead_run_pool_unique").on(t.organizationId, t.poolId),
+    foreignKey({
+      columns: [t.organizationId, t.poolId],
+      foreignColumns: [overheadSourcePools.organizationId, overheadSourcePools.id],
+      name: "overhead_runs_pool_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.policyId],
+      foreignColumns: [overheadAllocationPolicies.organizationId, overheadAllocationPolicies.id],
+      name: "overhead_runs_policy_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "overhead_runs_journal_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.reversalJournalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "overhead_runs_reversal_fk",
+    }).onDelete("restrict"),
+    check("overhead_run_period", sql`${t.periodEnd} >= ${t.periodStart}`),
+    check("overhead_run_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
+    check("overhead_run_amount", sql`${t.allocatableAmountMinor} > 0`),
+    check("overhead_run_version", sql`${t.version} > 0`),
+    check("overhead_run_reason", sql`btrim(${t.reason}) <> ''`),
+    index("overhead_run_period_state_idx").on(
+      t.organizationId,
+      t.periodStart,
+      t.periodEnd,
+      t.state,
+    ),
+  ],
+);
+
+export const overheadAllocationSplits = pgTable(
+  "overhead_allocation_splits",
+  {
+    organizationId: text("organization_id").notNull(),
+    runId: text("run_id").notNull(),
+    projectId: text("project_id").notNull(),
+    basisValue: bigint("basis_value", { mode: "bigint" }).notNull(),
+    basisTotal: bigint("basis_total", { mode: "bigint" }).notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    roundingRank: integer("rounding_rank").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.runId, t.projectId] }),
+    foreignKey({
+      columns: [t.organizationId, t.runId],
+      foreignColumns: [overheadAllocationRuns.organizationId, overheadAllocationRuns.id],
+      name: "overhead_splits_run_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [t.organizationId, t.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "overhead_splits_project_fk",
+    }).onDelete("restrict"),
+    check("overhead_split_basis", sql`${t.basisValue} >= 0 and ${t.basisTotal} > 0`),
+    check("overhead_split_amount", sql`${t.amountMinor} >= 0`),
+    check("overhead_split_rank", sql`${t.roundingRank} > 0`),
   ],
 );
 
@@ -3794,6 +4036,11 @@ export const schema = {
   revenueRecognitionPolicies,
   milestoneAcceptances,
   revenueRecognitionEvents,
+  overheadAllocationPolicies,
+  overheadSourcePools,
+  overheadSourcePoolItems,
+  overheadAllocationRuns,
+  overheadAllocationSplits,
   resourceVersions,
   apiIdempotencyRecords,
   resourceAuditEvents,

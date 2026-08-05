@@ -65,6 +65,14 @@ import { ProjectRecognitionController } from "./project-recognition/project-reco
 import { ProjectRecognitionService } from "./project-recognition/project-recognition.service.js";
 import { PROJECT_RECOGNITION_STORE } from "./project-recognition/project-recognition.types.js";
 import { PgProjectRecognitionStore } from "./project-recognition/pg-project-recognition.store.js";
+import {
+  OverheadPolicyController,
+  OverheadRunController,
+  OverheadSourcePoolController,
+} from "./overhead-allocations/overhead-allocation.controller.js";
+import { OverheadAllocationService } from "./overhead-allocations/overhead-allocation.service.js";
+import { OVERHEAD_ALLOCATION_STORE } from "./overhead-allocations/overhead-allocation.types.js";
+import { PgOverheadAllocationStore } from "./overhead-allocations/pg-overhead-allocation.store.js";
 
 @Module({
   controllers: [
@@ -89,6 +97,9 @@ import { PgProjectRecognitionStore } from "./project-recognition/pg-project-reco
     WorkforceController,
     ProjectCostController,
     ProjectRecognitionController,
+    OverheadPolicyController,
+    OverheadSourcePoolController,
+    OverheadRunController,
   ],
   providers: [
     MasterDataService,
@@ -136,6 +147,9 @@ import { PgProjectRecognitionStore } from "./project-recognition/pg-project-reco
     ProjectRecognitionService,
     PgProjectRecognitionStore,
     { provide: PROJECT_RECOGNITION_STORE, useExisting: PgProjectRecognitionStore },
+    OverheadAllocationService,
+    PgOverheadAllocationStore,
+    { provide: OVERHEAD_ALLOCATION_STORE, useExisting: PgOverheadAllocationStore },
   ],
 })
 export class AppModule {}
