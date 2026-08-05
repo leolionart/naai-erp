@@ -1,0 +1,5 @@
+reconciliation_id,attempt_number,bank_transaction_id,target_type,target_id,statement_amount_minor,target_amount_minor,outstanding_before_minor,outstanding_after_minor
+REC-RECEIPT-60M,1,BANK-RECEIPT-60M,sales_invoice,SALES-110M,60000000,60000000,110000000,50000000
+REC-RECEIPT-50M,1,BANK-RECEIPT-50M,sales_invoice,SALES-110M,50000000,50000000,50000000,0
+REC-PAYMENT-110M,1,BANK-PAYMENT-110M,purchase_invoice,PURCHASE-109M,109000000,109000000,109000000,0
+REC-PAYMENT-110M,1,BANK-PAYMENT-110M,bank_fee,642-BANK-FEE,1000000,1000000,1000000,0

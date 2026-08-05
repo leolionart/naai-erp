@@ -23,7 +23,7 @@ describe("ERP-400 banking admin workspace", () => {
   it("renders the operational account and imported transaction surfaces", () => {
     const html = renderToStaticMarkup(<BankingWorkspace />);
     expect(html).toContain("Tài khoản ngân hàng và tiền mặt");
-    expect(html).toContain("Giao dịch đã import");
+    expect(html).toContain("Hàng chờ đối soát");
     expect(html).toContain("Import CSV");
     expect(html).not.toContain("Đối soát giao dịch");
   });

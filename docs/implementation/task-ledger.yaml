@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T19:49:54+07:00
+updated_at: 2026-08-05T21:07:06+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G4
@@ -561,10 +561,30 @@ tasks:
   - id: ERP-410
     title: Reconciliation
     phase: P4
-    status: ready
+    status: review
     dependencies: [ERP-400]
     business_rules: [BR-REC-001, BR-REC-002, BR-REC-003]
     tests: [T-REC-001, T-REC-002, T-REC-P001]
+    evidence: docs/implementation/evidence/ERP-410/
+    agent: codex-root
+    started_at: 2026-08-05T19:54:21+07:00
+    start_commit: b13f3979c563923d7d4f9c59d4d80859cddb4900
+    planned_files:
+      - packages/domain/src/reconciliation.ts
+      - packages/domain/src/reconciliation.test.ts
+      - packages/contracts/src/
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/reconciliation/
+      - apps/api/src/banking/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/banking/reconciliation/
+      - apps/web/src/app/workspaces/
+      - tests/fixtures/golden/GF-BANK-001/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-410/
 
   - id: ERP-420
     title: Internal transfers

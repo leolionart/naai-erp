@@ -216,6 +216,14 @@ All overlays require a title. Privileged actions show resource, amount, current/
 
 ## Page conventions
 
+### Workflow routing
+
+- A list/module page owns discovery, filters, compact summaries and entry actions; it must not become a single-page container for every workflow state.
+- Multi-step financial work, allocation editors, reconciliation, journal review and drill-down use dedicated detail routes with stable URLs.
+- Dialog handles a short bounded form; Sheet handles contextual review or filters; AlertDialog handles destructive/privileged confirmation with reason.
+- Every backend module exposed as usable must be linked from the permission-aware navigation or from a visible parent-module workflow.
+- New task evidence and E2E tests must prove both route reachability and the primary modal/sheet/detail-page interaction.
+
 ### List page
 
 1. Breadcrumb/title/status and primary action.

@@ -315,4 +315,40 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       ),
     ).rejects.toThrow();
   });
+
+  it("preserves ERP-410 reconciliation attempt history and one active attempt", async () => {
+    await pool!.query(`
+      insert into reconciliation_candidate_runs
+        (organization_id,id,bank_transaction_id,algorithm_version,threshold_bps,ambiguity_margin_bps,created_by,correlation_id)
+      values ('org-a','candidate-run-db-1','bank-txn-db-1',1,7000,1000,'user-a','corr-rec-db');
+      insert into payment_reconciliations
+        (organization_id,id,bank_transaction_id,direction,statement_amount_minor,statement_currency,current_attempt_number,created_by)
+      values ('org-a','reconciliation-db-1','bank-txn-db-1','receipt',100,'VND',1,'user-a');
+      insert into reconciliation_attempts
+        (organization_id,id,reconciliation_id,attempt_number,bank_transaction_id,state,bank_amount_minor,bank_currency,
+         base_amount_minor,candidate_run_id,policy_version,candidate_generation,created_by)
+      values ('org-a','attempt-db-1','reconciliation-db-1',1,'bank-txn-db-1','matched',100,'VND',100,
+              'candidate-run-db-1',1,1,'user-a');
+      insert into reconciliation_events
+        (organization_id,id,reconciliation_id,bank_transaction_id,action,from_state,to_state,actor_id,reason,correlation_id)
+      values ('org-a','reconciliation-event-db-1','attempt-db-1','bank-txn-db-1','match','suggested','matched','user-a','Matched','corr-rec-db');
+    `);
+    await expect(
+      pool!.query(`insert into reconciliation_attempts
+        (organization_id,id,reconciliation_id,attempt_number,bank_transaction_id,state,bank_amount_minor,bank_currency,
+         base_amount_minor,candidate_run_id,policy_version,candidate_generation,created_by)
+        values ('org-a','attempt-db-2','reconciliation-db-1',2,'bank-txn-db-1','matched',100,'VND',100,
+                'candidate-run-db-1',1,1,'user-a')`),
+    ).rejects.toMatchObject({ code: "23505" });
+    await expect(
+      pool!.query(
+        "update reconciliation_candidate_runs set threshold_bps=1 where organization_id='org-a' and id='candidate-run-db-1'",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      pool!.query(
+        "delete from reconciliation_events where organization_id='org-a' and id='reconciliation-event-db-1'",
+      ),
+    ).rejects.toThrow();
+  });
 });

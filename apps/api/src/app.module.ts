@@ -35,6 +35,10 @@ import { BankingController } from "./banking/banking.controller.js";
 import { BankingService } from "./banking/banking.service.js";
 import { BANKING_STORE } from "./banking/banking.types.js";
 import { PgBankingStore } from "./banking/pg-banking.store.js";
+import { ReconciliationController } from "./reconciliation/reconciliation.controller.js";
+import { ReconciliationService } from "./reconciliation/reconciliation.service.js";
+import { RECONCILIATION_STORE } from "./reconciliation/reconciliation.types.js";
+import { PgReconciliationStore } from "./reconciliation/pg-reconciliation.store.js";
 
 @Module({
   controllers: [
@@ -50,6 +54,7 @@ import { PgBankingStore } from "./banking/pg-banking.store.js";
     InboundWebhookController,
     OutboundEventController,
     BankingController,
+    ReconciliationController,
   ],
   providers: [
     MasterDataService,
@@ -76,6 +81,9 @@ import { PgBankingStore } from "./banking/pg-banking.store.js";
     BankingService,
     PgBankingStore,
     { provide: BANKING_STORE, useExisting: PgBankingStore },
+    ReconciliationService,
+    PgReconciliationStore,
+    { provide: RECONCILIATION_STORE, useExisting: PgReconciliationStore },
   ],
 })
 export class AppModule {}

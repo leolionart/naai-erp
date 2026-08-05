@@ -1,0 +1,8 @@
+journal_id,line_number,side,account_code,amount_minor,source_type,source_id
+J-RECEIPT-60M,1,debit,1121-BANK,60000000,bank_transaction,BANK-RECEIPT-60M
+J-RECEIPT-60M,2,credit,131-AR,60000000,sales_invoice,SALES-110M
+J-RECEIPT-50M,1,debit,1121-BANK,50000000,bank_transaction,BANK-RECEIPT-50M
+J-RECEIPT-50M,2,credit,131-AR,50000000,sales_invoice,SALES-110M
+J-PAYMENT-110M,1,debit,331-AP,109000000,purchase_invoice,PURCHASE-109M
+J-PAYMENT-110M,2,debit,642-BANK-FEE,1000000,adjustment,bank_fee
+J-PAYMENT-110M,3,credit,1121-BANK,110000000,bank_transaction,BANK-PAYMENT-110M

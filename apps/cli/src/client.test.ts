@@ -423,4 +423,77 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it("reads explainable reconciliation candidates", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { candidates: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("bank-transactions", "candidates", undefined, "txn-1");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/transactions/txn-1/candidates",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it.each(["suggest", "match", "reconcile", "unreconcile"])(
+    "calls bank transaction %s with idempotency through the controlled reconciliation API",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "bank-transactions",
+        action,
+        { schemaVersion: 1, reason: "Reviewed" },
+        "txn-1",
+        undefined,
+        `rec-${action}-1`,
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/banking/transactions/txn-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({ "idempotency-key": `rec-${action}-1` }),
+        }),
+      );
+    },
+  );
+
+  it("lists and reads reconciliation drill-down without direct database access", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: { items: [] } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("reconciliations", "list");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/reconciliations",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("reconciliations", "get", undefined, "rec-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/reconciliations/rec-1",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

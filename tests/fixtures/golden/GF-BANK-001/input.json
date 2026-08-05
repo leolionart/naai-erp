@@ -1,0 +1,38 @@
+{
+  "fixtureId": "GF-BANK-001",
+  "organizationId": "ORG-GF-BANK",
+  "currency": "VND",
+  "bankLedgerAccountCode": "1121-BANK",
+  "salesInvoice": {
+    "id": "SALES-110M",
+    "controlAccountCode": "131-AR",
+    "grossMinor": "110000000",
+    "evidenceId": "EVD-SALES-110M"
+  },
+  "receipts": [
+    {
+      "transactionId": "BANK-RECEIPT-60M",
+      "bookingDate": "2026-02-05",
+      "amountMinor": "60000000"
+    },
+    {
+      "transactionId": "BANK-RECEIPT-50M",
+      "bookingDate": "2026-02-12",
+      "amountMinor": "50000000"
+    }
+  ],
+  "purchaseInvoice": {
+    "id": "PURCHASE-109M",
+    "controlAccountCode": "331-AP",
+    "outstandingMinor": "109000000",
+    "evidenceId": "EVD-PURCHASE-109M"
+  },
+  "supplierPayment": {
+    "transactionId": "BANK-PAYMENT-110M",
+    "bookingDate": "2026-02-15",
+    "amountMinor": "-110000000",
+    "principalMinor": "109000000",
+    "bankFeeMinor": "1000000",
+    "bankFeeAccountCode": "642-BANK-FEE"
+  }
+}

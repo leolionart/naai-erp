@@ -64,7 +64,12 @@
     "banking/imports/dry-run",
     "banking/imports/create",
     "banking/transactions/ignore",
-    "banking/transactions/mark-needs-review"
+    "banking/transactions/mark-needs-review",
+    "banking/transactions/candidates",
+    "banking/transactions/suggest",
+    "banking/transactions/match",
+    "banking/transactions/reconcile",
+    "banking/transactions/unreconcile"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -313,6 +318,41 @@
     "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/mark-needs-review": {
       "post": {
         "summary": "Move a transaction to the audited needs-review branch without matching or reconciling it"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/candidates": {
+      "get": {
+        "summary": "Read explainable integer-bps reconciliation candidates and the versioned auto-match decision"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/suggest": {
+      "post": {
+        "summary": "Generate and persist a versioned candidate score snapshot without creating accounting effects"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/match": {
+      "post": {
+        "summary": "Create an idempotent append-only match attempt with exact partial allocations and explicit fee FX or suspense adjustments"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/reconcile": {
+      "post": {
+        "summary": "Atomically post or link the balanced payment journal lock allocations and expose source evidence drill-down"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/unreconcile": {
+      "post": {
+        "summary": "Privileged audited unreconcile with immutable prior attempt and required payment-journal reversal"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/reconciliations": {
+      "get": {
+        "summary": "List organization-scoped reconciliation attempts with statement and base exact string amounts"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/reconciliations/{reconciliationId}": {
+      "get": {
+        "summary": "Read bank transaction to allocations payment journal source documents and authorized evidence drill-down"
       }
     },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {

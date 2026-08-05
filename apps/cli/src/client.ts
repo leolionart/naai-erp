@@ -35,9 +35,14 @@ export class NaaiErpClient {
     const isBankAccount = resource === "bank-accounts";
     const isBankImport = resource === "bank-imports";
     const isBankTransaction = resource === "bank-transactions";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isReconciliation = resource === "reconciliations";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
-      action === "list" || action === "get" || action === "export" || isReport
+      action === "list" ||
+      action === "get" ||
+      action === "export" ||
+      (isBankTransaction && action === "candidates") ||
+      isReport
         ? "GET"
         : action === "update"
           ? "PATCH"
@@ -60,35 +65,40 @@ export class NaaiErpClient {
                   ? `${base}/dry-run`
                   : isBankTransaction && ["ignore", "mark-needs-review"].includes(action)
                     ? `${base}/${key}/${action}`
-                    : isEvidence && ["review", "download-url"].includes(action)
+                    : isBankTransaction &&
+                        ["candidates", "suggest", "match", "reconcile", "unreconcile"].includes(
+                          action,
+                        )
                       ? `${base}/${key}/${action}`
-                      : isInboundEvent && action === "replay"
-                        ? `${base}/${key}/replay`
-                        : isOutboundEvent && action === "replay"
+                      : isEvidence && ["review", "download-url"].includes(action)
+                        ? `${base}/${key}/${action}`
+                        : isInboundEvent && action === "replay"
                           ? `${base}/${key}/replay`
-                          : isExpense &&
-                              [
-                                "submit",
-                                "mark-evidence-pending",
-                                "review",
-                                "approve",
-                                "reject",
-                                "post",
-                              ].includes(action)
-                            ? `${base}/${key}/${action}`
-                            : isReport
-                              ? `${base}/${action}`
-                              : isOpeningBalance && action === "dry-run"
-                                ? `${base}/dry-run`
-                                : isPeriodWorkflow
-                                  ? `${base}/${action}`
-                                  : action === "deactivate"
-                                    ? `${base}/${key}/deactivate`
-                                    : action === "import"
-                                      ? `${base}/import/dry-run`
-                                      : action === "export"
-                                        ? `${base}/export`
-                                        : base;
+                          : isOutboundEvent && action === "replay"
+                            ? `${base}/${key}/replay`
+                            : isExpense &&
+                                [
+                                  "submit",
+                                  "mark-evidence-pending",
+                                  "review",
+                                  "approve",
+                                  "reject",
+                                  "post",
+                                ].includes(action)
+                              ? `${base}/${key}/${action}`
+                              : isReport
+                                ? `${base}/${action}`
+                                : isOpeningBalance && action === "dry-run"
+                                  ? `${base}/dry-run`
+                                  : isPeriodWorkflow
+                                    ? `${base}/${action}`
+                                    : action === "deactivate"
+                                      ? `${base}/${key}/deactivate`
+                                      : action === "import"
+                                        ? `${base}/import/dry-run`
+                                        : action === "export"
+                                          ? `${base}/export`
+                                          : base;
     const query =
       (isReport ||
         isOutboundEvent ||
@@ -96,7 +106,8 @@ export class NaaiErpClient {
         isOutboundDelivery ||
         isBankAccount ||
         isBankImport ||
-        isBankTransaction) &&
+        isBankTransaction ||
+        isReconciliation) &&
       method === "GET" &&
       payload &&
       typeof payload === "object"

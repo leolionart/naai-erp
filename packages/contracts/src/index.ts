@@ -41,3 +41,18 @@ export {
   type BankTransactionContract,
   type CreateBankAccountRequest,
 } from "./banking.js";
+export {
+  RECONCILIATION_CONTRACT_VERSION,
+  type CandidateScoreFactorsContract,
+  type MatchReconciliationRequest,
+  type PaymentReconciliationContract,
+  type ReconcilePaymentRequest,
+  type ReconciliationAdjustmentRequest,
+  type ReconciliationAllocationRequest,
+  type ReconciliationAttemptContract,
+  type ReconciliationCandidateContract,
+  type ReconciliationCandidateListContract,
+  type ReconciliationMutationResult,
+  type SuggestReconciliationRequest,
+  type UnreconcilePaymentRequest,
+} from "./reconciliation.js";

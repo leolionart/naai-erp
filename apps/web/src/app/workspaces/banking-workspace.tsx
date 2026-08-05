@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { FileUpIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import Link from "next/link";
 import {
   FinancialDataTable,
   type FinancialColumn,
@@ -124,7 +125,11 @@ export function BankingWorkspace() {
   );
 
   const visibleTransactions = useMemo(
-    () => filterBankTransactions(transactions, filters),
+    () =>
+      filterBankTransactions(
+        transactions.filter((row) => !["reconciled", "ignored"].includes(textField(row, "state"))),
+        filters,
+      ),
     [filters, transactions],
   );
 
@@ -262,7 +267,12 @@ export function BankingWorkspace() {
       header: "Nội dung / đối tác",
       cell: (row) => (
         <div className="flex min-w-52 flex-col gap-1">
-          <strong>{textField(row, "reference", "description") || "—"}</strong>
+          <Link
+            className="font-medium underline-offset-4 hover:underline"
+            href={`/banking/reconciliation/${encodeURIComponent(textField(row, "id"))}`}
+          >
+            {textField(row, "reference", "description") || textField(row, "id") || "—"}
+          </Link>
           <span className="text-xs text-muted-foreground">
             {textField(row, "counterpartyName", "counterparty") || "Không rõ đối tác"}
           </span>
@@ -382,10 +392,10 @@ export function BankingWorkspace() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Giao dịch đã import</CardTitle>
+          <CardTitle>Hàng chờ đối soát</CardTitle>
           <CardDescription>
-            ERP-400 chỉ nhập và kiểm soát trùng; thao tác khớp và đối soát được triển khai tại
-            ERP-410.
+            Mở từng giao dịch để xem candidate, phân bổ một phần, phí ngân hàng và chênh lệch tỷ giá
+            trước khi ghi nhận đối soát.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -459,7 +469,7 @@ export function BankingWorkspace() {
             rowKey={(row) => textField(row, "id", "providerTransactionId") || JSON.stringify(row)}
             loading={busy && !transactions.length}
             emptyTitle="Chưa có giao dịch"
-            emptyDescription="Import file CSV sao kê để bắt đầu kiểm soát dòng tiền."
+            emptyDescription="Không còn giao dịch đang chờ đối soát trong bộ lọc hiện tại."
           />
         </CardContent>
       </Card>

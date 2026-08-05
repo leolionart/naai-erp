@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -152,3 +153,7 @@ for (const [fixtureId, expected] of Object.entries(exact)) {
 
   console.log(`${fixtureId}: hashes, exact rows, balance, allocations and tax view verified`);
 }
+
+execFileSync(process.execPath, [join(fixtureRoot, "GF-BANK-001", "verify.mjs")], {
+  stdio: "inherit",
+});

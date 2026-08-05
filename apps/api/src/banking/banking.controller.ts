@@ -6,10 +6,20 @@ import type {
   CreateFinancialAccountInput,
   ImportBankStatementInput,
 } from "./banking.types.js";
+import { ReconciliationService } from "../reconciliation/reconciliation.service.js";
+import type {
+  MatchInput,
+  ReconcileInput,
+  SuggestInput,
+  UnreconcileInput,
+} from "../reconciliation/reconciliation.types.js";
 
 @Controller("api/v1/organizations/:organizationId/banking")
 export class BankingController {
-  constructor(@Inject(BankingService) private readonly service: BankingService) {}
+  constructor(
+    @Inject(BankingService) private readonly service: BankingService,
+    @Inject(ReconciliationService) private readonly reconciliation: ReconciliationService,
+  ) {}
   private context(org: string, auth?: string, corr?: string) {
     return this.service.authenticate(auth, org, corr ?? randomUUID());
   }
@@ -103,6 +113,54 @@ export class BankingController {
     @Headers("x-correlation-id") corr?: string,
   ) {
     return this.service.getTransaction(await this.context(org, auth, corr), id);
+  }
+  @Get("transactions/:id/candidates") async getCandidates(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.reconciliation.getCandidates(await this.context(org, auth, corr), id);
+  }
+  @Post("transactions/:id/suggest") async suggest(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: SuggestInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.reconciliation.suggest(await this.context(org, auth, corr), id, input, key);
+  }
+  @Post("transactions/:id/match") async match(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: MatchInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.reconciliation.match(await this.context(org, auth, corr), id, input, key);
+  }
+  @Post("transactions/:id/reconcile") async reconcile(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: ReconcileInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.reconciliation.reconcile(await this.context(org, auth, corr), id, input, key);
+  }
+  @Post("transactions/:id/unreconcile") async unreconcile(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: UnreconcileInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.reconciliation.unreconcile(await this.context(org, auth, corr), id, input, key);
   }
   @Post("transactions/:id/:action") async transitionTransaction(
     @Param("organizationId") org: string,
