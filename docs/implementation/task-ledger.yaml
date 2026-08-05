@@ -4,7 +4,7 @@ updated_at: 2026-08-05T21:07:06+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G4
-current_task: ERP-430
+current_task: ERP-440
 
 tasks:
   - id: ERP-000
@@ -622,7 +622,7 @@ tasks:
   - id: ERP-430
     title: AR AP aging
     phase: P4
-    status: in_progress
+    status: done
     dependencies: [ERP-300, ERP-410]
     business_rules: [BR-AR-002, BR-AP-002]
     tests: [T-AR-002, T-AP-002]
@@ -630,6 +630,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T22:15:00+07:00
     start_commit: 621ccebc0d120acbc3cecf5ae52a1f0ff46fc6ef
+    completed_at: 2026-08-05T22:58:08+07:00
+    implementation_commit: f528e486215d9950289775ceb0846289b1d6d6e5
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/31022529018
     planned_files:
       - packages/domain/src/aging.ts
       - packages/domain/src/aging.test.ts
@@ -646,6 +649,32 @@ tasks:
       - docs/api/openapi-v1.json
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-430/
+
+  - id: ERP-440
+    title: Gate G4 banking control totals and closure
+    phase: P4
+    status: in_progress
+    dependencies: [ERP-400, ERP-410, ERP-420, ERP-430]
+    business_rules: [BR-BNK-001, BR-REC-002, BR-BNK-003, BR-AR-002, BR-AP-002]
+    tests: [T-G4-001, T-G4-002]
+    evidence: docs/implementation/evidence/G4/
+    agent: codex-root
+    started_at: 2026-08-05T22:58:08+07:00
+    start_commit: f528e486215d9950289775ceb0846289b1d6d6e5
+    planned_files:
+      - packages/domain/src/banking-controls.ts
+      - packages/contracts/src/banking-controls.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/banking-controls/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/banking/statements/
+      - apps/web/src/app/workspaces/
+      - apps/web/e2e/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/G4/
 
   - id: ERP-500
     title: Timesheet and cost rates
@@ -868,7 +897,7 @@ gates:
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
   G2: [ERP-200, ERP-210, ERP-220, ERP-230, ERP-240]
   G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-335, ERP-340, ERP-345, ERP-346]
-  G4: [ERP-400, ERP-410, ERP-420, ERP-430]
+  G4: [ERP-400, ERP-410, ERP-420, ERP-430, ERP-440]
   G5: [ERP-500, ERP-510, ERP-520, ERP-530, ERP-540]
   G6: [ERP-600, ERP-610, ERP-620, ERP-630, ERP-640, ERP-650]
   G7: [ERP-700, ERP-710, ERP-720, ERP-730, ERP-740]

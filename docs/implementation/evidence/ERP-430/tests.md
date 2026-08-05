@@ -21,3 +21,9 @@ Results:
 - localhost `/receivables` and `/payables` return HTTP 200; runtime OpenAPI exposes AR/AP aging operations.
 
 Local PostgreSQL integration execution remains unavailable because no PostgreSQL listener/Docker daemon is present. Exact-commit GitHub CI must execute the authored integration suite before closure.
+
+## Exact-commit CI
+
+GitHub Actions run https://github.com/leolionart/naai-erp/actions/runs/31022529018 passed for commit `f528e486215d9950289775ceb0846289b1d6d6e5`.
+
+The run executed migrations, PostgreSQL database/API/worker integration suites and twelve desktop/mobile Playwright cases. ERP-430 is verified; Gate G4 control-total/suspense closure remains tracked separately as ERP-440.
