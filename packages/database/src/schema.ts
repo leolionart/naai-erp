@@ -57,6 +57,14 @@ export const taxReviewState = pgEnum("tax_review_state", [
   "accountant_approved",
   "retired",
 ]);
+export const dimensionKind = pgEnum("dimension_kind", [
+  "cost_center",
+  "service_line",
+  "category",
+  "client",
+  "project",
+  "contract",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -320,6 +328,98 @@ export const taxCodeVersions = pgTable(
   ],
 );
 
+export const dimensionValues = pgTable(
+  "dimension_values",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    kind: dimensionKind("kind").notNull(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.kind, table.code] }),
+    check("dimension_values_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("dimension_values_name_not_blank", sql`btrim(${table.name}) <> ''`),
+  ],
+);
+
+export const dimensionRequirementVersions = pgTable(
+  "dimension_requirement_versions",
+  {
+    organizationId: text("organization_id").notNull(),
+    accountCode: text("account_code").notNull(),
+    requiredKinds: jsonb("required_kinds").$type<string[]>().notNull().default([]),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    changeReason: text("change_reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.accountCode, table.effectiveFrom] }),
+    foreignKey({
+      columns: [table.organizationId, table.accountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "dimension_requirements_account_fk",
+    }).onDelete("restrict"),
+    check(
+      "dimension_requirements_date_order",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+    check("dimension_requirements_reason_not_blank", sql`btrim(${table.changeReason}) <> ''`),
+  ],
+);
+
+export const defaultMappingVersions = pgTable(
+  "default_mapping_versions",
+  {
+    organizationId: text("organization_id").notNull(),
+    categoryCode: text("category_code").notNull(),
+    accountCode: text("account_code").notNull(),
+    taxCode: text("tax_code"),
+    taxEffectiveFrom: date("tax_effective_from"),
+    defaultCostCenterCode: text("default_cost_center_code"),
+    defaultServiceLineCode: text("default_service_line_code"),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    changeReason: text("change_reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.categoryCode, table.effectiveFrom] }),
+    foreignKey({
+      columns: [table.organizationId, table.accountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "default_mappings_account_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.taxCode, table.taxEffectiveFrom],
+      foreignColumns: [
+        taxCodeVersions.organizationId,
+        taxCodeVersions.code,
+        taxCodeVersions.effectiveFrom,
+      ],
+      name: "default_mappings_tax_version_fk",
+    }).onDelete("restrict"),
+    check(
+      "default_mappings_tax_columns_together",
+      sql`(${table.taxCode} is null and ${table.taxEffectiveFrom} is null) or (${table.taxCode} is not null and ${table.taxEffectiveFrom} is not null)`,
+    ),
+    check(
+      "default_mappings_date_order",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+    check("default_mappings_reason_not_blank", sql`btrim(${table.changeReason}) <> ''`),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -332,4 +432,7 @@ export const schema = {
   accountHierarchyEdges,
   statutoryAccountMappings,
   taxCodeVersions,
+  dimensionValues,
+  dimensionRequirementVersions,
+  defaultMappingVersions,
 } as const;

@@ -99,4 +99,39 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       `),
     ).rejects.toMatchObject({ code: "23514" });
   });
+
+  it("enforces organization ownership for dimensions and versioned defaults", async () => {
+    await pool!.query(`
+      insert into dimension_values (organization_id, kind, code, name)
+      values ('org-a', 'category', 'HOSTING', 'Hosting'),
+             ('org-a', 'cost_center', 'OPS', 'Operations');
+      insert into tax_code_versions
+        (organization_id, code, name, kind, rate, effective_from)
+      values ('org-a', 'VAT-IN-10', 'VAT input 10%', 'vat_input', 10, '2026-01-01');
+      insert into dimension_requirement_versions
+        (organization_id, account_code, required_kinds, effective_from, change_reason, correlation_id, created_by)
+      values ('org-a', '511', '["client", "project", "service_line"]', '2026-01-01', 'Initial rule', 'corr-120-1', 'user-a');
+      insert into default_mapping_versions
+        (organization_id, category_code, account_code, tax_code, tax_effective_from, default_cost_center_code,
+         effective_from, change_reason, correlation_id, created_by)
+      values ('org-a', 'HOSTING', '511', 'VAT-IN-10', '2026-01-01', 'OPS',
+              '2026-01-01', 'Initial mapping', 'corr-120-2', 'user-a');
+    `);
+    await expect(
+      pool!.query(`
+        insert into dimension_requirement_versions
+          (organization_id, account_code, required_kinds, effective_from, change_reason, correlation_id, created_by)
+        values ('org-b', '511', '[]', '2026-01-01', 'Invalid', 'corr-120-x', 'user-a')
+      `),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool!.query(`
+        insert into default_mapping_versions
+          (organization_id, category_code, account_code, tax_code, tax_effective_from,
+           effective_from, change_reason, correlation_id, created_by)
+        values ('org-b', 'HOSTING', '111', 'VAT-IN-10', '2026-01-01',
+                '2026-01-01', 'Invalid', 'corr-120-y', 'user-a')
+      `),
+    ).rejects.toMatchObject({ code: "23503" });
+  });
 });

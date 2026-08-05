@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T14:00:23+07:00
+updated_at: 2026-08-05T14:15:35+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G1
@@ -134,10 +134,22 @@ tasks:
   - id: ERP-120
     title: Dimensions and mappings
     phase: P1
-    status: ready
+    status: review
     dependencies: [ERP-110]
     business_rules: [BR-DIM-001, BR-DIM-002]
     tests: [T-DIM-001, T-DIM-002]
+    evidence: docs/implementation/evidence/ERP-120/
+    agent: codex-root
+    started_at: 2026-08-05T14:13:13+07:00
+    start_commit: 0fb1b6c0fccee3a305719ba8ccf9fc053c9ddc9a
+    planned_files:
+      - packages/domain/src/dimensions.ts
+      - packages/domain/src/dimensions.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-120/
 
   - id: ERP-130
     title: Parties and commercial references

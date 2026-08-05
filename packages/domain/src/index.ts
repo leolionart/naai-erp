@@ -26,6 +26,21 @@ export {
 export { ROLES, hasRole, type AuthorizationContext, type Role } from "./authorization.js";
 export { assertSameOrganization, organizationId, type OrganizationId } from "./organization.js";
 export {
+  DIMENSION_KINDS,
+  createDimensionRule,
+  createDimensionValue,
+  createDefaultMapping,
+  validateAllocations,
+  validateAmountAllocations,
+  validateRequiredDimensions,
+  type Allocation,
+  type AmountAllocation,
+  type DefaultMapping,
+  type DimensionKind,
+  type DimensionRule,
+  type DimensionValue,
+} from "./dimensions.js";
+export {
   FISCAL_PERIOD_STATES,
   createCalendarYearPeriods,
   createExchangeRate,

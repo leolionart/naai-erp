@@ -10,6 +10,24 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-UNIT-ERP-120-001
+    aliases: [T-DIM-001]
+    task: ERP-120
+    rules: [BR-DIM-001]
+    title: Versioned account rules validate required organization-scoped dimensions
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G1
+
+  - id: T-UNIT-ERP-120-002
+    aliases: [T-DIM-002]
+    task: ERP-120
+    rules: [BR-DIM-002]
+    title: Split allocations total exactly one hundred percent with explicit residual metadata
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G1
+
   - id: T-UNIT-ERP-110-001
     aliases: [T-COA-001]
     task: ERP-110
