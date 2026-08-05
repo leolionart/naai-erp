@@ -39,6 +39,12 @@ import { ReconciliationController } from "./reconciliation/reconciliation.contro
 import { ReconciliationService } from "./reconciliation/reconciliation.service.js";
 import { RECONCILIATION_STORE } from "./reconciliation/reconciliation.types.js";
 import { PgReconciliationStore } from "./reconciliation/pg-reconciliation.store.js";
+import { InternalTransferController } from "./internal-transfers/internal-transfer.controller.js";
+import { InternalTransferCandidateController } from "./internal-transfers/internal-transfer-candidate.controller.js";
+import { InternalTransferService } from "./internal-transfers/internal-transfer.service.js";
+import { INTERNAL_TRANSFER_STORE } from "./internal-transfers/internal-transfer.types.js";
+import { PgInternalTransferStore } from "./internal-transfers/pg-internal-transfer.store.js";
+import { DiscoveryController } from "./discovery/discovery.controller.js";
 
 @Module({
   controllers: [
@@ -55,6 +61,9 @@ import { PgReconciliationStore } from "./reconciliation/pg-reconciliation.store.
     OutboundEventController,
     BankingController,
     ReconciliationController,
+    InternalTransferController,
+    InternalTransferCandidateController,
+    DiscoveryController,
   ],
   providers: [
     MasterDataService,
@@ -84,6 +93,9 @@ import { PgReconciliationStore } from "./reconciliation/pg-reconciliation.store.
     ReconciliationService,
     PgReconciliationStore,
     { provide: RECONCILIATION_STORE, useExisting: PgReconciliationStore },
+    InternalTransferService,
+    PgInternalTransferStore,
+    { provide: INTERNAL_TRANSFER_STORE, useExisting: PgInternalTransferStore },
   ],
 })
 export class AppModule {}

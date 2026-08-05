@@ -1,0 +1,2 @@
+transfer_id,outgoing_transaction_id,incoming_transaction_id,principal_minor,fee_minor,state,transit_balance_minor,principal_pnl_minor
+IT-100M,TRANSFER-OUT-100M,TRANSFER-IN-100M,100000000,100000,matched,0,0

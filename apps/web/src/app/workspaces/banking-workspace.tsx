@@ -350,6 +350,15 @@ export function BankingWorkspace() {
         </Alert>
       )}
 
+      <div className="flex flex-wrap gap-2" aria-label="Điều hướng nghiệp vụ ngân hàng">
+        <Button variant="secondary" asChild>
+          <Link href="/banking">Tài khoản & đối soát</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/banking/internal-transfers">Chuyển nội bộ</Link>
+        </Button>
+      </div>
+
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 flex-col gap-1">

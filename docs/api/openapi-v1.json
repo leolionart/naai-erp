@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "NAAI ERP AI-native API",
+    "title": "NAAI ERP API",
     "version": "v1"
   },
   "servers": [
@@ -355,6 +355,169 @@
         "summary": "Read bank transaction to allocations payment journal source documents and authorized evidence drill-down"
       }
     },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/transfer-candidates": {
+      "get": {
+        "operationId": "listInternalTransferCandidates",
+        "tags": ["internal-transfers"],
+        "summary": "List explainable same-currency own-account transfer candidates without inferring fees or FX",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/TransactionId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Candidate decision",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalTransferCandidateEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/internal-transfers": {
+      "get": {
+        "operationId": "listInternalTransfers",
+        "tags": ["internal-transfers"],
+        "summary": "List organization-scoped internal transfers and current immutable attempt state",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Transfer list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalTransferListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInternalTransfer",
+        "tags": ["internal-transfers"],
+        "summary": "Create an idempotent one-sided or complete own-account transfer with explicit principal transit and fee policy",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateInternalTransferRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transfer created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalTransferMutationEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}": {
+      "get": {
+        "operationId": "getInternalTransfer",
+        "tags": ["internal-transfers"],
+        "summary": "Read transfer attempts legs transit balance journals reversals and next actions",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/TransferId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transfer detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalTransferEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}/match": {
+      "post": {
+        "operationId": "matchInternalTransfer",
+        "tags": ["internal-transfers"],
+        "summary": "Idempotently match the opposite own-account leg using deterministic locks and exact principal",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/TransferId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MatchInternalTransferRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transfer matched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalTransferMutationEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}/unmatch": {
+      "post": {
+        "operationId": "unmatchInternalTransfer",
+        "tags": ["internal-transfers"],
+        "summary": "Privileged reasoned unmatch using immutable reversal journals",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/TransferId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UnmatchInternalTransferRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transfer unmatched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InternalTransferMutationEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "operationId": "getOpenApiContract",
+        "tags": ["discovery"],
+        "summary": "Read the canonical versioned machine-readable API contract",
+        "security": []
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "operationId": "listApiCapabilities",
+        "tags": ["discovery"],
+        "summary": "Read a compact operation and resource index derived from the canonical OpenAPI contract",
+        "security": []
+      }
+    },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {
       "get": {
         "summary": "List organization-scoped outbound endpoint metadata without returning secrets"
@@ -398,6 +561,263 @@
     }
   },
   "components": {
+    "parameters": {
+      "OrganizationId": {
+        "name": "organizationId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "TransactionId": {
+        "name": "transactionId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "TransferId": {
+        "name": "transferId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
+      }
+    },
+    "schemas": {
+      "ExactMinorAmount": { "type": "string", "pattern": "^[0-9]+$" },
+      "TransferFee": {
+        "type": "object",
+        "required": ["mode", "amountMinor", "baseAmountMinor", "expenseAccountId", "reason"],
+        "properties": {
+          "mode": { "type": "string", "enum": ["embedded", "separate_transaction"] },
+          "amountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "baseAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "expenseAccountId": { "type": "string" },
+          "reason": { "type": "string" },
+          "transactionId": { "type": "string" },
+          "journalId": { "type": "string" }
+        }
+      },
+      "TransferLeg": {
+        "type": "object",
+        "required": [
+          "role",
+          "transactionId",
+          "financialAccountId",
+          "ledgerAccountId",
+          "statementAmountMinor",
+          "principalAmountMinor",
+          "baseAmountMinor",
+          "currency",
+          "bookingDate"
+        ],
+        "properties": {
+          "role": { "type": "string", "enum": ["source", "destination"] },
+          "transactionId": { "type": "string" },
+          "financialAccountId": { "type": "string" },
+          "ledgerAccountId": { "type": "string" },
+          "statementAmountMinor": { "type": "string" },
+          "principalAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "baseAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "bookingDate": { "type": "string", "format": "date" },
+          "journalId": { "type": "string" }
+        }
+      },
+      "InternalTransferAttempt": {
+        "type": "object",
+        "required": [
+          "attemptNumber",
+          "state",
+          "postingMode",
+          "transitAccountId",
+          "journalIds",
+          "reversalJournalIds"
+        ],
+        "properties": {
+          "attemptNumber": { "type": "integer", "minimum": 1 },
+          "state": {
+            "type": "string",
+            "enum": ["pending_counterpart", "matched", "reconciled", "unmatched", "needs_review"]
+          },
+          "postingMode": { "type": "string", "enum": ["direct", "transit"] },
+          "transitAccountId": { "type": "string" },
+          "source": { "$ref": "#/components/schemas/TransferLeg" },
+          "destination": { "$ref": "#/components/schemas/TransferLeg" },
+          "fee": { "$ref": "#/components/schemas/TransferFee" },
+          "journalIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+          "reversalJournalIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "InternalTransfer": {
+        "type": "object",
+        "required": [
+          "id",
+          "principalAmountMinor",
+          "basePrincipalAmountMinor",
+          "currency",
+          "state",
+          "currentAttemptNumber",
+          "attempts",
+          "transitOutstandingMinor",
+          "resourceVersion",
+          "nextActions"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "principalAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "basePrincipalAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "state": {
+            "type": "string",
+            "enum": ["pending_counterpart", "matched", "reconciled", "unmatched", "needs_review"]
+          },
+          "currentAttemptNumber": { "type": "integer", "minimum": 1 },
+          "attempts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/InternalTransferAttempt" }
+          },
+          "transitOutstandingMinor": { "type": "string" },
+          "resourceVersion": { "type": "string", "pattern": "^[0-9]+$" },
+          "nextActions": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "CreateInternalTransferRequest": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "principalAmountMinor",
+          "basePrincipalAmountMinor",
+          "currency",
+          "transitAccountId",
+          "reason"
+        ],
+        "properties": {
+          "schemaVersion": { "type": "integer", "enum": [1] },
+          "id": { "type": "string" },
+          "sourceTransactionId": { "type": "string" },
+          "destinationTransactionId": { "type": "string" },
+          "principalAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "basePrincipalAmountMinor": { "$ref": "#/components/schemas/ExactMinorAmount" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "transitAccountId": { "type": "string" },
+          "postingMode": { "type": "string", "enum": ["direct", "transit"] },
+          "fee": { "$ref": "#/components/schemas/TransferFee" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "anyOf": [
+          { "required": ["sourceTransactionId"] },
+          { "required": ["destinationTransactionId"] }
+        ]
+      },
+      "MatchInternalTransferRequest": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "counterpartTransactionId",
+          "expectedResourceVersion",
+          "reason"
+        ],
+        "properties": {
+          "schemaVersion": { "type": "integer", "enum": [1] },
+          "counterpartTransactionId": { "type": "string" },
+          "expectedResourceVersion": { "type": "string", "pattern": "^[0-9]+$" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "UnmatchInternalTransferRequest": {
+        "type": "object",
+        "required": ["schemaVersion", "expectedResourceVersion", "reason"],
+        "properties": {
+          "schemaVersion": { "type": "integer", "enum": [1] },
+          "expectedResourceVersion": { "type": "string", "pattern": "^[0-9]+$" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "TransferCandidate": {
+        "type": "object",
+        "required": [
+          "transactionId",
+          "financialAccountId",
+          "bookingDate",
+          "currency",
+          "amountMinor",
+          "eligible",
+          "confidenceBps",
+          "factors",
+          "reasons"
+        ],
+        "properties": {
+          "transactionId": { "type": "string" },
+          "financialAccountId": { "type": "string" },
+          "bookingDate": { "type": "string", "format": "date" },
+          "currency": { "type": "string" },
+          "amountMinor": { "type": "string" },
+          "eligible": { "type": "boolean" },
+          "confidenceBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+          "factors": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "reasons": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "InternalTransferCandidateEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["transactionId", "policyVersion", "thresholdBps", "outcome", "items"],
+            "properties": {
+              "transactionId": { "type": "string" },
+              "policyVersion": { "type": "integer" },
+              "thresholdBps": { "type": "integer" },
+              "outcome": { "type": "string", "enum": ["unique", "ambiguous", "none"] },
+              "selectedTransactionId": { "type": "string" },
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/TransferCandidate" }
+              }
+            }
+          }
+        }
+      },
+      "InternalTransferEnvelope": {
+        "type": "object",
+        "properties": { "data": { "$ref": "#/components/schemas/InternalTransfer" } }
+      },
+      "InternalTransferListEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/InternalTransfer" }
+              }
+            }
+          }
+        }
+      },
+      "InternalTransferMutationEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "transfer": { "$ref": "#/components/schemas/InternalTransfer" },
+              "mutation": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",

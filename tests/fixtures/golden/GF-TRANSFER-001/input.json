@@ -1,0 +1,21 @@
+{
+  "fixtureId": "GF-TRANSFER-001",
+  "organizationId": "ORG-GF-TRANSFER",
+  "currency": "VND",
+  "sourceBankAccountCode": "1121-BANK-A",
+  "destinationBankAccountCode": "1121-BANK-B",
+  "transitAccountCode": "1138-INTERNAL-TRANSFER",
+  "feeAccountCode": "642-BANK-FEE",
+  "outgoing": {
+    "transactionId": "TRANSFER-OUT-100M",
+    "bookingDate": "2026-03-05",
+    "amountMinor": "-100100000",
+    "principalMinor": "100000000",
+    "bankFeeMinor": "100000"
+  },
+  "incoming": {
+    "transactionId": "TRANSFER-IN-100M",
+    "bookingDate": "2026-03-06",
+    "amountMinor": "100000000"
+  }
+}

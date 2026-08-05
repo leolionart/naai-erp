@@ -49,7 +49,7 @@ function NavigationContent({ pathname }: { pathname: string }) {
         </span>
         <div className="flex min-w-0 flex-col">
           <strong className="truncate text-sm">NAAI ERP</strong>
-          <span className="truncate text-xs text-muted-foreground">AI-native finance</span>
+          <span className="truncate text-xs text-muted-foreground">Finance operations</span>
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1">

@@ -157,3 +157,7 @@ for (const [fixtureId, expected] of Object.entries(exact)) {
 execFileSync(process.execPath, [join(fixtureRoot, "GF-BANK-001", "verify.mjs")], {
   stdio: "inherit",
 });
+
+execFileSync(process.execPath, [join(fixtureRoot, "GF-TRANSFER-001", "verify.mjs")], {
+  stdio: "inherit",
+});

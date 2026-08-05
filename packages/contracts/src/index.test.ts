@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   API_VERSION,
   BANKING_CONTRACT_VERSION,
+  INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
   type ApiEnvelope,
   type BankStatementImportRequest,
   type BankTransactionContract,
   type MutationMetadata,
   type MatchReconciliationRequest,
+  type CreateInternalTransferRequest,
+  type InternalTransferContract,
   type PaymentReconciliationContract,
 } from "./index.js";
 
@@ -106,5 +109,49 @@ describe("AI-native API contracts", () => {
     };
     expect(request.allocations[0]?.targetAmountMinor).toBe("60000000");
     expect(reconciliation.attempts[0]?.policyVersion).toBe(1);
+  });
+
+  it("keeps internal-transfer principal fee transit and control metadata machine-readable", () => {
+    const request: CreateInternalTransferRequest = {
+      schemaVersion: INTERNAL_TRANSFER_CONTRACT_VERSION,
+      sourceTransactionId: "bank-out-101",
+      destinationTransactionId: "bank-in-100",
+      principalAmountMinor: "100000000",
+      basePrincipalAmountMinor: "100000000",
+      currency: "VND",
+      transitAccountId: "1388-TRANSIT",
+      fee: {
+        mode: "embedded",
+        amountMinor: "1000000",
+        baseAmountMinor: "1000000",
+        expenseAccountId: "642-BANK-FEE",
+        reason: "Transfer fee",
+      },
+      reason: "Own-account transfer",
+    };
+    const transfer: InternalTransferContract = {
+      id: "transfer-1",
+      principalAmountMinor: request.principalAmountMinor,
+      basePrincipalAmountMinor: request.basePrincipalAmountMinor,
+      currency: "VND",
+      state: "matched",
+      currentAttemptNumber: 1,
+      attempts: [
+        {
+          attemptNumber: 1,
+          state: "matched",
+          postingMode: "direct",
+          transitAccountId: "1388-TRANSIT",
+          fee: request.fee!,
+          journalIds: [],
+          reversalJournalIds: [],
+        },
+      ],
+      transitOutstandingMinor: "0",
+      resourceVersion: "1",
+      nextActions: ["post", "unmatch"],
+    };
+    expect(transfer.attempts[0]?.fee?.amountMinor).toBe("1000000");
+    expect(transfer.transitOutstandingMinor).toBe("0");
   });
 });

@@ -25,6 +25,9 @@ const STATUS_LABELS: Readonly<Record<string, string>> = {
   matched: "Đã khớp",
   reconciled: "Đã đối soát",
   ignored: "Đã bỏ qua",
+  candidate: "Có candidate",
+  pending_counterpart: "Chờ đối ứng",
+  unmatched: "Đã hủy ghép",
 };
 
 export type StatusTone = "ready" | "warning" | "error" | "muted" | "info";

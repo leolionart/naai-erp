@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 
 export type CliOptions = Readonly<{
   baseUrl: string;
-  organizationId: string;
-  token: string;
+  organizationId?: string;
+  token?: string;
 }>;
 
 export class NaaiErpClient {
@@ -20,6 +20,27 @@ export class NaaiErpClient {
     expectedVersion?: string,
     idempotencyKey?: string,
   ): Promise<unknown> {
+    const isDiscovery = resource === "discovery" && ["openapi", "capabilities"].includes(action);
+    if (isDiscovery) {
+      const path = action === "openapi" ? "openapi.json" : "capabilities";
+      return this.fetchFn(`${this.options.baseUrl}/api/v1/${path}`, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          "x-correlation-id": randomUUID(),
+          ...(this.options.token
+            ? { authorization: `Bearer ${this.options.token.replace(/^Bearer\s+/i, "")}` }
+            : {}),
+        },
+      }).then(async (response) => {
+        const body: unknown = await response.json();
+        if (!response.ok) throw new Error(JSON.stringify(body));
+        return body;
+      });
+    }
+    if (!this.options.organizationId || !this.options.token) {
+      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    }
     const isJournal = resource === "journals";
     const isPostingRule = resource === "posting-rules";
     const isPeriodWorkflow = resource === "fiscal-periods" && ["close", "reopen"].includes(action);
@@ -36,12 +57,14 @@ export class NaaiErpClient {
     const isBankImport = resource === "bank-imports";
     const isBankTransaction = resource === "bank-transactions";
     const isReconciliation = resource === "reconciliations";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isInternalTransfer = resource === "internal-transfers";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" ||
       action === "get" ||
       action === "export" ||
       (isBankTransaction && action === "candidates") ||
+      (isBankTransaction && action === "transfer-candidates") ||
       isReport
         ? "GET"
         : action === "update"
@@ -70,35 +93,39 @@ export class NaaiErpClient {
                           action,
                         )
                       ? `${base}/${key}/${action}`
-                      : isEvidence && ["review", "download-url"].includes(action)
-                        ? `${base}/${key}/${action}`
-                        : isInboundEvent && action === "replay"
-                          ? `${base}/${key}/replay`
-                          : isOutboundEvent && action === "replay"
-                            ? `${base}/${key}/replay`
-                            : isExpense &&
-                                [
-                                  "submit",
-                                  "mark-evidence-pending",
-                                  "review",
-                                  "approve",
-                                  "reject",
-                                  "post",
-                                ].includes(action)
-                              ? `${base}/${key}/${action}`
-                              : isReport
-                                ? `${base}/${action}`
-                                : isOpeningBalance && action === "dry-run"
-                                  ? `${base}/dry-run`
-                                  : isPeriodWorkflow
+                      : isBankTransaction && action === "transfer-candidates"
+                        ? `${base}/${key}/transfer-candidates`
+                        : isInternalTransfer && ["match", "unmatch"].includes(action)
+                          ? `${base}/${key}/${action}`
+                          : isEvidence && ["review", "download-url"].includes(action)
+                            ? `${base}/${key}/${action}`
+                            : isInboundEvent && action === "replay"
+                              ? `${base}/${key}/replay`
+                              : isOutboundEvent && action === "replay"
+                                ? `${base}/${key}/replay`
+                                : isExpense &&
+                                    [
+                                      "submit",
+                                      "mark-evidence-pending",
+                                      "review",
+                                      "approve",
+                                      "reject",
+                                      "post",
+                                    ].includes(action)
+                                  ? `${base}/${key}/${action}`
+                                  : isReport
                                     ? `${base}/${action}`
-                                    : action === "deactivate"
-                                      ? `${base}/${key}/deactivate`
-                                      : action === "import"
-                                        ? `${base}/import/dry-run`
-                                        : action === "export"
-                                          ? `${base}/export`
-                                          : base;
+                                    : isOpeningBalance && action === "dry-run"
+                                      ? `${base}/dry-run`
+                                      : isPeriodWorkflow
+                                        ? `${base}/${action}`
+                                        : action === "deactivate"
+                                          ? `${base}/${key}/deactivate`
+                                          : action === "import"
+                                            ? `${base}/import/dry-run`
+                                            : action === "export"
+                                              ? `${base}/export`
+                                              : base;
     const query =
       (isReport ||
         isOutboundEvent ||
@@ -107,7 +134,8 @@ export class NaaiErpClient {
         isBankAccount ||
         isBankImport ||
         isBankTransaction ||
-        isReconciliation) &&
+        isReconciliation ||
+        isInternalTransfer) &&
       method === "GET" &&
       payload &&
       typeof payload === "object"

@@ -1,0 +1,6 @@
+journal_id,transaction_id,side,account_code,amount_minor,effect
+J-TRANSFER-OUT,TRANSFER-OUT-100M,debit,1138-INTERNAL-TRANSFER,100000000,principal_transit
+J-TRANSFER-OUT,TRANSFER-OUT-100M,debit,642-BANK-FEE,100000,explicit_fee_expense
+J-TRANSFER-OUT,TRANSFER-OUT-100M,credit,1121-BANK-A,100100000,source_bank_outflow
+J-TRANSFER-IN,TRANSFER-IN-100M,debit,1121-BANK-B,100000000,destination_bank_inflow
+J-TRANSFER-IN,TRANSFER-IN-100M,credit,1138-INTERNAL-TRANSFER,100000000,principal_transit_clear

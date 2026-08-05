@@ -2,6 +2,39 @@ import { describe, expect, it, vi } from "vitest";
 import { NaaiErpClient } from "./client.js";
 
 describe("NAAI ERP JSON-first CLI client", () => {
+  it.each([
+    ["openapi", "http://api/api/v1/openapi.json"],
+    ["capabilities", "http://api/api/v1/capabilities"],
+  ])(
+    "reads headless %s discovery without organization or master-data routing",
+    async (action, url) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ apiVersion: "v1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient({ baseUrl: "http://api" }, fetchFn);
+      await client.request("discovery", action);
+      expect(fetchFn).toHaveBeenCalledWith(
+        url,
+        expect.objectContaining({
+          method: "GET",
+          headers: expect.not.objectContaining({ authorization: expect.anything() }),
+        }),
+      );
+      expect(fetchFn.mock.calls[0]?.[0]).not.toContain("organizations");
+      expect(fetchFn.mock.calls[0]?.[0]).not.toContain("master-data");
+    },
+  );
+
+  it("still requires organization and token for business resources", async () => {
+    const client = new NaaiErpClient({ baseUrl: "http://api" }, vi.fn());
+    expect(() => client.request("internal-transfers", "list")).toThrow(
+      "ORGANIZATION_AND_TOKEN_REQUIRED",
+    );
+  });
+
   it("calls REST API with scoped bearer and correlation headers", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ apiVersion: "v1", data: [] }), {
@@ -493,6 +526,118 @@ describe("NAAI ERP JSON-first CLI client", () => {
     await client.request("reconciliations", "get", undefined, "rec-1");
     expect(fetchFn).toHaveBeenLastCalledWith(
       "http://api/api/v1/organizations/org-a/banking/reconciliations/rec-1",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("reads internal-transfer candidates through the bank transaction API", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("bank-transactions", "transfer-candidates", undefined, "txn-1");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/transactions/txn-1/transfer-candidates",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("creates a headless internal transfer through the canonical REST contract", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: "transfer-1" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "internal-transfers",
+      "create",
+      {
+        schemaVersion: 1,
+        sourceTransactionId: "bank-out-101",
+        principalAmountMinor: "100000000",
+        basePrincipalAmountMinor: "100000000",
+        currency: "VND",
+        transitAccountId: "1388-TRANSIT",
+        reason: "Own-account transfer",
+      },
+      undefined,
+      undefined,
+      "transfer-create-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/internal-transfers",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": "transfer-create-1" }),
+      }),
+    );
+  });
+
+  it.each(["match", "unmatch"])(
+    "calls internal transfer %s with controlled mutation headers",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "internal-transfers",
+        action,
+        { schemaVersion: 1, reason: "Reviewed", expectedResourceVersion: "1" },
+        "transfer-1",
+        "1",
+        `transfer-${action}-1`,
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/banking/internal-transfers/transfer-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "idempotency-key": `transfer-${action}-1`,
+            "if-match": "1",
+          }),
+        }),
+      );
+    },
+  );
+
+  it("lists and reads internal-transfer history without a database path", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: { items: [] } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("internal-transfers", "list", { state: "pending_counterpart" });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/internal-transfers?state=pending_counterpart",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("internal-transfers", "get", undefined, "transfer-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/internal-transfers/transfer-1",
       expect.objectContaining({ method: "GET" }),
     );
   });

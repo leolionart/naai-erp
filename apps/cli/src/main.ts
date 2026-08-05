@@ -30,15 +30,21 @@ const { values, positionals } = parseArgs({
 const [resource, action = "list"] = positionals;
 const organizationId = values.organization ?? process.env.NAAI_ERP_ORGANIZATION;
 const token = process.env.NAAI_ERP_TOKEN;
-if (!resource || !organizationId || !token) {
+const discovery = resource === "discovery" && ["openapi", "capabilities"].includes(action);
+if (!resource || (!discovery && (!organizationId || !token))) {
   process.stderr.write(
     JSON.stringify({
-      error: "resource, --organization/NAAI_ERP_ORGANIZATION and NAAI_ERP_TOKEN are required",
+      error:
+        "resource, and for organization-scoped commands --organization/NAAI_ERP_ORGANIZATION plus NAAI_ERP_TOKEN, are required",
     }) + "\n",
   );
   process.exitCode = 2;
 } else {
-  const client = new NaaiErpClient({ baseUrl: values["base-url"]!, organizationId, token });
+  const client = new NaaiErpClient({
+    baseUrl: values["base-url"]!,
+    ...(organizationId ? { organizationId } : {}),
+    ...(token ? { token } : {}),
+  });
   try {
     const bankAccountId = values["account-id"] ?? values.key;
     const bankAdapterVersion = Number.parseInt(values["adapter-version"] ?? "1", 10);

@@ -351,4 +351,36 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       ),
     ).rejects.toThrow();
   });
+
+  it("enforces ERP-420 organization-scoped active transfer claims and append-only events", async () => {
+    await pool!.query(`
+      insert into internal_transfers
+        (organization_id,id,state,currency,transfer_amount_minor,base_principal_amount_minor,transit_account_code,current_attempt_number,created_by)
+      values ('org-a','transfer-db-1','pending_counterpart','VND',100,100,'11299',1,'user-a');
+      insert into internal_transfer_attempts
+        (organization_id,id,transfer_id,attempt_number,state,posting_mode,outgoing_transaction_id,correlation_id,created_by)
+      values ('org-a','transfer-attempt-db-1','transfer-db-1',1,'pending_counterpart','transit','bank-txn-db-1','corr-transfer-db','user-a');
+      insert into internal_transfer_claims
+        (organization_id,bank_transaction_id,transfer_id,attempt_number,role)
+      values ('org-a','bank-txn-db-1','transfer-db-1',1,'source');
+      insert into internal_transfer_events
+        (organization_id,id,transfer_id,attempt_number,action,actor_id,reason,correlation_id)
+      values ('org-a','transfer-event-db-1','transfer-db-1',1,'create','user-a','First leg','corr-transfer-db');
+    `);
+    await expect(
+      pool!.query(`insert into internal_transfer_claims
+        (organization_id,bank_transaction_id,transfer_id,attempt_number,role)
+        values ('org-a','bank-txn-db-1','transfer-db-1',1,'source')`),
+    ).rejects.toMatchObject({ code: "23505" });
+    await expect(
+      pool!.query(
+        "update internal_transfer_attempts set state='needs_review' where organization_id='org-a' and id='transfer-attempt-db-1'",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      pool!.query(
+        "delete from internal_transfer_events where organization_id='org-a' and id='transfer-event-db-1'",
+      ),
+    ).rejects.toThrow();
+  });
 });

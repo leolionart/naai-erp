@@ -592,10 +592,29 @@ tasks:
   - id: ERP-420
     title: Internal transfers
     phase: P4
-    status: ready
+    status: in_progress
     dependencies: [ERP-410]
     business_rules: [BR-BNK-003]
     tests: [T-BNK-003]
+    evidence: docs/implementation/evidence/ERP-420/
+    agent: codex-root
+    started_at: 2026-08-05T21:37:00+07:00
+    start_commit: e544d67c941c06d5ba38b711b9a537cc635ccc59
+    planned_files:
+      - packages/domain/src/internal-transfers.ts
+      - packages/domain/src/internal-transfers.test.ts
+      - packages/contracts/src/
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/internal-transfers/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/banking/internal-transfers/
+      - apps/web/src/app/workspaces/
+      - tests/fixtures/golden/GF-TRANSFER-001/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-420/
 
   - id: ERP-430
     title: AR AP aging

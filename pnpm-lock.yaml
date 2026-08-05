@@ -130,6 +130,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@naai-erp/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1

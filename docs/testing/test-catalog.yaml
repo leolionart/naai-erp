@@ -487,6 +487,42 @@ tests:
     command: pnpm --filter @naai-erp/contracts test && pnpm --filter @naai-erp/cli test
     blocking_gate: G4
 
+  - id: T-E2E-ERP-420-001
+    aliases: [T-BNK-003]
+    task: ERP-420
+    rules: [BR-BNK-003, BR-UI-004]
+    title: Internal transfer queue and dedicated detail workflow match and unmatch safely
+    layer: e2e
+    fixture: GF-TRANSFER-001
+    command: pnpm test:e2e --filter T-E2E-ERP-420-001
+    blocking_gate: G4
+
+  - id: T-INT-ERP-420-002
+    task: ERP-420
+    rules: [BR-BNK-003, BR-ORG-001, BR-AUD-001]
+    title: One-sided transit pairing and reversal preserve immutable organization-scoped history
+    layer: integration
+    fixture: GF-TRANSFER-001
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G4
+
+  - id: T-DOMAIN-ERP-420-003
+    task: ERP-420
+    rules: [BR-BNK-003]
+    title: Transfer principal has zero profit-and-loss impact and explicit fee remains separate
+    layer: unit
+    fixture: GF-TRANSFER-001
+    command: pnpm --filter @naai-erp/domain test && pnpm test:fixtures
+    blocking_gate: G4
+
+  - id: T-CONTRACT-ERP-420-004
+    task: ERP-420
+    rules: [BR-BNK-003, BR-AI-001, BR-AI-003, BR-AI-004]
+    title: Headless REST OpenAPI resource discovery and CLI expose internal transfer lifecycle
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts test && pnpm --filter @naai-erp/cli test
+    blocking_gate: G4
+
   - id: T-DOMAIN-ERP-400-001
     aliases: [T-BNK-001]
     task: ERP-400
