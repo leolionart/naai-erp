@@ -1,103 +1,180 @@
-const modules = [
-  { label: "Tổng quan", icon: "grid", active: true },
-  { label: "Thu & chi", icon: "swap", active: false },
-  { label: "Hóa đơn", icon: "invoice", active: false },
-  { label: "Chi phí", icon: "wallet", active: false },
-  { label: "Ngân hàng", icon: "bank", active: false },
-  { label: "Dự án", icon: "folder", active: false },
-  { label: "Sổ kế toán", icon: "book", active: false },
-  { label: "Dự báo", icon: "trend", active: false },
-  { label: "Báo cáo", icon: "chart", active: false },
-] as const;
+type ModuleKey = "overview" | "master-data" | "ledger" | "documents" | "expenses" | "evidence";
 
-const metrics = [
-  { label: "Doanh thu tháng", value: "—", note: "Chờ dữ liệu hóa đơn", tone: "blue" },
-  { label: "Chi phí tháng", value: "—", note: "Chờ dữ liệu chi phí", tone: "amber" },
-  { label: "Lợi nhuận tạm tính", value: "—", note: "Sẽ tính từ sổ đã post", tone: "green" },
-  { label: "Vốn chủ sở hữu", value: "—", note: "Sẽ có tại báo cáo tài chính", tone: "violet" },
-] as const;
+const modules: ReadonlyArray<{
+  key: ModuleKey | string;
+  label: string;
+  icon: string;
+  status: "available" | "building" | "planned";
+}> = [
+  { key: "overview", label: "Tổng quan", icon: "grid", status: "available" },
+  { key: "master-data", label: "Dữ liệu nền", icon: "folder", status: "available" },
+  { key: "ledger", label: "Sổ kế toán", icon: "book", status: "available" },
+  { key: "documents", label: "Hóa đơn", icon: "invoice", status: "available" },
+  { key: "expenses", label: "Chi phí", icon: "wallet", status: "available" },
+  { key: "evidence", label: "Chứng từ", icon: "paperclip", status: "building" },
+  { key: "banking", label: "Ngân hàng", icon: "bank", status: "planned" },
+  { key: "forecast", label: "Dự báo", icon: "trend", status: "planned" },
+  { key: "reports", label: "Báo cáo", icon: "chart", status: "planned" },
+];
+
+const views: Record<
+  ModuleKey,
+  {
+    title: string;
+    eyebrow: string;
+    description: string;
+    features: string[];
+    endpoint: string;
+    cli: string;
+  }
+> = {
+  overview: {
+    title: "NAAI ERP Admin",
+    eyebrow: "Gate G3 · Documents & integrations",
+    description:
+      "Bảng điều hướng cho các module đã có API và CLI. Dữ liệu thật sẽ xuất hiện sau khi cấu hình organization và access token local.",
+    features: [
+      "G0 Foundation hoàn tất",
+      "G1 Master data hoàn tất",
+      "G2 Accounting kernel hoàn tất",
+      "ERP-300/310 đã qua PostgreSQL CI",
+    ],
+    endpoint: "GET /health",
+    cli: "curl http://localhost:3001/health",
+  },
+  "master-data": {
+    title: "Dữ liệu nền",
+    eyebrow: "Organization, tài khoản, dimensions, parties & projects",
+    description:
+      "Quản lý kỳ tài chính, hệ thống tài khoản TT133/TT200, tax codes, khách hàng, nhà cung cấp, dự án, hợp đồng và milestone.",
+    features: [
+      "Organization & fiscal periods",
+      "Chart of Accounts & tax codes",
+      "Cost center / service line / category",
+      "Party, project, contract, milestone",
+    ],
+    endpoint: "GET /api/v1/organizations/:org/master-data/:resource",
+    cli: "pnpm cli accounts list --organization <org>",
+  },
+  ledger: {
+    title: "Sổ kế toán",
+    eyebrow: "Double-entry accounting kernel",
+    description:
+      "Tạo, duyệt, post, reverse journal; đóng/mở kỳ; xem Trial Balance và General Ledger. Journal đã post là bất biến.",
+    features: [
+      "Balanced journal",
+      "Posting rules",
+      "Approve / post / reverse",
+      "Trial Balance & General Ledger",
+    ],
+    endpoint: "GET /api/v1/organizations/:org/reports/trial-balance",
+    cli: "pnpm cli reports trial-balance --organization <org> --from 2026-01-01 --to 2026-12-31",
+  },
+  documents: {
+    title: "Hóa đơn đầu ra & đầu vào",
+    eyebrow: "ERP-300 · Verified",
+    description:
+      "Sales Invoice, Purchase Invoice và Credit Note có allocation theo project/dimension, lifecycle kiểm soát và journal liên kết.",
+    features: [
+      "Sales invoice → AR / revenue / VAT",
+      "Purchase invoice → expense / VAT / AP",
+      "Credit note có cap theo invoice gốc",
+      "Idempotency, audit & outbox",
+    ],
+    endpoint: "GET /api/v1/organizations/:org/commercial-documents",
+    cli: "pnpm cli commercial-documents list --organization <org>",
+  },
+  expenses: {
+    title: "Chi phí doanh nghiệp",
+    eyebrow: "ERP-310 · Verified",
+    description:
+      "Theo dõi chi phí có hoặc không hóa đơn, hoàn ứng nhân viên, petty cash và các trục quản trị/CIT/VAT độc lập.",
+    features: [
+      "Invoice & non-invoice expense",
+      "Employee reimbursement",
+      "CIT/VAT review độc lập",
+      "Allocation và journal tự động",
+    ],
+    endpoint: "GET /api/v1/organizations/:org/expenses",
+    cli: "pnpm cli expenses list --organization <org>",
+  },
+  evidence: {
+    title: "Chứng từ đính kèm",
+    eyebrow: "ERP-320 · Đang phát triển",
+    description:
+      "PDF, XML và ảnh sẽ được version hóa, kiểm tra hash/MIME, phát hiện trùng và cấp signed download URL sau phân quyền.",
+    features: [
+      "PDF/XML/JPEG/PNG",
+      "SHA-256 & duplicate warning",
+      "Replacement giữ lịch sử",
+      "Signed URL & download audit",
+    ],
+    endpoint: "POST /api/v1/organizations/:org/evidence",
+    cli: "pnpm cli evidence upload --organization <org> --data '<json>'",
+  },
+};
 
 function Icon({ name }: { name: string }) {
-  const paths: Record<string, React.ReactNode> = {
-    grid: (
-      <>
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </>
-    ),
-    swap: (
-      <>
-        <path d="M7 7h11l-3-3" />
-        <path d="m18 17H7l3 3" />
-      </>
-    ),
-    invoice: (
-      <>
-        <path d="M6 3h9l3 3v15H6z" />
-        <path d="M9 10h6M9 14h6M9 18h3" />
-      </>
-    ),
-    wallet: (
-      <>
-        <path d="M4 6h14a2 2 0 0 1 2 2v10H4z" />
-        <path d="M4 6V5a2 2 0 0 1 2-2h10" />
-        <path d="M15 12h5" />
-      </>
-    ),
-    bank: (
-      <>
-        <path d="m3 9 9-5 9 5" />
-        <path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18" />
-      </>
-    ),
-    folder: <path d="M3 6h7l2 2h9v11H3z" />,
-    book: (
-      <>
-        <path d="M4 5a3 3 0 0 1 3-2h5v17H7a3 3 0 0 0-3 2z" />
-        <path d="M20 5a3 3 0 0 0-3-2h-5v17h5a3 3 0 0 1 3 2z" />
-      </>
-    ),
-    trend: (
-      <>
-        <path d="M4 18 10 12l4 4 6-9" />
-        <path d="M15 7h5v5" />
-      </>
-    ),
-    chart: (
-      <>
-        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-      </>
-    ),
-  };
+  const path =
+    name === "grid"
+      ? "M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"
+      : name === "book"
+        ? "M4 5h6a2 2 0 0 1 2 2v13a3 3 0 0 0-3-3H4zm16 0h-6a2 2 0 0 0-2 2v13a3 3 0 0 1 3-3h5z"
+        : name === "invoice"
+          ? "M6 3h9l3 3v15H6zm3 7h6m-6 4h6m-6 4h3"
+          : name === "wallet"
+            ? "M4 6h14a2 2 0 0 1 2 2v10H4zm11 6h5"
+            : name === "bank"
+              ? "m3 9 9-5 9 5M5 10v8m5-8v8m4-8v8m5-8v8M3 20h18"
+              : name === "trend"
+                ? "M4 18l6-6 4 4 6-9m-5 0h5v5"
+                : name === "chart"
+                  ? "M4 20V10m6 10V4m6 16v-7M2 20h20"
+                  : name === "paperclip"
+                    ? "m8 12 5-5a3 3 0 0 1 4 4l-7 7a5 5 0 0 1-7-7l8-8"
+                    : "M3 6h7l2 2h9v11H3z";
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      {paths[name]}
+      <path d={path} />
     </svg>
   );
 }
 
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ module?: string }>;
+}) {
+  const requested = (await searchParams).module;
+  const active: ModuleKey = requested && requested in views ? (requested as ModuleKey) : "overview";
+  const view = views[active];
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <span>N</span>
           <div>
-            NAAI ERP<small>Finance workspace</small>
+            NAAI ERP<small>AI-native finance</small>
           </div>
         </div>
         <nav aria-label="Điều hướng chính">
           {modules.map((module) => (
             <a
-              className={module.active ? "nav-item active" : "nav-item"}
-              href={module.active ? "/" : `/#${module.icon}`}
-              key={module.label}
+              className={`nav-item ${module.key === active ? "active" : ""} ${module.status === "planned" ? "disabled" : ""}`}
+              href={module.status === "planned" ? `/?module=${active}` : `/?module=${module.key}`}
+              key={module.key}
+              aria-disabled={module.status === "planned"}
             >
               <Icon name={module.icon} />
               <span>{module.label}</span>
-              {!module.active ? <small>soon</small> : null}
+              <small>
+                {module.status === "available"
+                  ? "live"
+                  : module.status === "building"
+                    ? "build"
+                    : "soon"}
+              </small>
             </a>
           ))}
         </nav>
@@ -113,127 +190,82 @@ export default function HomePage() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <h1>Tổng quan tài chính</h1>
-            <p>Tháng 08, 2026 · Asia/Ho_Chi_Minh</p>
+            <span className="breadcrumb">Admin / {view.title}</span>
+            <h1>{view.title}</h1>
           </div>
-          <div className="top-actions">
-            <button className="ghost" disabled title="Sẽ mở khi module import được triển khai">
-              Nhập dữ liệu
-            </button>
-            <button className="primary" disabled title="Sẽ mở khi module giao dịch được triển khai">
-              + Tạo giao dịch
-            </button>
+          <div className="runtime">
+            <i />
+            Local development
           </div>
         </header>
-
-        <section className="notice">
+        <section className="hero-panel">
           <div>
-            <strong>Hệ thống đang được xây dựng tuần tự</strong>
-            <p>
-              Organization, kỳ tài chính, hệ thống tài khoản và tax policy đã hoàn tất. Các menu
-              tiếp theo sẽ được kích hoạt theo coding plan.
-            </p>
+            <span className="eyebrow">{view.eyebrow}</span>
+            <h2>{view.title}</h2>
+            <p>{view.description}</p>
           </div>
-          <span>Gate G2 · ERP-200 accounting kernel tiếp theo</span>
+          <span className={`status-pill ${active === "evidence" ? "building" : "ready"}`}>
+            {active === "evidence" ? "Đang làm" : "Có thể dùng qua API/CLI"}
+          </span>
         </section>
 
-        <section className="metric-grid" aria-label="Chỉ số chính">
-          {metrics.map((metric) => (
-            <article className={`metric ${metric.tone}`} key={metric.label}>
-              <p>{metric.label}</p>
-              <strong>{metric.value}</strong>
-              <small>{metric.note}</small>
+        <section className="feature-grid" aria-label={`Tính năng ${view.title}`}>
+          {view.features.map((feature, index) => (
+            <article className="feature-card" key={feature}>
+              <span>0{index + 1}</span>
+              <strong>{feature}</strong>
+              <small>Organization scoped · audited</small>
             </article>
           ))}
         </section>
 
-        <div className="content-grid">
-          <section className="panel progress-panel">
+        <div className="content-grid admin-grid">
+          <section className="panel">
             <div className="panel-head">
               <div>
-                <h2>Tiến độ xây dựng</h2>
-                <p>Nền tảng nghiệp vụ theo acceptance gate</p>
+                <h2>API endpoint</h2>
+                <p>Canonical machine-readable interface</p>
               </div>
-              <span>16%</span>
+              <span className="api-badge">REST v1</span>
             </div>
-            <div className="progress-track">
-              <i />
-            </div>
-            <ol className="phase-list">
-              <li className="done">
-                <b>G0</b>
-                <div>
-                  <strong>Foundation</strong>
-                  <small>Repository, architecture, security baseline</small>
-                </div>
-                <span>Hoàn tất</span>
-              </li>
-              <li className="done">
-                <b>G1</b>
-                <div>
-                  <strong>Master data</strong>
-                  <small>Accounts, dimensions, parties</small>
-                </div>
-                <span>Hoàn tất</span>
-              </li>
-              <li className="current">
-                <b>G2</b>
-                <div>
-                  <strong>Accounting kernel</strong>
-                  <small>Double-entry, posting, period close</small>
-                </div>
-                <span>Đang làm</span>
-              </li>
-              <li>
-                <b>G3</b>
-                <div>
-                  <strong>Invoice & expense</strong>
-                  <small>Documents, evidence, webhooks</small>
-                </div>
-                <span>Chờ</span>
-              </li>
-            </ol>
+            <code className="command-block">{view.endpoint}</code>
+            <p className="helper">
+              API, CLI và UI cùng đi qua application service, không truy cập PostgreSQL trực tiếp.
+            </p>
           </section>
-
-          <section className="panel readiness">
+          <section className="panel">
             <div className="panel-head">
               <div>
-                <h2>Sẵn sàng dữ liệu</h2>
-                <p>Những phần cần hoàn thiện trước khi có báo cáo thật</p>
+                <h2>Thử bằng CLI</h2>
+                <p>JSON output mặc định cho AI agents</p>
               </div>
+              <span className="api-badge dark">CLI</span>
             </div>
-            <ul>
-              <li>
-                <span className="ok">✓</span>
-                <div>
-                  <strong>Tổ chức & kỳ tài chính</strong>
-                  <small>Đã có schema và kiểm thử isolation</small>
-                </div>
-              </li>
-              <li>
-                <span className="ok">✓</span>
-                <div>
-                  <strong>Hệ thống tài khoản</strong>
-                  <small>TT133/TT200 và tax policy có version</small>
-                </div>
-              </li>
-              <li>
-                <span className="ok">✓</span>
-                <div>
-                  <strong>Dimensions & mappings</strong>
-                  <small>Allocation và default mappings đã kiểm thử</small>
-                </div>
-              </li>
-              <li>
-                <span className="ok">✓</span>
-                <div>
-                  <strong>Khách hàng & dự án</strong>
-                  <small>Party, project, contract và milestone đã kiểm thử</small>
-                </div>
-              </li>
-            </ul>
+            <code className="command-block">{view.cli}</code>
+            <p className="helper">Cần NAAI_ERP_TOKEN và API local tại http://localhost:3001.</p>
           </section>
         </div>
+
+        <section className="panel module-map">
+          <div className="panel-head">
+            <div>
+              <h2>Tình trạng module</h2>
+              <p>Menu được bật theo implementation đã có, không theo mock UI.</p>
+            </div>
+          </div>
+          <div className="module-table">
+            <span>Foundation & Master data</span>
+            <b>Hoàn tất</b>
+            <span>Accounting kernel</span>
+            <b>Hoàn tất</b>
+            <span>Invoice & expense</span>
+            <b>Hoàn tất</b>
+            <span>Evidence management</span>
+            <b className="progress">Đang làm</b>
+            <span>Banking, forecast, reporting</span>
+            <b className="muted">Theo task ledger</b>
+          </div>
+        </section>
       </main>
     </div>
   );
