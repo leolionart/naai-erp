@@ -11,7 +11,7 @@
     "db:check": "node scripts/verify-migrations.mjs",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run src --passWithNoTests",
     "clean": "rm -rf dist coverage"
   },
   "devDependencies": {

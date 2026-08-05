@@ -6,7 +6,24 @@ Canonical repository: https://github.com/leolionart/naai-erp
 
 ## Current status
 
-The project is in planning and repository-foundation phase (`ERP-001`).
+Foundation Gate G0 is complete. Platform/master-data Gate G1 is being implemented sequentially.
+
+## Local development preview (no Docker build)
+
+Use the pinned Node 22 runtime, install dependencies and start the web/API development servers directly:
+
+```sh
+export PATH="$HOME/.nvm/versions/node/v22.21.1/bin:$PATH"
+pnpm install --frozen-lockfile
+pnpm dev:preview
+```
+
+- Web preview: http://localhost:3000
+- Web health: http://localhost:3000/health
+- API live: http://localhost:3001/health/live
+- API ready: http://localhost:3001/health/ready
+
+The current preview does not require a database. Features that persist data will require a PostgreSQL `DATABASE_URL`, but still run as native development processes; production Docker image builds belong to Gate G8.
 
 ## Documentation
 

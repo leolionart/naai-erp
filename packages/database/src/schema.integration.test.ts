@@ -55,4 +55,48 @@ describeDatabase("ERP-100 database tenant constraints", () => {
     `);
     expect(result.rows[0]?.rate).toBe("26125.500000000000000000");
   });
+
+  it("enforces same-organization and same-root account hierarchy", async () => {
+    await pool!.query(`
+      insert into accounts (organization_id, code, name, root_type)
+      values ('org-a', '111', 'Cash', 'asset'),
+             ('org-a', '1111', 'Bank', 'asset'),
+             ('org-a', '511', 'Revenue', 'revenue'),
+             ('org-b', '111', 'Other cash', 'asset');
+      insert into account_hierarchy_edges
+        (organization_id, child_code, child_root_type, parent_code, parent_root_type)
+      values ('org-a', '1111', 'asset', '111', 'asset');
+    `);
+    await expect(
+      pool!.query(`
+        insert into account_hierarchy_edges
+          (organization_id, child_code, child_root_type, parent_code, parent_root_type)
+        values ('org-b', '1111', 'asset', '111', 'asset')
+      `),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool!.query(`
+        insert into account_hierarchy_edges
+          (organization_id, child_code, child_root_type, parent_code, parent_root_type)
+        values ('org-a', '1111', 'asset', '511', 'revenue')
+      `),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
+
+  it("rejects cross-organization mappings and incomplete tax approval", async () => {
+    await expect(
+      pool!.query(`
+        insert into statutory_account_mappings
+          (organization_id, account_code, framework, statutory_code, effective_from)
+        values ('org-b', '511', 'TT133', '5111', '2026-01-01')
+      `),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool!.query(`
+        insert into tax_code_versions
+          (organization_id, code, name, kind, rate, effective_from, review_state)
+        values ('org-a', 'VAT-IN-10', 'VAT input 10%', 'vat_input', 10, '2026-01-01', 'accountant_approved')
+      `),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
 });

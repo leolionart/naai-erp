@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -32,6 +34,28 @@ export const fiscalPeriodState = pgEnum("fiscal_period_state", [
   "open",
   "soft_locked",
   "hard_locked",
+]);
+
+export const accountRootType = pgEnum("account_root_type", [
+  "asset",
+  "liability",
+  "equity",
+  "revenue",
+  "expense",
+]);
+
+export const statutoryFramework = pgEnum("statutory_framework", ["TT133", "TT200"]);
+export const taxKind = pgEnum("tax_kind", [
+  "vat_input",
+  "vat_output",
+  "cit",
+  "withholding",
+  "other",
+]);
+export const taxReviewState = pgEnum("tax_review_state", [
+  "draft",
+  "accountant_approved",
+  "retired",
 ]);
 
 export const organizations = pgTable(
@@ -174,6 +198,128 @@ export const exchangeRates = pgTable(
   ],
 );
 
+export const accounts = pgTable(
+  "accounts",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    rootType: accountRootType("root_type").notNull(),
+    isControlAccount: boolean("is_control_account").notNull().default(false),
+    allowManualPosting: boolean("allow_manual_posting").notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.code] }),
+    unique("accounts_org_code_root_unique").on(table.organizationId, table.code, table.rootType),
+    check("accounts_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("accounts_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check(
+      "accounts_control_manual_posting",
+      sql`not ${table.isControlAccount} or not ${table.allowManualPosting}`,
+    ),
+  ],
+);
+
+export const accountHierarchyEdges = pgTable(
+  "account_hierarchy_edges",
+  {
+    organizationId: text("organization_id").notNull(),
+    childCode: text("child_code").notNull(),
+    childRootType: accountRootType("child_root_type").notNull(),
+    parentCode: text("parent_code").notNull(),
+    parentRootType: accountRootType("parent_root_type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.childCode] }),
+    foreignKey({
+      columns: [table.organizationId, table.childCode, table.childRootType],
+      foreignColumns: [accounts.organizationId, accounts.code, accounts.rootType],
+      name: "account_edges_child_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.parentCode, table.parentRootType],
+      foreignColumns: [accounts.organizationId, accounts.code, accounts.rootType],
+      name: "account_edges_parent_fk",
+    }).onDelete("restrict"),
+    check("account_edges_not_self", sql`${table.childCode} <> ${table.parentCode}`),
+    check("account_edges_same_root", sql`${table.childRootType} = ${table.parentRootType}`),
+  ],
+);
+
+export const statutoryAccountMappings = pgTable(
+  "statutory_account_mappings",
+  {
+    organizationId: text("organization_id").notNull(),
+    accountCode: text("account_code").notNull(),
+    framework: statutoryFramework("framework").notNull(),
+    statutoryCode: text("statutory_code").notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.organizationId, table.accountCode, table.framework, table.effectiveFrom],
+    }),
+    foreignKey({
+      columns: [table.organizationId, table.accountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "statutory_mappings_account_fk",
+    }).onDelete("restrict"),
+    check("statutory_mappings_code_not_blank", sql`btrim(${table.statutoryCode}) <> ''`),
+    check(
+      "statutory_mappings_date_order",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+    check(
+      "statutory_mappings_approval_together",
+      sql`(${table.approvedBy} is null and ${table.approvedAt} is null) or (${table.approvedBy} is not null and ${table.approvedAt} is not null)`,
+    ),
+  ],
+);
+
+export const taxCodeVersions = pgTable(
+  "tax_code_versions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    kind: taxKind("kind").notNull(),
+    rate: numeric("rate", { precision: 12, scale: 6 }).notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    reviewState: taxReviewState("review_state").notNull().default("draft"),
+    requiredEvidence: jsonb("required_evidence").$type<string[]>().notNull().default([]),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.code, table.effectiveFrom] }),
+    check("tax_codes_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("tax_codes_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("tax_codes_rate_nonnegative", sql`${table.rate} >= 0`),
+    check(
+      "tax_codes_date_order",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+    check(
+      "tax_codes_approval_metadata",
+      sql`${table.reviewState} <> 'accountant_approved' or (${table.reviewedBy} is not null and ${table.reviewedAt} is not null and btrim(${table.reviewReason}) <> '')`,
+    ),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -182,4 +328,8 @@ export const schema = {
   fiscalYears,
   fiscalPeriods,
   exchangeRates,
+  accounts,
+  accountHierarchyEdges,
+  statutoryAccountMappings,
+  taxCodeVersions,
 } as const;

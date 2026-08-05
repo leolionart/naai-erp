@@ -10,6 +10,33 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-UNIT-ERP-110-001
+    aliases: [T-COA-001]
+    task: ERP-110
+    rules: [BR-COA-001]
+    title: Account hierarchy preserves root type and ledger-history immutability
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G1
+
+  - id: T-INT-ERP-110-001
+    aliases: [T-COA-002]
+    task: ERP-110
+    rules: [BR-COA-001, BR-COA-002]
+    title: Account parents and statutory mappings remain organization scoped and versioned
+    layer: integration
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test
+    blocking_gate: G1
+
+  - id: T-UNIT-ERP-110-002
+    aliases: [T-TAX-001]
+    task: ERP-110
+    rules: [BR-TAX-001]
+    title: Tax-code policy versions require effective dates and explicit accountant review state
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G1
+
   - id: T-UNIT-ERP-100-001
     aliases: [T-ORG-001]
     task: ERP-100

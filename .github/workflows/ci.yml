@@ -12,6 +12,22 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: naai_erp
+          POSTGRES_PASSWORD: naai_erp
+          POSTGRES_DB: naai_erp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U naai_erp -d naai_erp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://naai_erp:naai_erp@localhost:5432/naai_erp
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -24,3 +40,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm db:check
+      - run: pnpm db:migrate
+      - run: pnpm --filter @naai-erp/database test
