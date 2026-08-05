@@ -25,6 +25,25 @@ pnpm dev:preview
 
 The current preview does not require a database. Features that persist data will require a PostgreSQL `DATABASE_URL`, but still run as native development processes; production Docker image builds belong to Gate G8.
 
+## AI-native API and CLI
+
+The canonical machine interface is REST under:
+
+```text
+/api/v1/organizations/:organizationId/master-data/:resource
+```
+
+The first-party CLI calls that API and emits JSON by default:
+
+```sh
+export NAAI_ERP_TOKEN="<scoped API credential>"
+export NAAI_ERP_ORGANIZATION="org-naai"
+pnpm cli -- parties list
+pnpm cli -- parties create --data '{"data":{"id":"party-1","display_name":"Client","status":"active"}}'
+```
+
+Supported resource families and operations are documented in [OpenAPI v1](./docs/api/openapi-v1.json) and the [AI-native interface contract](./docs/api/ai-native-interface-contract.md). The CLI never connects directly to PostgreSQL.
+
 ## Documentation
 
 - [Sequential Coding Plan](./docs/planning/NAAI%20ERP%20-%20Sequential%20Coding%20Plan.md)

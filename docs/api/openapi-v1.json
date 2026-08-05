@@ -1,0 +1,79 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NAAI ERP AI-native API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001"
+    }
+  ],
+  "x-naai-resources": [
+    "organizations",
+    "fiscal-years",
+    "fiscal-periods",
+    "exchange-rates",
+    "accounts",
+    "statutory-mappings",
+    "tax-code-versions",
+    "dimensions",
+    "dimension-requirements",
+    "default-mappings",
+    "parties",
+    "projects",
+    "contracts",
+    "milestones"
+  ],
+  "paths": {
+    "/api/v1/organizations/{organizationId}/master-data/resources": {
+      "get": {
+        "summary": "List available master-data resources"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/master-data/{resource}": {
+      "get": {
+        "summary": "List organization-scoped resources"
+      },
+      "post": {
+        "summary": "Create an idempotent resource"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}": {
+      "get": {
+        "summary": "Get by opaque resource key"
+      },
+      "patch": {
+        "summary": "Update draft or mutable master data with optimistic version"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}/deactivate": {
+      "post": {
+        "summary": "Deactivate a resource where supported"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/master-data/{resource}/import/dry-run": {
+      "post": {
+        "summary": "Validate bulk rows without writes"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/master-data/{resource}/export": {
+      "get": {
+        "summary": "Export deterministically ordered JSON"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

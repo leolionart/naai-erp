@@ -42,3 +42,6 @@ jobs:
       - run: pnpm db:check
       - run: pnpm db:migrate
       - run: pnpm --filter @naai-erp/database test
+      - run: pnpm --filter @naai-erp/api test
+        env:
+          RUN_DB_INTEGRATION: "1"

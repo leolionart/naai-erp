@@ -56,6 +56,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@naai-erp/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@nestjs/common':
         specifier: 11.1.28
         version: 11.1.28(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -68,12 +71,37 @@ importers:
       fastify:
         specifier: 5.11.2
         version: 5.11.2
+      pg:
+        specifier: 8.22.0
+        version: 8.22.0
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
       rxjs:
         specifier: 7.8.2
         version: 7.8.2
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.15
+      '@types/pg':
+        specifier: 8.20.4
+        version: 8.20.4
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.7
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@22.19.15)(vite@7.3.6(@types/node@22.19.15)(tsx@4.23.7))
+
+  apps/cli:
+    dependencies:
+      '@naai-erp/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

@@ -1,0 +1,55 @@
+import { describe, expect, it, vi } from "vitest";
+import { NaaiErpClient } from "./client.js";
+
+describe("NAAI ERP JSON-first CLI client", () => {
+  it("calls REST API with scoped bearer and correlation headers", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ apiVersion: "v1", data: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("parties", "list");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/master-data/parties",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ authorization: "Bearer secret" }),
+      }),
+    );
+  });
+
+  it("sends mutation idempotency and optimistic version", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("parties", "update", { data: { display_name: "Updated" } }, "key", "2");
+    expect(fetchFn).toHaveBeenCalledWith(
+      expect.stringContaining("/parties/key"),
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({
+          "if-match": "2",
+          "idempotency-key": expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it("has no database dependency", async () => {
+    const packageJson = await import("../package.json", { with: { type: "json" } });
+    expect(JSON.stringify(packageJson.default)).not.toContain("@naai-erp/database");
+    expect(JSON.stringify(packageJson.default)).not.toContain("pg");
+  });
+});

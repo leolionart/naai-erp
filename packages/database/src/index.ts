@@ -3,6 +3,8 @@ export const DATABASE_PACKAGE = "@naai-erp/database" as const;
 export {
   accountRootType,
   accountHierarchyEdges,
+  apiIdempotencyRecords,
+  apiCredentials,
   accounts,
   exchangeRates,
   defaultMappingVersions,
@@ -30,6 +32,8 @@ export {
   partyStatus,
   projectState,
   projects,
+  resourceAuditEvents,
+  resourceVersions,
   statutoryAccountMappings,
   statutoryFramework,
   taxCodeVersions,

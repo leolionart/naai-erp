@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T14:33:34+07:00
+updated_at: 2026-08-05T14:44:27+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G1
@@ -180,10 +180,22 @@ tasks:
   - id: ERP-140
     title: AI-native master data API and CLI
     phase: P1
-    status: ready
+    status: review
     dependencies: [ERP-100, ERP-110, ERP-120, ERP-130]
     business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-ORG-001, BR-AUD-001]
     tests: [T-AI-001, T-AI-002, T-AI-003]
+    evidence: docs/implementation/evidence/ERP-140/
+    agent: codex-root
+    started_at: 2026-08-05T14:37:04+07:00
+    start_commit: fc07c2a7a0cf6b52bdca1339f8fcff981d531199
+    planned_files:
+      - apps/api/src/master-data/
+      - apps/cli/
+      - packages/contracts/src/
+      - packages/database/src/schema.ts
+      - db/migrations/
+      - docs/api/
+      - docs/implementation/evidence/ERP-140/
 
   - id: ERP-200
     title: Journal aggregate and balanced posting

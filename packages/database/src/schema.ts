@@ -641,6 +641,87 @@ export const milestones = pgTable(
   ],
 );
 
+export const resourceVersions = pgTable(
+  "resource_versions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    resourceType: text("resource_type").notNull(),
+    resourceKey: text("resource_key").notNull(),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.resourceType, table.resourceKey] }),
+    check("resource_versions_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const apiIdempotencyRecords = pgTable(
+  "api_idempotency_records",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    idempotencyKey: text("idempotency_key").notNull(),
+    operation: text("operation").notNull(),
+    requestHash: text("request_hash").notNull(),
+    responseBody: jsonb("response_body").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.idempotencyKey] }),
+    check("idempotency_operation_not_blank", sql`btrim(${table.operation}) <> ''`),
+  ],
+);
+
+export const resourceAuditEvents = pgTable(
+  "resource_audit_events",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceKey: text("resource_key").notNull(),
+    resourceVersion: bigint("resource_version", { mode: "bigint" }).notNull(),
+    action: text("action").notNull(),
+    actorId: text("actor_id").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    beforeState: jsonb("before_state").$type<Record<string, unknown>>(),
+    afterState: jsonb("after_state").$type<Record<string, unknown>>(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    check("resource_audit_version_positive", sql`${table.resourceVersion} > 0`),
+  ],
+);
+
+export const apiCredentials = pgTable(
+  "api_credentials",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    actorId: text("actor_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    roles: jsonb("roles").$type<string[]>().notNull().default([]),
+    status: text("status").notNull().default("active"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("api_credentials_token_hash_unique").on(table.tokenHash),
+    check("api_credentials_active_status", sql`${table.status} in ('active','revoked')`),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -664,4 +745,8 @@ export const schema = {
   projects,
   contracts,
   milestones,
+  resourceVersions,
+  apiIdempotencyRecords,
+  resourceAuditEvents,
+  apiCredentials,
 } as const;

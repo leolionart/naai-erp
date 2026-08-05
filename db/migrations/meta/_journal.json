@@ -29,6 +29,13 @@
       "when": 1785914916520,
       "tag": "0003_perpetual_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785915730513,
+      "tag": "0004_sudden_glorian",
+      "breakpoints": true
     }
   ]
 }

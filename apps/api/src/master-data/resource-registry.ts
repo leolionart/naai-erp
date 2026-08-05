@@ -1,0 +1,198 @@
+export type ResourceDefinition = Readonly<{
+  table: string;
+  organizationColumn: string;
+  keyColumns: readonly string[];
+  writableColumns: readonly string[];
+  mutableColumns: readonly string[];
+  deactivate?: Readonly<{ column: string; value: string | boolean }>;
+}>;
+
+export const MASTER_DATA_RESOURCES = {
+  organizations: {
+    table: "organizations",
+    organizationColumn: "id",
+    keyColumns: ["id"],
+    writableColumns: [],
+    mutableColumns: ["legal_name", "base_currency", "timezone"],
+  },
+  "fiscal-years": {
+    table: "fiscal_years",
+    organizationColumn: "organization_id",
+    keyColumns: ["year"],
+    writableColumns: ["year", "starts_on", "ends_on"],
+    mutableColumns: ["starts_on", "ends_on"],
+  },
+  "fiscal-periods": {
+    table: "fiscal_periods",
+    organizationColumn: "organization_id",
+    keyColumns: ["fiscal_year", "period_number"],
+    writableColumns: ["fiscal_year", "period_number", "starts_on", "ends_on", "state"],
+    mutableColumns: ["starts_on", "ends_on", "state"],
+  },
+  "exchange-rates": {
+    table: "exchange_rates",
+    organizationColumn: "organization_id",
+    keyColumns: ["id"],
+    writableColumns: ["id", "source_currency", "target_currency", "rate", "source", "observed_at"],
+    mutableColumns: [],
+  },
+  accounts: {
+    table: "accounts",
+    organizationColumn: "organization_id",
+    keyColumns: ["code"],
+    writableColumns: [
+      "code",
+      "name",
+      "root_type",
+      "is_control_account",
+      "allow_manual_posting",
+      "is_active",
+    ],
+    mutableColumns: ["name", "is_control_account", "allow_manual_posting", "is_active"],
+    deactivate: { column: "is_active", value: false },
+  },
+  "statutory-mappings": {
+    table: "statutory_account_mappings",
+    organizationColumn: "organization_id",
+    keyColumns: ["account_code", "framework", "effective_from"],
+    writableColumns: [
+      "account_code",
+      "framework",
+      "statutory_code",
+      "effective_from",
+      "effective_to",
+      "approved_by",
+      "approved_at",
+    ],
+    mutableColumns: [],
+  },
+  "tax-code-versions": {
+    table: "tax_code_versions",
+    organizationColumn: "organization_id",
+    keyColumns: ["code", "effective_from"],
+    writableColumns: [
+      "code",
+      "name",
+      "kind",
+      "rate",
+      "effective_from",
+      "effective_to",
+      "review_state",
+      "required_evidence",
+      "reviewed_by",
+      "reviewed_at",
+      "review_reason",
+    ],
+    mutableColumns: [
+      "name",
+      "effective_to",
+      "review_state",
+      "required_evidence",
+      "reviewed_by",
+      "reviewed_at",
+      "review_reason",
+    ],
+  },
+  dimensions: {
+    table: "dimension_values",
+    organizationColumn: "organization_id",
+    keyColumns: ["kind", "code"],
+    writableColumns: ["kind", "code", "name", "is_active"],
+    mutableColumns: ["name", "is_active"],
+    deactivate: { column: "is_active", value: false },
+  },
+  "dimension-requirements": {
+    table: "dimension_requirement_versions",
+    organizationColumn: "organization_id",
+    keyColumns: ["account_code", "effective_from"],
+    writableColumns: [
+      "account_code",
+      "required_kinds",
+      "effective_from",
+      "effective_to",
+      "change_reason",
+      "correlation_id",
+      "created_by",
+    ],
+    mutableColumns: [],
+  },
+  "default-mappings": {
+    table: "default_mapping_versions",
+    organizationColumn: "organization_id",
+    keyColumns: ["category_code", "effective_from"],
+    writableColumns: [
+      "category_code",
+      "account_code",
+      "tax_code",
+      "tax_effective_from",
+      "default_cost_center_code",
+      "default_service_line_code",
+      "effective_from",
+      "effective_to",
+      "change_reason",
+      "correlation_id",
+      "created_by",
+    ],
+    mutableColumns: [],
+  },
+  parties: {
+    table: "parties",
+    organizationColumn: "organization_id",
+    keyColumns: ["id"],
+    writableColumns: ["id", "display_name", "normalized_tax_id", "status"],
+    mutableColumns: ["display_name", "normalized_tax_id", "status"],
+    deactivate: { column: "status", value: "inactive" },
+  },
+  projects: {
+    table: "projects",
+    organizationColumn: "organization_id",
+    keyColumns: ["id"],
+    writableColumns: [
+      "id",
+      "code",
+      "name",
+      "client_party_id",
+      "owner_user_id",
+      "contract_type",
+      "currency",
+      "budget_minor",
+      "starts_on",
+      "ends_on",
+      "state",
+    ],
+    mutableColumns: ["name", "owner_user_id", "budget_minor", "ends_on", "state"],
+  },
+  contracts: {
+    table: "contracts",
+    organizationColumn: "organization_id",
+    keyColumns: ["id"],
+    writableColumns: ["id", "project_id", "reference", "signed_on", "value_minor", "currency"],
+    mutableColumns: ["reference", "signed_on", "value_minor"],
+  },
+  milestones: {
+    table: "milestones",
+    organizationColumn: "organization_id",
+    keyColumns: ["id"],
+    writableColumns: ["id", "contract_id", "name", "due_on", "amount_minor", "sequence"],
+    mutableColumns: ["name", "due_on", "amount_minor", "sequence"],
+  },
+} as const satisfies Record<string, ResourceDefinition>;
+
+export type MasterDataResource = keyof typeof MASTER_DATA_RESOURCES;
+
+export function resourceDefinition(resource: string): ResourceDefinition {
+  const definition = MASTER_DATA_RESOURCES[resource as MasterDataResource];
+  if (!definition) throw new Error(`Unknown master-data resource: ${resource}`);
+  return definition;
+}
+
+export function encodeResourceKey(key: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(key)).toString("base64url");
+}
+
+export function decodeResourceKey(value: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("Invalid resource key");
+  return parsed as Record<string, unknown>;
+}
