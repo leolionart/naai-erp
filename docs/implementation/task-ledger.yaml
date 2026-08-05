@@ -441,7 +441,7 @@ tasks:
   - id: ERP-335
     title: Operational admin UI for implemented modules
     phase: P3
-    status: in_progress
+    status: review
     dependencies: [ERP-330]
     business_rules: [BR-UI-003]
     tests: [T-E2E-ERP-335-001, T-E2E-ERP-335-002]

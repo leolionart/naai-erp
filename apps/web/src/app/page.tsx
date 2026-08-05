@@ -1,4 +1,6 @@
 import { ModuleWorkspace } from "./module-workspace";
+import { EvidenceInboundWorkspace } from "./workspaces/evidence-inbound-workspace";
+import { LedgerMasterWorkspace } from "./workspaces/ledger-master-workspace";
 
 type ModuleKey =
   "overview" | "master-data" | "ledger" | "documents" | "expenses" | "evidence" | "integrations";
@@ -284,7 +286,13 @@ export default async function HomePage({
             <b className="muted">Theo task ledger</b>
           </div>
         </section>
-        <ModuleWorkspace moduleKey={active} />
+        {active === "ledger" || active === "master-data" ? (
+          <LedgerMasterWorkspace initialSection={active === "ledger" ? "journals" : "accounts"} />
+        ) : active === "evidence" || active === "integrations" ? (
+          <EvidenceInboundWorkspace />
+        ) : (
+          <ModuleWorkspace moduleKey={active} />
+        )}
       </main>
     </div>
   );

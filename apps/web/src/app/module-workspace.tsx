@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { InvoiceExpenseWorkspace } from "./workspaces/invoice-expense-workspace";
 
 type ModuleKey = "master-data" | "ledger" | "documents" | "expenses" | "evidence" | "integrations";
 type Row = Record<string, unknown>;
@@ -189,10 +190,12 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
           <p>Thao tác trực tiếp qua REST API, không cần nhập JSON cho luồng chính.</p>
         </div>
         <div className="workspace-actions">
-          <button className="ghost" onClick={load} disabled={busy}>
-            Tải dữ liệu
-          </button>
-          {moduleKey !== "integrations" ? (
+          {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+            <button className="ghost" onClick={load} disabled={busy}>
+              Tải dữ liệu
+            </button>
+          ) : null}
+          {moduleKey !== "integrations" && moduleKey !== "documents" && moduleKey !== "expenses" ? (
             <button className="primary" onClick={() => setShowCreate((open) => !open)}>
               {showCreate ? "Đóng form" : "+ Tạo mới"}
             </button>
@@ -226,49 +229,66 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
         </div>
       </details>
 
-      {showCreate ? (
+      {moduleKey === "documents" || moduleKey === "expenses" ? (
+        <InvoiceExpenseWorkspace
+          kind={moduleKey}
+          apiRoot={apiRoot}
+          token={token}
+          onNotice={(message) => setNotice(message)}
+        />
+      ) : null}
+
+      {moduleKey !== "documents" && moduleKey !== "expenses" && showCreate ? (
         <CreateForm moduleKey={moduleKey as ModuleKey} busy={busy} onCreate={create} />
       ) : null}
 
-      <div
-        className={`inline-notice ${notice.includes("Không") || notice.includes("AUTH") ? "error" : ""}`}
-      >
-        {notice}
-      </div>
-      <div className="table-toolbar">
-        <input
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          placeholder="Tìm trong danh sách…"
-        />
-        <span>{visible.length} bản ghi</span>
-      </div>
-      <div className="data-table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              {config.columns.map((column) => (
-                <th key={column}>{column}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((row, index) => (
-              <tr
-                key={String(row.id ?? row.code ?? index)}
-                onClick={() => setSelected(row)}
-                className={selected === row ? "selected" : ""}
-              >
+      {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+        <div
+          className={`inline-notice ${notice.includes("Không") || notice.includes("AUTH") ? "error" : ""}`}
+        >
+          {notice}
+        </div>
+      ) : null}
+      {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+        <div className="table-toolbar">
+          <input
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            placeholder="Tìm trong danh sách…"
+          />
+          <span>{visible.length} bản ghi</span>
+        </div>
+      ) : null}
+      {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+        <div className="data-table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
                 {config.columns.map((column) => (
-                  <td key={column}>{value(row, column)}</td>
+                  <th key={column}>{column}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {!visible.length ? <div className="empty-state">{config.empty}</div> : null}
-      </div>
-      {selected ? <LifecycleActions moduleKey={moduleKey as ModuleKey} onAction={action} /> : null}
+            </thead>
+            <tbody>
+              {visible.map((row, index) => (
+                <tr
+                  key={String(row.id ?? row.code ?? index)}
+                  onClick={() => setSelected(row)}
+                  className={selected === row ? "selected" : ""}
+                >
+                  {config.columns.map((column) => (
+                    <td key={column}>{value(row, column)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!visible.length ? <div className="empty-state">{config.empty}</div> : null}
+        </div>
+      ) : null}
+      {moduleKey !== "documents" && moduleKey !== "expenses" && selected ? (
+        <LifecycleActions moduleKey={moduleKey as ModuleKey} onAction={action} />
+      ) : null}
     </section>
   );
 }
