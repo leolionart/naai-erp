@@ -232,4 +232,35 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it.each(["review", "download-url"])(
+    "calls evidence %s through its controlled API",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "evidence",
+        action,
+        { reason: "Authorized" },
+        "ev-1",
+        undefined,
+        "stable-key",
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/evidence/ev-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({ "idempotency-key": "stable-key" }),
+        }),
+      );
+    },
+  );
 });

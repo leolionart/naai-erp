@@ -214,6 +214,33 @@ describeIntegration("ERP-310 expense workflow", () => {
       await review(item.id, "management", "valid", "0", `${item.id}-mgmt`);
       await review(item.id, "cit", "eligible", item.grossMinor, `${item.id}-cit`);
       await review(item.id, "vat", item.vatState, item.vatEligibleMinor, `${item.id}-vat`);
+      if (item.expenseClass === "invoice_backed") {
+        const evidence = await app.inject({
+          method: "POST",
+          url: "/api/v1/organizations/org-exp/evidence",
+          headers: headers(accountantToken, `${item.id}-evidence`),
+          payload: {
+            subjectType: "expense",
+            subjectId: item.id,
+            evidenceType: "invoice",
+            originalFilename: "invoice.pdf",
+            declaredMediaType: "application/pdf",
+            contentBase64: Buffer.from("%PDF-1.7\ninvoice fixture").toString("base64"),
+            source: "integration-test",
+          },
+        });
+        const evidenceId = evidence.json().data.evidenceId as string;
+        expect(
+          (
+            await app.inject({
+              method: "POST",
+              url: `/api/v1/organizations/org-exp/evidence/${evidenceId}/review`,
+              headers: headers(accountantToken, `${item.id}-evidence-review`),
+              payload: { state: "accepted", reason: "Invoice checked" },
+            })
+          ).statusCode,
+        ).toBe(201);
+      }
       expect(
         (await command(item.id, "approve", accountantToken, `${item.id}-approve`)).statusCode,
       ).toBe(201);

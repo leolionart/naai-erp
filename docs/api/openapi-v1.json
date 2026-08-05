@@ -53,7 +53,10 @@
     "expenses/review",
     "expenses/approve",
     "expenses/reject",
-    "expenses/post"
+    "expenses/post",
+    "evidence/upload",
+    "evidence/review",
+    "evidence/download-url"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -206,6 +209,23 @@
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/{action}": {
       "post": { "summary": "Submit request evidence approve reject or atomically post an expense" }
+    },
+    "/api/v1/organizations/{organizationId}/evidence": {
+      "get": { "summary": "List organization-scoped evidence metadata and current versions" },
+      "post": {
+        "summary": "Upload allowlisted evidence bytes with server-computed SHA-256 and duplicate warnings"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/evidence/{evidenceId}": {
+      "get": { "summary": "Read immutable version history without exposing storage credentials" }
+    },
+    "/api/v1/organizations/{organizationId}/evidence/{evidenceId}/review": {
+      "post": { "summary": "Accept reject or request review with actor reason timestamp and audit" }
+    },
+    "/api/v1/organizations/{organizationId}/evidence/{evidenceId}/download-url": {
+      "post": {
+        "summary": "Issue an audited organization-authorized signed URL with a maximum 300 second TTL"
+      }
     }
   },
   "components": {

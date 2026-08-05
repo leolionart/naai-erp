@@ -67,7 +67,7 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3001");
   const [organizationId, setOrganizationId] = useState("org-demo");
   const [token, setToken] = useState("");
-  const [requestPath, setRequestPath] = useState(path ?? "health");
+  const [requestPath, setRequestPath] = useState(path ?? "health/live");
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [payload, setPayload] = useState(() =>
     JSON.stringify(samplePayload[moduleKey] ?? {}, null, 2),
@@ -92,7 +92,7 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
   }, []);
 
   useEffect(() => {
-    setRequestPath(resourcePath[moduleKey] ?? "health");
+    setRequestPath(resourcePath[moduleKey] ?? "health/live");
     setMethod("GET");
     setPayload(JSON.stringify(samplePayload[moduleKey] ?? {}, null, 2));
   }, [moduleKey]);
@@ -100,8 +100,8 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
   const url = useMemo(() => {
     const cleanBase = baseUrl.replace(/\/$/, "");
     const cleanPath = requestPath.replace(/^\//, "");
-    return cleanPath === "health"
-      ? `${cleanBase}/health`
+    return cleanPath.startsWith("health/")
+      ? `${cleanBase}/${cleanPath}`
       : `${cleanBase}/api/v1/organizations/${encodeURIComponent(organizationId)}/${cleanPath}`;
   }, [baseUrl, organizationId, requestPath]);
 

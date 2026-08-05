@@ -174,3 +174,13 @@ export {
   type ExpenseReviewState,
   type ExpenseState,
 } from "./expenses.js";
+export {
+  EVIDENCE_MEDIA_TYPES,
+  detectEvidenceMediaType,
+  nextEvidenceVersion,
+  reviewEvidence,
+  validateEvidenceUpload,
+  type EvidenceMediaType,
+  type EvidenceReviewState,
+  type EvidenceStatus,
+} from "./evidence.js";

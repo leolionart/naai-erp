@@ -139,6 +139,17 @@ export const managementValidityState = pgEnum("management_validity_state", [
   "invalid",
   "accountant_override",
 ]);
+export const evidenceVersionStatus = pgEnum("evidence_version_status", [
+  "active",
+  "superseded",
+  "quarantined",
+]);
+export const evidenceReviewState = pgEnum("evidence_review_state", [
+  "pending",
+  "accepted",
+  "rejected",
+  "needs_review",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1381,6 +1392,108 @@ export const expenseEvents = pgTable(
   ],
 );
 
+export const evidenceRecords = pgTable(
+  "evidence_records",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    subjectType: text("subject_type").notNull(),
+    subjectId: text("subject_id").notNull(),
+    evidenceType: text("evidence_type").notNull(),
+    currentVersion: integer("current_version").notNull().default(1),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    check(
+      "evidence_records_subject_type",
+      sql`${table.subjectType} in ('commercial_document','expense','contract','project','milestone')`,
+    ),
+    check("evidence_records_subject_not_blank", sql`btrim(${table.subjectId}) <> ''`),
+    check("evidence_records_type_not_blank", sql`btrim(${table.evidenceType}) <> ''`),
+    check("evidence_records_current_version", sql`${table.currentVersion} > 0`),
+    check("evidence_records_version", sql`${table.version} > 0`),
+  ],
+);
+
+export const evidenceVersions = pgTable(
+  "evidence_versions",
+  {
+    organizationId: text("organization_id").notNull(),
+    evidenceId: text("evidence_id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    status: evidenceVersionStatus("status").notNull().default("active"),
+    reviewState: evidenceReviewState("review_state").notNull().default("pending"),
+    objectBucket: text("object_bucket").notNull(),
+    objectKey: text("object_key").notNull(),
+    originalFilename: text("original_filename").notNull(),
+    declaredMediaType: text("declared_media_type").notNull(),
+    detectedMediaType: text("detected_media_type").notNull(),
+    byteSize: bigint("byte_size", { mode: "bigint" }).notNull(),
+    sha256: text("sha256").notNull(),
+    source: text("source").notNull(),
+    supersedesVersion: integer("supersedes_version"),
+    uploadedBy: text("uploaded_by").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    reviewReference: text("review_reference"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.evidenceId, table.versionNumber] }),
+    foreignKey({
+      columns: [table.organizationId, table.evidenceId],
+      foreignColumns: [evidenceRecords.organizationId, evidenceRecords.id],
+      name: "evidence_versions_record_fk",
+    }).onDelete("restrict"),
+    unique("evidence_versions_object_key_unique").on(table.organizationId, table.objectKey),
+    check("evidence_versions_number", sql`${table.versionNumber} > 0`),
+    check("evidence_versions_size", sql`${table.byteSize} > 0`),
+    check("evidence_versions_sha256", sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+    check("evidence_versions_filename", sql`btrim(${table.originalFilename}) <> ''`),
+    check(
+      "evidence_versions_review_metadata",
+      sql`(${table.reviewState} = 'pending' and ${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.reviewReason} is null) or (${table.reviewState} <> 'pending' and ${table.reviewedBy} is not null and ${table.reviewedAt} is not null and ${table.reviewReason} is not null and btrim(${table.reviewReason}) <> '')`,
+    ),
+  ],
+);
+
+export const evidenceAccessEvents = pgTable(
+  "evidence_access_events",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    evidenceId: text("evidence_id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    action: text("action").notNull(),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason"),
+    correlationId: text("correlation_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.evidenceId, table.versionNumber],
+      foreignColumns: [
+        evidenceVersions.organizationId,
+        evidenceVersions.evidenceId,
+        evidenceVersions.versionNumber,
+      ],
+      name: "evidence_access_events_version_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
 export const outboxEvents = pgTable(
   "outbox_events",
   {
@@ -1485,6 +1598,9 @@ export const schema = {
   expenseLines,
   expenseAllocations,
   expenseEvents,
+  evidenceRecords,
+  evidenceVersions,
+  evidenceAccessEvents,
   outboxEvents,
   postingRuleVersions,
 } as const;

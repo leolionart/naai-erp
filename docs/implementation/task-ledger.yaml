@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:35:00+07:00
+updated_at: 2026-08-05T16:45:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
@@ -391,10 +391,24 @@ tasks:
   - id: ERP-320
     title: Evidence management
     phase: P3
-    status: ready
+    status: review
     dependencies: [ERP-300, ERP-310]
     business_rules: [BR-EVD-001, BR-EVD-002]
     tests: [T-EVD-001, T-EVD-002, T-SEC-003]
+    evidence: docs/implementation/evidence/ERP-320/
+    agent: codex-root
+    started_at: 2026-08-05T16:45:00+07:00
+    start_commit: 28ec9ceba2c5167caa4e5acafbf2039729c60980
+    planned_files:
+      - packages/domain/src/evidence.ts
+      - packages/domain/src/evidence.test.ts
+      - packages/database/src/schema.ts
+      - db/migrations/
+      - apps/api/src/evidence/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-320/
 
   - id: ERP-330
     title: Inbound API and webhooks

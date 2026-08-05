@@ -447,8 +447,17 @@ export class PgExpenseStore {
         : ["contract_backed", "freelancer"].includes(e.expense_class)
           ? ["contract", "acceptance"]
           : [];
-    if (required.some((name) => e.evidence_checklist[name] !== true))
-      throw new Error("EXPENSE_EVIDENCE_INCOMPLETE");
+    if (required.length > 0) {
+      const evidence = await c.query<{ evidence_type: string }>(
+        `select r.evidence_type from evidence_records r join evidence_versions v
+         on v.organization_id=r.organization_id and v.evidence_id=r.id and v.version_number=r.current_version
+         where r.organization_id=$1 and r.subject_type='expense' and r.subject_id=$2
+           and v.status='active' and v.review_state='accepted'`,
+        [organizationId, e.id],
+      );
+      const types = new Set(evidence.rows.map((row) => row.evidence_type));
+      if (required.some((name) => !types.has(name))) throw new Error("EXPENSE_EVIDENCE_INCOMPLETE");
+    }
   }
   private async refreshSummary(c: PoolClient, org: string, id: string) {
     await c.query(

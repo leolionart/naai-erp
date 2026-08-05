@@ -20,6 +20,10 @@ import { PgCommercialDocumentStore } from "./commercial-documents/pg-commercial-
 import { ExpenseController } from "./expenses/expense.controller.js";
 import { ExpenseService } from "./expenses/expense.service.js";
 import { PgExpenseStore } from "./expenses/pg-expense.store.js";
+import { EvidenceController } from "./evidence/evidence.controller.js";
+import { EvidenceService } from "./evidence/evidence.service.js";
+import { PgEvidenceStore } from "./evidence/pg-evidence.store.js";
+import { EvidenceObjectStorage } from "./evidence/evidence-object-storage.js";
 
 @Module({
   controllers: [
@@ -31,6 +35,7 @@ import { PgExpenseStore } from "./expenses/pg-expense.store.js";
     LedgerReportController,
     CommercialDocumentController,
     ExpenseController,
+    EvidenceController,
   ],
   providers: [
     MasterDataService,
@@ -46,6 +51,9 @@ import { PgExpenseStore } from "./expenses/pg-expense.store.js";
     PgCommercialDocumentStore,
     ExpenseService,
     PgExpenseStore,
+    EvidenceService,
+    PgEvidenceStore,
+    EvidenceObjectStorage,
   ],
 })
 export class AppModule {}

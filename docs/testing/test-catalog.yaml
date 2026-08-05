@@ -387,6 +387,41 @@ tests:
     command: pnpm --filter @naai-erp/domain test
     blocking_gate: G3
 
+  - id: T-INT-ERP-320-001
+    aliases: [T-EVD-001]
+    task: ERP-320
+    rules: [BR-EVD-001]
+    title: Evidence upload computes exact hash and media signature and reports organization-scoped duplicates
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-INT-ERP-320-002
+    aliases: [T-EVD-002]
+    task: ERP-320
+    rules: [BR-EVD-001]
+    title: Replacement creates an immutable sequential version and preserves superseded history
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-SEC-ERP-320-003
+    aliases: [T-SEC-003]
+    task: ERP-320
+    rules: [BR-EVD-002, BR-SEC-002, BR-ORG-001]
+    title: Evidence download is default-deny organization-scoped short-lived and fully audited
+    layer: security
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-CONTRACT-ERP-320-004
+    task: ERP-320
+    rules: [BR-AI-001, BR-AI-002, BR-EVD-001, BR-EVD-002]
+    title: REST OpenAPI and first-party CLI expose upload list read review and signed download
+    layer: contract
+    command: pnpm --filter @naai-erp/cli test
+    blocking_gate: G3
+
   - id: T-PROP-ERP-330-001
     aliases: [T-INT-001]
     task: ERP-330
