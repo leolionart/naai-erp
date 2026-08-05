@@ -141,6 +141,13 @@
       "when": 1785942212026,
       "tag": "0019_calm_piledriver",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785946220385,
+      "tag": "0020_fearless_slayback",
+      "breakpoints": true
     }
   ]
 }

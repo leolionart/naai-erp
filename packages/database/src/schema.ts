@@ -197,6 +197,21 @@ export const bankImportRowOutcome = pgEnum("bank_import_row_outcome", [
   "duplicate",
   "rejected",
 ]);
+export const bankStatementSessionState = pgEnum("bank_statement_session_state", [
+  "draft",
+  "reviewed",
+  "closed",
+]);
+export const bankControlExceptionKind = pgEnum("bank_control_exception_kind", [
+  "suspense",
+  "control",
+]);
+export const bankControlExceptionStatus = pgEnum("bank_control_exception_status", [
+  "pending",
+  "approved",
+  "resolved",
+  "rejected",
+]);
 export const reconciliationAttemptState = pgEnum("reconciliation_attempt_state", [
   "matched",
   "reconciled",
@@ -1942,6 +1957,84 @@ export const bankStatementImports = pgTable(
   ],
 );
 
+export const bankStatementSessions = pgTable(
+  "bank_statement_sessions",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    financialAccountId: text("financial_account_id").notNull(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    openingBalanceMinor: bigint("opening_balance_minor", { mode: "bigint" }).notNull(),
+    closingBalanceMinor: bigint("closing_balance_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    state: bankStatementSessionState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    closedBy: text("closed_by"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    closeReason: text("close_reason"),
+    correlationId: text("correlation_id").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("bank_statement_session_period_unique").on(
+      table.organizationId,
+      table.financialAccountId,
+      table.periodStart,
+      table.periodEnd,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.financialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "bank_statement_sessions_account_fk",
+    }).onDelete("restrict"),
+    check("bank_statement_session_period", sql`${table.periodEnd} >= ${table.periodStart}`),
+    check("bank_statement_session_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("bank_statement_session_version", sql`${table.version} > 0`),
+    check(
+      "bank_statement_session_close_metadata",
+      sql`${table.state} <> 'closed' or (${table.closedBy} is not null and ${table.closedAt} is not null and ${table.closeReason} is not null and btrim(${table.closeReason}) <> '')`,
+    ),
+    index("bank_statement_sessions_account_period_idx").on(
+      table.organizationId,
+      table.financialAccountId,
+      table.periodStart,
+      table.periodEnd,
+    ),
+  ],
+);
+
+export const bankStatementSessionImports = pgTable(
+  "bank_statement_session_imports",
+  {
+    organizationId: text("organization_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    importId: text("import_id").notNull(),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.sessionId, table.importId] }),
+    unique("bank_statement_session_import_once").on(table.organizationId, table.importId),
+    foreignKey({
+      columns: [table.organizationId, table.sessionId],
+      foreignColumns: [bankStatementSessions.organizationId, bankStatementSessions.id],
+      name: "bank_statement_session_imports_session_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.importId],
+      foreignColumns: [bankStatementImports.organizationId, bankStatementImports.id],
+      name: "bank_statement_session_imports_import_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
 export const bankTransactions = pgTable(
   "bank_transactions",
   {
@@ -2391,6 +2484,74 @@ export const reconciliationAdjustments = pgTable(
   ],
 );
 
+export const bankControlExceptions = pgTable(
+  "bank_control_exceptions",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    sessionId: text("session_id").notNull(),
+    bankTransactionId: text("bank_transaction_id"),
+    kind: bankControlExceptionKind("kind").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    ownerId: text("owner_id").notNull(),
+    reason: text("reason").notNull(),
+    reviewDue: date("review_due").notNull(),
+    status: bankControlExceptionStatus("status").notNull().default("pending"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalReason: text("approval_reason"),
+    resolvedBy: text("resolved_by"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolutionReference: text("resolution_reference"),
+    resolutionReason: text("resolution_reason"),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    correlationId: text("correlation_id").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.sessionId],
+      foreignColumns: [bankStatementSessions.organizationId, bankStatementSessions.id],
+      name: "bank_control_exceptions_session_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.bankTransactionId],
+      foreignColumns: [bankTransactions.organizationId, bankTransactions.id],
+      name: "bank_control_exceptions_transaction_fk",
+    }).onDelete("restrict"),
+    check("bank_control_exception_amount", sql`${table.amountMinor} <> 0`),
+    check("bank_control_exception_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("bank_control_exception_owner", sql`btrim(${table.ownerId}) <> ''`),
+    check("bank_control_exception_reason", sql`btrim(${table.reason}) <> ''`),
+    check("bank_control_exception_version", sql`${table.version} > 0`),
+    check(
+      "bank_control_exception_approval",
+      sql`${table.status} <> 'approved' or (${table.approvedBy} is not null and ${table.approvedAt} is not null and ${table.approvalReason} is not null and btrim(${table.approvalReason}) <> '')`,
+    ),
+    check(
+      "bank_control_exception_resolution",
+      sql`${table.status} <> 'resolved' or (${table.resolvedBy} is not null and ${table.resolvedAt} is not null and ${table.resolutionReference} is not null and btrim(${table.resolutionReference}) <> '' and ${table.resolutionReason} is not null and btrim(${table.resolutionReason}) <> '')`,
+    ),
+    check(
+      "bank_control_exception_rejection",
+      sql`${table.status} <> 'rejected' or (${table.rejectedBy} is not null and ${table.rejectedAt} is not null and ${table.rejectionReason} is not null and btrim(${table.rejectionReason}) <> '')`,
+    ),
+    index("bank_control_exceptions_session_status_idx").on(
+      table.organizationId,
+      table.sessionId,
+      table.status,
+    ),
+  ],
+);
+
 export const reconciliationEvents = pgTable(
   "reconciliation_events",
   {
@@ -2789,6 +2950,9 @@ export const schema = {
   outboundDeliveryAttempts,
   financialAccounts,
   bankStatementImports,
+  bankStatementSessions,
+  bankStatementSessionImports,
+  bankControlExceptions,
   bankTransactions,
   bankTransactionNormalizations,
   bankStatementImportRows,

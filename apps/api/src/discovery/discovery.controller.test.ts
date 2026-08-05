@@ -13,6 +13,9 @@ describe("headless API discovery", () => {
     expect(spec.json().paths).toHaveProperty(
       "/api/v1/organizations/{organizationId}/reports/ar-aging",
     );
+    expect(spec.json().paths).toHaveProperty(
+      "/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/review",
+    );
     const caps = await app.inject({ method: "GET", url: "/api/v1/capabilities" });
     expect(caps.statusCode).toBe(200);
     expect(caps.json().operations).toEqual(
@@ -22,6 +25,10 @@ describe("headless API discovery", () => {
           organizationScoped: true,
         }),
         expect.objectContaining({ operationId: "listArAging", organizationScoped: true }),
+        expect.objectContaining({
+          operationId: "createBankStatementSession",
+          organizationScoped: true,
+        }),
       ]),
     );
     expect(caps.json().authentication.scheme).toBe("bearer");

@@ -357,6 +357,9 @@ export function BankingWorkspace() {
         <Button variant="outline" asChild>
           <Link href="/banking/internal-transfers">Chuyển nội bộ</Link>
         </Button>
+        <Button variant="outline" asChild>
+          <Link href="/banking/statements">Kiểm soát sao kê</Link>
+        </Button>
       </div>
 
       <Card>

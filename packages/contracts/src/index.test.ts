@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   API_VERSION,
   AGING_CONTRACT_VERSION,
+  BANKING_CONTROL_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -14,6 +15,8 @@ import {
   type InternalTransferContract,
   type PaymentReconciliationContract,
   type AgingReportContract,
+  type BankStatementSessionContract,
+  type CreateBankStatementSessionRequest,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
@@ -227,5 +230,73 @@ describe("AI-native API contracts", () => {
     expect(report.schemaVersion).toBe(1);
     expect(report.items[0]?.outstandingMinor).toBe("1000000");
     expect(report.controlTies[0]?.differenceMinor).toBe("0");
+  });
+
+  it("keeps statement control totals dispositions suspense and closure blockers exact", () => {
+    const request: CreateBankStatementSessionRequest = {
+      schemaVersion: BANKING_CONTROL_CONTRACT_VERSION,
+      financialAccountId: "bank-account-1",
+      currency: "VND",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-31",
+      openingBalanceMinor: "1000000",
+      closingBalanceMinor: "1250000",
+      importIds: ["import-1"],
+      reason: "August statement",
+    };
+    const session: BankStatementSessionContract = {
+      session: {
+        id: "statement-1",
+        financialAccountId: request.financialAccountId,
+        currency: request.currency,
+        periodStart: request.periodStart,
+        periodEnd: request.periodEnd,
+        openingBalanceMinor: request.openingBalanceMinor,
+        closingBalanceMinor: request.closingBalanceMinor,
+        importIds: request.importIds,
+        state: "reviewed",
+        resourceVersion: "2",
+        nextActions: ["create-exception", "approve-exception", "resolve-exception"],
+        events: [],
+      },
+      imports: [{ importId: "import-1", transactionCount: 1, acceptedTransactionCount: 1 }],
+      transactions: [
+        {
+          id: "control-1",
+          bankTransactionId: "bank-transaction-1",
+          importId: "import-1",
+          bookingDate: "2026-08-05",
+          amountMinor: "250000",
+          disposition: "accepted",
+          controlStatus: "suspense",
+        },
+      ],
+      exceptions: [
+        {
+          id: "exception-1",
+          kind: "suspense",
+          bankTransactionId: "bank-transaction-1",
+          amountMinor: "250000",
+          currency: "VND",
+          reason: "Pending identification",
+          ownerId: "finance-1",
+          reviewDue: "2026-09-05",
+          state: "pending",
+          createdBy: "finance-1",
+          createdAt: "2026-08-31T17:00:00+07:00",
+        },
+      ],
+      control: {
+        expectedMovementMinor: "250000",
+        controlDifferenceMinor: "0",
+        acceptedTransactionCount: 1,
+        explainedTransactionCount: 1,
+        pendingExceptionCount: 1,
+        closeBlockers: ["unapproved_suspense:exception-1"],
+        closable: false,
+      },
+    };
+    expect(session.control.expectedMovementMinor).toBe("250000");
+    expect(session.control.closeBlockers).toEqual(["unapproved_suspense:exception-1"]);
   });
 });

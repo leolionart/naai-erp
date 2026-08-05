@@ -676,4 +676,154 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it("lists gets creates reviews and closes statement control sessions headlessly", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("statement-sessions", "list", {
+      financialAccountId: "bank-1",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-31",
+      state: "reviewed",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/statement-sessions?financialAccountId=bank-1&periodStart=2026-08-01&periodEnd=2026-08-31&state=reviewed",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("statement-sessions", "get", undefined, "statement-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/statement-sessions/statement-1",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request(
+      "statement-sessions",
+      "create",
+      { schemaVersion: 1, financialAccountId: "bank-1" },
+      undefined,
+      undefined,
+      "statement-create-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/statement-sessions",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": "statement-create-1" }),
+      }),
+    );
+    for (const action of ["review", "close"]) {
+      await client.request(
+        "statement-sessions",
+        action,
+        { schemaVersion: 1, reason: "Controlled" },
+        "statement-1",
+        "2",
+        `statement-${action}-1`,
+      );
+      expect(fetchFn).toHaveBeenLastCalledWith(
+        `http://api/api/v1/organizations/org-a/banking/statement-sessions/statement-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "idempotency-key": `statement-${action}-1`,
+            "if-match": "2",
+          }),
+        }),
+      );
+    }
+  });
+
+  it("creates a server-controlled suspense exception without resubmitting transactions", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "statement-exceptions",
+      "create",
+      {
+        schemaVersion: 1,
+        kind: "suspense",
+        bankTransactionId: "bank-1",
+        amountMinor: "100",
+        currency: "VND",
+        ownerId: "finance-1",
+        reviewDue: "2026-09-05",
+        reason: "Needs review",
+      },
+      "statement-1",
+      "2",
+      "exception-create-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/statement-sessions/statement-1/exceptions",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "idempotency-key": "exception-create-1",
+          "if-match": "2",
+        }),
+      }),
+    );
+  });
+
+  it.each(["approve", "resolve", "reject"])(
+    "%s statement suspense exception through a composite scoped key",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "statement-exceptions",
+        action,
+        { schemaVersion: 1, reason: "Reviewed", resolutionReference: "rec-1" },
+        "statement-1/exception-1",
+        "3",
+        `exception-${action}-1`,
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/banking/statement-sessions/statement-1/exceptions/exception-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "idempotency-key": `exception-${action}-1`,
+            "if-match": "3",
+          }),
+        }),
+      );
+    },
+  );
+
+  it("rejects malformed statement exception composite keys before transport", () => {
+    const fetchFn = vi.fn();
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    expect(() => client.request("statement-exceptions", "approve", {}, "exception-only")).toThrow(
+      "<session-id>/<exception-id>",
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
 });

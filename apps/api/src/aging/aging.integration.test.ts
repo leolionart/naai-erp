@@ -25,13 +25,17 @@ suite("ERP-430 AR/AP aging PostgreSQL API", () => {
         ('org-erp430','j-credit','2026-08-02','AR credit','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null),
         ('org-erp430','j-pay','2026-08-10','Receipt','VND','reversed',3,'finance',now(),'finance','Approved',now(),'finance',null),
         ('org-erp430','j-pay-rev','2026-08-20','Receipt reversal','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance','j-pay'),
-        ('org-erp430','j-ap','2026-08-03','AP invoice','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null);
+        ('org-erp430','j-ap','2026-08-03','AP invoice','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null),
+        ('org-erp430','j-advance','2026-08-04','Supplier advance','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null);
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
         ('org-erp430','j-ar',1,'131',100,null,'AR','{}'),('org-erp430','j-ar',2,'511',null,100,'Revenue','{}'),
         ('org-erp430','j-credit',1,'511',20,null,'Credit','{}'),('org-erp430','j-credit',2,'131',null,20,'AR credit','{}'),
         ('org-erp430','j-pay',1,'112',40,null,'Bank','{}'),('org-erp430','j-pay',2,'131',null,40,'Settlement','{}'),
         ('org-erp430','j-pay-rev',1,'112',null,40,'Bank reversal','{}'),('org-erp430','j-pay-rev',2,'131',40,null,'Settlement reversal','{}'),
-        ('org-erp430','j-ap',1,'642',50,null,'Expense','{}'),('org-erp430','j-ap',2,'331',null,50,'AP','{}');
+        ('org-erp430','j-ap',1,'642',50,null,'Expense','{}'),('org-erp430','j-ap',2,'331',null,50,'AP','{}'),
+        ('org-erp430','j-advance',1,'331',7,null,'Supplier advance','{"partyId":"supplier","documentRef":"ADV-1"}'),('org-erp430','j-advance',2,'112',null,7,'Bank','{}');
+      insert into opening_balance_imports(organization_id,id,journal_id,opening_date,currency,control_debit_minor,control_credit_minor,status,created_by,correlation_id)
+      values('org-erp430','opening-advance','j-advance','2026-08-04','VND',7,7,'posted','finance','corr-advance');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,journal_id,created_by) values
         ('org-erp430','ar-1','sales_invoice','partially_paid','AR-1','AA',2026,'customer','2026-07-01','2026-07-31','VND',100,0,100,'131',null,'j-ar','finance'),
         ('org-erp430','credit-1','credit_note','issued','CR-1','AA',2026,'customer','2026-08-02','2026-08-02','VND',20,0,20,'131','ar-1','j-credit','finance'),
@@ -101,8 +105,15 @@ suite("ERP-430 AR/AP aging PostgreSQL API", () => {
     expect(ap.json().data).toMatchObject({
       side: "ap",
       outstandingTotalMinor: "50",
+      creditOrAdvanceTotalMinor: "7",
       tieStatus: "tied",
     });
+    expect(ap.json().data.exceptions).toEqual([]);
+    expect(ap.json().data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ balanceKind: "supplier_advance", outstandingMinor: "7" }),
+      ]),
+    );
     const party = await app.inject({
       method: "GET",
       url: "/api/v1/organizations/org-erp430/reports/ar-aging/parties/customer?asOf=2026-08-15",

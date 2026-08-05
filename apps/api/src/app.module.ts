@@ -49,6 +49,10 @@ import { AgingController } from "./aging/aging.controller.js";
 import { AgingService } from "./aging/aging.service.js";
 import { AGING_STORE } from "./aging/aging.types.js";
 import { PgAgingStore } from "./aging/pg-aging.store.js";
+import { BankingControlController } from "./banking-controls/banking-control.controller.js";
+import { BankingControlService } from "./banking-controls/banking-control.service.js";
+import { BANKING_CONTROL_STORE } from "./banking-controls/banking-control.types.js";
+import { PgBankingControlStore } from "./banking-controls/pg-banking-control.store.js";
 
 @Module({
   controllers: [
@@ -69,6 +73,7 @@ import { PgAgingStore } from "./aging/pg-aging.store.js";
     InternalTransferCandidateController,
     DiscoveryController,
     AgingController,
+    BankingControlController,
   ],
   providers: [
     MasterDataService,
@@ -104,6 +109,9 @@ import { PgAgingStore } from "./aging/pg-aging.store.js";
     AgingService,
     PgAgingStore,
     { provide: AGING_STORE, useExisting: PgAgingStore },
+    BankingControlService,
+    PgBankingControlStore,
+    { provide: BANKING_CONTROL_STORE, useExisting: PgBankingControlStore },
   ],
 })
 export class AppModule {}

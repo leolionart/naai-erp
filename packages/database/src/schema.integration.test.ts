@@ -316,6 +316,28 @@ describeDatabase("ERP-100 database tenant constraints", () => {
     ).rejects.toThrow();
   });
 
+  it("enforces ERP-440 statement-session import ownership and exception metadata", async () => {
+    await pool!.query(`
+      insert into bank_statement_sessions
+        (organization_id,id,financial_account_id,period_start,period_end,opening_balance_minor,closing_balance_minor,currency,created_by,correlation_id)
+      values ('org-a','statement-session-db-1','financial-db-1','2026-08-01','2026-08-31',0,100,'VND','user-a','corr-control-db');
+      insert into bank_statement_session_imports(organization_id,session_id,import_id)
+      values ('org-a','statement-session-db-1','bank-import-db-1');
+      insert into bank_control_exceptions
+        (organization_id,id,session_id,bank_transaction_id,kind,amount_minor,currency,owner_id,reason,review_due,created_by,correlation_id)
+      values ('org-a','control-exception-db-1','statement-session-db-1','bank-txn-db-1','suspense',100,'VND','user-a','Needs review','2026-09-05','user-a','corr-control-db');
+    `);
+    await expect(
+      pool!.query(`insert into bank_statement_session_imports(organization_id,session_id,import_id)
+        values ('org-a','statement-session-db-1','bank-import-db-1')`),
+    ).rejects.toMatchObject({ code: "23505" });
+    await expect(
+      pool!.query(`insert into bank_control_exceptions
+        (organization_id,id,session_id,bank_transaction_id,kind,amount_minor,currency,owner_id,reason,review_due,status,created_by,correlation_id)
+        values ('org-a','control-exception-db-2','statement-session-db-1','bank-txn-db-1','suspense',100,'VND','user-a','Bad approval','2026-09-05','approved','user-a','corr-control-db')`),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
+
   it("preserves ERP-410 reconciliation attempt history and one active attempt", async () => {
     await pool!.query(`
       insert into reconciliation_candidate_runs

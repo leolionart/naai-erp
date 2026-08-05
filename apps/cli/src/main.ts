@@ -25,6 +25,7 @@ const { values, positionals } = parseArgs({
     "include-settled": { type: "boolean", default: false },
     cursor: { type: "string" },
     limit: { type: "string" },
+    status: { type: "string" },
     "account-id": { type: "string" },
     file: { type: "string" },
     adapter: { type: "string" },
@@ -86,13 +87,22 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                 ...(values.cursor ? { cursor: values.cursor } : {}),
                 ...(values.limit ? { limit: values.limit } : {}),
               }
-            : resource.startsWith("bank-")
+            : resource === "statement-sessions"
               ? {
                   ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
-                  ...(values.from ? { from: values.from } : {}),
-                  ...(values.to ? { to: values.to } : {}),
+                  ...(values.from ? { periodStart: values.from } : {}),
+                  ...(values.to ? { periodEnd: values.to } : {}),
+                  ...(values.status ? { state: values.status } : {}),
+                  ...(values.cursor ? { cursor: values.cursor } : {}),
+                  ...(values.limit ? { limit: values.limit } : {}),
                 }
-              : undefined;
+              : resource.startsWith("bank-")
+                ? {
+                    ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
+                    ...(values.from ? { from: values.from } : {}),
+                    ...(values.to ? { to: values.to } : {}),
+                  }
+                : undefined;
     const result = await client.request(
       resource,
       action,
