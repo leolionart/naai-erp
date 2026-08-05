@@ -101,7 +101,7 @@ describeIntegration("ERP-330 inbound webhooks", () => {
       data: expenseData,
     };
     const first = await send(envelope, "hook-key-1");
-    expect(first.statusCode).toBe(201);
+    expect(first.statusCode, first.body).toBe(201);
     expect(first.json().data.state).toBe("processed");
     const replay = await send(envelope, "hook-key-1");
     expect(replay.json().data.idempotencyReplayed).toBe(true);
@@ -138,7 +138,7 @@ describeIntegration("ERP-330 inbound webhooks", () => {
       },
       "quarantine-key",
     );
-    expect(quarantine.statusCode).toBe(201);
+    expect(quarantine.statusCode, quarantine.body).toBe(201);
     expect(quarantine.json().data.state).toBe("quarantined");
     const effects = await pool.query(
       "select count(*)::int count from expenses where organization_id='org-hook' and id='bad-schema'",
