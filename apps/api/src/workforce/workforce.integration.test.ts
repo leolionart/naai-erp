@@ -121,7 +121,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/submit",
-      headers: { ...headers, "idempotency-key": "submit" },
+      headers: { ...headers, "idempotency-key": "timesheet-submit" },
       payload: {
         schemaVersion: 1,
         expectedResourceVersion: timesheetCreated.json().data.resource.resourceVersion,
@@ -129,10 +129,18 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
       },
     });
     expect(submitted.statusCode, submitted.body).toBe(201);
+    expect(submitted.json().data.resource.state).toBe("submitted");
+    expect(
+      (
+        await pool.query(
+          "select state from timesheets where organization_id='org-erp500' and id='ts'",
+        )
+      ).rows[0]?.state,
+    ).toBe("submitted");
     const approved = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/approve",
-      headers: { ...reviewerHeaders, "idempotency-key": "approve" },
+      headers: { ...reviewerHeaders, "idempotency-key": "timesheet-approve" },
       payload: {
         schemaVersion: 1,
         expectedResourceVersion: submitted.json().data.resource.resourceVersion,

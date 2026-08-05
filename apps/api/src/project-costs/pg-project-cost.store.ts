@@ -157,7 +157,7 @@ export class PgProjectCostStore {
                 ? "posted"
                 : "reversed";
       await q.query(
-        `update direct_cost_allocations set state=$3,version=$4,${field}_by=$5,${field}_at=now(),reversal_reason=case when $3='reversed' then $6 else reversal_reason end,journal_id=case when $3='posted' then $7 else journal_id end,reversal_journal_id=case when $3='reversed' then $7 else reversal_journal_id end,updated_at=now() where organization_id=$1 and id=$2`,
+        `update direct_cost_allocations set state=$3::direct_cost_allocation_state,version=$4,${field}_by=$5,${field}_at=now(),reversal_reason=case when $3::direct_cost_allocation_state='reversed'::direct_cost_allocation_state then $6 else reversal_reason end,journal_id=case when $3::direct_cost_allocation_state='posted'::direct_cost_allocation_state then $7 else journal_id end,reversal_journal_id=case when $3::direct_cost_allocation_state='reversed'::direct_cost_allocation_state then $7 else reversal_journal_id end,updated_at=now() where organization_id=$1 and id=$2`,
         [c.organizationId, id, state, v, c.actorId, i.reason, journalId],
       );
       await this.audit(q, c, id, a, v, String(i.reason));
