@@ -101,3 +101,14 @@ export {
   type PostingSourceLine,
   type ProtectedManualAccount,
 } from "./posting-rules.js";
+export {
+  approveAccountingWorkflow,
+  createAccountingWorkflow,
+  createReplacementWorkflow,
+  postAccountingWorkflow,
+  reverseAccountingWorkflow,
+  type AccountingWorkflow,
+  type MakerCheckerPolicy,
+  type WorkflowAuditAction,
+  type WorkflowAuditEvent,
+} from "./accounting-workflow.js";

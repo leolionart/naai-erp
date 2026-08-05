@@ -740,16 +740,31 @@ export const journalEntries = pgTable(
       .default(sql`1`),
     postedAt: timestamp("posted_at", { withTimezone: true }),
     postedBy: text("posted_by"),
+    createdBy: text("created_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvalReason: text("approval_reason"),
+    selfApproved: boolean("self_approved").notNull().default(false),
     reversalOfId: text("reversal_of_id"),
+    replacementOfId: text("replacement_of_id"),
     ...auditColumns,
   },
   (table) => [
     primaryKey({ columns: [table.organizationId, table.id] }),
     unique("journal_entries_org_reversal_unique").on(table.organizationId, table.reversalOfId),
+    unique("journal_entries_org_replacement_unique").on(
+      table.organizationId,
+      table.replacementOfId,
+    ),
     foreignKey({
       columns: [table.organizationId, table.reversalOfId],
       foreignColumns: [table.organizationId, table.id],
       name: "journal_entries_reversal_of_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.replacementOfId],
+      foreignColumns: [table.organizationId, table.id],
+      name: "journal_entries_replacement_of_fk",
     }).onDelete("restrict"),
     check("journal_entries_description_not_blank", sql`btrim(${table.description}) <> ''`),
     check("journal_entries_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
@@ -757,6 +772,29 @@ export const journalEntries = pgTable(
     check(
       "journal_entries_posting_metadata",
       sql`(${table.state} in ('posted','reversed') and ${table.postedAt} is not null and ${table.postedBy} is not null) or (${table.state} in ('draft','approved') and ${table.postedAt} is null and ${table.postedBy} is null)`,
+    ),
+    check(
+      "journal_entries_approval_metadata",
+      sql`(${table.state} = 'draft' and ${table.approvedAt} is null and ${table.approvedBy} is null and ${table.approvalReason} is null) or (${table.state} in ('approved','posted','reversed') and ${table.approvedAt} is not null and ${table.approvedBy} is not null and ${table.approvalReason} is not null and btrim(${table.approvalReason}) <> '')`,
+    ),
+  ],
+);
+
+export const accountingWorkflowPolicies = pgTable(
+  "accounting_workflow_policies",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organizations.id),
+    allowSelfApproval: boolean("allow_self_approval").notNull().default(false),
+    selfApprovalMaxMinor: bigint("self_approval_max_minor", { mode: "bigint" }),
+    updatedBy: text("updated_by").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "workflow_policy_self_approval_threshold",
+      sql`(not ${table.allowSelfApproval} and ${table.selfApprovalMaxMinor} is null) or (${table.allowSelfApproval} and ${table.selfApprovalMaxMinor} is not null and ${table.selfApprovalMaxMinor} >= 0)`,
     ),
   ],
 );
@@ -905,6 +943,7 @@ export const schema = {
   resourceAuditEvents,
   apiCredentials,
   journalEntries,
+  accountingWorkflowPolicies,
   journalLines,
   journalPostingCommands,
   outboxEvents,

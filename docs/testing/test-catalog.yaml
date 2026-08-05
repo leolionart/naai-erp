@@ -246,6 +246,24 @@ tests:
     command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test && RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G2
 
+  - id: T-UNIT-ERP-220-001
+    aliases: [T-WFL-001]
+    task: ERP-220
+    rules: [BR-WFL-001, BR-WFL-002, BR-LED-003]
+    title: Accounting workflow enforces maker-checker valid transitions and immutable reversal history
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G2
+
+  - id: T-INT-ERP-220-001
+    aliases: [T-WFL-002]
+    task: ERP-220
+    rules: [BR-WFL-001, BR-WFL-002, BR-LED-003, BR-AI-002, BR-AUD-001]
+    title: Approve post reverse and repost commands enforce RBAC idempotency audit and organization scope
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G2
+
   - id: T-E2E-ERP-300-001
     aliases: [T-INV-001]
     task: ERP-300

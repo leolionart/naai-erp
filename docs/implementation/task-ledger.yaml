@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:51:00+07:00
+updated_at: 2026-08-05T16:02:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
@@ -255,10 +255,25 @@ tasks:
   - id: ERP-220
     title: Accounting workflow
     phase: P2
-    status: ready
+    status: review
     dependencies: [ERP-200, ERP-210]
     business_rules: [BR-WFL-001, BR-WFL-002, BR-LED-003]
     tests: [T-WFL-001, T-WFL-002]
+    evidence: docs/implementation/evidence/ERP-220/
+    agent: codex-root
+    started_at: 2026-08-05T15:55:00+07:00
+    start_commit: 3f855cb198dec2f704699771010f6a2b576bcf73
+    planned_files:
+      - packages/domain/src/accounting-workflow.ts
+      - packages/domain/src/accounting-workflow.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/journals/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-220/
 
   - id: ERP-230
     title: Period close and reopen

@@ -195,7 +195,7 @@ describeDatabase("ERP-100 database tenant constraints", () => {
         values ('org-b','journal-db-1',3,'111',1)`),
     ).rejects.toMatchObject({ code: "23503" });
     await pool!.query(
-      "update journal_entries set state='posted',posted_at=now(),posted_by='user-a' where organization_id='org-a' and id='journal-db-1'",
+      "update journal_entries set state='posted',approved_at=now(),approved_by='user-a',approval_reason='Reviewed',posted_at=now(),posted_by='user-a' where organization_id='org-a' and id='journal-db-1'",
     );
     await expect(
       pool!.query(
@@ -224,5 +224,21 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       "select count(*)::int count from posting_rule_versions where organization_id='org-b' and rule_id='expense-default'",
     );
     expect(foreign.rows[0].count).toBe(0);
+  });
+
+  it("requires an explicit bounded threshold for small-team self approval", async () => {
+    await expect(
+      pool!.query(`insert into accounting_workflow_policies
+        (organization_id,allow_self_approval,updated_by)
+        values ('org-a',true,'user-a')`),
+    ).rejects.toMatchObject({ code: "23514" });
+    await pool!.query(`insert into accounting_workflow_policies
+      (organization_id,allow_self_approval,self_approval_max_minor,updated_by)
+      values ('org-a',true,1000000,'user-a')`);
+    await expect(
+      pool!.query(`insert into accounting_workflow_policies
+        (organization_id,allow_self_approval,self_approval_max_minor,updated_by)
+        values ('org-b',false,1,'user-a')`),
+    ).rejects.toMatchObject({ code: "23514" });
   });
 });

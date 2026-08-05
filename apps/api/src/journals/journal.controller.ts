@@ -54,4 +54,52 @@ export class JournalController {
       idempotencyKey,
     );
   }
+  @Post(":id/approve")
+  async approve(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { reason?: string },
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.approve(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      input,
+      idempotencyKey,
+    );
+  }
+  @Post(":id/reverse")
+  async reverse(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { reason?: string; reversalDate?: string; reversalJournalId?: string },
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.reverse(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      input,
+      idempotencyKey,
+    );
+  }
+  @Post(":id/repost")
+  async repost(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: CreateJournalInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.repost(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      input,
+      idempotencyKey,
+    );
+  }
 }

@@ -33,8 +33,8 @@ export class NaaiErpClient {
         ? base
         : action === "get" || action === "update"
           ? `${base}/${key}`
-          : isJournal && action === "post"
-            ? `${base}/${key}/post`
+          : isJournal && ["approve", "post", "reverse", "repost"].includes(action)
+            ? `${base}/${key}/${action}`
             : isPostingRule && action === "evaluate"
               ? `${base}/evaluate`
               : action === "deactivate"

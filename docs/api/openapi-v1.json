@@ -15,6 +15,7 @@
     "fiscal-periods",
     "exchange-rates",
     "accounts",
+    "accounting-workflow-policy",
     "statutory-mappings",
     "tax-code-versions",
     "dimensions",
@@ -26,7 +27,13 @@
     "milestones",
     "posting-rule-versions"
   ],
-  "x-naai-workflows": ["journals", "posting-rules/evaluate"],
+  "x-naai-workflows": [
+    "journals/approve",
+    "journals/post",
+    "journals/reverse",
+    "journals/repost",
+    "posting-rules/evaluate"
+  ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
       "get": {
@@ -80,6 +87,21 @@
     "/api/v1/organizations/{organizationId}/journals/{journalId}/post": {
       "post": {
         "summary": "Atomically post a balanced journal with audit and outbox effects"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/journals/{journalId}/approve": {
+      "post": {
+        "summary": "Approve a draft journal with maker-checker and explicit reason"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/journals/{journalId}/reverse": {
+      "post": {
+        "summary": "Create and post a linked inverse journal without mutating ledger history"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/journals/{journalId}/repost": {
+      "post": {
+        "summary": "Create a corrected replacement draft linked to a reversed journal"
       }
     },
     "/api/v1/organizations/{organizationId}/posting-rules/evaluate": {

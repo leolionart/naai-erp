@@ -10,6 +10,7 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   let app: Awaited<ReturnType<typeof createApp>>;
   const token = "integration-secret";
+  const approverToken = "approver-secret";
 
   beforeAll(async () => {
     await pool.query(`
@@ -19,13 +20,29 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     `);
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles)
-       values ('org-api-a','cred-1','ai-integration',$1,'["integration","finance_admin"]')`,
-      [createHash("sha256").update(token).digest("hex")],
+       values ('org-api-a','cred-1','ai-integration',$1,'["integration","finance_admin"]'),
+              ('org-api-a','cred-2','human-approver',$2,'["approver","accountant"]')`,
+      [
+        createHash("sha256").update(token).digest("hex"),
+        createHash("sha256").update(approverToken).digest("hex"),
+      ],
     );
     app = await createApp();
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   });
+
+  async function approve(journalId: string, key: string) {
+    return app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/org-api-a/journals/${journalId}/approve`,
+      headers: {
+        authorization: `Bearer ${approverToken}`,
+        "idempotency-key": key,
+      },
+      payload: { reason: "Reviewed by independent approver" },
+    });
+  }
 
   afterAll(async () => {
     await app?.close();
@@ -102,6 +119,7 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
       },
     });
     expect(create.statusCode).toBe(201);
+    expect((await approve("journal-api-1", "journal-approve-1")).statusCode).toBe(201);
     const request = {
       method: "POST" as const,
       url: "/api/v1/organizations/org-api-a/journals/journal-api-1/post",
@@ -116,7 +134,7 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     const counts = await pool.query(`select
       (select count(*)::int from journal_entries where organization_id='org-api-a' and id='journal-api-1') journals,
       (select count(*)::int from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-1') events`);
-    expect(counts.rows[0]).toEqual({ journals: 1, events: 1 });
+    expect(counts.rows[0]).toEqual({ journals: 1, events: 2 });
   });
 
   it("rejects an unbalanced journal without posting or outbox effects", async () => {
@@ -135,6 +153,7 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
         ],
       },
     });
+    expect((await approve("journal-api-2", "journal-approve-2")).statusCode).toBe(201);
     const result = await app.inject({
       method: "POST",
       url: "/api/v1/organizations/org-api-a/journals/journal-api-2/post",
@@ -145,9 +164,9 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
       "select state from journal_entries where organization_id='org-api-a' and id='journal-api-2'",
     );
     const events = await pool.query(
-      "select count(*)::int count from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-2'",
+      "select count(*)::int count from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-2' and event_type='journal.posted'",
     );
-    expect(state.rows[0].state).toBe("draft");
+    expect(state.rows[0].state).toBe("approved");
     expect(events.rows[0].count).toBe(0);
   });
 
@@ -167,6 +186,7 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
         ],
       },
     });
+    expect((await approve("journal-api-3", "journal-approve-3")).statusCode).toBe(201);
     const request = {
       method: "POST" as const,
       url: "/api/v1/organizations/org-api-a/journals/journal-api-3/post",
@@ -176,9 +196,125 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     expect(responses.map((response) => response.statusCode)).toEqual([201, 201]);
     expect(responses.filter((response) => response.json().data.idempotencyReplayed).length).toBe(1);
     const events = await pool.query(
-      "select count(*)::int count from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-3'",
+      "select count(*)::int count from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-3' and event_type='journal.posted'",
     );
     expect(events.rows[0].count).toBe(1);
+  });
+
+  it("enforces maker-checker then reverses and creates one replacement draft", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "workflow-create-1" },
+      payload: {
+        id: "workflow-journal-1",
+        journalDate: "2026-08-05",
+        description: "Workflow journal",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "1000" },
+          { accountCode: "411", creditMinor: "1000" },
+        ],
+      },
+    });
+    const selfApproval = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/workflow-journal-1/approve",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "workflow-self-approve" },
+      payload: { reason: "Self approve attempt" },
+    });
+    expect(selfApproval.statusCode).toBe(409);
+    await pool.query(`insert into accounting_workflow_policies
+      (organization_id,allow_self_approval,self_approval_max_minor,updated_by)
+      values ('org-api-a',true,2000,'human-approver')`);
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "small-create" },
+      payload: {
+        id: "workflow-small-1",
+        journalDate: "2026-08-05",
+        description: "Small-team exception",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "500" },
+          { accountCode: "411", creditMinor: "500" },
+        ],
+      },
+    });
+    const allowedSelfApproval = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/workflow-small-1/approve",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "small-self-approve" },
+      payload: { reason: "Configured small-team exception" },
+    });
+    expect(allowedSelfApproval.statusCode).toBe(201);
+    expect(allowedSelfApproval.json().data.selfApproval).toBe(true);
+    expect((await approve("workflow-journal-1", "workflow-approve")).statusCode).toBe(201);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/organizations/org-api-a/journals/workflow-journal-1/post",
+          headers: { authorization: `Bearer ${token}`, "idempotency-key": "workflow-post" },
+        })
+      ).statusCode,
+    ).toBe(201);
+    const reverse = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/workflow-journal-1/reverse",
+      headers: { authorization: `Bearer ${approverToken}`, "idempotency-key": "workflow-reverse" },
+      payload: {
+        reason: "Correct account mapping",
+        reversalDate: "2026-08-06",
+        reversalJournalId: "workflow-reversal-1",
+      },
+    });
+    expect(reverse.statusCode).toBe(201);
+    expect(reverse.json().data.reversalJournalId).toBe("workflow-reversal-1");
+    const repostRequest = {
+      method: "POST" as const,
+      url: "/api/v1/organizations/org-api-a/journals/workflow-journal-1/repost",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "workflow-repost" },
+      payload: {
+        id: "workflow-replacement-1",
+        journalDate: "2026-08-06",
+        description: "Corrected workflow journal",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "1000" },
+          { accountCode: "411", creditMinor: "1000" },
+        ],
+      },
+    };
+    const repost = await app.inject(repostRequest);
+    expect(repost.statusCode).toBe(201);
+    expect((await app.inject(repostRequest)).json().data.idempotencyReplayed).toBe(true);
+    const rows = await pool.query(
+      `select id,state,reversal_of_id,replacement_of_id from journal_entries
+       where organization_id='org-api-a' and id like 'workflow-%' order by id`,
+    );
+    expect(rows.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "workflow-journal-1", state: "reversed" }),
+        expect.objectContaining({
+          id: "workflow-reversal-1",
+          state: "posted",
+          reversal_of_id: "workflow-journal-1",
+        }),
+        expect.objectContaining({
+          id: "workflow-replacement-1",
+          state: "draft",
+          replacement_of_id: "workflow-journal-1",
+        }),
+      ]),
+    );
+    const net = await pool.query<{ account_code: string; net: string }>(
+      `select account_code,(coalesce(sum(debit_minor),0)-coalesce(sum(credit_minor),0))::text net
+       from journal_lines where organization_id='org-api-a'
+         and journal_id in ('workflow-journal-1','workflow-reversal-1') group by account_code`,
+    );
+    expect(net.rows.every((row) => row.net === "0")).toBe(true);
   });
 
   it("evaluates effective posting rules without creating ledger effects", async () => {

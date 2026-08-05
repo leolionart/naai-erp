@@ -91,4 +91,28 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it.each(["approve", "reverse", "repost"])(
+    "calls the journal %s workflow command",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request("journals", action, { reason: "Reviewed" }, "journal-1");
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/journals/journal-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({ "idempotency-key": expect.any(String) }),
+        }),
+      );
+    },
+  );
 });

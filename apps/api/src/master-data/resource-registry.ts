@@ -197,6 +197,13 @@ export const MASTER_DATA_RESOURCES = {
     ],
     mutableColumns: [],
   },
+  "accounting-workflow-policy": {
+    table: "accounting_workflow_policies",
+    organizationColumn: "organization_id",
+    keyColumns: ["organization_id"],
+    writableColumns: ["allow_self_approval", "self_approval_max_minor", "updated_by"],
+    mutableColumns: ["allow_self_approval", "self_approval_max_minor", "updated_by"],
+  },
 } as const satisfies Record<string, ResourceDefinition>;
 
 export type MasterDataResource = keyof typeof MASTER_DATA_RESOURCES;
