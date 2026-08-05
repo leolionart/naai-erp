@@ -2,6 +2,32 @@
 
 This catalog is the authoritative behavior specification for implementation. Repository benchmarks are design inspiration only; Vietnamese tax rules remain configurable and require accountant approval.
 
+## AI-native access
+
+### BR-AI-001 — Machine-readable coverage
+
+- Every business entity and workflow has a versioned API contract and first-party CLI access before its feature is complete.
+- UI-only and direct-database-only capabilities are incomplete.
+- Reads support stable IDs, pagination, filtering and structured errors.
+
+### BR-AI-002 — Controlled AI mutations
+
+- AI/service identities use the same organization scope, RBAC and state machines as people.
+- Retryable mutations require idempotency and correlation identifiers.
+- AI cannot bypass approval, maker-checker, locked periods, evidence or accounting invariants.
+
+### BR-AI-003 — Explainable effects
+
+- Mutations return resource version, audit reference and permitted next actions.
+- Suggested classifications/postings remain distinct from approved or posted effects.
+- Financial amounts use exact strings/minor units, never binary floating point JSON values.
+
+### BR-AI-004 — Bulk and event interoperability
+
+- Import/export, webhook and outbound event payloads are schema-versioned.
+- Bulk operations support dry-run, row-level validation and explicit partial-failure results.
+- Direct database access is not an integration contract.
+
 ## Rule format
 
 Every rule contains a stable ID, invariant/behavior, validation, state transition or posting effect, edge cases and required test coverage. A rule may not be silently changed from code; update this file and its mapped tests first.

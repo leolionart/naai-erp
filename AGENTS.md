@@ -51,6 +51,13 @@ For each task:
 
 Any implementation that violates an invariant must stop; do not weaken a test to make it pass.
 
+## AI-native interface invariant
+
+- Every business resource must be readable and writable, where permitted, through versioned REST/OpenAPI and the first-party CLI.
+- CLI, UI and optional AI/MCP adapters call the same application services; none use direct PostgreSQL access as an integration path.
+- AI/service identities never bypass organization scope, RBAC, audit, idempotency, maker-checker, period locks or accounting rules.
+- A feature is not `done` if it only has schema/domain/UI without its applicable machine-readable contract.
+
 ## Testing requirements
 
 - Every business rule change needs a linked test ID.

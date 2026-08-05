@@ -27,6 +27,7 @@ sources:
 5. Chạy test và lưu evidence theo acceptance criteria.
 6. Chuyển task qua `review`; chỉ mark `done` sau khi gate tương ứng đạt.
 7. Nếu phát hiện thay đổi accounting policy, dừng task và cập nhật blueprint/ADR trước.
+8. Business feature chỉ hoàn tất khi có API/CLI machine-readable contract, authorization và audit behavior; database/UI riêng lẻ là chưa đủ.
 
 Trạng thái hợp lệ:
 
@@ -41,6 +42,8 @@ Trạng thái hợp lệ:
 - Greenfield modular monolith.
 - PostgreSQL là source of truth.
 - REST/OpenAPI trước; async worker dùng transactional outbox.
+- AI-native: mọi feature có versioned REST/OpenAPI và first-party CLI; UI không bao giờ là interface duy nhất.
+- AI/service identities chịu organization scope, RBAC, audit, idempotency và cùng accounting invariants như người dùng.
 - Suggested stack: pnpm monorepo, TypeScript, NestJS/Fastify, Next.js, PostgreSQL, Redis/BullMQ, S3-compatible storage.
 - Mọi quyết định stack quan trọng phải được ghi ADR trước khi scaffold.
 - Tách riêng `booked`, `tax_eligible`, `cash_settled`, `forecast`, `statutory_export`.

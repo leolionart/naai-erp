@@ -8,6 +8,7 @@ const requiredAdrs = [
   "ADR-005-evidence-storage.md",
   "ADR-006-reporting-and-read-models.md",
   "ADR-007-license-policy.md",
+  "ADR-009-ai-native-interfaces.md",
 ];
 
 const requiredRuleReferences = [
@@ -17,6 +18,10 @@ const requiredRuleReferences = [
   "BR-LED-002",
   "BR-REV-001",
   "BR-TAX-001",
+  "BR-AI-001",
+  "BR-AI-002",
+  "BR-AI-003",
+  "BR-AI-004",
 ];
 
 const contents = [];
