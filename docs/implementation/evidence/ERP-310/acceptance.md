@@ -12,4 +12,4 @@
 - AI-native contract: list/get/create/review/transition operations exist in REST/OpenAPI and first-party CLI.
 - Golden data: `GF-EXPENSE-001` and `GF-EXPENSE-002` record independent expected results.
 
-Final acceptance remains pending exact-commit GitHub CI with PostgreSQL integration enabled.
+Exact-commit GitHub CI with PostgreSQL integration passed: https://github.com/leolionart/naai-erp/actions/runs/30993660998

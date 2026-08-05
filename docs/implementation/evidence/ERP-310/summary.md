@@ -12,3 +12,5 @@ Implemented an organization-scoped expense workflow for invoice-backed and non-i
 - REST/OpenAPI and the first-party CLI expose create, list, get, review and lifecycle commands through the same application service controls.
 
 Start commit: `8fd109a37e103782fb0fdfcf06b5ba9508b23817`.
+Implementation commit: `ad2003fd7c8a2a430392fd90bde85b4ee552b223`.
+Verified CI: https://github.com/leolionart/naai-erp/actions/runs/30993660998

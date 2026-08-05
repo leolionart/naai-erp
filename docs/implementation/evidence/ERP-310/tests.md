@@ -7,4 +7,5 @@
 - `pnpm db:check` — 16 migration entries valid, including ERP-310 schema and posted-expense immutability triggers.
 - `jq empty docs/api/openapi-v1.json` and `git diff --check` — passed.
 
-Authoritative empty-database migration and PostgreSQL integration proof is required from exact-commit GitHub CI before ERP-310 is marked done.
+Exact-commit GitHub CI passed `pnpm check`, migration verification, empty-database migration, database integration tests and all API/PostgreSQL expense scenarios for `ad2003fd7c8a2a430392fd90bde85b4ee552b223`:
+https://github.com/leolionart/naai-erp/actions/runs/30993660998

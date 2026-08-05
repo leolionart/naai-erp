@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:18:00+07:00
+updated_at: 2026-08-05T16:35:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
-current_task: ERP-310
+current_task: ERP-320
 
 tasks:
   - id: ERP-000
@@ -363,7 +363,7 @@ tasks:
   - id: ERP-310
     title: Expense workflow
     phase: P3
-    status: review
+    status: done
     dependencies: [G2, ERP-130]
     business_rules: [BR-EXP-001, BR-EXP-002, BR-EXP-003, BR-EXP-004, BR-EXP-005, BR-TAX-002]
     tests: [T-EXP-001, T-EXP-002, T-TAX-002]
@@ -371,6 +371,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T16:18:00+07:00
     start_commit: 8fd109a37e103782fb0fdfcf06b5ba9508b23817
+    completed_at: 2026-08-05T16:35:00+07:00
+    implementation_commit: ad2003fd7c8a2a430392fd90bde85b4ee552b223
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/30993660998
     planned_files:
       - packages/domain/src/expenses.ts
       - packages/domain/src/expenses.test.ts
@@ -388,7 +391,7 @@ tasks:
   - id: ERP-320
     title: Evidence management
     phase: P3
-    status: blocked
+    status: ready
     dependencies: [ERP-300, ERP-310]
     business_rules: [BR-EVD-001, BR-EVD-002]
     tests: [T-EVD-001, T-EVD-002, T-SEC-003]
