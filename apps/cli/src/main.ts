@@ -18,6 +18,13 @@ const { values, positionals } = parseArgs({
     from: { type: "string" },
     to: { type: "string" },
     account: { type: "string" },
+    "as-of": { type: "string" },
+    party: { type: "string" },
+    bucket: { type: "string" },
+    "payment-status": { type: "string" },
+    "include-settled": { type: "boolean", default: false },
+    cursor: { type: "string" },
+    limit: { type: "string" },
     "account-id": { type: "string" },
     file: { type: "string" },
     adapter: { type: "string" },
@@ -68,13 +75,24 @@ if (!resource || (!discovery && (!organizationId || !token))) {
           }
         : resource === "reports"
           ? { from: values.from, to: values.to, accountCode: values.account }
-          : resource.startsWith("bank-")
+          : resource === "ar-aging" || resource === "ap-aging"
             ? {
-                ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
-                ...(values.from ? { from: values.from } : {}),
-                ...(values.to ? { to: values.to } : {}),
+                asOf: values["as-of"],
+                ...(values.party ? { partyId: values.party } : {}),
+                ...(values.account ? { accountCode: values.account } : {}),
+                ...(values.bucket ? { bucket: values.bucket } : {}),
+                ...(values["payment-status"] ? { paymentStatus: values["payment-status"] } : {}),
+                ...(values["include-settled"] ? { includeSettled: true } : {}),
+                ...(values.cursor ? { cursor: values.cursor } : {}),
+                ...(values.limit ? { limit: values.limit } : {}),
               }
-            : undefined;
+            : resource.startsWith("bank-")
+              ? {
+                  ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
+                  ...(values.from ? { from: values.from } : {}),
+                  ...(values.to ? { to: values.to } : {}),
+                }
+              : undefined;
     const result = await client.request(
       resource,
       action,

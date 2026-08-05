@@ -641,4 +641,39 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "GET" }),
     );
   });
+
+  it.each(["ar-aging", "ap-aging"])(
+    "lists and drills into %s through posted-ledger report routes",
+    async (resource) => {
+      const fetchFn = vi.fn().mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ data: { items: [] } }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(resource, "list", {
+        asOf: "2026-08-31",
+        partyId: "party-1",
+        bucket: "over_90",
+        paymentStatus: "partially_paid",
+        includeSettled: true,
+        cursor: "cursor-1",
+        limit: 25,
+      });
+      expect(fetchFn).toHaveBeenLastCalledWith(
+        `http://api/api/v1/organizations/org-a/reports/${resource}?asOf=2026-08-31&partyId=party-1&bucket=over_90&paymentStatus=partially_paid&includeSettled=true&cursor=cursor-1&limit=25`,
+        expect.objectContaining({ method: "GET" }),
+      );
+      await client.request(resource, "get", { asOf: "2026-08-31" }, "item-1");
+      expect(fetchFn).toHaveBeenLastCalledWith(
+        `http://api/api/v1/organizations/org-a/reports/${resource}/item-1?asOf=2026-08-31`,
+        expect.objectContaining({ method: "GET" }),
+      );
+    },
+  );
 });

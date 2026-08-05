@@ -58,7 +58,8 @@ export class NaaiErpClient {
     const isBankTransaction = resource === "bank-transactions";
     const isReconciliation = resource === "reconciliations";
     const isInternalTransfer = resource === "internal-transfers";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isAging = resource === "ar-aging" || resource === "ap-aging";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" ||
       action === "get" ||
@@ -135,7 +136,8 @@ export class NaaiErpClient {
         isBankImport ||
         isBankTransaction ||
         isReconciliation ||
-        isInternalTransfer) &&
+        isInternalTransfer ||
+        isAging) &&
       method === "GET" &&
       payload &&
       typeof payload === "object"

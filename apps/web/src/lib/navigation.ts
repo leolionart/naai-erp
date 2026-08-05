@@ -90,6 +90,14 @@ export const adminNavigation = [
         icon: "bank",
         status: "available",
       },
+      {
+        key: "receivables",
+        label: "Công nợ",
+        href: "/receivables",
+        description: "Tuổi nợ phải thu, phải trả và đối chiếu tài khoản kiểm soát.",
+        icon: "report",
+        status: "available",
+      },
     ],
   },
   {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   API_VERSION,
+  AGING_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -12,6 +13,7 @@ import {
   type CreateInternalTransferRequest,
   type InternalTransferContract,
   type PaymentReconciliationContract,
+  type AgingReportContract,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
@@ -153,5 +155,77 @@ describe("AI-native API contracts", () => {
     };
     expect(transfer.attempts[0]?.fee?.amountMinor).toBe("1000000");
     expect(transfer.transitOutstandingMinor).toBe("0");
+  });
+
+  it("keeps aging as-of buckets drill-down and control ties exact and machine-readable", () => {
+    const report: AgingReportContract = {
+      schemaVersion: AGING_CONTRACT_VERSION,
+      organizationId: "org-naai",
+      side: "ar",
+      asOf: "2026-08-31",
+      timezone: "Asia/Ho_Chi_Minh",
+      baseCurrency: "VND",
+      source: "posted-ledger",
+      filters: { includeSettled: false },
+      bucketTotals: [
+        { bucket: "1_30", amountMinor: "1000000", baseAmountMinor: "1000000", itemCount: 1 },
+      ],
+      creditOrAdvanceTotalMinor: "100000",
+      baseCreditOrAdvanceTotalMinor: "100000",
+      outstandingTotalMinor: "1000000",
+      baseOutstandingTotalMinor: "900000",
+      controlTies: [
+        {
+          controlAccountCode: "131",
+          currency: "VND",
+          status: "tied",
+          subledgerBalanceMinor: "900000",
+          ledgerBalanceMinor: "900000",
+          differenceMinor: "0",
+          subledgerBaseBalanceMinor: "900000",
+          ledgerBaseBalanceMinor: "900000",
+          baseDifferenceMinor: "0",
+        },
+      ],
+      tieStatus: "tied",
+      exceptions: [],
+      items: [
+        {
+          id: "ar-invoice-1",
+          side: "ar",
+          balanceKind: "receivable",
+          partyId: "client-1",
+          partyName: "Client",
+          controlAccountCode: "131",
+          documentNumber: "INV-001",
+          documentDate: "2026-07-01",
+          dueDate: "2026-07-31",
+          currency: "VND",
+          bucket: "31_60",
+          daysOverdue: 31,
+          paymentStatus: "unpaid",
+          originalMinor: "1000000",
+          settledMinor: "0",
+          outstandingMinor: "1000000",
+          signedOutstandingMinor: "1000000",
+          baseOutstandingMinor: "1000000",
+          signedBaseOutstandingMinor: "1000000",
+          drilldown: {
+            sourceType: "commercial_document",
+            sourceId: "invoice-1",
+            journalIds: ["journal-1"],
+            reconciliationIds: [],
+            evidenceIds: ["evidence-1"],
+            sourceHref: "/api/v1/organizations/org-naai/commercial-documents/invoice-1",
+            journalHrefs: ["/api/v1/organizations/org-naai/journals/journal-1"],
+            reconciliationHrefs: [],
+            evidenceHrefs: ["/api/v1/organizations/org-naai/evidence/evidence-1"],
+          },
+        },
+      ],
+    };
+    expect(report.schemaVersion).toBe(1);
+    expect(report.items[0]?.outstandingMinor).toBe("1000000");
+    expect(report.controlTies[0]?.differenceMinor).toBe("0");
   });
 });

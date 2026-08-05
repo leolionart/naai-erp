@@ -502,6 +502,92 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/reports/ar-aging": {
+      "get": {
+        "operationId": "listArAging",
+        "tags": ["aging"],
+        "summary": "List historical as-of accounts receivable aging from posted ledger effects",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AgingAsOf" },
+          { "$ref": "#/components/parameters/AgingPartyId" },
+          { "$ref": "#/components/parameters/AgingAccountCode" },
+          { "$ref": "#/components/parameters/AgingBucket" },
+          { "$ref": "#/components/parameters/AgingPaymentStatus" },
+          { "$ref": "#/components/parameters/AgingIncludeSettled" },
+          { "$ref": "#/components/parameters/AgingCursor" },
+          { "$ref": "#/components/parameters/AgingLimit" }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/AgingReport" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/ap-aging": {
+      "get": {
+        "operationId": "listApAging",
+        "tags": ["aging"],
+        "summary": "List historical as-of accounts payable aging from posted ledger effects",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AgingAsOf" },
+          { "$ref": "#/components/parameters/AgingPartyId" },
+          { "$ref": "#/components/parameters/AgingAccountCode" },
+          { "$ref": "#/components/parameters/AgingBucket" },
+          { "$ref": "#/components/parameters/AgingPaymentStatus" },
+          { "$ref": "#/components/parameters/AgingIncludeSettled" },
+          { "$ref": "#/components/parameters/AgingCursor" },
+          { "$ref": "#/components/parameters/AgingLimit" }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/AgingReport" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/ar-aging/parties/{partyId}": {
+      "get": {
+        "operationId": "getArAgingParty",
+        "tags": ["aging"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PartyId" },
+          { "$ref": "#/components/parameters/AgingAsOf" }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/AgingReport" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/ap-aging/parties/{partyId}": {
+      "get": {
+        "operationId": "getApAgingParty",
+        "tags": ["aging"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PartyId" },
+          { "$ref": "#/components/parameters/AgingAsOf" }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/AgingReport" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/ar-aging/items/{itemId}": {
+      "get": {
+        "operationId": "getArAgingItem",
+        "tags": ["aging"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AgingItemId" },
+          { "$ref": "#/components/parameters/AgingAsOf" }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/AgingItemDetail" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/ap-aging/items/{itemId}": {
+      "get": {
+        "operationId": "getApAgingItem",
+        "tags": ["aging"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AgingItemId" },
+          { "$ref": "#/components/parameters/AgingAsOf" }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/AgingItemDetail" } }
+      }
+    },
     "/api/v1/openapi.json": {
       "get": {
         "operationId": "getOpenApiContract",
@@ -585,9 +671,227 @@
         "in": "header",
         "required": true,
         "schema": { "type": "string", "minLength": 1 }
+      },
+      "AgingAsOf": {
+        "name": "asOf",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "AgingPartyId": { "name": "partyId", "in": "query", "schema": { "type": "string" } },
+      "AgingAccountCode": { "name": "accountCode", "in": "query", "schema": { "type": "string" } },
+      "AgingBucket": {
+        "name": "bucket",
+        "in": "query",
+        "schema": { "$ref": "#/components/schemas/AgingBucket" }
+      },
+      "AgingPaymentStatus": {
+        "name": "paymentStatus",
+        "in": "query",
+        "schema": { "type": "string", "enum": ["unpaid", "partially_paid", "paid"] }
+      },
+      "AgingIncludeSettled": {
+        "name": "includeSettled",
+        "in": "query",
+        "schema": { "type": "boolean", "default": false }
+      },
+      "AgingCursor": { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+      "AgingLimit": {
+        "name": "limit",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+      },
+      "PartyId": {
+        "name": "partyId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "AgingItemId": {
+        "name": "itemId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "responses": {
+      "AgingReport": {
+        "description": "Versioned as-of aging report",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/AgingReportEnvelope" } }
+        }
+      },
+      "AgingItemDetail": {
+        "description": "Aging item and control-account drill-down",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/AgingItemDetailEnvelope" }
+          }
+        }
       }
     },
     "schemas": {
+      "AgingBucket": {
+        "type": "string",
+        "enum": ["current", "1_30", "31_60", "61_90", "over_90", "unclassified"]
+      },
+      "AgingDrilldown": {
+        "type": "object",
+        "required": [
+          "sourceType",
+          "sourceId",
+          "journalIds",
+          "reconciliationIds",
+          "evidenceIds",
+          "sourceHref",
+          "journalHrefs",
+          "reconciliationHrefs",
+          "evidenceHrefs"
+        ],
+        "properties": {
+          "sourceType": { "type": "string", "enum": ["commercial_document", "opening_balance"] },
+          "sourceId": { "type": "string" },
+          "journalIds": { "type": "array", "items": { "type": "string" } },
+          "reconciliationIds": { "type": "array", "items": { "type": "string" } },
+          "evidenceIds": { "type": "array", "items": { "type": "string" } },
+          "sourceHref": { "type": "string" },
+          "journalHrefs": { "type": "array", "items": { "type": "string" } },
+          "reconciliationHrefs": { "type": "array", "items": { "type": "string" } },
+          "evidenceHrefs": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "AgingItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "side",
+          "balanceKind",
+          "partyId",
+          "partyName",
+          "controlAccountCode",
+          "documentNumber",
+          "documentDate",
+          "currency",
+          "bucket",
+          "paymentStatus",
+          "originalMinor",
+          "settledMinor",
+          "outstandingMinor",
+          "signedOutstandingMinor",
+          "baseOutstandingMinor",
+          "signedBaseOutstandingMinor",
+          "drilldown"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "side": { "type": "string", "enum": ["ar", "ap"] },
+          "balanceKind": {
+            "type": "string",
+            "enum": ["receivable", "customer_credit", "payable", "supplier_advance"]
+          },
+          "partyId": { "type": "string" },
+          "partyName": { "type": "string" },
+          "controlAccountCode": { "type": "string" },
+          "documentNumber": { "type": "string" },
+          "documentDate": { "type": "string", "format": "date" },
+          "dueDate": { "type": "string", "format": "date" },
+          "currency": { "type": "string" },
+          "bucket": { "$ref": "#/components/schemas/AgingBucket" },
+          "daysOverdue": { "type": "integer", "minimum": 0 },
+          "paymentStatus": { "type": "string", "enum": ["unpaid", "partially_paid", "paid"] },
+          "originalMinor": { "type": "string" },
+          "settledMinor": { "type": "string" },
+          "outstandingMinor": { "type": "string" },
+          "signedOutstandingMinor": { "type": "string" },
+          "baseOutstandingMinor": { "type": "string" },
+          "signedBaseOutstandingMinor": { "type": "string" },
+          "drilldown": { "$ref": "#/components/schemas/AgingDrilldown" }
+        }
+      },
+      "AgingControlTie": {
+        "type": "object",
+        "required": [
+          "controlAccountCode",
+          "currency",
+          "status",
+          "subledgerBalanceMinor",
+          "ledgerBalanceMinor",
+          "differenceMinor",
+          "subledgerBaseBalanceMinor",
+          "ledgerBaseBalanceMinor",
+          "baseDifferenceMinor"
+        ],
+        "properties": {
+          "controlAccountCode": { "type": "string" },
+          "currency": { "type": "string" },
+          "status": { "type": "string", "enum": ["tied", "out_of_balance", "unsupported_fx"] },
+          "subledgerBalanceMinor": { "type": "string" },
+          "ledgerBalanceMinor": { "type": "string" },
+          "differenceMinor": { "type": "string" },
+          "subledgerBaseBalanceMinor": { "type": "string" },
+          "ledgerBaseBalanceMinor": { "type": "string" },
+          "baseDifferenceMinor": { "type": "string" }
+        }
+      },
+      "AgingReportEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "organizationId",
+              "side",
+              "asOf",
+              "timezone",
+              "baseCurrency",
+              "source",
+              "bucketTotals",
+              "controlTies",
+              "tieStatus",
+              "exceptions",
+              "items"
+            ],
+            "properties": {
+              "schemaVersion": { "type": "integer", "enum": [1] },
+              "organizationId": { "type": "string" },
+              "side": { "type": "string", "enum": ["ar", "ap"] },
+              "asOf": { "type": "string", "format": "date" },
+              "timezone": { "type": "string" },
+              "baseCurrency": { "type": "string" },
+              "source": { "type": "string", "enum": ["posted-ledger"] },
+              "bucketTotals": { "type": "array", "items": { "type": "object" } },
+              "controlTies": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/AgingControlTie" }
+              },
+              "tieStatus": {
+                "type": "string",
+                "enum": ["tied", "out_of_balance", "unsupported_fx"]
+              },
+              "exceptions": { "type": "array", "items": { "type": "object" } },
+              "items": { "type": "array", "items": { "$ref": "#/components/schemas/AgingItem" } },
+              "nextCursor": { "type": "string" }
+            }
+          }
+        }
+      },
+      "AgingItemDetailEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": ["schemaVersion", "asOf", "item", "controlTie", "movementIds"],
+            "properties": {
+              "schemaVersion": { "type": "integer", "enum": [1] },
+              "asOf": { "type": "string", "format": "date" },
+              "item": { "$ref": "#/components/schemas/AgingItem" },
+              "controlTie": { "$ref": "#/components/schemas/AgingControlTie" },
+              "movementIds": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      },
       "ExactMinorAmount": { "type": "string", "pattern": "^[0-9]+$" },
       "TransferFee": {
         "type": "object",

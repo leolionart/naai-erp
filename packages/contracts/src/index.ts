@@ -69,3 +69,18 @@ export {
   type TransferLegContract,
   type UnmatchInternalTransferRequest,
 } from "./internal-transfers.js";
+export {
+  AGING_CONTRACT_VERSION,
+  type AgingBalanceKindContract,
+  type AgingBucketContract,
+  type AgingBucketTotalContract,
+  type AgingControlTieContract,
+  type AgingDrilldownContract,
+  type AgingExceptionContract,
+  type AgingItemContract,
+  type AgingItemDetailContract,
+  type AgingListQueryContract,
+  type AgingPaymentStatusContract,
+  type AgingReportContract,
+  type AgingSideContract,
+} from "./aging.js";

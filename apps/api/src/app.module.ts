@@ -45,6 +45,10 @@ import { InternalTransferService } from "./internal-transfers/internal-transfer.
 import { INTERNAL_TRANSFER_STORE } from "./internal-transfers/internal-transfer.types.js";
 import { PgInternalTransferStore } from "./internal-transfers/pg-internal-transfer.store.js";
 import { DiscoveryController } from "./discovery/discovery.controller.js";
+import { AgingController } from "./aging/aging.controller.js";
+import { AgingService } from "./aging/aging.service.js";
+import { AGING_STORE } from "./aging/aging.types.js";
+import { PgAgingStore } from "./aging/pg-aging.store.js";
 
 @Module({
   controllers: [
@@ -64,6 +68,7 @@ import { DiscoveryController } from "./discovery/discovery.controller.js";
     InternalTransferController,
     InternalTransferCandidateController,
     DiscoveryController,
+    AgingController,
   ],
   providers: [
     MasterDataService,
@@ -96,6 +101,9 @@ import { DiscoveryController } from "./discovery/discovery.controller.js";
     InternalTransferService,
     PgInternalTransferStore,
     { provide: INTERNAL_TRANSFER_STORE, useExisting: PgInternalTransferStore },
+    AgingService,
+    PgAgingStore,
+    { provide: AGING_STORE, useExisting: PgAgingStore },
   ],
 })
 export class AppModule {}

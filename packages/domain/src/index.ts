@@ -281,3 +281,21 @@ export {
   type TransferLeg,
   type TransferLegRole,
 } from "./internal-transfers.js";
+export {
+  AGING_BUCKETS,
+  UnsupportedAgingFxError,
+  buildAgingReport,
+  classifyAgingBucket,
+  deriveAgingPaymentStatus,
+  type AgingBalanceKind,
+  type AgingBucket,
+  type AgingControlBalance,
+  type AgingControlTie,
+  type AgingMovement,
+  type AgingMovementState,
+  type AgingPaymentStatus,
+  type AgingReport,
+  type AgingReportItem,
+  type AgingSide,
+  type AgingSourceItem,
+} from "./aging.js";
