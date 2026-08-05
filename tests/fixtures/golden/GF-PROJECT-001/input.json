@@ -1,0 +1,91 @@
+{
+  "fixtureId": "GF-PROJECT-001",
+  "currency": "VND",
+  "periodStart": "2026-08-01",
+  "periodEnd": "2026-08-31",
+  "asOf": "2026-08-31",
+  "projects": [
+    {
+      "projectId": "project-web",
+      "projectCode": "WEB-001",
+      "recognizedRevenueMinor": "120000000",
+      "invoicedMinor": "100000000",
+      "collectedMinor": "70000000",
+      "overdueArMinor": "30000000",
+      "budgetRevenueMinor": "110000000",
+      "budgetCostMinor": "70000000",
+      "billableHours": "200",
+      "availableHours": "250",
+      "directCosts": [
+        {
+          "kind": "labor",
+          "amountMinor": "32000000",
+          "costRateVersion": "CR-DEV-2026-01"
+        },
+        {
+          "kind": "freelancer",
+          "amountMinor": "18000000",
+          "sourceDocumentId": "BILL-FREELANCER-001"
+        }
+      ],
+      "overhead": [
+        {
+          "costClass": "variable",
+          "amountMinor": "10000000",
+          "policyVersion": "OH-VARIABLE-v2",
+          "allocationRunId": "OH-RUN-2026-08"
+        },
+        {
+          "costClass": "fixed",
+          "amountMinor": "20000000",
+          "policyVersion": "OH-FIXED-v3",
+          "allocationRunId": "OH-RUN-2026-08"
+        }
+      ]
+    },
+    {
+      "projectId": "project-app",
+      "projectCode": "APP-002",
+      "recognizedRevenueMinor": "80000000",
+      "invoicedMinor": "80000000",
+      "collectedMinor": "80000000",
+      "overdueArMinor": "0",
+      "budgetRevenueMinor": "85000000",
+      "budgetCostMinor": "50000000",
+      "billableHours": "160",
+      "availableHours": "200",
+      "directCosts": [
+        {
+          "kind": "labor",
+          "amountMinor": "25000000",
+          "costRateVersion": "CR-DEV-2026-01"
+        },
+        {
+          "kind": "freelancer",
+          "amountMinor": "5000000",
+          "sourceDocumentId": "BILL-FREELANCER-002"
+        }
+      ],
+      "overhead": [
+        {
+          "costClass": "variable",
+          "amountMinor": "5000000",
+          "policyVersion": "OH-VARIABLE-v2",
+          "allocationRunId": "OH-RUN-2026-08"
+        },
+        {
+          "costClass": "fixed",
+          "amountMinor": "10000000",
+          "policyVersion": "OH-FIXED-v3",
+          "allocationRunId": "OH-RUN-2026-08"
+        }
+      ]
+    }
+  ],
+  "ledgerControls": {
+    "recognizedRevenueMinor": "200000000",
+    "directProjectCostMinor": "80000000",
+    "variableOverheadMinor": "15000000",
+    "fixedOverheadMinor": "30000000"
+  }
+}

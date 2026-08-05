@@ -1,0 +1,4 @@
+project_id,recognized_revenue_minor,direct_cost_minor,gross_margin_minor,gross_margin_bps,variable_overhead_minor,contribution_margin_minor,contribution_margin_bps,fixed_overhead_minor,fully_loaded_profit_minor,fully_loaded_margin_bps,realized_hourly_rate_minor,utilization_bps,overrun_amount_minor,unbilled_work_minor,overdue_ar_minor,confidence_flags
+project-web,120000000,50000000,70000000,5833,10000000,60000000,5000,20000000,40000000,3333,600000,8000,10000000,20000000,30000000,unbilled_work|overdue_ar|budget_overrun
+project-app,80000000,30000000,50000000,6250,5000000,45000000,5625,10000000,35000000,4375,500000,8000,0,0,0,
+TOTAL,200000000,80000000,120000000,6000,15000000,105000000,5250,30000000,75000000,3750,555556,8000,10000000,20000000,30000000,unbilled_work|overdue_ar|budget_overrun

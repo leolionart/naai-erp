@@ -6,6 +6,7 @@ import {
   TIME_CONTRACT_VERSION,
   PROJECT_COST_CONTRACT_VERSION,
   PROJECT_ECONOMICS_CONTRACT_VERSION,
+  PROJECT_PROFITABILITY_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -29,6 +30,7 @@ import {
   type CreateRevenueRecognitionEventRequest,
   type ProjectBudgetVersionContract,
   type ProjectRevenueAxesContract,
+  type ProjectProfitabilityContract,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
@@ -487,6 +489,24 @@ describe("AI-native API contracts", () => {
       recognizedNetMinor: "500",
       invoicedNetMinor: "1000",
       collectedGrossMinor: "550",
+    });
+  });
+
+  it("exports project profitability as exact money with nullable ratios", () => {
+    const summary: Pick<
+      ProjectProfitabilityContract,
+      "schemaVersion" | "grossMarginMinor" | "fullyLoadedProfitMinor" | "utilizationBps"
+    > = {
+      schemaVersion: PROJECT_PROFITABILITY_CONTRACT_VERSION,
+      grossMarginMinor: "60000000",
+      fullyLoadedProfitMinor: "35000000",
+      utilizationBps: null,
+    };
+    expect(summary).toEqual({
+      schemaVersion: 1,
+      grossMarginMinor: "60000000",
+      fullyLoadedProfitMinor: "35000000",
+      utilizationBps: null,
     });
   });
 });

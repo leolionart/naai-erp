@@ -735,6 +735,17 @@ tests:
     command: pnpm test:e2e --filter T-E2E-ERP-540-001
     blocking_gate: G5
 
+  - id: T-INT-ERP-540-002
+    aliases: [T-PRF-002]
+    task: ERP-540
+    rules: [BR-PRF-002]
+    title: Project profitability ties posted dimensions and preserves confidence exceptions
+    layer: integration
+    fixture: GF-PROJECT-001
+    oracle: reviewed-spreadsheet
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- project-profitability.integration
+    blocking_gate: G5
+
   - id: T-E2E-ERP-640-001
     aliases: [T-KPI-005]
     task: ERP-640

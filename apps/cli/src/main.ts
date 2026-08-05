@@ -32,6 +32,10 @@ const { values, positionals } = parseArgs({
     classification: { type: "string" },
     basis: { type: "string" },
     "cost-class": { type: "string" },
+    "service-line": { type: "string" },
+    "account-owner": { type: "string" },
+    "group-by": { type: "string" },
+    "confidence-code": { type: "string" },
     disposition: { type: "string" },
     "account-id": { type: "string" },
     file: { type: "string" },
@@ -158,15 +162,32 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                           ...(values.to ? { periodEnd: values.to } : {}),
                           ...(values.status ? { state: values.status } : {}),
                         }
-                      : resource.startsWith("bank-")
+                      : resource === "project-profitability"
                         ? {
-                            ...(values["account-id"]
-                              ? { financialAccountId: values["account-id"] }
+                            ...(values.from ? { startsOn: values.from } : {}),
+                            ...(values.to ? { endsOn: values.to } : {}),
+                            ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
+                            ...(values.party ? { clientId: values.party } : {}),
+                            ...(values["service-line"]
+                              ? { serviceLineCode: values["service-line"] }
                               : {}),
-                            ...(values.from ? { from: values.from } : {}),
-                            ...(values.to ? { to: values.to } : {}),
+                            ...(values["account-owner"]
+                              ? { accountOwnerId: values["account-owner"] }
+                              : {}),
+                            ...(values["group-by"] ? { groupBy: values["group-by"] } : {}),
+                            ...(values["confidence-code"]
+                              ? { confidenceCode: values["confidence-code"] }
+                              : {}),
                           }
-                        : undefined;
+                        : resource.startsWith("bank-")
+                          ? {
+                              ...(values["account-id"]
+                                ? { financialAccountId: values["account-id"] }
+                                : {}),
+                              ...(values.from ? { from: values.from } : {}),
+                              ...(values.to ? { to: values.to } : {}),
+                            }
+                          : undefined;
     const result = await client.request(
       resource,
       action,

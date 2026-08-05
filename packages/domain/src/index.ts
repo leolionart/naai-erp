@@ -426,3 +426,12 @@ export {
   type RevenueRecognitionEvent,
   type RevenueRecognitionPolicy,
 } from "./revenue-recognition.js";
+export {
+  buildProjectProfitability,
+  profitabilityRatioBps,
+  type ProjectProfitability,
+  type ProjectProfitabilityConfidenceCode,
+  type ProjectProfitabilityConfidenceFlag,
+  type ProjectProfitabilityDrilldown,
+  type ProjectProfitabilityInput,
+} from "./project-profitability.js";

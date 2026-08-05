@@ -1093,4 +1093,50 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "GET" }),
     );
   });
+
+  it("routes project profitability list filters to the report API", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("project-profitability", "list", {
+      startsOn: "2026-08-01",
+      endsOn: "2026-08-31",
+      groupBy: "client",
+      confidenceCode: "overdue_ar",
+    });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/project-profitability?startsOn=2026-08-01&endsOn=2026-08-31&groupBy=client&confidenceCode=overdue_ar",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("routes project profitability detail without falling through master data", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { projectId: "project-1" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "project-profitability",
+      "get",
+      { startsOn: "2026-08-01", endsOn: "2026-08-31" },
+      "project-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/project-profitability/projects/project-1?startsOn=2026-08-01&endsOn=2026-08-31",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

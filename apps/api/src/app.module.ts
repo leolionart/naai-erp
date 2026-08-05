@@ -73,6 +73,10 @@ import {
 import { OverheadAllocationService } from "./overhead-allocations/overhead-allocation.service.js";
 import { OVERHEAD_ALLOCATION_STORE } from "./overhead-allocations/overhead-allocation.types.js";
 import { PgOverheadAllocationStore } from "./overhead-allocations/pg-overhead-allocation.store.js";
+import { ProjectProfitabilityController } from "./project-profitability/project-profitability.controller.js";
+import { ProjectProfitabilityService } from "./project-profitability/project-profitability.service.js";
+import { PROJECT_PROFITABILITY_STORE } from "./project-profitability/project-profitability.types.js";
+import { PgProjectProfitabilityStore } from "./project-profitability/pg-project-profitability.store.js";
 
 @Module({
   controllers: [
@@ -100,6 +104,7 @@ import { PgOverheadAllocationStore } from "./overhead-allocations/pg-overhead-al
     OverheadPolicyController,
     OverheadSourcePoolController,
     OverheadRunController,
+    ProjectProfitabilityController,
   ],
   providers: [
     MasterDataService,
@@ -150,6 +155,9 @@ import { PgOverheadAllocationStore } from "./overhead-allocations/pg-overhead-al
     OverheadAllocationService,
     PgOverheadAllocationStore,
     { provide: OVERHEAD_ALLOCATION_STORE, useExisting: PgOverheadAllocationStore },
+    ProjectProfitabilityService,
+    PgProjectProfitabilityStore,
+    { provide: PROJECT_PROFITABILITY_STORE, useExisting: PgProjectProfitabilityStore },
   ],
 })
 export class AppModule {}

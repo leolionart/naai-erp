@@ -10,6 +10,15 @@ export {
   type OverheadAllocationTransitionRequest,
   type OverheadSourcePoolContract,
 } from "./overhead-allocations.js";
+export {
+  PROJECT_PROFITABILITY_CONTRACT_VERSION,
+  type ProjectProfitabilityConfidenceCodeContract,
+  type ProjectProfitabilityConfidenceFlagContract,
+  type ProjectProfitabilityContract,
+  type ProjectProfitabilityDrilldownContract,
+  type ProjectProfitabilityGroupByContract,
+  type ProjectProfitabilityQueryContract,
+} from "./project-profitability.js";
 
 export type ApiError = Readonly<{
   code: string;

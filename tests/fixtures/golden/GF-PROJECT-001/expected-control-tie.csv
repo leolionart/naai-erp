@@ -1,0 +1,5 @@
+control,ledger_minor,report_minor,difference_minor,status
+recognized_revenue,200000000,200000000,0,tied_out
+direct_project_cost,80000000,80000000,0,tied_out
+variable_overhead,15000000,15000000,0,tied_out
+fixed_overhead,30000000,30000000,0,tied_out

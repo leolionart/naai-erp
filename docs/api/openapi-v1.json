@@ -1709,6 +1709,84 @@
           "201": { "description": "Submit, approve, post, reverse, or reject in an open period" }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/reports/project-profitability": {
+      "get": {
+        "operationId": "listProjectProfitability",
+        "tags": ["project-profitability"],
+        "summary": "List and group project profitability from posted and approved sources",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "groupBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["project", "client", "service_line", "account_owner"]
+            }
+          },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          { "name": "clientId", "in": "query", "schema": { "type": "string" } },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "accountOwnerId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "confidenceCode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["unbilled_work", "overdue_ar", "budget_overrun", "missing_dimensions"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project rows, independently recalculated dimension groups, totals, confidence flags, and base-currency basis"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/project-profitability/projects/{projectId}": {
+      "get": {
+        "operationId": "getProjectProfitability",
+        "tags": ["project-profitability"],
+        "summary": "Get profitability detail and GL tie metadata for one project",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project profitability with revenue, direct cost, overhead, confidence, drilldown, and GL tie detail"
+          },
+          "404": {
+            "description": "Project not found or not reportable in organization base currency"
+          }
+        }
+      }
     }
   },
   "components": {

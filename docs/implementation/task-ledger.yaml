@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T01:03:19+07:00
+updated_at: 2026-08-06T05:18:03+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G5
-current_task: ERP-530
+current_task: ERP-540
 
 tasks:
   - id: ERP-000
@@ -720,25 +720,26 @@ tasks:
   - id: ERP-530
     title: Overhead allocation
     phase: P5
-    status: review
+    status: done
     dependencies: [ERP-510, ERP-520]
     business_rules: [BR-ALL-002, BR-ALL-003]
     tests: [T-ALL-002, T-ALL-P001]
     evidence: docs/implementation/evidence/ERP-530/
     started_at: 2026-08-06T00:35:35+07:00
-    implementation_commits:
-      - 8094790de948c39eca9e287cf112f652f171e2f2
-      - b93fb80193772714b100be801a0f1173e8a5cc72
-      - 602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5
-    local_worktree: Contract, CLI and UI work implemented but not yet committed or exact-commit CI verified.
+    completed_at: 2026-08-06T01:03:19+07:00
+    implementation_commit: 4cd7ea3
+    proof_commit: 539ebb437a4732c45db3d24e313daece427a1d9e
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31034752822
 
   - id: ERP-540
     title: Project profitability
     phase: P5
-    status: blocked
+    status: review
     dependencies: [ERP-530]
     business_rules: [BR-PRF-001, BR-PRF-002]
     tests: [T-PRF-001, T-PRF-002]
+    evidence: docs/implementation/evidence/ERP-540/
+    started_at: 2026-08-06T05:18:03+07:00
 
   - id: ERP-600
     title: Targets and forecast versions
