@@ -199,12 +199,21 @@ Infrastructure research, fixture preparation và UI shell có thể song song. K
 - Client, supplier, freelancer, employee.
 - Project, contract và milestone master data.
 
+### ERP-140 — AI-native master data API and CLI
+
+- Versioned REST/OpenAPI for organization, fiscal setup, accounts, tax codes, dimensions, mappings, parties, projects, contracts and milestones.
+- First-party `naai-erp` CLI using the REST API with JSON-default output.
+- Cursor pagination, filters, organization-scoped auth, correlation IDs, optimistic versions and structured errors.
+- Idempotent create/update/deactivate commands and audit/next-action metadata.
+- Bulk import/export dry-run contract for reference data.
+
 ### Gate G1
 
 - Tenant/org isolation pass.
 - Maker-checker permissions pass.
 - Reference-data import/export pass.
 - Mọi mutation master data có audit.
+- Master data is readable/writable through API and CLI without direct database access.
 
 ## 7. P2 — Accounting kernel
 

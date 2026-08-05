@@ -10,6 +10,33 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-CONTRACT-ERP-140-001
+    aliases: [T-AI-001]
+    task: ERP-140
+    rules: [BR-AI-001, BR-AI-003]
+    title: Master-data API exposes versioned envelopes pagination filters and exact values
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts test
+    blocking_gate: G1
+
+  - id: T-SEC-ERP-140-001
+    aliases: [T-AI-002]
+    task: ERP-140
+    rules: [BR-AI-002, BR-ORG-001, BR-AUD-001]
+    title: AI mutations enforce organization RBAC idempotency concurrency and audit metadata
+    layer: integration
+    command: pnpm --filter @naai-erp/api test
+    blocking_gate: G1
+
+  - id: T-CLI-ERP-140-001
+    aliases: [T-AI-003]
+    task: ERP-140
+    rules: [BR-AI-001, BR-AI-004]
+    title: First-party CLI uses API JSON output and supports dry-run bulk operations
+    layer: contract
+    command: pnpm --filter @naai-erp/cli test
+    blocking_gate: G1
+
   - id: T-UNIT-ERP-130-001
     aliases: [T-PTY-001]
     task: ERP-130

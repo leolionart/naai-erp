@@ -12,3 +12,5 @@ Results:
 - Repository quality gate and build passed across 9 packages.
 - Migration directory validation passed with 6 entries.
 - Exact PostgreSQL integration awaits pushed-commit CI.
+
+Exact-commit CI [30985245942](https://github.com/leolionart/naai-erp/actions/runs/30985245942) passed empty PostgreSQL 16 migration and all seven integration tests.

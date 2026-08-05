@@ -134,7 +134,7 @@ export default function HomePage() {
               tiếp theo sẽ được kích hoạt theo coding plan.
             </p>
           </div>
-          <span>Gate G1 · ERP-130 tiếp theo</span>
+          <span>Gate G1 · ERP-140 AI API/CLI tiếp theo</span>
         </section>
 
         <section className="metric-grid" aria-label="Chỉ số chính">
@@ -225,10 +225,10 @@ export default function HomePage() {
                 </div>
               </li>
               <li>
-                <span>3</span>
+                <span className="ok">✓</span>
                 <div>
                   <strong>Khách hàng & dự án</strong>
-                  <small>Task ERP-130 tiếp theo</small>
+                  <small>Party, project, contract và milestone đã kiểm thử</small>
                 </div>
               </li>
             </ul>

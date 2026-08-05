@@ -8,4 +8,6 @@
 - [x] Closed project reopen requires explicit approved command input.
 - [x] Contracts and milestones are organization scoped and use exact minor units.
 - [x] Test aliases `T-PTY-001` and `T-PRJ-001` are registered.
-- [ ] Exact-commit PostgreSQL migration and all seven integration tests pass.
+- [x] Exact-commit PostgreSQL migration and all seven integration tests pass.
+
+ERP-130 is complete. ERP-140 is ready to add AI-native API/CLI coverage before Gate G1 can close.

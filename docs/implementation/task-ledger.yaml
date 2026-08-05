@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T14:29:20+07:00
+updated_at: 2026-08-05T14:33:34+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G1
-current_task: ERP-130
+current_task: ERP-140
 
 tasks:
   - id: ERP-000
@@ -157,14 +157,17 @@ tasks:
   - id: ERP-130
     title: Parties and commercial references
     phase: P1
-    status: review
+    status: done
     dependencies: [ERP-100, ERP-120]
     business_rules: [BR-PTY-001, BR-PRJ-001]
     tests: [T-PTY-001, T-PRJ-001]
     evidence: docs/implementation/evidence/ERP-130/
     agent: codex-root
     started_at: 2026-08-05T14:26:07+07:00
+    completed_at: 2026-08-05T14:33:34+07:00
     start_commit: cddb7f2cffc71304a692d420c8d0681d81182139
+    commit: 0601ad57163efb9c0e6c2a064a8df599f1f0028a
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30985245942
     planned_files:
       - packages/domain/src/commercial.ts
       - packages/domain/src/commercial.test.ts
@@ -173,6 +176,14 @@ tasks:
       - db/migrations/
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-130/
+
+  - id: ERP-140
+    title: AI-native master data API and CLI
+    phase: P1
+    status: ready
+    dependencies: [ERP-100, ERP-110, ERP-120, ERP-130]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-ORG-001, BR-AUD-001]
+    tests: [T-AI-001, T-AI-002, T-AI-003]
 
   - id: ERP-200
     title: Journal aggregate and balanced posting
@@ -504,7 +515,7 @@ tasks:
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
-  G1: [ERP-100, ERP-110, ERP-120, ERP-130]
+  G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
   G2: [ERP-200, ERP-210, ERP-220, ERP-230, ERP-240]
   G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-340]
   G4: [ERP-400, ERP-410, ERP-420, ERP-430]
