@@ -6,6 +6,25 @@ export type OrganizationScoped = Readonly<{
 
 export { type AuditActorType, type AuditEvent } from "./audit.js";
 export {
+  PARTY_ROLES,
+  PROJECT_STATES,
+  assertProjectAcceptsAllocation,
+  createContract,
+  createMilestone,
+  createParty,
+  createProject,
+  mergeParty,
+  transitionProject,
+  type Contract,
+  type ContractType,
+  type Milestone,
+  type Party,
+  type PartyRole,
+  type PartyStatus,
+  type Project,
+  type ProjectState,
+} from "./commercial.js";
+export {
   ACCOUNT_ROOT_TYPES,
   TAX_KINDS,
   assertNonOverlappingVersions,

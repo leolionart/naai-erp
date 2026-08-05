@@ -1,0 +1,2044 @@
+{
+  "id": "e2df4be8-db75-46cb-9c39-d4f2b2a7005d",
+  "prevId": "262b2387-03e3-4242-80e6-c2fb1d0aba85",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.account_hierarchy_edges": {
+      "name": "account_hierarchy_edges",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "child_code": {
+          "name": "child_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "child_root_type": {
+          "name": "child_root_type",
+          "type": "account_root_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_code": {
+          "name": "parent_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_root_type": {
+          "name": "parent_root_type",
+          "type": "account_root_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_edges_child_fk": {
+          "name": "account_edges_child_fk",
+          "tableFrom": "account_hierarchy_edges",
+          "tableTo": "accounts",
+          "columnsFrom": ["organization_id", "child_code", "child_root_type"],
+          "columnsTo": ["organization_id", "code", "root_type"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "account_edges_parent_fk": {
+          "name": "account_edges_parent_fk",
+          "tableFrom": "account_hierarchy_edges",
+          "tableTo": "accounts",
+          "columnsFrom": ["organization_id", "parent_code", "parent_root_type"],
+          "columnsTo": ["organization_id", "code", "root_type"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "account_hierarchy_edges_organization_id_child_code_pk": {
+          "name": "account_hierarchy_edges_organization_id_child_code_pk",
+          "columns": ["organization_id", "child_code"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "account_edges_not_self": {
+          "name": "account_edges_not_self",
+          "value": "\"account_hierarchy_edges\".\"child_code\" <> \"account_hierarchy_edges\".\"parent_code\""
+        },
+        "account_edges_same_root": {
+          "name": "account_edges_same_root",
+          "value": "\"account_hierarchy_edges\".\"child_root_type\" = \"account_hierarchy_edges\".\"parent_root_type\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.accounts": {
+      "name": "accounts",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "root_type": {
+          "name": "root_type",
+          "type": "account_root_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_control_account": {
+          "name": "is_control_account",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "allow_manual_posting": {
+          "name": "allow_manual_posting",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "accounts_organization_id_organizations_id_fk": {
+          "name": "accounts_organization_id_organizations_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "accounts_organization_id_code_pk": {
+          "name": "accounts_organization_id_code_pk",
+          "columns": ["organization_id", "code"]
+        }
+      },
+      "uniqueConstraints": {
+        "accounts_org_code_root_unique": {
+          "name": "accounts_org_code_root_unique",
+          "nullsNotDistinct": false,
+          "columns": ["organization_id", "code", "root_type"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "accounts_code_not_blank": {
+          "name": "accounts_code_not_blank",
+          "value": "btrim(\"accounts\".\"code\") <> ''"
+        },
+        "accounts_name_not_blank": {
+          "name": "accounts_name_not_blank",
+          "value": "btrim(\"accounts\".\"name\") <> ''"
+        },
+        "accounts_control_manual_posting": {
+          "name": "accounts_control_manual_posting",
+          "value": "not \"accounts\".\"is_control_account\" or not \"accounts\".\"allow_manual_posting\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.contracts": {
+      "name": "contracts",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_on": {
+          "name": "signed_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "value_minor": {
+          "name": "value_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "contracts_project_fk": {
+          "name": "contracts_project_fk",
+          "tableFrom": "contracts",
+          "tableTo": "projects",
+          "columnsFrom": ["organization_id", "project_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "contracts_organization_id_id_pk": {
+          "name": "contracts_organization_id_id_pk",
+          "columns": ["organization_id", "id"]
+        }
+      },
+      "uniqueConstraints": {
+        "contracts_org_reference_unique": {
+          "name": "contracts_org_reference_unique",
+          "nullsNotDistinct": false,
+          "columns": ["organization_id", "reference"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "contracts_value_nonnegative": {
+          "name": "contracts_value_nonnegative",
+          "value": "\"contracts\".\"value_minor\" >= 0"
+        },
+        "contracts_currency_iso3": {
+          "name": "contracts_currency_iso3",
+          "value": "\"contracts\".\"currency\" ~ '^[A-Z]{3}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.default_mapping_versions": {
+      "name": "default_mapping_versions",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_code": {
+          "name": "category_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_code": {
+          "name": "tax_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_effective_from": {
+          "name": "tax_effective_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_cost_center_code": {
+          "name": "default_cost_center_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_service_line_code": {
+          "name": "default_service_line_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "change_reason": {
+          "name": "change_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "default_mappings_account_fk": {
+          "name": "default_mappings_account_fk",
+          "tableFrom": "default_mapping_versions",
+          "tableTo": "accounts",
+          "columnsFrom": ["organization_id", "account_code"],
+          "columnsTo": ["organization_id", "code"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "default_mappings_tax_version_fk": {
+          "name": "default_mappings_tax_version_fk",
+          "tableFrom": "default_mapping_versions",
+          "tableTo": "tax_code_versions",
+          "columnsFrom": ["organization_id", "tax_code", "tax_effective_from"],
+          "columnsTo": ["organization_id", "code", "effective_from"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "default_mapping_versions_organization_id_category_code_effective_from_pk": {
+          "name": "default_mapping_versions_organization_id_category_code_effective_from_pk",
+          "columns": ["organization_id", "category_code", "effective_from"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "default_mappings_tax_columns_together": {
+          "name": "default_mappings_tax_columns_together",
+          "value": "(\"default_mapping_versions\".\"tax_code\" is null and \"default_mapping_versions\".\"tax_effective_from\" is null) or (\"default_mapping_versions\".\"tax_code\" is not null and \"default_mapping_versions\".\"tax_effective_from\" is not null)"
+        },
+        "default_mappings_date_order": {
+          "name": "default_mappings_date_order",
+          "value": "\"default_mapping_versions\".\"effective_to\" is null or \"default_mapping_versions\".\"effective_to\" > \"default_mapping_versions\".\"effective_from\""
+        },
+        "default_mappings_reason_not_blank": {
+          "name": "default_mappings_reason_not_blank",
+          "value": "btrim(\"default_mapping_versions\".\"change_reason\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.dimension_requirement_versions": {
+      "name": "dimension_requirement_versions",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "required_kinds": {
+          "name": "required_kinds",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "change_reason": {
+          "name": "change_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "correlation_id": {
+          "name": "correlation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dimension_requirements_account_fk": {
+          "name": "dimension_requirements_account_fk",
+          "tableFrom": "dimension_requirement_versions",
+          "tableTo": "accounts",
+          "columnsFrom": ["organization_id", "account_code"],
+          "columnsTo": ["organization_id", "code"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "dimension_requirement_versions_organization_id_account_code_effective_from_pk": {
+          "name": "dimension_requirement_versions_organization_id_account_code_effective_from_pk",
+          "columns": ["organization_id", "account_code", "effective_from"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dimension_requirements_date_order": {
+          "name": "dimension_requirements_date_order",
+          "value": "\"dimension_requirement_versions\".\"effective_to\" is null or \"dimension_requirement_versions\".\"effective_to\" > \"dimension_requirement_versions\".\"effective_from\""
+        },
+        "dimension_requirements_reason_not_blank": {
+          "name": "dimension_requirements_reason_not_blank",
+          "value": "btrim(\"dimension_requirement_versions\".\"change_reason\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.dimension_values": {
+      "name": "dimension_values",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "dimension_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dimension_values_organization_id_organizations_id_fk": {
+          "name": "dimension_values_organization_id_organizations_id_fk",
+          "tableFrom": "dimension_values",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "dimension_values_organization_id_kind_code_pk": {
+          "name": "dimension_values_organization_id_kind_code_pk",
+          "columns": ["organization_id", "kind", "code"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dimension_values_code_not_blank": {
+          "name": "dimension_values_code_not_blank",
+          "value": "btrim(\"dimension_values\".\"code\") <> ''"
+        },
+        "dimension_values_name_not_blank": {
+          "name": "dimension_values_name_not_blank",
+          "value": "btrim(\"dimension_values\".\"name\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.exchange_rates": {
+      "name": "exchange_rates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_currency": {
+          "name": "source_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_currency": {
+          "name": "target_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate": {
+          "name": "rate",
+          "type": "numeric(38, 18)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "exchange_rates_organization_id_organizations_id_fk": {
+          "name": "exchange_rates_organization_id_organizations_id_fk",
+          "tableFrom": "exchange_rates",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "exchange_rates_organization_id_id_pk": {
+          "name": "exchange_rates_organization_id_id_pk",
+          "columns": ["organization_id", "id"]
+        }
+      },
+      "uniqueConstraints": {
+        "exchange_rates_observation_unique": {
+          "name": "exchange_rates_observation_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "organization_id",
+            "source_currency",
+            "target_currency",
+            "source",
+            "observed_at"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "exchange_rates_source_currency_iso3": {
+          "name": "exchange_rates_source_currency_iso3",
+          "value": "\"exchange_rates\".\"source_currency\" ~ '^[A-Z]{3}$'"
+        },
+        "exchange_rates_target_currency_iso3": {
+          "name": "exchange_rates_target_currency_iso3",
+          "value": "\"exchange_rates\".\"target_currency\" ~ '^[A-Z]{3}$'"
+        },
+        "exchange_rates_different_currencies": {
+          "name": "exchange_rates_different_currencies",
+          "value": "\"exchange_rates\".\"source_currency\" <> \"exchange_rates\".\"target_currency\""
+        },
+        "exchange_rates_positive": {
+          "name": "exchange_rates_positive",
+          "value": "\"exchange_rates\".\"rate\" > 0"
+        },
+        "exchange_rates_source_not_blank": {
+          "name": "exchange_rates_source_not_blank",
+          "value": "btrim(\"exchange_rates\".\"source\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.fiscal_periods": {
+      "name": "fiscal_periods",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fiscal_year": {
+          "name": "fiscal_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_number": {
+          "name": "period_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "fiscal_period_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fiscal_periods_fiscal_year_fk": {
+          "name": "fiscal_periods_fiscal_year_fk",
+          "tableFrom": "fiscal_periods",
+          "tableTo": "fiscal_years",
+          "columnsFrom": ["organization_id", "fiscal_year"],
+          "columnsTo": ["organization_id", "year"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "fiscal_periods_organization_id_fiscal_year_period_number_pk": {
+          "name": "fiscal_periods_organization_id_fiscal_year_period_number_pk",
+          "columns": ["organization_id", "fiscal_year", "period_number"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fiscal_periods_number_range": {
+          "name": "fiscal_periods_number_range",
+          "value": "\"fiscal_periods\".\"period_number\" between 1 and 53"
+        },
+        "fiscal_periods_date_order": {
+          "name": "fiscal_periods_date_order",
+          "value": "\"fiscal_periods\".\"starts_on\" <= \"fiscal_periods\".\"ends_on\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.fiscal_years": {
+      "name": "fiscal_years",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fiscal_years_organization_id_organizations_id_fk": {
+          "name": "fiscal_years_organization_id_organizations_id_fk",
+          "tableFrom": "fiscal_years",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "fiscal_years_organization_id_year_pk": {
+          "name": "fiscal_years_organization_id_year_pk",
+          "columns": ["organization_id", "year"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fiscal_years_year_range": {
+          "name": "fiscal_years_year_range",
+          "value": "\"fiscal_years\".\"year\" between 1900 and 9999"
+        },
+        "fiscal_years_date_order": {
+          "name": "fiscal_years_date_order",
+          "value": "\"fiscal_years\".\"starts_on\" <= \"fiscal_years\".\"ends_on\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.membership_roles": {
+      "name": "membership_roles",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "membership_roles_membership_fk": {
+          "name": "membership_roles_membership_fk",
+          "tableFrom": "membership_roles",
+          "tableTo": "organization_memberships",
+          "columnsFrom": ["organization_id", "user_id"],
+          "columnsTo": ["organization_id", "user_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "membership_roles_organization_id_user_id_role_pk": {
+          "name": "membership_roles_organization_id_user_id_role_pk",
+          "columns": ["organization_id", "user_id", "role"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.milestones": {
+      "name": "milestones",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_on": {
+          "name": "due_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "milestones_contract_fk": {
+          "name": "milestones_contract_fk",
+          "tableFrom": "milestones",
+          "tableTo": "contracts",
+          "columnsFrom": ["organization_id", "contract_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "milestones_organization_id_id_pk": {
+          "name": "milestones_organization_id_id_pk",
+          "columns": ["organization_id", "id"]
+        }
+      },
+      "uniqueConstraints": {
+        "milestones_contract_sequence_unique": {
+          "name": "milestones_contract_sequence_unique",
+          "nullsNotDistinct": false,
+          "columns": ["organization_id", "contract_id", "sequence"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "milestones_amount_nonnegative": {
+          "name": "milestones_amount_nonnegative",
+          "value": "\"milestones\".\"amount_minor\" >= 0"
+        },
+        "milestones_sequence_positive": {
+          "name": "milestones_sequence_positive",
+          "value": "\"milestones\".\"sequence\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.organization_memberships": {
+      "name": "organization_memberships",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "organization_memberships_organization_id_organizations_id_fk": {
+          "name": "organization_memberships_organization_id_organizations_id_fk",
+          "tableFrom": "organization_memberships",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "organization_memberships_user_id_users_id_fk": {
+          "name": "organization_memberships_user_id_users_id_fk",
+          "tableFrom": "organization_memberships",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "organization_memberships_organization_id_user_id_pk": {
+          "name": "organization_memberships_organization_id_user_id_pk",
+          "columns": ["organization_id", "user_id"]
+        }
+      },
+      "uniqueConstraints": {
+        "organization_memberships_org_user_unique": {
+          "name": "organization_memberships_org_user_unique",
+          "nullsNotDistinct": false,
+          "columns": ["organization_id", "user_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.organizations": {
+      "name": "organizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "legal_name": {
+          "name": "legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "base_currency": {
+          "name": "base_currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "organizations_legal_name_not_blank": {
+          "name": "organizations_legal_name_not_blank",
+          "value": "btrim(\"organizations\".\"legal_name\") <> ''"
+        },
+        "organizations_currency_iso3": {
+          "name": "organizations_currency_iso3",
+          "value": "\"organizations\".\"base_currency\" ~ '^[A-Z]{3}$'"
+        },
+        "organizations_timezone_not_blank": {
+          "name": "organizations_timezone_not_blank",
+          "value": "btrim(\"organizations\".\"timezone\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.parties": {
+      "name": "parties",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_tax_id": {
+          "name": "normalized_tax_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "party_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "parties_org_tax_id_unique": {
+          "name": "parties_org_tax_id_unique",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "normalized_tax_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"parties\".\"normalized_tax_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "parties_organization_id_organizations_id_fk": {
+          "name": "parties_organization_id_organizations_id_fk",
+          "tableFrom": "parties",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "parties_organization_id_id_pk": {
+          "name": "parties_organization_id_id_pk",
+          "columns": ["organization_id", "id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "parties_name_not_blank": {
+          "name": "parties_name_not_blank",
+          "value": "btrim(\"parties\".\"display_name\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.party_bank_accounts": {
+      "name": "party_bank_accounts",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_code": {
+          "name": "bank_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_account_number": {
+          "name": "normalized_account_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_holder_name": {
+          "name": "account_holder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_bank_accounts_party_fk": {
+          "name": "party_bank_accounts_party_fk",
+          "tableFrom": "party_bank_accounts",
+          "tableTo": "parties",
+          "columnsFrom": ["organization_id", "party_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_bank_accounts_organization_id_id_pk": {
+          "name": "party_bank_accounts_organization_id_id_pk",
+          "columns": ["organization_id", "id"]
+        }
+      },
+      "uniqueConstraints": {
+        "party_bank_accounts_org_number_unique": {
+          "name": "party_bank_accounts_org_number_unique",
+          "nullsNotDistinct": false,
+          "columns": ["organization_id", "bank_code", "normalized_account_number"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.party_external_references": {
+      "name": "party_external_references",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_external_refs_party_fk": {
+          "name": "party_external_refs_party_fk",
+          "tableFrom": "party_external_references",
+          "tableTo": "parties",
+          "columnsFrom": ["organization_id", "party_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_external_references_organization_id_source_external_id_pk": {
+          "name": "party_external_references_organization_id_source_external_id_pk",
+          "columns": ["organization_id", "source", "external_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.party_merge_links": {
+      "name": "party_merge_links",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_party_id": {
+          "name": "source_party_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_party_id": {
+          "name": "target_party_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "merged_by": {
+          "name": "merged_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "merged_at": {
+          "name": "merged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_merge_source_fk": {
+          "name": "party_merge_source_fk",
+          "tableFrom": "party_merge_links",
+          "tableTo": "parties",
+          "columnsFrom": ["organization_id", "source_party_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "party_merge_target_fk": {
+          "name": "party_merge_target_fk",
+          "tableFrom": "party_merge_links",
+          "tableTo": "parties",
+          "columnsFrom": ["organization_id", "target_party_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_merge_links_organization_id_source_party_id_pk": {
+          "name": "party_merge_links_organization_id_source_party_id_pk",
+          "columns": ["organization_id", "source_party_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "party_merge_distinct": {
+          "name": "party_merge_distinct",
+          "value": "\"party_merge_links\".\"source_party_id\" <> \"party_merge_links\".\"target_party_id\""
+        },
+        "party_merge_reason_not_blank": {
+          "name": "party_merge_reason_not_blank",
+          "value": "btrim(\"party_merge_links\".\"reason\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.party_roles": {
+      "name": "party_roles",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "party_id": {
+          "name": "party_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "party_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "party_roles_party_fk": {
+          "name": "party_roles_party_fk",
+          "tableFrom": "party_roles",
+          "tableTo": "parties",
+          "columnsFrom": ["organization_id", "party_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "party_roles_organization_id_party_id_role_pk": {
+          "name": "party_roles_organization_id_party_id_role_pk",
+          "columns": ["organization_id", "party_id", "role"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.projects": {
+      "name": "projects",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_party_id": {
+          "name": "client_party_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contract_type": {
+          "name": "contract_type",
+          "type": "contract_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "budget_minor": {
+          "name": "budget_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_on": {
+          "name": "starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_on": {
+          "name": "ends_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "project_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'planned'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "projects_client_fk": {
+          "name": "projects_client_fk",
+          "tableFrom": "projects",
+          "tableTo": "parties",
+          "columnsFrom": ["organization_id", "client_party_id"],
+          "columnsTo": ["organization_id", "id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "projects_owner_membership_fk": {
+          "name": "projects_owner_membership_fk",
+          "tableFrom": "projects",
+          "tableTo": "organization_memberships",
+          "columnsFrom": ["organization_id", "owner_user_id"],
+          "columnsTo": ["organization_id", "user_id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "projects_organization_id_id_pk": {
+          "name": "projects_organization_id_id_pk",
+          "columns": ["organization_id", "id"]
+        }
+      },
+      "uniqueConstraints": {
+        "projects_org_code_unique": {
+          "name": "projects_org_code_unique",
+          "nullsNotDistinct": false,
+          "columns": ["organization_id", "code"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "projects_currency_iso3": {
+          "name": "projects_currency_iso3",
+          "value": "\"projects\".\"currency\" ~ '^[A-Z]{3}$'"
+        },
+        "projects_budget_nonnegative": {
+          "name": "projects_budget_nonnegative",
+          "value": "\"projects\".\"budget_minor\" >= 0"
+        },
+        "projects_date_order": {
+          "name": "projects_date_order",
+          "value": "\"projects\".\"ends_on\" is null or \"projects\".\"ends_on\" >= \"projects\".\"starts_on\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.statutory_account_mappings": {
+      "name": "statutory_account_mappings",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "framework": {
+          "name": "framework",
+          "type": "statutory_framework",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statutory_code": {
+          "name": "statutory_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_by": {
+          "name": "approved_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "statutory_mappings_account_fk": {
+          "name": "statutory_mappings_account_fk",
+          "tableFrom": "statutory_account_mappings",
+          "tableTo": "accounts",
+          "columnsFrom": ["organization_id", "account_code"],
+          "columnsTo": ["organization_id", "code"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "statutory_account_mappings_organization_id_account_code_framework_effective_from_pk": {
+          "name": "statutory_account_mappings_organization_id_account_code_framework_effective_from_pk",
+          "columns": ["organization_id", "account_code", "framework", "effective_from"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "statutory_mappings_code_not_blank": {
+          "name": "statutory_mappings_code_not_blank",
+          "value": "btrim(\"statutory_account_mappings\".\"statutory_code\") <> ''"
+        },
+        "statutory_mappings_date_order": {
+          "name": "statutory_mappings_date_order",
+          "value": "\"statutory_account_mappings\".\"effective_to\" is null or \"statutory_account_mappings\".\"effective_to\" > \"statutory_account_mappings\".\"effective_from\""
+        },
+        "statutory_mappings_approval_together": {
+          "name": "statutory_mappings_approval_together",
+          "value": "(\"statutory_account_mappings\".\"approved_by\" is null and \"statutory_account_mappings\".\"approved_at\" is null) or (\"statutory_account_mappings\".\"approved_by\" is not null and \"statutory_account_mappings\".\"approved_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tax_code_versions": {
+      "name": "tax_code_versions",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "tax_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rate": {
+          "name": "rate",
+          "type": "numeric(12, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_from": {
+          "name": "effective_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_to": {
+          "name": "effective_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_state": {
+          "name": "review_state",
+          "type": "tax_review_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "required_evidence": {
+          "name": "required_evidence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_reason": {
+          "name": "review_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tax_code_versions_organization_id_organizations_id_fk": {
+          "name": "tax_code_versions_organization_id_organizations_id_fk",
+          "tableFrom": "tax_code_versions",
+          "tableTo": "organizations",
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tax_code_versions_organization_id_code_effective_from_pk": {
+          "name": "tax_code_versions_organization_id_code_effective_from_pk",
+          "columns": ["organization_id", "code", "effective_from"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tax_codes_code_not_blank": {
+          "name": "tax_codes_code_not_blank",
+          "value": "btrim(\"tax_code_versions\".\"code\") <> ''"
+        },
+        "tax_codes_name_not_blank": {
+          "name": "tax_codes_name_not_blank",
+          "value": "btrim(\"tax_code_versions\".\"name\") <> ''"
+        },
+        "tax_codes_rate_nonnegative": {
+          "name": "tax_codes_rate_nonnegative",
+          "value": "\"tax_code_versions\".\"rate\" >= 0"
+        },
+        "tax_codes_date_order": {
+          "name": "tax_codes_date_order",
+          "value": "\"tax_code_versions\".\"effective_to\" is null or \"tax_code_versions\".\"effective_to\" > \"tax_code_versions\".\"effective_from\""
+        },
+        "tax_codes_approval_metadata": {
+          "name": "tax_codes_approval_metadata",
+          "value": "\"tax_code_versions\".\"review_state\" <> 'accountant_approved' or (\"tax_code_versions\".\"reviewed_by\" is not null and \"tax_code_versions\".\"reviewed_at\" is not null and btrim(\"tax_code_versions\".\"review_reason\") <> '')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": ["email"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "users_email_not_blank": {
+          "name": "users_email_not_blank",
+          "value": "btrim(\"users\".\"email\") <> ''"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.account_root_type": {
+      "name": "account_root_type",
+      "schema": "public",
+      "values": ["asset", "liability", "equity", "revenue", "expense"]
+    },
+    "public.contract_type": {
+      "name": "contract_type",
+      "schema": "public",
+      "values": ["fixed_fee", "time_and_materials", "retainer", "internal"]
+    },
+    "public.dimension_kind": {
+      "name": "dimension_kind",
+      "schema": "public",
+      "values": ["cost_center", "service_line", "category", "client", "project", "contract"]
+    },
+    "public.fiscal_period_state": {
+      "name": "fiscal_period_state",
+      "schema": "public",
+      "values": ["open", "soft_locked", "hard_locked"]
+    },
+    "public.party_role": {
+      "name": "party_role",
+      "schema": "public",
+      "values": ["client", "supplier", "freelancer", "employee"]
+    },
+    "public.party_status": {
+      "name": "party_status",
+      "schema": "public",
+      "values": ["active", "inactive", "merged"]
+    },
+    "public.project_state": {
+      "name": "project_state",
+      "schema": "public",
+      "values": ["planned", "active", "on_hold", "completed", "closed"]
+    },
+    "public.role": {
+      "name": "role",
+      "schema": "public",
+      "values": [
+        "owner",
+        "finance_admin",
+        "accountant",
+        "project_manager",
+        "approver",
+        "viewer",
+        "integration"
+      ]
+    },
+    "public.statutory_framework": {
+      "name": "statutory_framework",
+      "schema": "public",
+      "values": ["TT133", "TT200"]
+    },
+    "public.tax_kind": {
+      "name": "tax_kind",
+      "schema": "public",
+      "values": ["vat_input", "vat_output", "cit", "withholding", "other"]
+    },
+    "public.tax_review_state": {
+      "name": "tax_review_state",
+      "schema": "public",
+      "values": ["draft", "accountant_approved", "retired"]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

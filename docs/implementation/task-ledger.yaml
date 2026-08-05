@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T14:18:08+07:00
+updated_at: 2026-08-05T14:29:20+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G1
@@ -157,10 +157,22 @@ tasks:
   - id: ERP-130
     title: Parties and commercial references
     phase: P1
-    status: ready
+    status: review
     dependencies: [ERP-100, ERP-120]
     business_rules: [BR-PTY-001, BR-PRJ-001]
     tests: [T-PTY-001, T-PRJ-001]
+    evidence: docs/implementation/evidence/ERP-130/
+    agent: codex-root
+    started_at: 2026-08-05T14:26:07+07:00
+    start_commit: cddb7f2cffc71304a692d420c8d0681d81182139
+    planned_files:
+      - packages/domain/src/commercial.ts
+      - packages/domain/src/commercial.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-130/
 
   - id: ERP-200
     title: Journal aggregate and balanced posting

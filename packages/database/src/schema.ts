@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  bigint,
   check,
   date,
   foreignKey,
@@ -13,6 +14,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const auditColumns = {
@@ -64,6 +66,21 @@ export const dimensionKind = pgEnum("dimension_kind", [
   "client",
   "project",
   "contract",
+]);
+export const partyRole = pgEnum("party_role", ["client", "supplier", "freelancer", "employee"]);
+export const partyStatus = pgEnum("party_status", ["active", "inactive", "merged"]);
+export const projectState = pgEnum("project_state", [
+  "planned",
+  "active",
+  "on_hold",
+  "completed",
+  "closed",
+]);
+export const contractType = pgEnum("contract_type", [
+  "fixed_fee",
+  "time_and_materials",
+  "retainer",
+  "internal",
 ]);
 
 export const organizations = pgTable(
@@ -420,6 +437,210 @@ export const defaultMappingVersions = pgTable(
   ],
 );
 
+export const parties = pgTable(
+  "parties",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    displayName: text("display_name").notNull(),
+    normalizedTaxId: text("normalized_tax_id"),
+    status: partyStatus("status").notNull().default("active"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    uniqueIndex("parties_org_tax_id_unique")
+      .on(table.organizationId, table.normalizedTaxId)
+      .where(sql`${table.normalizedTaxId} is not null`),
+    check("parties_name_not_blank", sql`btrim(${table.displayName}) <> ''`),
+  ],
+);
+
+export const partyRoles = pgTable(
+  "party_roles",
+  {
+    organizationId: text("organization_id").notNull(),
+    partyId: text("party_id").notNull(),
+    role: partyRole("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.partyId, table.role] }),
+    foreignKey({
+      columns: [table.organizationId, table.partyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "party_roles_party_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
+export const partyMergeLinks = pgTable(
+  "party_merge_links",
+  {
+    organizationId: text("organization_id").notNull(),
+    sourcePartyId: text("source_party_id").notNull(),
+    targetPartyId: text("target_party_id").notNull(),
+    reason: text("reason").notNull(),
+    mergedBy: text("merged_by").notNull(),
+    mergedAt: timestamp("merged_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.sourcePartyId] }),
+    foreignKey({
+      columns: [table.organizationId, table.sourcePartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "party_merge_source_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.targetPartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "party_merge_target_fk",
+    }).onDelete("restrict"),
+    check("party_merge_distinct", sql`${table.sourcePartyId} <> ${table.targetPartyId}`),
+    check("party_merge_reason_not_blank", sql`btrim(${table.reason}) <> ''`),
+  ],
+);
+
+export const partyBankAccounts = pgTable(
+  "party_bank_accounts",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    partyId: text("party_id").notNull(),
+    bankCode: text("bank_code").notNull(),
+    normalizedAccountNumber: text("normalized_account_number").notNull(),
+    accountHolderName: text("account_holder_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("party_bank_accounts_org_number_unique").on(
+      table.organizationId,
+      table.bankCode,
+      table.normalizedAccountNumber,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.partyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "party_bank_accounts_party_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
+export const partyExternalReferences = pgTable(
+  "party_external_references",
+  {
+    organizationId: text("organization_id").notNull(),
+    source: text("source").notNull(),
+    externalId: text("external_id").notNull(),
+    partyId: text("party_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.source, table.externalId] }),
+    foreignKey({
+      columns: [table.organizationId, table.partyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "party_external_refs_party_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
+export const projects = pgTable(
+  "projects",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    clientPartyId: text("client_party_id").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
+    contractType: contractType("contract_type").notNull(),
+    currency: text("currency").notNull(),
+    budgetMinor: bigint("budget_minor", { mode: "bigint" }).notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on"),
+    state: projectState("state").notNull().default("planned"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("projects_org_code_unique").on(table.organizationId, table.code),
+    foreignKey({
+      columns: [table.organizationId, table.clientPartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "projects_client_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.ownerUserId],
+      foreignColumns: [organizationMemberships.organizationId, organizationMemberships.userId],
+      name: "projects_owner_membership_fk",
+    }).onDelete("restrict"),
+    check("projects_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("projects_budget_nonnegative", sql`${table.budgetMinor} >= 0`),
+    check(
+      "projects_date_order",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`,
+    ),
+  ],
+);
+
+export const contracts = pgTable(
+  "contracts",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    projectId: text("project_id").notNull(),
+    reference: text("reference").notNull(),
+    signedOn: date("signed_on"),
+    valueMinor: bigint("value_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("contracts_org_reference_unique").on(table.organizationId, table.reference),
+    foreignKey({
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "contracts_project_fk",
+    }).onDelete("restrict"),
+    check("contracts_value_nonnegative", sql`${table.valueMinor} >= 0`),
+    check("contracts_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+  ],
+);
+
+export const milestones = pgTable(
+  "milestones",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    contractId: text("contract_id").notNull(),
+    name: text("name").notNull(),
+    dueOn: date("due_on"),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    sequence: integer("sequence").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("milestones_contract_sequence_unique").on(
+      table.organizationId,
+      table.contractId,
+      table.sequence,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.contractId],
+      foreignColumns: [contracts.organizationId, contracts.id],
+      name: "milestones_contract_fk",
+    }).onDelete("restrict"),
+    check("milestones_amount_nonnegative", sql`${table.amountMinor} >= 0`),
+    check("milestones_sequence_positive", sql`${table.sequence} > 0`),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -435,4 +656,12 @@ export const schema = {
   dimensionValues,
   dimensionRequirementVersions,
   defaultMappingVersions,
+  parties,
+  partyRoles,
+  partyMergeLinks,
+  partyBankAccounts,
+  partyExternalReferences,
+  projects,
+  contracts,
+  milestones,
 } as const;

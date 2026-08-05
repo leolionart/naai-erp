@@ -22,6 +22,13 @@
       "when": 1785914096912,
       "tag": "0002_typical_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785914916520,
+      "tag": "0003_perpetual_hydra",
+      "breakpoints": true
     }
   ]
 }

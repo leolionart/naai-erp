@@ -134,4 +134,44 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       `),
     ).rejects.toMatchObject({ code: "23503" });
   });
+
+  it("enforces party and project ownership across commercial references", async () => {
+    await pool!.query(`
+      insert into parties (organization_id, id, display_name, normalized_tax_id)
+      values ('org-a', 'party-client', 'Client A', '0312345678'),
+             ('org-b', 'party-client', 'Client B', '0312345678');
+      insert into party_roles (organization_id, party_id, role)
+      values ('org-a', 'party-client', 'client');
+      insert into party_bank_accounts
+        (organization_id, id, party_id, bank_code, normalized_account_number, account_holder_name)
+      values ('org-a', 'bank-1', 'party-client', 'VCB', '123456789', 'Client A');
+      insert into projects
+        (organization_id, id, code, name, client_party_id, owner_user_id, contract_type,
+         currency, budget_minor, starts_on)
+      values ('org-a', 'project-1', 'WEB-001', 'Web App', 'party-client', 'user-a',
+              'fixed_fee', 'VND', 100000000, '2026-08-01');
+      insert into contracts
+        (organization_id, id, project_id, reference, signed_on, value_minor, currency)
+      values ('org-a', 'contract-1', 'project-1', 'NAAI/2026/01', '2026-08-01', 110000000, 'VND');
+      insert into milestones
+        (organization_id, id, contract_id, name, due_on, amount_minor, sequence)
+      values ('org-a', 'milestone-1', 'contract-1', 'Go-live', '2026-10-01', 55000000, 1);
+    `);
+    await expect(
+      pool!.query(`
+        insert into projects
+          (organization_id, id, code, name, client_party_id, owner_user_id, contract_type,
+           currency, budget_minor, starts_on)
+        values ('org-b', 'project-x', 'WEB-X', 'Invalid', 'party-client', 'user-a',
+                'fixed_fee', 'VND', 1, '2026-08-01')
+      `),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool!.query(`
+        insert into party_bank_accounts
+          (organization_id, id, party_id, bank_code, normalized_account_number, account_holder_name)
+        values ('org-a', 'bank-2', 'party-client', 'VCB', '123456789', 'Duplicate')
+      `),
+    ).rejects.toMatchObject({ code: "23505" });
+  });
 });
