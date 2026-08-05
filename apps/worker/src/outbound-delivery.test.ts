@@ -99,6 +99,29 @@ describe("ERP-340 outbound delivery", () => {
     });
   });
 
+  it("captures the lease cutoff after materializing database-timestamped deliveries", async () => {
+    const { store } = fakeStore();
+    let current = new Date("2026-08-05T10:00:00.000Z");
+    const afterMaterialize = new Date("2026-08-05T10:00:00.010Z");
+    store.materializePending = vi.fn(async () => {
+      current = afterMaterialize;
+      return 1;
+    });
+    const runner = new OutboundDeliveryRunner(
+      store,
+      async () => ({ status: 204, text: async () => "" }),
+      () => "secret",
+      "worker-1",
+      () => current,
+    );
+    await runner.runBatch();
+    expect(store.materializePending).toHaveBeenCalledBefore(
+      store.releaseExpiredLeases as ReturnType<typeof vi.fn>,
+    );
+    expect(store.releaseExpiredLeases).toHaveBeenCalledWith(afterMaterialize);
+    expect(store.leaseDue).toHaveBeenCalledWith(expect.objectContaining({ now: afterMaterialize }));
+  });
+
   it("classifies status codes and caps delay", () => {
     expect(classifyStatus(429)).toBe("retryable_failure");
     expect(classifyStatus(422)).toBe("permanent_failure");

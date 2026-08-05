@@ -100,11 +100,14 @@ export class OutboundDeliveryRunner {
   ) {}
 
   async runBatch(limit = 20, leaseSeconds = 60) {
-    const startedAt = this.now();
     const materialized = await this.store.materializePending(limit * 4);
-    const released = await this.store.releaseExpiredLeases(startedAt);
+    // Materialization uses the database clock for next_attempt_at. Capture the leasing cutoff only
+    // after that write completes, otherwise a newly-created delivery can be a few microseconds newer
+    // than the cutoff and be skipped until the next worker tick.
+    const leaseAt = this.now();
+    const released = await this.store.releaseExpiredLeases(leaseAt);
     const deliveries = await this.store.leaseDue({
-      now: startedAt,
+      now: leaseAt,
       workerId: this.workerId,
       limit,
       leaseSeconds,
