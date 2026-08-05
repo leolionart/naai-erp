@@ -9,4 +9,6 @@
 - [x] Amount allocation totals exactly the source amount using minor units.
 - [x] Rounding residual requires an explicit residual account.
 - [x] Test aliases `T-DIM-001` and `T-DIM-002` are registered.
-- [ ] Exact-commit PostgreSQL migration and integration tests pass on CI.
+- [x] Exact-commit PostgreSQL migration and integration tests pass on CI.
+
+ERP-120 is complete. ERP-130 is now ready; Gate G1 remains in progress.

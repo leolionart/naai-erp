@@ -4,4 +4,4 @@
 - Version overlap is rejected at the domain/repository boundary; a PostgreSQL exclusion constraint may be introduced if range extensions are adopted.
 - Allocation plans do not create journal lines. Posting-rule expansion belongs to ERP-200/ERP-210.
 - Default project mapping is deferred until ERP-130 creates project master data.
-- Exact-commit CI must confirm the new PostgreSQL migration and six integration tests before ERP-120 is marked done.
+- Exact-commit CI confirmed the PostgreSQL migration and all six integration tests.
