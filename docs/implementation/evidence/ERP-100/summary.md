@@ -9,4 +9,8 @@
 
 Start commit: `29921f247626bf64618d6c71020ad409b3544797`.
 
+Implementation commit: `232783ce0b91095df81eab9dba598cab3d5773b7`.
+
+Exact-commit remote CI: [GitHub Actions run 30982155835](https://github.com/leolionart/naai-erp/actions/runs/30982155835) passed.
+
 Rules covered: `BR-ORG-001`, `BR-PER-001`, `BR-CUR-001`.

@@ -97,6 +97,8 @@ tasks:
     started_at: 2026-08-05T13:36:42+07:00
     completed_at: 2026-08-05T13:39:28+07:00
     start_commit: 29921f247626bf64618d6c71020ad409b3544797
+    commit: 232783ce0b91095df81eab9dba598cab3d5773b7
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30982155835
     planned_files:
       - packages/domain/src/organization-setup.ts
       - packages/domain/src/organization-setup.test.ts

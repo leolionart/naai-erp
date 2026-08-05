@@ -33,3 +33,11 @@ Results:
 Command: `pnpm check`
 
 Result: passed format, ESLint, package lint, typecheck, documentation checks, security baseline, test suites and production builds across 9 packages. The database integration suite is intentionally skipped by the generic test command when `DATABASE_URL` is absent; it passed explicitly against the clean PostgreSQL container above.
+
+## Remote CI
+
+Exact implementation commit: `232783ce0b91095df81eab9dba598cab3d5773b7`.
+
+Run: [GitHub Actions 30982155835](https://github.com/leolionart/naai-erp/actions/runs/30982155835)
+
+Result: passed `pnpm install --frozen-lockfile`, `pnpm check` and `pnpm db:check`.
