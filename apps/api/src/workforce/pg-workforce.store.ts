@@ -292,7 +292,7 @@ export class PgWorkforceStore {
       const state = action === "approve" ? "approved" : "retired",
         v = (BigInt(r.rows[0].version) + 1n).toString();
       await q.query(
-        `update labor_cost_rates set state=$3,version=$4,approved_by=case when $3='approved' then $5 else approved_by end,approved_at=case when $3='approved' then now() else approved_at end,approval_reason=case when $3='approved' then $6 else approval_reason end,updated_at=now() where organization_id=$1 and id=$2`,
+        `update labor_cost_rates set state=$3::labor_cost_rate_state,version=$4,approved_by=case when $3::labor_cost_rate_state='approved'::labor_cost_rate_state then $5 else approved_by end,approved_at=case when $3::labor_cost_rate_state='approved'::labor_cost_rate_state then now() else approved_at end,approval_reason=case when $3::labor_cost_rate_state='approved'::labor_cost_rate_state then $6 else approval_reason end,updated_at=now() where organization_id=$1 and id=$2`,
         [c.organizationId, id, state, v, c.actorId, i.reason],
       );
       return { resource: { id, state, resourceVersion: v }, mutation: this.meta(c, v) };
