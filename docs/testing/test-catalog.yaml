@@ -10,6 +10,33 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-UNIT-ERP-100-001
+    aliases: [T-ORG-001]
+    task: ERP-100
+    rules: [BR-ORG-001]
+    title: Organization membership and role assignments remain organization scoped
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G1
+
+  - id: T-UNIT-ERP-100-002
+    aliases: [T-PER-001]
+    task: ERP-100
+    rules: [BR-PER-001]
+    title: Fiscal years contain contiguous periods with controlled state transitions
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G1
+
+  - id: T-INT-ERP-100-001
+    aliases: [T-CUR-001]
+    task: ERP-100
+    rules: [BR-ORG-001, BR-CUR-001]
+    title: Organization fiscal and exchange-rate records enforce tenant ownership and exact decimals
+    layer: integration
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test
+    blocking_gate: G1
+
   - id: T-SEC-ERP-004-001
     aliases: [T-SEC-001]
     task: ERP-004

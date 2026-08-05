@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T13:34:00+07:00
+updated_at: 2026-08-05T13:39:28+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G1
-current_task: ERP-100
+current_task: ERP-110
 
 tasks:
   - id: ERP-000
@@ -88,15 +88,28 @@ tasks:
   - id: ERP-100
     title: Organization identity and fiscal setup
     phase: P1
-    status: ready
+    status: done
     dependencies: [G0]
     business_rules: [BR-ORG-001, BR-PER-001, BR-CUR-001]
     tests: [T-ORG-001, T-PER-001, T-CUR-001]
+    evidence: docs/implementation/evidence/ERP-100/
+    agent: codex-root
+    started_at: 2026-08-05T13:36:42+07:00
+    completed_at: 2026-08-05T13:39:28+07:00
+    start_commit: 29921f247626bf64618d6c71020ad409b3544797
+    planned_files:
+      - packages/domain/src/organization-setup.ts
+      - packages/domain/src/organization-setup.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-100/
 
   - id: ERP-110
     title: Chart of Accounts and tax codes
     phase: P1
-    status: blocked
+    status: ready
     dependencies: [ERP-100]
     business_rules: [BR-COA-001, BR-COA-002, BR-TAX-001]
     tests: [T-COA-001, T-COA-002, T-TAX-001]
