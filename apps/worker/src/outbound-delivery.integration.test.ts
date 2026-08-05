@@ -49,7 +49,9 @@ describeIntegration("ERP-340 PostgreSQL outbound delivery", () => {
       (ref) => process.env[ref],
       "worker-success",
     );
-    await runner.runBatch();
+    // Earlier integration suites intentionally leave valid outbox rows behind. Use a batch large
+    // enough to include this event even when the shared CI database already has a due backlog.
+    await runner.runBatch(1000);
     // The worker intentionally leases a global due queue, and earlier API/database suites may leave
     // additional valid deliveries behind. Aggregate leased/delivered counts therefore describe the
     // whole batch; the event-specific database assertions below are the authoritative proof here.
@@ -91,7 +93,7 @@ describeIntegration("ERP-340 PostgreSQL outbound delivery", () => {
       (ref) => process.env[ref],
       "worker-retry",
     );
-    await runner.runBatch();
+    await runner.runBatch(1000);
     const delivery = await pool.query(
       `select state,attempt_count,next_attempt_at from outbound_deliveries
        where organization_id='org-out' and outbox_event_id='event-retry'`,
