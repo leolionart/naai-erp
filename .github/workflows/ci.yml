@@ -45,3 +45,6 @@ jobs:
       - run: pnpm --filter @naai-erp/api test
         env:
           RUN_DB_INTEGRATION: "1"
+      - run: pnpm --filter @naai-erp/worker test
+        env:
+          RUN_DB_INTEGRATION: "1"
