@@ -162,8 +162,8 @@ describeIntegration("ERP-346 expense, evidence and journal drill-down", () => {
         .data.lines.map(
           (line: {
             account_code: string;
-            debit_minor: string | null;
-            credit_minor: string | null;
+            debit_minor: number | null;
+            credit_minor: number | null;
           }) => ({
             accountCode: line.account_code,
             debitMinor: line.debit_minor,
@@ -171,9 +171,9 @@ describeIntegration("ERP-346 expense, evidence and journal drill-down", () => {
           }),
         ),
     ).toEqual([
-      { accountCode: "642-OPEX", debitMinor: "10000000", creditMinor: null },
-      { accountCode: "1331-VAT", debitMinor: "1000000", creditMinor: null },
-      { accountCode: "331-AP", debitMinor: null, creditMinor: "11000000" },
+      { accountCode: "642-OPEX", debitMinor: 10000000, creditMinor: null },
+      { accountCode: "1331-VAT", debitMinor: 1000000, creditMinor: null },
+      { accountCode: "331-AP", debitMinor: null, creditMinor: 11000000 },
     ]);
 
     const evidenceList = await app.inject({
