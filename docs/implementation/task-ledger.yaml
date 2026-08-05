@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T21:07:06+07:00
+updated_at: 2026-08-06T01:03:19+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G4
-current_task: ERP-440
+current_gate: G5
+current_task: ERP-530
 
 tasks:
   - id: ERP-000
@@ -653,7 +653,7 @@ tasks:
   - id: ERP-440
     title: Gate G4 banking control totals and closure
     phase: P4
-    status: in_progress
+    status: done
     dependencies: [ERP-400, ERP-410, ERP-420, ERP-430]
     business_rules: [BR-BNK-001, BR-REC-002, BR-BNK-003, BR-AR-002, BR-AP-002]
     tests: [T-G4-001, T-G4-002]
@@ -661,6 +661,11 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T22:58:08+07:00
     start_commit: f528e486215d9950289775ceb0846289b1d6d6e5
+    completed_at: 2026-08-05T23:40:04+07:00
+    implementation_commit: 5fadf5026964e2ec2db2fc1d90f56b199237b34d
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31026278292
+    proof_commit: 602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5
+    proof_ci_url: https://github.com/leolionart/naai-erp/actions/runs/31031720108
     planned_files:
       - packages/domain/src/banking-controls.ts
       - packages/contracts/src/banking-controls.ts
@@ -679,34 +684,53 @@ tasks:
   - id: ERP-500
     title: Timesheet and cost rates
     phase: P5
-    status: blocked
+    status: done
     dependencies: [G4]
     business_rules: [BR-TIM-001, BR-CST-001]
     tests: [T-TIM-001, T-CST-001]
+    completed_at: 2026-08-05T23:52:40+07:00
+    implementation_commit: 02f312b54027b132e1b0b3ef19a9ceb327f134fb
+    proof_commit: 602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31031720108
 
   - id: ERP-510
     title: Direct project costs
     phase: P5
-    status: blocked
+    status: done
     dependencies: [ERP-500, ERP-310]
     business_rules: [BR-CST-002, BR-ALL-001]
     tests: [T-CST-002, T-ALL-001]
+    completed_at: 2026-08-06T00:05:43+07:00
+    implementation_commit: 3ad6703aa81628acc53858e54b158563769e255e
+    proof_commit: 602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31031720108
 
   - id: ERP-520
     title: Project budget and revenue recognition
     phase: P5
-    status: blocked
+    status: done
     dependencies: [ERP-500, ERP-300]
     business_rules: [BR-REV-001, BR-REV-002, BR-BUD-001]
     tests: [T-REV-001, T-REV-002, T-BUD-001]
+    completed_at: 2026-08-06T00:23:11+07:00
+    implementation_commit: 888b449db7bfdc28d8e159aef63dcbe03f2eb181
+    proof_commit: 602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31031720108
 
   - id: ERP-530
     title: Overhead allocation
     phase: P5
-    status: blocked
+    status: review
     dependencies: [ERP-510, ERP-520]
     business_rules: [BR-ALL-002, BR-ALL-003]
     tests: [T-ALL-002, T-ALL-P001]
+    evidence: docs/implementation/evidence/ERP-530/
+    started_at: 2026-08-06T00:35:35+07:00
+    implementation_commits:
+      - 8094790de948c39eca9e287cf112f652f171e2f2
+      - b93fb80193772714b100be801a0f1173e8a5cc72
+      - 602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5
+    local_worktree: Contract, CLI and UI work implemented but not yet committed or exact-commit CI verified.
 
   - id: ERP-540
     title: Project profitability
@@ -909,8 +933,8 @@ gate_status:
   G1: done
   G2: done
   G3: done
-  G4: in_progress
-  G5: blocked
+  G4: done
+  G5: in_progress
   G6: blocked
   G7: blocked
   G8: blocked

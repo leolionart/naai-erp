@@ -40,6 +40,14 @@ describe("headless API discovery", () => {
           operationId: "createDirectCostAllocation",
           organizationScoped: true,
         }),
+        expect.objectContaining({
+          operationId: "createOverheadAllocationPolicy",
+          organizationScoped: true,
+        }),
+        expect.objectContaining({
+          operationId: "createOverheadAllocationRun",
+          organizationScoped: true,
+        }),
       ]),
     );
     expect(caps.json().authentication.scheme).toBe("bearer");

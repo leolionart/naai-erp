@@ -29,4 +29,4 @@ Authored tests cover:
 - AR/AP control variances are zero and supplier advance is exercised in PostgreSQL;
 - cross-organization access is denied.
 
-Exact-commit GitHub CI must execute these PostgreSQL suites before unlocking ERP-500.
+Exact-commit GitHub CI passed all PostgreSQL suites and Playwright at https://github.com/leolionart/naai-erp/actions/runs/31031720108 for proof commit `602d9f8ce8b96acb21f5f414ccbb9c9acbd9b2e5`, keeping G4 accepted and G5 unlocked.

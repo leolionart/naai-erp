@@ -12,7 +12,7 @@ const TABLE: Record<OverheadResource, string> = {
 const SELECT: Record<OverheadResource, string> = {
   "overhead-allocation-policies": `select id,policy_code "policyCode",version_number "versionNumber",name,method,cost_class "costClass",effective_from::text "effectiveFrom",effective_to::text "effectiveTo",configuration,state,version::text "resourceVersion",submitted_by "submittedBy",approved_by "approvedBy",rejected_by "rejectedBy" from overhead_allocation_policies`,
   "overhead-source-pools": `select id,policy_id "policyId",policy_version_number "policyVersionNumber",period_start::text "periodStart",period_end::text "periodEnd",currency,source_amount_minor::text "sourceAmountMinor",source_base_amount_minor::text "sourceBaseAmountMinor",state,version::text "resourceVersion",reason from overhead_source_pools`,
-  "overhead-allocation-runs": `select id,pool_id "poolId",policy_id "policyId",policy_version_number "policyVersionNumber",method,period_start::text "periodStart",period_end::text "periodEnd",currency,allocatable_amount_minor::text "allocatableAmountMinor",basis_snapshot "basisSnapshot",policy_snapshot "policySnapshot",state,version::text "resourceVersion",submitted_by "submittedBy",approved_by "approvedBy",rejected_by "rejectedBy",posted_by "postedBy",reversed_by "reversedBy",reason from overhead_allocation_runs`,
+  "overhead-allocation-runs": `select id,pool_id "poolId",policy_id "policyId",policy_version_number "policyVersionNumber",method,period_start::text "periodStart",period_end::text "periodEnd",currency,allocatable_amount_minor::text "allocatableAmountMinor",basis_snapshot "basisSnapshot",policy_snapshot "policySnapshot",state,version::text "resourceVersion",submitted_by "submittedBy",approved_by "approvedBy",rejected_by "rejectedBy",posted_by "postedBy",journal_id "journalId",reversed_by "reversedBy",reversal_journal_id "reversalJournalId",reason from overhead_allocation_runs`,
 };
 type Basis = { projectId: string; basis: bigint };
 type Split = Basis & { amount: bigint; rank: number };
@@ -110,11 +110,21 @@ export class PgOverheadAllocationStore {
         await this.assertOpenPeriod(q, c.organizationId, x.period_start, x.period_end);
       if (r === "overhead-allocation-runs" && a === "approve")
         await this.validateRun(q, c.organizationId, id, x.allocatable_amount_minor);
+      const linkedJournalId =
+        r === "overhead-allocation-runs" && a === "post"
+          ? await this.postRunJournal(q, c, id, x, String(i.reason))
+          : r === "overhead-allocation-runs" && a === "reverse"
+            ? await this.reverseRunJournal(q, c, id, x, String(i.reason))
+            : null;
       const v = (BigInt(x.version) + 1n).toString(),
         field = target === "reversed" ? "reversed" : target === "posted" ? "posted" : target;
       await q.query(
-        `update ${t} set state=$3,version=$4,${field}_by=$5,${field}_at=now(),updated_at=now() where organization_id=$1 and id=$2`,
-        [c.organizationId, id, target, v, c.actorId],
+        r === "overhead-allocation-runs"
+          ? `update ${t} set state=$3,version=$4,${field}_by=$5,${field}_at=now(),journal_id=case when $3='posted' then $6 else journal_id end,reversal_journal_id=case when $3='reversed' then $6 else reversal_journal_id end,reversal_reason=case when $3='reversed' then $7 else reversal_reason end,updated_at=now() where organization_id=$1 and id=$2`
+          : `update ${t} set state=$3,version=$4,${field}_by=$5,${field}_at=now(),updated_at=now() where organization_id=$1 and id=$2`,
+        r === "overhead-allocation-runs"
+          ? [c.organizationId, id, target, v, c.actorId, linkedJournalId, i.reason]
+          : [c.organizationId, id, target, v, c.actorId],
       );
       if (r === "overhead-allocation-policies" && a === "approve")
         await q.query(
@@ -477,6 +487,116 @@ export class PgOverheadAllocationStore {
       `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [c.organizationId, randomUUID(), r, id, v, a, c.actorId, c.correlationId, { reason }],
     );
+  }
+  private async postRunJournal(
+    q: PoolClient,
+    c: OverheadContext,
+    id: string,
+    x: any,
+    reason: string,
+  ) {
+    const org = await q.query<{ base: string }>(
+      `select base_currency base from organizations where id=$1`,
+      [c.organizationId],
+    );
+    if (!org.rows[0] || org.rows[0].base !== x.currency)
+      throw new Error("OVERHEAD_BASE_CURRENCY_REQUIRED");
+    const splits = await q.query<{ projectId: string; weight: string; rank: number }>(
+      `select project_id "projectId",amount_minor::text weight,rounding_rank rank from overhead_allocation_splits where organization_id=$1 and run_id=$2 order by rounding_rank,project_id`,
+      [c.organizationId, id],
+    );
+    const total = splits.rows.reduce((n, s) => n + BigInt(s.weight), 0n);
+    if (total !== BigInt(x.allocatable_amount_minor))
+      throw new Error("OVERHEAD_SPLIT_TOTAL_MISMATCH");
+    const sources = await q.query<{ account: string; base: string }>(
+      `select c.ledger_account_code account,i.base_amount_minor::text base from overhead_source_pool_items i join project_cost_items c on c.organization_id=i.organization_id and c.id=i.source_cost_item_id where i.organization_id=$1 and i.pool_id=$2 order by c.id`,
+      [c.organizationId, x.pool_id],
+    );
+    const jid = randomUUID();
+    await q.query(
+      `insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by)values($1,$2,$3,$4,$5,'posted',2,$6,now(),$6,$7,now(),$6)`,
+      [
+        c.organizationId,
+        jid,
+        x.period_end,
+        `Overhead allocation ${id}`,
+        x.currency,
+        c.actorId,
+        reason,
+      ],
+    );
+    let line = 0;
+    for (const src of sources.rows) {
+      const account = await q.query(
+        `select 1 from accounts where organization_id=$1 and code=$2 and root_type='expense'`,
+        [c.organizationId, src.account],
+      );
+      if (!account.rows[0]) throw new Error("OVERHEAD_ACCOUNT_INVALID");
+      const source = BigInt(src.base),
+        parts = splits.rows.map((s) => ({ s, n: (source * BigInt(s.weight)) / total }));
+      let rem = source - parts.reduce((n, p) => n + p.n, 0n);
+      for (const p of parts) {
+        if (rem > 0n) {
+          p.n++;
+          rem--;
+        }
+        if (p.n > 0n)
+          await q.query(
+            `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,description,dimensions)values($1,$2,$3,$4,$5,$6,$7)`,
+            [
+              c.organizationId,
+              jid,
+              ++line,
+              src.account,
+              p.n.toString(),
+              reason,
+              { projectId: p.s.projectId },
+            ],
+          );
+      }
+      await q.query(
+        `insert into journal_lines(organization_id,journal_id,line_number,account_code,credit_minor,description,dimensions)values($1,$2,$3,$4,$5,$6,'{}')`,
+        [c.organizationId, jid, ++line, src.account, source.toString(), reason],
+      );
+    }
+    return jid;
+  }
+  private async reverseRunJournal(
+    q: PoolClient,
+    c: OverheadContext,
+    id: string,
+    x: any,
+    reason: string,
+  ) {
+    if (!x.journal_id) throw new Error("OVERHEAD_JOURNAL_MISSING");
+    const original = await q.query<{ date: string; currency: string }>(
+      `select journal_date::text date,currency from journal_entries where organization_id=$1 and id=$2 for update`,
+      [c.organizationId, x.journal_id],
+    );
+    if (!original.rows[0]) throw new Error("OVERHEAD_JOURNAL_MISSING");
+    const jid = randomUUID();
+    await q.query(
+      `insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id)values($1,$2,$3,$4,$5,'posted',2,$6,now(),$6,$7,now(),$6,$8)`,
+      [
+        c.organizationId,
+        jid,
+        original.rows[0].date,
+        `Reverse overhead allocation ${id}`,
+        original.rows[0].currency,
+        c.actorId,
+        reason,
+        x.journal_id,
+      ],
+    );
+    await q.query(
+      `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)select organization_id,$3,line_number,account_code,credit_minor,debit_minor,$4,dimensions from journal_lines where organization_id=$1 and journal_id=$2`,
+      [c.organizationId, x.journal_id, jid, reason],
+    );
+    await q.query(
+      `update journal_entries set state='reversed',updated_at=now() where organization_id=$1 and id=$2`,
+      [c.organizationId, x.journal_id],
+    );
+    return jid;
   }
   private meta(c: OverheadContext, v: string) {
     return { resourceVersion: v, correlationId: c.correlationId, idempotencyReplayed: false };

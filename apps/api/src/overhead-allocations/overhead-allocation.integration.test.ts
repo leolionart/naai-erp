@@ -162,6 +162,8 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       ["p530a", "51", 1],
       ["p530b", "50", 2],
     ]);
+    let journalId = "",
+      reversalJournalId = "";
     for (const [action, version, token] of [
       ["submit", "1", maker],
       ["approve", "2", checker],
@@ -177,7 +179,26 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
         `run-${action}`,
       );
       expect(response.statusCode, response.body).toBe(201);
+      if (action === "post") journalId = response.json().data.resource.journalId;
+      if (action === "reverse") reversalJournalId = response.json().data.resource.reversalJournalId;
     }
+    expect(journalId).toBeTruthy();
+    expect(reversalJournalId).toBeTruthy();
+    const balance = await pool.query<{ debit: string; credit: string }>(
+      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id=$1 and journal_id=$2`,
+      [org, journalId],
+    );
+    expect(balance.rows[0]).toEqual({ debit: "101", credit: "101" });
+    const projectDebits = await pool.query<{ n: string }>(
+      `select coalesce(sum(debit_minor),0)::text n from journal_lines where organization_id=$1 and journal_id=$2 and dimensions ? 'projectId'`,
+      [org, journalId],
+    );
+    expect(projectDebits.rows[0]?.n).toBe("101");
+    const reversal = await pool.query<{ reversal: string; state: string; net: string }>(
+      `select r.reversal_of_id reversal,o.state,(select coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)),0)::text from journal_lines l where l.organization_id=$1 and l.journal_id in($2,$3)) net from journal_entries r join journal_entries o on o.organization_id=r.organization_id and o.id=r.reversal_of_id where r.organization_id=$1 and r.id=$3`,
+      [org, journalId, reversalJournalId],
+    );
+    expect(reversal.rows[0]).toEqual({ reversal: journalId, state: "reversed", net: "0" });
     const lockedPool = await post(
       "overhead-source-pools",
       undefined,

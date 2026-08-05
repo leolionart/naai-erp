@@ -150,15 +150,23 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                         ...(values.from ? { from: values.from } : {}),
                         ...(values.to ? { to: values.to } : {}),
                       }
-                    : resource.startsWith("bank-")
+                    : ["overhead-policies", "overhead-source-pools", "overhead-runs"].includes(
+                          resource,
+                        )
                       ? {
-                          ...(values["account-id"]
-                            ? { financialAccountId: values["account-id"] }
-                            : {}),
-                          ...(values.from ? { from: values.from } : {}),
-                          ...(values.to ? { to: values.to } : {}),
+                          ...(values.from ? { periodStart: values.from } : {}),
+                          ...(values.to ? { periodEnd: values.to } : {}),
+                          ...(values.status ? { state: values.status } : {}),
                         }
-                      : undefined;
+                      : resource.startsWith("bank-")
+                        ? {
+                            ...(values["account-id"]
+                              ? { financialAccountId: values["account-id"] }
+                              : {}),
+                            ...(values.from ? { from: values.from } : {}),
+                            ...(values.to ? { to: values.to } : {}),
+                          }
+                        : undefined;
     const result = await client.request(
       resource,
       action,

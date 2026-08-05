@@ -160,6 +160,14 @@ export const adminNavigation = [
         icon: "forecast",
         status: "available",
       },
+      {
+        key: "overhead",
+        label: "Phân bổ overhead",
+        href: "/overhead/runs",
+        description: "Policy, source pool và allocation run có kiểm soát.",
+        icon: "report",
+        status: "available",
+      },
     ],
   },
   {
