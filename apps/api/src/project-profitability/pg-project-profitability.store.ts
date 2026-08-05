@@ -120,7 +120,7 @@ export class PgProjectProfitabilityStore {
         range,
       ),
       this.pool.query(
-        `select coalesce(sum(a.target_amount_minor * x.project_net_minor / nullif(d.net_minor,0)),0)::text amount,
+        `select coalesce(round(sum(a.target_amount_minor * x.project_net_minor / nullif(d.net_minor,0))),0)::bigint::text amount,
                 coalesce(array_agg(distinct r.id order by r.id),'{}') ids
            from reconciliation_allocations a
            join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id
@@ -233,7 +233,7 @@ export class PgProjectProfitabilityStore {
         [organizationId, project.id, asOf],
       ),
       this.pool.query(
-        `select coalesce(sum(greatest(d.net_minor*x.share_num/nullif(x.share_den,0)-coalesce(p.paid,0)*x.share_num/nullif(x.share_den,0),0)),0)::text amount,
+        `select coalesce(round(sum(greatest(d.net_minor*x.share_num/nullif(x.share_den,0)-coalesce(p.paid,0)*x.share_num/nullif(x.share_den,0),0))),0)::bigint::text amount,
                 coalesce(array_agg(distinct d.id order by d.id),'{}') ids
            from commercial_documents d
            join lateral(select coalesce(sum(l.net_minor) filter(where l.dimensions->>'projectId'=$2),0) share_num,
