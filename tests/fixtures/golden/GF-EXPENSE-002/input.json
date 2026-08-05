@@ -2,16 +2,38 @@
   "fixtureId": "GF-EXPENSE-002",
   "description": "Invoice-backed expense allocated across two projects and internal overhead",
   "expense": {
+    "id": "expense-shared-invoice",
     "class": "invoice_backed",
     "netMinor": "20000000",
     "vatMinor": "2000000",
     "grossMinor": "22000000",
-    "vatEligibleMinor": "2000000"
+    "vatEligibleMinor": "2000000",
+    "managementState": "valid",
+    "citState": "eligible",
+    "citEligibleMinor": "20000000",
+    "vatState": "eligible",
+    "currency": "VND",
+    "counterAccountCode": "331-AP"
   },
   "allocations": [
-    { "dimension": "project:A", "netMinor": "10000000", "vatMinor": "1000000" },
-    { "dimension": "project:B", "netMinor": "6000000", "vatMinor": "600000" },
-    { "dimension": "internal", "netMinor": "4000000", "vatMinor": "400000" }
+    {
+      "id": "ALLOC-PROJECT-A",
+      "dimension": "project:A",
+      "netMinor": "10000000",
+      "vatMinor": "1000000"
+    },
+    {
+      "id": "ALLOC-PROJECT-B",
+      "dimension": "project:B",
+      "netMinor": "6000000",
+      "vatMinor": "600000"
+    },
+    {
+      "id": "ALLOC-INTERNAL",
+      "dimension": "costCenter:INTERNAL",
+      "netMinor": "4000000",
+      "vatMinor": "400000"
+    }
   ],
   "expectedJournalTotals": {
     "debitMinor": "22000000",

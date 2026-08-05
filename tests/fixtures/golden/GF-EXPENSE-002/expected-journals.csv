@@ -1,0 +1,8 @@
+line_number,side,account_code,debit_minor,credit_minor,allocation_id,dimension
+1,debit,642-OPEX,10000000,,ALLOC-PROJECT-A,project:A
+2,debit,1331-VAT,1000000,,ALLOC-PROJECT-A,project:A
+3,debit,642-OPEX,6000000,,ALLOC-PROJECT-B,project:B
+4,debit,1331-VAT,600000,,ALLOC-PROJECT-B,project:B
+5,debit,642-OPEX,4000000,,ALLOC-INTERNAL,costCenter:INTERNAL
+6,debit,1331-VAT,400000,,ALLOC-INTERNAL,costCenter:INTERNAL
+7,credit,331-AP,,22000000,,

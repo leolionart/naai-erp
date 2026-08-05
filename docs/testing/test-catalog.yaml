@@ -493,6 +493,31 @@ tests:
     command: pnpm test:e2e --filter T-E2E-ERP-345-002
     blocking_gate: G3
 
+  - id: T-G3-ERP-346-001
+    task: ERP-346
+    rules: [BR-EXP-001, BR-EVD-001, BR-EVD-002]
+    title: Posted source drills down to exact journal and authorized evidence with cross-org denial
+    layer: integration
+    command: pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-FIX-ERP-346-002
+    task: ERP-346
+    rules: [BR-EXP-001]
+    title: Expense golden fixtures contain exact independently reviewed journal and allocation oracles
+    layer: fixture
+    fixture: GF-EXPENSE-001, GF-EXPENSE-002
+    command: pnpm test:fixtures
+    blocking_gate: G3
+
+  - id: T-E2E-ERP-346-003
+    task: ERP-346
+    rules: [BR-UI-004]
+    title: Route-based admin shell and operational create flow pass desktop and mobile browser smoke
+    layer: e2e
+    command: pnpm test:e2e
+    blocking_gate: G3
+
   - id: T-E2E-ERP-335-001
     task: ERP-335
     rules: [BR-UI-003]

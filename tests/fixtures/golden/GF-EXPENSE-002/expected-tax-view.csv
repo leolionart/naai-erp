@@ -1,0 +1,4 @@
+axis,state,basis_minor,recognized_or_eligible_minor,ineligible_minor,unreviewed_minor
+management,valid,20000000,20000000,0,0
+cit,eligible,20000000,20000000,0,0
+vat,eligible,2000000,2000000,0,0

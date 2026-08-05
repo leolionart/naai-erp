@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T18:57:00+07:00
+updated_at: 2026-08-05T19:10:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
-current_task: ERP-345
+current_task: ERP-346
 
 tasks:
   - id: ERP-000
@@ -506,6 +506,26 @@ tasks:
       - apps/web/src/app/globals.css
       - docs/implementation/evidence/ERP-345/
 
+  - id: ERP-346
+    title: G3 executable evidence and fixture hardening
+    phase: P3
+    status: review
+    dependencies: [ERP-345]
+    business_rules: [BR-UI-004, BR-EXP-001, BR-EVD-001, BR-EVD-002, BR-INT-001]
+    tests: [T-G3-ERP-346-001, T-FIX-ERP-346-002, T-E2E-ERP-346-003]
+    evidence: docs/implementation/evidence/ERP-346/
+    agent: codex-root
+    started_at: 2026-08-05T19:02:00+07:00
+    start_commit: d02eddf
+    planned_files:
+      - tests/fixtures/golden/GF-EXPENSE-001/
+      - tests/fixtures/golden/GF-EXPENSE-002/
+      - apps/api/src/
+      - apps/web/e2e/
+      - .github/workflows/ci.yml
+      - docs/implementation/evidence/ERP-346/
+      - docs/implementation/evidence/G3/
+
   - id: ERP-400
     title: Bank and cash accounts
     phase: P4
@@ -758,7 +778,7 @@ gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
   G2: [ERP-200, ERP-210, ERP-220, ERP-230, ERP-240]
-  G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-335, ERP-340, ERP-345]
+  G3: [ERP-300, ERP-310, ERP-320, ERP-330, ERP-335, ERP-340, ERP-345, ERP-346]
   G4: [ERP-400, ERP-410, ERP-420, ERP-430]
   G5: [ERP-500, ERP-510, ERP-520, ERP-530, ERP-540]
   G6: [ERP-600, ERP-610, ERP-620, ERP-630, ERP-640, ERP-650]

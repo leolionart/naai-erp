@@ -1,0 +1,3 @@
+line_number,side,account_code,debit_minor,credit_minor,allocation_id,dimension
+1,debit,642-OPEX,3000000,,ALLOC-PETTY-ADMIN,costCenter:ADMIN
+2,credit,111-CASH,,3000000,,

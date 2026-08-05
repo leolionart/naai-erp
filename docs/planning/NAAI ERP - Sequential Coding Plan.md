@@ -308,11 +308,20 @@ Infrastructure research, fixture preparation và UI shell có thể song song. K
 
 ### Gate G3
 
-- Mỗi document approved sinh journal đúng fixture.
+- Mỗi lifecycle issue/post của document hoặc expense sinh journal đúng fixture.
 - Gửi lại webhook không tạo duplicate.
 - Invalid payload được quarantine.
 - Attachment authorization pass.
-- Drill-down document → payment → journal → evidence đầy đủ.
+- Drill-down document/expense → journal → authorized evidence đầy đủ.
+- Payment allocation, reconciliation và drill-down payment → journal → source được kiểm chứng tại Gate G4 sau ERP-400/410.
+
+### ERP-346 — G3 executable evidence and fixture hardening
+
+- Resolve the G3/G4 payment dependency boundary explicitly in the plan and evidence.
+- Add exact line-level independent oracles for expense golden fixtures and document the business-class mapping convention.
+- Add a PostgreSQL cross-module test for source → journal → authorized evidence readback and cross-organization denial.
+- Add an executable admin E2E command/config and run desktop/mobile route and interaction smoke in CI.
+- Produce consolidated `docs/implementation/evidence/G3/` gate proof before unlocking ERP-400.
 
 ## 9. P4 — Banking, cash and AR/AP
 
@@ -343,6 +352,7 @@ Infrastructure research, fixture preparation và UI shell có thể song song. K
 - Sample bank statement reconcile hoàn toàn hoặc có exception được giải thích.
 - Cash, AR và AP tie về ledger.
 - Partial/FX/fee/internal-transfer tests pass.
+- Payment allocation and payment → journal → source/evidence drill-down pass.
 
 ## 10. P5 — Project economics
 
