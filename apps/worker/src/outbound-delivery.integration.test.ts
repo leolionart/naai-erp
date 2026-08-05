@@ -4,7 +4,9 @@ import { OutboundDeliveryRunner } from "./outbound-delivery.js";
 import { PgOutboundDeliveryStore } from "./pg-outbound-delivery-store.js";
 
 const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_URL;
-const describeIntegration = enabled ? describe : describe.skip;
+// Each runner leases from the shared outbound queue. Keep these integration cases sequential so
+// one case cannot lease the other case's event and make assertions depend on scheduler timing.
+const describeIntegration = enabled ? describe.sequential : describe.skip;
 
 describeIntegration("ERP-340 PostgreSQL outbound delivery", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
