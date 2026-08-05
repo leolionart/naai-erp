@@ -8,4 +8,4 @@
 - AI-native access: versioned REST/OpenAPI and JSON-first CLI use the application API.
 - Organization/RBAC controls: organization-scoped composite keys, authenticated actor context and privileged posting roles.
 
-Final acceptance remains pending exact-commit PostgreSQL CI.
+Exact-commit PostgreSQL CI passed: https://github.com/leolionart/naai-erp/actions/runs/30987090756

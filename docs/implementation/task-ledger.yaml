@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:31:00+07:00
+updated_at: 2026-08-05T15:36:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
-current_task: ERP-200
+current_task: ERP-210
 
 tasks:
   - id: ERP-000
@@ -203,7 +203,7 @@ tasks:
   - id: ERP-200
     title: Journal aggregate and balanced posting
     phase: P2
-    status: review
+    status: done
     dependencies: [G1]
     business_rules: [BR-LED-001, BR-LED-002, BR-LED-003, BR-LED-004]
     tests: [T-LED-001, T-LED-002, T-LED-P001, T-LED-I001]
@@ -211,6 +211,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T15:18:00+07:00
     start_commit: 30e5cdc
+    completed_at: 2026-08-05T15:36:00+07:00
+    commit: ccde1ce0f8e8e5530e8f7ba4785a046068ccf6ff
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30987090756
     planned_files:
       - packages/domain/src/journal.ts
       - packages/domain/src/journal.test.ts
@@ -226,7 +229,7 @@ tasks:
   - id: ERP-210
     title: Posting rule engine
     phase: P2
-    status: blocked
+    status: ready
     dependencies: [ERP-200]
     business_rules: [BR-PST-001, BR-PST-002]
     tests: [T-PST-001, T-PST-002]
