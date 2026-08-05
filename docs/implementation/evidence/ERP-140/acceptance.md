@@ -9,4 +9,6 @@
 - [x] Bulk import has no-write dry-run validation and export has JSON output.
 - [x] CLI emits JSON by default, calls REST and has no PostgreSQL dependency.
 - [x] Structured API errors and optimistic version conflicts are defined.
-- [ ] Exact-commit migration, API-to-PostgreSQL auth/isolation/idempotency tests and CLI build pass on CI.
+- [x] Exact-commit migration, API-to-PostgreSQL auth/isolation/idempotency tests and CLI build pass on CI.
+
+ERP-140 and Gate G1 are complete. ERP-200 is ready under Gate G2.

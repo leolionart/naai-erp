@@ -290,7 +290,7 @@ p {
 }
 .progress-track i {
   display: block;
-  width: 14%;
+  width: 16%;
   height: 100%;
   background: var(--accent);
 }

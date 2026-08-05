@@ -134,7 +134,7 @@ export default function HomePage() {
               tiếp theo sẽ được kích hoạt theo coding plan.
             </p>
           </div>
-          <span>Gate G1 · ERP-140 AI API/CLI tiếp theo</span>
+          <span>Gate G2 · ERP-200 accounting kernel tiếp theo</span>
         </section>
 
         <section className="metric-grid" aria-label="Chỉ số chính">
@@ -154,7 +154,7 @@ export default function HomePage() {
                 <h2>Tiến độ xây dựng</h2>
                 <p>Nền tảng nghiệp vụ theo acceptance gate</p>
               </div>
-              <span>6%</span>
+              <span>16%</span>
             </div>
             <div className="progress-track">
               <i />
@@ -168,21 +168,21 @@ export default function HomePage() {
                 </div>
                 <span>Hoàn tất</span>
               </li>
-              <li className="current">
+              <li className="done">
                 <b>G1</b>
                 <div>
                   <strong>Master data</strong>
                   <small>Accounts, dimensions, parties</small>
                 </div>
-                <span>Đang làm</span>
+                <span>Hoàn tất</span>
               </li>
-              <li>
+              <li className="current">
                 <b>G2</b>
                 <div>
                   <strong>Accounting kernel</strong>
                   <small>Double-entry, posting, period close</small>
                 </div>
-                <span>Chờ</span>
+                <span>Đang làm</span>
               </li>
               <li>
                 <b>G3</b>

@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T14:44:27+07:00
+updated_at: 2026-08-05T14:47:55+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G1
-current_task: ERP-140
+current_gate: G2
+current_task: ERP-200
 
 tasks:
   - id: ERP-000
@@ -180,14 +180,17 @@ tasks:
   - id: ERP-140
     title: AI-native master data API and CLI
     phase: P1
-    status: review
+    status: done
     dependencies: [ERP-100, ERP-110, ERP-120, ERP-130]
     business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-ORG-001, BR-AUD-001]
     tests: [T-AI-001, T-AI-002, T-AI-003]
     evidence: docs/implementation/evidence/ERP-140/
     agent: codex-root
     started_at: 2026-08-05T14:37:04+07:00
+    completed_at: 2026-08-05T14:47:55+07:00
     start_commit: fc07c2a7a0cf6b52bdca1339f8fcff981d531199
+    commit: 49a2167eb88e39616d953d6ed41f96e5517fecfc
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30986222494
     planned_files:
       - apps/api/src/master-data/
       - apps/cli/
@@ -200,7 +203,7 @@ tasks:
   - id: ERP-200
     title: Journal aggregate and balanced posting
     phase: P2
-    status: blocked
+    status: ready
     dependencies: [G1]
     business_rules: [BR-LED-001, BR-LED-002, BR-LED-003, BR-LED-004]
     tests: [T-LED-001, T-LED-002, T-LED-P001, T-LED-I001]
@@ -539,8 +542,8 @@ gates:
 
 gate_status:
   G0: done
-  G1: in_progress
-  G2: blocked
+  G1: done
+  G2: in_progress
   G3: blocked
   G4: blocked
   G5: blocked

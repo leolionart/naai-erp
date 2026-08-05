@@ -13,3 +13,5 @@ Local results:
 - Full repository checks/build passed across 10 packages.
 - Migration directory validation passed with 7 entries.
 - Exact PostgreSQL API integration awaits pushed-commit CI.
+
+Exact-commit CI [30986222494](https://github.com/leolionart/naai-erp/actions/runs/30986222494) passed PostgreSQL 16 migration, database integration and API auth/cross-org/idempotency/audit tests.
