@@ -289,8 +289,8 @@ export class PgCommercialDocumentStore {
       );
       await client.query(
         `insert into resource_audit_events
-         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,reason,correlation_id,before_state,after_state)
-         values ($1,$2,'commercial_document',$3,$4,$5,$6,$7,$8,$9,$10)`,
+         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values ($1,$2,'commercial_document',$3,$4,$5,$6,$7,$8,$9)`,
         [
           context.organizationId,
           auditEventId,
@@ -298,7 +298,6 @@ export class PgCommercialDocumentStore {
           version,
           action,
           context.actorId,
-          reason,
           context.correlationId,
           { state: document.state },
           { state: next, journalId: journalId ?? null },
