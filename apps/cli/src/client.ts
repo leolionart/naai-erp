@@ -24,7 +24,8 @@ export class NaaiErpClient {
     const isPeriodWorkflow = resource === "fiscal-periods" && ["close", "reopen"].includes(action);
     const isReport = resource === "reports" && ["trial-balance", "general-ledger"].includes(action);
     const isOpeningBalance = resource === "opening-balances";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isCommercialDocument = resource === "commercial-documents";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" || action === "get" || action === "export" || isReport
         ? "GET"
@@ -40,19 +41,24 @@ export class NaaiErpClient {
             ? `${base}/${key}/${action}`
             : isPostingRule && action === "evaluate"
               ? `${base}/evaluate`
-              : isReport
-                ? `${base}/${action}`
-                : isOpeningBalance && action === "dry-run"
-                  ? `${base}/dry-run`
-                  : isPeriodWorkflow
-                    ? `${base}/${action}`
-                    : action === "deactivate"
-                      ? `${base}/${key}/deactivate`
-                      : action === "import"
-                        ? `${base}/import/dry-run`
-                        : action === "export"
-                          ? `${base}/export`
-                          : base;
+              : isCommercialDocument &&
+                  ["capture", "validate", "verify", "approve", "issue", "post", "cancel"].includes(
+                    action,
+                  )
+                ? `${base}/${key}/${action}`
+                : isReport
+                  ? `${base}/${action}`
+                  : isOpeningBalance && action === "dry-run"
+                    ? `${base}/dry-run`
+                    : isPeriodWorkflow
+                      ? `${base}/${action}`
+                      : action === "deactivate"
+                        ? `${base}/${key}/deactivate`
+                        : action === "import"
+                          ? `${base}/import/dry-run`
+                          : action === "export"
+                            ? `${base}/export`
+                            : base;
     const query =
       isReport && payload && typeof payload === "object"
         ? new URLSearchParams(

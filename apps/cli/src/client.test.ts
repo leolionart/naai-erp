@@ -180,4 +180,25 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it.each(["validate", "capture", "verify", "approve", "issue", "post", "cancel"])(
+    "calls commercial document %s through its workflow API",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request("commercial-documents", action, { reason: "Reviewed" }, "doc-1");
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/commercial-documents/doc-1/${action}`,
+        expect.objectContaining({ method: "POST" }),
+      );
+    },
+  );
 });

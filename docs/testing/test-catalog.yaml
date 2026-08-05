@@ -309,10 +309,42 @@ tests:
     aliases: [T-INV-001]
     task: ERP-300
     rules: [BR-INV-001, BR-AR-001, BR-REV-001]
-    title: Sales invoice approval posting and report readback
+    title: Sales invoice validation issue posting and report readback
     layer: e2e
     fixture: GF-SALES-001
     command: pnpm test:e2e --filter T-E2E-ERP-300-001
+    blocking_gate: G3
+
+  - id: T-UNIT-ERP-300-002
+    aliases: [T-INV-002]
+    task: ERP-300
+    rules: [BR-INV-001, BR-INV-002, BR-DIM-002]
+    title: Invoice lifecycle immutability duplicate references payment terms and split allocations are deterministic
+    layer: unit
+    fixture: GF-SALES-001
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G3
+
+  - id: T-INT-ERP-300-003
+    aliases: [T-AP-001]
+    task: ERP-300
+    rules: [BR-INV-002, BR-AP-001, BR-LED-002, BR-AI-002]
+    title: Approved purchase invoice posts expense VAT and AP atomically through authorized idempotent API and CLI
+    layer: integration
+    fixture: GF-PURCHASE-001
+    oracle: manual-accountant-fixture
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-INT-ERP-300-004
+    aliases: [T-AR-001]
+    task: ERP-300
+    rules: [BR-INV-001, BR-AR-001, BR-AR-004, BR-LED-003]
+    title: Issued sales invoice and capped credit note create linked immutable balanced journals
+    layer: integration
+    fixture: GF-SALES-001
+    oracle: manual-accountant-fixture
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G3
 
   - id: T-E2E-ERP-310-001

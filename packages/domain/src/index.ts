@@ -137,3 +137,23 @@ export {
   type TrialBalanceRow,
   type ValidatedOpeningBalances,
 } from "./ledger-reports.js";
+export {
+  createCreditNote,
+  createPurchaseInvoice,
+  createSalesInvoice,
+  generateCreditNoteJournalDraft,
+  generatePurchaseInvoiceJournalDraft,
+  generateSalesInvoiceJournalDraft,
+  recordPurchaseInvoicePayment,
+  recordSalesInvoicePayment,
+  transitionPurchaseInvoice,
+  transitionSalesInvoice,
+  type CreditNote,
+  type DocumentAllocation,
+  type InvoiceLine,
+  type PaymentTerms,
+  type PurchaseInvoice,
+  type PurchaseInvoiceState,
+  type SalesInvoice,
+  type SalesInvoiceState,
+} from "./documents.js";

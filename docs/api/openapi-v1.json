@@ -38,7 +38,15 @@
     "reports/trial-balance",
     "reports/general-ledger",
     "opening-balances/dry-run",
-    "opening-balances/create"
+    "opening-balances/create",
+    "commercial-documents/create",
+    "commercial-documents/capture",
+    "commercial-documents/validate",
+    "commercial-documents/verify",
+    "commercial-documents/approve",
+    "commercial-documents/issue",
+    "commercial-documents/post",
+    "commercial-documents/cancel"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -151,6 +159,24 @@
     "/api/v1/organizations/{organizationId}/opening-balances/{importId}": {
       "get": {
         "summary": "Read opening-balance controls, ordered lines and linked approval/posting state"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents": {
+      "get": {
+        "summary": "List organization-scoped sales invoices, purchase invoices and credit notes"
+      },
+      "post": {
+        "summary": "Create an idempotent exact-amount commercial document draft with allocations"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}": {
+      "get": {
+        "summary": "Read a document, lines, allocations, journal link and permitted next actions"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}": {
+      "post": {
+        "summary": "Run a controlled lifecycle command; issue/post atomically creates the balanced linked journal"
       }
     }
   },

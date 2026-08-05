@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:47:00+07:00
+updated_at: 2026-08-05T16:02:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
@@ -335,10 +335,27 @@ tasks:
   - id: ERP-300
     title: Sales and purchase documents
     phase: P3
-    status: ready
+    status: review
     dependencies: [G2]
-    business_rules: [BR-INV-001, BR-INV-002, BR-AP-001, BR-AR-001]
+    business_rules: [BR-INV-001, BR-INV-002, BR-AP-001, BR-AR-001, BR-AR-004, BR-DIM-002]
     tests: [T-INV-001, T-INV-002, T-AP-001, T-AR-001]
+    evidence: docs/implementation/evidence/ERP-300/
+    agent: codex-root
+    started_at: 2026-08-05T15:51:00+07:00
+    start_commit: a6be5b6f4a591ce3a73e327d9b3a80999e4fe96f
+    planned_files:
+      - packages/domain/src/commercial-documents.ts
+      - packages/domain/src/commercial-documents.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/commercial-documents/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - tests/fixtures/golden/GF-SALES-001/
+      - tests/fixtures/golden/GF-PURCHASE-001/
+      - docs/implementation/evidence/ERP-300/
 
   - id: ERP-310
     title: Expense workflow

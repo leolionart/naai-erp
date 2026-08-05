@@ -1,0 +1,48 @@
+{
+  "id": "sales-001",
+  "type": "sales_invoice",
+  "documentNumber": "SI-2026-0001",
+  "series": "SI",
+  "fiscalYear": 2026,
+  "partyId": "CLIENT-A",
+  "documentDate": "2026-01-25",
+  "dueDate": "2026-02-24",
+  "currency": "VND",
+  "netMinor": "100000000",
+  "taxMinor": "10000000",
+  "grossMinor": "110000000",
+  "controlAccountCode": "131-AR",
+  "lines": [
+    {
+      "description": "Web app design and development",
+      "quantity": "1",
+      "unitPriceMinor": "100000000",
+      "netMinor": "100000000",
+      "taxMinor": "10000000",
+      "grossMinor": "110000000",
+      "primaryAccountCode": "511-SERVICE-REVENUE",
+      "taxAccountCode": "3331-VAT-OUTPUT",
+      "taxCode": "VAT10-OUT",
+      "allocations": [
+        {
+          "id": "ALLOC-S-A",
+          "amountMinor": "60000000",
+          "dimensions": {
+            "projectId": "PRJ-ALPHA",
+            "serviceLine": "WEBAPP",
+            "costCenter": "DELIVERY"
+          }
+        },
+        {
+          "id": "ALLOC-S-B",
+          "amountMinor": "40000000",
+          "dimensions": {
+            "projectId": "PRJ-BETA",
+            "serviceLine": "WEBAPP",
+            "costCenter": "DELIVERY"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+ALTER TABLE "commercial_documents" ADD CONSTRAINT "commercial_documents_party_reference_unique" UNIQUE("organization_id","type","party_id","document_number");--> statement-breakpoint
+ALTER TABLE "commercial_documents" ADD CONSTRAINT "commercial_documents_sales_series" CHECK ("commercial_documents"."type" = 'purchase_invoice' or ("commercial_documents"."series" is not null and btrim("commercial_documents"."series") <> ''));

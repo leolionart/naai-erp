@@ -1,0 +1,39 @@
+{
+  "id": "purchase-001",
+  "type": "purchase_invoice",
+  "documentNumber": "INV-A-0042",
+  "fiscalYear": 2026,
+  "partyId": "SUPPLIER-A",
+  "documentDate": "2026-01-26",
+  "dueDate": "2026-02-25",
+  "currency": "VND",
+  "netMinor": "50000000",
+  "taxMinor": "5000000",
+  "grossMinor": "55000000",
+  "controlAccountCode": "331-AP",
+  "lines": [
+    {
+      "description": "Subcontracted development",
+      "quantity": "1",
+      "unitPriceMinor": "50000000",
+      "netMinor": "50000000",
+      "taxMinor": "5000000",
+      "grossMinor": "55000000",
+      "primaryAccountCode": "632-DIRECT-PROJECT-COST",
+      "taxAccountCode": "1331-VAT-INPUT-DEDUCTIBLE",
+      "taxCode": "VAT10-IN",
+      "allocations": [
+        {
+          "id": "ALLOC-P-A",
+          "amountMinor": "30000000",
+          "dimensions": { "projectId": "PRJ-ALPHA", "taxState": "eligible" }
+        },
+        {
+          "id": "ALLOC-P-B",
+          "amountMinor": "20000000",
+          "dimensions": { "projectId": "PRJ-BETA", "taxState": "eligible" }
+        }
+      ]
+    }
+  ]
+}

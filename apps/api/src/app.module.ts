@@ -14,6 +14,9 @@ import { PgFiscalPeriodStore } from "./fiscal-periods/pg-fiscal-period.store.js"
 import { LedgerReportController } from "./ledger-reports/ledger-report.controller.js";
 import { LedgerReportService } from "./ledger-reports/ledger-report.service.js";
 import { PgLedgerReportStore } from "./ledger-reports/pg-ledger-report.store.js";
+import { CommercialDocumentController } from "./commercial-documents/commercial-document.controller.js";
+import { CommercialDocumentService } from "./commercial-documents/commercial-document.service.js";
+import { PgCommercialDocumentStore } from "./commercial-documents/pg-commercial-document.store.js";
 
 @Module({
   controllers: [
@@ -23,6 +26,7 @@ import { PgLedgerReportStore } from "./ledger-reports/pg-ledger-report.store.js"
     PostingRuleController,
     FiscalPeriodController,
     LedgerReportController,
+    CommercialDocumentController,
   ],
   providers: [
     MasterDataService,
@@ -34,6 +38,8 @@ import { PgLedgerReportStore } from "./ledger-reports/pg-ledger-report.store.js"
     PgFiscalPeriodStore,
     LedgerReportService,
     PgLedgerReportStore,
+    CommercialDocumentService,
+    PgCommercialDocumentStore,
   ],
 })
 export class AppModule {}
