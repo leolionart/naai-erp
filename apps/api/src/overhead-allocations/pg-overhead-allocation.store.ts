@@ -170,7 +170,7 @@ export class PgOverheadAllocationStore {
         i.costClass,
         i.effectiveFrom,
         i.effectiveTo ?? null,
-        config,
+        JSON.stringify(config),
         c.actorId,
       ],
     );
@@ -289,13 +289,15 @@ export class PgOverheadAllocationStore {
         x.period_end,
         x.currency,
         x.source_base_amount_minor,
-        basis.map((b) => ({ projectId: b.projectId, basisValue: b.basis.toString() })),
-        {
+        JSON.stringify(
+          basis.map((b) => ({ projectId: b.projectId, basisValue: b.basis.toString() })),
+        ),
+        JSON.stringify({
           method: x.method,
           costClass: x.cost_class,
           configuration: x.configuration,
           policyVersionNumber: x.policy_version_number,
-        },
+        }),
         i.reason,
         c.actorId,
       ],
