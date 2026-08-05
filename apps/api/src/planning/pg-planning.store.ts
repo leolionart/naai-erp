@@ -217,7 +217,11 @@ export class PgPlanningStore {
             c.actorId,
             new Date().toISOString(),
           );
-        else supersedeForecastVersion(current as ForecastVersion);
+        else {
+          if ((current as ForecastVersion).snapshotKind === "month_end")
+            throw new Error("FORECAST_SNAPSHOT_IMMUTABLE");
+          supersedeForecastVersion(current as ForecastVersion);
+        }
       }
       const nextState = action === "publish" ? "published" : "superseded",
         version = (BigInt(raw.version) + 1n).toString();
