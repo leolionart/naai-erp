@@ -75,9 +75,9 @@ export class PgOutboundDeliveryStore implements OutboundDeliveryStore {
         await client.query(
           `insert into outbound_delivery_attempts
            (organization_id,id,delivery_id,attempt_number,outcome,worker_id,error_code,error_summary,
-            next_retry_at,correlation_id,started_at)
+            next_retry_at,correlation_id,started_at,completed_at)
            values($1,$2,$3,$4,'lease_expired','lease-reaper','LEASE_EXPIRED',
-            'Worker lease expired before completion',$5,$6,$5)`,
+            'Worker lease expired before completion',$5,$6,$5,$5)`,
           [row.organization_id, randomUUID(), row.id, attemptNumber, now, row.correlation_id],
         );
         await client.query(
@@ -181,8 +181,8 @@ export class PgOutboundDeliveryStore implements OutboundDeliveryStore {
       await client.query(
         `insert into outbound_delivery_attempts
          (organization_id,id,delivery_id,attempt_number,outcome,worker_id,http_status,response_summary,
-          error_code,error_summary,next_retry_at,correlation_id,started_at)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+          error_code,error_summary,next_retry_at,correlation_id,started_at,completed_at)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13)`,
         [
           delivery.organizationId,
           randomUUID(),

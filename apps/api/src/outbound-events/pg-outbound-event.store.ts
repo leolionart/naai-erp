@@ -283,8 +283,8 @@ export class PgOutboundEventStore {
         `insert into outbound_delivery_attempts
          (organization_id,id,delivery_id,attempt_number,outcome,worker_id,http_status,response_summary,
           error_code,error_summary,next_retry_at,is_manual_replay,replay_actor_id,replay_reason,
-          correlation_id,started_at)
-         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+          correlation_id,started_at,completed_at)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,greatest($16::timestamptz,now()))`,
         [
           delivery.organizationId,
           randomUUID(),
