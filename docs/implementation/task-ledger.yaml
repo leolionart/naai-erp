@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T13:21:00+07:00
+updated_at: 2026-08-05T13:25:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G0
-current_task: ERP-002
+current_task: ERP-003
 
 tasks:
   - id: ERP-000
@@ -43,16 +43,28 @@ tasks:
   - id: ERP-002
     title: Architecture Decision Records
     phase: P0
-    status: ready
+    status: done
     dependencies: [ERP-001]
     business_rules: [BR-LED-001, BR-LED-002, BR-REV-001, BR-TAX-001]
     tests: [T-DOC-001]
     evidence: docs/implementation/evidence/ERP-002/
+    agent: codex-root
+    started_at: 2026-08-05T13:22:00+07:00
+    completed_at: 2026-08-05T13:25:00+07:00
+    planned_files:
+      - docs/architecture/ADR-001-stack-and-modular-monolith.md
+      - docs/architecture/ADR-002-organization-isolation-and-auth.md
+      - docs/architecture/ADR-003-accounting-invariants.md
+      - docs/architecture/ADR-004-transactions-outbox-and-idempotency.md
+      - docs/architecture/ADR-005-evidence-storage.md
+      - docs/architecture/ADR-006-reporting-and-read-models.md
+      - docs/architecture/ADR-007-license-policy.md
+      - scripts/verify-docs.mjs
 
   - id: ERP-003
     title: Engineering toolchain
     phase: P0
-    status: blocked
+    status: ready
     dependencies: [ERP-001, ERP-002]
     business_rules: []
     tests: [T-CI-001, T-CI-002, T-MIG-001]
@@ -61,7 +73,7 @@ tasks:
   - id: ERP-004
     title: Security and operations baseline
     phase: P0
-    status: blocked
+    status: ready
     dependencies: [ERP-001, ERP-002]
     business_rules: [BR-ORG-001, BR-AUD-001, BR-SEC-001]
     tests: [T-SEC-001, T-SEC-002, T-OPS-001]
