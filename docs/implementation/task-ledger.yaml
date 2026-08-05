@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:02:00+07:00
+updated_at: 2026-08-05T16:10:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
-current_task: ERP-220
+current_task: ERP-230
 
 tasks:
   - id: ERP-000
@@ -255,7 +255,7 @@ tasks:
   - id: ERP-220
     title: Accounting workflow
     phase: P2
-    status: review
+    status: done
     dependencies: [ERP-200, ERP-210]
     business_rules: [BR-WFL-001, BR-WFL-002, BR-LED-003]
     tests: [T-WFL-001, T-WFL-002]
@@ -263,6 +263,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T15:55:00+07:00
     start_commit: 3f855cb198dec2f704699771010f6a2b576bcf73
+    completed_at: 2026-08-05T16:10:00+07:00
+    commit: 5292a3665e8da025e9b5e449a8278d3afae109ce
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30988388797
     planned_files:
       - packages/domain/src/accounting-workflow.ts
       - packages/domain/src/accounting-workflow.test.ts
@@ -278,7 +281,7 @@ tasks:
   - id: ERP-230
     title: Period close and reopen
     phase: P2
-    status: blocked
+    status: ready
     dependencies: [ERP-220]
     business_rules: [BR-PER-001, BR-PER-002]
     tests: [T-PER-001, T-PER-002]

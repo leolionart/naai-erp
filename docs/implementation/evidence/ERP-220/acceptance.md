@@ -8,4 +8,4 @@
 - RBAC/audit/idempotency/outbox: applied to workflow commands.
 - AI-native API/CLI: OpenAPI paths and CLI routing implemented.
 
-Final acceptance remains pending exact-commit PostgreSQL CI.
+Exact-commit PostgreSQL CI passed: https://github.com/leolionart/naai-erp/actions/runs/30988388797
