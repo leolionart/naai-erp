@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T13:40:00+07:00
+updated_at: 2026-08-05T13:34:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G0
-current_task: null
+current_gate: G1
+current_task: ERP-100
 
 tasks:
   - id: ERP-000
@@ -83,12 +83,12 @@ tasks:
     evidence: docs/implementation/evidence/ERP-004/
     agent: codex-root
     started_at: 2026-08-05T13:34:00+07:00
-    completed_at: 2026-08-05T13:40:00+07:00
+    completed_at: 2026-08-05T13:32:00+07:00
 
   - id: ERP-100
     title: Organization identity and fiscal setup
     phase: P1
-    status: blocked
+    status: ready
     dependencies: [G0]
     business_rules: [BR-ORG-001, BR-PER-001, BR-CUR-001]
     tests: [T-ORG-001, T-PER-001, T-CUR-001]
@@ -458,8 +458,8 @@ gates:
   G9: [ERP-900, ERP-910, ERP-920, ERP-930, ERP-940]
 
 gate_status:
-  G0: review
-  G1: blocked
+  G0: done
+  G1: in_progress
   G2: blocked
   G3: blocked
   G4: blocked

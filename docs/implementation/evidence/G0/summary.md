@@ -19,4 +19,13 @@ Drizzle metadata table count: 1
 Container removed after verification
 ```
 
-Remote CI status must be successful on the exact final foundation commit before G0 is marked complete.
+## Remote CI readback
+
+```text
+Commit: b4c4a759fcfed70e3ad4a4bd57b4399317b93686
+Workflow: CI
+Conclusion: success
+URL: https://github.com/leolionart/naai-erp/actions/runs/30981695825
+```
+
+Gate G0 is complete.
