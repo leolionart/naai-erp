@@ -148,6 +148,13 @@
       "when": 1785946220385,
       "tag": "0020_fearless_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785948580806,
+      "tag": "0021_bumpy_inhumans",
+      "breakpoints": true
     }
   ]
 }

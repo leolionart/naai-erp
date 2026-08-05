@@ -4,4 +4,5 @@ export * from "./connection";
 export * from "./idempotency";
 export * from "./internal-transfers";
 export * from "./statement-sessions";
+export * from "./time";
 export * from "./types";

@@ -826,4 +826,116 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
     expect(fetchFn).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["workers", "time/workers"],
+    ["timesheets", "time/timesheets"],
+    ["cost-rates", "time/cost-rates"],
+    ["capacity-versions", "time/capacity-versions"],
+    ["time-summary", "time/capacity-summary"],
+  ])("lists %s through the canonical headless time API", async (resource, path) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(resource, "list", { workerId: "worker-1", from: "2026-08-01" });
+    expect(fetchFn).toHaveBeenCalledWith(
+      `http://api/api/v1/organizations/org-a/${path}?workerId=worker-1&from=2026-08-01`,
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it.each(["submit", "approve", "reject", "revise", "lock", "mark-billed"])(
+    "calls the timesheet %s lifecycle action with controlled mutation headers",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "timesheets",
+        action,
+        { schemaVersion: 1, reason: "Reviewed", expectedResourceVersion: "2" },
+        "sheet-1",
+        "2",
+        `sheet-${action}-1`,
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/time/timesheets/sheet-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "idempotency-key": `sheet-${action}-1`,
+            "if-match": "2",
+          }),
+        }),
+      );
+    },
+  );
+
+  it("creates submits and approves append-only timesheet adjustments", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("timesheet-adjustments", "create", { schemaVersion: 1 }, "sheet-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/time/timesheets/sheet-1/adjustments",
+      expect.objectContaining({ method: "POST" }),
+    );
+    for (const action of ["submit", "approve"]) {
+      await client.request(
+        "timesheet-adjustments",
+        action,
+        { schemaVersion: 1, reason: "Reviewed" },
+        "sheet-1/adjustment-1",
+      );
+      expect(fetchFn).toHaveBeenLastCalledWith(
+        `http://api/api/v1/organizations/org-a/time/timesheets/sheet-1/adjustments/adjustment-1/${action}`,
+        expect.objectContaining({ method: "POST" }),
+      );
+    }
+  });
+
+  it.each(["approve", "retire"])("calls sensitive cost-rate %s", async (action) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "cost-rates",
+      action,
+      { schemaVersion: 1, reason: "Finance review" },
+      "rate-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      `http://api/api/v1/organizations/org-a/time/cost-rates/rate-1/${action}`,
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

@@ -26,6 +26,10 @@ const { values, positionals } = parseArgs({
     cursor: { type: "string" },
     limit: { type: "string" },
     status: { type: "string" },
+    "worker-id": { type: "string" },
+    "project-id": { type: "string" },
+    billable: { type: "boolean" },
+    classification: { type: "string" },
     "account-id": { type: "string" },
     file: { type: "string" },
     adapter: { type: "string" },
@@ -96,13 +100,31 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                   ...(values.cursor ? { cursor: values.cursor } : {}),
                   ...(values.limit ? { limit: values.limit } : {}),
                 }
-              : resource.startsWith("bank-")
+              : [
+                    "workers",
+                    "timesheets",
+                    "cost-rates",
+                    "capacity-versions",
+                    "time-summary",
+                  ].includes(resource)
                 ? {
-                    ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
+                    ...(values["worker-id"] ? { workerId: values["worker-id"] } : {}),
+                    ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
                     ...(values.from ? { from: values.from } : {}),
                     ...(values.to ? { to: values.to } : {}),
+                    ...(values.status ? { state: values.status } : {}),
+                    ...(values.billable !== undefined ? { billable: values.billable } : {}),
+                    ...(values.classification ? { workClassification: values.classification } : {}),
+                    ...(values.cursor ? { cursor: values.cursor } : {}),
+                    ...(values.limit ? { limit: values.limit } : {}),
                   }
-                : undefined;
+                : resource.startsWith("bank-")
+                  ? {
+                      ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
+                      ...(values.from ? { from: values.from } : {}),
+                      ...(values.to ? { to: values.to } : {}),
+                    }
+                  : undefined;
     const result = await client.request(
       resource,
       action,

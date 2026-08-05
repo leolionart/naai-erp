@@ -3,6 +3,7 @@ import {
   API_VERSION,
   AGING_CONTRACT_VERSION,
   BANKING_CONTROL_CONTRACT_VERSION,
+  TIME_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -17,6 +18,9 @@ import {
   type AgingReportContract,
   type BankStatementSessionContract,
   type CreateBankStatementSessionRequest,
+  type CreateTimesheetRequest,
+  type LaborCostRateContract,
+  type TimesheetContract,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
@@ -298,5 +302,64 @@ describe("AI-native API contracts", () => {
     };
     expect(session.control.expectedMovementMinor).toBe("250000");
     expect(session.control.closeBlockers).toEqual(["unapproved_suspense:exception-1"]);
+  });
+
+  it("keeps timesheet lifecycle classifications and cost snapshots machine-readable", () => {
+    const request: CreateTimesheetRequest = {
+      schemaVersion: TIME_CONTRACT_VERSION,
+      workerId: "worker-1",
+      weekStartsOn: "2026-08-03",
+      reason: "Weekly time",
+      entries: [
+        {
+          id: "entry-1",
+          workDate: "2026-08-05",
+          mode: "allocation",
+          minutes: 480,
+          workClassification: "project",
+          billingClassification: "billable",
+          projectId: "project-1",
+          description: "Web application development",
+        },
+      ],
+    };
+    const sheet: TimesheetContract = {
+      id: "sheet-1",
+      workerId: request.workerId,
+      weekStartsOn: request.weekStartsOn,
+      state: "approved",
+      entries: [
+        {
+          ...request.entries[0]!,
+          appliedCost: {
+            rateVersionId: "rate-1",
+            currency: "VND",
+            calculationVersion: 1,
+            roundingPolicy: "half_up",
+            costMinor: "800000",
+          },
+        },
+      ],
+      adjustments: [],
+      resourceVersion: "3",
+      nextActions: ["lock", "mark-billed", "create-adjustment"],
+    };
+    expect(sheet.state).toBe("approved");
+    expect(sheet.entries[0]?.appliedCost?.costMinor).toBe("800000");
+  });
+
+  it("keeps raw labor rates exact strings in their sensitive contract", () => {
+    const rate: LaborCostRateContract = {
+      id: "rate-1",
+      workerId: "worker-1",
+      basis: "fully_loaded",
+      currency: "VND",
+      rateMinorPerHour: "100000",
+      effectiveFrom: "2026-01-01",
+      state: "approved",
+      resourceVersion: "2",
+      nextActions: ["retire"],
+    };
+    expect(rate.rateMinorPerHour).toBe("100000");
   });
 });

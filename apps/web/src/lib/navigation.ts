@@ -128,6 +128,22 @@ export const adminNavigation = [
         icon: "project",
         status: "planned",
       },
+      {
+        key: "timesheets",
+        label: "Thời gian",
+        href: "/timesheets",
+        description: "Timesheet, approval và năng lực khả dụng.",
+        icon: "project",
+        status: "available",
+      },
+      {
+        key: "cost-rates",
+        label: "Chi phí nhân sự",
+        href: "/settings/cost-rates",
+        description: "Phiên bản cost rate có hiệu lực và kiểm soát truy cập.",
+        icon: "settings",
+        status: "available",
+      },
     ],
   },
   {

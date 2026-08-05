@@ -247,6 +247,29 @@ export const internalTransferAttemptState = pgEnum("internal_transfer_attempt_st
   "unmatched",
   "needs_review",
 ]);
+export const workforceKind = pgEnum("workforce_kind", ["employee", "freelancer", "contractor"]);
+export const timesheetState = pgEnum("timesheet_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "locked",
+  "billed",
+  "rejected",
+]);
+export const timeEntryMode = pgEnum("time_entry_mode", ["timed", "allocation"]);
+export const timeEntryScope = pgEnum("time_entry_scope", ["project", "internal"]);
+export const laborCostRateState = pgEnum("labor_cost_rate_state", ["draft", "approved", "retired"]);
+export const laborCostBasis = pgEnum("labor_cost_basis", [
+  "gross_salary",
+  "fully_loaded",
+  "blended",
+]);
+export const timesheetAdjustmentState = pgEnum("timesheet_adjustment_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -748,6 +771,336 @@ export const projects = pgTable(
     check(
       "projects_date_order",
       sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`,
+    ),
+  ],
+);
+
+export const workforceProfiles = pgTable(
+  "workforce_profiles",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    partyId: text("party_id").notNull(),
+    userId: text("user_id"),
+    kind: workforceKind("kind").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on"),
+    active: boolean("active").notNull().default(true),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("workforce_profiles_party_unique").on(table.organizationId, table.partyId),
+    uniqueIndex("workforce_profiles_user_unique")
+      .on(table.organizationId, table.userId)
+      .where(sql`${table.userId} is not null`),
+    foreignKey({
+      columns: [table.organizationId, table.partyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "workforce_profiles_party_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [organizationMemberships.organizationId, organizationMemberships.userId],
+      name: "workforce_profiles_membership_fk",
+    }).onDelete("restrict"),
+    check("workforce_profiles_version", sql`${table.version} > 0`),
+    check(
+      "workforce_profiles_dates",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`,
+    ),
+  ],
+);
+
+export const laborCostRates = pgTable(
+  "labor_cost_rates",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    workerId: text("worker_id").notNull(),
+    basis: laborCostBasis("basis").notNull(),
+    hourlyRateMinor: bigint("hourly_rate_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    state: laborCostRateState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalReason: text("approval_reason"),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("labor_cost_rates_worker_effective_unique").on(
+      table.organizationId,
+      table.workerId,
+      table.effectiveFrom,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.workerId],
+      foreignColumns: [workforceProfiles.organizationId, workforceProfiles.id],
+      name: "labor_cost_rates_worker_fk",
+    }).onDelete("restrict"),
+    check("labor_cost_rates_nonnegative", sql`${table.hourlyRateMinor} >= 0`),
+    check("labor_cost_rates_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "labor_cost_rates_dates",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`,
+    ),
+    check("labor_cost_rates_version", sql`${table.version} > 0`),
+    check(
+      "labor_cost_rates_approval",
+      sql`${table.state} <> 'approved' or (${table.approvedBy} is not null and ${table.approvedAt} is not null and ${table.approvalReason} is not null and btrim(${table.approvalReason}) <> '')`,
+    ),
+    index("labor_cost_rates_worker_dates_idx").on(
+      table.organizationId,
+      table.workerId,
+      table.effectiveFrom,
+      table.effectiveTo,
+    ),
+  ],
+);
+
+export const timesheets = pgTable(
+  "timesheets",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    workerId: text("worker_id").notNull(),
+    weekStartsOn: date("week_starts_on").notNull(),
+    state: timesheetState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    lockedBy: text("locked_by"),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    billedBy: text("billed_by"),
+    billedAt: timestamp("billed_at", { withTimezone: true }),
+    billingReference: text("billing_reference"),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    revisedBy: text("revised_by"),
+    revisedAt: timestamp("revised_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("timesheets_worker_week_unique").on(
+      table.organizationId,
+      table.workerId,
+      table.weekStartsOn,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.workerId],
+      foreignColumns: [workforceProfiles.organizationId, workforceProfiles.id],
+      name: "timesheets_worker_fk",
+    }).onDelete("restrict"),
+    check("timesheets_week_monday", sql`extract(isodow from ${table.weekStartsOn}) = 1`),
+    check("timesheets_version", sql`${table.version} > 0`),
+    check(
+      "timesheets_rejection_metadata",
+      sql`${table.state} <> 'rejected' or (${table.rejectedBy} is not null and ${table.rejectedAt} is not null and ${table.rejectionReason} is not null and btrim(${table.rejectionReason}) <> '')`,
+    ),
+    index("timesheets_state_week_idx").on(table.organizationId, table.state, table.weekStartsOn),
+  ],
+);
+
+export const timesheetEntries = pgTable(
+  "timesheet_entries",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    timesheetId: text("timesheet_id").notNull(),
+    workDate: date("work_date").notNull(),
+    mode: timeEntryMode("mode").notNull(),
+    scope: timeEntryScope("scope").notNull(),
+    projectId: text("project_id"),
+    contractId: text("contract_id"),
+    serviceLineCode: text("service_line_code"),
+    costCenterCode: text("cost_center_code"),
+    activityCode: text("activity_code"),
+    minutes: integer("minutes").notNull(),
+    billable: boolean("billable").notNull().default(false),
+    description: text("description").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    allocationPercent: integer("allocation_percent"),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.timesheetId],
+      foreignColumns: [timesheets.organizationId, timesheets.id],
+      name: "timesheet_entries_timesheet_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "timesheet_entries_project_fk",
+    }).onDelete("restrict"),
+    check("timesheet_entries_minutes", sql`${table.minutes} > 0 and ${table.minutes} <= 10080`),
+    check("timesheet_entries_description", sql`btrim(${table.description}) <> ''`),
+    check(
+      "timesheet_entries_scope_project",
+      sql`(${table.scope} = 'project' and ${table.projectId} is not null) or (${table.scope} = 'internal' and ${table.projectId} is null and ${table.billable} = false)`,
+    ),
+    check(
+      "timesheet_entries_mode_fields",
+      sql`(${table.mode} = 'timed' and ${table.startedAt} is not null and ${table.endedAt} is not null and ${table.endedAt} > ${table.startedAt} and ${table.allocationPercent} is null) or (${table.mode} = 'allocation' and ${table.startedAt} is null and ${table.endedAt} is null and ${table.allocationPercent} between 1 and 100)`,
+    ),
+    index("timesheet_entries_timesheet_date_idx").on(
+      table.organizationId,
+      table.timesheetId,
+      table.workDate,
+    ),
+  ],
+);
+
+export const timesheetCostSnapshots = pgTable(
+  "timesheet_cost_snapshots",
+  {
+    organizationId: text("organization_id").notNull(),
+    entryId: text("entry_id").notNull(),
+    rateId: text("rate_id").notNull(),
+    appliedHourlyRateMinor: bigint("applied_hourly_rate_minor", { mode: "bigint" }).notNull(),
+    appliedCostMinor: bigint("applied_cost_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+    appliedBy: text("applied_by").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.entryId] }),
+    foreignKey({
+      columns: [table.organizationId, table.entryId],
+      foreignColumns: [timesheetEntries.organizationId, timesheetEntries.id],
+      name: "timesheet_cost_snapshots_entry_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.rateId],
+      foreignColumns: [laborCostRates.organizationId, laborCostRates.id],
+      name: "timesheet_cost_snapshots_rate_fk",
+    }).onDelete("restrict"),
+    check("timesheet_cost_snapshots_rate", sql`${table.appliedHourlyRateMinor} >= 0`),
+    check("timesheet_cost_snapshots_cost", sql`${table.appliedCostMinor} >= 0`),
+    check("timesheet_cost_snapshots_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+  ],
+);
+
+export const timesheetAdjustments = pgTable(
+  "timesheet_adjustments",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    timesheetId: text("timesheet_id").notNull(),
+    entryId: text("entry_id").notNull(),
+    workDate: date("work_date").notNull(),
+    minuteDelta: integer("minute_delta").notNull(),
+    costDeltaMinor: bigint("cost_delta_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    reason: text("reason").notNull(),
+    state: timesheetAdjustmentState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    requestedBy: text("requested_by").notNull(),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalReason: text("approval_reason"),
+    rejectedBy: text("rejected_by"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.timesheetId],
+      foreignColumns: [timesheets.organizationId, timesheets.id],
+      name: "timesheet_adjustments_timesheet_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.entryId],
+      foreignColumns: [timesheetEntries.organizationId, timesheetEntries.id],
+      name: "timesheet_adjustments_entry_fk",
+    }).onDelete("restrict"),
+    check(
+      "timesheet_adjustments_nonzero",
+      sql`${table.minuteDelta} <> 0 or ${table.costDeltaMinor} <> 0`,
+    ),
+    check("timesheet_adjustments_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("timesheet_adjustments_reason", sql`btrim(${table.reason}) <> ''`),
+    check("timesheet_adjustments_version", sql`${table.version} > 0`),
+    check(
+      "timesheet_adjustments_approval",
+      sql`${table.state} <> 'approved' or (${table.approvedBy} is not null and ${table.approvedAt} is not null and ${table.approvalReason} is not null and btrim(${table.approvalReason}) <> '')`,
+    ),
+    check(
+      "timesheet_adjustments_rejection",
+      sql`${table.state} <> 'rejected' or (${table.rejectedBy} is not null and ${table.rejectedAt} is not null and ${table.rejectionReason} is not null and btrim(${table.rejectionReason}) <> '')`,
+    ),
+  ],
+);
+
+export const workforceCapacityVersions = pgTable(
+  "workforce_capacity_versions",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    workerId: text("worker_id").notNull(),
+    weeklyMinutes: integer("weekly_minutes").notNull(),
+    workdays: jsonb("workdays").$type<number[]>().notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("workforce_capacity_worker_effective_unique").on(
+      table.organizationId,
+      table.workerId,
+      table.effectiveFrom,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.workerId],
+      foreignColumns: [workforceProfiles.organizationId, workforceProfiles.id],
+      name: "workforce_capacity_worker_fk",
+    }).onDelete("restrict"),
+    check("workforce_capacity_minutes", sql`${table.weeklyMinutes} between 0 and 10080`),
+    check(
+      "workforce_capacity_dates",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`,
+    ),
+    check("workforce_capacity_version", sql`${table.version} > 0`),
+    check("workforce_capacity_reason", sql`btrim(${table.reason}) <> ''`),
+    index("workforce_capacity_worker_dates_idx").on(
+      table.organizationId,
+      table.workerId,
+      table.effectiveFrom,
+      table.effectiveTo,
     ),
   ],
 );
@@ -2918,6 +3271,13 @@ export const schema = {
   partyBankAccounts,
   partyExternalReferences,
   projects,
+  workforceProfiles,
+  laborCostRates,
+  timesheets,
+  timesheetEntries,
+  timesheetCostSnapshots,
+  timesheetAdjustments,
+  workforceCapacityVersions,
   contracts,
   milestones,
   resourceVersions,

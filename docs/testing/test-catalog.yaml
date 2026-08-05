@@ -581,6 +581,48 @@ tests:
     command: pnpm test:e2e && pnpm test:fixtures
     blocking_gate: G4
 
+  - id: T-UNIT-ERP-500-001
+    aliases: [T-TIM-001]
+    task: ERP-500
+    rules: [BR-TIM-001, BR-AI-002]
+    title: Timesheet lifecycle overlap classification maker checker immutability and append-only adjustments
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G5
+
+  - id: T-UNIT-ERP-500-002
+    aliases: [T-CST-001]
+    task: ERP-500
+    rules: [BR-CST-001, BR-SEC-002]
+    title: Effective labor rates never overlap historical cost snapshots remain stable and rounding is deterministic
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G5
+
+  - id: T-INT-ERP-500-003
+    task: ERP-500
+    rules: [BR-TIM-001, BR-CST-001, BR-ORG-001, BR-AUD-001, BR-AI-002]
+    title: Workforce timesheet rate and capacity mutations are organization scoped authorized audited idempotent and concurrency safe
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G5
+
+  - id: T-CONTRACT-ERP-500-004
+    task: ERP-500
+    rules: [BR-TIM-001, BR-CST-001, BR-AI-001, BR-AI-003, BR-SEC-002]
+    title: REST OpenAPI and CLI expose exact versioned time capacity and controlled sensitive-rate contracts
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts test && pnpm --filter @naai-erp/cli test && pnpm test:docs
+    blocking_gate: G5
+
+  - id: T-E2E-ERP-500-005
+    task: ERP-500
+    rules: [BR-TIM-001, BR-CST-001, BR-UI-003, BR-UI-004]
+    title: Worker submits manager approves cost snapshot remains hidden and capacity summary updates responsively
+    layer: e2e
+    command: pnpm test:e2e --filter T-E2E-ERP-500-005
+    blocking_gate: G5
+
   - id: T-DOMAIN-ERP-400-001
     aliases: [T-BNK-001]
     task: ERP-400

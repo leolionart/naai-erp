@@ -53,6 +53,10 @@ import { BankingControlController } from "./banking-controls/banking-control.con
 import { BankingControlService } from "./banking-controls/banking-control.service.js";
 import { BANKING_CONTROL_STORE } from "./banking-controls/banking-control.types.js";
 import { PgBankingControlStore } from "./banking-controls/pg-banking-control.store.js";
+import { WorkforceController } from "./workforce/workforce.controller.js";
+import { WorkforceService } from "./workforce/workforce.service.js";
+import { WORKFORCE_STORE } from "./workforce/workforce.types.js";
+import { PgWorkforceStore } from "./workforce/pg-workforce.store.js";
 
 @Module({
   controllers: [
@@ -74,6 +78,7 @@ import { PgBankingControlStore } from "./banking-controls/pg-banking-control.sto
     DiscoveryController,
     AgingController,
     BankingControlController,
+    WorkforceController,
   ],
   providers: [
     MasterDataService,
@@ -112,6 +117,9 @@ import { PgBankingControlStore } from "./banking-controls/pg-banking-control.sto
     BankingControlService,
     PgBankingControlStore,
     { provide: BANKING_CONTROL_STORE, useExisting: PgBankingControlStore },
+    WorkforceService,
+    PgWorkforceStore,
+    { provide: WORKFORCE_STORE, useExisting: PgWorkforceStore },
   ],
 })
 export class AppModule {}

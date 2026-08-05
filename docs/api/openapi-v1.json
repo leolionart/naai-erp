@@ -963,6 +963,278 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/time/workers": {
+      "get": {
+        "operationId": "listWorkforceProfiles",
+        "summary": "List organization workforce profiles",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorkforceProfile",
+        "summary": "Create an employee or freelancer workforce profile",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/timesheets": {
+      "get": {
+        "operationId": "listTimesheets",
+        "summary": "List weekly timesheets",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTimesheet",
+        "summary": "Create a weekly draft timesheet with timed or allocation entries",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}": {
+      "get": {
+        "operationId": "getTimesheet",
+        "summary": "Read a timesheet, immutable applied costs and adjustments",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}/{action}": {
+      "post": {
+        "operationId": "transitionTimesheet",
+        "summary": "Submit approve lock mark-billed reject or revise a timesheet",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}/adjustments": {
+      "post": {
+        "operationId": "createTimeAdjustment",
+        "summary": "Create a signed post-approval time or cost adjustment",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}/adjustments/{adjustmentId}/{action}": {
+      "post": {
+        "operationId": "transitionTimeAdjustment",
+        "summary": "Submit approve or reject a post-approval adjustment",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/cost-rates": {
+      "get": {
+        "operationId": "listLaborCostRates",
+        "summary": "List effective-dated labor cost rates",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createLaborCostRate",
+        "summary": "Create a draft effective-dated labor cost rate",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/cost-rates/{rateId}/{action}": {
+      "post": {
+        "operationId": "transitionLaborCostRate",
+        "summary": "Approve or retire a labor cost rate",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/capacity-versions": {
+      "get": {
+        "operationId": "listWorkerCapacityVersions",
+        "summary": "List effective-dated worker capacity versions",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorkerCapacityVersion",
+        "summary": "Create an effective-dated weekly capacity version",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/capacity-summary": {
+      "get": {
+        "operationId": "getTimeCapacitySummary",
+        "summary": "Summarize capacity approved minutes utilization and availability",
+        "tags": ["time"],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-500 time response"
+          },
+          "201": {
+            "description": "Successful ERP-500 mutation"
+          }
+        }
+      }
     }
   },
   "components": {
