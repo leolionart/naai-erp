@@ -456,3 +456,15 @@ gates:
   G7: [ERP-700, ERP-710, ERP-720, ERP-730, ERP-740]
   G8: [ERP-800, ERP-810, ERP-820, ERP-830, ERP-840, ERP-850]
   G9: [ERP-900, ERP-910, ERP-920, ERP-930, ERP-940]
+
+gate_status:
+  G0: review
+  G1: blocked
+  G2: blocked
+  G3: blocked
+  G4: blocked
+  G5: blocked
+  G6: blocked
+  G7: blocked
+  G8: blocked
+  G9: blocked

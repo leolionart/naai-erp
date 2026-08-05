@@ -21,6 +21,7 @@
     "test:security-baseline": "node scripts/verify-security-baseline.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:docs && pnpm test:security-baseline && pnpm test && pnpm build",
     "db:generate": "pnpm --filter @naai-erp/database db:generate",
+    "db:migrate": "pnpm --filter @naai-erp/database db:migrate",
     "db:check": "pnpm --filter @naai-erp/database db:check",
     "seed:dev": "node scripts/seed-development.mjs",
     "prepare": "node scripts/setup-hooks.mjs",
