@@ -49,7 +49,11 @@ describeIntegration("ERP-340 PostgreSQL outbound delivery", () => {
       (ref) => process.env[ref],
       "worker-success",
     );
-    expect(await runner.runBatch()).toMatchObject({ materialized: 1, leased: 1, delivered: 1 });
+    const batch = await runner.runBatch();
+    // The worker intentionally leases a global due queue, and earlier API/database suites may leave
+    // additional valid deliveries behind. Aggregate leased/delivered counts therefore describe the
+    // whole batch; the event-specific database assertions below are the authoritative proof here.
+    expect(batch.materialized).toBeGreaterThanOrEqual(1);
     const result = await pool.query(
       `select e.published_at,d.state,d.attempt_count,a.outcome
        from outbox_events e join outbound_deliveries d
@@ -64,7 +68,12 @@ describeIntegration("ERP-340 PostgreSQL outbound delivery", () => {
       outcome: "delivered",
     });
     expect(result.rows[0].published_at).toBeTruthy();
-    expect(requests[0]?.headers).toMatchObject({
+    const ownRequest = requests.find(
+      (request) =>
+        (request.headers as Record<string, string> | undefined)?.["x-naai-event-id"] ===
+        "event-success",
+    );
+    expect(ownRequest?.headers).toMatchObject({
       "x-naai-event-id": "event-success",
       "x-naai-signature": expect.stringMatching(/^sha256=[0-9a-f]{64}$/),
     });
