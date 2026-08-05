@@ -120,7 +120,7 @@ export class PgOverheadAllocationStore {
         field = target === "reversed" ? "reversed" : target === "posted" ? "posted" : target;
       await q.query(
         r === "overhead-allocation-runs"
-          ? `update ${t} set state=$3::overhead_allocation_run_state,version=$4,${field}_by=$5,${field}_at=now(),journal_id=case when $3::overhead_allocation_run_state='posted'::overhead_allocation_run_state then $6 else journal_id end,reversal_journal_id=case when $3::overhead_allocation_run_state='reversed'::overhead_allocation_run_state then $6 else reversal_journal_id end,reversal_reason=case when $3::overhead_allocation_run_state='reversed'::overhead_allocation_run_state then $7 else reversal_reason end,updated_at=now() where organization_id=$1 and id=$2`
+          ? `update ${t} set state=$3::overhead_run_state,version=$4,${field}_by=$5,${field}_at=now(),journal_id=case when $3::overhead_run_state='posted'::overhead_run_state then $6 else journal_id end,reversal_journal_id=case when $3::overhead_run_state='reversed'::overhead_run_state then $6 else reversal_journal_id end,reversal_reason=case when $3::overhead_run_state='reversed'::overhead_run_state then $7 else reversal_reason end,updated_at=now() where organization_id=$1 and id=$2`
           : `update ${t} set state=$3,version=$4,${field}_by=$5,${field}_at=now(),updated_at=now() where organization_id=$1 and id=$2`,
         r === "overhead-allocation-runs"
           ? [c.organizationId, id, target, v, c.actorId, linkedJournalId, i.reason]
