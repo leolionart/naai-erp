@@ -7,14 +7,19 @@ const dbSuite = enabled ? suite : suite.skip;
 dbSuite("ERP-500 workforce PostgreSQL API", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   const token = "erp500-token";
+  const reviewerToken = "erp500-reviewer-token";
   let app: Awaited<ReturnType<typeof createApp>>;
   beforeAll(async () => {
     await pool.query(
-      `insert into organizations(id,legal_name,base_currency,timezone)values('org-erp500','ERP500','VND','Asia/Ho_Chi_Minh');insert into users(id,email,display_name)values('user-erp500','erp500@example.com','ERP500');insert into organization_memberships(organization_id,user_id)values('org-erp500','user-erp500');insert into membership_roles(organization_id,user_id,role)values('org-erp500','user-erp500','owner');insert into parties(organization_id,id,display_name)values('org-erp500','party-worker','Worker');insert into party_roles(organization_id,party_id,role)values('org-erp500','party-worker','employee');`,
+      `insert into organizations(id,legal_name,base_currency,timezone)values('org-erp500','ERP500','VND','Asia/Ho_Chi_Minh');insert into users(id,email,display_name)values('user-erp500','erp500@example.com','ERP500'),('reviewer-erp500','reviewer-erp500@example.com','ERP500 Reviewer');insert into organization_memberships(organization_id,user_id)values('org-erp500','user-erp500'),('org-erp500','reviewer-erp500');insert into membership_roles(organization_id,user_id,role)values('org-erp500','user-erp500','owner'),('org-erp500','reviewer-erp500','owner');insert into parties(organization_id,id,display_name)values('org-erp500','party-worker','Worker');insert into party_roles(organization_id,party_id,role)values('org-erp500','party-worker','employee');`,
     );
     await pool.query(
       "insert into api_credentials(organization_id,id,actor_id,token_hash,roles)values('org-erp500','cred','user-erp500',$1,'[\"owner\"]')",
       [createHash("sha256").update(token).digest("hex")],
+    );
+    await pool.query(
+      "insert into api_credentials(organization_id,id,actor_id,token_hash,roles)values('org-erp500','reviewer-cred','reviewer-erp500',$1,'[\"owner\"]')",
+      [createHash("sha256").update(reviewerToken).digest("hex")],
     );
     app = await createApp();
     await app.init();
@@ -25,6 +30,10 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     await pool.end();
   });
   const headers = { authorization: `Bearer ${token}`, "x-correlation-id": "corr" };
+  const reviewerHeaders = {
+    authorization: `Bearer ${reviewerToken}`,
+    "x-correlation-id": "reviewer-corr",
+  };
   test("creates worker, snapshots approved labor cost, and summarizes capacity", async () => {
     const server = app.getHttpAdapter().getInstance();
     expect(
@@ -61,7 +70,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/cost-rates/rate/approve",
-      headers: { ...headers, "idempotency-key": "rate-approve" },
+      headers: { ...reviewerHeaders, "idempotency-key": "rate-approve" },
       payload: { schemaVersion: 1, expectedResourceVersion: "1", reason: "Approved" },
     });
     await server.inject({
@@ -111,7 +120,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     const approved = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/approve",
-      headers: { ...headers, "idempotency-key": "approve" },
+      headers: { ...reviewerHeaders, "idempotency-key": "approve" },
       payload: { schemaVersion: 1, expectedResourceVersion: "2", reason: "Approve" },
     });
     expect(approved.statusCode).toBe(201);
