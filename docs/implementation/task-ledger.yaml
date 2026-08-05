@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T13:25:00+07:00
+updated_at: 2026-08-05T13:31:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G0
-current_task: ERP-003
+current_task: ERP-004
 
 tasks:
   - id: ERP-000
@@ -64,11 +64,14 @@ tasks:
   - id: ERP-003
     title: Engineering toolchain
     phase: P0
-    status: ready
+    status: done
     dependencies: [ERP-001, ERP-002]
     business_rules: []
     tests: [T-CI-001, T-CI-002, T-MIG-001]
     evidence: docs/implementation/evidence/ERP-003/
+    agent: codex-root
+    started_at: 2026-08-05T13:27:00+07:00
+    completed_at: 2026-08-05T13:31:00+07:00
 
   - id: ERP-004
     title: Security and operations baseline

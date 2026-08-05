@@ -41,4 +41,6 @@ for (const ruleId of requiredRuleReferences) {
   }
 }
 
-process.stdout.write(`Verified ${requiredAdrs.length} accepted ADRs and ${requiredRuleReferences.length} rule references.\n`);
+process.stdout.write(
+  `Verified ${requiredAdrs.length} accepted ADRs and ${requiredRuleReferences.length} rule references.\n`,
+);

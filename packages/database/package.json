@@ -6,13 +6,21 @@
   "exports": "./src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "node scripts/verify-migrations.mjs",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist coverage"
   },
   "devDependencies": {
+    "@types/pg": "8.20.4",
+    "drizzle-kit": "0.31.10",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "pg": "8.22.0"
   }
 }

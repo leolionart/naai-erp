@@ -12,16 +12,27 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
-    "lint": "turbo run lint",
+    "lint": "eslint . && turbo run lint",
+    "format": "prettier --write \"**/*.{json,yaml,yml,ts,tsx,js,mjs,css}\"",
+    "format:check": "prettier --check \"**/*.{json,yaml,yml,ts,tsx,js,mjs,css}\"",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:docs": "node scripts/verify-docs.mjs",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:docs && pnpm test && pnpm build",
+    "db:generate": "pnpm --filter @naai-erp/database db:generate",
+    "db:check": "pnpm --filter @naai-erp/database db:check",
+    "seed:dev": "node scripts/seed-development.mjs",
+    "prepare": "node scripts/setup-hooks.mjs",
     "clean": "turbo run clean && rm -rf .turbo node_modules"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.2",
+    "eslint": "9.39.2",
+    "globals": "17.9.0",
+    "prettier": "3.9.6",
     "turbo": "2.10.8",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.66.0",
     "vitest": "4.1.10"
   },
   "pnpm": {

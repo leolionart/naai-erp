@@ -7,3 +7,4 @@
 5. [ADR-005: Evidence and Object Storage](./ADR-005-evidence-storage.md)
 6. [ADR-006: Reporting and Read Models](./ADR-006-reporting-and-read-models.md)
 7. [ADR-007: Source and Dependency License Policy](./ADR-007-license-policy.md)
+8. [ADR-008: Database Access and Migration Tooling](./ADR-008-database-access-and-migrations.md)

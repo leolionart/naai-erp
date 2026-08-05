@@ -1,6 +1,9 @@
 import { createHeartbeat } from "./heartbeat.js";
 
-const heartbeatIntervalMs = Number.parseInt(process.env.WORKER_HEARTBEAT_INTERVAL_MS ?? "30000", 10);
+const heartbeatIntervalMs = Number.parseInt(
+  process.env.WORKER_HEARTBEAT_INTERVAL_MS ?? "30000",
+  10,
+);
 
 function reportHeartbeat(): void {
   process.stdout.write(`${JSON.stringify(createHeartbeat())}\n`);
