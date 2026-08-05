@@ -7,4 +7,4 @@
 - [x] Retry/backoff, permanent failure and dead-letter transitions are deterministic.
 - [x] Delivery attempts are append-only and secrets/full sensitive responses are not returned.
 - [x] Endpoint configuration and manual replay enforce organization RBAC, idempotency and audit.
-- [ ] Exact-commit PostgreSQL CI passes.
+- [x] Exact-commit PostgreSQL CI passes.

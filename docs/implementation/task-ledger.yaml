@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T17:48:00+07:00
+updated_at: 2026-08-05T18:29:18+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
-current_task: ERP-340
+current_task: ERP-345
 
 tasks:
   - id: ERP-000
@@ -461,7 +461,7 @@ tasks:
   - id: ERP-340
     title: Outbound event delivery
     phase: P3
-    status: in_progress
+    status: done
     dependencies: [ERP-335]
     business_rules: [BR-OUT-001, BR-OUT-002]
     tests: [T-OUT-001, T-OUT-002]
@@ -469,6 +469,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T17:48:00+07:00
     start_commit: 69c6c26
+    completed_at: 2026-08-05T18:29:18+07:00
+    implementation_commit: 94fb91ba4faa925a729db3862ff4aa0fc46db4b2
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/31001442711
     planned_files:
       - packages/domain/src/outbound-events.ts
       - packages/contracts/src/
@@ -484,7 +487,7 @@ tasks:
   - id: ERP-345
     title: VietERP-informed UI design system
     phase: P3
-    status: blocked
+    status: ready
     dependencies: [ERP-340]
     business_rules: [BR-UI-004]
     tests: [T-UI-ERP-345-001, T-E2E-ERP-345-002]

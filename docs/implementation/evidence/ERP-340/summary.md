@@ -8,3 +8,5 @@ Implemented versioned outbound webhook delivery on top of the existing transacti
 - Delivery attempts are append-only and retain redacted HTTP/error evidence.
 - Organization-scoped REST/OpenAPI and CLI expose endpoint configuration, outbox/delivery inspection and audited idempotent replay.
 - Private/localhost endpoint targets are rejected at the API boundary to reduce SSRF exposure.
+
+Exact implementation commit `94fb91ba4faa925a729db3862ff4aa0fc46db4b2` passed CI including API and worker PostgreSQL integration.
