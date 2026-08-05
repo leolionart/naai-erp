@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:31:00+07:00
+updated_at: 2026-08-05T15:43:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
@@ -308,10 +308,26 @@ tasks:
   - id: ERP-240
     title: Trial Balance General Ledger and opening balances
     phase: P2
-    status: ready
+    status: review
     dependencies: [ERP-200, ERP-230]
     business_rules: [BR-RPT-001, BR-LED-005]
     tests: [T-RPT-001, T-GLD-001]
+    evidence: docs/implementation/evidence/ERP-240/
+    agent: codex-root
+    started_at: 2026-08-05T15:34:00+07:00
+    start_commit: 8556ef02d7fa52444c49a903fddbb596c47d5b4f
+    planned_files:
+      - packages/domain/src/ledger-reports.ts
+      - packages/domain/src/ledger-reports.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/ledger-reports/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - tests/fixtures/golden/GF-LEDGER-001/
+      - docs/implementation/evidence/ERP-240/
 
   - id: ERP-300
     title: Sales and purchase documents

@@ -138,4 +138,46 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("reads Trial Balance and General Ledger through report query endpoints", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("reports", "trial-balance", { from: "2026-01-01", to: "2026-01-31" });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/trial-balance?from=2026-01-01&to=2026-01-31",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it.each(["dry-run", "create"])(
+    "calls opening balance %s without database access",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request("opening-balances", action, { openingDate: "2026-01-01" });
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/opening-balances${action === "dry-run" ? "/dry-run" : ""}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({ "idempotency-key": expect.any(String) }),
+        }),
+      );
+    },
+  );
 });

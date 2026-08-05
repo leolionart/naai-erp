@@ -22,14 +22,16 @@ export class NaaiErpClient {
     const isJournal = resource === "journals";
     const isPostingRule = resource === "posting-rules";
     const isPeriodWorkflow = resource === "fiscal-periods" && ["close", "reopen"].includes(action);
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isReport = resource === "reports" && ["trial-balance", "general-ledger"].includes(action);
+    const isOpeningBalance = resource === "opening-balances";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
-      action === "list" || action === "get" || action === "export"
+      action === "list" || action === "get" || action === "export" || isReport
         ? "GET"
         : action === "update"
           ? "PATCH"
           : "POST";
-    const url =
+    const path =
       action === "list"
         ? base
         : action === "get" || action === "update"
@@ -38,15 +40,28 @@ export class NaaiErpClient {
             ? `${base}/${key}/${action}`
             : isPostingRule && action === "evaluate"
               ? `${base}/evaluate`
-              : isPeriodWorkflow
+              : isReport
                 ? `${base}/${action}`
-                : action === "deactivate"
-                  ? `${base}/${key}/deactivate`
-                  : action === "import"
-                    ? `${base}/import/dry-run`
-                    : action === "export"
-                      ? `${base}/export`
-                      : base;
+                : isOpeningBalance && action === "dry-run"
+                  ? `${base}/dry-run`
+                  : isPeriodWorkflow
+                    ? `${base}/${action}`
+                    : action === "deactivate"
+                      ? `${base}/${key}/deactivate`
+                      : action === "import"
+                        ? `${base}/import/dry-run`
+                        : action === "export"
+                          ? `${base}/export`
+                          : base;
+    const query =
+      isReport && payload && typeof payload === "object"
+        ? new URLSearchParams(
+            Object.entries(payload as Record<string, unknown>)
+              .filter(([, value]) => value !== undefined && value !== null)
+              .map(([name, value]): [string, string] => [name, String(value)]),
+          ).toString()
+        : "";
+    const url = query ? `${path}?${query}` : path;
     const correlationId = randomUUID();
     return this.fetchFn(url, {
       method,

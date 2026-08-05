@@ -34,7 +34,11 @@
     "journals/repost",
     "fiscal-periods/close",
     "fiscal-periods/reopen",
-    "posting-rules/evaluate"
+    "posting-rules/evaluate",
+    "reports/trial-balance",
+    "reports/general-ledger",
+    "opening-balances/dry-run",
+    "opening-balances/create"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -119,6 +123,34 @@
     "/api/v1/organizations/{organizationId}/fiscal-periods/reopen": {
       "post": {
         "summary": "Privileged audited stepwise reopen of a locked fiscal period"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/trial-balance": {
+      "get": {
+        "summary": "Read an exact Trial Balance derived only from posted and reversed ledger history"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/general-ledger": {
+      "get": {
+        "summary": "Read ordered journal-line drill-down with exact running balances"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/opening-balances/dry-run": {
+      "post": {
+        "summary": "Validate opening balance control totals and AR/AP details without persistence"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/opening-balances": {
+      "get": {
+        "summary": "List organization-scoped opening-balance imports and linked journal state"
+      },
+      "post": {
+        "summary": "Create an idempotent opening-balance draft journal for normal approval and posting"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/opening-balances/{importId}": {
+      "get": {
+        "summary": "Read opening-balance controls, ordered lines and linked approval/posting state"
       }
     }
   },

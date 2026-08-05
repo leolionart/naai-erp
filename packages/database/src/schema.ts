@@ -888,6 +888,44 @@ export const journalPostingCommands = pgTable(
   ],
 );
 
+export const openingBalanceImports = pgTable(
+  "opening_balance_imports",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    journalId: text("journal_id").notNull(),
+    openingDate: date("opening_date").notNull(),
+    currency: text("currency").notNull(),
+    controlDebitMinor: bigint("control_debit_minor", { mode: "bigint" }).notNull(),
+    controlCreditMinor: bigint("control_credit_minor", { mode: "bigint" }).notNull(),
+    status: text("status").notNull().default("draft"),
+    createdBy: text("created_by").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("opening_balance_imports_journal_unique").on(table.organizationId, table.journalId),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "opening_balance_imports_journal_fk",
+    }).onDelete("restrict"),
+    check("opening_balance_imports_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "opening_balance_imports_balanced",
+      sql`${table.controlDebitMinor} = ${table.controlCreditMinor}`,
+    ),
+    check("opening_balance_imports_positive", sql`${table.controlDebitMinor} > 0`),
+    check(
+      "opening_balance_imports_status",
+      sql`${table.status} in ('draft','approved','posted','rejected')`,
+    ),
+  ],
+);
+
 export const outboxEvents = pgTable(
   "outbox_events",
   {
@@ -983,6 +1021,7 @@ export const schema = {
   fiscalPeriodEvents,
   journalLines,
   journalPostingCommands,
+  openingBalanceImports,
   outboxEvents,
   postingRuleVersions,
 } as const;

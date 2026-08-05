@@ -1,0 +1,11 @@
+{
+  "organizationId": "org-naai",
+  "baseCurrency": "VND",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "from": "2026-01-01",
+  "to": "2026-01-31",
+  "openingControlTotals": {
+    "debitMinor": "500000000",
+    "creditMinor": "500000000"
+  }
+}

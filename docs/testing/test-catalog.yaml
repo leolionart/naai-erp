@@ -283,6 +283,28 @@ tests:
     command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G2
 
+  - id: T-GOLDEN-ERP-240-001
+    aliases: [T-RPT-001]
+    task: ERP-240
+    rules: [BR-RPT-001]
+    title: Trial Balance and General Ledger derive only from posted journals and reconcile to the independent ledger oracle
+    layer: golden
+    fixture: GF-LEDGER-001
+    oracle: manual-accountant-fixture
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G2
+
+  - id: T-INT-ERP-240-001
+    aliases: [T-GLD-001]
+    task: ERP-240
+    rules: [BR-LED-005, BR-RPT-001, BR-AI-001, BR-AI-002, BR-AUD-001]
+    title: Opening balance dry-run approval posting and report drill-down enforce control totals organization scope audit and idempotency
+    layer: integration
+    fixture: GF-LEDGER-001
+    oracle: manual-accountant-fixture
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G2
+
   - id: T-E2E-ERP-300-001
     aliases: [T-INV-001]
     task: ERP-300

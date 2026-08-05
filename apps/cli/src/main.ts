@@ -12,6 +12,9 @@ const { values, positionals } = parseArgs({
     data: { type: "string" },
     key: { type: "string" },
     version: { type: "string" },
+    from: { type: "string" },
+    to: { type: "string" },
+    account: { type: "string" },
     human: { type: "boolean", default: false },
   },
 });
@@ -29,7 +32,11 @@ if (!resource || !organizationId || !token) {
 } else {
   const client = new NaaiErpClient({ baseUrl: values["base-url"]!, organizationId, token });
   try {
-    const payload = values.data ? JSON.parse(values.data) : undefined;
+    const payload = values.data
+      ? JSON.parse(values.data)
+      : resource === "reports"
+        ? { from: values.from, to: values.to, accountCode: values.account }
+        : undefined;
     const result = await client.request(resource, action, payload, values.key, values.version);
     process.stdout.write(
       values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
