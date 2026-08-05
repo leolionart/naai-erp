@@ -150,7 +150,7 @@ export class PgWorkforceStore {
                     ? "revised"
                     : "rejected";
       await q.query(
-        `update timesheets set state=$3,version=$4,${field}_by=$5,${field}_at=now(),rejection_reason=case when $3='rejected' then $6 else rejection_reason end,billing_reference=case when $3='billed' then $7 else billing_reference end,updated_at=now() where organization_id=$1 and id=$2`,
+        `update timesheets set state=$3::timesheet_state,version=$4,${field}_by=$5,${field}_at=now(),rejection_reason=case when $3::timesheet_state='rejected'::timesheet_state then $6 else rejection_reason end,billing_reference=case when $3::timesheet_state='billed'::timesheet_state then $7 else billing_reference end,updated_at=now() where organization_id=$1 and id=$2`,
         [
           c.organizationId,
           id,
