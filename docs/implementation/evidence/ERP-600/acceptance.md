@@ -15,4 +15,4 @@ Current acceptance coverage:
 - Pass locally: desktop and mobile planning journeys pass without body overflow.
 - Pass locally: `GF-FORECAST-001` independently verifies 4 target versions, 3 latest target controls, 3 actual bases, 4 scenarios and 3 retained month-end snapshots with zero control difference.
 
-Exact-commit GitHub CI evidence must be added before the task is marked done.
+Exact-commit GitHub CI passed for `1e84c0d2ebd6b31231128a0332eb2bf945734ce5`: https://github.com/leolionart/naai-erp/actions/runs/31056116463.

@@ -7,4 +7,4 @@
 - Actual basis labels must remain visible in comparisons so recognized, invoiced and collected values are not presented as interchangeable.
 - Optional dimension quality affects management usefulness; missing team/service-line/owner dimensions should be surfaced rather than silently inferred.
 - Live API use requires an authenticated organization-scoped token. Local unauthenticated readback correctly returns `AUTH_REQUIRED`.
-- Exact-commit GitHub CI is still required before final acceptance.
+- Exact-commit GitHub CI passed; remaining risks are planning-data quality and future ERP-610 composition concerns rather than ERP-600 acceptance blockers.

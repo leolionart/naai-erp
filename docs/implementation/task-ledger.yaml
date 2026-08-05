@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T05:47:52+07:00
+updated_at: 2026-08-06T06:30:06+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G6
-current_task: ERP-600
+current_task: ERP-610
 
 tasks:
   - id: ERP-000
@@ -748,20 +748,26 @@ tasks:
   - id: ERP-600
     title: Targets and forecast versions
     phase: P6
-    status: in_progress
+    status: done
     dependencies: [G5]
     business_rules: [BR-FCT-001, BR-FCT-002]
     tests: [T-FCT-001, T-FCT-002]
     evidence: docs/implementation/evidence/ERP-600/
     started_at: 2026-08-06T05:47:52+07:00
+    completed_at: 2026-08-06T06:30:06+07:00
+    implementation_commit: bed8425060e10d2f973e10f243eb950cd1074b5d
+    proof_commit: 1e84c0d2ebd6b31231128a0332eb2bf945734ce5
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31056116463
 
   - id: ERP-610
     title: Revenue and expense forecast
     phase: P6
-    status: blocked
+    status: in_progress
     dependencies: [ERP-600, ERP-520]
     business_rules: [BR-FCT-003, BR-FCT-004]
     tests: [T-FCT-003, T-FCT-004]
+    evidence: docs/implementation/evidence/ERP-610/
+    started_at: 2026-08-06T06:30:06+07:00
 
   - id: ERP-620
     title: Performance comparisons

@@ -24,4 +24,4 @@ Verified behavior:
 
 ## Exact-commit proof
 
-Pending final commit and GitHub Actions readback. Do not mark ERP-600 done until the complete exact-commit quality job passes.
+The complete GitHub quality job passed for exact proof commit `1e84c0d2ebd6b31231128a0332eb2bf945734ce5`, including PostgreSQL migration/integration tests and 34 desktop/mobile Playwright scenarios: https://github.com/leolionart/naai-erp/actions/runs/31056116463.
