@@ -7,4 +7,5 @@
 - `pnpm db:check` — 15 migration entries valid, including ERP-300 schema and immutability triggers.
 - `git diff --check` — passed.
 
-Exact-commit empty-database migration and ERP-300 PostgreSQL integration remain pending GitHub CI.
+Exact-commit GitHub CI passed empty-database migration, database integration and all ERP-300 API/PostgreSQL scenarios for `9408d00a694ff5c1246e20732055debeb86e0220`:
+https://github.com/leolionart/naai-erp/actions/runs/30992011125

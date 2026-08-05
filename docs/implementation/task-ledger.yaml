@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:02:00+07:00
+updated_at: 2026-08-05T16:13:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
-current_task: ERP-300
+current_task: ERP-310
 
 tasks:
   - id: ERP-000
@@ -335,7 +335,7 @@ tasks:
   - id: ERP-300
     title: Sales and purchase documents
     phase: P3
-    status: review
+    status: done
     dependencies: [G2]
     business_rules: [BR-INV-001, BR-INV-002, BR-AP-001, BR-AR-001, BR-AR-004, BR-DIM-002]
     tests: [T-INV-001, T-INV-002, T-AP-001, T-AR-001]
@@ -343,6 +343,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T15:51:00+07:00
     start_commit: a6be5b6f4a591ce3a73e327d9b3a80999e4fe96f
+    completed_at: 2026-08-05T16:13:00+07:00
+    implementation_commit: 9408d00a694ff5c1246e20732055debeb86e0220
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/30992011125
     planned_files:
       - packages/domain/src/commercial-documents.ts
       - packages/domain/src/commercial-documents.test.ts
@@ -360,7 +363,7 @@ tasks:
   - id: ERP-310
     title: Expense workflow
     phase: P3
-    status: blocked
+    status: ready
     dependencies: [G2, ERP-130]
     business_rules: [BR-EXP-001, BR-EXP-002, BR-TAX-002]
     tests: [T-EXP-001, T-EXP-002, T-TAX-002]

@@ -12,3 +12,5 @@ Implemented sales invoices, purchase invoices and linked sales credit notes.
 - REST/OpenAPI and first-party CLI provide organization-scoped machine-readable create/read/filter/workflow coverage.
 
 Start commit: `a6be5b6f4a591ce3a73e327d9b3a80999e4fe96f`.
+Implementation commit: `9408d00a694ff5c1246e20732055debeb86e0220`.
+Verified CI: https://github.com/leolionart/naai-erp/actions/runs/30992011125
