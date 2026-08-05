@@ -338,4 +338,89 @@ describe("NAAI ERP JSON-first CLI client", () => {
       }),
     );
   });
+
+  it.each([
+    ["bank-accounts", "http://api/api/v1/organizations/org-a/banking/accounts"],
+    ["bank-imports", "http://api/api/v1/organizations/org-a/banking/imports"],
+    ["bank-transactions", "http://api/api/v1/organizations/org-a/banking/transactions"],
+  ])("lists %s through the canonical banking API", async (resource, expectedUrl) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(resource, "list");
+    expect(fetchFn).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({ method: "GET" }));
+  });
+
+  it("dry-runs and imports versioned bank CSV through REST with stable idempotency", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: { valid: true, rows: [] } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const payload = {
+      schemaVersion: 1,
+      financialAccountId: "bank-1",
+      adapterId: "generic-csv",
+      adapterVersion: 1,
+      filename: "statement.csv",
+      csvText: "date,amount\n2026-08-05,-125000",
+    };
+    await client.request("bank-imports", "dry-run", payload, undefined, undefined, "bank-dry-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/imports/dry-run",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": "bank-dry-1" }),
+      }),
+    );
+    await client.request("bank-imports", "create", payload, undefined, undefined, "bank-import-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/imports",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": "bank-import-1" }),
+      }),
+    );
+  });
+
+  it.each(["ignore", "mark-needs-review"])(
+    "calls the bank transaction %s review branch without exposing reconcile",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: { state: action } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "bank-transactions",
+        action,
+        { schemaVersion: 1, reason: "Reviewed" },
+        "txn-1",
+        undefined,
+        "branch-1",
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/banking/transactions/txn-1/${action}`,
+        expect.objectContaining({ method: "POST" }),
+      );
+    },
+  );
 });

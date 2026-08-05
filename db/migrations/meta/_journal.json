@@ -120,6 +120,13 @@
       "when": 1785926973132,
       "tag": "0016_solid_steel_serpent",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785932985377,
+      "tag": "0017_plain_stark_industries",
+      "breakpoints": true
     }
   ]
 }

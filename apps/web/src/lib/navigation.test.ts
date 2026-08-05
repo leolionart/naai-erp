@@ -14,6 +14,8 @@ describe("typed admin navigation", () => {
   it("finds modules and distinguishes planned destinations", () => {
     expect(findNavigationItem("ledger")?.href).toBe("/accounting/journals");
     expect(isNavigationAvailable(findNavigationItem("ledger")!)).toBe(true);
+    expect(findNavigationItem("banking")?.href).toBe("/banking");
+    expect(isNavigationAvailable(findNavigationItem("banking")!)).toBe(true);
     expect(isNavigationAvailable(findNavigationItem("forecast")!)).toBe(false);
     expect(findNavigationItem("missing")).toBeUndefined();
   });

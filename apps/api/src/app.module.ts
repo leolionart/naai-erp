@@ -31,6 +31,10 @@ import { OutboundEventController } from "./outbound-events/outbound-event.contro
 import { OutboundEventService } from "./outbound-events/outbound-event.service.js";
 import { OUTBOUND_EVENT_ADMIN_STORE } from "./outbound-events/outbound-event.types.js";
 import { PgOutboundEventStore } from "./outbound-events/pg-outbound-event.store.js";
+import { BankingController } from "./banking/banking.controller.js";
+import { BankingService } from "./banking/banking.service.js";
+import { BANKING_STORE } from "./banking/banking.types.js";
+import { PgBankingStore } from "./banking/pg-banking.store.js";
 
 @Module({
   controllers: [
@@ -45,6 +49,7 @@ import { PgOutboundEventStore } from "./outbound-events/pg-outbound-event.store.
     EvidenceController,
     InboundWebhookController,
     OutboundEventController,
+    BankingController,
   ],
   providers: [
     MasterDataService,
@@ -68,6 +73,9 @@ import { PgOutboundEventStore } from "./outbound-events/pg-outbound-event.store.
     OutboundEventService,
     PgOutboundEventStore,
     { provide: OUTBOUND_EVENT_ADMIN_STORE, useExisting: PgOutboundEventStore },
+    BankingService,
+    PgBankingStore,
+    { provide: BANKING_STORE, useExisting: PgBankingStore },
   ],
 })
 export class AppModule {}

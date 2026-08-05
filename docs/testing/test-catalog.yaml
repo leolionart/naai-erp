@@ -459,6 +459,32 @@ tests:
     command: pnpm test:e2e --filter T-E2E-ERP-410-001
     blocking_gate: G4
 
+  - id: T-DOMAIN-ERP-400-001
+    aliases: [T-BNK-001]
+    task: ERP-400
+    rules: [BR-BNK-001]
+    title: Provider identity or canonical fingerprint makes bank ingestion idempotent and raw payload immutable
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G4
+
+  - id: T-INT-ERP-400-002
+    aliases: [T-BNK-002]
+    task: ERP-400
+    rules: [BR-BNK-001, BR-BNK-002, BR-ORG-001]
+    title: CSV re-import creates no duplicate and valid state transitions remain organization scoped
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G4
+
+  - id: T-CONTRACT-ERP-400-003
+    task: ERP-400
+    rules: [BR-BNK-001, BR-BNK-002, BR-AI-001, BR-AI-003, BR-AI-004]
+    title: REST OpenAPI and CLI expose versioned bank account CSV import and transaction read review contracts
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts test && pnpm --filter @naai-erp/cli test
+    blocking_gate: G4
+
   - id: T-INT-ERP-340-001
     aliases: [T-OUT-001]
     task: ERP-340

@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T19:18:00+07:00
+updated_at: 2026-08-05T19:40:07+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G4
@@ -532,10 +532,28 @@ tasks:
   - id: ERP-400
     title: Bank and cash accounts
     phase: P4
-    status: ready
+    status: review
     dependencies: [G3]
     business_rules: [BR-BNK-001, BR-BNK-002]
     tests: [T-BNK-001, T-BNK-002]
+    evidence: docs/implementation/evidence/ERP-400/
+    agent: codex-root
+    started_at: 2026-08-05T19:23:50+07:00
+    start_commit: 32fb97e995eea2296ee5a3ec7bbaa2534a4e6569
+    planned_files:
+      - packages/domain/src/banking.ts
+      - packages/domain/src/banking.test.ts
+      - packages/contracts/src/
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/banking/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/banking/
+      - apps/web/src/app/workspaces/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-400/
 
   - id: ERP-410
     title: Reconciliation

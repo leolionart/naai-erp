@@ -181,6 +181,21 @@ export const outboundAttemptOutcome = pgEnum("outbound_attempt_outcome", [
   "permanent_failure",
   "lease_expired",
 ]);
+export const financialAccountKind = pgEnum("financial_account_kind", ["bank", "cash"]);
+export const financialAccountStatus = pgEnum("financial_account_status", ["active", "inactive"]);
+export const bankTransactionState = pgEnum("bank_transaction_state", [
+  "imported",
+  "suggested",
+  "matched",
+  "reconciled",
+  "ignored",
+  "needs_review",
+]);
+export const bankImportRowOutcome = pgEnum("bank_import_row_outcome", [
+  "imported",
+  "duplicate",
+  "rejected",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1799,6 +1814,237 @@ export const outboundDeliveryAttempts = pgTable(
   ],
 );
 
+export const financialAccounts = pgTable(
+  "financial_accounts",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    code: text("code").notNull(),
+    kind: financialAccountKind("kind").notNull(),
+    displayName: text("display_name").notNull(),
+    currency: text("currency").notNull(),
+    ledgerAccountCode: text("ledger_account_code").notNull(),
+    bankCode: text("bank_code"),
+    maskedIdentifier: text("masked_identifier"),
+    accountIdentityHash: text("account_identity_hash"),
+    status: financialAccountStatus("status").notNull().default("active"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("financial_accounts_org_code_unique").on(table.organizationId, table.code),
+    uniqueIndex("financial_accounts_identity_unique")
+      .on(table.organizationId, table.accountIdentityHash)
+      .where(sql`${table.accountIdentityHash} is not null`),
+    foreignKey({
+      columns: [table.organizationId, table.ledgerAccountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "financial_accounts_ledger_account_fk",
+    }).onDelete("restrict"),
+    check("financial_accounts_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("financial_accounts_name_not_blank", sql`btrim(${table.displayName}) <> ''`),
+    check("financial_accounts_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "financial_accounts_bank_metadata",
+      sql`${table.kind} = 'cash' or (${table.bankCode} is not null and btrim(${table.bankCode}) <> '')`,
+    ),
+    check(
+      "financial_accounts_identity_hash",
+      sql`${table.accountIdentityHash} is null or ${table.accountIdentityHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check("financial_accounts_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const bankStatementImports = pgTable(
+  "bank_statement_imports",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    financialAccountId: text("financial_account_id").notNull(),
+    adapterId: text("adapter_id").notNull(),
+    adapterVersion: integer("adapter_version").notNull(),
+    sourceFilename: text("source_filename").notNull(),
+    contentSha256: text("content_sha256").notNull(),
+    rowCount: integer("row_count").notNull(),
+    importedCount: integer("imported_count").notNull(),
+    duplicateCount: integer("duplicate_count").notNull(),
+    rejectedCount: integer("rejected_count").notNull(),
+    createdBy: text("created_by").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("bank_statement_import_content_unique").on(
+      table.organizationId,
+      table.financialAccountId,
+      table.contentSha256,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.financialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "bank_statement_import_account_fk",
+    }).onDelete("restrict"),
+    check("bank_statement_import_adapter", sql`btrim(${table.adapterId}) <> ''`),
+    check("bank_statement_import_adapter_version", sql`${table.adapterVersion} > 0`),
+    check("bank_statement_import_filename", sql`btrim(${table.sourceFilename}) <> ''`),
+    check("bank_statement_import_sha", sql`${table.contentSha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "bank_statement_import_counts",
+      sql`${table.rowCount} >= 0 and ${table.importedCount} >= 0 and ${table.duplicateCount} >= 0 and ${table.rejectedCount} >= 0 and ${table.rowCount} = ${table.importedCount} + ${table.duplicateCount} + ${table.rejectedCount}`,
+    ),
+  ],
+);
+
+export const bankTransactions = pgTable(
+  "bank_transactions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    financialAccountId: text("financial_account_id").notNull(),
+    providerTransactionId: text("provider_transaction_id"),
+    fingerprint: text("fingerprint").notNull(),
+    fingerprintVersion: integer("fingerprint_version").notNull().default(1),
+    bookingDate: date("booking_date").notNull(),
+    valueDate: date("value_date"),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    reference: text("reference"),
+    description: text("description").notNull(),
+    counterpartyName: text("counterparty_name"),
+    state: bankTransactionState("state").notNull().default("imported"),
+    currentNormalizationVersion: integer("current_normalization_version").notNull().default(1),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("bank_transaction_fingerprint_unique").on(
+      table.organizationId,
+      table.financialAccountId,
+      table.fingerprint,
+    ),
+    uniqueIndex("bank_transaction_provider_id_unique")
+      .on(table.organizationId, table.financialAccountId, table.providerTransactionId)
+      .where(sql`${table.providerTransactionId} is not null`),
+    foreignKey({
+      columns: [table.organizationId, table.financialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "bank_transactions_account_fk",
+    }).onDelete("restrict"),
+    check("bank_transaction_fingerprint", sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`),
+    check("bank_transaction_fingerprint_version", sql`${table.fingerprintVersion} > 0`),
+    check("bank_transaction_amount_nonzero", sql`${table.amountMinor} <> 0`),
+    check("bank_transaction_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("bank_transaction_description", sql`btrim(${table.description}) <> ''`),
+    check("bank_transaction_normalization_version", sql`${table.currentNormalizationVersion} > 0`),
+    check("bank_transaction_version", sql`${table.version} > 0`),
+  ],
+);
+
+export const bankTransactionNormalizations = pgTable(
+  "bank_transaction_normalizations",
+  {
+    organizationId: text("organization_id").notNull(),
+    transactionId: text("transaction_id").notNull(),
+    version: integer("version").notNull(),
+    adapterId: text("adapter_id").notNull(),
+    adapterVersion: integer("adapter_version").notNull(),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    normalizedPayload: jsonb("normalized_payload").$type<Record<string, unknown>>().notNull(),
+    normalizedSha256: text("normalized_sha256").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.transactionId, table.version] }),
+    foreignKey({
+      columns: [table.organizationId, table.transactionId],
+      foreignColumns: [bankTransactions.organizationId, bankTransactions.id],
+      name: "bank_transaction_normalization_transaction_fk",
+    }).onDelete("restrict"),
+    check("bank_transaction_normalization_version", sql`${table.version} > 0`),
+    check("bank_transaction_normalization_adapter_version", sql`${table.adapterVersion} > 0`),
+    check("bank_transaction_normalization_schema_version", sql`${table.schemaVersion} > 0`),
+    check("bank_transaction_normalization_sha", sql`${table.normalizedSha256} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+
+export const bankStatementImportRows = pgTable(
+  "bank_statement_import_rows",
+  {
+    organizationId: text("organization_id").notNull(),
+    importId: text("import_id").notNull(),
+    rowNumber: integer("row_number").notNull(),
+    rawPayload: jsonb("raw_payload").$type<Record<string, string>>().notNull(),
+    rawSha256: text("raw_sha256").notNull(),
+    outcome: bankImportRowOutcome("outcome").notNull(),
+    errorCodes: jsonb("error_codes").$type<readonly string[]>().notNull().default([]),
+    transactionId: text("transaction_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.importId, table.rowNumber] }),
+    foreignKey({
+      columns: [table.organizationId, table.importId],
+      foreignColumns: [bankStatementImports.organizationId, bankStatementImports.id],
+      name: "bank_statement_import_rows_import_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.transactionId],
+      foreignColumns: [bankTransactions.organizationId, bankTransactions.id],
+      name: "bank_statement_import_rows_transaction_fk",
+    }).onDelete("restrict"),
+    check("bank_statement_import_row_number", sql`${table.rowNumber} > 0`),
+    check("bank_statement_import_row_sha", sql`${table.rawSha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "bank_statement_import_row_transaction",
+      sql`(${table.outcome} = 'rejected' and ${table.transactionId} is null) or (${table.outcome} <> 'rejected' and ${table.transactionId} is not null)`,
+    ),
+  ],
+);
+
+export const bankTransactionEvents = pgTable(
+  "bank_transaction_events",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    transactionId: text("transaction_id").notNull(),
+    action: text("action").notNull(),
+    fromState: bankTransactionState("from_state"),
+    toState: bankTransactionState("to_state").notNull(),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.transactionId],
+      foreignColumns: [bankTransactions.organizationId, bankTransactions.id],
+      name: "bank_transaction_events_transaction_fk",
+    }).onDelete("restrict"),
+    check("bank_transaction_event_action", sql`btrim(${table.action}) <> ''`),
+    check("bank_transaction_event_reason", sql`btrim(${table.reason}) <> ''`),
+  ],
+);
+
 export const postingRuleVersions = pgTable(
   "posting_rule_versions",
   {
@@ -1891,5 +2137,11 @@ export const schema = {
   outboundWebhookSubscriptions,
   outboundDeliveries,
   outboundDeliveryAttempts,
+  financialAccounts,
+  bankStatementImports,
+  bankTransactions,
+  bankTransactionNormalizations,
+  bankStatementImportRows,
+  bankTransactionEvents,
   postingRuleVersions,
 } as const;

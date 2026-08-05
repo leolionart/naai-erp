@@ -32,7 +32,10 @@ export class NaaiErpClient {
     const isOutboundEvent = resource === "outbound-events";
     const isOutboundEndpoint = resource === "outbound-endpoints";
     const isOutboundDelivery = resource === "outbound-deliveries";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isBankAccount = resource === "bank-accounts";
+    const isBankImport = resource === "bank-imports";
+    const isBankTransaction = resource === "bank-transactions";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" || action === "get" || action === "export" || isReport
         ? "GET"
@@ -53,37 +56,47 @@ export class NaaiErpClient {
                     action,
                   )
                 ? `${base}/${key}/${action}`
-                : isEvidence && ["review", "download-url"].includes(action)
-                  ? `${base}/${key}/${action}`
-                  : isInboundEvent && action === "replay"
-                    ? `${base}/${key}/replay`
-                    : isOutboundEvent && action === "replay"
-                      ? `${base}/${key}/replay`
-                      : isExpense &&
-                          [
-                            "submit",
-                            "mark-evidence-pending",
-                            "review",
-                            "approve",
-                            "reject",
-                            "post",
-                          ].includes(action)
-                        ? `${base}/${key}/${action}`
-                        : isReport
-                          ? `${base}/${action}`
-                          : isOpeningBalance && action === "dry-run"
-                            ? `${base}/dry-run`
-                            : isPeriodWorkflow
+                : isBankImport && action === "dry-run"
+                  ? `${base}/dry-run`
+                  : isBankTransaction && ["ignore", "mark-needs-review"].includes(action)
+                    ? `${base}/${key}/${action}`
+                    : isEvidence && ["review", "download-url"].includes(action)
+                      ? `${base}/${key}/${action}`
+                      : isInboundEvent && action === "replay"
+                        ? `${base}/${key}/replay`
+                        : isOutboundEvent && action === "replay"
+                          ? `${base}/${key}/replay`
+                          : isExpense &&
+                              [
+                                "submit",
+                                "mark-evidence-pending",
+                                "review",
+                                "approve",
+                                "reject",
+                                "post",
+                              ].includes(action)
+                            ? `${base}/${key}/${action}`
+                            : isReport
                               ? `${base}/${action}`
-                              : action === "deactivate"
-                                ? `${base}/${key}/deactivate`
-                                : action === "import"
-                                  ? `${base}/import/dry-run`
-                                  : action === "export"
-                                    ? `${base}/export`
-                                    : base;
+                              : isOpeningBalance && action === "dry-run"
+                                ? `${base}/dry-run`
+                                : isPeriodWorkflow
+                                  ? `${base}/${action}`
+                                  : action === "deactivate"
+                                    ? `${base}/${key}/deactivate`
+                                    : action === "import"
+                                      ? `${base}/import/dry-run`
+                                      : action === "export"
+                                        ? `${base}/export`
+                                        : base;
     const query =
-      (isReport || isOutboundEvent || isOutboundEndpoint || isOutboundDelivery) &&
+      (isReport ||
+        isOutboundEvent ||
+        isOutboundEndpoint ||
+        isOutboundDelivery ||
+        isBankAccount ||
+        isBankImport ||
+        isBankTransaction) &&
       method === "GET" &&
       payload &&
       typeof payload === "object"

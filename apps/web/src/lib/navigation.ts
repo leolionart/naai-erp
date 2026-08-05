@@ -84,11 +84,11 @@ export const adminNavigation = [
       },
       {
         key: "banking",
-        label: "Ngân hàng",
+        label: "Ngân hàng & tiền mặt",
         href: "/banking",
         description: "Tài khoản tiền, import và reconciliation.",
         icon: "bank",
-        status: "planned",
+        status: "available",
       },
     ],
   },

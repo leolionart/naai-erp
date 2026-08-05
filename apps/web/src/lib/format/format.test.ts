@@ -22,5 +22,8 @@ describe("ERP-345 exact UI formatters", () => {
     expect(formatStatus("partially_paid")).toBe("Thanh toán một phần");
     expect(statusTone("dead_letter")).toBe("error");
     expect(statusTone("posted")).toBe("ready");
+    expect(formatStatus("imported")).toBe("Đã nhập");
+    expect(formatStatus("reconciled")).toBe("Đã đối soát");
+    expect(statusTone("needs_review")).toBe("warning");
   });
 });

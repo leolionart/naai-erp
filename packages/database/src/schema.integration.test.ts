@@ -264,4 +264,55 @@ describeDatabase("ERP-100 database tenant constraints", () => {
         where organization_id='org-a' and fiscal_year=2026 and period_number=8`),
     ).rejects.toMatchObject({ code: "42501" });
   });
+
+  it("enforces ERP-400 bank source uniqueness tenant ownership and append-only history", async () => {
+    await pool!.query(`
+      insert into accounts (organization_id,code,name,root_type)
+      values ('org-a','11299','ERP-400 bank','asset');
+      insert into financial_accounts
+        (organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by)
+      values ('org-a','financial-db-1','BANK-DB-1','bank','Database bank','VND','11299','VCB','user-a','user-a');
+      insert into bank_transactions
+        (organization_id,id,financial_account_id,provider_transaction_id,fingerprint,booking_date,amount_minor,currency,description)
+      values ('org-a','bank-txn-db-1','financial-db-1','provider-db-1',repeat('a',64),'2026-08-05',100,'VND','Receipt');
+      insert into bank_transaction_normalizations
+        (organization_id,transaction_id,version,adapter_id,adapter_version,normalized_payload,normalized_sha256,created_by)
+      values ('org-a','bank-txn-db-1',1,'generic-csv',1,'{}',repeat('b',64),'user-a');
+      insert into bank_statement_imports
+        (organization_id,id,financial_account_id,adapter_id,adapter_version,source_filename,content_sha256,
+         row_count,imported_count,duplicate_count,rejected_count,created_by,correlation_id)
+      values ('org-a','bank-import-db-1','financial-db-1','generic-csv',1,'statement.csv',repeat('c',64),1,1,0,0,'user-a','corr-bank-db');
+      insert into bank_statement_import_rows
+        (organization_id,import_id,row_number,raw_payload,raw_sha256,outcome,transaction_id)
+      values ('org-a','bank-import-db-1',1,'{}',repeat('d',64),'imported','bank-txn-db-1');
+      insert into bank_transaction_events
+        (organization_id,id,transaction_id,action,to_state,actor_id,reason,correlation_id)
+      values ('org-a','bank-event-db-1','bank-txn-db-1','import','imported','user-a','Imported','corr-bank-db');
+    `);
+    await expect(
+      pool!.query(`insert into financial_accounts
+        (organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by)
+        values ('org-b','foreign-bank','FOREIGN','bank','Foreign','VND','11299','VCB','user-a','user-a')`),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool!.query(`insert into bank_transactions
+        (organization_id,id,financial_account_id,fingerprint,booking_date,amount_minor,currency,description)
+        values ('org-a','bank-txn-db-2','financial-db-1',repeat('a',64),'2026-08-05',100,'VND','Duplicate')`),
+    ).rejects.toMatchObject({ code: "23505" });
+    await expect(
+      pool!.query(
+        "update bank_statement_import_rows set raw_payload='{\"changed\":\"yes\"}' where organization_id='org-a' and import_id='bank-import-db-1'",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      pool!.query(
+        "delete from bank_transaction_normalizations where organization_id='org-a' and transaction_id='bank-txn-db-1'",
+      ),
+    ).rejects.toThrow();
+    await expect(
+      pool!.query(
+        "update bank_transaction_events set reason='Changed' where organization_id='org-a' and id='bank-event-db-1'",
+      ),
+    ).rejects.toThrow();
+  });
 });

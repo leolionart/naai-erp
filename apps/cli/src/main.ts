@@ -1,4 +1,6 @@
 import { parseArgs } from "node:util";
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
 
 const { values, positionals } = parseArgs({
@@ -16,6 +18,11 @@ const { values, positionals } = parseArgs({
     from: { type: "string" },
     to: { type: "string" },
     account: { type: "string" },
+    "account-id": { type: "string" },
+    file: { type: "string" },
+    adapter: { type: "string" },
+    "adapter-version": { type: "string" },
+    mapping: { type: "string" },
     human: { type: "boolean", default: false },
   },
 });
@@ -33,11 +40,35 @@ if (!resource || !organizationId || !token) {
 } else {
   const client = new NaaiErpClient({ baseUrl: values["base-url"]!, organizationId, token });
   try {
+    const bankAccountId = values["account-id"] ?? values.key;
+    const bankAdapterVersion = Number.parseInt(values["adapter-version"] ?? "1", 10);
+    if (resource === "bank-imports" && values.file) {
+      if (!bankAccountId) throw new Error("--account-id or --key is required for bank imports");
+      if (!Number.isInteger(bankAdapterVersion) || bankAdapterVersion < 1) {
+        throw new Error("--adapter-version must be a positive integer");
+      }
+    }
     const payload = values.data
       ? JSON.parse(values.data)
-      : resource === "reports"
-        ? { from: values.from, to: values.to, accountCode: values.account }
-        : undefined;
+      : resource === "bank-imports" && values.file
+        ? {
+            schemaVersion: 1,
+            financialAccountId: bankAccountId,
+            adapterId: values.adapter ?? "generic-csv",
+            adapterVersion: bankAdapterVersion,
+            filename: basename(values.file),
+            csvText: await readFile(values.file, "utf8"),
+            ...(values.mapping ? { columnMapping: JSON.parse(values.mapping) } : {}),
+          }
+        : resource === "reports"
+          ? { from: values.from, to: values.to, accountCode: values.account }
+          : resource.startsWith("bank-")
+            ? {
+                ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
+                ...(values.from ? { from: values.from } : {}),
+                ...(values.to ? { to: values.to } : {}),
+              }
+            : undefined;
     const result = await client.request(
       resource,
       action,

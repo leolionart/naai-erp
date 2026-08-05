@@ -58,7 +58,13 @@
     "evidence/review",
     "evidence/download-url",
     "inbound-events/receive",
-    "inbound-events/replay"
+    "inbound-events/replay",
+    "banking/accounts/create",
+    "banking/accounts/deactivate",
+    "banking/imports/dry-run",
+    "banking/imports/create",
+    "banking/transactions/ignore",
+    "banking/transactions/mark-needs-review"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -248,6 +254,65 @@
     "/api/v1/organizations/{organizationId}/inbound-events/{messageId}/replay": {
       "post": {
         "summary": "Replay an authenticated quarantined or dead-letter event with privileged reason and audit"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/accounts": {
+      "get": {
+        "summary": "List organization-owned bank and cash accounts with cursor pagination"
+      },
+      "post": {
+        "summary": "Create an idempotent organization-owned bank or cash account linked to its ledger account"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/accounts/{accountId}": {
+      "get": {
+        "summary": "Read one organization-owned bank or cash account"
+      },
+      "patch": {
+        "summary": "Update mutable bank account metadata with optimistic resource version"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/accounts/{accountId}/deactivate": {
+      "post": {
+        "summary": "Deactivate a bank or cash account without removing its statement history"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/imports": {
+      "get": {
+        "summary": "List versioned organization-scoped bank statement imports and row control totals"
+      },
+      "post": {
+        "summary": "Idempotently ingest versioned CSV rows with immutable raw payloads and duplicate prevention"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/imports/dry-run": {
+      "post": {
+        "summary": "Validate a versioned CSV adapter and return row-level new duplicate and invalid dispositions without writes"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/imports/{importId}": {
+      "get": {
+        "summary": "Read one statement import with row-level results and immutable raw payload hash"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions": {
+      "get": {
+        "summary": "List imported bank transactions with exact string amounts state and latest normalization version"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}": {
+      "get": {
+        "summary": "Read immutable raw metadata and append-only normalized representation history"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/ignore": {
+      "post": {
+        "summary": "Move an imported or suggested transaction to the audited ignored branch"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/mark-needs-review": {
+      "post": {
+        "summary": "Move a transaction to the audited needs-review branch without matching or reconciling it"
       }
     },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {

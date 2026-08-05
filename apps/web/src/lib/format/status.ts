@@ -20,6 +20,11 @@ const STATUS_LABELS: Readonly<Record<string, string>> = {
   dead_letter: "Hết lượt thử",
   delivered: "Đã gửi",
   failed: "Thất bại",
+  imported: "Đã nhập",
+  suggested: "Đã gợi ý",
+  matched: "Đã khớp",
+  reconciled: "Đã đối soát",
+  ignored: "Đã bỏ qua",
 };
 
 export type StatusTone = "ready" | "warning" | "error" | "muted" | "info";
@@ -39,7 +44,18 @@ export function formatStatus(value: string | null | undefined): string {
 
 export function statusTone(value: string | null | undefined): StatusTone {
   const status = normalizeStatus(value ?? "");
-  if (["approved", "issued", "posted", "paid", "active", "delivered", "verified"].includes(status))
+  if (
+    [
+      "approved",
+      "issued",
+      "posted",
+      "paid",
+      "active",
+      "delivered",
+      "verified",
+      "reconciled",
+    ].includes(status)
+  )
     return "ready";
   if (
     [
@@ -49,11 +65,13 @@ export function statusTone(value: string | null | undefined): StatusTone {
       "partially_paid",
       "retry_scheduled",
       "needs_review",
+      "suggested",
+      "matched",
     ].includes(status)
   )
     return "warning";
   if (["rejected", "quarantined", "dead_letter", "failed", "inactive"].includes(status))
     return "error";
-  if (["draft", "reversed"].includes(status)) return "muted";
+  if (["draft", "reversed", "imported", "ignored"].includes(status)) return "muted";
   return "info";
 }
