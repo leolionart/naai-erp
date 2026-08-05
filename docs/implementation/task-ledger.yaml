@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T17:05:00+07:00
+updated_at: 2026-08-05T17:10:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
@@ -416,10 +416,24 @@ tasks:
   - id: ERP-330
     title: Inbound API and webhooks
     phase: P3
-    status: ready
+    status: review
     dependencies: [ERP-300, ERP-310]
     business_rules: [BR-INT-001, BR-INT-002, BR-INT-003]
     tests: [T-INT-001, T-INT-002, T-CON-001]
+    evidence: docs/implementation/evidence/ERP-330/
+    agent: codex-root
+    started_at: 2026-08-05T17:10:00+07:00
+    start_commit: 97bb4da88a89afcc5dab5b6ddf052cbf442a3523
+    planned_files:
+      - packages/domain/src/inbound-webhooks.ts
+      - packages/domain/src/inbound-webhooks.test.ts
+      - packages/database/src/schema.ts
+      - db/migrations/
+      - apps/api/src/inbound-webhooks/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-330/
 
   - id: ERP-340
     title: Outbound event delivery

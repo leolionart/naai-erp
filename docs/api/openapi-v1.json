@@ -56,7 +56,9 @@
     "expenses/post",
     "evidence/upload",
     "evidence/review",
-    "evidence/download-url"
+    "evidence/download-url",
+    "inbound-events/receive",
+    "inbound-events/replay"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -225,6 +227,27 @@
     "/api/v1/organizations/{organizationId}/evidence/{evidenceId}/download-url": {
       "post": {
         "summary": "Issue an audited organization-authorized signed URL with a maximum 300 second TTL"
+      }
+    },
+    "/api/v1/inbound/{sourcePublicId}/events": {
+      "post": {
+        "summary": "Receive an exact-raw-body HMAC signed versioned event with timestamp and idempotency protection",
+        "security": []
+      }
+    },
+    "/api/v1/organizations/{organizationId}/inbound-events": {
+      "get": {
+        "summary": "List organization-scoped inbox quarantine retry and dead-letter records"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/inbound-events/{messageId}": {
+      "get": {
+        "summary": "Read inbound metadata immutable raw payload hash and append-only attempt history"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/inbound-events/{messageId}/replay": {
+      "post": {
+        "summary": "Replay an authenticated quarantined or dead-letter event with privileged reason and audit"
       }
     }
   },

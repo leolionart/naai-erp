@@ -28,7 +28,8 @@ export class NaaiErpClient {
     const isCommercialDocument = resource === "commercial-documents";
     const isExpense = resource === "expenses";
     const isEvidence = resource === "evidence";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isInboundEvent = resource === "inbound-events";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" || action === "get" || action === "export" || isReport
         ? "GET"
@@ -51,29 +52,31 @@ export class NaaiErpClient {
                 ? `${base}/${key}/${action}`
                 : isEvidence && ["review", "download-url"].includes(action)
                   ? `${base}/${key}/${action}`
-                  : isExpense &&
-                      [
-                        "submit",
-                        "mark-evidence-pending",
-                        "review",
-                        "approve",
-                        "reject",
-                        "post",
-                      ].includes(action)
-                    ? `${base}/${key}/${action}`
-                    : isReport
-                      ? `${base}/${action}`
-                      : isOpeningBalance && action === "dry-run"
-                        ? `${base}/dry-run`
-                        : isPeriodWorkflow
-                          ? `${base}/${action}`
-                          : action === "deactivate"
-                            ? `${base}/${key}/deactivate`
-                            : action === "import"
-                              ? `${base}/import/dry-run`
-                              : action === "export"
-                                ? `${base}/export`
-                                : base;
+                  : isInboundEvent && action === "replay"
+                    ? `${base}/${key}/replay`
+                    : isExpense &&
+                        [
+                          "submit",
+                          "mark-evidence-pending",
+                          "review",
+                          "approve",
+                          "reject",
+                          "post",
+                        ].includes(action)
+                      ? `${base}/${key}/${action}`
+                      : isReport
+                        ? `${base}/${action}`
+                        : isOpeningBalance && action === "dry-run"
+                          ? `${base}/dry-run`
+                          : isPeriodWorkflow
+                            ? `${base}/${action}`
+                            : action === "deactivate"
+                              ? `${base}/${key}/deactivate`
+                              : action === "import"
+                                ? `${base}/import/dry-run`
+                                : action === "export"
+                                  ? `${base}/export`
+                                  : base;
     const query =
       isReport && payload && typeof payload === "object"
         ? new URLSearchParams(

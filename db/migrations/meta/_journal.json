@@ -106,6 +106,13 @@
       "when": 1785923590819,
       "tag": "0014_magical_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1785924715080,
+      "tag": "0015_productive_smasher",
+      "breakpoints": true
     }
   ]
 }

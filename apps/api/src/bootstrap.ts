@@ -6,6 +6,7 @@ import { ApiExceptionFilter } from "./api-exception.filter.js";
 export async function createApp(): Promise<NestFastifyApplication> {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
     logger: process.env.NODE_ENV === "test" ? false : ["error", "warn", "log"],
+    rawBody: true,
   });
   app.useGlobalFilters(new ApiExceptionFilter());
   return app;

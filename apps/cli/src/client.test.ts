@@ -263,4 +263,32 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it("replays a quarantined inbound event through the admin API", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "inbound-events",
+      "replay",
+      { reason: "Mapping corrected" },
+      "msg-1",
+      undefined,
+      "replay-key",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/inbound-events/msg-1/replay",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": "replay-key" }),
+      }),
+    );
+  });
 });

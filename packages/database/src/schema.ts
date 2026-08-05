@@ -150,6 +150,19 @@ export const evidenceReviewState = pgEnum("evidence_review_state", [
   "rejected",
   "needs_review",
 ]);
+export const inboundMessageState = pgEnum("inbound_message_state", [
+  "received",
+  "processed",
+  "quarantined",
+  "retry_scheduled",
+  "dead_letter",
+]);
+export const inboundAttemptOutcome = pgEnum("inbound_attempt_outcome", [
+  "processed",
+  "quarantined",
+  "retryable_failure",
+  "dead_letter",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1494,6 +1507,119 @@ export const evidenceAccessEvents = pgTable(
   ],
 );
 
+export const integrationSources = pgTable(
+  "integration_sources",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    publicId: text("public_id").notNull(),
+    name: text("name").notNull(),
+    actorId: text("actor_id").notNull(),
+    secretRef: text("secret_ref").notNull(),
+    status: text("status").notNull().default("active"),
+    allowedEventTypes: jsonb("allowed_event_types").$type<readonly string[]>().notNull(),
+    timestampToleranceSeconds: integer("timestamp_tolerance_seconds").notNull().default(300),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("integration_sources_public_id_unique").on(table.publicId),
+    check("integration_sources_status", sql`${table.status} in ('active','suspended','revoked')`),
+    check(
+      "integration_sources_tolerance",
+      sql`${table.timestampToleranceSeconds} between 30 and 900`,
+    ),
+    check("integration_sources_attempts", sql`${table.maxAttempts} between 1 and 20`),
+  ],
+);
+
+export const inboundMessages = pgTable(
+  "inbound_messages",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    sourceId: text("source_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    externalId: text("external_id"),
+    eventType: text("event_type"),
+    schemaVersion: integer("schema_version"),
+    rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>().notNull(),
+    correctedPayload: jsonb("corrected_payload").$type<Record<string, unknown>>(),
+    payloadSha256: text("payload_sha256").notNull(),
+    signatureTimestamp: bigint("signature_timestamp", { mode: "bigint" }).notNull(),
+    state: inboundMessageState("state").notNull().default("received"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastErrorCode: text("last_error_code"),
+    lastErrorSummary: text("last_error_summary"),
+    resultBody: jsonb("result_body").$type<Record<string, unknown>>(),
+    correlationId: text("correlation_id").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.sourceId],
+      foreignColumns: [integrationSources.organizationId, integrationSources.id],
+      name: "inbound_messages_source_fk",
+    }).onDelete("restrict"),
+    unique("inbound_messages_idempotency_unique").on(
+      table.organizationId,
+      table.sourceId,
+      table.idempotencyKey,
+    ),
+    unique("inbound_messages_external_unique").on(
+      table.organizationId,
+      table.sourceId,
+      table.eventType,
+      table.externalId,
+    ),
+    check("inbound_messages_hash", sql`${table.payloadSha256} ~ '^[0-9a-f]{64}$'`),
+    check("inbound_messages_attempts", sql`${table.attemptCount} >= 0`),
+  ],
+);
+
+export const inboundMessageAttempts = pgTable(
+  "inbound_message_attempts",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    messageId: text("message_id").notNull(),
+    attemptNumber: integer("attempt_number").notNull(),
+    outcome: inboundAttemptOutcome("outcome").notNull(),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason"),
+    errorCode: text("error_code"),
+    errorSummary: text("error_summary"),
+    correlationId: text("correlation_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.messageId],
+      foreignColumns: [inboundMessages.organizationId, inboundMessages.id],
+      name: "inbound_attempts_message_fk",
+    }).onDelete("restrict"),
+    unique("inbound_attempts_number_unique").on(
+      table.organizationId,
+      table.messageId,
+      table.attemptNumber,
+    ),
+    check("inbound_attempts_number", sql`${table.attemptNumber} > 0`),
+  ],
+);
+
 export const outboxEvents = pgTable(
   "outbox_events",
   {
@@ -1601,6 +1727,9 @@ export const schema = {
   evidenceRecords,
   evidenceVersions,
   evidenceAccessEvents,
+  integrationSources,
+  inboundMessages,
+  inboundMessageAttempts,
   outboxEvents,
   postingRuleVersions,
 } as const;

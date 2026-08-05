@@ -431,6 +431,24 @@ tests:
     command: pnpm test:property --filter T-PROP-ERP-330-001
     blocking_gate: G3
 
+  - id: T-INT-ERP-330-002
+    aliases: [T-INT-002]
+    task: ERP-330
+    rules: [BR-INT-002, BR-INT-003]
+    title: Tampered or stale webhook never creates a business mutation and valid unmapped payload is quarantined
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-CONTRACT-ERP-330-003
+    aliases: [T-CON-001]
+    task: ERP-330
+    rules: [BR-INT-001, BR-INT-002, BR-INT-003, BR-AI-003]
+    title: Versioned webhook envelope signature idempotency quarantine and authorized replay contract
+    layer: contract
+    command: pnpm --filter @naai-erp/cli test
+    blocking_gate: G3
+
   - id: T-E2E-ERP-410-001
     aliases: [T-REC-001]
     task: ERP-410

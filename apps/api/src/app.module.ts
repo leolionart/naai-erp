@@ -24,6 +24,9 @@ import { EvidenceController } from "./evidence/evidence.controller.js";
 import { EvidenceService } from "./evidence/evidence.service.js";
 import { PgEvidenceStore } from "./evidence/pg-evidence.store.js";
 import { EvidenceObjectStorage } from "./evidence/evidence-object-storage.js";
+import { InboundWebhookController } from "./inbound-webhooks/inbound-webhook.controller.js";
+import { InboundWebhookService } from "./inbound-webhooks/inbound-webhook.service.js";
+import { PgInboundWebhookStore } from "./inbound-webhooks/pg-inbound-webhook.store.js";
 
 @Module({
   controllers: [
@@ -36,6 +39,7 @@ import { EvidenceObjectStorage } from "./evidence/evidence-object-storage.js";
     CommercialDocumentController,
     ExpenseController,
     EvidenceController,
+    InboundWebhookController,
   ],
   providers: [
     MasterDataService,
@@ -54,6 +58,8 @@ import { EvidenceObjectStorage } from "./evidence/evidence-object-storage.js";
     EvidenceService,
     PgEvidenceStore,
     EvidenceObjectStorage,
+    InboundWebhookService,
+    PgInboundWebhookStore,
   ],
 })
 export class AppModule {}
