@@ -1,0 +1,105 @@
+{
+  "fixtureId": "GF-FORECAST-001",
+  "currency": "VND",
+  "organizationId": "org-naai",
+  "dimensions": {
+    "teamId": "studio",
+    "serviceLineCode": "web-app",
+    "ownerId": "owner-1"
+  },
+  "targets": [
+    {
+      "id": "target-month-v1",
+      "versionNumber": 1,
+      "periodKind": "month",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-08-31",
+      "actualBasis": "recognized",
+      "amountMinor": "100000000",
+      "state": "superseded"
+    },
+    {
+      "id": "target-month-v2",
+      "versionNumber": 2,
+      "previousVersionId": "target-month-v1",
+      "periodKind": "month",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-08-31",
+      "actualBasis": "recognized",
+      "amountMinor": "120000000",
+      "state": "published"
+    },
+    {
+      "id": "target-quarter-v1",
+      "versionNumber": 1,
+      "periodKind": "quarter",
+      "startsOn": "2026-07-01",
+      "endsOn": "2026-09-30",
+      "actualBasis": "invoiced",
+      "amountMinor": "330000000",
+      "state": "published"
+    },
+    {
+      "id": "target-year-v1",
+      "versionNumber": 1,
+      "periodKind": "year",
+      "startsOn": "2026-01-01",
+      "endsOn": "2026-12-31",
+      "actualBasis": "collected",
+      "amountMinor": "1200000000",
+      "state": "published"
+    }
+  ],
+  "actualControls": {
+    "recognizedMinor": "85000000",
+    "invoicedMinor": "90000000",
+    "collectedMinor": "70000000"
+  },
+  "forecasts": [
+    {
+      "id": "forecast-base-aug-v1",
+      "versionNumber": 1,
+      "scenario": "base",
+      "snapshotKind": "month_end",
+      "asOfDate": "2026-08-31",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-12-31",
+      "actualBasis": "recognized",
+      "state": "published"
+    },
+    {
+      "id": "forecast-best-aug-v1",
+      "versionNumber": 1,
+      "scenario": "best",
+      "snapshotKind": "month_end",
+      "asOfDate": "2026-08-31",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-12-31",
+      "actualBasis": "recognized",
+      "state": "published"
+    },
+    {
+      "id": "forecast-worst-aug-v1",
+      "versionNumber": 1,
+      "scenario": "worst",
+      "snapshotKind": "month_end",
+      "asOfDate": "2026-08-31",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-12-31",
+      "actualBasis": "recognized",
+      "state": "published"
+    },
+    {
+      "id": "forecast-custom-aug-v1",
+      "versionNumber": 1,
+      "scenario": "custom",
+      "customScenarioName": "Founder stretch",
+      "snapshotKind": "working",
+      "asOfDate": "2026-08-20",
+      "startsOn": "2026-08-01",
+      "endsOn": "2026-12-31",
+      "actualBasis": "collected",
+      "state": "draft"
+    }
+  ]
+}

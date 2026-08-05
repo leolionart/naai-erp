@@ -96,4 +96,12 @@ export {
   internalTransferCandidateRuns,
   internalTransferCandidates,
   internalTransferEvents,
+  targetPeriodKind,
+  planningActualBasis,
+  planningVersionState,
+  forecastScenario,
+  forecastSnapshotKind,
+  revenueTargetVersions,
+  forecastVersions,
+  planningAuditEvents,
 } from "./schema.js";

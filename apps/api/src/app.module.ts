@@ -77,6 +77,13 @@ import { ProjectProfitabilityController } from "./project-profitability/project-
 import { ProjectProfitabilityService } from "./project-profitability/project-profitability.service.js";
 import { PROJECT_PROFITABILITY_STORE } from "./project-profitability/project-profitability.types.js";
 import { PgProjectProfitabilityStore } from "./project-profitability/pg-project-profitability.store.js";
+import {
+  ForecastVersionController,
+  RevenueTargetController,
+} from "./planning/planning.controller.js";
+import { PlanningService } from "./planning/planning.service.js";
+import { PLANNING_STORE } from "./planning/planning.types.js";
+import { PgPlanningStore } from "./planning/pg-planning.store.js";
 
 @Module({
   controllers: [
@@ -105,6 +112,8 @@ import { PgProjectProfitabilityStore } from "./project-profitability/pg-project-
     OverheadSourcePoolController,
     OverheadRunController,
     ProjectProfitabilityController,
+    RevenueTargetController,
+    ForecastVersionController,
   ],
   providers: [
     MasterDataService,
@@ -158,6 +167,9 @@ import { PgProjectProfitabilityStore } from "./project-profitability/pg-project-
     ProjectProfitabilityService,
     PgProjectProfitabilityStore,
     { provide: PROJECT_PROFITABILITY_STORE, useExisting: PgProjectProfitabilityStore },
+    PlanningService,
+    PgPlanningStore,
+    { provide: PLANNING_STORE, useExisting: PgPlanningStore },
   ],
 })
 export class AppModule {}

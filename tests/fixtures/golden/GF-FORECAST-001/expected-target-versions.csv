@@ -1,0 +1,5 @@
+id,version_number,previous_version_id,period_kind,starts_on,ends_on,actual_basis,amount_minor,state,is_latest
+target-month-v1,1,,month,2026-08-01,2026-08-31,recognized,100000000,superseded,false
+target-month-v2,2,target-month-v1,month,2026-08-01,2026-08-31,recognized,120000000,published,true
+target-quarter-v1,1,,quarter,2026-07-01,2026-09-30,invoiced,330000000,published,true
+target-year-v1,1,,year,2026-01-01,2026-12-31,collected,1200000000,published,true

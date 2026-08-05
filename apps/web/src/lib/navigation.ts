@@ -180,7 +180,7 @@ export const adminNavigation = [
         href: "/forecast",
         description: "Target, scenario và doanh thu dự kiến.",
         icon: "forecast",
-        status: "planned",
+        status: "available",
       },
       {
         key: "reports",

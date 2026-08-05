@@ -85,6 +85,19 @@ export const contractType = pgEnum("contract_type", [
 ]);
 export const journalState = pgEnum("journal_state", ["draft", "approved", "posted", "reversed"]);
 export const postingRuleStatus = pgEnum("posting_rule_status", ["draft", "active", "retired"]);
+export const targetPeriodKind = pgEnum("target_period_kind", ["month", "quarter", "year"]);
+export const planningActualBasis = pgEnum("planning_actual_basis", [
+  "recognized",
+  "invoiced",
+  "collected",
+]);
+export const planningVersionState = pgEnum("planning_version_state", [
+  "draft",
+  "published",
+  "superseded",
+]);
+export const forecastScenario = pgEnum("forecast_scenario", ["base", "best", "worst", "custom"]);
+export const forecastSnapshotKind = pgEnum("forecast_snapshot_kind", ["working", "month_end"]);
 export const commercialDocumentType = pgEnum("commercial_document_type", [
   "sales_invoice",
   "purchase_invoice",
@@ -3956,6 +3969,132 @@ export const internalTransferEvents = pgTable(
   ],
 );
 
+export const revenueTargetVersions = pgTable(
+  "revenue_target_versions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    previousVersionId: text("previous_version_id"),
+    periodKind: targetPeriodKind("period_kind").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on").notNull(),
+    actualBasis: planningActualBasis("actual_basis").notNull(),
+    currency: text("currency").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    teamId: text("team_id"),
+    serviceLineCode: text("service_line_code"),
+    ownerId: text("owner_id"),
+    state: planningVersionState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    publishedBy: text("published_by"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.previousVersionId],
+      foreignColumns: [table.organizationId, table.id],
+      name: "revenue_target_previous_fk",
+    }).onDelete("restrict"),
+    check("revenue_target_version_positive", sql`${table.versionNumber} > 0`),
+    check("revenue_target_amount_nonnegative", sql`${table.amountMinor} >= 0`),
+    check("revenue_target_date_order", sql`${table.endsOn} >= ${table.startsOn}`),
+    check("revenue_target_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("revenue_target_reason", sql`btrim(${table.reason}) <> ''`),
+    index("revenue_target_period_idx").on(table.organizationId, table.startsOn, table.endsOn),
+  ],
+);
+
+export const forecastVersions = pgTable(
+  "forecast_versions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    versionNumber: integer("version_number").notNull(),
+    previousVersionId: text("previous_version_id"),
+    scenario: forecastScenario("scenario").notNull(),
+    customScenarioName: text("custom_scenario_name"),
+    snapshotKind: forecastSnapshotKind("snapshot_kind").notNull(),
+    asOfDate: date("as_of_date").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on").notNull(),
+    actualBasis: planningActualBasis("actual_basis").notNull(),
+    currency: text("currency").notNull(),
+    teamId: text("team_id"),
+    serviceLineCode: text("service_line_code"),
+    ownerId: text("owner_id"),
+    state: planningVersionState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    publishedBy: text("published_by"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.previousVersionId],
+      foreignColumns: [table.organizationId, table.id],
+      name: "forecast_previous_fk",
+    }).onDelete("restrict"),
+    check("forecast_version_positive", sql`${table.versionNumber} > 0`),
+    check("forecast_date_order", sql`${table.endsOn} >= ${table.startsOn}`),
+    check("forecast_as_of_range", sql`${table.asOfDate} <= ${table.endsOn}`),
+    check("forecast_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("forecast_reason", sql`btrim(${table.reason}) <> ''`),
+    check(
+      "forecast_custom_name",
+      sql`(${table.scenario} = 'custom' and ${table.customScenarioName} is not null and btrim(${table.customScenarioName}) <> '') or (${table.scenario} <> 'custom' and ${table.customScenarioName} is null)`,
+    ),
+    index("forecast_period_idx").on(
+      table.organizationId,
+      table.startsOn,
+      table.endsOn,
+      table.asOfDate,
+    ),
+  ],
+);
+
+export const planningAuditEvents = pgTable(
+  "planning_audit_events",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: text("resource_id").notNull(),
+    action: text("action").notNull(),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    resourceVersion: bigint("resource_version", { mode: "bigint" }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    check("planning_audit_reason", sql`btrim(${table.reason}) <> ''`),
+    index("planning_audit_resource_idx").on(
+      table.organizationId,
+      table.resourceType,
+      table.resourceId,
+    ),
+  ],
+);
+
 export const postingRuleVersions = pgTable(
   "posting_rule_versions",
   {
@@ -4091,5 +4230,8 @@ export const schema = {
   internalTransferCandidateRuns,
   internalTransferCandidates,
   internalTransferEvents,
+  revenueTargetVersions,
+  forecastVersions,
+  planningAuditEvents,
   postingRuleVersions,
 } as const;

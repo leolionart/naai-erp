@@ -1,0 +1,5 @@
+id,version_number,scenario,custom_name,snapshot_kind,as_of_date,starts_on,ends_on,actual_basis,state,immutable_snapshot
+forecast-base-aug-v1,1,base,,month_end,2026-08-31,2026-08-01,2026-12-31,recognized,published,true
+forecast-best-aug-v1,1,best,,month_end,2026-08-31,2026-08-01,2026-12-31,recognized,published,true
+forecast-worst-aug-v1,1,worst,,month_end,2026-08-31,2026-08-01,2026-12-31,recognized,published,true
+forecast-custom-aug-v1,1,custom,Founder stretch,working,2026-08-20,2026-08-01,2026-12-31,collected,draft,false

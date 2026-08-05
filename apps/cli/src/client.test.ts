@@ -106,6 +106,37 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(fetchFn.mock.calls[0]?.[0]).not.toContain("master-data");
   });
 
+  it.each([
+    [
+      "revenue-targets",
+      "list",
+      undefined,
+      "revenue-targets?periodKind=month&actualBasis=recognized",
+    ],
+    ["forecast-versions", "publish", "forecast-1", "forecast-versions/forecast-1/publish"],
+  ])("routes ERP-600 %s %s through planning API", async (resource, action, key, suffix) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      resource,
+      action,
+      action === "list"
+        ? { periodKind: "month", actualBasis: "recognized" }
+        : { schemaVersion: 1, expectedResourceVersion: "1", reason: "Publish" },
+      key,
+    );
+    expect(fetchFn.mock.calls[0]?.[0]).toContain(`/api/v1/organizations/org-a/${suffix}`);
+    expect(fetchFn.mock.calls[0]?.[0]).not.toContain("master-data");
+  });
+
   it("posts journals through the accounting API with idempotency", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: { state: "posted" } }), {

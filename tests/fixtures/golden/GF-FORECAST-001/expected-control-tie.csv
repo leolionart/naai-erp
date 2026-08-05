@@ -1,0 +1,9 @@
+control,source_value,fixture_value,difference,status
+target_version_count,4,4,0,tied_out
+latest_target_count,3,3,0,tied_out
+recognized_latest_target_minor,120000000,120000000,0,tied_out
+invoiced_latest_target_minor,330000000,330000000,0,tied_out
+collected_latest_target_minor,1200000000,1200000000,0,tied_out
+scenario_count,4,4,0,tied_out
+month_end_snapshot_count,3,3,0,tied_out
+actual_basis_count,3,3,0,tied_out

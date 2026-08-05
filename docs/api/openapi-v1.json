@@ -39,6 +39,12 @@
     "reports/general-ledger",
     "opening-balances/dry-run",
     "opening-balances/create",
+    "revenue-targets/create",
+    "revenue-targets/publish",
+    "revenue-targets/supersede",
+    "forecast-versions/create",
+    "forecast-versions/publish",
+    "forecast-versions/supersede",
     "commercial-documents/create",
     "commercial-documents/capture",
     "commercial-documents/validate",
@@ -1786,6 +1792,127 @@
             "description": "Project not found or not reportable in organization base currency"
           }
         }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/revenue-targets": {
+      "get": {
+        "operationId": "listRevenueTargets",
+        "tags": ["planning"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "periodKind",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["month", "quarter", "year"] }
+          },
+          {
+            "name": "actualBasis",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["recognized", "invoiced", "collected"] }
+          },
+          { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": { "description": "Versioned monthly, quarterly, and yearly revenue targets" }
+        }
+      },
+      "post": {
+        "operationId": "createRevenueTarget",
+        "tags": ["planning"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": {
+            "description": "Draft target with explicit actual basis and organization dimensions"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/revenue-targets/{id}": {
+      "get": {
+        "operationId": "getRevenueTarget",
+        "tags": ["planning"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Revenue target version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/revenue-targets/{id}/{action}": {
+      "post": {
+        "operationId": "transitionRevenueTarget",
+        "tags": ["planning"],
+        "summary": "Publish or supersede a target version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Audited immutable target transition" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions": {
+      "get": {
+        "operationId": "listForecastVersions",
+        "tags": ["planning"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "scenario",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["base", "best", "worst", "custom"] }
+          },
+          {
+            "name": "snapshotKind",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["working", "month_end"] }
+          },
+          {
+            "name": "actualBasis",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["recognized", "invoiced", "collected"] }
+          },
+          { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Base, best, worst, and custom forecast versions including retained month-end snapshots"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createForecastVersion",
+        "tags": ["planning"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": {
+          "201": {
+            "description": "Draft forecast scenario version without overwriting actual data"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions/{id}": {
+      "get": {
+        "operationId": "getForecastVersion",
+        "tags": ["planning"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Forecast version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions/{id}/{action}": {
+      "post": {
+        "operationId": "transitionForecastVersion",
+        "tags": ["planning"],
+        "summary": "Publish or supersede a working forecast; month-end snapshots cannot be superseded",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Audited forecast transition" } }
       }
     }
   },

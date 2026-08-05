@@ -746,6 +746,28 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- project-profitability.integration
     blocking_gate: G5
 
+  - id: T-FIXTURE-ERP-600-001
+    aliases: [T-FCT-001]
+    task: ERP-600
+    rules: [BR-FCT-001]
+    title: Monthly quarterly and yearly target versions retain exact basis-specific values
+    layer: fixture
+    fixture: GF-FORECAST-001
+    oracle: reviewed-spreadsheet
+    command: node tests/fixtures/golden/GF-FORECAST-001/verify.mjs && pnpm --filter @naai-erp/domain test
+    blocking_gate: G6
+
+  - id: T-E2E-ERP-600-002
+    aliases: [T-FCT-002]
+    task: ERP-600
+    rules: [BR-FCT-002]
+    title: Scenario versions and retained month-end snapshots remain separate from actual data
+    layer: e2e
+    fixture: GF-FORECAST-001
+    oracle: reviewed-spreadsheet
+    command: node tests/fixtures/golden/GF-FORECAST-001/verify.mjs && pnpm --filter @naai-erp/web test:e2e -- planning.spec.ts
+    blocking_gate: G6
+
   - id: T-E2E-ERP-640-001
     aliases: [T-KPI-005]
     task: ERP-640

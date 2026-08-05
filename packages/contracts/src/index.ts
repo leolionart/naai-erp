@@ -19,6 +19,17 @@ export {
   type ProjectProfitabilityGroupByContract,
   type ProjectProfitabilityQueryContract,
 } from "./project-profitability.js";
+export {
+  PLANNING_CONTRACT_VERSION,
+  type ActualBasisContract,
+  type CreateForecastVersionRequest,
+  type CreateRevenueTargetVersionRequest,
+  type ForecastVersionContract,
+  type PlanningDimensionsContract,
+  type PlanningMutationResult,
+  type PlanningTransitionRequest,
+  type RevenueTargetVersionContract,
+} from "./planning.js";
 
 export type ApiError = Readonly<{
   code: string;

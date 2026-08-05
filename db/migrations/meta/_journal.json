@@ -176,6 +176,13 @@
       "when": 1785950864345,
       "tag": "0024_aberrant_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785970305354,
+      "tag": "0025_handy_the_liberteens",
+      "breakpoints": true
     }
   ]
 }
