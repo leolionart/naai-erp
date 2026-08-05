@@ -2,6 +2,8 @@
 
 Management accounting and project-profitability system for NAAI Studio.
 
+Canonical repository: https://github.com/leolionart/naai-erp
+
 ## Current status
 
 The project is in planning and repository-foundation phase (`ERP-001`).

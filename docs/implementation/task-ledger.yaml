@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T13:14:00+07:00
+updated_at: 2026-08-05T13:21:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G0
-current_task: ERP-001
+current_task: ERP-002
 
 tasks:
   - id: ERP-000
@@ -20,13 +20,16 @@ tasks:
   - id: ERP-001
     title: Create repository and monorepo
     phase: P0
-    status: in_progress
+    status: done
     dependencies: [ERP-000]
     business_rules: [BR-ORG-001, BR-AUD-001]
     tests: [T-BOOT-001, T-BOOT-002, T-CI-001]
     evidence: docs/implementation/evidence/ERP-001/
     agent: codex-root
     started_at: 2026-08-05T13:14:00+07:00
+    completed_at: 2026-08-05T13:21:00+07:00
+    commit: 6357dd3
+    remote: https://github.com/leolionart/naai-erp
     planned_files:
       - package.json
       - pnpm-workspace.yaml
@@ -40,7 +43,7 @@ tasks:
   - id: ERP-002
     title: Architecture Decision Records
     phase: P0
-    status: blocked
+    status: ready
     dependencies: [ERP-001]
     business_rules: [BR-LED-001, BR-LED-002, BR-REV-001, BR-TAX-001]
     tests: [T-DOC-001]

@@ -10,12 +10,14 @@ Created the NAAI ERP pnpm/Turborepo monorepo foundation with:
 - Shared domain, database, contracts, config, observability and test-fixtures packages.
 - Reserved database, deployment and documentation layout.
 - Node 22 and pnpm 10 toolchain pins.
+- Private GitHub repository created and `main` pushed: https://github.com/leolionart/naai-erp
 
 ## Key decisions
 
 - Business schema remains intentionally absent until ERP-002 ADR approval.
 - Deployment files are placeholders only; Docker/Compose implementation remains ERP-800+.
 - Root baseline quality commands run through Turborepo.
+- GitHub repository is private because the product will contain sensitive financial-domain implementation.
 
 ## Files
 
@@ -23,4 +25,3 @@ Created the NAAI ERP pnpm/Turborepo monorepo foundation with:
 - Applications: `apps/web`, `apps/api`, `apps/worker`.
 - Shared packages: `packages/*`.
 - Layout placeholders: `db/*`, `deploy/*`, `docs/{architecture,api,runbooks}`.
-

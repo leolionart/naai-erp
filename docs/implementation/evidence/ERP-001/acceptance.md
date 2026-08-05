@@ -9,4 +9,5 @@
 | Production builds succeed | PASS | `tests.md` |
 | Health/readiness foundations exist | PASS | Web and API health tests |
 | No business schema created before ADR approval | PASS | `db/migrations/README.md` only |
-
+| Private GitHub repository exists and `main` is pushed | PASS | https://github.com/leolionart/naai-erp |
+| Clean clone passes frozen install and full check | PASS | `/private/tmp/naai-erp-clean.R7uL3d`, commit `6357dd3` |

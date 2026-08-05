@@ -18,10 +18,19 @@ pnpm build                    PASS (9/9 packages; Next.js production build passe
 pnpm -r --depth -1 list       PASS (10 workspace projects including root)
 ```
 
+Clean-clone verification:
+
+```text
+Clone source commit: 6357dd3
+Temporary clone: /private/tmp/naai-erp-clean.R7uL3d
+pnpm install --frozen-lockfile  PASS
+pnpm check                     PASS
+Next.js BUILD_ID               PRESENT
+```
+
 App smoke coverage:
 
 - Web `/health` route test.
 - API `/health/live` and `/health/ready` injection tests.
 - Worker heartbeat test.
 - Domain package identity test.
-
