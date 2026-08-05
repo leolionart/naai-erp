@@ -1,131 +1,50 @@
-export type StatementSessionState = "open" | "closed";
+import type {
+  ApproveStatementExceptionRequest,
+  BankStatementImportLinkContract,
+  BankStatementSessionDetailContract,
+  BankStatementSessionSummaryContract,
+  CloseBankStatementSessionRequest,
+  CreateBankStatementSessionRequest,
+  RejectStatementExceptionRequest,
+  ResolveStatementExceptionRequest,
+  ReviewBankStatementSessionRequest,
+  StatementSuspenseExceptionContract,
+  StatementTransactionControlContract,
+} from "@naai-erp/contracts";
 
-export type StatementSessionContract = Readonly<{
-  id: string;
-  financialAccountId: string;
-  periodStart: string;
-  periodEnd: string;
-  openingBalanceMinor: string;
-  closingBalanceMinor: string;
-  currency: string;
-  state: StatementSessionState;
-  resourceVersion: string;
-  createdBy?: string;
-  closedBy?: string;
-  closedAt?: string;
-  closeReason?: string;
-}>;
-
-export type StatementImportDisposition = Readonly<{
-  importId: string;
-  sourceFilename?: string;
-  rowCount: string;
-  importedCount: string;
-  duplicateCount: string;
-  rejectedCount: string;
-}>;
-
-export type StatementExceptionContract = Readonly<{
-  id: string;
-  kind: "suspense" | "control";
-  bankTransactionId?: string;
-  amountMinor: string;
-  currency: string;
-  ownerId: string;
-  reason: string;
-  reviewDue: string;
-  status: "open" | "approved" | "resolved" | "rejected";
-  resourceVersion: string;
-  approvedBy?: string;
-  approvedAt?: string;
-  approvalReason?: string;
-}>;
-
-export type StatementSessionControl = Readonly<{
-  balance: Readonly<{
-    openingBalanceMinor: string;
-    statementMovementMinor: string;
-    expectedClosingMinor: string;
-    reportedClosingMinor: string;
-    differenceMinor: string;
-    passed: boolean;
-  }>;
-  importDispositions: Readonly<{
-    rowCount: string;
-    importedCount: string;
-    duplicateCount: string;
-    rejectedCount: string;
-    actualRowCount: string;
-    passed: boolean;
-  }>;
-  coverage: Readonly<{
-    transactionCount: number;
-    reconciledCount: number;
-    ignoredCount: number;
-    exceptionCoveredCount: number;
-    uncoveredTransactionIds: readonly string[];
-    passed: boolean;
-  }>;
-  ledgerTie: Readonly<{
-    statementMovementMinor: string;
-    ledgerAccountCode: string;
-    postedLedgerMovementMinor: string;
-    differenceMinor: string;
-    passed: boolean;
-  }>;
-  suspense: Readonly<{
-    suspenseCount: number;
-    unapprovedCount: number;
-    unapprovedAmountMinor: string;
-    passed: boolean;
-  }>;
-  canClose: boolean;
-  blockingCodes: readonly string[];
-}>;
-
-export type StatementSessionDetailContract = Readonly<{
-  session: StatementSessionContract;
-  imports: readonly StatementImportDisposition[];
-  exceptions: readonly StatementExceptionContract[];
-  control: StatementSessionControl;
-}>;
-
+export type StatementSessionContract = BankStatementSessionSummaryContract;
+export type StatementSessionDetailContract = BankStatementSessionDetailContract;
+export type StatementImportDisposition = BankStatementImportLinkContract;
+export type StatementExceptionContract = StatementSuspenseExceptionContract;
+export type StatementTransactionContract = StatementTransactionControlContract;
 export type CreateStatementSessionRequest = CreateBankStatementSessionRequest;
 export type CloseStatementSessionRequest = CloseBankStatementSessionRequest;
+export type ReviewStatementSessionRequest = ReviewBankStatementSessionRequest;
+export type ReviewStatementExceptionRequest =
+  | ApproveStatementExceptionRequest
+  | ResolveStatementExceptionRequest
+  | RejectStatementExceptionRequest;
 
-export type ReviewStatementExceptionRequest = Readonly<{
-  schemaVersion: 1;
-  expectedResourceVersion: string;
-  reason: string;
-  resolutionReference?: string;
-}>;
-export type ApproveStatementExceptionBody = ApproveStatementExceptionRequest;
-export type ResolveStatementExceptionBody = ResolveStatementExceptionRequest;
-export type RejectStatementExceptionBody = RejectStatementExceptionRequest;
+const detailPath = (sessionId: string) =>
+  `banking/statement-sessions/${encodeURIComponent(sessionId)}`;
 
 export const statementSessionApi = Object.freeze({
   list: "banking/statement-sessions",
-  detail(sessionId: string) {
-    return `banking/statement-sessions/${encodeURIComponent(sessionId)}`;
+  detail: detailPath,
+  review(sessionId: string) {
+    return `${detailPath(sessionId)}/review`;
   },
   close(sessionId: string) {
-    return `${this.detail(sessionId)}/close`;
+    return `${detailPath(sessionId)}/close`;
   },
   exceptions(sessionId: string) {
-    return `${this.detail(sessionId)}/exceptions`;
+    return `${detailPath(sessionId)}/exceptions`;
   },
   reviewException(
     sessionId: string,
     exceptionId: string,
     action: "approve" | "resolve" | "reject",
   ) {
-    return `${this.exceptions(sessionId)}/${encodeURIComponent(exceptionId)}/${action}`;
+    return `${detailPath(sessionId)}/exceptions/${encodeURIComponent(exceptionId)}/${action}`;
   },
 });
-import type {
-  ApproveStatementExceptionRequest,
-  CloseBankStatementSessionRequest,
-  CreateBankStatementSessionRequest,
-  RejectStatementExceptionRequest,
-  ResolveStatementExceptionRequest,
-} from "@naai-erp/contracts";

@@ -43,9 +43,11 @@ import {
   statementSessionApi,
   type ApiConnectionSettingsV1,
   type ReviewStatementExceptionRequest,
+  type ReviewStatementSessionRequest,
   type StatementExceptionContract,
   type StatementImportDisposition,
   type StatementSessionDetailContract,
+  type StatementTransactionContract,
 } from "@/lib/api";
 
 type ReviewAction = "approve" | "resolve" | "reject";
@@ -63,6 +65,7 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
   const [reason, setReason] = useState("");
   const [resolutionReference, setResolutionReference] = useState("");
   const [closeDialog, setCloseDialog] = useState(false);
+  const [reviewDialog, setReviewDialog] = useState(false);
 
   useEffect(() => {
     setConnection(loadConnectionSettings(window.localStorage));
@@ -94,7 +97,7 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
     try {
       const body: ReviewStatementExceptionRequest = {
         schemaVersion: 1,
-        expectedResourceVersion: review.exception.resourceVersion,
+        expectedResourceVersion: detail?.session.resourceVersion ?? "",
         reason: reason.trim(),
         ...(review.action === "resolve" ? { resolutionReference: resolutionReference.trim() } : {}),
       };
@@ -115,7 +118,7 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
   }
 
   async function closeSession() {
-    if (!detail || !reason.trim() || !detail.control.canClose) return;
+    if (!detail || !reason.trim() || !detail.control.closable) return;
     setLoading(true);
     try {
       await client.data(statementSessionApi.close(sessionId), {
@@ -137,21 +140,50 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
     }
   }
 
+  async function reviewSession() {
+    if (!detail || !reason.trim()) return;
+    const body: ReviewStatementSessionRequest = {
+      schemaVersion: 1,
+      expectedResourceVersion: detail.session.resourceVersion,
+      reason: reason.trim(),
+    };
+    setLoading(true);
+    try {
+      await client.data(statementSessionApi.review(sessionId), { method: "POST", body });
+      setReviewDialog(false);
+      setReason("");
+      await load();
+      setNotice("Đã review session; close vẫn phụ thuộc control blockers.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Không thể review session.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const imports: readonly FinancialColumn<StatementImportDisposition>[] = [
     {
       id: "import",
       header: "Import",
       cell: (row) => (
         <div className="flex min-w-40 flex-col">
-          <strong>{row.sourceFilename ?? row.importId}</strong>
+          <strong>{row.importId}</strong>
           <span className="text-xs text-muted-foreground">{row.importId}</span>
         </div>
       ),
     },
-    { id: "new", header: "Mới", align: "right", cell: (row) => row.importedCount },
-    { id: "duplicate", header: "Trùng", align: "right", cell: (row) => row.duplicateCount },
-    { id: "rejected", header: "Loại", align: "right", cell: (row) => row.rejectedCount },
-    { id: "status", header: "Disposition", cell: (row) => <span>{row.rowCount} rows</span> },
+    {
+      id: "transactions",
+      header: "Transactions",
+      align: "right",
+      cell: (row) => row.transactionCount,
+    },
+    {
+      id: "accepted",
+      header: "Accepted",
+      align: "right",
+      cell: (row) => row.acceptedTransactionCount,
+    },
   ];
   const exceptions: readonly FinancialColumn<StatementExceptionContract>[] = [
     {
@@ -171,13 +203,13 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
       cell: (row) => <MoneyCell minor={row.amountMinor} />,
     },
     { id: "owner", header: "Owner / due", cell: (row) => `${row.ownerId} · ${row.reviewDue}` },
-    { id: "state", header: "Trạng thái", cell: (row) => <StatusBadge status={row.status} /> },
+    { id: "state", header: "Trạng thái", cell: (row) => <StatusBadge status={row.state} /> },
     {
       id: "actions",
       header: "Review",
       cell: (row) => (
         <div className="flex flex-wrap gap-1">
-          {row.status === "open" ? (
+          {row.state === "pending" ? (
             <Button
               size="sm"
               variant="outline"
@@ -189,7 +221,7 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
               Duyệt
             </Button>
           ) : null}
-          {["open", "approved"].includes(row.status) ? (
+          {["pending", "approved"].includes(row.state) ? (
             <Button
               size="sm"
               variant="outline"
@@ -202,7 +234,7 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
               Giải trình
             </Button>
           ) : null}
-          {["open", "approved"].includes(row.status) ? (
+          {["pending", "approved"].includes(row.state) ? (
             <Button
               size="sm"
               variant="destructive"
@@ -216,6 +248,37 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
           ) : null}
         </div>
       ),
+    },
+  ];
+  const transactions: readonly FinancialColumn<StatementTransactionContract>[] = [
+    { id: "date", header: "Ngày", cell: (row) => row.bookingDate },
+    {
+      id: "transaction",
+      header: "Transaction",
+      cell: (row) => (
+        <Link
+          className="underline underline-offset-4"
+          href={`/banking/reconciliation/${encodeURIComponent(row.bankTransactionId)}`}
+        >
+          {row.bankTransactionId}
+        </Link>
+      ),
+    },
+    {
+      id: "amount",
+      header: "Số tiền",
+      align: "right",
+      cell: (row) => <MoneyCell minor={row.amountMinor} />,
+    },
+    {
+      id: "disposition",
+      header: "Import disposition",
+      cell: (row) => <StatusBadge status={row.disposition} />,
+    },
+    {
+      id: "control",
+      header: "Explanation",
+      cell: (row) => <StatusBadge status={row.controlStatus} />,
     },
   ];
 
@@ -235,6 +298,18 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
             )}
             Tải lại
           </Button>
+          {detail?.session.nextActions.includes("review") ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReason("");
+                setReviewDialog(true);
+              }}
+              disabled={loading}
+            >
+              Review session
+            </Button>
+          ) : null}
           <Button
             onClick={() => {
               setReason("");
@@ -246,11 +321,11 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
           </Button>
         </div>
       </div>
-      <Alert variant={control?.canClose ? "default" : "destructive"}>
-        <AlertTitle>{control?.canClose ? "Sẵn sàng đóng kỳ" : "Chưa thể đóng kỳ"}</AlertTitle>
+      <Alert variant={control?.closable ? "default" : "destructive"}>
+        <AlertTitle>{control?.closable ? "Sẵn sàng đóng kỳ" : "Chưa thể đóng kỳ"}</AlertTitle>
         <AlertDescription>
           {notice}
-          {control?.blockingCodes.length ? ` · Blockers: ${control.blockingCodes.join(", ")}` : ""}
+          {control?.closeBlockers.length ? ` · Blockers: ${control.closeBlockers.join(", ")}` : ""}
         </AlertDescription>
       </Alert>
 
@@ -258,25 +333,25 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
         <KpiCard
           title="Opening"
           period={detail?.session.currency ?? "VND"}
-          value={<MoneyCell minor={control?.balance.openingBalanceMinor ?? "0"} />}
+          value={<MoneyCell minor={detail?.session.openingBalanceMinor ?? "0"} />}
           loading={loading}
         />
         <KpiCard
           title="Statement movement"
           period="Trong kỳ"
-          value={<MoneyCell minor={control?.balance.statementMovementMinor ?? "0"} />}
+          value={<MoneyCell minor={control?.expectedMovementMinor ?? "0"} />}
           loading={loading}
         />
         <KpiCard
           title="Reported closing"
           period="Sao kê"
-          value={<MoneyCell minor={control?.balance.reportedClosingMinor ?? "0"} />}
+          value={<MoneyCell minor={detail?.session.closingBalanceMinor ?? "0"} />}
           loading={loading}
         />
         <KpiCard
           title="Control difference"
-          period={control?.balance.passed ? "Passed" : "Blocked"}
-          value={<MoneyCell minor={control?.balance.differenceMinor ?? "0"} />}
+          period={control?.controlDifferenceMinor === "0" ? "Passed" : "Blocked"}
+          value={<MoneyCell minor={control?.controlDifferenceMinor ?? "0"} />}
           loading={loading}
         />
       </div>
@@ -284,41 +359,28 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Statement vs ledger movement</CardTitle>
-            <CardDescription>Movement tie phải pass trước khi đóng.</CardDescription>
+            <CardTitle>Statement control movement</CardTitle>
+            <CardDescription>
+              Expected movement và control difference do API xác định.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <Meta
-              label="Statement"
+              label="Expected movement"
               value={
-                <MoneyCell
-                  minor={control?.ledgerTie.statementMovementMinor ?? "0"}
-                  className="text-left"
-                />
-              }
-            />
-            <Meta
-              label="Ledger"
-              value={
-                <MoneyCell
-                  minor={control?.ledgerTie.postedLedgerMovementMinor ?? "0"}
-                  className="text-left"
-                />
+                <MoneyCell minor={control?.expectedMovementMinor ?? "0"} className="text-left" />
               }
             />
             <Meta
               label="Difference"
               value={
-                <MoneyCell
-                  minor={control?.ledgerTie.differenceMinor ?? "0"}
-                  className="text-left"
-                />
+                <MoneyCell minor={control?.controlDifferenceMinor ?? "0"} className="text-left" />
               }
             />
             <Meta
               label="Kết quả"
               value={
-                control?.ledgerTie.passed ? (
+                control?.controlDifferenceMinor === "0" ? (
                   <Badge variant="secondary">
                     <CheckCircle2Icon data-icon="inline-start" />
                     Passed
@@ -337,16 +399,14 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
           <CardHeader>
             <CardTitle>Transaction explanation</CardTitle>
             <CardDescription>
-              Reconciled, transfer, ignored và unexplained được trình bày riêng.
+              Accepted, explained và pending exception được server tổng hợp.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Meta label="Total" value={control?.coverage.transactionCount ?? 0} />
-            <Meta label="Reconciled" value={control?.coverage.reconciledCount ?? 0} />
-            <Meta label="Ignored" value={control?.coverage.ignoredCount ?? 0} />
-            <Meta label="Exception covered" value={control?.coverage.exceptionCoveredCount ?? 0} />
-            <Meta label="Uncovered" value={control?.coverage.uncoveredTransactionIds.length ?? 0} />
-            <Meta label="Coverage" value={control?.coverage.passed ? "Passed" : "Blocked"} />
+            <Meta label="Accepted" value={control?.acceptedTransactionCount ?? 0} />
+            <Meta label="Explained" value={control?.explainedTransactionCount ?? 0} />
+            <Meta label="Pending exceptions" value={control?.pendingExceptionCount ?? 0} />
+            <Meta label="Closable" value={control?.closable ? "Yes" : "No"} />
           </CardContent>
         </Card>
       </div>
@@ -369,11 +429,26 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
       </Card>
       <Card>
         <CardHeader>
+          <CardTitle>Transaction dispositions và explanations</CardTitle>
+          <CardDescription>
+            Accepted/duplicate/excluded tách biệt với reconciliation/control status.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FinancialDataTable
+            rows={detail?.transactions ?? []}
+            columns={transactions}
+            rowKey={(row) => row.id}
+            loading={loading}
+          />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle>Suspense và control exceptions</CardTitle>
           <CardDescription>
-            Suspense: {control?.suspense.suspenseCount ?? 0} · unapproved{" "}
-            {control?.suspense.unapprovedCount ?? 0} · amount{" "}
-            {control?.suspense.unapprovedAmountMinor ?? "0"}. Approval/resolution luôn cần reason.
+            Pending exceptions: {control?.pendingExceptionCount ?? 0}. Approval/resolution luôn cần
+            reason.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -473,19 +548,19 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
           <AlertDialogHeader>
             <AlertDialogTitle>Đóng kỳ sao kê?</AlertDialogTitle>
             <AlertDialogDescription>
-              {control?.canClose
+              {control?.closable
                 ? "Control totals, coverage và suspense gates đã pass. Hành động sẽ khóa session."
-                : `Không thể đóng. Blockers: ${control?.blockingCodes.join(", ") || "chưa tải control detail"}`}
+                : `Không thể đóng. Blockers: ${control?.closeBlockers.join(", ") || "chưa tải control detail"}`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <FieldGroup>
-            <Field data-disabled={!control?.canClose}>
+            <Field data-disabled={!control?.closable}>
               <FieldLabel htmlFor="close-reason">Lý do đóng kỳ</FieldLabel>
               <Input
                 id="close-reason"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
-                disabled={!control?.canClose}
+                disabled={!control?.closable}
               />
             </Field>
           </FieldGroup>
@@ -493,13 +568,38 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
             <AlertDialogCancel>Chưa đóng</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void closeSession()}
-              disabled={!control?.canClose || !reason.trim() || loading}
+              disabled={!control?.closable || !reason.trim() || loading}
             >
               Xác nhận đóng kỳ
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={reviewDialog} onOpenChange={setReviewDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review kỳ sao kê</DialogTitle>
+            <DialogDescription>
+              Xác nhận đã kiểm tra import, transaction explanations và exception context.
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="review-session-reason">Lý do review</FieldLabel>
+              <Input
+                id="review-session-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button onClick={() => void reviewSession()} disabled={!reason.trim() || loading}>
+              Xác nhận review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
