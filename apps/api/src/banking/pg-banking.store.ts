@@ -451,7 +451,7 @@ export class PgBankingStore implements BankingStore {
             result.raw,
             result.rawSha256,
             result.outcome,
-            result.errorCodes,
+            JSON.stringify(result.errorCodes),
             result.transactionId ?? null,
           ],
         );
