@@ -201,19 +201,34 @@ export class PgExpenseStore {
       if (!allowed.includes(input.state)) throw new Error("VALIDATION_FAILED");
       const column = input.axis === "management" ? "management_state" : `${input.axis}_state`;
       const amountColumn = input.axis === "management" ? null : `${input.axis}_eligible_minor`;
-      await c.query(
-        `update expense_lines set ${column}=$4,${amountColumn ? `${amountColumn}=$5,` : ""}reviewed_by=$6,reviewed_at=now(),review_reason=$7,review_reference=$8 where organization_id=$1 and expense_id=$2 and line_number=$3`,
-        [
-          context.organizationId,
-          id,
-          input.lineNumber,
-          input.state,
-          eligible.toString(),
-          context.actorId,
-          input.reason,
-          input.reference ?? null,
-        ],
-      );
+      if (amountColumn) {
+        await c.query(
+          `update expense_lines set ${column}=$4,${amountColumn}=$5,reviewed_by=$6,reviewed_at=now(),review_reason=$7,review_reference=$8 where organization_id=$1 and expense_id=$2 and line_number=$3`,
+          [
+            context.organizationId,
+            id,
+            input.lineNumber,
+            input.state,
+            eligible.toString(),
+            context.actorId,
+            input.reason,
+            input.reference ?? null,
+          ],
+        );
+      } else {
+        await c.query(
+          `update expense_lines set ${column}=$4,reviewed_by=$5,reviewed_at=now(),review_reason=$6,review_reference=$7 where organization_id=$1 and expense_id=$2 and line_number=$3`,
+          [
+            context.organizationId,
+            id,
+            input.lineNumber,
+            input.state,
+            context.actorId,
+            input.reason,
+            input.reference ?? null,
+          ],
+        );
+      }
       await this.refreshSummary(c, context.organizationId, id);
       const version = (BigInt(expense.version) + 1n).toString();
       await c.query(
