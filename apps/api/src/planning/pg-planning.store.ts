@@ -222,7 +222,7 @@ export class PgPlanningStore {
       const nextState = action === "publish" ? "published" : "superseded",
         version = (BigInt(raw.version) + 1n).toString();
       await q.query(
-        `update ${table} set state=$3,version=$4,published_by=case when $3='published' then $5 else published_by end,published_at=case when $3='published' then now() else published_at end,updated_at=now() where organization_id=$1 and id=$2`,
+        `update ${table} set state=$3::planning_version_state,version=$4,published_by=case when $3::planning_version_state='published'::planning_version_state then $5 else published_by end,published_at=case when $3::planning_version_state='published'::planning_version_state then now() else published_at end,updated_at=now() where organization_id=$1 and id=$2`,
         [c.organizationId, id, nextState, version, c.actorId],
       );
       if (action === "publish" && raw.previous_version_id)
