@@ -119,26 +119,23 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       ).statusCode,
     ).toBe(201);
 
-    expect(
-      (
-        await mutate(
-          "milestone-acceptances",
-          undefined,
-          undefined,
-          {
-            schemaVersion: 1,
-            id: "accept520",
-            milestoneId: "milestone520",
-            acceptedAmountMinor: "600",
-            effectiveOn: "2026-08-05",
-            evidenceIds: ["evidence520"],
-            reason: "Client accepted",
-          },
-          makerToken,
-          "accept-create",
-        )
-      ).statusCode,
-    ).toBe(201);
+    const acceptanceCreated = await mutate(
+      "milestone-acceptances",
+      undefined,
+      undefined,
+      {
+        schemaVersion: 1,
+        id: "accept520",
+        milestoneId: "milestone520",
+        acceptedAmountMinor: "600",
+        effectiveOn: "2026-08-05",
+        evidenceIds: ["evidence520"],
+        reason: "Client accepted",
+      },
+      makerToken,
+      "accept-create",
+    );
+    expect(acceptanceCreated.statusCode, acceptanceCreated.body).toBe(201);
     expect(
       (
         await mutate(
