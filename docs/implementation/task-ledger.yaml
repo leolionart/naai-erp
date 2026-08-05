@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T19:40:07+07:00
+updated_at: 2026-08-05T19:49:54+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G4
-current_task: ERP-400
+current_task: ERP-410
 
 tasks:
   - id: ERP-000
@@ -532,7 +532,7 @@ tasks:
   - id: ERP-400
     title: Bank and cash accounts
     phase: P4
-    status: review
+    status: done
     dependencies: [G3]
     business_rules: [BR-BNK-001, BR-BNK-002]
     tests: [T-BNK-001, T-BNK-002]
@@ -540,6 +540,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T19:23:50+07:00
     start_commit: 32fb97e995eea2296ee5a3ec7bbaa2534a4e6569
+    completed_at: 2026-08-05T19:49:54+07:00
+    implementation_commit: b4f22fb088ee88f36845b815ef1ebfc31a27d4c7
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/31007028315
     planned_files:
       - packages/domain/src/banking.ts
       - packages/domain/src/banking.test.ts
@@ -558,7 +561,7 @@ tasks:
   - id: ERP-410
     title: Reconciliation
     phase: P4
-    status: blocked
+    status: ready
     dependencies: [ERP-400]
     business_rules: [BR-REC-001, BR-REC-002, BR-REC-003]
     tests: [T-REC-001, T-REC-002, T-REC-P001]

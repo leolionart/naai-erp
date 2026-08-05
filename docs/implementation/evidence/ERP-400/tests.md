@@ -39,3 +39,5 @@ The in-app Browser runtime returned `No browser is available`; rendered QA there
 The authored PostgreSQL integration tests require `RUN_DB_INTEGRATION=1`. GitHub CI is the authoritative proof for migration execution, constraints, immutable triggers, concurrent duplicate imports, org isolation, audit and outbox behavior.
 
 The first exact-commit CI run (`31006704402`) exposed that the PostgreSQL driver encoded a JavaScript array as a native PostgreSQL array when binding the JSONB `error_codes` column. The store now serializes that value explicitly as JSON; the same integration test remains the regression proof on the repair commit.
+
+The repaired exact commit `b4f22fb088ee88f36845b815ef1ebfc31a27d4c7` passed GitHub CI run [31007028315](https://github.com/leolionart/naai-erp/actions/runs/31007028315), including empty-database migration, PostgreSQL database tests, banking API integration tests, worker tests and desktop/mobile Playwright.
