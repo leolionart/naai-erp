@@ -4,6 +4,7 @@ import {
   AGING_CONTRACT_VERSION,
   BANKING_CONTROL_CONTRACT_VERSION,
   TIME_CONTRACT_VERSION,
+  PROJECT_COST_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -21,6 +22,9 @@ import {
   type CreateTimesheetRequest,
   type LaborCostRateContract,
   type TimesheetContract,
+  type CreateDirectCostAllocationRequest,
+  type DirectCostAllocationContract,
+  type ProjectCostItemContract,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
@@ -361,5 +365,69 @@ describe("AI-native API contracts", () => {
       nextActions: ["retire"],
     };
     expect(rate.rateMinorPerHour).toBe("100000");
+  });
+
+  it("keeps direct project cost basis source linkage and exact splits machine-readable", () => {
+    const request: CreateDirectCostAllocationRequest = {
+      schemaVersion: PROJECT_COST_CONTRACT_VERSION,
+      sourceId: "source-1",
+      reason: "Attribute project tool",
+      splits: [
+        { projectId: "project-a", amountMinor: "600", baseAmountMinor: "600" },
+        { projectId: "project-b", amountMinor: "400", baseAmountMinor: "400" },
+      ],
+    };
+    const allocation: DirectCostAllocationContract = {
+      id: "direct-1",
+      source: {
+        id: request.sourceId,
+        sourceType: "expense_allocation",
+        sourceId: "expense-1",
+        sourceLineId: "line-1",
+        sourceAllocationId: "allocation-1",
+        costClass: "project_tool",
+        basis: "ledger",
+        effectiveOn: "2026-08-15",
+        currency: "VND",
+        amountMinor: "1000",
+        baseAmountMinor: "1000",
+        remainingAmountMinor: "1000",
+        remainingBaseAmountMinor: "1000",
+        disposition: "unallocated",
+        journalId: "journal-source",
+        journalLineId: "journal-line-source",
+        evidenceIds: ["evidence-1"],
+      },
+      splits: [
+        { id: "split-a", ...request.splits[0]! },
+        { id: "split-b", ...request.splits[1]! },
+      ],
+      state: "approved",
+      resourceVersion: "3",
+      nextActions: ["post"],
+      events: [],
+    };
+    const item: ProjectCostItemContract = {
+      id: "direct-1:split-a",
+      projectId: "project-a",
+      costClass: "project_tool",
+      basis: "ledger",
+      effectiveOn: "2026-08-15",
+      currency: "VND",
+      amountMinor: "600",
+      baseAmountMinor: "600",
+      drilldown: {
+        sourceType: "expense_allocation",
+        sourceId: "expense-1",
+        directCostAllocationId: allocation.id,
+        journalId: "journal-reclass",
+        evidenceIds: ["evidence-1"],
+        sourceHref: "/api/v1/organizations/org/expenses/expense-1",
+        journalHref: "/api/v1/organizations/org/journals/journal-reclass",
+        evidenceHrefs: ["/api/v1/organizations/org/evidence/evidence-1"],
+      },
+    };
+    expect(allocation.source.basis).toBe("ledger");
+    expect(item.drilldown.evidenceIds).toEqual(["evidence-1"]);
   });
 });

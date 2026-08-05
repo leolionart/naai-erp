@@ -125,3 +125,19 @@ export {
   type WorkerCapacityVersionContract,
   type WorkforceProfileContract,
 } from "./time.js";
+export {
+  PROJECT_COST_CONTRACT_VERSION,
+  type CreateDirectCostAllocationRequest,
+  type CreateDirectCostSplitRequest,
+  type DirectCostAllocationContract,
+  type DirectCostAllocationEventContract,
+  type DirectCostAllocationMutationResult,
+  type DirectCostAllocationTransitionRequest,
+  type DirectCostSplitContract,
+  type ProjectCostBasisContract,
+  type ProjectCostClassContract,
+  type ProjectCostDrilldownContract,
+  type ProjectCostItemContract,
+  type ProjectCostSourceContract,
+  type ProjectCostSourceTypeContract,
+} from "./project-costs.js";

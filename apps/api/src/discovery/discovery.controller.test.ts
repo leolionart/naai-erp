@@ -19,6 +19,9 @@ describe("headless API discovery", () => {
     expect(spec.json().paths).toHaveProperty(
       "/api/v1/organizations/{organizationId}/time/capacity-summary",
     );
+    expect(spec.json().paths).toHaveProperty(
+      "/api/v1/organizations/{organizationId}/direct-cost-allocations",
+    );
     const caps = await app.inject({ method: "GET", url: "/api/v1/capabilities" });
     expect(caps.statusCode).toBe(200);
     expect(caps.json().operations).toEqual(
@@ -33,6 +36,10 @@ describe("headless API discovery", () => {
           organizationScoped: true,
         }),
         expect.objectContaining({ operationId: "createTimesheet", organizationScoped: true }),
+        expect.objectContaining({
+          operationId: "createDirectCostAllocation",
+          organizationScoped: true,
+        }),
       ]),
     );
     expect(caps.json().authentication.scheme).toBe("bearer");

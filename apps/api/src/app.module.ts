@@ -57,6 +57,10 @@ import { WorkforceController } from "./workforce/workforce.controller.js";
 import { WorkforceService } from "./workforce/workforce.service.js";
 import { WORKFORCE_STORE } from "./workforce/workforce.types.js";
 import { PgWorkforceStore } from "./workforce/pg-workforce.store.js";
+import { ProjectCostController } from "./project-costs/project-cost.controller.js";
+import { ProjectCostService } from "./project-costs/project-cost.service.js";
+import { PROJECT_COST_STORE } from "./project-costs/project-cost.types.js";
+import { PgProjectCostStore } from "./project-costs/pg-project-cost.store.js";
 
 @Module({
   controllers: [
@@ -79,6 +83,7 @@ import { PgWorkforceStore } from "./workforce/pg-workforce.store.js";
     AgingController,
     BankingControlController,
     WorkforceController,
+    ProjectCostController,
   ],
   providers: [
     MasterDataService,
@@ -120,6 +125,9 @@ import { PgWorkforceStore } from "./workforce/pg-workforce.store.js";
     WorkforceService,
     PgWorkforceStore,
     { provide: WORKFORCE_STORE, useExisting: PgWorkforceStore },
+    ProjectCostService,
+    PgProjectCostStore,
+    { provide: PROJECT_COST_STORE, useExisting: PgProjectCostStore },
   ],
 })
 export class AppModule {}

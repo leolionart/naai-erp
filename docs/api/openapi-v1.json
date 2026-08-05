@@ -1235,6 +1235,144 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/project-costs": {
+      "get": {
+        "operationId": "listProjectCosts",
+        "tags": ["project-costs"],
+        "summary": "listProjectCosts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-costs/{id}": {
+      "get": {
+        "operationId": "getProjectCost",
+        "tags": ["project-costs"],
+        "summary": "getProjectCost",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-cost-sources/unallocated": {
+      "get": {
+        "operationId": "listUnallocatedProjectCostSources",
+        "tags": ["project-costs"],
+        "summary": "listUnallocatedProjectCostSources",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/direct-cost-allocations": {
+      "get": {
+        "operationId": "listDirectCostAllocations",
+        "tags": ["project-costs"],
+        "summary": "listDirectCostAllocations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createDirectCostAllocation",
+        "tags": ["project-costs"],
+        "summary": "createDirectCostAllocation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/direct-cost-allocations/{id}": {
+      "get": {
+        "operationId": "getDirectCostAllocation",
+        "tags": ["project-costs"],
+        "summary": "getDirectCostAllocation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/direct-cost-allocations/{id}/{action}": {
+      "post": {
+        "operationId": "transitionDirectCostAllocation",
+        "tags": ["project-costs"],
+        "summary": "transitionDirectCostAllocation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful ERP-510 response"
+          },
+          "201": {
+            "description": "Successful ERP-510 mutation"
+          }
+        }
+      }
     }
   },
   "components": {

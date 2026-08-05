@@ -270,6 +270,22 @@ export const timesheetAdjustmentState = pgEnum("timesheet_adjustment_state", [
   "approved",
   "rejected",
 ]);
+export const projectCostSourceType = pgEnum("project_cost_source_type", [
+  "expense",
+  "commercial_document",
+  "journal_line",
+  "timesheet",
+  "adjustment",
+]);
+export const projectCostClass = pgEnum("project_cost_class", ["direct", "overhead_reserved"]);
+export const projectCostBasis = pgEnum("project_cost_basis", ["ledger", "management"]);
+export const directCostAllocationState = pgEnum("direct_cost_allocation_state", [
+  "draft",
+  "submitted",
+  "approved",
+  "posted",
+  "reversed",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1102,6 +1118,137 @@ export const workforceCapacityVersions = pgTable(
       table.effectiveFrom,
       table.effectiveTo,
     ),
+  ],
+);
+
+export const projectCostItems = pgTable(
+  "project_cost_items",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    sourceType: projectCostSourceType("source_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceLineId: text("source_line_id"),
+    projectId: text("project_id"),
+    costClass: projectCostClass("cost_class").notNull(),
+    basis: projectCostBasis("basis").notNull(),
+    effectiveOn: date("effective_on").notNull(),
+    ledgerAccountCode: text("ledger_account_code").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    journalId: text("journal_id"),
+    evidenceId: text("evidence_id"),
+    description: text("description").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("project_cost_items_source_unique").on(
+      table.organizationId,
+      table.sourceType,
+      table.sourceId,
+      table.sourceLineId,
+      table.basis,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "project_cost_items_project_fk",
+    }).onDelete("restrict"),
+    check(
+      "project_cost_items_amount_positive",
+      sql`${table.amountMinor} > 0 and ${table.baseAmountMinor} > 0`,
+    ),
+    check("project_cost_items_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("project_cost_items_description", sql`btrim(${table.description}) <> ''`),
+    index("project_cost_items_unallocated_idx").on(
+      table.organizationId,
+      table.projectId,
+      table.costClass,
+      table.basis,
+    ),
+  ],
+);
+
+export const directCostAllocations = pgTable(
+  "direct_cost_allocations",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    sourceCostItemId: text("source_cost_item_id").notNull(),
+    allocatableAmountMinor: bigint("allocatable_amount_minor", { mode: "bigint" }).notNull(),
+    allocatableBaseAmountMinor: bigint("allocatable_base_amount_minor", {
+      mode: "bigint",
+    }).notNull(),
+    state: directCostAllocationState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    submittedBy: text("submitted_by"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    postedBy: text("posted_by"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    journalId: text("journal_id"),
+    reversedBy: text("reversed_by"),
+    reversedAt: timestamp("reversed_at", { withTimezone: true }),
+    reversalJournalId: text("reversal_journal_id"),
+    reversalReason: text("reversal_reason"),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.sourceCostItemId],
+      foreignColumns: [projectCostItems.organizationId, projectCostItems.id],
+      name: "direct_cost_allocations_source_fk",
+    }).onDelete("restrict"),
+    check(
+      "direct_cost_allocations_amount",
+      sql`${table.allocatableAmountMinor} > 0 and ${table.allocatableBaseAmountMinor} > 0`,
+    ),
+    check("direct_cost_allocations_version", sql`${table.version} > 0`),
+    index("direct_cost_allocations_source_state_idx").on(
+      table.organizationId,
+      table.sourceCostItemId,
+      table.state,
+    ),
+  ],
+);
+
+export const directCostAllocationSplits = pgTable(
+  "direct_cost_allocation_splits",
+  {
+    organizationId: text("organization_id").notNull(),
+    allocationId: text("allocation_id").notNull(),
+    lineNumber: integer("line_number").notNull(),
+    projectId: text("project_id").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
+    reason: text("reason").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.allocationId, table.lineNumber] }),
+    foreignKey({
+      columns: [table.organizationId, table.allocationId],
+      foreignColumns: [directCostAllocations.organizationId, directCostAllocations.id],
+      name: "direct_cost_allocation_splits_allocation_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "direct_cost_allocation_splits_project_fk",
+    }).onDelete("restrict"),
+    check("direct_cost_allocation_splits_line", sql`${table.lineNumber} > 0`),
+    check(
+      "direct_cost_allocation_splits_amount",
+      sql`${table.amountMinor} > 0 and ${table.baseAmountMinor} > 0`,
+    ),
+    check("direct_cost_allocation_splits_reason", sql`btrim(${table.reason}) <> ''`),
   ],
 );
 
@@ -3278,6 +3425,9 @@ export const schema = {
   timesheetCostSnapshots,
   timesheetAdjustments,
   workforceCapacityVersions,
+  projectCostItems,
+  directCostAllocations,
+  directCostAllocationSplits,
   contracts,
   milestones,
   resourceVersions,

@@ -67,7 +67,10 @@ export class NaaiErpClient {
     const isCostRate = resource === "cost-rates";
     const isCapacityVersion = resource === "capacity-versions";
     const isTimeSummary = resource === "time-summary";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isProjectCost = resource === "project-costs";
+    const isProjectCostSource = resource === "project-cost-sources";
+    const isDirectCostAllocation = resource === "direct-cost-allocations";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" ||
       action === "get" ||
@@ -117,70 +120,73 @@ export class NaaiErpClient {
                         ? `${base}/${key}/${action}`
                         : isWorker && action === "deactivate"
                           ? `${base}/${key}/deactivate`
-                          : isJournal && ["approve", "post", "reverse", "repost"].includes(action)
+                          : isDirectCostAllocation &&
+                              ["submit", "approve", "post", "reverse"].includes(action)
                             ? `${base}/${key}/${action}`
-                            : isPostingRule && action === "evaluate"
-                              ? `${base}/evaluate`
-                              : isCommercialDocument &&
-                                  [
-                                    "capture",
-                                    "validate",
-                                    "verify",
-                                    "approve",
-                                    "issue",
-                                    "post",
-                                    "cancel",
-                                  ].includes(action)
-                                ? `${base}/${key}/${action}`
-                                : isBankImport && action === "dry-run"
-                                  ? `${base}/dry-run`
-                                  : isBankTransaction &&
-                                      ["ignore", "mark-needs-review"].includes(action)
-                                    ? `${base}/${key}/${action}`
+                            : isJournal && ["approve", "post", "reverse", "repost"].includes(action)
+                              ? `${base}/${key}/${action}`
+                              : isPostingRule && action === "evaluate"
+                                ? `${base}/evaluate`
+                                : isCommercialDocument &&
+                                    [
+                                      "capture",
+                                      "validate",
+                                      "verify",
+                                      "approve",
+                                      "issue",
+                                      "post",
+                                      "cancel",
+                                    ].includes(action)
+                                  ? `${base}/${key}/${action}`
+                                  : isBankImport && action === "dry-run"
+                                    ? `${base}/dry-run`
                                     : isBankTransaction &&
-                                        [
-                                          "candidates",
-                                          "suggest",
-                                          "match",
-                                          "reconcile",
-                                          "unreconcile",
-                                        ].includes(action)
+                                        ["ignore", "mark-needs-review"].includes(action)
                                       ? `${base}/${key}/${action}`
-                                      : isBankTransaction && action === "transfer-candidates"
-                                        ? `${base}/${key}/transfer-candidates`
-                                        : isInternalTransfer &&
-                                            ["match", "unmatch"].includes(action)
-                                          ? `${base}/${key}/${action}`
-                                          : isEvidence &&
-                                              ["review", "download-url"].includes(action)
+                                      : isBankTransaction &&
+                                          [
+                                            "candidates",
+                                            "suggest",
+                                            "match",
+                                            "reconcile",
+                                            "unreconcile",
+                                          ].includes(action)
+                                        ? `${base}/${key}/${action}`
+                                        : isBankTransaction && action === "transfer-candidates"
+                                          ? `${base}/${key}/transfer-candidates`
+                                          : isInternalTransfer &&
+                                              ["match", "unmatch"].includes(action)
                                             ? `${base}/${key}/${action}`
-                                            : isInboundEvent && action === "replay"
-                                              ? `${base}/${key}/replay`
-                                              : isOutboundEvent && action === "replay"
+                                            : isEvidence &&
+                                                ["review", "download-url"].includes(action)
+                                              ? `${base}/${key}/${action}`
+                                              : isInboundEvent && action === "replay"
                                                 ? `${base}/${key}/replay`
-                                                : isExpense &&
-                                                    [
-                                                      "submit",
-                                                      "mark-evidence-pending",
-                                                      "review",
-                                                      "approve",
-                                                      "reject",
-                                                      "post",
-                                                    ].includes(action)
-                                                  ? `${base}/${key}/${action}`
-                                                  : isReport
-                                                    ? `${base}/${action}`
-                                                    : isOpeningBalance && action === "dry-run"
-                                                      ? `${base}/dry-run`
-                                                      : isPeriodWorkflow
-                                                        ? `${base}/${action}`
-                                                        : action === "deactivate"
-                                                          ? `${base}/${key}/deactivate`
-                                                          : action === "import"
-                                                            ? `${base}/import/dry-run`
-                                                            : action === "export"
-                                                              ? `${base}/export`
-                                                              : base;
+                                                : isOutboundEvent && action === "replay"
+                                                  ? `${base}/${key}/replay`
+                                                  : isExpense &&
+                                                      [
+                                                        "submit",
+                                                        "mark-evidence-pending",
+                                                        "review",
+                                                        "approve",
+                                                        "reject",
+                                                        "post",
+                                                      ].includes(action)
+                                                    ? `${base}/${key}/${action}`
+                                                    : isReport
+                                                      ? `${base}/${action}`
+                                                      : isOpeningBalance && action === "dry-run"
+                                                        ? `${base}/dry-run`
+                                                        : isPeriodWorkflow
+                                                          ? `${base}/${action}`
+                                                          : action === "deactivate"
+                                                            ? `${base}/${key}/deactivate`
+                                                            : action === "import"
+                                                              ? `${base}/import/dry-run`
+                                                              : action === "export"
+                                                                ? `${base}/export`
+                                                                : base;
     const query =
       (isReport ||
         isOutboundEvent ||
@@ -197,7 +203,10 @@ export class NaaiErpClient {
         isTimesheet ||
         isCostRate ||
         isCapacityVersion ||
-        isTimeSummary) &&
+        isTimeSummary ||
+        isProjectCost ||
+        isProjectCostSource ||
+        isDirectCostAllocation) &&
       method === "GET" &&
       payload &&
       typeof payload === "object"

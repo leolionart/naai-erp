@@ -144,6 +144,14 @@ export const adminNavigation = [
         icon: "settings",
         status: "available",
       },
+      {
+        key: "project-costs",
+        label: "Chi phí dự án",
+        href: "/project-costs/unallocated",
+        description: "Phân bổ direct cost và drill-down chi phí theo dự án.",
+        icon: "project",
+        status: "available",
+      },
     ],
   },
   {

@@ -938,4 +938,60 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it.each([
+    ["project-costs", "project-costs"],
+    ["project-cost-sources", "project-cost-sources/unallocated"],
+    ["direct-cost-allocations", "direct-cost-allocations"],
+  ])("lists %s through immutable source-linked cost routes", async (resource, path) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(resource, "list", { projectId: "project-1", basis: "ledger" });
+    expect(fetchFn).toHaveBeenCalledWith(
+      `http://api/api/v1/organizations/org-a/${path}?projectId=project-1&basis=ledger`,
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it.each(["submit", "approve", "post", "reverse"])(
+    "calls direct cost allocation %s with controlled mutation headers",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "direct-cost-allocations",
+        action,
+        { schemaVersion: 1, expectedResourceVersion: "2", reason: "Reviewed" },
+        "direct-1",
+        "2",
+        `direct-${action}-1`,
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/direct-cost-allocations/direct-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "idempotency-key": `direct-${action}-1`,
+            "if-match": "2",
+          }),
+        }),
+      );
+    },
+  );
 });
