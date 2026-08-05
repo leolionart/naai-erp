@@ -198,7 +198,25 @@ tests:
     layer: property
     fixture: GF-LEDGER-001
     oracle: beancount
-    command: pnpm test:property --filter T-PROP-ERP-200-001
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G2
+
+  - id: T-UNIT-ERP-200-001
+    aliases: [T-LED-001]
+    task: ERP-200
+    rules: [BR-LED-001, BR-LED-003]
+    title: Journal lines use exact positive minor units and posted journals are immutable
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G2
+
+  - id: T-CONTRACT-ERP-200-001
+    aliases: [T-LED-002]
+    task: ERP-200
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-LED-001, BR-LED-004]
+    title: Journal draft and posting operations are available through versioned API and CLI
+    layer: contract
+    command: pnpm --filter @naai-erp/api test && pnpm --filter @naai-erp/cli test
     blocking_gate: G2
 
   - id: T-INT-ERP-200-001
@@ -207,7 +225,7 @@ tests:
     rules: [BR-LED-002, BR-LED-004]
     title: Posting and outbox are atomic and idempotent
     layer: integration
-    command: pnpm test:integration --filter T-INT-ERP-200-001
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test && DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G2
 
   - id: T-E2E-ERP-300-001

@@ -9,6 +9,10 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   IDEMPOTENCY_KEY_REQUIRED: 400,
   "Idempotency key was reused with a different request": 409,
   "Resource version conflict": 409,
+  IDEMPOTENCY_CONFLICT: 409,
+  JOURNAL_ALREADY_POSTED: 409,
+  INVALID_JOURNAL_STATE: 409,
+  JOURNAL_UNBALANCED: 422,
 };
 
 @Catch()

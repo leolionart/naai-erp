@@ -52,4 +52,25 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(JSON.stringify(packageJson.default)).not.toContain("@naai-erp/database");
     expect(JSON.stringify(packageJson.default)).not.toContain("pg");
   });
+
+  it("posts journals through the accounting API with idempotency", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { state: "posted" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("journals", "post", undefined, "journal-1");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/journals/journal-1/post",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": expect.any(String) }),
+      }),
+    );
+  });
 });

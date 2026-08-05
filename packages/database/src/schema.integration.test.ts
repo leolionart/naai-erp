@@ -174,4 +174,38 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       `),
     ).rejects.toMatchObject({ code: "23505" });
   });
+
+  it("enforces journal polarity, tenant references and posted immutability", async () => {
+    await pool!.query(`
+      insert into journal_entries (organization_id,id,journal_date,description,currency)
+      values ('org-a','journal-db-1','2026-08-05','Capital contribution','VND');
+      insert into journal_lines (organization_id,journal_id,line_number,account_code,debit_minor)
+      values ('org-a','journal-db-1',1,'111',500000000);
+      insert into journal_lines (organization_id,journal_id,line_number,account_code,credit_minor)
+      values ('org-a','journal-db-1',2,'511',500000000);
+    `);
+    await expect(
+      pool!.query(`insert into journal_lines
+        (organization_id,journal_id,line_number,account_code,debit_minor,credit_minor)
+        values ('org-a','journal-db-1',3,'111',1,1)`),
+    ).rejects.toMatchObject({ code: "23514" });
+    await expect(
+      pool!.query(`insert into journal_lines
+        (organization_id,journal_id,line_number,account_code,debit_minor)
+        values ('org-b','journal-db-1',3,'111',1)`),
+    ).rejects.toMatchObject({ code: "23503" });
+    await pool!.query(
+      "update journal_entries set state='posted',posted_at=now(),posted_by='user-a' where organization_id='org-a' and id='journal-db-1'",
+    );
+    await expect(
+      pool!.query(
+        "update journal_entries set description='Changed' where organization_id='org-a' and id='journal-db-1'",
+      ),
+    ).rejects.toMatchObject({ code: "55000" });
+    await expect(
+      pool!.query(
+        "update journal_lines set debit_minor=2 where organization_id='org-a' and journal_id='journal-db-1' and line_number=1",
+      ),
+    ).rejects.toMatchObject({ code: "55000" });
+  });
 });

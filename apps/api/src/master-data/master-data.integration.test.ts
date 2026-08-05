@@ -19,7 +19,7 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     `);
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles)
-       values ('org-api-a','cred-1','ai-integration',$1,'["integration"]')`,
+       values ('org-api-a','cred-1','ai-integration',$1,'["integration","finance_admin"]')`,
       [createHash("sha256").update(token).digest("hex")],
     );
     app = await createApp();
@@ -78,5 +78,106 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
       "select count(*)::int as count from resource_audit_events where organization_id='org-api-a' and resource_type='parties'",
     );
     expect(audit.rows[0].count).toBe(1);
+  });
+
+  it("creates and posts a balanced journal atomically with one outbox event", async () => {
+    await pool.query(`
+      insert into accounts (organization_id,code,name,root_type)
+      values ('org-api-a','111','Bank','asset'),('org-api-a','411','Owner capital','equity')
+      on conflict do nothing
+    `);
+    const create = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "journal-create-1" },
+      payload: {
+        id: "journal-api-1",
+        journalDate: "2026-08-05",
+        description: "Capital contribution",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "500000000" },
+          { accountCode: "411", creditMinor: "500000000" },
+        ],
+      },
+    });
+    expect(create.statusCode).toBe(201);
+    const request = {
+      method: "POST" as const,
+      url: "/api/v1/organizations/org-api-a/journals/journal-api-1/post",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "journal-post-1" },
+    };
+    const first = await app.inject(request);
+    expect(first.statusCode).toBe(201);
+    expect(first.json().data.state).toBe("posted");
+    const replay = await app.inject(request);
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json().data.idempotencyReplayed).toBe(true);
+    const counts = await pool.query(`select
+      (select count(*)::int from journal_entries where organization_id='org-api-a' and id='journal-api-1') journals,
+      (select count(*)::int from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-1') events`);
+    expect(counts.rows[0]).toEqual({ journals: 1, events: 1 });
+  });
+
+  it("rejects an unbalanced journal without posting or outbox effects", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "journal-create-2" },
+      payload: {
+        id: "journal-api-2",
+        journalDate: "2026-08-05",
+        description: "Invalid journal",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "100" },
+          { accountCode: "411", creditMinor: "99" },
+        ],
+      },
+    });
+    const result = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals/journal-api-2/post",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "journal-post-2" },
+    });
+    expect(result.statusCode).toBe(422);
+    const state = await pool.query(
+      "select state from journal_entries where organization_id='org-api-a' and id='journal-api-2'",
+    );
+    const events = await pool.query(
+      "select count(*)::int count from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-2'",
+    );
+    expect(state.rows[0].state).toBe("draft");
+    expect(events.rows[0].count).toBe(0);
+  });
+
+  it("serializes concurrent posting retries into one effect", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/journals",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "journal-create-3" },
+      payload: {
+        id: "journal-api-3",
+        journalDate: "2026-08-05",
+        description: "Concurrent post",
+        currency: "VND",
+        lines: [
+          { accountCode: "111", debitMinor: "100" },
+          { accountCode: "411", creditMinor: "100" },
+        ],
+      },
+    });
+    const request = {
+      method: "POST" as const,
+      url: "/api/v1/organizations/org-api-a/journals/journal-api-3/post",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "journal-post-3" },
+    };
+    const responses = await Promise.all([app.inject(request), app.inject(request)]);
+    expect(responses.map((response) => response.statusCode)).toEqual([201, 201]);
+    expect(responses.filter((response) => response.json().data.idempotencyReplayed).length).toBe(1);
+    const events = await pool.query(
+      "select count(*)::int count from outbox_events where organization_id='org-api-a' and aggregate_id='journal-api-3'",
+    );
+    expect(events.rows[0].count).toBe(1);
   });
 });

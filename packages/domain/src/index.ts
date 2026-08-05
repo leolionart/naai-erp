@@ -74,3 +74,17 @@ export {
   type Organization,
   type OrganizationMembership,
 } from "./organization-setup.js";
+export {
+  JOURNAL_STATES,
+  approveJournal,
+  assertJournalBalanced,
+  createDraftJournal,
+  journalTotals,
+  postJournal,
+  reverseJournal,
+  type JournalDimensions,
+  type JournalEntry,
+  type JournalLine,
+  type JournalState,
+  type JournalTotals,
+} from "./journal.js";

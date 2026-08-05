@@ -82,6 +82,7 @@ export const contractType = pgEnum("contract_type", [
   "retainer",
   "internal",
 ]);
+export const journalState = pgEnum("journal_state", ["draft", "approved", "posted", "reversed"]);
 
 export const organizations = pgTable(
   "organizations",
@@ -722,6 +723,118 @@ export const apiCredentials = pgTable(
   ],
 );
 
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    journalDate: date("journal_date").notNull(),
+    description: text("description").notNull(),
+    currency: text("currency").notNull(),
+    state: journalState("state").notNull().default("draft"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: text("posted_by"),
+    reversalOfId: text("reversal_of_id"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("journal_entries_org_reversal_unique").on(table.organizationId, table.reversalOfId),
+    foreignKey({
+      columns: [table.organizationId, table.reversalOfId],
+      foreignColumns: [table.organizationId, table.id],
+      name: "journal_entries_reversal_of_fk",
+    }).onDelete("restrict"),
+    check("journal_entries_description_not_blank", sql`btrim(${table.description}) <> ''`),
+    check("journal_entries_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("journal_entries_version_positive", sql`${table.version} > 0`),
+    check(
+      "journal_entries_posting_metadata",
+      sql`(${table.state} in ('posted','reversed') and ${table.postedAt} is not null and ${table.postedBy} is not null) or (${table.state} in ('draft','approved') and ${table.postedAt} is null and ${table.postedBy} is null)`,
+    ),
+  ],
+);
+
+export const journalLines = pgTable(
+  "journal_lines",
+  {
+    organizationId: text("organization_id").notNull(),
+    journalId: text("journal_id").notNull(),
+    lineNumber: integer("line_number").notNull(),
+    accountCode: text("account_code").notNull(),
+    debitMinor: bigint("debit_minor", { mode: "bigint" }),
+    creditMinor: bigint("credit_minor", { mode: "bigint" }),
+    description: text("description"),
+    dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.journalId, table.lineNumber] }),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "journal_lines_journal_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.accountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "journal_lines_account_fk",
+    }).onDelete("restrict"),
+    check("journal_lines_number_positive", sql`${table.lineNumber} > 0`),
+    check(
+      "journal_lines_debit_xor_credit",
+      sql`(${table.debitMinor} is not null and ${table.debitMinor} > 0 and ${table.creditMinor} is null) or (${table.creditMinor} is not null and ${table.creditMinor} > 0 and ${table.debitMinor} is null)`,
+    ),
+  ],
+);
+
+export const journalPostingCommands = pgTable(
+  "journal_posting_commands",
+  {
+    organizationId: text("organization_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    journalId: text("journal_id").notNull(),
+    requestHash: text("request_hash").notNull(),
+    responseBody: jsonb("response_body").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.idempotencyKey] }),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "journal_posting_commands_journal_fk",
+    }).onDelete("restrict"),
+  ],
+);
+
+export const outboxEvents = pgTable(
+  "outbox_events",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: text("aggregate_id").notNull(),
+    eventType: text("event_type").notNull(),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    correlationId: text("correlation_id").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    check("outbox_schema_version_positive", sql`${table.schemaVersion} > 0`),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -749,4 +862,8 @@ export const schema = {
   apiIdempotencyRecords,
   resourceAuditEvents,
   apiCredentials,
+  journalEntries,
+  journalLines,
+  journalPostingCommands,
+  outboxEvents,
 } as const;

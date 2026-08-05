@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T14:47:55+07:00
+updated_at: 2026-08-05T15:31:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
@@ -203,10 +203,25 @@ tasks:
   - id: ERP-200
     title: Journal aggregate and balanced posting
     phase: P2
-    status: ready
+    status: review
     dependencies: [G1]
     business_rules: [BR-LED-001, BR-LED-002, BR-LED-003, BR-LED-004]
     tests: [T-LED-001, T-LED-002, T-LED-P001, T-LED-I001]
+    evidence: docs/implementation/evidence/ERP-200/
+    agent: codex-root
+    started_at: 2026-08-05T15:18:00+07:00
+    start_commit: 30e5cdc
+    planned_files:
+      - packages/domain/src/journal.ts
+      - packages/domain/src/journal.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/journals/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-200/
 
   - id: ERP-210
     title: Posting rule engine

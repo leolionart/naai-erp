@@ -19,7 +19,8 @@ export class NaaiErpClient {
     key?: string,
     expectedVersion?: string,
   ): Promise<unknown> {
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/master-data/${encodeURIComponent(resource)}`;
+    const isJournal = resource === "journals";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" || action === "get" || action === "export"
         ? "GET"
@@ -31,13 +32,15 @@ export class NaaiErpClient {
         ? base
         : action === "get" || action === "update"
           ? `${base}/${key}`
-          : action === "deactivate"
-            ? `${base}/${key}/deactivate`
-            : action === "import"
-              ? `${base}/import/dry-run`
-              : action === "export"
-                ? `${base}/export`
-                : base;
+          : isJournal && action === "post"
+            ? `${base}/${key}/post`
+            : action === "deactivate"
+              ? `${base}/${key}/deactivate`
+              : action === "import"
+                ? `${base}/import/dry-run`
+                : action === "export"
+                  ? `${base}/export`
+                  : base;
     const correlationId = randomUUID();
     return this.fetchFn(url, {
       method,

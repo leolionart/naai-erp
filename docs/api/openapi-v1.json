@@ -25,6 +25,7 @@
     "contracts",
     "milestones"
   ],
+  "x-naai-workflows": ["journals"],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
       "get": {
@@ -60,6 +61,24 @@
     "/api/v1/organizations/{organizationId}/master-data/{resource}/export": {
       "get": {
         "summary": "Export deterministically ordered JSON"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/journals": {
+      "get": {
+        "summary": "List organization-scoped journals with exact string amounts"
+      },
+      "post": {
+        "summary": "Create an idempotent draft journal"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/journals/{journalId}": {
+      "get": {
+        "summary": "Read a journal and its ordered lines"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/journals/{journalId}/post": {
+      "post": {
+        "summary": "Atomically post a balanced journal with audit and outbox effects"
       }
     }
   },
