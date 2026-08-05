@@ -13,16 +13,31 @@ describeIntegration("ERP-330 inbound webhooks", () => {
   const adminToken = "erp330-admin";
   beforeAll(async () => {
     process.env.ERP330_WEBHOOK_SECRET = secret;
-    await pool.query(
-      `
-    insert into organizations(id,legal_name,base_currency,timezone) values('org-hook','Webhook Org','VND','Asia/Ho_Chi_Minh');
-    insert into accounts(organization_id,code,name,root_type) values('org-hook','111','Cash','asset'),('org-hook','642','Expense','expense');
-    insert into integration_sources(organization_id,id,public_id,name,actor_id,secret_ref,allowed_event_types,created_by)
-      values('org-hook','source-1','public-source-1','Source 1','webhook-source-1','ERP330_WEBHOOK_SECRET','["expense.create"]','admin');
-    insert into api_credentials(organization_id,id,actor_id,token_hash,roles) values('org-hook','hook-admin','admin',$1,'["finance_admin"]')
-  `,
-      [createHash("sha256").update(adminToken).digest("hex")],
-    );
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      await client.query(
+        "insert into organizations(id,legal_name,base_currency,timezone) values('org-hook','Webhook Org','VND','Asia/Ho_Chi_Minh')",
+      );
+      await client.query(
+        "insert into accounts(organization_id,code,name,root_type) values('org-hook','111','Cash','asset'),('org-hook','642','Expense','expense')",
+      );
+      await client.query(
+        `insert into integration_sources(organization_id,id,public_id,name,actor_id,secret_ref,allowed_event_types,created_by)
+         values('org-hook','source-1','public-source-1','Source 1','webhook-source-1','ERP330_WEBHOOK_SECRET','["expense.create"]','admin')`,
+      );
+      await client.query(
+        `insert into api_credentials(organization_id,id,actor_id,token_hash,roles)
+         values('org-hook','hook-admin','admin',$1,'["finance_admin"]')`,
+        [createHash("sha256").update(adminToken).digest("hex")],
+      );
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
     app = await createApp();
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
