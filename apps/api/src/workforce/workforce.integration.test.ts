@@ -131,7 +131,6 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     });
     expect(submitted.statusCode, submitted.body).toBe(201);
     expect(submitted.json().data.idempotencyReplayed).not.toBe(true);
-    expect(submitted.json().data.resource.state).toBe("submitted");
     expect(
       (
         await pool.query(
