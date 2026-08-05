@@ -34,7 +34,7 @@ suite("ERP-430 AR/AP aging PostgreSQL API", () => {
         ('org-erp430','j-pay-rev',1,'112',null,40,'Bank reversal','{}'),('org-erp430','j-pay-rev',2,'131',40,null,'Settlement reversal','{}'),
         ('org-erp430','j-ap',1,'642',50,null,'Expense','{}'),('org-erp430','j-ap',2,'331',null,50,'AP','{}');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,journal_id,created_by) values
-        ('org-erp430','ar-1','sales_invoice','partially_paid','AR-1','AA',2026,'customer','2026-08-01','2026-07-31','VND',100,0,100,'131',null,'j-ar','finance'),
+        ('org-erp430','ar-1','sales_invoice','partially_paid','AR-1','AA',2026,'customer','2026-07-01','2026-07-31','VND',100,0,100,'131',null,'j-ar','finance'),
         ('org-erp430','credit-1','credit_note','issued','CR-1','AA',2026,'customer','2026-08-02','2026-08-02','VND',20,0,20,'131','ar-1','j-credit','finance'),
         ('org-erp430','ap-1','purchase_invoice','posted','AP-1',null,2026,'supplier','2026-08-03','2026-09-03','VND',50,0,50,'331',null,'j-ap','finance');
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by) values('org-erp430','bank','BANK','bank','Bank','VND','112','BANK','finance','finance');
