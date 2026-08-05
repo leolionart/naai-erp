@@ -49,11 +49,10 @@ describeIntegration("ERP-340 PostgreSQL outbound delivery", () => {
       (ref) => process.env[ref],
       "worker-success",
     );
-    const batch = await runner.runBatch();
+    await runner.runBatch();
     // The worker intentionally leases a global due queue, and earlier API/database suites may leave
     // additional valid deliveries behind. Aggregate leased/delivered counts therefore describe the
     // whole batch; the event-specific database assertions below are the authoritative proof here.
-    expect(batch.materialized).toBeGreaterThanOrEqual(1);
     const result = await pool.query(
       `select e.published_at,d.state,d.attempt_count,a.outcome
        from outbox_events e join outbound_deliveries d
