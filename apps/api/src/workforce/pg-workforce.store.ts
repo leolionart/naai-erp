@@ -149,18 +149,19 @@ export class PgWorkforceStore {
                   : action === "revise"
                     ? "revised"
                     : "rejected";
-      await q.query(
-        `update timesheets set state=$3::timesheet_state,version=$4,${field}_by=$5,${field}_at=now(),rejection_reason=case when $3::timesheet_state='rejected'::timesheet_state then $6 else rejection_reason end,billing_reference=case when $3::timesheet_state='billed'::timesheet_state then $7 else billing_reference end,updated_at=now() where organization_id=$1 and id=$2`,
+      const updated = await q.query(
+        `update timesheets set state='${state}'::timesheet_state,version=$3,${field}_by=$4,${field}_at=now(),rejection_reason=case when '${state}'='rejected' then $5 else rejection_reason end,billing_reference=case when '${state}'='billed' then $6 else billing_reference end,updated_at=now() where organization_id=$1 and id=$2 returning state`,
         [
           c.organizationId,
           id,
-          state,
           v,
           c.actorId,
           i.reason,
           "billingReference" in i ? i.billingReference : null,
         ],
       );
+      if (updated.rowCount !== 1 || updated.rows[0]?.state !== state)
+        throw new Error("TIMESHEET_TRANSITION_WRITE_FAILED");
       return { resource: await this.view(q, c.organizationId, id), mutation: this.meta(c, v) };
     });
   }
