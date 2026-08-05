@@ -7,3 +7,6 @@ Replaced the generic JSON-only console with operational admin screens for module
 - Evidence and inbound webhooks now expose upload, review, signed-download, inbox filtering/detail and explicit replay.
 - Mobile navigation remains accessible through a horizontally scrollable icon menu.
 - All mutations continue through REST v1 with bearer auth, organization scope, correlation IDs and idempotency keys.
+
+Verified implementation commit: `7922cd6d42eff7e7fce303f8401eb6f7a992b586`.
+Exact-commit CI: https://github.com/leolionart/naai-erp/actions/runs/30998376669

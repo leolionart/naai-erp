@@ -9,4 +9,4 @@
   - evidence workspace rendered its operational heading;
   - mobile viewport retained 10 navigation items;
   - no browser console errors were observed.
-- Exact-commit CI is pending before task completion.
+- Exact-commit PostgreSQL CI passed: https://github.com/leolionart/naai-erp/actions/runs/30998376669
