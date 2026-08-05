@@ -228,6 +228,24 @@ tests:
     command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test && DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G2
 
+  - id: T-UNIT-ERP-210-001
+    aliases: [T-PST-001]
+    task: ERP-210
+    rules: [BR-PST-001, BR-AI-003]
+    title: Effective-dated posting rules deterministically map source lines to balanced journal drafts
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G2
+
+  - id: T-INT-ERP-210-001
+    aliases: [T-PST-002]
+    task: ERP-210
+    rules: [BR-PST-001, BR-PST-002, BR-AI-001, BR-AI-002]
+    title: Posting rule versions and protected-account policy are organization scoped through API and CLI
+    layer: integration
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test && RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G2
+
   - id: T-E2E-ERP-300-001
     aliases: [T-INV-001]
     task: ERP-300

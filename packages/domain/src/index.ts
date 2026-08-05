@@ -88,3 +88,16 @@ export {
   type JournalState,
   type JournalTotals,
 } from "./journal.js";
+export {
+  POSTING_DIMENSIONS,
+  assertManualJournalAllowed,
+  createPostingRule,
+  mapDocumentToJournalDraft,
+  selectPostingRule,
+  type AppliedPostingRule,
+  type PostingDimension,
+  type PostingDraftResult,
+  type PostingRule,
+  type PostingSourceLine,
+  type ProtectedManualAccount,
+} from "./posting-rules.js";

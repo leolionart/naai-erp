@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:36:00+07:00
+updated_at: 2026-08-05T15:45:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
@@ -229,10 +229,25 @@ tasks:
   - id: ERP-210
     title: Posting rule engine
     phase: P2
-    status: ready
+    status: review
     dependencies: [ERP-200]
     business_rules: [BR-PST-001, BR-PST-002]
     tests: [T-PST-001, T-PST-002]
+    evidence: docs/implementation/evidence/ERP-210/
+    agent: codex-root
+    started_at: 2026-08-05T15:39:00+07:00
+    start_commit: b718806d4fb3b6d490a2b06fa9cf57d7b39a1fa7
+    planned_files:
+      - packages/domain/src/posting-rules.ts
+      - packages/domain/src/posting-rules.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/posting-rules/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-210/
 
   - id: ERP-220
     title: Accounting workflow

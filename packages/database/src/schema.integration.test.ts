@@ -208,4 +208,21 @@ describeDatabase("ERP-100 database tenant constraints", () => {
       ),
     ).rejects.toMatchObject({ code: "55000" });
   });
+
+  it("stores immutable organization-scoped effective posting rule versions", async () => {
+    await pool!.query(`insert into posting_rule_versions
+      (organization_id,rule_id,version,name,document_type,effective_from,status,conditions,line_templates,change_reason,correlation_id,created_by)
+      values ('org-a','expense-default',1,'Expense default','expense','2026-01-01','active','{}',
+        '[{"side":"debit","accountCode":"511"},{"side":"credit","accountCode":"111"}]',
+        'Initial rule','corr-rule-1','user-a')`);
+    await expect(
+      pool!.query(`insert into posting_rule_versions
+        (organization_id,rule_id,version,name,document_type,effective_from,status,conditions,line_templates,change_reason,correlation_id,created_by)
+        values ('org-a','bad-rule',1,'Bad','expense','2026-01-01','active','{}','[]','Bad','corr','user-a')`),
+    ).rejects.toMatchObject({ code: "23514" });
+    const foreign = await pool!.query(
+      "select count(*)::int count from posting_rule_versions where organization_id='org-b' and rule_id='expense-default'",
+    );
+    expect(foreign.rows[0].count).toBe(0);
+  });
 });

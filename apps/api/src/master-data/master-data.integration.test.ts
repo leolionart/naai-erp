@@ -180,4 +180,55 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     );
     expect(events.rows[0].count).toBe(1);
   });
+
+  it("evaluates effective posting rules without creating ledger effects", async () => {
+    await pool.query(`insert into posting_rule_versions
+      (organization_id,rule_id,version,name,document_type,effective_from,status,conditions,line_templates,change_reason,correlation_id,created_by)
+      values ('org-api-a','expense-default',1,'Expense default','expense','2026-01-01','active',
+        '{"categoryCode":"hosting","requiredDimensions":["project","client","cost_center","service_line","tax"]}',
+        '[{"side":"debit","accountCode":"511"},{"side":"credit","accountCode":"111"}]',
+        'Initial test rule','corr-rule-api','ai-integration')`);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/posting-rules/evaluate",
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        journalId: "journal-eval-1",
+        documentType: "expense",
+        documentId: "expense-1",
+        postingDate: "2026-08-05",
+        baseCurrency: "VND",
+        description: "Hosting",
+        sourceLines: [
+          {
+            id: "line-1",
+            amountMinor: "1000000",
+            categoryCode: "hosting",
+            taxCode: "VAT10",
+            dimensions: {
+              projectId: "p1",
+              clientId: "c1",
+              costCenterCode: "ops",
+              serviceLineCode: "web",
+              taxCode: "VAT10",
+            },
+          },
+        ],
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.journal.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ debitMinor: "1000000", accountId: "511" }),
+        expect.objectContaining({ creditMinor: "1000000", accountId: "111" }),
+      ]),
+    );
+    expect(response.json().data.appliedRules).toEqual([
+      { sourceLineId: "line-1", ruleId: "expense-default", ruleVersion: 1 },
+    ]);
+    const effects = await pool.query(
+      "select count(*)::int count from journal_entries where organization_id='org-api-a' and id='journal-eval-1'",
+    );
+    expect(effects.rows[0].count).toBe(0);
+  });
 });

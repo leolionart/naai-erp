@@ -176,6 +176,27 @@ export const MASTER_DATA_RESOURCES = {
     writableColumns: ["id", "contract_id", "name", "due_on", "amount_minor", "sequence"],
     mutableColumns: ["name", "due_on", "amount_minor", "sequence"],
   },
+  "posting-rule-versions": {
+    table: "posting_rule_versions",
+    organizationColumn: "organization_id",
+    keyColumns: ["rule_id", "version"],
+    writableColumns: [
+      "rule_id",
+      "version",
+      "name",
+      "document_type",
+      "priority",
+      "effective_from",
+      "effective_to",
+      "status",
+      "conditions",
+      "line_templates",
+      "change_reason",
+      "correlation_id",
+      "created_by",
+    ],
+    mutableColumns: [],
+  },
 } as const satisfies Record<string, ResourceDefinition>;
 
 export type MasterDataResource = keyof typeof MASTER_DATA_RESOURCES;

@@ -73,4 +73,22 @@ describe("NAAI ERP JSON-first CLI client", () => {
       }),
     );
   });
+
+  it("evaluates posting rules through the AI-native workflow endpoint", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { journal: {} } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("posting-rules", "evaluate", { documentType: "expense" });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/posting-rules/evaluate",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

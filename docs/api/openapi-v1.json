@@ -23,9 +23,10 @@
     "parties",
     "projects",
     "contracts",
-    "milestones"
+    "milestones",
+    "posting-rule-versions"
   ],
-  "x-naai-workflows": ["journals"],
+  "x-naai-workflows": ["journals", "posting-rules/evaluate"],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
       "get": {
@@ -79,6 +80,11 @@
     "/api/v1/organizations/{organizationId}/journals/{journalId}/post": {
       "post": {
         "summary": "Atomically post a balanced journal with audit and outbox effects"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/posting-rules/evaluate": {
+      "post": {
+        "summary": "Evaluate effective posting rules into an exact balanced draft without posting"
       }
     }
   },

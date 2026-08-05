@@ -13,6 +13,7 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   JOURNAL_ALREADY_POSTED: 409,
   INVALID_JOURNAL_STATE: 409,
   JOURNAL_UNBALANCED: 422,
+  INVALID_POSTING_RULE: 422,
 };
 
 @Catch()

@@ -83,6 +83,7 @@ export const contractType = pgEnum("contract_type", [
   "internal",
 ]);
 export const journalState = pgEnum("journal_state", ["draft", "approved", "posted", "reversed"]);
+export const postingRuleStatus = pgEnum("posting_rule_status", ["draft", "active", "retired"]);
 
 export const organizations = pgTable(
   "organizations",
@@ -835,6 +836,47 @@ export const outboxEvents = pgTable(
   ],
 );
 
+export const postingRuleVersions = pgTable(
+  "posting_rule_versions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    ruleId: text("rule_id").notNull(),
+    version: integer("version").notNull(),
+    name: text("name").notNull(),
+    documentType: text("document_type").notNull(),
+    priority: integer("priority").notNull().default(100),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    status: postingRuleStatus("status").notNull().default("draft"),
+    conditions: jsonb("conditions").$type<Record<string, unknown>>().notNull().default({}),
+    lineTemplates: jsonb("line_templates").$type<readonly Record<string, unknown>[]>().notNull(),
+    changeReason: text("change_reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.ruleId, table.version] }),
+    unique("posting_rule_versions_effective_unique").on(
+      table.organizationId,
+      table.ruleId,
+      table.effectiveFrom,
+    ),
+    check("posting_rule_version_positive", sql`${table.version} > 0`),
+    check("posting_rule_priority_nonnegative", sql`${table.priority} >= 0`),
+    check("posting_rule_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("posting_rule_document_type_not_blank", sql`btrim(${table.documentType}) <> ''`),
+    check("posting_rule_change_reason_not_blank", sql`btrim(${table.changeReason}) <> ''`),
+    check(
+      "posting_rule_effective_date_order",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`,
+    ),
+    check("posting_rule_has_line_templates", sql`jsonb_array_length(${table.lineTemplates}) >= 2`),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -866,4 +908,5 @@ export const schema = {
   journalLines,
   journalPostingCommands,
   outboxEvents,
+  postingRuleVersions,
 } as const;
