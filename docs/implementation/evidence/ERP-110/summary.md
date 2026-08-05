@@ -11,4 +11,8 @@
 
 Start commit: `63be70dd02e99fdbabb7c16e081fe4ca453159b8`.
 
+Implementation commit: `3d267a63632f08097a604c06620986f1d48dfbb6`.
+
+Exact-commit CI: [GitHub Actions run 30983228885](https://github.com/leolionart/naai-erp/actions/runs/30983228885) passed, including PostgreSQL 16 migration and integration tests.
+
 Rules covered: `BR-COA-001`, `BR-COA-002`, `BR-TAX-001`.

@@ -11,4 +11,6 @@
 - [x] Half-open effective dates resolve boundary dates and overlapping versions are rejected by domain validation.
 - [x] Test aliases `T-COA-001`, `T-COA-002` and `T-TAX-001` are registered.
 - [x] Native Web/API preview works without Docker image builds.
-- [ ] PostgreSQL migration and integration suite pass on the exact pushed commit.
+- [x] PostgreSQL migration and integration suite pass on the exact pushed commit.
+
+ERP-110 is complete. ERP-120 is now ready; Gate G1 remains in progress.

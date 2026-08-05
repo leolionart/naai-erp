@@ -30,6 +30,10 @@ Verified responses:
 
 The preview uses Next.js and NestJS watch processes directly; no Docker image build is involved.
 
-## Pending exact-commit CI
+## Exact-commit CI
 
-CI now provisions PostgreSQL 16, migrates the empty database and runs database integration tests. ERP-110 remains in `review` until the pushed exact commit passes this workflow.
+Implementation commit: `3d267a63632f08097a604c06620986f1d48dfbb6`.
+
+Run: [GitHub Actions 30983228885](https://github.com/leolionart/naai-erp/actions/runs/30983228885)
+
+Result: passed frozen install, repository quality gate, migration validation, empty PostgreSQL 16 migration and all 5 database integration tests.

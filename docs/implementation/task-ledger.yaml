@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T13:57:53+07:00
+updated_at: 2026-08-05T14:00:23+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G1
-current_task: ERP-110
+current_task: ERP-120
 
 tasks:
   - id: ERP-000
@@ -111,14 +111,17 @@ tasks:
   - id: ERP-110
     title: Chart of Accounts and tax codes
     phase: P1
-    status: review
+    status: done
     dependencies: [ERP-100]
     business_rules: [BR-COA-001, BR-COA-002, BR-TAX-001]
     tests: [T-COA-001, T-COA-002, T-TAX-001]
     evidence: docs/implementation/evidence/ERP-110/
     agent: codex-root
     started_at: 2026-08-05T13:50:52+07:00
+    completed_at: 2026-08-05T14:00:23+07:00
     start_commit: 63be70dd02e99fdbabb7c16e081fe4ca453159b8
+    commit: 3d267a63632f08097a604c06620986f1d48dfbb6
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30983228885
     planned_files:
       - packages/domain/src/chart-of-accounts.ts
       - packages/domain/src/chart-of-accounts.test.ts
@@ -131,7 +134,7 @@ tasks:
   - id: ERP-120
     title: Dimensions and mappings
     phase: P1
-    status: blocked
+    status: ready
     dependencies: [ERP-110]
     business_rules: [BR-DIM-001, BR-DIM-002]
     tests: [T-DIM-001, T-DIM-002]
