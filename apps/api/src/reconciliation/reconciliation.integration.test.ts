@@ -20,8 +20,8 @@ suite("ERP-410 reconciliation PostgreSQL API", () => {
       insert into organizations(id,legal_name,base_currency,timezone) values('org-erp410','ERP 410','VND','Asia/Ho_Chi_Minh');
       insert into fiscal_years(organization_id,year,starts_on,ends_on) values('org-erp410',2026,'2026-01-01','2026-12-31');
       insert into fiscal_periods(organization_id,fiscal_year,period_number,starts_on,ends_on) values('org-erp410',2026,8,'2026-08-01','2026-08-31');
-      insert into accounts(organization_id,code,name,root_type,is_control_account) values
-       ('org-erp410','1121','Bank','asset',true),('org-erp410','131','AR','asset',true),('org-erp410','511','Revenue','revenue',false),('org-erp410','642','Bank fee','expense',false);
+      insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
+       ('org-erp410','1121','Bank','asset',true,false),('org-erp410','131','AR','asset',true,false),('org-erp410','511','Revenue','revenue',false,true),('org-erp410','642','Bank fee','expense',false,true);
       insert into parties(organization_id,id,display_name) values('org-erp410','client-1','Client A');
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by)
        values('org-erp410','bank-1','VCB-1','bank','VCB','VND','1121','VCB','finance','finance');

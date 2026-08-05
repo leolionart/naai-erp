@@ -39,3 +39,5 @@ The in-app Browser runtime was unavailable in this session, so rendered validati
 Exact-commit GitHub CI must execute migration 0018 and the PostgreSQL integration journey with `RUN_DB_INTEGRATION=1`: suggest, candidate readback, match, partial reconcile, balanced journal, document state, organization denial, over-allocation protection and unreconcile/reversal history.
 
 The first exact-commit CI run (`31013660054`) exposed two accidental required columns on the reconciliation parent table that belong only to child attempts. The schema, migration snapshot and migration SQL were corrected; the database integration fixture remains the regression proof on the repair commit.
+
+The next CI run (`31014075409`) then reached the API integration fixture and proved the existing control-account constraint was active. The fixture now creates Bank and AR control accounts with manual posting disabled, matching production account invariants instead of weakening the constraint.
