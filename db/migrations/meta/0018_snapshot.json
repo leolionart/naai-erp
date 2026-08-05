@@ -5938,18 +5938,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "reconciliation_id": {
-          "name": "reconciliation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempt_number": {
-          "name": "attempt_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "bank_transaction_id": {
           "name": "bank_transaction_id",
           "type": "text",

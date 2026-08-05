@@ -6,8 +6,6 @@ CREATE TYPE "public"."reconciliation_target_type" AS ENUM('commercial_document',
 CREATE TABLE "payment_reconciliations" (
 	"organization_id" text NOT NULL,
 	"id" text NOT NULL,
-	"reconciliation_id" text NOT NULL,
-	"attempt_number" integer NOT NULL,
 	"bank_transaction_id" text NOT NULL,
 	"direction" text NOT NULL,
 	"statement_amount_minor" bigint NOT NULL,

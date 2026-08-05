@@ -2147,8 +2147,6 @@ export const paymentReconciliations = pgTable(
   {
     organizationId: text("organization_id").notNull(),
     id: text("id").notNull(),
-    reconciliationId: text("reconciliation_id").notNull(),
-    attemptNumber: integer("attempt_number").notNull(),
     bankTransactionId: text("bank_transaction_id").notNull(),
     direction: text("direction").notNull(),
     statementAmountMinor: bigint("statement_amount_minor", { mode: "bigint" }).notNull(),
