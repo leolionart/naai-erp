@@ -13,3 +13,5 @@ Implemented organization-scoped evidence management for PDF, XML, JPEG and PNG r
 - REST/OpenAPI, first-party CLI routing and the local admin API console expose the same application-service controls.
 
 Start commit: `28ec9ceba2c5167caa4e5acafbf2039729c60980`.
+Implementation commit: `674ba25cfac58070f8afe828fa25f120d043213b`.
+Verified CI: https://github.com/leolionart/naai-erp/actions/runs/30995722902

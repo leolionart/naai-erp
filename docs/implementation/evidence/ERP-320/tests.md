@@ -7,4 +7,5 @@
 - `pnpm db:check` — 17 migration entries valid, including evidence metadata, access audit and immutability triggers.
 - `jq empty docs/api/openapi-v1.json` and `git diff --check` — passed.
 
-Exact-commit PostgreSQL CI remains required before marking ERP-320 done.
+Exact-commit GitHub CI passed formatting, lint, typecheck, all builds/tests, migration verification, empty-database migration, database integration and API/PostgreSQL evidence scenarios for `674ba25cfac58070f8afe828fa25f120d043213b`:
+https://github.com/leolionart/naai-erp/actions/runs/30995722902

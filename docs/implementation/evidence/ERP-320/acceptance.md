@@ -10,4 +10,4 @@
 - Expense integration: invoice/contract evidence readiness derives from accepted active evidence records.
 - AI-native contract: list/get/upload/review/download-url are available through REST/OpenAPI, CLI and local admin console.
 
-Final acceptance is pending exact-commit PostgreSQL integration CI.
+Exact-commit PostgreSQL integration CI passed: https://github.com/leolionart/naai-erp/actions/runs/30995722902
