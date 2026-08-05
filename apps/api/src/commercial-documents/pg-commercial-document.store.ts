@@ -265,7 +265,7 @@ export class PgCommercialDocumentStore {
           approved_at=case when $4='approve' then now() else approved_at end,
           issued_or_posted_by=case when $4 in ('issue','post') then $5 else issued_or_posted_by end,
           issued_or_posted_at=case when $4 in ('issue','post') then now() else issued_or_posted_at end,
-          journal_id=coalesce($6,journal_id)
+          journal_id=coalesce($6::text,journal_id)
          where organization_id=$1 and id=$2`,
         [context.organizationId, id, next, action, context.actorId, journalId ?? null],
       );
