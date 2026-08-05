@@ -36,6 +36,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
   };
   test("creates worker, snapshots approved labor cost, and summarizes capacity", async () => {
     const server = app.getHttpAdapter().getInstance();
+    const runKey = `${Date.now()}`;
     expect(
       (
         await server.inject({
@@ -121,7 +122,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/submit",
-      headers: { ...headers, "idempotency-key": "timesheet-submit" },
+      headers: { ...headers, "idempotency-key": `timesheet-submit-${runKey}` },
       payload: {
         schemaVersion: 1,
         expectedResourceVersion: timesheetCreated.json().data.resource.resourceVersion,
@@ -129,6 +130,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
       },
     });
     expect(submitted.statusCode, submitted.body).toBe(201);
+    expect(submitted.json().data.idempotencyReplayed).not.toBe(true);
     expect(submitted.json().data.resource.state).toBe("submitted");
     expect(
       (
@@ -140,7 +142,7 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
     const approved = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/approve",
-      headers: { ...reviewerHeaders, "idempotency-key": "timesheet-approve" },
+      headers: { ...reviewerHeaders, "idempotency-key": `timesheet-approve-${runKey}` },
       payload: {
         schemaVersion: 1,
         expectedResourceVersion: submitted.json().data.resource.resourceVersion,
