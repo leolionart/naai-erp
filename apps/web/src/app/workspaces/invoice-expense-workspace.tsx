@@ -1,6 +1,28 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, type FormEvent, useEffect, useMemo, useState } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Tone = "info" | "success" | "error";
 type Row = Record<string, unknown>;
@@ -59,6 +81,22 @@ function add(a: string, b: string) {
 
 function label(value: unknown) {
   return String(value ?? "—").replaceAll("_", " ");
+}
+
+function TextField({
+  label: fieldLabel,
+  onChange,
+  ...props
+}: Omit<ComponentProps<typeof Input>, "onChange"> & {
+  label: string;
+  onChange?: (value: string) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel>{fieldLabel}</FieldLabel>
+      <Input {...props} onChange={onChange ? (event) => onChange(event.target.value) : undefined} />
+    </Field>
+  );
 }
 
 export function InvoiceExpenseWorkspace({
@@ -177,12 +215,12 @@ export function InvoiceExpenseWorkspace({
           <p>Nhập liệu theo form nghiệp vụ; hệ thống tự tạo payload REST chính xác.</p>
         </div>
         <div className="workspace-actions">
-          <button className="ghost" type="button" onClick={load} disabled={busy}>
+          <Button variant="outline" type="button" onClick={load} disabled={busy}>
             {busy ? "Đang xử lý…" : "Tải dữ liệu"}
-          </button>
-          <button className="primary" type="button" onClick={() => setShowCreate((v) => !v)}>
+          </Button>
+          <Button type="button" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Đóng form" : "+ Tạo mới"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -194,9 +232,14 @@ export function InvoiceExpenseWorkspace({
         )
       ) : null}
 
-      <div className={`inline-notice ${notice.includes("Không") ? "error" : ""}`}>{notice}</div>
+      <Alert
+        className={`inline-notice ${notice.includes("Không") ? "error" : ""}`}
+        variant={notice.includes("Không") ? "destructive" : "default"}
+      >
+        <AlertDescription>{notice}</AlertDescription>
+      </Alert>
       <div className="table-toolbar">
-        <input
+        <Input
           aria-label="Tìm kiếm"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -205,40 +248,51 @@ export function InvoiceExpenseWorkspace({
         <span>{visible.length} bản ghi</span>
       </div>
       <div className="data-table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</th>
-              <th>{kind === "documents" ? "Loại" : "Mục đích"}</th>
-              <th>Đối tượng</th>
-              <th>Tổng tiền</th>
-              <th>Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="data-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
+              <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
+              <TableHead>Đối tượng</TableHead>
+              <TableHead>Tổng tiền</TableHead>
+              <TableHead>Trạng thái</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {visible.map((row, index) => {
               const id = String(field(row, "id") ?? index);
               return (
-                <tr
+                <TableRow
                   key={id}
                   className={String(field(selected, "id") ?? "") === id ? "selected" : ""}
                   onClick={() => choose(row)}
                 >
-                  <td>
+                  <TableCell>
                     {label(field(row, kind === "documents" ? "documentNumber" : "expenseDate"))}
-                  </td>
-                  <td>{label(field(row, kind === "documents" ? "type" : "businessPurpose"))}</td>
-                  <td>{label(field(row, kind === "documents" ? "partyId" : "payeePartyId"))}</td>
-                  <td>{money(field(row, "grossMinor"))}</td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
+                    {label(field(row, kind === "documents" ? "type" : "businessPurpose"))}
+                  </TableCell>
+                  <TableCell>
+                    {label(field(row, kind === "documents" ? "partyId" : "payeePartyId"))}
+                  </TableCell>
+                  <TableCell>{money(field(row, "grossMinor"))}</TableCell>
+                  <TableCell>
                     <span className="status-pill ready">{label(field(row, "state"))}</span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-        {!visible.length ? <div className="empty-state">Chưa có dữ liệu phù hợp.</div> : null}
+          </TableBody>
+        </Table>
+        {!visible.length ? (
+          <Empty className="empty-state">
+            <EmptyHeader>
+              <EmptyTitle>Chưa có dữ liệu</EmptyTitle>
+              <EmptyDescription>Không có bản ghi phù hợp với bộ lọc hiện tại.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : null}
       </div>
 
       {selected ? (
@@ -320,137 +374,138 @@ function DocumentForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row)
 
   return (
     <form className="business-form" onSubmit={submit}>
-      <label>
-        Loại chứng từ
-        <select value={form.type} onChange={(e) => changeType(e.target.value)}>
-          <option value="sales_invoice">Hóa đơn bán ra</option>
-          <option value="purchase_invoice">Hóa đơn mua vào</option>
-          <option value="credit_note">Credit note</option>
-        </select>
-      </label>
-      <label>
-        Số hóa đơn
-        <input required value={form.number} onChange={(e) => set("number", e.target.value)} />
-      </label>
-      <label>
-        Mã khách hàng / nhà cung cấp
-        <input required value={form.party} onChange={(e) => set("party", e.target.value)} />
-      </label>
-      <label>
-        Ngày hóa đơn
-        <input
+      <FieldGroup className="contents">
+        <Field>
+          <FieldLabel>Loại chứng từ</FieldLabel>
+          <Select value={form.type} onValueChange={changeType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="sales_invoice">Hóa đơn bán ra</SelectItem>
+                <SelectItem value="purchase_invoice">Hóa đơn mua vào</SelectItem>
+                <SelectItem value="credit_note">Credit note</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <TextField
+          label="Số hóa đơn"
+          required
+          value={form.number}
+          onChange={(v) => set("number", v)}
+        />
+        <TextField
+          label="Mã khách hàng / nhà cung cấp"
+          required
+          value={form.party}
+          onChange={(v) => set("party", v)}
+        />
+        <TextField
+          label="Ngày hóa đơn"
           required
           type="date"
           value={form.date}
-          onChange={(e) => set("date", e.target.value)}
+          onChange={(v) => set("date", v)}
         />
-      </label>
-      <label>
-        Hạn thanh toán
-        <input
+        <TextField
+          label="Hạn thanh toán"
           required
           type="date"
           value={form.dueDate}
-          onChange={(e) => set("dueDate", e.target.value)}
+          onChange={(v) => set("dueDate", v)}
         />
-      </label>
-      <label>
-        Nội dung
-        <input
+        <TextField
+          label="Nội dung"
           required
           value={form.description}
-          onChange={(e) => set("description", e.target.value)}
+          onChange={(v) => set("description", v)}
         />
-      </label>
-      <label>
-        Tiền trước thuế
-        <input
+        <TextField
+          label="Tiền trước thuế"
           required
           inputMode="numeric"
           value={form.net}
-          onChange={(e) => set("net", e.target.value)}
+          onChange={(v) => set("net", v)}
         />
-      </label>
-      <label>
-        VAT
-        <input inputMode="numeric" value={form.tax} onChange={(e) => set("tax", e.target.value)} />
-      </label>
-      <label>
-        Tổng thanh toán
-        <input readOnly value={gross} />
-      </label>
-      <label>
-        Tài khoản công nợ
-        <input
+        <TextField
+          label="VAT"
+          inputMode="numeric"
+          value={form.tax}
+          onChange={(v) => set("tax", v)}
+        />
+        <TextField label="Tổng thanh toán" readOnly value={gross} />
+        <TextField
+          label="Tài khoản công nợ"
           required
           value={form.controlAccount}
-          onChange={(e) => set("controlAccount", e.target.value)}
+          onChange={(v) => set("controlAccount", v)}
         />
-      </label>
-      <label>
-        Tài khoản doanh thu / chi phí
-        <input
+        <TextField
+          label="Tài khoản doanh thu / chi phí"
           required
           value={form.primaryAccount}
-          onChange={(e) => set("primaryAccount", e.target.value)}
+          onChange={(v) => set("primaryAccount", v)}
         />
-      </label>
-      {form.tax !== "0" ? (
-        <label>
-          Tài khoản VAT
-          <input
+        {form.tax !== "0" ? (
+          <TextField
+            label="Tài khoản VAT"
             required
             value={form.taxAccount}
-            onChange={(e) => set("taxAccount", e.target.value)}
+            onChange={(v) => set("taxAccount", v)}
           />
-        </label>
-      ) : null}
-      <label>
-        Dự án
-        <input
+        ) : null}
+        <TextField
+          label="Dự án"
           value={form.project}
-          onChange={(e) => set("project", e.target.value)}
+          onChange={(v) => set("project", v)}
           placeholder="Không bắt buộc"
         />
-      </label>
-      <label>
-        Cost center
-        <input
+        <TextField
+          label="Cost center"
           required
           value={form.costCenter}
-          onChange={(e) => set("costCenter", e.target.value)}
+          onChange={(v) => set("costCenter", v)}
         />
-      </label>
-      {form.type === "purchase_invoice" && form.tax !== "0" ? (
-        <label>
-          Đánh giá VAT
-          <select value={form.taxState} onChange={(e) => set("taxState", e.target.value)}>
-            <option value="eligible">Đủ điều kiện</option>
-            <option value="partially_eligible">Một phần</option>
-            <option value="ineligible">Không đủ điều kiện</option>
-            <option value="accountant_override">Kế toán override</option>
-          </select>
-        </label>
-      ) : null}
-      {form.type === "credit_note" ? (
-        <>
-          <label>
-            ID hóa đơn gốc
-            <input
+        {form.type === "purchase_invoice" && form.tax !== "0" ? (
+          <Field>
+            <FieldLabel>Đánh giá VAT</FieldLabel>
+            <Select value={form.taxState} onValueChange={(value) => set("taxState", value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="eligible">Đủ điều kiện</SelectItem>
+                  <SelectItem value="partially_eligible">Một phần</SelectItem>
+                  <SelectItem value="ineligible">Không đủ điều kiện</SelectItem>
+                  <SelectItem value="accountant_override">Kế toán override</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        ) : null}
+        {form.type === "credit_note" ? (
+          <>
+            <TextField
+              label="ID hóa đơn gốc"
               required
               value={form.originalDocumentId}
-              onChange={(e) => set("originalDocumentId", e.target.value)}
+              onChange={(v) => set("originalDocumentId", v)}
             />
-          </label>
-          <label>
-            Lý do điều chỉnh
-            <input required value={form.reason} onChange={(e) => set("reason", e.target.value)} />
-          </label>
-        </>
-      ) : null}
-      <button className="primary" type="submit" disabled={busy}>
+            <TextField
+              label="Lý do điều chỉnh"
+              required
+              value={form.reason}
+              onChange={(v) => set("reason", v)}
+            />
+          </>
+        ) : null}
+      </FieldGroup>
+      <Button type="submit" disabled={busy}>
         Lưu hóa đơn nháp
-      </button>
+      </Button>
     </form>
   );
 }
@@ -518,131 +573,129 @@ function ExpenseForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row) 
 
   return (
     <form className="business-form" onSubmit={submit}>
-      <label>
-        Nhóm chi phí
-        <select
-          value={form.expenseClass}
-          onChange={(e) =>
-            setForm((current) => ({
-              ...current,
-              expenseClass: e.target.value,
-              ...(e.target.value === "non_documented" ? { vat: "0" } : {}),
-            }))
-          }
-        >
-          <option value="invoice_backed">Có hóa đơn</option>
-          <option value="receipt_backed">Có biên nhận</option>
-          <option value="contract_backed">Theo hợp đồng</option>
-          <option value="employee_reimbursement">Hoàn ứng nhân viên</option>
-          <option value="bank_fee">Phí ngân hàng</option>
-          <option value="non_documented">Không có hóa đơn</option>
-          <option value="prepaid">Chi phí trả trước</option>
-          <option value="fixed_asset">Tài sản cố định</option>
-        </select>
-      </label>
-      <label>
-        Ngày chi phí
-        <input
+      <FieldGroup className="contents">
+        <Field>
+          <FieldLabel>Nhóm chi phí</FieldLabel>
+          <Select
+            value={form.expenseClass}
+            onValueChange={(value) =>
+              setForm((current) => ({
+                ...current,
+                expenseClass: value,
+                ...(value === "non_documented" ? { vat: "0" } : {}),
+              }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="invoice_backed">Có hóa đơn</SelectItem>
+                <SelectItem value="receipt_backed">Có biên nhận</SelectItem>
+                <SelectItem value="contract_backed">Theo hợp đồng</SelectItem>
+                <SelectItem value="employee_reimbursement">Hoàn ứng nhân viên</SelectItem>
+                <SelectItem value="bank_fee">Phí ngân hàng</SelectItem>
+                <SelectItem value="non_documented">Không có hóa đơn</SelectItem>
+                <SelectItem value="prepaid">Chi phí trả trước</SelectItem>
+                <SelectItem value="fixed_asset">Tài sản cố định</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <TextField
+          label="Ngày chi phí"
           required
           type="date"
           value={form.date}
-          onChange={(e) => set("date", e.target.value)}
+          onChange={(v) => set("date", v)}
         />
-      </label>
-      <label>
-        Mục đích kinh doanh
-        <input required value={form.purpose} onChange={(e) => set("purpose", e.target.value)} />
-      </label>
-      <label>
-        Nhà cung cấp / người nhận
-        <input value={form.payee} onChange={(e) => set("payee", e.target.value)} />
-      </label>
-      {form.expenseClass === "employee_reimbursement" ? (
-        <label>
-          Nhân viên hoàn ứng
-          <input required value={form.employee} onChange={(e) => set("employee", e.target.value)} />
-        </label>
-      ) : null}
-      <label>
-        Tiền trước thuế
-        <input
+        <TextField
+          label="Mục đích kinh doanh"
+          required
+          value={form.purpose}
+          onChange={(v) => set("purpose", v)}
+        />
+        <TextField
+          label="Nhà cung cấp / người nhận"
+          value={form.payee}
+          onChange={(v) => set("payee", v)}
+        />
+        {form.expenseClass === "employee_reimbursement" ? (
+          <TextField
+            label="Nhân viên hoàn ứng"
+            required
+            value={form.employee}
+            onChange={(v) => set("employee", v)}
+          />
+        ) : null}
+        <TextField
+          label="Tiền trước thuế"
           required
           inputMode="numeric"
           value={form.net}
-          onChange={(e) => set("net", e.target.value)}
+          onChange={(v) => set("net", v)}
         />
-      </label>
-      <label>
-        VAT
-        <input
+        <TextField
+          label="VAT"
           inputMode="numeric"
           value={form.vat}
-          onChange={(e) => set("vat", e.target.value)}
+          onChange={(v) => set("vat", v)}
           disabled={form.expenseClass === "non_documented"}
         />
-      </label>
-      <label>
-        Tổng tiền
-        <input readOnly value={gross} />
-      </label>
-      <label>
-        Tài khoản chi phí / tài sản
-        <input
+        <TextField label="Tổng tiền" readOnly value={gross} />
+        <TextField
+          label="Tài khoản chi phí / tài sản"
           required
           value={form.postingAccount}
-          onChange={(e) => set("postingAccount", e.target.value)}
+          onChange={(v) => set("postingAccount", v)}
         />
-      </label>
-      {form.vat !== "0" ? (
-        <label>
-          Tài khoản VAT
-          <input
+        {form.vat !== "0" ? (
+          <TextField
+            label="Tài khoản VAT"
             required
             value={form.vatAccount}
-            onChange={(e) => set("vatAccount", e.target.value)}
+            onChange={(v) => set("vatAccount", v)}
           />
-        </label>
-      ) : null}
-      <label>
-        Tài khoản đối ứng
-        <input
+        ) : null}
+        <TextField
+          label="Tài khoản đối ứng"
           required
           value={form.counterAccount}
-          onChange={(e) => set("counterAccount", e.target.value)}
+          onChange={(v) => set("counterAccount", v)}
         />
-      </label>
-      <label>
-        Dự án
-        <input
+        <TextField
+          label="Dự án"
           value={form.project}
-          onChange={(e) => set("project", e.target.value)}
+          onChange={(v) => set("project", v)}
           placeholder="Không bắt buộc"
         />
-      </label>
-      <label>
-        Cost center
-        <input
+        <TextField
+          label="Cost center"
           required
           value={form.costCenter}
-          onChange={(e) => set("costCenter", e.target.value)}
+          onChange={(v) => set("costCenter", v)}
         />
-      </label>
-      <fieldset>
-        <legend>Chứng từ hiện có</legend>
-        {(["invoice", "receipt", "contract", "payment"] as const).map((key) => (
-          <label key={key}>
-            <input
-              type="checkbox"
-              checked={form[key]}
-              onChange={(e) => set(key, e.target.checked)}
-            />{" "}
-            {label(key)}
-          </label>
-        ))}
-      </fieldset>
-      <button className="primary" type="submit" disabled={busy}>
+        <FieldSet>
+          <FieldLegend>Chứng từ hiện có</FieldLegend>
+          <FieldGroup data-slot="checkbox-group">
+            {(["invoice", "receipt", "contract", "payment"] as const).map((key) => (
+              <Field key={key} orientation="horizontal">
+                <Input
+                  id={`evidence-${key}`}
+                  type="checkbox"
+                  checked={form[key]}
+                  onChange={(e) => set(key, e.target.checked)}
+                />
+                <FieldLabel htmlFor={`evidence-${key}`}>{label(key)}</FieldLabel>
+              </Field>
+            ))}
+          </FieldGroup>
+        </FieldSet>
+      </FieldGroup>
+      <Button type="submit" disabled={busy}>
         Lưu chi phí nháp
-      </button>
+      </Button>
     </form>
   );
 }
@@ -673,14 +726,17 @@ function RecordActions({
         Đang chọn: {label(field(record, kind === "documents" ? "documentNumber" : "id"))} ·{" "}
         {label(state)}
       </strong>
-      <input
-        aria-label="Lý do thao tác"
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-      />
+      <Field>
+        <FieldLabel className="sr-only">Lý do thao tác</FieldLabel>
+        <Input
+          aria-label="Lý do thao tác"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </Field>
       {actions.map((name) => (
-        <button
-          className="ghost"
+        <Button
+          variant="outline"
           type="button"
           disabled={busy}
           key={name}
@@ -692,44 +748,59 @@ function RecordActions({
           }
         >
           {label(name)}
-        </button>
+        </Button>
       ))}
       {kind === "expenses" ? (
         <>
-          <select
-            aria-label="Trục đánh giá"
-            value={axis}
-            onChange={(e) => {
-              setAxis(e.target.value);
-              setReviewState(e.target.value === "management" ? "valid" : "eligible");
-            }}
-          >
-            <option value="management">Quản trị</option>
-            <option value="cit">CIT</option>
-            <option value="vat">VAT</option>
-          </select>
-          <select
-            aria-label="Kết quả đánh giá"
-            value={reviewState}
-            onChange={(e) => setReviewState(e.target.value)}
-          >
-            {axis === "management" ? (
-              <>
-                <option value="valid">Hợp lệ</option>
-                <option value="invalid">Không hợp lệ</option>
-                <option value="accountant_override">Kế toán override</option>
-              </>
-            ) : (
-              <>
-                <option value="eligible">Đủ điều kiện</option>
-                <option value="partially_eligible">Một phần</option>
-                <option value="ineligible">Không đủ điều kiện</option>
-                <option value="accountant_override">Kế toán override</option>
-              </>
-            )}
-          </select>
+          <Field>
+            <FieldLabel className="sr-only">Trục đánh giá</FieldLabel>
+            <Select
+              value={axis}
+              onValueChange={(value) => {
+                setAxis(value);
+                setReviewState(value === "management" ? "valid" : "eligible");
+              }}
+            >
+              <SelectTrigger aria-label="Trục đánh giá">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="management">Quản trị</SelectItem>
+                  <SelectItem value="cit">CIT</SelectItem>
+                  <SelectItem value="vat">VAT</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel className="sr-only">Kết quả đánh giá</FieldLabel>
+            <Select value={reviewState} onValueChange={setReviewState}>
+              <SelectTrigger aria-label="Kết quả đánh giá">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {axis === "management" ? (
+                    <>
+                      <SelectItem value="valid">Hợp lệ</SelectItem>
+                      <SelectItem value="invalid">Không hợp lệ</SelectItem>
+                      <SelectItem value="accountant_override">Kế toán override</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="eligible">Đủ điều kiện</SelectItem>
+                      <SelectItem value="partially_eligible">Một phần</SelectItem>
+                      <SelectItem value="ineligible">Không đủ điều kiện</SelectItem>
+                      <SelectItem value="accountant_override">Kế toán override</SelectItem>
+                    </>
+                  )}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
           {reviewState === "partially_eligible" ? (
-            <input
+            <Input
               aria-label="Số tiền đủ điều kiện"
               inputMode="numeric"
               value={eligible}
@@ -737,8 +808,7 @@ function RecordActions({
               placeholder="Số tiền đủ điều kiện"
             />
           ) : null}
-          <button
-            className="primary"
+          <Button
             type="button"
             disabled={busy}
             onClick={() =>
@@ -753,7 +823,7 @@ function RecordActions({
             }
           >
             Lưu đánh giá dòng 1
-          </button>
+          </Button>
         </>
       ) : null}
     </div>

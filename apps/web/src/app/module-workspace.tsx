@@ -1,6 +1,28 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { InvoiceExpenseWorkspace } from "./workspaces/invoice-expense-workspace";
 
 type ModuleKey = "master-data" | "ledger" | "documents" | "expenses" | "evidence" | "integrations";
@@ -183,113 +205,131 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
     : items;
 
   return (
-    <section className="panel operational-workspace">
-      <div className="panel-head workspace-head">
-        <div>
-          <h2>{config.title}</h2>
-          <p>Thao tác trực tiếp qua REST API, không cần nhập JSON cho luồng chính.</p>
-        </div>
-        <div className="workspace-actions">
+    <Card className="operational-workspace">
+      <CardHeader>
+        <CardTitle>{config.title}</CardTitle>
+        <CardDescription>
+          Thao tác trực tiếp qua REST API, không cần nhập JSON cho luồng chính.
+        </CardDescription>
+        <CardAction className="flex gap-2">
           {moduleKey !== "documents" && moduleKey !== "expenses" ? (
-            <button className="ghost" onClick={load} disabled={busy}>
+            <Button variant="outline" onClick={load} disabled={busy}>
               Tải dữ liệu
-            </button>
+            </Button>
           ) : null}
           {moduleKey !== "integrations" && moduleKey !== "documents" && moduleKey !== "expenses" ? (
-            <button className="primary" onClick={() => setShowCreate((open) => !open)}>
+            <Button onClick={() => setShowCreate((open) => !open)}>
               {showCreate ? "Đóng form" : "+ Tạo mới"}
-            </button>
+            </Button>
           ) : null}
-        </div>
-      </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <details className="connection-settings">
+          <summary>Kết nối API local</summary>
+          <FieldGroup className="grid gap-4 md:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="module-api-url">API URL</FieldLabel>
+              <Input
+                id="module-api-url"
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="module-organization-id">Organization ID</FieldLabel>
+              <Input
+                id="module-organization-id"
+                value={organizationId}
+                onChange={(event) => setOrganizationId(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="module-access-token">Access token</FieldLabel>
+              <Input
+                id="module-access-token"
+                type="password"
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+                placeholder="Bearer token"
+              />
+            </Field>
+          </FieldGroup>
+        </details>
 
-      <details className="connection-settings">
-        <summary>Kết nối API local</summary>
-        <div className="connection-grid">
-          <label>
-            API URL
-            <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-          </label>
-          <label>
-            Organization ID
-            <input
-              value={organizationId}
-              onChange={(event) => setOrganizationId(event.target.value)}
-            />
-          </label>
-          <label>
-            Access token
-            <input
-              type="password"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="Bearer token"
-            />
-          </label>
-        </div>
-      </details>
-
-      {moduleKey === "documents" || moduleKey === "expenses" ? (
-        <InvoiceExpenseWorkspace
-          kind={moduleKey}
-          apiRoot={apiRoot}
-          token={token}
-          onNotice={(message) => setNotice(message)}
-        />
-      ) : null}
-
-      {moduleKey !== "documents" && moduleKey !== "expenses" && showCreate ? (
-        <CreateForm moduleKey={moduleKey as ModuleKey} busy={busy} onCreate={create} />
-      ) : null}
-
-      {moduleKey !== "documents" && moduleKey !== "expenses" ? (
-        <div
-          className={`inline-notice ${notice.includes("Không") || notice.includes("AUTH") ? "error" : ""}`}
-        >
-          {notice}
-        </div>
-      ) : null}
-      {moduleKey !== "documents" && moduleKey !== "expenses" ? (
-        <div className="table-toolbar">
-          <input
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Tìm trong danh sách…"
+        {moduleKey === "documents" || moduleKey === "expenses" ? (
+          <InvoiceExpenseWorkspace
+            kind={moduleKey}
+            apiRoot={apiRoot}
+            token={token}
+            onNotice={(message) => setNotice(message)}
           />
-          <span>{visible.length} bản ghi</span>
-        </div>
-      ) : null}
-      {moduleKey !== "documents" && moduleKey !== "expenses" ? (
-        <div className="data-table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                {config.columns.map((column) => (
-                  <th key={column}>{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((row, index) => (
-                <tr
-                  key={String(row.id ?? row.code ?? index)}
-                  onClick={() => setSelected(row)}
-                  className={selected === row ? "selected" : ""}
-                >
+        ) : null}
+
+        {moduleKey !== "documents" && moduleKey !== "expenses" && showCreate ? (
+          <CreateForm moduleKey={moduleKey as ModuleKey} busy={busy} onCreate={create} />
+        ) : null}
+
+        {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+          <Alert
+            variant={
+              notice.includes("Không") || notice.includes("AUTH") ? "destructive" : "default"
+            }
+          >
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        ) : null}
+        {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+          <div className="flex items-center gap-3">
+            <Input
+              aria-label="Tìm trong danh sách"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              placeholder="Tìm trong danh sách…"
+            />
+            <Badge variant="secondary">{visible.length} bản ghi</Badge>
+          </div>
+        ) : null}
+        {moduleKey !== "documents" && moduleKey !== "expenses" ? (
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
                   {config.columns.map((column) => (
-                    <td key={column}>{value(row, column)}</td>
+                    <TableHead key={column}>{column}</TableHead>
                   ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!visible.length ? <div className="empty-state">{config.empty}</div> : null}
-        </div>
-      ) : null}
-      {moduleKey !== "documents" && moduleKey !== "expenses" && selected ? (
-        <LifecycleActions moduleKey={moduleKey as ModuleKey} onAction={action} />
-      ) : null}
-    </section>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((row, index) => (
+                  <TableRow
+                    key={String(row.id ?? row.code ?? index)}
+                    onClick={() => setSelected(row)}
+                    data-state={selected === row ? "selected" : undefined}
+                    className="cursor-pointer"
+                  >
+                    {config.columns.map((column) => (
+                      <TableCell key={column}>{value(row, column)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {!visible.length ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>Chưa có dữ liệu</EmptyTitle>
+                  <EmptyDescription>{config.empty}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : null}
+          </div>
+        ) : null}
+        {moduleKey !== "documents" && moduleKey !== "expenses" && selected ? (
+          <LifecycleActions moduleKey={moduleKey as ModuleKey} onAction={action} />
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -308,17 +348,21 @@ function CreateForm({
     amount: "0",
   });
   const set = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const field = (key: string, label: string, type = "text", required = true) => (
-    <label>
-      {label}
-      <input
-        type={type}
-        value={form[key] ?? ""}
-        onChange={(event) => set(key, event.target.value)}
-        required={required}
-      />
-    </label>
-  );
+  const field = (key: string, label: string, type = "text", required = true) => {
+    const id = `create-${moduleKey}-${key}`;
+    return (
+      <Field>
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        <Input
+          id={id}
+          type={type}
+          value={form[key] ?? ""}
+          onChange={(event) => set(key, event.target.value)}
+          required={required}
+        />
+      </Field>
+    );
+  };
   async function submit(event: FormEvent) {
     event.preventDefault();
     const amount = form.amount || "0";
@@ -384,51 +428,53 @@ function CreateForm({
   }
   return (
     <form className="business-form" onSubmit={submit}>
-      {moduleKey === "master-data" ? (
-        <>
-          {field("code", "Mã tài khoản")}
-          {field("name", "Tên tài khoản")}
-          {field("rootType", "Nhóm (asset/liability/equity/revenue/expense)")}
-        </>
-      ) : null}
-      {moduleKey === "ledger" ? (
-        <>
-          {field("date", "Ngày", "date")}
-          {field("description", "Diễn giải")}
-          {field("amount", "Số tiền", "number")}
-          {field("debitAccount", "Tài khoản Nợ")}
-          {field("creditAccount", "Tài khoản Có")}
-        </>
-      ) : null}
-      {moduleKey === "documents" ? (
-        <>
-          {field("type", "Loại: sales_invoice / purchase_invoice")}
-          {field("number", "Số hóa đơn")}
-          {field("partyId", "Khách hàng / nhà cung cấp")}
-          {field("date", "Ngày hóa đơn", "date")}
-          {field("dueDate", "Hạn thanh toán", "date", false)}
-          {field("description", "Nội dung")}
-          {field("amount", "Tiền trước thuế", "number")}
-          {field("tax", "VAT", "number", false)}
-          {field("primaryAccount", "Tài khoản doanh thu / chi phí")}
-          {field("controlAccount", "Tài khoản công nợ")}
-        </>
-      ) : null}
-      {moduleKey === "expenses" ? (
-        <>
-          {field("expenseClass", "Loại chi phí")}
-          {field("date", "Ngày chi", "date")}
-          {field("description", "Mục đích kinh doanh")}
-          {field("amount", "Tiền trước thuế", "number")}
-          {field("tax", "VAT", "number", false)}
-          {field("debitAccount", "Tài khoản chi phí")}
-          {field("creditAccount", "Tài khoản thanh toán")}
-        </>
-      ) : null}
-      {moduleKey === "evidence" ? <EvidenceFields form={form} set={set} /> : null}
-      <button className="primary" type="submit" disabled={busy}>
-        Lưu bản nháp
-      </button>
+      <FieldGroup>
+        {moduleKey === "master-data" ? (
+          <>
+            {field("code", "Mã tài khoản")}
+            {field("name", "Tên tài khoản")}
+            {field("rootType", "Nhóm (asset/liability/equity/revenue/expense)")}
+          </>
+        ) : null}
+        {moduleKey === "ledger" ? (
+          <>
+            {field("date", "Ngày", "date")}
+            {field("description", "Diễn giải")}
+            {field("amount", "Số tiền", "number")}
+            {field("debitAccount", "Tài khoản Nợ")}
+            {field("creditAccount", "Tài khoản Có")}
+          </>
+        ) : null}
+        {moduleKey === "documents" ? (
+          <>
+            {field("type", "Loại: sales_invoice / purchase_invoice")}
+            {field("number", "Số hóa đơn")}
+            {field("partyId", "Khách hàng / nhà cung cấp")}
+            {field("date", "Ngày hóa đơn", "date")}
+            {field("dueDate", "Hạn thanh toán", "date", false)}
+            {field("description", "Nội dung")}
+            {field("amount", "Tiền trước thuế", "number")}
+            {field("tax", "VAT", "number", false)}
+            {field("primaryAccount", "Tài khoản doanh thu / chi phí")}
+            {field("controlAccount", "Tài khoản công nợ")}
+          </>
+        ) : null}
+        {moduleKey === "expenses" ? (
+          <>
+            {field("expenseClass", "Loại chi phí")}
+            {field("date", "Ngày chi", "date")}
+            {field("description", "Mục đích kinh doanh")}
+            {field("amount", "Tiền trước thuế", "number")}
+            {field("tax", "VAT", "number", false)}
+            {field("debitAccount", "Tài khoản chi phí")}
+            {field("creditAccount", "Tài khoản thanh toán")}
+          </>
+        ) : null}
+        {moduleKey === "evidence" ? <EvidenceFields form={form} set={set} /> : null}
+        <Button type="submit" disabled={busy}>
+          Lưu bản nháp
+        </Button>
+      </FieldGroup>
     </form>
   );
 }
@@ -454,37 +500,41 @@ function EvidenceFields({
   }
   return (
     <>
-      <label>
-        Loại đối tượng
-        <input
+      <Field>
+        <FieldLabel htmlFor="evidence-subject-type">Loại đối tượng</FieldLabel>
+        <Input
+          id="evidence-subject-type"
           value={form.subjectType ?? "expense"}
           onChange={(event) => set("subjectType", event.target.value)}
         />
-      </label>
-      <label>
-        ID đối tượng
-        <input
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="evidence-subject-id">ID đối tượng</FieldLabel>
+        <Input
+          id="evidence-subject-id"
           value={form.subjectId ?? ""}
           onChange={(event) => set("subjectId", event.target.value)}
           required
         />
-      </label>
-      <label>
-        Loại chứng từ
-        <input
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="evidence-type">Loại chứng từ</FieldLabel>
+        <Input
+          id="evidence-type"
           value={form.evidenceType ?? "receipt"}
           onChange={(event) => set("evidenceType", event.target.value)}
         />
-      </label>
-      <label className="file-field">
-        Chọn PDF/XML/ảnh
-        <input
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="evidence-file">Chọn PDF/XML/ảnh</FieldLabel>
+        <Input
+          id="evidence-file"
           type="file"
           accept=".pdf,.xml,image/jpeg,image/png"
           onChange={(event) => choose(event.target.files?.[0])}
           required
         />
-      </label>
+      </Field>
     </>
   );
 }
@@ -510,11 +560,12 @@ function LifecycleActions({
               : [];
   if (!actions.length) return null;
   return (
-    <div className="lifecycle-actions">
+    <div className="flex flex-wrap items-center gap-2">
       <strong>Thao tác bản ghi đã chọn</strong>
       {actions.map((name) => (
-        <button
-          className="ghost"
+        <Button
+          variant="outline"
+          size="sm"
           key={name}
           onClick={() =>
             onAction(name, {
@@ -524,7 +575,7 @@ function LifecycleActions({
           }
         >
           {name}
-        </button>
+        </Button>
       ))}
     </div>
   );

@@ -1,6 +1,27 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Section = "journals" | "reports" | "accounts" | "resources";
 type ApiRow = Record<string, unknown>;
@@ -45,6 +66,15 @@ function field(row: ApiRow, ...names: string[]): unknown {
 
 function encodedMasterDataKey(key: ApiRow): string {
   return btoa(JSON.stringify(key)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function LabeledField({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </Field>
+  );
 }
 
 export function LedgerMasterWorkspace({
@@ -255,42 +285,41 @@ export function LedgerMasterWorkspace({
             thực thi.
           </p>
         </div>
-        <button className="ghost" type="button" onClick={loadCurrent} disabled={busy}>
+        <Button variant="outline" type="button" onClick={loadCurrent} disabled={busy}>
           {busy ? "Đang tải…" : "Tải dữ liệu"}
-        </button>
+        </Button>
       </div>
 
       <details className="connection-settings">
         <summary>Kết nối API local</summary>
-        <div className="connection-grid">
-          <label>
-            API URL
-            <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-          </label>
-          <label>
-            Organization ID
-            <input
+        <FieldGroup className="connection-grid">
+          <LabeledField label="API URL">
+            <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+          </LabeledField>
+          <LabeledField label="Organization ID">
+            <Input
               value={organizationId}
               onChange={(event) => setOrganizationId(event.target.value)}
             />
-          </label>
-          <label>
-            Access token
-            <input
+          </LabeledField>
+          <LabeledField label="Access token">
+            <Input
               type="password"
               value={token}
               onChange={(event) => setToken(event.target.value)}
             />
-          </label>
-        </div>
+          </LabeledField>
+        </FieldGroup>
       </details>
 
       <div className="table-toolbar" role="tablist" aria-label="Phân hệ kế toán">
         {(["journals", "reports", "accounts", "resources"] as const).map((item) => (
-          <button
+          <Button
             key={item}
             type="button"
-            className={section === item ? "primary" : "ghost"}
+            role="tab"
+            aria-selected={section === item}
+            variant={section === item ? "default" : "ghost"}
             onClick={() => setSection(item)}
           >
             {item === "journals"
@@ -300,14 +329,15 @@ export function LedgerMasterWorkspace({
                 : item === "accounts"
                   ? "Tài khoản"
                   : "Danh mục khác"}
-          </button>
+          </Button>
         ))}
       </div>
-      <div
-        className={`inline-notice ${notice.includes("Không") || notice.includes("HTTP") ? "error" : ""}`}
+      <Alert
+        className="inline-notice"
+        variant={notice.includes("Không") || notice.includes("HTTP") ? "destructive" : "default"}
       >
-        {notice}
-      </div>
+        <AlertDescription>{notice}</AlertDescription>
+      </Alert>
 
       {section === "journals" ? (
         <JournalSection
@@ -402,66 +432,58 @@ function JournalSection({
   return (
     <div>
       <div className="workspace-actions">
-        <button className="primary" type="button" onClick={() => setShowForm((value) => !value)}>
+        <Button type="button" onClick={() => setShowForm((value) => !value)}>
           + Bút toán nháp
-        </button>
+        </Button>
       </div>
       {showForm ? (
         <form className="create-form" onSubmit={submit}>
-          <div className="connection-grid">
-            <label>
-              ID tùy chọn
-              <input
+          <FieldGroup className="connection-grid">
+            <LabeledField label="ID tùy chọn">
+              <Input
                 value={form.id}
                 onChange={(e) => setForm((v) => ({ ...v, id: e.target.value }))}
               />
-            </label>
-            <label>
-              Ngày hạch toán
-              <input
+            </LabeledField>
+            <LabeledField label="Ngày hạch toán">
+              <Input
                 type="date"
                 required
                 value={form.date}
                 onChange={(e) => setForm((v) => ({ ...v, date: e.target.value }))}
               />
-            </label>
-            <label>
-              Diễn giải
-              <input
+            </LabeledField>
+            <LabeledField label="Diễn giải">
+              <Input
                 required
                 value={form.description}
                 onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))}
               />
-            </label>
-            <label>
-              Tài khoản Nợ
-              <input
+            </LabeledField>
+            <LabeledField label="Tài khoản Nợ">
+              <Input
                 required
                 value={form.debitAccount}
                 onChange={(e) => setForm((v) => ({ ...v, debitAccount: e.target.value }))}
               />
-            </label>
-            <label>
-              Tài khoản Có
-              <input
+            </LabeledField>
+            <LabeledField label="Tài khoản Có">
+              <Input
                 required
                 value={form.creditAccount}
                 onChange={(e) => setForm((v) => ({ ...v, creditAccount: e.target.value }))}
               />
-            </label>
-            <label>
-              Số tiền minor units
-              <input
+            </LabeledField>
+            <LabeledField label="Số tiền minor units">
+              <Input
                 required
                 inputMode="numeric"
                 value={form.amount}
                 onChange={(e) => setForm((v) => ({ ...v, amount: e.target.value }))}
               />
-            </label>
-          </div>
-          <button className="primary" disabled={busy}>
-            Lưu bản nháp
-          </button>
+            </LabeledField>
+          </FieldGroup>
+          <Button disabled={busy}>Lưu bản nháp</Button>
         </form>
       ) : null}
       <SimpleTable
@@ -472,27 +494,29 @@ function JournalSection({
       />
       {selected ? (
         <div className="workspace-actions">
-          <button
-            className="ghost"
+          <Button
+            type="button"
+            variant="outline"
             disabled={busy || field(selected, "state") !== "draft"}
             onClick={() => onAction("approve")}
           >
             Duyệt
-          </button>
-          <button
-            className="primary"
+          </Button>
+          <Button
+            type="button"
             disabled={busy || field(selected, "state") !== "approved"}
             onClick={() => onAction("post")}
           >
             Post sổ
-          </button>
-          <button
-            className="ghost"
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
             disabled={busy || field(selected, "state") !== "posted"}
             onClick={() => onAction("reverse")}
           >
             Đảo bút toán
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -516,35 +540,32 @@ function ReportSection({
 }) {
   return (
     <div>
-      <div className="connection-grid">
-        <label>
-          Từ ngày
-          <input
+      <FieldGroup className="connection-grid">
+        <LabeledField label="Từ ngày">
+          <Input
             type="date"
             value={range.from}
             onChange={(e) => onRange({ ...range, from: e.target.value })}
           />
-        </label>
-        <label>
-          Đến ngày
-          <input
+        </LabeledField>
+        <LabeledField label="Đến ngày">
+          <Input
             type="date"
             value={range.to}
             onChange={(e) => onRange({ ...range, to: e.target.value })}
           />
-        </label>
-        <label>
-          Tài khoản GL
-          <input
+        </LabeledField>
+        <LabeledField label="Tài khoản GL">
+          <Input
             value={range.accountCode}
             onChange={(e) => onRange({ ...range, accountCode: e.target.value })}
             placeholder="Ví dụ 111"
           />
-        </label>
-      </div>
-      <button className="primary" type="button" disabled={busy} onClick={onLoad}>
+        </LabeledField>
+      </FieldGroup>
+      <Button type="button" disabled={busy} onClick={onLoad}>
         Chạy báo cáo
-      </button>
+      </Button>
       <h3>Trial Balance</h3>
       <SimpleTable
         columns={[
@@ -613,40 +634,42 @@ function AccountSection({
   return (
     <div>
       <form className="create-form" onSubmit={submit}>
-        <div className="connection-grid">
-          <label>
-            Mã tài khoản
-            <input
+        <FieldGroup className="connection-grid">
+          <LabeledField label="Mã tài khoản">
+            <Input
               required
               value={form.code}
               onChange={(e) => setForm((v) => ({ ...v, code: e.target.value }))}
             />
-          </label>
-          <label>
-            Tên tài khoản
-            <input
+          </LabeledField>
+          <LabeledField label="Tên tài khoản">
+            <Input
               required
               value={form.name}
               onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
             />
-          </label>
-          <label>
-            Nhóm
-            <select
+          </LabeledField>
+          <LabeledField label="Nhóm">
+            <Select
               value={form.rootType}
-              onChange={(e) => setForm((v) => ({ ...v, rootType: e.target.value }))}
+              onValueChange={(value) => setForm((v) => ({ ...v, rootType: value }))}
             >
-              <option value="asset">Tài sản</option>
-              <option value="liability">Nợ phải trả</option>
-              <option value="equity">Vốn chủ</option>
-              <option value="revenue">Doanh thu</option>
-              <option value="expense">Chi phí</option>
-            </select>
-          </label>
-        </div>
-        <button className="primary" disabled={busy}>
-          Tạo tài khoản
-        </button>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="asset">Tài sản</SelectItem>
+                  <SelectItem value="liability">Nợ phải trả</SelectItem>
+                  <SelectItem value="equity">Vốn chủ</SelectItem>
+                  <SelectItem value="revenue">Doanh thu</SelectItem>
+                  <SelectItem value="expense">Chi phí</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </LabeledField>
+        </FieldGroup>
+        <Button disabled={busy}>Tạo tài khoản</Button>
       </form>
       <SimpleTable
         columns={["code", "name", "root_type", "is_active"]}
@@ -655,13 +678,14 @@ function AccountSection({
         onSelect={onSelect}
       />
       {selected ? (
-        <button
-          className="ghost"
+        <Button
+          type="button"
+          variant="destructive"
           disabled={busy || field(selected, "is_active", "isActive") === false}
           onClick={onDeactivate}
         >
           Ngừng sử dụng
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -688,14 +712,23 @@ function ResourceSection({
   return (
     <div>
       <div className="request-row">
-        <select value={resourceName} onChange={(e) => onResourceName(e.target.value)}>
-          {known.map((name) => (
-            <option key={name}>{name}</option>
-          ))}
-        </select>
-        <button className="primary" disabled={busy} onClick={onLoad}>
+        <Select value={resourceName} onValueChange={onResourceName}>
+          <SelectTrigger aria-label="Danh mục" className="min-w-52">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {known.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Button type="button" disabled={busy} onClick={onLoad}>
           Tải danh mục
-        </button>
+        </Button>
       </div>
       <SimpleTable
         columns={["id", "code", "name", "display_name", "state", "status"]}
@@ -720,23 +753,37 @@ function SimpleTable({
 }) {
   return (
     <div className="data-table-wrap">
-      <table className="data-table">
-        <thead>
-          <tr>
+      <Table className="data-table">
+        <TableHeader>
+          <TableRow>
             {columns.map((column) => (
-              <th key={column}>{column}</th>
+              <TableHead key={column} className={amountColumns.has(column) ? "text-right" : ""}>
+                {column}
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row, index) => (
-            <tr
+            <TableRow
               key={String(field(row, "id", "code") ?? index)}
               className={row === selected ? "selected" : ""}
               onClick={() => onSelect?.(row)}
+              onKeyDown={(event) => {
+                if (onSelect && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  onSelect(row);
+                }
+              }}
+              tabIndex={onSelect ? 0 : undefined}
+              aria-selected={onSelect ? row === selected : undefined}
+              data-state={row === selected ? "selected" : undefined}
             >
               {columns.map((column) => (
-                <td key={column}>
+                <TableCell
+                  key={column}
+                  className={amountColumns.has(column) ? "text-right tabular-nums" : ""}
+                >
                   {display(
                     field(
                       row,
@@ -745,13 +792,20 @@ function SimpleTable({
                     ),
                     amountColumns.has(column),
                   )}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      {rows.length ? null : <div className="empty-state">Chưa có dữ liệu cho bộ lọc hiện tại.</div>}
+        </TableBody>
+      </Table>
+      {rows.length ? null : (
+        <Empty className="empty-state">
+          <EmptyHeader>
+            <EmptyTitle>Chưa có dữ liệu</EmptyTitle>
+            <EmptyDescription>Không có bản ghi cho bộ lọc hiện tại.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
     </div>
   );
 }

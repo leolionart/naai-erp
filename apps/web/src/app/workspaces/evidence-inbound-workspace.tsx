@@ -1,6 +1,28 @@
 "use client";
 
 import { type FormEvent, useMemo, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type JsonRecord = Record<string, unknown>;
 type FetchLike = typeof fetch;
@@ -52,38 +74,6 @@ function fileAsBase64(file: File) {
     reader.readAsDataURL(file);
   });
 }
-
-const cardStyle = {
-  border: "1px solid #e5e8ee",
-  borderRadius: 12,
-  padding: 18,
-  background: "#fff",
-} as const;
-const gridStyle = { display: "grid", gap: 14 } as const;
-const fieldStyle = { display: "grid", gap: 6, fontSize: 12, fontWeight: 650 } as const;
-const inputStyle = {
-  minHeight: 38,
-  border: "1px solid #d8dde7",
-  borderRadius: 8,
-  padding: "8px 10px",
-  background: "#fff",
-} as const;
-const buttonStyle = {
-  minHeight: 38,
-  border: 0,
-  borderRadius: 8,
-  padding: "8px 13px",
-  background: "#3159d8",
-  color: "#fff",
-  fontWeight: 750,
-  cursor: "pointer",
-} as const;
-const subtleButtonStyle = {
-  ...buttonStyle,
-  border: "1px solid #d8dde7",
-  background: "#fff",
-  color: "#293449",
-} as const;
 
 export function EvidenceInboundWorkspace({
   initialBaseUrl = "http://localhost:3001",
@@ -238,344 +228,359 @@ export function EvidenceInboundWorkspace({
   }
 
   return (
-    <section aria-labelledby="operations-title" style={{ ...gridStyle, marginTop: 18 }}>
-      <div style={cardStyle}>
-        <h2 id="operations-title" style={{ margin: 0 }}>
-          Chứng từ & Webhook inbox
-        </h2>
-        <p style={{ margin: "6px 0 14px", color: "#667085", fontSize: 13 }}>
-          Upload, review, cấp URL tải và xử lý sự kiện lỗi mà không cần nhập JSON.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr", gap: 12 }}>
-          <label style={fieldStyle}>
-            API URL
-            <input
-              aria-label="API URL"
-              style={inputStyle}
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-            />
-          </label>
-          <label style={fieldStyle}>
-            Organization ID
-            <input
-              aria-label="Organization ID"
-              style={inputStyle}
-              value={organizationId}
-              onChange={(e) => setOrganizationId(e.target.value)}
-            />
-          </label>
-          <label style={fieldStyle}>
-            Access token
-            <input
-              aria-label="Access token"
-              type="password"
-              style={inputStyle}
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
-          </label>
-        </div>
-        <p
-          role="status"
-          aria-live="polite"
-          style={{ margin: "12px 0 0", color: "#475467", fontSize: 12 }}
-        >
-          {busy ? "Đang xử lý…" : notice}
-        </p>
-      </div>
+    <section aria-labelledby="operations-title" className="mt-5 flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle id="operations-title">Chứng từ & Webhook inbox</CardTitle>
+          <CardDescription>
+            Upload, review, cấp URL tải và xử lý sự kiện lỗi mà không cần nhập JSON.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <FieldGroup className="grid gap-4 md:grid-cols-[2fr_1fr_2fr]">
+            <Field>
+              <FieldLabel htmlFor="evidence-api-url">API URL</FieldLabel>
+              <Input
+                id="evidence-api-url"
+                aria-label="API URL"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="evidence-organization-id">Organization ID</FieldLabel>
+              <Input
+                id="evidence-organization-id"
+                aria-label="Organization ID"
+                value={organizationId}
+                onChange={(e) => setOrganizationId(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="evidence-access-token">Access token</FieldLabel>
+              <Input
+                id="evidence-access-token"
+                aria-label="Access token"
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <Alert>
+            <AlertDescription role="status" aria-live="polite">
+              {busy ? "Đang xử lý…" : notice}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
-        <div style={gridStyle}>
-          <form aria-labelledby="upload-title" onSubmit={uploadEvidence} style={cardStyle}>
-            <h3 id="upload-title" style={{ marginTop: 0 }}>
-              Tải chứng từ
-            </h3>
-            <div style={gridStyle}>
-              <label style={fieldStyle}>
-                Loại nguồn
-                <select
-                  name="subjectType"
-                  aria-label="Loại nguồn chứng từ"
-                  style={inputStyle}
-                  defaultValue="expense"
-                >
-                  <option value="expense">Chi phí</option>
-                  <option value="commercial_document">Hóa đơn</option>
-                  <option value="contract">Hợp đồng</option>
-                  <option value="project">Dự án</option>
-                  <option value="milestone">Milestone</option>
-                </select>
-              </label>
-              <label style={fieldStyle}>
-                ID nguồn
-                <input
-                  name="subjectId"
-                  aria-label="ID nguồn chứng từ"
-                  style={inputStyle}
-                  required
-                />
-              </label>
-              <label style={fieldStyle}>
-                Loại chứng từ
-                <input
-                  name="evidenceType"
-                  aria-label="Loại chứng từ"
-                  style={inputStyle}
-                  placeholder="invoice, receipt, contract…"
-                  required
-                />
-              </label>
-              <label style={fieldStyle}>
-                File PDF, XML, PNG hoặc JPEG
-                <input
-                  name="file"
-                  aria-label="File chứng từ"
-                  type="file"
-                  accept="application/pdf,application/xml,image/png,image/jpeg"
-                  required
-                />
-              </label>
-              <button style={buttonStyle} disabled={busy}>
-                Tải lên
-              </button>
-            </div>
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <form aria-labelledby="upload-title" onSubmit={uploadEvidence}>
+            <Card>
+              <CardHeader>
+                <CardTitle id="upload-title">Tải chứng từ</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>Loại nguồn</FieldLabel>
+                    <Select name="subjectType" defaultValue="expense">
+                      <SelectTrigger aria-label="Loại nguồn chứng từ">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="expense">Chi phí</SelectItem>
+                          <SelectItem value="commercial_document">Hóa đơn</SelectItem>
+                          <SelectItem value="contract">Hợp đồng</SelectItem>
+                          <SelectItem value="project">Dự án</SelectItem>
+                          <SelectItem value="milestone">Milestone</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="evidence-subject-id">ID nguồn</FieldLabel>
+                    <Input
+                      id="evidence-subject-id"
+                      name="subjectId"
+                      aria-label="ID nguồn chứng từ"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="evidence-kind">Loại chứng từ</FieldLabel>
+                    <Input
+                      id="evidence-kind"
+                      name="evidenceType"
+                      aria-label="Loại chứng từ"
+                      placeholder="invoice, receipt, contract…"
+                      required
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="evidence-upload-file">
+                      File PDF, XML, PNG hoặc JPEG
+                    </FieldLabel>
+                    <Input
+                      id="evidence-upload-file"
+                      name="file"
+                      aria-label="File chứng từ"
+                      type="file"
+                      accept="application/pdf,application/xml,image/png,image/jpeg"
+                      required
+                    />
+                  </Field>
+                  <Button disabled={busy}>Tải lên</Button>
+                </FieldGroup>
+              </CardContent>
+            </Card>
           </form>
 
-          <div style={cardStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 10,
-                alignItems: "center",
-              }}
-            >
-              <h3 style={{ margin: 0 }}>Danh sách chứng từ</h3>
-              <button style={subtleButtonStyle} onClick={loadEvidence} disabled={busy}>
-                Làm mới chứng từ
-              </button>
-            </div>
-            <div
-              role="list"
-              aria-label="Danh sách chứng từ"
-              style={{ ...gridStyle, marginTop: 12 }}
-            >
-              {evidenceItems.map((item) => {
-                const id = display(item, "id", "evidenceId");
-                return (
-                  <button
-                    key={id}
-                    role="listitem"
-                    aria-pressed={selectedEvidence === item}
-                    onClick={() => setSelectedEvidence(item)}
-                    style={{
-                      ...subtleButtonStyle,
-                      textAlign: "left",
-                      background: selectedEvidence === item ? "#eef2ff" : "#fff",
-                    }}
-                  >
-                    <strong>
-                      {display(
-                        item,
-                        "original_filename",
-                        "originalFilename",
-                        "evidence_type",
-                        "evidenceType",
-                      )}
-                    </strong>
-                    <br />
-                    <small>
-                      {id} · {display(item, "review_state", "reviewState", "status")}
-                    </small>
-                  </button>
-                );
-              })}
-              {!evidenceItems.length ? (
-                <p>Chưa có chứng từ. Bấm “Làm mới chứng từ” để tải dữ liệu.</p>
-              ) : null}
-            </div>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Danh sách chứng từ</CardTitle>
+              <CardAction>
+                <Button variant="outline" onClick={loadEvidence} disabled={busy}>
+                  Làm mới chứng từ
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <div role="list" aria-label="Danh sách chứng từ" className="flex flex-col gap-2">
+                {evidenceItems.map((item) => {
+                  const id = display(item, "id", "evidenceId");
+                  return (
+                    <Button
+                      key={id}
+                      role="listitem"
+                      aria-pressed={selectedEvidence === item}
+                      variant={selectedEvidence === item ? "secondary" : "outline"}
+                      onClick={() => setSelectedEvidence(item)}
+                      className="h-auto justify-start text-left"
+                    >
+                      <span>
+                        <strong>
+                          {display(
+                            item,
+                            "original_filename",
+                            "originalFilename",
+                            "evidence_type",
+                            "evidenceType",
+                          )}
+                        </strong>
+                        <br />
+                        <small>
+                          {id} · {display(item, "review_state", "reviewState", "status")}
+                        </small>
+                      </span>
+                    </Button>
+                  );
+                })}
+                {!evidenceItems.length ? (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyTitle>Chưa có chứng từ</EmptyTitle>
+                      <EmptyDescription>Bấm “Làm mới chứng từ” để tải dữ liệu.</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
 
-          <div style={cardStyle}>
-            <h3 style={{ marginTop: 0 }}>Review & tải xuống</h3>
-            <p style={{ fontSize: 12 }}>
-              Đang chọn: <strong>{display(selectedEvidence ?? {}, "id", "evidenceId")}</strong>
-            </p>
-            <div style={gridStyle}>
-              <label style={fieldStyle}>
-                Kết quả review
-                <select
-                  aria-label="Kết quả review chứng từ"
-                  style={inputStyle}
-                  value={reviewState}
-                  onChange={(e) => setReviewState(e.target.value)}
+          <Card>
+            <CardHeader>
+              <CardTitle>Review & tải xuống</CardTitle>
+              <CardDescription>
+                Đang chọn: {display(selectedEvidence ?? {}, "id", "evidenceId")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Kết quả review</FieldLabel>
+                  <Select value={reviewState} onValueChange={setReviewState}>
+                    <SelectTrigger aria-label="Kết quả review chứng từ">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="accepted">Chấp nhận</SelectItem>
+                        <SelectItem value="needs_review">Cần kiểm tra thêm</SelectItem>
+                        <SelectItem value="rejected">Từ chối</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="evidence-review-reason">Lý do review</FieldLabel>
+                  <Input
+                    id="evidence-review-reason"
+                    aria-label="Lý do review chứng từ"
+                    value={reviewReason}
+                    onChange={(e) => setReviewReason(e.target.value)}
+                  />
+                </Field>
+                <Button type="button" onClick={reviewEvidence} disabled={busy || !selectedEvidence}>
+                  Lưu kết quả review
+                </Button>
+                <Field>
+                  <FieldLabel htmlFor="evidence-download-reason">Mục đích tải</FieldLabel>
+                  <Input
+                    id="evidence-download-reason"
+                    aria-label="Mục đích tải chứng từ"
+                    value={downloadReason}
+                    onChange={(e) => setDownloadReason(e.target.value)}
+                  />
+                </Field>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={createDownloadUrl}
+                  disabled={busy || !selectedEvidence}
                 >
-                  <option value="accepted">Chấp nhận</option>
-                  <option value="needs_review">Cần kiểm tra thêm</option>
-                  <option value="rejected">Từ chối</option>
-                </select>
-              </label>
-              <label style={fieldStyle}>
-                Lý do review
-                <textarea
-                  aria-label="Lý do review chứng từ"
-                  style={inputStyle}
-                  value={reviewReason}
-                  onChange={(e) => setReviewReason(e.target.value)}
-                />
-              </label>
-              <button
-                style={buttonStyle}
-                type="button"
-                onClick={reviewEvidence}
-                disabled={busy || !selectedEvidence}
-              >
-                Lưu kết quả review
-              </button>
-              <label style={fieldStyle}>
-                Mục đích tải
-                <input
-                  aria-label="Mục đích tải chứng từ"
-                  style={inputStyle}
-                  value={downloadReason}
-                  onChange={(e) => setDownloadReason(e.target.value)}
-                />
-              </label>
-              <button
-                style={subtleButtonStyle}
-                type="button"
-                onClick={createDownloadUrl}
-                disabled={busy || !selectedEvidence}
-              >
-                Cấp URL tải 2 phút
-              </button>
-              {downloadUrl && downloadUrl !== "—" ? (
-                <a href={downloadUrl} target="_blank" rel="noreferrer">
-                  Mở file chứng từ trong cửa sổ mới
-                </a>
-              ) : null}
-            </div>
-          </div>
+                  Cấp URL tải 2 phút
+                </Button>
+                {downloadUrl && downloadUrl !== "—" ? (
+                  <Button asChild variant="link">
+                    <a href={downloadUrl} target="_blank" rel="noreferrer">
+                      Mở file chứng từ trong cửa sổ mới
+                    </a>
+                  </Button>
+                ) : null}
+              </FieldGroup>
+            </CardContent>
+          </Card>
         </div>
 
-        <div style={gridStyle}>
-          <div style={cardStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 10,
-                alignItems: "center",
-              }}
-            >
-              <h3 style={{ margin: 0 }}>Webhook inbox</h3>
-              <button style={subtleButtonStyle} onClick={loadInbound} disabled={busy}>
-                Làm mới inbox
-              </button>
-            </div>
-            <div
-              style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10, marginTop: 12 }}
-            >
-              <label style={fieldStyle}>
-                Trạng thái
-                <select
-                  aria-label="Lọc trạng thái inbound"
-                  style={inputStyle}
-                  value={inboundState}
-                  onChange={(e) => setInboundState(e.target.value)}
-                >
-                  <option value="">Tất cả</option>
-                  <option value="received">Received</option>
-                  <option value="succeeded">Succeeded</option>
-                  <option value="retry_scheduled">Retry</option>
-                  <option value="quarantined">Quarantine</option>
-                  <option value="dead_letter">Dead letter</option>
-                </select>
-              </label>
-              <label style={fieldStyle}>
-                Tìm sự kiện
-                <input
-                  aria-label="Tìm sự kiện inbound"
-                  style={inputStyle}
-                  value={inboundQuery}
-                  onChange={(e) => setInboundQuery(e.target.value)}
-                  placeholder="external ID, event type, lỗi…"
-                />
-              </label>
-            </div>
-            <div
-              role="list"
-              aria-label="Danh sách sự kiện inbound"
-              style={{ ...gridStyle, marginTop: 12 }}
-            >
-              {visibleInbound.map((item) => {
-                const id = display(item, "id", "messageId");
-                return (
-                  <button
-                    key={id}
-                    role="listitem"
-                    onClick={() => openInbound(item)}
-                    style={{ ...subtleButtonStyle, textAlign: "left" }}
+        <div className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Webhook inbox</CardTitle>
+              <CardAction>
+                <Button variant="outline" onClick={loadInbound} disabled={busy}>
+                  Làm mới inbox
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <FieldGroup className="grid gap-4 md:grid-cols-[1fr_2fr]">
+                <Field>
+                  <FieldLabel>Trạng thái</FieldLabel>
+                  <Select
+                    value={inboundState || "all"}
+                    onValueChange={(value) => setInboundState(value === "all" ? "" : value)}
                   >
-                    <strong>{display(item, "event_type", "eventType")}</strong>
-                    <br />
-                    <small>
-                      {display(item, "external_id", "externalId")} · {display(item, "state")} ·{" "}
-                      {display(item, "attempt_count", "attemptCount")} lần thử
-                    </small>
-                  </button>
-                );
-              })}
-              {!visibleInbound.length ? <p>Không có sự kiện phù hợp bộ lọc.</p> : null}
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <h3 style={{ marginTop: 0 }}>Chi tiết & replay</h3>
-            {selectedInbound ? (
-              <pre
-                aria-label="Chi tiết sự kiện inbound"
-                style={{
-                  maxHeight: 330,
-                  overflow: "auto",
-                  padding: 12,
-                  borderRadius: 8,
-                  background: "#111827",
-                  color: "#e5e7eb",
-                  fontSize: 11,
-                  whiteSpace: "pre-wrap",
-                }}
+                    <SelectTrigger aria-label="Lọc trạng thái inbound">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="received">Received</SelectItem>
+                        <SelectItem value="succeeded">Succeeded</SelectItem>
+                        <SelectItem value="retry_scheduled">Retry</SelectItem>
+                        <SelectItem value="quarantined">Quarantine</SelectItem>
+                        <SelectItem value="dead_letter">Dead letter</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="inbound-search">Tìm sự kiện</FieldLabel>
+                  <Input
+                    id="inbound-search"
+                    aria-label="Tìm sự kiện inbound"
+                    value={inboundQuery}
+                    onChange={(e) => setInboundQuery(e.target.value)}
+                    placeholder="external ID, event type, lỗi…"
+                  />
+                </Field>
+              </FieldGroup>
+              <div
+                role="list"
+                aria-label="Danh sách sự kiện inbound"
+                className="flex flex-col gap-2"
               >
-                {JSON.stringify(selectedInbound, null, 2)}
-              </pre>
-            ) : (
-              <p>Chọn một sự kiện để xem payload hash, attempts và lỗi xử lý.</p>
-            )}
-            <label style={fieldStyle}>
-              Lý do replay
-              <textarea
-                aria-label="Lý do replay inbound"
-                style={inputStyle}
-                value={replayReason}
-                onChange={(e) => setReplayReason(e.target.value)}
-              />
-            </label>
-            <button
-              style={{ ...buttonStyle, marginTop: 10 }}
-              onClick={replayInbound}
-              disabled={busy || !selectedInbound}
-            >
-              Replay sự kiện có audit
-            </button>
-          </div>
+                {visibleInbound.map((item) => {
+                  const id = display(item, "id", "messageId");
+                  return (
+                    <Button
+                      key={id}
+                      role="listitem"
+                      variant="outline"
+                      onClick={() => openInbound(item)}
+                      className="h-auto justify-start text-left"
+                    >
+                      <span>
+                        <strong>{display(item, "event_type", "eventType")}</strong>
+                        <br />
+                        <small>
+                          {display(item, "external_id", "externalId")} · {display(item, "state")} ·{" "}
+                          {display(item, "attempt_count", "attemptCount")} lần thử
+                        </small>
+                      </span>
+                    </Button>
+                  );
+                })}
+                {!visibleInbound.length ? (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyTitle>Không có sự kiện</EmptyTitle>
+                      <EmptyDescription>Không có sự kiện phù hợp bộ lọc.</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Chi tiết & replay</CardTitle>
+              {selectedInbound ? (
+                <CardAction>
+                  <Badge variant="secondary">{display(selectedInbound, "state")}</Badge>
+                </CardAction>
+              ) : null}
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                {selectedInbound ? (
+                  <pre
+                    aria-label="Chi tiết sự kiện inbound"
+                    className="max-h-80 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap"
+                  >
+                    {JSON.stringify(selectedInbound, null, 2)}
+                  </pre>
+                ) : (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyTitle>Chưa chọn sự kiện</EmptyTitle>
+                      <EmptyDescription>
+                        Chọn một sự kiện để xem payload hash, attempts và lỗi xử lý.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="inbound-replay-reason">Lý do replay</FieldLabel>
+                  <Input
+                    id="inbound-replay-reason"
+                    aria-label="Lý do replay inbound"
+                    value={replayReason}
+                    onChange={(e) => setReplayReason(e.target.value)}
+                  />
+                </Field>
+                <Button onClick={replayInbound} disabled={busy || !selectedInbound}>
+                  Replay sự kiện có audit
+                </Button>
+              </FieldGroup>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </section>

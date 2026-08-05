@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T18:29:18+07:00
+updated_at: 2026-08-05T18:52:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
@@ -487,11 +487,21 @@ tasks:
   - id: ERP-345
     title: VietERP-informed UI design system
     phase: P3
-    status: ready
+    status: review
     dependencies: [ERP-340]
     business_rules: [BR-UI-004]
     tests: [T-UI-ERP-345-001, T-E2E-ERP-345-002]
     evidence: docs/implementation/evidence/ERP-345/
+    agent: codex-root
+    started_at: 2026-08-05T18:30:00+07:00
+    start_commit: 7b2a790d0362872b7318d933c2fa3f868dfda7e9
+    planned_files:
+      - apps/web/components.json
+      - apps/web/src/app/
+      - apps/web/src/components/
+      - apps/web/src/lib/
+      - apps/web/src/app/globals.css
+      - docs/implementation/evidence/ERP-345/
 
   - id: ERP-400
     title: Bank and cash accounts

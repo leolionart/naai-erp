@@ -1,0 +1,20 @@
+import { describe, expect, it } from "vitest";
+import { adminNavigation, findNavigationItem, isNavigationAvailable } from "./navigation";
+
+describe("typed admin navigation", () => {
+  it("keeps unique group and item keys", () => {
+    expect(new Set(adminNavigation.map((group) => group.key)).size).toBe(adminNavigation.length);
+    const items = adminNavigation.reduce<Array<{ key: string }>>(
+      (all, group) => [...all, ...group.items],
+      [],
+    );
+    expect(new Set(items.map((item) => item.key)).size).toBe(items.length);
+  });
+
+  it("finds modules and distinguishes planned destinations", () => {
+    expect(findNavigationItem("ledger")?.href).toBe("/accounting/journals");
+    expect(isNavigationAvailable(findNavigationItem("ledger")!)).toBe(true);
+    expect(isNavigationAvailable(findNavigationItem("forecast")!)).toBe(false);
+    expect(findNavigationItem("missing")).toBeUndefined();
+  });
+});
