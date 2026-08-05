@@ -138,13 +138,18 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
         )
       ).rows[0]?.state,
     ).toBe("submitted");
+    const submittedVersion = (
+      await pool.query<{ version: string }>(
+        "select version::text from timesheets where organization_id='org-erp500' and id='ts'",
+      )
+    ).rows[0]?.version;
     const approved = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/timesheets/ts/approve",
       headers: { ...reviewerHeaders, "idempotency-key": `timesheet-approve-${runKey}` },
       payload: {
         schemaVersion: 1,
-        expectedResourceVersion: submitted.json().data.resource.resourceVersion,
+        expectedResourceVersion: submittedVersion,
         reason: "Approve",
       },
     });

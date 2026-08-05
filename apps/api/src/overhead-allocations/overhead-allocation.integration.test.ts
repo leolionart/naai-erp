@@ -195,10 +195,18 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       "pool-b-create",
     );
     expect(lockedPool.statusCode).toBe(201);
-    await pool.query(
-      `update fiscal_periods set state='hard_locked' where organization_id=$1 and fiscal_year=2026 and period_number=8`,
-      [org],
-    );
+    const periodClient = await pool.connect();
+    try {
+      await periodClient.query("begin");
+      await periodClient.query("select set_config('naai.period_transition_authorized','on',true)");
+      await periodClient.query(
+        `update fiscal_periods set state='hard_locked' where organization_id=$1 and fiscal_year=2026 and period_number=8`,
+        [org],
+      );
+      await periodClient.query("commit");
+    } finally {
+      periodClient.release();
+    }
     const lockedRun = await post(
       "overhead-allocation-runs",
       undefined,
