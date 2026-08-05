@@ -4,3 +4,4 @@ set -eu
 pnpm format:check
 pnpm lint
 pnpm test:docs
+pnpm test:security-baseline

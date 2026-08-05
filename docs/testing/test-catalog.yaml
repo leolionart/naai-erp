@@ -10,6 +10,33 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-SEC-ERP-004-001
+    aliases: [T-SEC-001]
+    task: ERP-004
+    rules: [BR-ORG-001, BR-SEC-001]
+    title: Cross-organization access is denied
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G0
+
+  - id: T-SEC-ERP-004-002
+    aliases: [T-SEC-002]
+    task: ERP-004
+    rules: [BR-SEC-001]
+    title: Unassigned roles are denied by default
+    layer: unit
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G0
+
+  - id: T-OPS-ERP-004-001
+    aliases: [T-OPS-001]
+    task: ERP-004
+    rules: [BR-AUD-001, BR-OPS-002]
+    title: Security health and backup baseline is documented and verified
+    layer: documentation
+    command: pnpm test:security-baseline
+    blocking_gate: G0
+
   - id: T-BOOT-ERP-001-001
     aliases: [T-BOOT-001]
     task: ERP-001
