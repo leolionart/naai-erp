@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T19:10:00+07:00
+updated_at: 2026-08-05T19:18:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G3
-current_task: ERP-346
+current_gate: G4
+current_task: ERP-400
 
 tasks:
   - id: ERP-000
@@ -509,7 +509,7 @@ tasks:
   - id: ERP-346
     title: G3 executable evidence and fixture hardening
     phase: P3
-    status: review
+    status: done
     dependencies: [ERP-345]
     business_rules: [BR-UI-004, BR-EXP-001, BR-EVD-001, BR-EVD-002, BR-INT-001]
     tests: [T-G3-ERP-346-001, T-FIX-ERP-346-002, T-E2E-ERP-346-003]
@@ -517,6 +517,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T19:02:00+07:00
     start_commit: d02eddf
+    completed_at: 2026-08-05T19:18:00+07:00
+    implementation_commit: 5a32f1951928299f54c31b38d15d4e35d655163d
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/31004790911
     planned_files:
       - tests/fixtures/golden/GF-EXPENSE-001/
       - tests/fixtures/golden/GF-EXPENSE-002/
@@ -529,7 +532,7 @@ tasks:
   - id: ERP-400
     title: Bank and cash accounts
     phase: P4
-    status: blocked
+    status: ready
     dependencies: [G3]
     business_rules: [BR-BNK-001, BR-BNK-002]
     tests: [T-BNK-001, T-BNK-002]
@@ -790,8 +793,8 @@ gate_status:
   G0: done
   G1: done
   G2: done
-  G3: in_progress
-  G4: blocked
+  G3: done
+  G4: in_progress
   G5: blocked
   G6: blocked
   G7: blocked

@@ -6,4 +6,4 @@
 - [x] Evidence signed-download authorization is organization-scoped, RBAC-controlled, time-limited and audited.
 - [x] Cross-module source → exact linked journal → accepted authorized evidence readback exists with cross-org denial.
 - [x] Operational admin routes and primary create flow pass desktop/mobile E2E.
-- [ ] ERP-346 exact-commit CI passes all PostgreSQL and browser checks.
+- [x] ERP-346 exact-commit CI passes all PostgreSQL and browser checks.

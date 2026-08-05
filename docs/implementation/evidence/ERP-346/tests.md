@@ -8,4 +8,4 @@
 - `pnpm check` — PASS including the new independent fixture gate.
 - `git diff --check` — PASS.
 
-CI installs Chromium, runs the new E2E command and runs the ERP-346 PostgreSQL integration through the existing `RUN_DB_INTEGRATION=1` API step. Exact-commit verification is pending.
+Exact commit `5a32f1951928299f54c31b38d15d4e35d655163d` passed CI, including the ERP-346 PostgreSQL drill-down test, Chromium installation and desktop/mobile Playwright smoke: https://github.com/leolionart/naai-erp/actions/runs/31004790911
