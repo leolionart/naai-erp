@@ -20,13 +20,12 @@ suite("ERP-430 AR/AP aging PostgreSQL API", () => {
       insert into parties(organization_id,id,display_name,status) values
         ('org-erp430','customer','Customer','active'),('org-erp430','supplier','Supplier','active');
       insert into party_roles(organization_id,party_id,role) values('org-erp430','customer','client'),('org-erp430','supplier','supplier');
-      insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by) values
-        ('org-erp430','j-ar','2026-08-01','AR invoice','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance'),
-        ('org-erp430','j-credit','2026-08-02','AR credit','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance'),
-        ('org-erp430','j-pay','2026-08-10','Receipt','VND','reversed',3,'finance',now(),'finance','Approved',now(),'finance'),
-        ('org-erp430','j-pay-rev','2026-08-20','Receipt reversal','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance'),
-        ('org-erp430','j-ap','2026-08-03','AP invoice','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance');
-      update journal_entries set reversal_of_id='j-pay' where organization_id='org-erp430' and id='j-pay-rev';
+      insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id) values
+        ('org-erp430','j-ar','2026-08-01','AR invoice','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null),
+        ('org-erp430','j-credit','2026-08-02','AR credit','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null),
+        ('org-erp430','j-pay','2026-08-10','Receipt','VND','reversed',3,'finance',now(),'finance','Approved',now(),'finance',null),
+        ('org-erp430','j-pay-rev','2026-08-20','Receipt reversal','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance','j-pay'),
+        ('org-erp430','j-ap','2026-08-03','AP invoice','VND','posted',2,'finance',now(),'finance','Approved',now(),'finance',null);
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
         ('org-erp430','j-ar',1,'131',100,null,'AR','{}'),('org-erp430','j-ar',2,'511',null,100,'Revenue','{}'),
         ('org-erp430','j-credit',1,'511',20,null,'Credit','{}'),('org-erp430','j-credit',2,'131',null,20,'AR credit','{}'),
