@@ -1,3 +1,5 @@
+import { AdminConsole } from "./admin-console";
+
 type ModuleKey = "overview" | "master-data" | "ledger" | "documents" | "expenses" | "evidence";
 
 const modules: ReadonlyArray<{
@@ -266,6 +268,7 @@ export default async function HomePage({
             <b className="muted">Theo task ledger</b>
           </div>
         </section>
+        <AdminConsole moduleKey={active} />
       </main>
     </div>
   );
