@@ -291,4 +291,51 @@ describe("NAAI ERP JSON-first CLI client", () => {
       }),
     );
   });
+
+  it.each([
+    ["outbound-events", "http://api/api/v1/organizations/org-a/outbound-events/outbox"],
+    ["outbound-endpoints", "http://api/api/v1/organizations/org-a/outbound-events/endpoints"],
+    ["outbound-deliveries", "http://api/api/v1/organizations/org-a/outbound-events/deliveries"],
+  ])("lists %s through the REST admin contract", async (resource, expectedUrl) => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(resource, "list");
+    expect(fetchFn).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({ method: "GET" }));
+  });
+
+  it("replays a dead-letter outbound event with a stable idempotency key", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { state: "pending" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "outbound-events",
+      "replay",
+      { reason: "Endpoint recovered" },
+      "event-1",
+      undefined,
+      "outbound-replay-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/outbound-events/outbox/event-1/replay",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "idempotency-key": "outbound-replay-1" }),
+      }),
+    );
+  });
 });

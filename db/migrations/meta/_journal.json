@@ -113,6 +113,13 @@
       "when": 1785924715080,
       "tag": "0015_productive_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1785926973132,
+      "tag": "0016_solid_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

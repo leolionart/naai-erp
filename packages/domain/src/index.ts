@@ -185,6 +185,25 @@ export {
   type EvidenceStatus,
 } from "./evidence.js";
 export {
+  assertSupportedOutboundEventVersion,
+  beginOutboundDelivery,
+  calculateOutboundFailureDecision,
+  completeOutboundDelivery,
+  createOutboundDelivery,
+  createOutboundEvent,
+  failOutboundDelivery,
+  replayDeadLetter,
+  type JsonObject,
+  type JsonArray,
+  type JsonPrimitive,
+  type JsonValue,
+  type OutboundBackoffPolicy,
+  type OutboundDelivery,
+  type OutboundDeliveryState,
+  type OutboundEventContract,
+  type OutboundFailureDecision,
+} from "./outbound-events.js";
+export {
   INBOUND_REPLAY_WINDOW_SECONDS,
   INBOUND_SCHEMA_VERSION,
   inboundRetryDelaySeconds,

@@ -459,6 +459,40 @@ tests:
     command: pnpm test:e2e --filter T-E2E-ERP-410-001
     blocking_gate: G4
 
+  - id: T-INT-ERP-340-001
+    aliases: [T-OUT-001]
+    task: ERP-340
+    rules: [BR-OUT-001]
+    title: Transactional outbox fan-out lease and signed at-least-once delivery
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/worker test
+    blocking_gate: G3
+
+  - id: T-CONTRACT-ERP-340-002
+    aliases: [T-OUT-002]
+    task: ERP-340
+    rules: [BR-OUT-002]
+    title: Retry dead-letter admin replay REST and CLI contracts
+    layer: contract
+    command: pnpm --filter @naai-erp/api test && pnpm --filter @naai-erp/cli test
+    blocking_gate: G3
+
+  - id: T-UI-ERP-345-001
+    task: ERP-345
+    rules: [BR-UI-004]
+    title: Shared design-system primitives replace module-specific raw controls
+    layer: unit
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G3
+
+  - id: T-E2E-ERP-345-002
+    task: ERP-345
+    rules: [BR-UI-004]
+    title: Desktop and mobile admin workflows pass accessible rendered QA
+    layer: e2e
+    command: pnpm test:e2e --filter T-E2E-ERP-345-002
+    blocking_gate: G3
+
   - id: T-E2E-ERP-335-001
     task: ERP-335
     rules: [BR-UI-003]

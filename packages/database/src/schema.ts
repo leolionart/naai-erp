@@ -163,6 +163,24 @@ export const inboundAttemptOutcome = pgEnum("inbound_attempt_outcome", [
   "retryable_failure",
   "dead_letter",
 ]);
+export const outboundSubscriptionStatus = pgEnum("outbound_subscription_status", [
+  "active",
+  "paused",
+  "disabled",
+]);
+export const outboundDeliveryState = pgEnum("outbound_delivery_state", [
+  "pending",
+  "leased",
+  "retry_scheduled",
+  "delivered",
+  "dead_letter",
+]);
+export const outboundAttemptOutcome = pgEnum("outbound_attempt_outcome", [
+  "delivered",
+  "retryable_failure",
+  "permanent_failure",
+  "lease_expired",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1642,6 +1660,145 @@ export const outboxEvents = pgTable(
   ],
 );
 
+export const outboundWebhookSubscriptions = pgTable(
+  "outbound_webhook_subscriptions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    name: text("name").notNull(),
+    endpointUrl: text("endpoint_url").notNull(),
+    eventTypes: jsonb("event_types").$type<readonly string[]>().notNull().default([]),
+    secretRef: text("secret_ref").notNull(),
+    status: outboundSubscriptionStatus("status").notNull().default("active"),
+    maxAttempts: integer("max_attempts").notNull().default(8),
+    timeoutSeconds: integer("timeout_seconds").notNull().default(15),
+    baseDelaySeconds: integer("base_delay_seconds").notNull().default(30),
+    maxDelaySeconds: integer("max_delay_seconds").notNull().default(3600),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("outbound_subscriptions_name_unique").on(table.organizationId, table.name),
+    check("outbound_subscription_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("outbound_subscription_endpoint_https", sql`${table.endpointUrl} ~ '^https://'`),
+    check("outbound_subscription_secret_ref_not_blank", sql`btrim(${table.secretRef}) <> ''`),
+    check(
+      "outbound_subscription_event_types_array",
+      sql`jsonb_typeof(${table.eventTypes}) = 'array'`,
+    ),
+    check("outbound_subscription_has_event_type", sql`jsonb_array_length(${table.eventTypes}) > 0`),
+    check("outbound_subscription_max_attempts_positive", sql`${table.maxAttempts} > 0`),
+    check("outbound_subscription_timeout_positive", sql`${table.timeoutSeconds} > 0`),
+    check("outbound_subscription_base_delay_positive", sql`${table.baseDelaySeconds} > 0`),
+    check(
+      "outbound_subscription_delay_order",
+      sql`${table.maxDelaySeconds} >= ${table.baseDelaySeconds}`,
+    ),
+  ],
+);
+
+export const outboundDeliveries = pgTable(
+  "outbound_deliveries",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    outboxEventId: text("outbox_event_id").notNull(),
+    subscriptionId: text("subscription_id").notNull(),
+    state: outboundDeliveryState("state").notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    leasedBy: text("leased_by"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+    lastHttpStatus: integer("last_http_status"),
+    lastErrorCode: text("last_error_code"),
+    lastErrorSummary: text("last_error_summary"),
+    manualReplayCount: integer("manual_replay_count").notNull().default(0),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.outboxEventId],
+      foreignColumns: [outboxEvents.organizationId, outboxEvents.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.subscriptionId],
+      foreignColumns: [
+        outboundWebhookSubscriptions.organizationId,
+        outboundWebhookSubscriptions.id,
+      ],
+    }).onDelete("restrict"),
+    unique("outbound_delivery_event_subscription_unique").on(
+      table.organizationId,
+      table.outboxEventId,
+      table.subscriptionId,
+    ),
+    check("outbound_delivery_attempt_count_nonnegative", sql`${table.attemptCount} >= 0`),
+    check("outbound_delivery_replay_count_nonnegative", sql`${table.manualReplayCount} >= 0`),
+    check(
+      "outbound_delivery_lease_pair",
+      sql`(${table.leasedBy} is null) = (${table.leaseExpiresAt} is null)`,
+    ),
+  ],
+);
+
+export const outboundDeliveryAttempts = pgTable(
+  "outbound_delivery_attempts",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    deliveryId: text("delivery_id").notNull(),
+    attemptNumber: integer("attempt_number").notNull(),
+    outcome: outboundAttemptOutcome("outcome").notNull(),
+    workerId: text("worker_id").notNull(),
+    httpStatus: integer("http_status"),
+    responseSummary: text("response_summary"),
+    errorCode: text("error_code"),
+    errorSummary: text("error_summary"),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    isManualReplay: boolean("is_manual_replay").notNull().default(false),
+    replayActorId: text("replay_actor_id"),
+    replayReason: text("replay_reason"),
+    correlationId: text("correlation_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.deliveryId],
+      foreignColumns: [outboundDeliveries.organizationId, outboundDeliveries.id],
+    }).onDelete("restrict"),
+    unique("outbound_attempts_number_unique").on(
+      table.organizationId,
+      table.deliveryId,
+      table.attemptNumber,
+    ),
+    check("outbound_attempt_number_positive", sql`${table.attemptNumber} > 0`),
+    check(
+      "outbound_attempt_completed_after_start",
+      sql`${table.completedAt} >= ${table.startedAt}`,
+    ),
+    check(
+      "outbound_attempt_replay_metadata",
+      sql`not ${table.isManualReplay} or (${table.replayActorId} is not null and btrim(${table.replayReason}) <> '')`,
+    ),
+  ],
+);
+
 export const postingRuleVersions = pgTable(
   "posting_rule_versions",
   {
@@ -1731,5 +1888,8 @@ export const schema = {
   inboundMessages,
   inboundMessageAttempts,
   outboxEvents,
+  outboundWebhookSubscriptions,
+  outboundDeliveries,
+  outboundDeliveryAttempts,
   postingRuleVersions,
 } as const;

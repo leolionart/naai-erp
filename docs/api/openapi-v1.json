@@ -249,6 +249,47 @@
       "post": {
         "summary": "Replay an authenticated quarantined or dead-letter event with privileged reason and audit"
       }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {
+      "get": {
+        "summary": "List organization-scoped outbound endpoint metadata without returning secrets"
+      },
+      "post": {
+        "summary": "Create an idempotent HTTPS outbound endpoint configuration using a runtime secret reference"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/endpoints/{endpointId}": {
+      "get": {
+        "summary": "Read one outbound endpoint and its subscribed event types and operational status"
+      },
+      "patch": {
+        "summary": "Update endpoint subscriptions retry policy or status with optimistic version and idempotency"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/outbox": {
+      "get": {
+        "summary": "List immutable schema-versioned outbox events and dead-letter state"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/outbox/{eventId}": {
+      "get": {
+        "summary": "Read one outbox event with redacted delivery summary and aggregate correlation"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/outbox/{eventId}/replay": {
+      "post": {
+        "summary": "Idempotently replay a dead-letter outbound event with privileged reason and append-only audit"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/deliveries": {
+      "get": {
+        "summary": "List outbound delivery attempts with retry state and redacted HTTP results"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/outbound-events/deliveries/{deliveryId}": {
+      "get": {
+        "summary": "Read one append-only delivery attempt without exposing endpoint credentials"
+      }
     }
   },
   "components": {

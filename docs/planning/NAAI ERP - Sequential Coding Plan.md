@@ -299,6 +299,13 @@ Infrastructure research, fixture preparation và UI shell có thể song song. K
 - Retry/backoff, delivery log và dead-letter.
 - Event contract versioning.
 
+### ERP-345 — VietERP-informed UI design system
+
+- Audit VietERP shell, page hierarchy and reusable dashboard/list patterns without copying incompatible styling or business logic.
+- Adopt shadcn/Radix primitives, semantic tokens and reusable PageShell, DataTable, Field, Dialog, Empty, Alert and KPI patterns.
+- Migrate implemented admin modules away from one-off raw controls and inline styles.
+- Keep Server Components by default, small client islands, accessible keyboard flows and responsive navigation.
+
 ### Gate G3
 
 - Mỗi document approved sinh journal đúng fixture.

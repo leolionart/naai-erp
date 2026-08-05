@@ -483,6 +483,12 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - UI gọi cùng REST application services với CLI/AI và không được bỏ qua organization scope, RBAC, audit, idempotency, maker-checker hoặc period locks.
 - Trạng thái lỗi API phải hiển thị rõ; UI không được giả lập thành công khi mutation thất bại.
 
+### BR-UI-004 — Reusable design system
+
+- Admin modules use shared semantic tokens and accessible component primitives instead of per-screen raw controls or hard-coded visual rules.
+- Lists, forms, dialogs, feedback, loading and empty states follow one documented composition contract.
+- Responsive behavior preserves navigation and primary workflows without JavaScript-only layout assumptions.
+
 ### BR-RPT-001 — Trial Balance and General Ledger
 
 - Trial Balance balances to zero net debit/credit difference.

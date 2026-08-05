@@ -27,6 +27,10 @@ import { EvidenceObjectStorage } from "./evidence/evidence-object-storage.js";
 import { InboundWebhookController } from "./inbound-webhooks/inbound-webhook.controller.js";
 import { InboundWebhookService } from "./inbound-webhooks/inbound-webhook.service.js";
 import { PgInboundWebhookStore } from "./inbound-webhooks/pg-inbound-webhook.store.js";
+import { OutboundEventController } from "./outbound-events/outbound-event.controller.js";
+import { OutboundEventService } from "./outbound-events/outbound-event.service.js";
+import { OUTBOUND_EVENT_ADMIN_STORE } from "./outbound-events/outbound-event.types.js";
+import { PgOutboundEventStore } from "./outbound-events/pg-outbound-event.store.js";
 
 @Module({
   controllers: [
@@ -40,6 +44,7 @@ import { PgInboundWebhookStore } from "./inbound-webhooks/pg-inbound-webhook.sto
     ExpenseController,
     EvidenceController,
     InboundWebhookController,
+    OutboundEventController,
   ],
   providers: [
     MasterDataService,
@@ -60,6 +65,9 @@ import { PgInboundWebhookStore } from "./inbound-webhooks/pg-inbound-webhook.sto
     EvidenceObjectStorage,
     InboundWebhookService,
     PgInboundWebhookStore,
+    OutboundEventService,
+    PgOutboundEventStore,
+    { provide: OUTBOUND_EVENT_ADMIN_STORE, useExisting: PgOutboundEventStore },
   ],
 })
 export class AppModule {}
