@@ -157,3 +157,20 @@ export {
   type SalesInvoice,
   type SalesInvoiceState,
 } from "./documents.js";
+export {
+  EXPENSE_CLASSES,
+  createExpense,
+  generateExpenseBookingJournalDraft,
+  generateReimbursementPaymentJournalDraft,
+  reviewExpenseAxis,
+  transitionExpense,
+  updateExpenseEvidence,
+  type AccountingTreatment,
+  type Expense,
+  type ExpenseClass,
+  type ExpenseEvidenceFlags,
+  type ExpenseReview,
+  type ExpenseReviewAxis,
+  type ExpenseReviewState,
+  type ExpenseState,
+} from "./expenses.js";

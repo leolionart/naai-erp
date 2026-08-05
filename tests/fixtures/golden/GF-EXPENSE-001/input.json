@@ -1,0 +1,25 @@
+{
+  "fixtureId": "GF-EXPENSE-001",
+  "description": "Non-invoice petty cash expense remains deductible for neither CIT nor VAT",
+  "expense": {
+    "class": "non_documented",
+    "netMinor": "3000000",
+    "vatMinor": "0",
+    "grossMinor": "3000000",
+    "managementState": "valid",
+    "citState": "ineligible",
+    "citEligibleMinor": "0",
+    "vatState": "ineligible",
+    "vatEligibleMinor": "0"
+  },
+  "expectedJournal": [
+    { "accountCode": "642-OPEX", "debitMinor": "3000000" },
+    { "accountCode": "111-CASH", "creditMinor": "3000000" }
+  ],
+  "expectedMetrics": {
+    "bookedExpenseMinor": "3000000",
+    "citEligibleMinor": "0",
+    "vatEligibleMinor": "0",
+    "cashOutflowMinor": "3000000"
+  }
+}

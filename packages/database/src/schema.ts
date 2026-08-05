@@ -101,6 +101,44 @@ export const commercialDocumentState = pgEnum("commercial_document_state", [
   "paid",
   "cancelled",
 ]);
+export const expenseClass = pgEnum("expense_class", [
+  "invoice_backed",
+  "receipt_backed",
+  "contract_backed",
+  "payroll_personnel",
+  "bank_fee",
+  "tax_payment",
+  "non_documented",
+  "owner_personal",
+  "prepaid_asset",
+  "fixed_asset",
+  "employee_reimbursement",
+  "freelancer",
+  "platform_fee",
+  "overseas_vendor",
+  "petty_cash",
+]);
+export const expenseState = pgEnum("expense_state", [
+  "draft",
+  "submitted",
+  "evidence_pending",
+  "approved",
+  "rejected",
+  "posted",
+]);
+export const eligibilityState = pgEnum("eligibility_state", [
+  "unreviewed",
+  "eligible",
+  "partially_eligible",
+  "ineligible",
+  "accountant_override",
+]);
+export const managementValidityState = pgEnum("management_validity_state", [
+  "unreviewed",
+  "valid",
+  "invalid",
+  "accountant_override",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1140,6 +1178,209 @@ export const commercialDocumentEvents = pgTable(
   ],
 );
 
+export const expenses = pgTable(
+  "expenses",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    expenseClass: expenseClass("expense_class").notNull(),
+    state: expenseState("state").notNull().default("draft"),
+    payeePartyId: text("payee_party_id"),
+    employeePartyId: text("employee_party_id"),
+    expenseDate: date("expense_date").notNull(),
+    servicePeriodStart: date("service_period_start"),
+    servicePeriodEnd: date("service_period_end"),
+    businessPurpose: text("business_purpose").notNull(),
+    currency: text("currency").notNull(),
+    netMinor: bigint("net_minor", { mode: "bigint" }).notNull(),
+    vatMinor: bigint("vat_minor", { mode: "bigint" }).notNull(),
+    grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
+    counterAccountCode: text("counter_account_code").notNull(),
+    citState: eligibilityState("cit_state").notNull().default("unreviewed"),
+    vatState: eligibilityState("vat_state").notNull().default("unreviewed"),
+    evidenceChecklist: jsonb("evidence_checklist")
+      .$type<Record<string, boolean>>()
+      .notNull()
+      .default({}),
+    journalId: text("journal_id"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    postedBy: text("posted_by"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.payeePartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "expenses_payee_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.employeePartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "expenses_employee_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.counterAccountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "expenses_counter_account_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "expenses_journal_fk",
+    }).onDelete("restrict"),
+    check("expenses_purpose_not_blank", sql`btrim(${table.businessPurpose}) <> ''`),
+    check("expenses_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "expenses_totals",
+      sql`${table.netMinor} > 0 and ${table.vatMinor} >= 0 and ${table.grossMinor} = ${table.netMinor} + ${table.vatMinor}`,
+    ),
+    check(
+      "expenses_service_period",
+      sql`(${table.servicePeriodStart} is null and ${table.servicePeriodEnd} is null) or (${table.servicePeriodStart} is not null and ${table.servicePeriodEnd} is not null and ${table.servicePeriodStart} <= ${table.servicePeriodEnd})`,
+    ),
+    check(
+      "expenses_reimbursement_employee",
+      sql`${table.expenseClass} <> 'employee_reimbursement' or ${table.employeePartyId} is not null`,
+    ),
+    check(
+      "expenses_noninvoice_vat",
+      sql`${table.expenseClass} <> 'non_documented' or (${table.vatMinor} = 0 and ${table.vatState} in ('unreviewed','ineligible','accountant_override'))`,
+    ),
+    check("expenses_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const expenseLines = pgTable(
+  "expense_lines",
+  {
+    organizationId: text("organization_id").notNull(),
+    expenseId: text("expense_id").notNull(),
+    lineNumber: integer("line_number").notNull(),
+    description: text("description").notNull(),
+    netMinor: bigint("net_minor", { mode: "bigint" }).notNull(),
+    vatMinor: bigint("vat_minor", { mode: "bigint" }).notNull(),
+    grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
+    postingAccountCode: text("posting_account_code").notNull(),
+    vatAccountCode: text("vat_account_code"),
+    managementState: managementValidityState("management_state").notNull().default("unreviewed"),
+    citState: eligibilityState("cit_state").notNull().default("unreviewed"),
+    vatState: eligibilityState("vat_state").notNull().default("unreviewed"),
+    citEligibleMinor: bigint("cit_eligible_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    vatEligibleMinor: bigint("vat_eligible_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    reviewReference: text("review_reference"),
+    dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.expenseId, table.lineNumber] }),
+    foreignKey({
+      columns: [table.organizationId, table.expenseId],
+      foreignColumns: [expenses.organizationId, expenses.id],
+      name: "expense_lines_expense_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.postingAccountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "expense_lines_posting_account_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.vatAccountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "expense_lines_vat_account_fk",
+    }).onDelete("restrict"),
+    check("expense_lines_number", sql`${table.lineNumber} > 0`),
+    check("expense_lines_description", sql`btrim(${table.description}) <> ''`),
+    check(
+      "expense_lines_totals",
+      sql`${table.netMinor} > 0 and ${table.vatMinor} >= 0 and ${table.grossMinor} = ${table.netMinor} + ${table.vatMinor}`,
+    ),
+    check(
+      "expense_lines_vat_account",
+      sql`(${table.vatMinor} = 0 and ${table.vatAccountCode} is null) or (${table.vatMinor} > 0 and ${table.vatAccountCode} is not null)`,
+    ),
+    check(
+      "expense_lines_eligible_limits",
+      sql`${table.citEligibleMinor} >= 0 and ${table.citEligibleMinor} <= ${table.grossMinor} and ${table.vatEligibleMinor} >= 0 and ${table.vatEligibleMinor} <= ${table.vatMinor}`,
+    ),
+    check(
+      "expense_lines_review_metadata",
+      sql`(${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.reviewReason} is null and ${table.reviewReference} is null) or (${table.reviewedBy} is not null and ${table.reviewedAt} is not null and ${table.reviewReason} is not null and btrim(${table.reviewReason}) <> '')`,
+    ),
+  ],
+);
+
+export const expenseAllocations = pgTable(
+  "expense_allocations",
+  {
+    organizationId: text("organization_id").notNull(),
+    expenseId: text("expense_id").notNull(),
+    lineNumber: integer("line_number").notNull(),
+    allocationNumber: integer("allocation_number").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.organizationId, table.expenseId, table.lineNumber, table.allocationNumber],
+    }),
+    foreignKey({
+      columns: [table.organizationId, table.expenseId, table.lineNumber],
+      foreignColumns: [
+        expenseLines.organizationId,
+        expenseLines.expenseId,
+        expenseLines.lineNumber,
+      ],
+      name: "expense_allocations_line_fk",
+    }).onDelete("restrict"),
+    check("expense_allocations_number", sql`${table.allocationNumber} > 0`),
+    check("expense_allocations_amount", sql`${table.amountMinor} > 0`),
+    check("expense_allocations_dimensions", sql`${table.dimensions} <> '{}'::jsonb`),
+  ],
+);
+
+export const expenseEvents = pgTable(
+  "expense_events",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    expenseId: text("expense_id").notNull(),
+    action: text("action").notNull(),
+    fromState: expenseState("from_state"),
+    toState: expenseState("to_state"),
+    actorId: text("actor_id").notNull(),
+    reason: text("reason").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.expenseId],
+      foreignColumns: [expenses.organizationId, expenses.id],
+      name: "expense_events_expense_fk",
+    }).onDelete("restrict"),
+    check("expense_events_reason", sql`btrim(${table.reason}) <> ''`),
+  ],
+);
+
 export const outboxEvents = pgTable(
   "outbox_events",
   {
@@ -1240,6 +1481,10 @@ export const schema = {
   commercialDocumentLines,
   commercialDocumentAllocations,
   commercialDocumentEvents,
+  expenses,
+  expenseLines,
+  expenseAllocations,
+  expenseEvents,
   outboxEvents,
   postingRuleVersions,
 } as const;

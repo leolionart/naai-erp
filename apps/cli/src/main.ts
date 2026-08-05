@@ -12,6 +12,7 @@ const { values, positionals } = parseArgs({
     data: { type: "string" },
     key: { type: "string" },
     version: { type: "string" },
+    "idempotency-key": { type: "string" },
     from: { type: "string" },
     to: { type: "string" },
     account: { type: "string" },
@@ -37,7 +38,14 @@ if (!resource || !organizationId || !token) {
       : resource === "reports"
         ? { from: values.from, to: values.to, accountCode: values.account }
         : undefined;
-    const result = await client.request(resource, action, payload, values.key, values.version);
+    const result = await client.request(
+      resource,
+      action,
+      payload,
+      values.key,
+      values.version,
+      values["idempotency-key"],
+    );
     process.stdout.write(
       values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
     );

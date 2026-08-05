@@ -357,6 +357,36 @@ tests:
     command: pnpm test:e2e --filter T-E2E-ERP-310-001
     blocking_gate: G3
 
+  - id: T-UNIT-ERP-310-002
+    aliases: [T-EXP-002]
+    task: ERP-310
+    rules: [BR-EXP-001, BR-EXP-002, BR-EXP-003, BR-EXP-004, BR-EXP-005]
+    title: Expense classes lifecycle reimbursement prepaid and capitalization treatments remain explicit and immutable after posting
+    layer: unit
+    fixture: GF-EXPENSE-001
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G3
+
+  - id: T-INT-ERP-310-003
+    aliases: [T-TAX-002]
+    task: ERP-310
+    rules: [BR-TAX-002, BR-EXP-003, BR-AI-002, BR-AUD-001]
+    title: Booked CIT and VAT states are independently reviewed overridden audited and reflected in exact journal and tax readback
+    layer: integration
+    fixture: GF-EXPENSE-001
+    oracle: manual-accountant-fixture
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G3
+
+  - id: T-PROP-ERP-310-004
+    task: ERP-310
+    rules: [BR-DIM-002, BR-EXP-002]
+    title: Arbitrary expense allocations sum exactly to the source and generated journals remain balanced
+    layer: property
+    fixture: GF-EXPENSE-002
+    command: pnpm --filter @naai-erp/domain test
+    blocking_gate: G3
+
   - id: T-PROP-ERP-330-001
     aliases: [T-INT-001]
     task: ERP-330

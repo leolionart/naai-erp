@@ -201,4 +201,35 @@ describe("NAAI ERP JSON-first CLI client", () => {
       );
     },
   );
+
+  it.each(["submit", "mark-evidence-pending", "review", "approve", "reject", "post"])(
+    "calls expense %s through the AI-native workflow API",
+    async (action) => {
+      const fetchFn = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+      const client = new NaaiErpClient(
+        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+        fetchFn,
+      );
+      await client.request(
+        "expenses",
+        action,
+        { reason: "Reviewed" },
+        "expense-1",
+        undefined,
+        "stable-retry-key",
+      );
+      expect(fetchFn).toHaveBeenCalledWith(
+        `http://api/api/v1/organizations/org-a/expenses/expense-1/${action}`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({ "idempotency-key": "stable-retry-key" }),
+        }),
+      );
+    },
+  );
 });

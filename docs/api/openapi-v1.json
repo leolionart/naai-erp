@@ -46,7 +46,14 @@
     "commercial-documents/approve",
     "commercial-documents/issue",
     "commercial-documents/post",
-    "commercial-documents/cancel"
+    "commercial-documents/cancel",
+    "expenses/create",
+    "expenses/submit",
+    "expenses/mark-evidence-pending",
+    "expenses/review",
+    "expenses/approve",
+    "expenses/reject",
+    "expenses/post"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -178,6 +185,27 @@
       "post": {
         "summary": "Run a controlled lifecycle command; issue/post atomically creates the balanced linked journal"
       }
+    },
+    "/api/v1/organizations/{organizationId}/expenses": {
+      "get": {
+        "summary": "List organization-scoped expenses with independent management CIT and VAT states"
+      },
+      "post": {
+        "summary": "Create an idempotent expense draft including non-invoice and reimbursement classes"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}": {
+      "get": {
+        "summary": "Read expense lines allocations review states evidence checklist and journal link"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/review": {
+      "post": {
+        "summary": "Review management CIT or VAT independently with eligible amount reason and reference"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/{action}": {
+      "post": { "summary": "Submit request evidence approve reject or atomically post an expense" }
     }
   },
   "components": {

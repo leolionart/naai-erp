@@ -18,6 +18,7 @@ export class NaaiErpClient {
     payload?: unknown,
     key?: string,
     expectedVersion?: string,
+    idempotencyKey?: string,
   ): Promise<unknown> {
     const isJournal = resource === "journals";
     const isPostingRule = resource === "posting-rules";
@@ -25,7 +26,8 @@ export class NaaiErpClient {
     const isReport = resource === "reports" && ["trial-balance", "general-ledger"].includes(action);
     const isOpeningBalance = resource === "opening-balances";
     const isCommercialDocument = resource === "commercial-documents";
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : `master-data/${encodeURIComponent(resource)}`}`;
+    const isExpense = resource === "expenses";
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "list" || action === "get" || action === "export" || isReport
         ? "GET"
@@ -46,19 +48,29 @@ export class NaaiErpClient {
                     action,
                   )
                 ? `${base}/${key}/${action}`
-                : isReport
-                  ? `${base}/${action}`
-                  : isOpeningBalance && action === "dry-run"
-                    ? `${base}/dry-run`
-                    : isPeriodWorkflow
-                      ? `${base}/${action}`
-                      : action === "deactivate"
-                        ? `${base}/${key}/deactivate`
-                        : action === "import"
-                          ? `${base}/import/dry-run`
-                          : action === "export"
-                            ? `${base}/export`
-                            : base;
+                : isExpense &&
+                    [
+                      "submit",
+                      "mark-evidence-pending",
+                      "review",
+                      "approve",
+                      "reject",
+                      "post",
+                    ].includes(action)
+                  ? `${base}/${key}/${action}`
+                  : isReport
+                    ? `${base}/${action}`
+                    : isOpeningBalance && action === "dry-run"
+                      ? `${base}/dry-run`
+                      : isPeriodWorkflow
+                        ? `${base}/${action}`
+                        : action === "deactivate"
+                          ? `${base}/${key}/deactivate`
+                          : action === "import"
+                            ? `${base}/import/dry-run`
+                            : action === "export"
+                              ? `${base}/export`
+                              : base;
     const query =
       isReport && payload && typeof payload === "object"
         ? new URLSearchParams(
@@ -75,7 +87,7 @@ export class NaaiErpClient {
         authorization: `Bearer ${this.options.token}`,
         "content-type": "application/json",
         "x-correlation-id": correlationId,
-        ...(method !== "GET" ? { "idempotency-key": randomUUID() } : {}),
+        ...(method !== "GET" ? { "idempotency-key": idempotencyKey ?? randomUUID() } : {}),
         ...(expectedVersion ? { "if-match": expectedVersion } : {}),
       },
       ...(method !== "GET" ? { body: JSON.stringify(payload ?? { data: {} }) } : {}),

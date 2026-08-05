@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:13:00+07:00
+updated_at: 2026-08-05T16:18:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G3
@@ -363,10 +363,27 @@ tasks:
   - id: ERP-310
     title: Expense workflow
     phase: P3
-    status: ready
+    status: review
     dependencies: [G2, ERP-130]
-    business_rules: [BR-EXP-001, BR-EXP-002, BR-TAX-002]
+    business_rules: [BR-EXP-001, BR-EXP-002, BR-EXP-003, BR-EXP-004, BR-EXP-005, BR-TAX-002]
     tests: [T-EXP-001, T-EXP-002, T-TAX-002]
+    evidence: docs/implementation/evidence/ERP-310/
+    agent: codex-root
+    started_at: 2026-08-05T16:18:00+07:00
+    start_commit: 8fd109a37e103782fb0fdfcf06b5ba9508b23817
+    planned_files:
+      - packages/domain/src/expenses.ts
+      - packages/domain/src/expenses.test.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/expenses/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - tests/fixtures/golden/GF-EXPENSE-001/
+      - tests/fixtures/golden/GF-EXPENSE-002/
+      - docs/implementation/evidence/ERP-310/
 
   - id: ERP-320
     title: Evidence management
