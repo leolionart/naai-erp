@@ -22,6 +22,6 @@ Verified behavior:
 - Full monorepo check/build passes; migration directory validates with 27 entries.
 - Full Playwright suite passes 30/30 after correcting the filter Sheet scroll boundary.
 
-## Pending proof
+## Exact-commit proof
 
-These are local current-worktree results. The PostgreSQL profitability integration test is authored but requires exact pushed-commit CI before ERP-540 or Gate G5 can be marked done.
+The complete GitHub quality job passed for exact proof commit `03bbe412a509ad08858d353ca6ecb67801e27309`, including PostgreSQL migrations/integration tests and the full Playwright suite: https://github.com/leolionart/naai-erp/actions/runs/31053654289.

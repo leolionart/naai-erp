@@ -2,7 +2,7 @@
 
 - Task: ERP-540 — Project profitability
 - Gate: G5 — Project economics
-- Status: review
+- Status: done
 
 ERP-540 is being implemented as a management-reporting read model with three intentionally separate profitability layers:
 
@@ -14,4 +14,4 @@ The current worktree contains a responsive report queue at `/reports/project-pro
 
 `GF-PROJECT-001` provides the independent exact-VND oracle for milestone revenue, versioned labor cost, freelancer cost, variable/fixed overhead, realized hourly rate, approved billable-capacity utilization, cost overrun and ledger/read-model ties.
 
-Backend, domain, public contracts, OpenAPI/capabilities and first-party CLI are now integrated with the UI. ERP-540 remains in review until the changes are committed, pushed and exact-commit GitHub CI executes the PostgreSQL fixture successfully.
+Backend, domain, public contracts, OpenAPI/capabilities and first-party CLI are integrated with the UI. Exact-commit GitHub CI passed for proof commit `03bbe412a509ad08858d353ca6ecb67801e27309`: https://github.com/leolionart/naai-erp/actions/runs/31053654289.

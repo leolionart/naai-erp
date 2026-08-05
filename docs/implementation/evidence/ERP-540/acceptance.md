@@ -1,6 +1,6 @@
 # ERP-540 acceptance evidence
 
-ERP-540 is ready for integrated review, not final acceptance.
+ERP-540 is accepted.
 
 Current acceptance coverage:
 
@@ -15,4 +15,4 @@ Current acceptance coverage:
 - Pass locally: `GF-PROJECT-001` independently recalculates project and total profitability and ties four report controls to ledger/read-model totals with zero difference.
 - Pass locally: final backend response, OpenAPI/capabilities and first-party CLI match the report/detail UI contract.
 - Pass locally: complete monorepo check, migration validation, fixture suite and 30-scenario desktop/mobile Playwright suite are green.
-- Pending final proof: pushed exact-commit GitHub CI.
+- Pass: exact-commit GitHub CI for `03bbe412a509ad08858d353ca6ecb67801e27309` completed successfully at https://github.com/leolionart/naai-erp/actions/runs/31053654289.

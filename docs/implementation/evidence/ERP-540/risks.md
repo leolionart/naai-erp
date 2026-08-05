@@ -9,4 +9,4 @@
 - Zero-revenue and zero-capacity denominator behavior needs explicit backend coverage; UI formatting must not imply a valid percentage when the basis is null.
 - Missing dimensions, unbilled work, overdue AR and overrun are confidence signals, not silent exclusions from the report.
 - Historical cost-rate and overhead-policy versions must not be rewritten when later versions become effective.
-- Exact-commit GitHub CI is pending; local verification is not sufficient for final acceptance.
+- Exact-commit GitHub CI passed. Remaining risks are operational data quality concerns surfaced by the report rather than acceptance blockers.

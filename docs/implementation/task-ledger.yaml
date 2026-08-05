@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T05:18:03+07:00
+updated_at: 2026-08-06T05:47:52+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G5
-current_task: ERP-540
+current_gate: G6
+current_task: ERP-600
 
 tasks:
   - id: ERP-000
@@ -734,20 +734,26 @@ tasks:
   - id: ERP-540
     title: Project profitability
     phase: P5
-    status: review
+    status: done
     dependencies: [ERP-530]
     business_rules: [BR-PRF-001, BR-PRF-002]
     tests: [T-PRF-001, T-PRF-002]
     evidence: docs/implementation/evidence/ERP-540/
     started_at: 2026-08-06T05:18:03+07:00
+    completed_at: 2026-08-06T05:47:52+07:00
+    implementation_commit: 5cbda90937c9e49c71198692a62a652f2b4ac4a0
+    proof_commit: 03bbe412a509ad08858d353ca6ecb67801e27309
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31053654289
 
   - id: ERP-600
     title: Targets and forecast versions
     phase: P6
-    status: blocked
+    status: in_progress
     dependencies: [G5]
     business_rules: [BR-FCT-001, BR-FCT-002]
     tests: [T-FCT-001, T-FCT-002]
+    evidence: docs/implementation/evidence/ERP-600/
+    started_at: 2026-08-06T05:47:52+07:00
 
   - id: ERP-610
     title: Revenue and expense forecast
@@ -935,8 +941,8 @@ gate_status:
   G2: done
   G3: done
   G4: done
-  G5: in_progress
-  G6: blocked
+  G5: done
+  G6: in_progress
   G7: blocked
   G8: blocked
   G9: blocked
