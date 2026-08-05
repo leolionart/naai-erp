@@ -9,3 +9,5 @@ Implemented a reusable admin design system informed by VietERP's shell and page 
 - Added reusable financial table, money cell, status badge and KPI card compositions.
 - Migrated ledger, document, expense, evidence, inbound and generic admin workspaces away from raw controls to shared shadcn primitives.
 - Preserved the existing REST behavior, organization scope, token storage and operational forms.
+
+Exact implementation commit `b2ad82fafcc1235864ddff12fb2cbd2f9c20a1f0` passed CI.

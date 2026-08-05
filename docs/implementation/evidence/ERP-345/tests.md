@@ -19,4 +19,4 @@ Browser plugin selection failed with `No browser is available`; the approved loc
 - Console error check after the successful reload and interactions returned no application errors.
 - Temporary Playwright snapshots were removed after verification.
 
-Exact-commit CI verification remains pending.
+Exact implementation commit `b2ad82fafcc1235864ddff12fb2cbd2f9c20a1f0` passed CI: https://github.com/leolionart/naai-erp/actions/runs/31003226750
