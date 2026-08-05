@@ -4,7 +4,7 @@ updated_at: 2026-08-05T21:07:06+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G4
-current_task: ERP-410
+current_task: ERP-420
 
 tasks:
   - id: ERP-000
@@ -561,7 +561,7 @@ tasks:
   - id: ERP-410
     title: Reconciliation
     phase: P4
-    status: review
+    status: done
     dependencies: [ERP-400]
     business_rules: [BR-REC-001, BR-REC-002, BR-REC-003]
     tests: [T-REC-001, T-REC-002, T-REC-P001]
@@ -569,6 +569,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T19:54:21+07:00
     start_commit: b13f3979c563923d7d4f9c59d4d80859cddb4900
+    completed_at: 2026-08-05T21:35:41+07:00
+    implementation_commit: d4e6a41ddd5b600bb53d6c619b8b40fffd8a64e5
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/31015487553
     planned_files:
       - packages/domain/src/reconciliation.ts
       - packages/domain/src/reconciliation.test.ts
@@ -589,7 +592,7 @@ tasks:
   - id: ERP-420
     title: Internal transfers
     phase: P4
-    status: blocked
+    status: ready
     dependencies: [ERP-410]
     business_rules: [BR-BNK-003]
     tests: [T-BNK-003]

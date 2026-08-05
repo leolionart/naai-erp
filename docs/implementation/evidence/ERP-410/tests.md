@@ -41,3 +41,9 @@ Exact-commit GitHub CI must execute migration 0018 and the PostgreSQL integratio
 The first exact-commit CI run (`31013660054`) exposed two accidental required columns on the reconciliation parent table that belong only to child attempts. The schema, migration snapshot and migration SQL were corrected; the database integration fixture remains the regression proof on the repair commit.
 
 The next CI run (`31014075409`) then reached the API integration fixture and proved the existing control-account constraint was active. The fixture now creates Bank and AR control accounts with manual posting disabled, matching production account invariants instead of weakening the constraint.
+
+The following run (`31014426063`) exposed use of PostgreSQL's reserved `OVER` keyword as a result alias during target revalidation. The query now uses the explicit `overallocated` alias and the focused PostgreSQL journey passes.
+
+Two subsequent exact-commit runs exposed an older worker integration test depending on an empty global outbound queue. Its proof is now event-specific and the shared CI backlog is drained with an intentionally large test batch. This does not weaken delivery assertions: state, attempt count, outcome, published timestamp and signed request headers are still verified for the exact event.
+
+Final exact-commit CI: https://github.com/leolionart/naai-erp/actions/runs/31015487553 — pass for commit `d4e6a41ddd5b600bb53d6c619b8b40fffd8a64e5`, including migrations, PostgreSQL database/API/worker integration suites and Playwright E2E.
