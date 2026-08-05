@@ -8,4 +8,4 @@
 - PostgreSQL version persistence and constraints: migration and integration tests added.
 - API/CLI machine-readable coverage: rule resource plus evaluate workflow documented in OpenAPI.
 
-Final acceptance remains pending exact-commit PostgreSQL CI.
+Exact-commit PostgreSQL CI passed: https://github.com/leolionart/naai-erp/actions/runs/30987647113

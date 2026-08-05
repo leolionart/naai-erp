@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T15:45:00+07:00
+updated_at: 2026-08-05T15:51:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
-current_task: ERP-210
+current_task: ERP-220
 
 tasks:
   - id: ERP-000
@@ -229,7 +229,7 @@ tasks:
   - id: ERP-210
     title: Posting rule engine
     phase: P2
-    status: review
+    status: done
     dependencies: [ERP-200]
     business_rules: [BR-PST-001, BR-PST-002]
     tests: [T-PST-001, T-PST-002]
@@ -237,6 +237,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T15:39:00+07:00
     start_commit: b718806d4fb3b6d490a2b06fa9cf57d7b39a1fa7
+    completed_at: 2026-08-05T15:51:00+07:00
+    commit: 9b980c545bbd0c17d3dafeb48d13e81ee33215da
+    remote_ci: https://github.com/leolionart/naai-erp/actions/runs/30987647113
     planned_files:
       - packages/domain/src/posting-rules.ts
       - packages/domain/src/posting-rules.test.ts
@@ -252,7 +255,7 @@ tasks:
   - id: ERP-220
     title: Accounting workflow
     phase: P2
-    status: blocked
+    status: ready
     dependencies: [ERP-200, ERP-210]
     business_rules: [BR-WFL-001, BR-WFL-002, BR-LED-003]
     tests: [T-WFL-001, T-WFL-002]
