@@ -17,8 +17,8 @@ suite("ERP-430 AR/AP aging PostgreSQL API", () => {
       insert into organizations(id,legal_name,base_currency,timezone) values('org-erp430','ERP 430','VND','Asia/Ho_Chi_Minh'),('org-erp430-other','Other','VND','Asia/Ho_Chi_Minh');
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
         ('org-erp430','131','AR','asset',true,false),('org-erp430','331','AP','liability',true,false),('org-erp430','511','Revenue','revenue',false,true),('org-erp430','642','Expense','expense',false,true),('org-erp430','112','Bank','asset',false,true);
-      insert into parties(organization_id,id,display_name,status,created_by,updated_by) values
-        ('org-erp430','customer','Customer','active','finance','finance'),('org-erp430','supplier','Supplier','active','finance','finance');
+      insert into parties(organization_id,id,display_name,status) values
+        ('org-erp430','customer','Customer','active'),('org-erp430','supplier','Supplier','active');
       insert into party_roles(organization_id,party_id,role) values('org-erp430','customer','client'),('org-erp430','supplier','supplier');
       insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,posted_at,posted_by) values
         ('org-erp430','j-ar','2026-08-01','AR invoice','VND','posted',2,'finance',now(),'finance'),
