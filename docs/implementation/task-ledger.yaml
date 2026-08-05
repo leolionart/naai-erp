@@ -622,10 +622,30 @@ tasks:
   - id: ERP-430
     title: AR AP aging
     phase: P4
-    status: ready
+    status: in_progress
     dependencies: [ERP-300, ERP-410]
     business_rules: [BR-AR-002, BR-AP-002]
     tests: [T-AR-002, T-AP-002]
+    evidence: docs/implementation/evidence/ERP-430/
+    agent: codex-root
+    started_at: 2026-08-05T22:15:00+07:00
+    start_commit: 621ccebc0d120acbc3cecf5ae52a1f0ff46fc6ef
+    planned_files:
+      - packages/domain/src/aging.ts
+      - packages/domain/src/aging.test.ts
+      - packages/contracts/src/aging.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/schema.integration.test.ts
+      - db/migrations/
+      - apps/api/src/aging/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/receivables/
+      - apps/web/src/app/(app)/payables/
+      - apps/web/src/app/workspaces/
+      - tests/fixtures/golden/GF-AGING-001/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-430/
 
   - id: ERP-500
     title: Timesheet and cost rates

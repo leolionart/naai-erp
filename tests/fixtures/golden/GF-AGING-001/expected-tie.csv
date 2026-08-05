@@ -1,0 +1,3 @@
+side,control_account_code,debit_open_minor,credit_or_advance_minor,subledger_minor,ledger_minor,variance_minor,status
+ar,131-AR,135000000,5000000,130000000,130000000,0,tied_out
+ap,331-AP,146000000,7000000,139000000,139000000,0,tied_out

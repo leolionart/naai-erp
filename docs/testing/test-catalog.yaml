@@ -523,6 +523,44 @@ tests:
     command: pnpm --filter @naai-erp/contracts test && pnpm --filter @naai-erp/cli test
     blocking_gate: G4
 
+  - id: T-UNIT-ERP-430-001
+    aliases: [T-AR-002]
+    task: ERP-430
+    rules: [BR-AR-002]
+    title: AR current and overdue bucket boundaries partial settlement and separate customer credit are exact
+    layer: unit
+    fixture: GF-AGING-001
+    command: pnpm --filter @naai-erp/domain test && pnpm test:fixtures
+    blocking_gate: G4
+
+  - id: T-INT-ERP-430-002
+    aliases: [T-AP-002]
+    task: ERP-430
+    rules: [BR-AP-002, BR-ORG-001]
+    title: AP aging supplier advances credits historical cutoff and organization scope are ledger-derived
+    layer: integration
+    fixture: GF-AGING-001
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
+    blocking_gate: G4
+
+  - id: T-E2E-ERP-430-003
+    task: ERP-430
+    rules: [BR-AR-002, BR-AP-002, BR-UI-004]
+    title: Separate AR and AP queues filter and drill into counterparty aging on desktop and mobile
+    layer: e2e
+    fixture: GF-AGING-001
+    command: pnpm test:e2e --filter T-E2E-ERP-430-003
+    blocking_gate: G4
+
+  - id: T-INT-ERP-430-004
+    task: ERP-430
+    rules: [BR-AR-002, BR-AP-002, BR-AI-001, BR-AI-003]
+    title: AR AP subledgers tie control accounts and remain discoverable through OpenAPI capabilities and CLI
+    layer: integration
+    fixture: GF-AGING-001
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test && pnpm --filter @naai-erp/cli test
+    blocking_gate: G4
+
   - id: T-DOMAIN-ERP-400-001
     aliases: [T-BNK-001]
     task: ERP-400

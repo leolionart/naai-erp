@@ -1,0 +1,8 @@
+{
+  "fixtureId": "GF-AGING-001",
+  "organizationId": "ORG-GF-AGING",
+  "asOf": "2026-08-31",
+  "baseCurrency": "VND",
+  "arControlAccountCode": "131-AR",
+  "apControlAccountCode": "331-AP"
+}
