@@ -21,3 +21,9 @@ Results:
 - localhost list route and API health return HTTP 200; runtime OpenAPI exposes internal-transfer schemas and capabilities advertise the resource.
 
 PostgreSQL integration cases are authored for CI. Local execution was attempted but the host currently has no PostgreSQL listener or Docker daemon (`ECONNREFUSED 127.0.0.1:5432`), so exact-commit GitHub CI is the required database proof before task closure.
+
+## Exact-commit CI
+
+GitHub Actions run https://github.com/leolionart/naai-erp/actions/runs/31018732152 passed for commit `7a538a09e4b39ebf3173df3d72753f708271569b`.
+
+The run executed the clean check, migration apply, PostgreSQL database/API/worker integration suites and nine Playwright desktop/mobile cases. This supplies the database-backed proof unavailable on the local host and closes ERP-420.

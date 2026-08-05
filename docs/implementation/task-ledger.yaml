@@ -4,7 +4,7 @@ updated_at: 2026-08-05T21:07:06+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G4
-current_task: ERP-420
+current_task: ERP-430
 
 tasks:
   - id: ERP-000
@@ -592,7 +592,7 @@ tasks:
   - id: ERP-420
     title: Internal transfers
     phase: P4
-    status: in_progress
+    status: done
     dependencies: [ERP-410]
     business_rules: [BR-BNK-003]
     tests: [T-BNK-003]
@@ -600,6 +600,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T21:37:00+07:00
     start_commit: e544d67c941c06d5ba38b711b9a537cc635ccc59
+    completed_at: 2026-08-05T22:13:11+07:00
+    implementation_commit: 7a538a09e4b39ebf3173df3d72753f708271569b
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/31018732152
     planned_files:
       - packages/domain/src/internal-transfers.ts
       - packages/domain/src/internal-transfers.test.ts
@@ -619,7 +622,7 @@ tasks:
   - id: ERP-430
     title: AR AP aging
     phase: P4
-    status: blocked
+    status: ready
     dependencies: [ERP-300, ERP-410]
     business_rules: [BR-AR-002, BR-AP-002]
     tests: [T-AR-002, T-AP-002]
