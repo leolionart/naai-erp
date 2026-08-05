@@ -11,3 +11,5 @@ Implemented controlled fiscal-period close/reopen and posting-date enforcement.
 - REST/OpenAPI and CLI expose close/reopen without direct database access.
 
 Start commit: `803fbc9466d9f178cf0d0224556387c4699111f0`.
+Implementation commit: `e42ace6cea02534f6580e372a38990bedeb03a31`.
+Verified CI: https://github.com/leolionart/naai-erp/actions/runs/30989144652

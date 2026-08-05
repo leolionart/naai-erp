@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-05T16:28:00+07:00
+updated_at: 2026-08-05T15:31:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G2
-current_task: ERP-230
+current_task: ERP-240
 
 tasks:
   - id: ERP-000
@@ -281,7 +281,7 @@ tasks:
   - id: ERP-230
     title: Period close and reopen
     phase: P2
-    status: review
+    status: done
     dependencies: [ERP-220]
     business_rules: [BR-PER-001, BR-PER-002]
     tests: [T-PER-001, T-PER-002]
@@ -289,6 +289,9 @@ tasks:
     agent: codex-root
     started_at: 2026-08-05T16:15:00+07:00
     start_commit: 803fbc9466d9f178cf0d0224556387c4699111f0
+    completed_at: 2026-08-05T15:31:00+07:00
+    implementation_commit: e42ace6cea02534f6580e372a38990bedeb03a31
+    ci_run: https://github.com/leolionart/naai-erp/actions/runs/30989144652
     planned_files:
       - packages/domain/src/fiscal-period-workflow.ts
       - packages/domain/src/fiscal-period-workflow.test.ts
@@ -305,7 +308,7 @@ tasks:
   - id: ERP-240
     title: Trial Balance General Ledger and opening balances
     phase: P2
-    status: blocked
+    status: ready
     dependencies: [ERP-200, ERP-230]
     business_rules: [BR-RPT-001, BR-LED-005]
     tests: [T-RPT-001, T-GLD-001]
