@@ -17,8 +17,8 @@ async function expectDashboard(page: Page) {
   await page.goto("http://localhost:3000/dashboard");
   await page.waitForLoadState("networkidle");
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Tổng quan vận hành" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Module đang hoạt động" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tổng quan điều hành" })).toBeVisible();
+  await expect(page.getByText("Xu hướng doanh thu", { exact: true })).toBeVisible();
 }
 
 async function expectDocumentCreateForm(page: Page) {
