@@ -4,4 +4,4 @@
 - The workbook has no reliable client field for most project rows. Five sales rows are linked to three reviewed projects; remaining projects stay on `Generic Client` with explicit warnings until an owner mapping is provided.
 - The real import commit has been executed and verified natively on the PostgreSQL target, creating 14 parties, 14 roles, 29 projects, 41 sales invoices, 200 expenses, and 241 journals (482 lines) with balanced Trial Balance (987,753,157).
 - Native execution required explicit `DATABASE_URL` environment configuration, and the temporary native API server has been stopped.
-- CI/CD release pipeline, final OCI images, and git SHA references remain pending parent integration.
+- CI and image publication are proven for exact commit `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`; production rollout, secret provisioning, backup policy, and rollback execution remain deployment-owner responsibilities outside the local development preview.

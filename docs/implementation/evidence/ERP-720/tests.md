@@ -13,4 +13,4 @@
 - Web production build passed with `/customers`, `/projects`, invoice and expense routes.
 - Repository lint and TypeScript checks passed.
 
-Final SHA and exact-commit CI proof remain pending until the implementation commit is pushed.
+Exact-commit CI passed for `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f` in [run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429), including 67/67 Playwright tests.

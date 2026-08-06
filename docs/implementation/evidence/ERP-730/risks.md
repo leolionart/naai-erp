@@ -5,4 +5,4 @@
 - A balanced runtime report must not be interpreted as proof that historical opening balances are complete.
 - AP remains empty until a source provides deterministic purchase-invoice identity and supplier evidence; document-backed expense files alone are insufficient.
 - Legal and accounting mappings still require accountant confirmation before production reporting or statutory use.
-- Exact-commit CI, pushed commit identity, and deployment proof have not yet been recorded.
+- Exact-commit CI is recorded for `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`; production opening balances and accountant approval remain explicitly outside this setup proof.

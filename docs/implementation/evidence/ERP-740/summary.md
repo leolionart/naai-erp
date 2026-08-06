@@ -29,4 +29,12 @@ Successfully executed the real native workbook import pipeline for tenant `naai`
 ## Runtime configuration
 
 - **API Runtime:** The native preview propagates its explicit `DATABASE_URL` through Turbo and serves the imported `naai` tenant on localhost.
-- **Docker & Release Pipeline:** Final release OCI image tags, CI validations, and exact git SHAs remain pending parent integration.
+- **CI:** [Run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429) passed for exact commit `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`.
+- **Release:** [Run 31096200210](https://github.com/leolionart/naai-erp/actions/runs/31096200210) published all four images with `main` and immutable `sha-edcbb6695aa3` tags. Every build recorded OCI revision `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`.
+
+| Image                                 | Published digest                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `ghcr.io/leolionart/naai-erp-api`     | `sha256:e0d4544854a3829207e65594241d7edc4013389b5d90e465a743b155e85fadf1` |
+| `ghcr.io/leolionart/naai-erp-web`     | `sha256:7c4bee1341c6d9eeb3743736451c732723ac445d9dd2504c5a38a5e12209449c` |
+| `ghcr.io/leolionart/naai-erp-worker`  | `sha256:a883f936f4c2968f49029485d11aa8d232a2fa8393f83e3e000b13dc8b2ca180` |
+| `ghcr.io/leolionart/naai-erp-migrate` | `sha256:186b3b6da66fd64a845dddaf55f481b5cdd3887dddbc2866f427cefb375ef780` |

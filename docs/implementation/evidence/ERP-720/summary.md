@@ -6,4 +6,4 @@ The local development runtime now waits for credential hydration before protecte
 
 Real-browser verification against the imported NAAI data showed 14 customers, 29 projects, 41 sales invoices and 200 non-invoice expenses. The VIOD customer/project relationship drills through to receivables of `81,585,000` VND. Commercial document dates remain stable API/UI date-only values in `YYYY-MM-DD` format.
 
-The final implementation SHA and exact-commit CI proof remain pending.
+Exact implementation proof is commit `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`. [CI run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429) completed successfully with 67/67 Playwright tests.

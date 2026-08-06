@@ -16,4 +16,4 @@
 - VIOD customer/project drill-down reaches AR of `81,585,000` VND.
 - Invoice dates render and read back as stable `YYYY-MM-DD` values.
 - Full Playwright acceptance passed 67/67 tests.
-- Final SHA and exact-commit CI verification are pending.
+- Exact proof commit `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f` passed [CI run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429).

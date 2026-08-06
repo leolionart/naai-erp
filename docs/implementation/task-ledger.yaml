@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T12:35:00+07:00
+updated_at: 2026-08-06T18:23:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G7
-current_task: ERP-710
+current_gate: null
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -845,39 +845,60 @@ tasks:
   - id: ERP-710
     title: External invoice ingestion and Paperless identity
     phase: P7
-    status: review
+    status: done
     dependencies: [ERP-700]
     business_rules: [BR-MVP-001, BR-MVP-002]
     tests: [T-MVP-API-001, T-MVP-API-002]
     evidence: docs/implementation/evidence/ERP-710/
+    started_at: 2026-08-06T12:33:43+07:00
+    completed_at: 2026-08-06T18:23:00+07:00
+    implementation_commit: 16473496096a6bbcedc85e66060163b6621269fd
+    proof_commit: edcbb6695aa31189e41c2c429b6a1644ce2f2f3f
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31096199429
     notes: Structured API/webhook upsert only; no OCR review or replay workflow.
 
   - id: ERP-720
     title: Focused invoice and expense admin UI
     phase: P7
-    status: review
+    status: done
     dependencies: [ERP-710]
     business_rules: [BR-MVP-003]
     tests: [T-MVP-UI-001, T-MVP-UI-002]
     evidence: docs/implementation/evidence/ERP-720/
+    started_at: 2026-08-06T12:33:43+07:00
+    completed_at: 2026-08-06T18:23:00+07:00
+    implementation_commit: 16473496096a6bbcedc85e66060163b6621269fd
+    proof_commit: edcbb6695aa31189e41c2c429b6a1644ce2f2f3f
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31096199429
 
   - id: ERP-730
     title: MVP reports and clean-install setup
     phase: P7
-    status: review
+    status: done
     dependencies: [ERP-720]
     business_rules: [BR-MVP-004]
     tests: [T-MVP-RPT-001, T-MVP-RPT-002]
     evidence: docs/implementation/evidence/ERP-730/
+    started_at: 2026-08-06T12:33:43+07:00
+    completed_at: 2026-08-06T18:23:00+07:00
+    implementation_commit: 16473496096a6bbcedc85e66060163b6621269fd
+    proof_commit: edcbb6695aa31189e41c2c429b6a1644ce2f2f3f
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31096199429
 
   - id: ERP-740
     title: Docker release and real-data import
     phase: P7
-    status: review
+    status: done
     dependencies: [ERP-730]
     business_rules: [BR-MVP-005]
     tests: [T-MVP-CMP-001, T-MVP-REL-001, T-MVP-IMPORT-001]
     evidence: docs/implementation/evidence/ERP-740/
+    started_at: 2026-08-06T12:33:43+07:00
+    completed_at: 2026-08-06T18:23:00+07:00
+    implementation_commit: 2e790b7af0e1a06996a5d827b29189f53b83ba81
+    proof_commit: edcbb6695aa31189e41c2c429b6a1644ce2f2f3f
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31096199429
+    release_url: https://github.com/leolionart/naai-erp/actions/runs/31096200210
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -897,7 +918,7 @@ gate_status:
   G4: done
   G5: done
   G6: done
-  G7: in_progress
+  G7: done
 
 not_in_mvp:
   note: Enterprise hardening, semantic releases, automated deployment, parallel run, formal cutover and hypercare require explicit owner reactivation and a new ledger entry.

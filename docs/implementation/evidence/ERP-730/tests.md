@@ -12,4 +12,4 @@ Native clean-install and runtime verification established:
 - AP aging was empty as expected because the real workbook import created non-invoice expenses and no purchase invoices.
 - Report readiness did not require weakening production seed guards.
 
-Exact-commit CI and pushed-SHA proof remain pending commit and push.
+Exact-commit CI passed for `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f` in [run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429).

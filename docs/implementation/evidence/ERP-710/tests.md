@@ -12,4 +12,4 @@ Verified against native PostgreSQL and a temporary API process with an explicit 
 - All verification data was scoped to `org-verify710-1786012077`; `naai` was not queried or mutated.
 - The temporary native API was stopped after verification.
 
-Exact-commit CI and remote deployment proof remain pending commit and push.
+Exact-commit CI passed for `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f` in [run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429). The run completed the repository quality gate, migrations, database/API/worker tests, and 67/67 Playwright tests.

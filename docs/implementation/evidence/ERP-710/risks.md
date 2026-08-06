@@ -5,4 +5,4 @@
 - Posted or otherwise locked accounting resources must never be rewritten by an external upsert.
 - Duplicate heuristics supplement stable external identity and may require future accountant-configurable matching rules.
 - The isolated native fixture remains separate from `naai`; it must not be treated as production data.
-- Exact-commit CI, pushed commit identity, and deployment proof have not yet been recorded.
+- Exact-commit CI is recorded for `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`; external integrations still require production credential and network validation in their deployment environment.

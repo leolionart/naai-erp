@@ -8,3 +8,4 @@
 - Invalid but authenticated invoice payloads are quarantined without a document or external reference; their retries remain idempotent.
 - Verification was isolated from real imported data in `naai`.
 - Credit-note creation and cross-model invoice-backed expense prevention remain covered by the focused automated integration suite.
+- Exact proof commit `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f` passed [CI run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429).

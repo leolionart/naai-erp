@@ -21,4 +21,10 @@
 - **Runtime Environment:**
   - Native preview propagates `DATABASE_URL` through Turbo and serves the imported `naai` tenant on localhost.
 
-Exact-commit release and CI proof remain pending until parent integration.
+Exact-commit proof completed:
+
+- [CI run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429) passed for `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`.
+- [Release run 31096200210](https://github.com/leolionart/naai-erp/actions/runs/31096200210) passed and pushed API, web, worker, and migrate images.
+- Both `main` and `sha-edcbb6695aa3` tags were emitted for every image.
+- Build metadata recorded the full commit as `org.opencontainers.image.revision` for all four images.
+- Published digests: API `sha256:e0d4544854a3829207e65594241d7edc4013389b5d90e465a743b155e85fadf1`; web `sha256:7c4bee1341c6d9eeb3743736451c732723ac445d9dd2504c5a38a5e12209449c`; worker `sha256:a883f936f4c2968f49029485d11aa8d232a2fa8393f83e3e000b13dc8b2ca180`; migrate `sha256:186b3b6da66fd64a845dddaf55f481b5cdd3887dddbc2866f427cefb375ef780`.
