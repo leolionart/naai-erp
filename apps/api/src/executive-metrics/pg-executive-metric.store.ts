@@ -127,6 +127,11 @@ export class PgExecutiveMetricStore {
       k,
       { id, v, r },
       async (x) => {
+        const draft = await x.query<{ created_by: string }>(
+          `select created_by from executive_metric_policy_versions where organization_id=$1 and id=$2 and version=$3 and state='draft' for update`,
+          [c.organizationId, id, v],
+        );
+        if (draft.rows[0]?.created_by === c.actorId) throw new Error("MAKER_CHECKER_VIOLATION");
         const u = await x.query(
           `update executive_metric_policy_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5 where organization_id=$1 and id=$2 and version=$3 and state='draft' and created_by<>$4 returning id,version,state,approved_at`,
           [c.organizationId, id, v, c.actorId, r.trim()],
@@ -186,6 +191,11 @@ export class PgExecutiveMetricStore {
   }
   approveDefinition(c: ExecutiveMetricContext, id: string, v: number, r: string, k: string) {
     return this.idem(c, `roi-definition:approve:${id}:${v}`, k, { id, v, r }, async (x) => {
+      const draft = await x.query<{ created_by: string }>(
+        `select created_by from roi_definition_versions where organization_id=$1 and id=$2 and version=$3 and state='draft' for update`,
+        [c.organizationId, id, v],
+      );
+      if (draft.rows[0]?.created_by === c.actorId) throw new Error("MAKER_CHECKER_VIOLATION");
       const u = await x.query(
         `update roi_definition_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5 where organization_id=$1 and id=$2 and version=$3 and state='draft' and created_by<>$4 returning id,version,state,approved_at`,
         [c.organizationId, id, v, c.actorId, r.trim()],
@@ -252,7 +262,7 @@ export class PgExecutiveMetricStore {
       basis: "accrual" as const,
       dimensions: q.dimensions,
     };
-    const [pnl, closing, opening, cf, policy] = await Promise.all([
+    const [pnl, closing, opening, policy] = await Promise.all([
       this.fs.report(c, "profit_and_loss", fq),
       this.fs.report(c, "balance_sheet", fq),
       this.fs.report(c, "balance_sheet", {
@@ -261,23 +271,50 @@ export class PgExecutiveMetricStore {
           .toISOString()
           .slice(0, 10),
       }),
-      this.fs.report(c, "cash_flow", fq),
       this.pool.query(
         `select * from executive_metric_policy_versions where organization_id=$1 and state='approved' and effective_from<=$2 and(effective_to is null or effective_to>=$3) order by effective_from desc,version desc limit 1`,
         [c.organizationId, q.endsOn, q.startsOn],
       ),
     ]);
     if (!policy.rows[0]) throw new Error("EXECUTIVE_METRIC_POLICY_NOT_FOUND");
+    const policyRow = policy.rows[0] as {
+      id: string;
+      version: number;
+      formula_policy: { averageBurnMonths: number };
+    };
+    const monthPeriods: { startsOn: string; endsOn: string }[] = [];
+    const requestedEnd = new Date(`${q.endsOn}T00:00:00.000Z`);
+    let cursor =
+      requestedEnd.getUTCDate() ===
+      new Date(
+        Date.UTC(requestedEnd.getUTCFullYear(), requestedEnd.getUTCMonth() + 1, 0),
+      ).getUTCDate()
+        ? requestedEnd
+        : new Date(Date.UTC(requestedEnd.getUTCFullYear(), requestedEnd.getUTCMonth(), 0));
+    for (let index = 0; index < policyRow.formula_policy.averageBurnMonths; index += 1) {
+      const endsOn = cursor.toISOString().slice(0, 10);
+      const startsOn = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1))
+        .toISOString()
+        .slice(0, 10);
+      monthPeriods.unshift({ startsOn, endsOn });
+      cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 0));
+    }
+    const monthlyCashFlows = await Promise.all(
+      monthPeriods.map((period) =>
+        this.fs
+          .report(c, "cash_flow", { ...fq, ...period })
+          .then((value) => value as Record<string, unknown>),
+      ),
+    );
     const P = pnl as Record<string, unknown>,
       B = closing as Record<string, unknown>,
-      O = opening as Record<string, unknown>,
-      C = cf as Record<string, unknown>;
+      O = opening as Record<string, unknown>;
     const sem = await this.pool.query<{ semantic: string; amount: string; source_ids: string[] }>(
       `select m.semantic,sum((case when a.root_type in('liability','equity','revenue')then l.credit_minor-l.debit_minor else l.debit_minor-l.credit_minor end)*m.sign)::text amount,array_agg(distinct j.id) source_ids from executive_metric_semantic_mappings m join accounts a on a.organization_id=m.organization_id and a.code=m.account_code join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where m.organization_id=$1 and m.policy_id=$2 and m.policy_version=$3 and j.state in('posted','reversed') and j.posted_at<=$4::timestamptz and j.journal_date<=$5::date and l.dimensions@>$6::jsonb group by m.semantic`,
       [
         c.organizationId,
-        policy.rows[0].id,
-        policy.rows[0].version,
+        policyRow.id,
+        policyRow.version,
         q.asOfInstant,
         q.endsOn,
         JSON.stringify(q.dimensions),
@@ -288,8 +325,8 @@ export class PgExecutiveMetricStore {
       `select m.semantic,sum((case when a.root_type in('liability','equity','revenue')then l.credit_minor-l.debit_minor else l.debit_minor-l.credit_minor end)*m.sign)::text amount from executive_metric_semantic_mappings m join accounts a on a.organization_id=m.organization_id and a.code=m.account_code join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where m.organization_id=$1 and m.policy_id=$2 and m.policy_version=$3 and j.state in('posted','reversed') and j.posted_at<=$4::timestamptz and j.journal_date between $5::date and $6::date and l.dimensions@>$7::jsonb group by m.semantic`,
       [
         c.organizationId,
-        policy.rows[0].id,
-        policy.rows[0].version,
+        policyRow.id,
+        policyRow.version,
         q.asOfInstant,
         q.startsOn,
         q.endsOn,
@@ -371,10 +408,12 @@ export class PgExecutiveMetricStore {
         closingAssetsMinor: BigInt(String(B.assetsMinor)),
         retainedEarningsMinor: amounts.retained_earnings ?? 0n,
         contributedCapitalMinor: amounts.contributed_capital ?? 0n,
-        ownerLoansMinor: 0n,
+        ownerLoansMinor: amounts.owner_loan ?? 0n,
         unrestrictedCashMinor: amounts.unrestricted_cash ?? 0n,
         restrictedCashMinor: amounts.restricted_cash ?? 0n,
-        reviewedOperatingNetCashFlowMinor: [BigInt(String(C.operatingCashFlowMinor))],
+        reviewedOperatingNetCashFlowMinor: monthlyCashFlows.map((cashFlow) =>
+          BigInt(String(cashFlow.operatingCashFlowMinor)),
+        ),
         roi: [...groups.values()],
       }),
     );
