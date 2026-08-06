@@ -29,7 +29,7 @@ async function invoke(args: string[]) {
   if (!address || typeof address === "string") throw new Error("TEST_SERVER_ADDRESS_REQUIRED");
 
   const result = await execFileAsync(
-    fileURLToPath(new URL("../../../node_modules/.bin/tsx", import.meta.url)),
+    fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url)),
     ["src/main.ts", ...args, "--base-url", `http://127.0.0.1:${address.port}`],
     {
       cwd: cliDirectory,

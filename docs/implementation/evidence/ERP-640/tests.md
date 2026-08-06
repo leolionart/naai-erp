@@ -30,7 +30,7 @@ Local results:
 - Public contracts: 45/45 tests pass.
 - Database: 13 tests pass and 15 PostgreSQL tests are CI-only locally; migration journal validation passes for all 33 entries.
 - API non-PostgreSQL suite: 61 tests pass and 58 PostgreSQL tests are CI-only locally.
-- First-party CLI: 209/209 tests pass.
+- First-party CLI: 212/212 tests pass, including executable routing from the package-local `tsx` binary used by clean workspace installs.
 - Web unit tests: 28/28 pass.
 - ERP-640 targeted desktop/mobile Playwright: 4/4 pass.
 - Full Playwright: 51/51 pass.
