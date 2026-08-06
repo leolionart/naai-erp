@@ -29,4 +29,13 @@ Local results:
 - Full desktop/mobile Playwright: 55/55 pass, including four ERP-650 journeys.
 - `pnpm check`, `pnpm db:check`, `pnpm test:fixtures` and `git diff --check`: pass in the integrated worktree.
 
-Exact-commit GitHub CI evidence will be appended after the implementation commit is pushed and the authoritative PostgreSQL/Playwright workflow completes.
+Exact-commit GitHub CI results for `8d7cc481f1606e63d912c1d6b76522721d011f30`:
+
+- Repository quality/build and all golden fixtures: pass.
+- Migration journal: 34 entries valid; migrations applied successfully to PostgreSQL 16.
+- Database: 30/30 tests pass, including PostgreSQL schema integration.
+- API: 124/124 tests pass, including all three ERP-650 PostgreSQL integration tests and prior module suites.
+- Worker: 8/8 tests pass.
+- Full desktop/mobile Playwright: 55/55 pass.
+
+GitHub Actions: https://github.com/leolionart/naai-erp/actions/runs/31071139349.

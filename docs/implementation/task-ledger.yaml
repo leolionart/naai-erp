@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T07:57:00+07:00
+updated_at: 2026-08-06T11:35:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
-current_gate: G6
-current_task: ERP-630
+current_gate: G7
+current_task: ERP-700
 
 tasks:
   - id: ERP-000
@@ -818,20 +818,25 @@ tasks:
   - id: ERP-650
     title: Accountant export and report snapshots
     phase: P6
-    status: in_progress
+    status: done
     dependencies: [ERP-630]
     business_rules: [BR-EXPOR-001, BR-SNP-001]
     tests: [T-EXPOR-001, T-SNP-001]
     evidence: docs/implementation/evidence/ERP-650/
     started_at: 2026-08-06T10:50:57+07:00
+    completed_at: 2026-08-06T11:35:00+07:00
+    implementation_commit: 6f43cac53e7889b5abbe5b01eccf7055934193b2
+    proof_commit: 8d7cc481f1606e63d912c1d6b76522721d011f30
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31071139349
 
   - id: ERP-700
     title: Dashboards and drill-down
     phase: P7
-    status: blocked
+    status: in_progress
     dependencies: [G6]
     business_rules: [BR-UI-001]
     tests: [T-E2E-001, T-E2E-002]
+    started_at: 2026-08-06T11:35:00+07:00
 
   - id: ERP-710
     title: Onboarding review and replay UI
@@ -972,7 +977,7 @@ gate_status:
   G3: done
   G4: done
   G5: done
-  G6: in_progress
-  G7: blocked
+  G6: done
+  G7: in_progress
   G8: blocked
   G9: blocked
