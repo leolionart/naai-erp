@@ -218,9 +218,11 @@
     },
     "/api/v1/organizations/{organizationId}/reports/financial-statements/profit-and-loss": {
       "get": {
+        "operationId": "getProfitAndLossStatement",
         "summary": "Read an exact mapped profit and loss statement with gross, operating, tax, and net profit subtotals",
         "tags": ["financial-statements", "profit-and-loss"],
         "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
           {
             "name": "startsOn",
             "in": "query",
@@ -256,14 +258,17 @@
           { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
           { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
           { "name": "costCenterId", "in": "query", "schema": { "type": "string" } }
-        ]
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/ProfitAndLossReport" } }
       }
     },
     "/api/v1/organizations/{organizationId}/reports/financial-statements/balance-sheet": {
       "get": {
+        "operationId": "getBalanceSheetStatement",
         "summary": "Read an exact as-of balance sheet with explicit equality validation and no hidden balancing plug",
         "tags": ["financial-statements", "balance-sheet"],
         "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
           {
             "name": "endsOn",
             "in": "query",
@@ -287,14 +292,17 @@
           { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
           { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
           { "name": "costCenterId", "in": "query", "schema": { "type": "string" } }
-        ]
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/BalanceSheetReport" } }
       }
     },
     "/api/v1/organizations/{organizationId}/reports/financial-statements/cash-flow": {
       "get": {
+        "operationId": "getDirectCashFlowStatement",
         "summary": "Read a direct cash-flow statement classified as operating, investing, financing, or non-cash",
         "tags": ["financial-statements", "cash-flow"],
         "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
           {
             "name": "startsOn",
             "in": "query",
@@ -323,14 +331,17 @@
           { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
           { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
           { "name": "costCenterId", "in": "query", "schema": { "type": "string" } }
-        ]
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/DirectCashFlowReport" } }
       }
     },
     "/api/v1/organizations/{organizationId}/reports/financial-statements/drilldown": {
       "get": {
+        "operationId": "getFinancialStatementDrilldown",
         "summary": "Read exact journal and journal-line sources for a financial statement line",
         "tags": ["financial-statements", "drilldown"],
         "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
           {
             "name": "statement",
             "in": "query",
@@ -365,14 +376,40 @@
             "in": "query",
             "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
           }
-        ]
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/FinancialStatementDrilldown" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/financial-statements/source-resolver": {
+      "get": {
+        "operationId": "resolveFinancialStatementSource",
+        "tags": ["financial-statements", "drilldown", "source-resolution"],
+        "summary": "Resolve one organization-scoped journal line to typed journal, business-source, and authorized evidence references",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "journalId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          },
+          {
+            "name": "lineNumber",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer", "minimum": 1 }
+          }
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/FinancialSourceResolution" } }
       }
     },
     "/api/v1/organizations/{organizationId}/reports/tax/vat-reconciliation": {
       "get": {
+        "operationId": "getVatReconciliation",
         "summary": "Reconcile output, input, eligible, and ineligible VAT with ledger and evidence exceptions",
         "tags": ["tax", "vat-reconciliation"],
         "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
           {
             "name": "startsOn",
             "in": "query",
@@ -396,14 +433,17 @@
             "in": "query",
             "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
           }
-        ]
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/VatReconciliationReport" } }
       }
     },
     "/api/v1/organizations/{organizationId}/reports/tax/expense-exceptions": {
       "get": {
+        "operationId": "listTaxExpenseExceptions",
         "summary": "List management, CIT, VAT, evidence, and posting exceptions for expenses in a cutoff period",
         "tags": ["tax", "expenses", "exceptions"],
         "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
           {
             "name": "startsOn",
             "in": "query",
@@ -423,7 +463,8 @@
             "schema": { "type": "string", "format": "date-time" }
           },
           { "name": "state", "in": "query", "required": false, "schema": { "type": "string" } }
-        ]
+        ],
+        "responses": { "200": { "$ref": "#/components/responses/TaxExpenseExceptionReport" } }
       }
     },
     "/api/v1/organizations/{organizationId}/opening-balances/dry-run": {
@@ -2048,7 +2089,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Project rows, independently recalculated dimension groups, totals, confidence flags, and base-currency basis"
+            "$ref": "#/components/responses/ProjectProfitabilityListReport"
           }
         }
       }
@@ -2076,7 +2117,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Project profitability with revenue, direct cost, overhead, confidence, drilldown, and GL tie detail"
+            "$ref": "#/components/responses/ProjectProfitabilityDetailReport"
           },
           "404": {
             "description": "Project not found or not reportable in organization base currency"
@@ -2541,7 +2582,25 @@
           { "$ref": "#/components/parameters/ExecutiveMetricTeamId" },
           { "$ref": "#/components/parameters/ExecutiveMetricOwnerId" }
         ],
-        "responses": { "200": { "description": "Selected executive metric projection" } }
+        "responses": {
+          "200": {
+            "description": "Selected executive metric projection from the canonical report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["apiVersion", "requestId", "organizationId", "data"],
+                  "properties": {
+                    "apiVersion": { "const": "v1" },
+                    "requestId": { "type": "string" },
+                    "organizationId": { "type": "string" },
+                    "data": { "type": "object", "additionalProperties": true }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/report-snapshots": {
@@ -2797,7 +2856,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Aggregate PerformanceComparisonContract including actualVsRetainedForecast, exact money strings, null policy, confidence flags and source IDs"
+            "$ref": "#/components/responses/PerformanceComparisonReport"
           }
         }
       }
@@ -3005,6 +3064,82 @@
       }
     },
     "responses": {
+      "ProfitAndLossReport": {
+        "description": "Canonical accrual-management P&L",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/ProfitAndLossEnvelope" } }
+        }
+      },
+      "BalanceSheetReport": {
+        "description": "Canonical as-of Balance Sheet",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/BalanceSheetEnvelope" } }
+        }
+      },
+      "DirectCashFlowReport": {
+        "description": "Canonical direct Cash Flow",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/DirectCashFlowEnvelope" }
+          }
+        }
+      },
+      "FinancialStatementDrilldown": {
+        "description": "Exact journal-line sources for one statement amount",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/FinancialStatementDrilldownEnvelope" }
+          }
+        }
+      },
+      "FinancialSourceResolution": {
+        "description": "Typed source and authorized evidence references for one journal line",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/FinancialSourceResolutionEnvelope" }
+          }
+        }
+      },
+      "VatReconciliationReport": {
+        "description": "VAT reconciliation and confidence controls",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/VatReconciliationEnvelope" }
+          }
+        }
+      },
+      "TaxExpenseExceptionReport": {
+        "description": "Tax expense review summary and source exceptions",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/TaxExpenseExceptionEnvelope" }
+          }
+        }
+      },
+      "ProjectProfitabilityListReport": {
+        "description": "Project rows, groups, totals and confidence flags",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ProjectProfitabilityListEnvelope" }
+          }
+        }
+      },
+      "ProjectProfitabilityDetailReport": {
+        "description": "One project profitability result with drill-down metadata",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ProjectProfitabilityDetailEnvelope" }
+          }
+        }
+      },
+      "PerformanceComparisonReport": {
+        "description": "Target, forecast, MoM and YoY comparison with exact values and source IDs",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/PerformanceComparisonEnvelope" }
+          }
+        }
+      },
       "AgingReport": {
         "description": "Versioned as-of aging report",
         "content": {
@@ -3047,6 +3182,451 @@
       }
     },
     "schemas": {
+      "OrganizationDataEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {}
+        }
+      },
+      "FinancialStatementRow": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "amountMinor",
+          "accountIds",
+          "journalIds",
+          "journalLineIds",
+          "sourceIds",
+          "mappingVersionIds"
+        ],
+        "properties": {
+          "key": { "type": "string" },
+          "label": { "type": "string" },
+          "amountMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "accountIds": { "type": "array", "items": { "type": "string" } },
+          "journalIds": { "type": "array", "items": { "type": "string" } },
+          "journalLineIds": { "type": "array", "items": { "type": "string" } },
+          "sourceIds": { "type": "array", "items": { "type": "string" } },
+          "mappingVersionIds": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ProfitAndLoss": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "currency",
+          "startsOn",
+          "endsOn",
+          "formulaVersion",
+          "revenueMinor",
+          "grossProfitMinor",
+          "operatingProfitMinor",
+          "netProfitMinor",
+          "rows"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "currency": { "type": "string" },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": "string", "format": "date" },
+          "formulaVersion": { "type": "string" },
+          "revenueMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "grossProfitMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "operatingProfitMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "netProfitMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "rows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinancialStatementRow" }
+          }
+        },
+        "additionalProperties": true
+      },
+      "BalanceSheet": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "currency",
+          "asOfDate",
+          "formulaVersion",
+          "assetsMinor",
+          "liabilitiesMinor",
+          "totalEquityMinor",
+          "liabilitiesAndEquityMinor",
+          "equationDifferenceMinor"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "currency": { "type": "string" },
+          "asOfDate": { "type": "string", "format": "date" },
+          "formulaVersion": { "type": "string" },
+          "assetsMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "liabilitiesMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "totalEquityMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "liabilitiesAndEquityMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "equationDifferenceMinor": { "type": "string", "pattern": "^-?[0-9]+$" }
+        },
+        "additionalProperties": true
+      },
+      "DirectCashFlow": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "currency",
+          "startsOn",
+          "endsOn",
+          "formulaVersion",
+          "operatingCashFlowMinor",
+          "investingCashFlowMinor",
+          "financingCashFlowMinor",
+          "netCashFlowMinor",
+          "closingCashMinor",
+          "movements"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "currency": { "type": "string" },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": "string", "format": "date" },
+          "formulaVersion": { "type": "string" },
+          "operatingCashFlowMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "investingCashFlowMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "financingCashFlowMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "netCashFlowMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "closingCashMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "movements": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinancialStatementRow" }
+          }
+        },
+        "additionalProperties": true
+      },
+      "FinancialSourceRef": {
+        "type": "object",
+        "required": ["resourceType", "id", "href"],
+        "properties": {
+          "resourceType": {
+            "type": "string",
+            "enum": ["journal_line", "journal_entry", "commercial_document", "expense", "evidence"]
+          },
+          "id": { "type": "string" },
+          "href": { "type": "string" }
+        }
+      },
+      "FinancialStatementDrilldownItem": {
+        "type": "object",
+        "required": [
+          "journalId",
+          "journalVersion",
+          "journalDate",
+          "postedAt",
+          "lineNumber",
+          "accountCode",
+          "accountName",
+          "debitMinor",
+          "creditMinor",
+          "amountMinor",
+          "dimensions",
+          "sourceId",
+          "sourceType",
+          "refs"
+        ],
+        "properties": {
+          "journalId": { "type": "string" },
+          "journalVersion": { "type": "string" },
+          "journalDate": { "type": "string", "format": "date" },
+          "postedAt": { "type": "string", "format": "date-time" },
+          "lineNumber": { "type": "integer", "minimum": 1 },
+          "accountCode": { "type": "string" },
+          "accountName": { "type": "string" },
+          "debitMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "creditMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "amountMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "sourceId": { "type": "string" },
+          "sourceType": { "const": "journal_entry" },
+          "refs": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinancialSourceRef" }
+          }
+        }
+      },
+      "FinancialStatementDrilldown": {
+        "type": "object",
+        "required": ["statement", "lineCode", "items", "sourceFingerprint", "count"],
+        "properties": {
+          "statement": {
+            "type": "string",
+            "enum": ["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"]
+          },
+          "lineCode": { "type": "string" },
+          "mappingVersion": { "type": "object", "additionalProperties": true },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinancialStatementDrilldownItem" }
+          },
+          "sourceFingerprint": { "type": "string" },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "FinancialSourceResolution": {
+        "type": "object",
+        "required": ["schemaVersion", "journalId", "lineNumber", "amountMinor", "refs"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "journalId": { "type": "string" },
+          "lineNumber": { "type": "integer", "minimum": 1 },
+          "amountMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "refs": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FinancialSourceRef" }
+          }
+        }
+      },
+      "ProjectProfitability": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "projectId",
+          "startsOn",
+          "endsOn",
+          "currency",
+          "recognizedRevenueMinor",
+          "directProjectCostMinor",
+          "fullyLoadedProfitMinor",
+          "confidenceFlags",
+          "drilldown"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "projectId": { "type": "string" },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": "string", "format": "date" },
+          "currency": { "type": "string" },
+          "recognizedRevenueMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "directProjectCostMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "fullyLoadedProfitMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "confidenceFlags": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "drilldown": {
+            "type": "object",
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "additionalProperties": true
+      },
+      "PerformanceComparison": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "metricKey",
+          "actualBasis",
+          "currency",
+          "asOfInstant",
+          "period",
+          "actualVsProratedTarget",
+          "actualVsFullTarget",
+          "monthOverMonth",
+          "yearOverYear",
+          "sourceIds",
+          "confidenceFlags"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "metricKey": { "type": "string" },
+          "actualBasis": { "type": "string", "enum": ["recognized", "invoiced", "collected"] },
+          "currency": { "type": "string" },
+          "asOfInstant": { "type": "string", "format": "date-time" },
+          "period": { "type": "object", "additionalProperties": true },
+          "actualVsProratedTarget": { "type": "object", "additionalProperties": true },
+          "actualVsFullTarget": { "type": "object", "additionalProperties": true },
+          "monthOverMonth": { "type": "object", "additionalProperties": true },
+          "yearOverYear": { "type": "object", "additionalProperties": true },
+          "sourceIds": { "type": "array", "items": { "type": "string" } },
+          "confidenceFlags": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "additionalProperties": true
+      },
+      "VatReconciliation": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "currency",
+          "startsOn",
+          "endsOn",
+          "status",
+          "outputVatMinor",
+          "inputVatMinor",
+          "netVatPayableMinor",
+          "sourceIds",
+          "journalIds"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "currency": { "type": "string" },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["ready", "review_required"] },
+          "outputVatMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "inputVatMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "netVatPayableMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "sourceIds": { "type": "array", "items": { "type": "string" } },
+          "journalIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      },
+      "TaxExpenseExceptionReport": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "currency",
+          "startsOn",
+          "endsOn",
+          "status",
+          "items",
+          "count"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "currency": { "type": "string" },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["ready", "review_required"] },
+          "items": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "count": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": true
+      },
+      "ProfitAndLossEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/ProfitAndLoss" } }
+          }
+        ]
+      },
+      "BalanceSheetEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/BalanceSheet" } }
+          }
+        ]
+      },
+      "DirectCashFlowEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/DirectCashFlow" } }
+          }
+        ]
+      },
+      "FinancialStatementDrilldownEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/FinancialStatementDrilldown" } }
+          }
+        ]
+      },
+      "FinancialSourceResolutionEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/FinancialSourceResolution" } }
+          }
+        ]
+      },
+      "VatReconciliationEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/VatReconciliation" } }
+          }
+        ]
+      },
+      "TaxExpenseExceptionEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/TaxExpenseExceptionReport" } }
+          }
+        ]
+      },
+      "ProjectProfitabilityListEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "required": ["items", "totals"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/ProjectProfitability" }
+                  },
+                  "totals": { "type": "object", "additionalProperties": true },
+                  "groups": {
+                    "type": "array",
+                    "items": { "type": "object", "additionalProperties": true }
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        ]
+      },
+      "ProjectProfitabilityDetailEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/ProjectProfitability" } }
+          }
+        ]
+      },
+      "PerformanceComparisonEnvelope": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OrganizationDataEnvelope" },
+          {
+            "type": "object",
+            "properties": { "data": { "$ref": "#/components/schemas/PerformanceComparison" } }
+          }
+        ]
+      },
       "AccountantReportKind": {
         "type": "string",
         "enum": [

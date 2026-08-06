@@ -900,6 +900,28 @@ tests:
     command: node tests/fixtures/golden/GF-EXPORT-001/verify.mjs && RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- accountant-exports.integration
     blocking_gate: G6
 
+  - id: T-E2E-ERP-700-001
+    aliases: [T-E2E-001]
+    task: ERP-700
+    rules: [BR-UI-001]
+    title: Executive dashboard values are copied from canonical report APIs without alternate formulas
+    layer: e2e
+    fixture: GF-DASHBOARD-001
+    oracle: independently-maintained-dashboard
+    command: node tests/fixtures/golden/GF-DASHBOARD-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts
+    blocking_gate: G7
+
+  - id: T-E2E-ERP-700-002
+    aliases: [T-E2E-002]
+    task: ERP-700
+    rules: [BR-UI-001]
+    title: Every financial dashboard amount drills to exact journal lines business sources and authorized evidence
+    layer: e2e
+    fixture: GF-DASHBOARD-001
+    oracle: independently-maintained-dashboard
+    command: node tests/fixtures/golden/GF-DASHBOARD-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts
+    blocking_gate: G7
+
   - id: T-COMPOSE-ERP-810-001
     aliases: [T-CMP-001]
     task: ERP-810
@@ -940,6 +962,7 @@ golden_fixtures:
   - GF-FORECAST-001
   - GF-EQUITY-001
   - GF-EXPORT-001
+  - GF-DASHBOARD-001
   - GF-FX-001
   - GF-PERIOD-001
   - GF-YEAR-END-001

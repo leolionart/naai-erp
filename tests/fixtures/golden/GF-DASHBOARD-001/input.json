@@ -1,0 +1,102 @@
+{
+  "fixtureId": "GF-DASHBOARD-001",
+  "organizationId": "org-dashboard-001",
+  "period": {
+    "startsOn": "2026-08-01",
+    "endsOn": "2026-08-31",
+    "asOfInstant": "2026-08-31T16:59:59.000Z"
+  },
+  "canonicalReports": {
+    "profitAndLoss": {
+      "revenueMinor": "500000000",
+      "netProfitMinor": "120000000"
+    },
+    "executiveMetrics": {
+      "unrestrictedCashMinor": "450000000",
+      "netBurnMinor": "100000000",
+      "runwayMonthsThousandths": "4500"
+    },
+    "projectProfitability": {
+      "projectId": "project-web-001",
+      "fullyLoadedProfitMinor": "80000000"
+    },
+    "arAging": {
+      "baseOutstandingTotalMinor": "60000000"
+    },
+    "expenseExceptions": {
+      "openCount": 2
+    }
+  },
+  "dashboard": {
+    "revenueMinor": "500000000",
+    "netProfitMinor": "120000000",
+    "unrestrictedCashMinor": "450000000",
+    "runwayMonthsThousandths": "4500",
+    "topProjectProfitMinor": "80000000",
+    "overdueReceivablesMinor": "60000000",
+    "financeReviewCount": 2
+  },
+  "financialStatementRow": {
+    "statement": "profit_and_loss",
+    "lineCode": "revenue",
+    "amountMinor": "500000000"
+  },
+  "drilldown": {
+    "items": [
+      {
+        "journalId": "journal-sale-001",
+        "lineNumber": 2,
+        "amountMinor": "300000000",
+        "refs": [
+          {
+            "resourceType": "journal_line",
+            "id": "journal-sale-001:2",
+            "href": "/api/v1/organizations/org-dashboard-001/journals/journal-sale-001?lineNumber=2"
+          },
+          {
+            "resourceType": "journal_entry",
+            "id": "journal-sale-001",
+            "href": "/api/v1/organizations/org-dashboard-001/journals/journal-sale-001"
+          },
+          {
+            "resourceType": "commercial_document",
+            "id": "invoice-sale-001",
+            "href": "/api/v1/organizations/org-dashboard-001/commercial-documents/invoice-sale-001"
+          },
+          {
+            "resourceType": "evidence",
+            "id": "evidence-sale-001",
+            "href": "/api/v1/organizations/org-dashboard-001/evidence/evidence-sale-001"
+          }
+        ]
+      },
+      {
+        "journalId": "journal-sale-002",
+        "lineNumber": 2,
+        "amountMinor": "200000000",
+        "refs": [
+          {
+            "resourceType": "journal_line",
+            "id": "journal-sale-002:2",
+            "href": "/api/v1/organizations/org-dashboard-001/journals/journal-sale-002?lineNumber=2"
+          },
+          {
+            "resourceType": "journal_entry",
+            "id": "journal-sale-002",
+            "href": "/api/v1/organizations/org-dashboard-001/journals/journal-sale-002"
+          },
+          {
+            "resourceType": "commercial_document",
+            "id": "invoice-sale-002",
+            "href": "/api/v1/organizations/org-dashboard-001/commercial-documents/invoice-sale-002"
+          },
+          {
+            "resourceType": "evidence",
+            "id": "evidence-sale-002",
+            "href": "/api/v1/organizations/org-dashboard-001/evidence/evidence-sale-002"
+          }
+        ]
+      }
+    ]
+  }
+}

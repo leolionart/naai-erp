@@ -197,3 +197,7 @@ execFileSync(process.execPath, [join(fixtureRoot, "GF-EQUITY-001", "verify.mjs")
 execFileSync(process.execPath, [join(fixtureRoot, "GF-EXPORT-001", "verify.mjs")], {
   stdio: "inherit",
 });
+
+execFileSync(process.execPath, [join(fixtureRoot, "GF-DASHBOARD-001", "verify.mjs")], {
+  stdio: "inherit",
+});

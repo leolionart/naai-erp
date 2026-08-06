@@ -167,3 +167,19 @@ describe("ERP-650 CLI executable", () => {
     }
   });
 });
+
+describe("ERP-700 CLI executable", () => {
+  it("maps a typed financial source resolver query", async () => {
+    const result = await invoke([
+      "financial-source-resolver",
+      "get",
+      "--journal-id",
+      "journal-1",
+      "--line-number",
+      "2",
+    ]);
+    expect(result.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/reports/financial-statements/source-resolver?journalId=journal-1&lineNumber=2",
+    );
+  });
+});

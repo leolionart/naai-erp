@@ -249,6 +249,27 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("routes ERP-700 typed financial source resolution without master-data fallback", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { refs: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("financial-source-resolver", "get", {
+      journalId: "journal-1",
+      lineNumber: 2,
+    });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/financial-statements/source-resolver?journalId=journal-1&lineNumber=2",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("downloads ERP-650 export bytes without JSON decoding", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(new Uint8Array([80, 75, 3, 4]), {

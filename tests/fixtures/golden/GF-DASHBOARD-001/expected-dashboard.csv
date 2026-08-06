@@ -1,0 +1,8 @@
+card_key,value,canonical_source
+revenueMinor,500000000,profitAndLoss.revenueMinor
+netProfitMinor,120000000,profitAndLoss.netProfitMinor
+unrestrictedCashMinor,450000000,executiveMetrics.unrestrictedCashMinor
+runwayMonthsThousandths,4500,executiveMetrics.runwayMonthsThousandths
+topProjectProfitMinor,80000000,projectProfitability.fullyLoadedProfitMinor
+overdueReceivablesMinor,60000000,arAging.baseOutstandingTotalMinor
+financeReviewCount,2,expenseExceptions.openCount
