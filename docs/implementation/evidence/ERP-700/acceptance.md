@@ -12,4 +12,4 @@ Current acceptance coverage:
 - Pass locally: mobile dashboard/review routes avoid document overflow; loading, token-required error, confidence and empty trend states remain explicit.
 - Pass locally: `pnpm check`, fresh PostgreSQL integration, `pnpm test:e2e` and `git diff --check` pass.
 
-Final acceptance remains pending exact-commit GitHub CI.
+Accepted in exact-commit GitHub CI for `96e1d5116a0bd6cb39630b8a655a32106ebb4a56`: repository quality/build, all 34 migrations, 30/30 database tests, 124/124 API tests, 8/8 worker tests and 58/58 desktop/mobile Playwright journeys passed at https://github.com/leolionart/naai-erp/actions/runs/31072817453.

@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T11:35:00+07:00
+updated_at: 2026-08-06T12:11:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G7
-current_task: ERP-700
+current_task: ERP-710
 
 tasks:
   - id: ERP-000
@@ -832,16 +832,20 @@ tasks:
   - id: ERP-700
     title: Dashboards and drill-down
     phase: P7
-    status: in_progress
+    status: done
     dependencies: [G6]
     business_rules: [BR-UI-001]
     tests: [T-E2E-001, T-E2E-002]
     started_at: 2026-08-06T11:35:00+07:00
+    completed_at: 2026-08-06T12:11:00+07:00
+    implementation_commit: 1512fa702382a44262d01624ee81105812d6bd9f
+    proof_commit: 96e1d5116a0bd6cb39630b8a655a32106ebb4a56
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31072817453
 
   - id: ERP-710
     title: Onboarding review and replay UI
     phase: P7
-    status: blocked
+    status: ready
     dependencies: [ERP-700]
     business_rules: [BR-UI-002]
     tests: [T-E2E-003]

@@ -30,4 +30,13 @@ Local results:
 
 Rendered localhost QA used Playwright fallback because the in-app Browser connection returned `No browser is available`. Desktop 1440×1000 and mobile 390×844 screenshots confirmed the dashboard identity, responsive card stack, visible token-required error state and absence of a framework overlay. Interaction/state transitions are covered by the 58 Playwright journeys.
 
-Exact-commit GitHub CI evidence will be appended after push.
+Exact-commit GitHub CI results for `96e1d5116a0bd6cb39630b8a655a32106ebb4a56`:
+
+- Repository quality/build and all golden fixtures, including `GF-DASHBOARD-001`: pass.
+- Migration journal: 34 entries valid; migrations applied successfully to PostgreSQL 16.
+- Database: 30/30 tests pass.
+- API: 124/124 tests pass, including 7/7 financial-statement integration tests.
+- Worker: 8/8 tests pass.
+- Full desktop/mobile Playwright: 58/58 pass.
+
+GitHub Actions: https://github.com/leolionart/naai-erp/actions/runs/31072817453.
