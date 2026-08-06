@@ -50,6 +50,7 @@ export type ImportOutcome = {
     projectsCreated: number;
     salesInvoicesCreated: number;
     expensesCreated: number;
+    expensesSkipped: number;
     auditEventId: string;
   };
   coverage: {
@@ -79,6 +80,7 @@ export class WorkbookImportService {
   }
 
   async dryRun(organizationId: string, payload: WorkbookImportPayload): Promise<ImportOutcome> {
+    const runtimeIssues: WorkbookImportPayload["issues"][number][] = [...(payload.issues ?? [])];
     const errors: string[] = (payload.issues ?? [])
       .filter((issue) => issue.severity === "error")
       .map(
@@ -262,6 +264,16 @@ export class WorkbookImportService {
         if (gross < tax)
           errors.push(`Expense at row ${exp.sourceRowIndex} has tax greater than gross`);
         if (exp.date.startsWith("2025")) expenseSum += gross - tax;
+        if (gross === 0n && tax === 0n) {
+          runtimeIssues.push({
+            severity: "warning",
+            workbook: "finance",
+            sheet: exp.legacyControlTreatment?.sourceSheet ?? "Chi phí",
+            row: exp.sourceRowIndex,
+            field: "Tổng chi phí",
+            message: "zero-total source row retained for reconciliation and skipped on commit",
+          });
+        }
         validateTreatment(
           "expense",
           exp.sourceIdentity,
@@ -336,7 +348,7 @@ export class WorkbookImportService {
     return {
       valid: errors.length === 0,
       errors,
-      issues: payload.issues ?? [],
+      issues: runtimeIssues,
       reconciliation: {
         totalSales: salesSum.toString(),
         totalExpense: expenseSum.toString(),
@@ -385,12 +397,13 @@ export class WorkbookImportService {
 
     // 2. Perform transaction mutations
     const client = await this.pool.connect();
-    const auditEventId = randomUUID();
+    let auditEventId: string = randomUUID();
 
     let partiesCreated = 0;
     let projectsCreated = 0;
     let salesInvoicesCreated = 0;
     let expensesCreated = 0;
+    let expensesSkipped = 0;
 
     try {
       await client.query("begin");
@@ -574,6 +587,10 @@ export class WorkbookImportService {
         const grossMinor = exp.amountMinor;
         const taxMinor = exp.taxMinor;
         const netMinor = (BigInt(grossMinor) - BigInt(taxMinor)).toString();
+        if (BigInt(grossMinor) === 0n && BigInt(taxMinor) === 0n) {
+          expensesSkipped += 1;
+          continue;
+        }
         const existingExpense = await client.query(
           `select 1 from expenses where organization_id=$1 and id=$2`,
           [organizationId, exp.id],
@@ -695,16 +712,19 @@ export class WorkbookImportService {
       const importIdentity = createHash("sha256")
         .update(JSON.stringify(payload.sources))
         .digest("hex");
-      const existingAudit = await client.query(
+      const existingAudit = await client.query<{ id: string }>(
         `select id from resource_audit_events where organization_id=$1 and resource_type='workbook_import' and resource_key=$2 and action='commit' limit 1`,
         [organizationId, importIdentity],
       );
-      if (!existingAudit.rowCount)
+      if (existingAudit.rows[0]) {
+        auditEventId = existingAudit.rows[0].id;
+      } else {
         await client.query(
           `insert into resource_audit_events (organization_id, id, resource_type, resource_key, resource_version, action, actor_id, correlation_id)
          values ($1, $2, 'workbook_import', $3, '1', 'commit', $4, $5)`,
           [organizationId, auditEventId, importIdentity, actorId, correlationId],
         );
+      }
 
       await client.query("commit");
     } catch (e) {
@@ -725,6 +745,7 @@ export class WorkbookImportService {
         projectsCreated,
         salesInvoicesCreated,
         expensesCreated,
+        expensesSkipped,
         auditEventId,
       },
     };

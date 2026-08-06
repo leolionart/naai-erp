@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
-  type ApiConnectionSettingsV1,
-} from "@/lib/api";
+import { useAuthenticatedApiClient } from "@/lib/api";
+import type { createApiClient } from "@/lib/api";
 
 type DirectoryKind = "customers" | "projects";
 type Row = Record<string, unknown>;
@@ -40,25 +35,23 @@ const masterDataKey = (id: string) =>
   btoa(JSON.stringify({ id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 
 export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryKind }>) {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [rows, setRows] = useState<readonly Row[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
 
-  useEffect(() => {
-    setConnection(loadConnectionSettings(window.localStorage));
-    setToken(loadApiToken(window.sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
+    if (!hasToken) {
+      setRows([]);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     try {
       const resource = kind === "customers" ? "parties" : "projects";
       const page = await client.data<Page>(`master-data/${resource}?limit=100`);
@@ -82,7 +75,7 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
     } finally {
       setLoading(false);
     }
-  }, [client, kind]);
+  }, [client, hasToken, hydrated, kind]);
   useEffect(() => void load(), [load]);
 
   const filtered = rows.filter((row) =>
@@ -167,28 +160,28 @@ export function BusinessRecordWorkspace({
   kind,
   id,
 }: Readonly<{ kind: DirectoryKind; id: string }>) {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [record, setRecord] = useState<Row>();
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
   useEffect(() => {
-    setConnection(loadConnectionSettings(window.localStorage));
-    setToken(loadApiToken(window.sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-  useEffect(() => {
+    if (!hydrated) return;
+    if (!hasToken) {
+      setError("AUTH_REQUIRED");
+      return;
+    }
     const resource = kind === "customers" ? "parties" : "projects";
+    setError("");
     void client
       .data<Row>(`master-data/${resource}/${masterDataKey(id)}`)
-      .then(setRecord)
+      .then((item) => {
+        setRecord(item);
+        setError("");
+      })
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : "Không thể tải hồ sơ."),
       );
-  }, [client, id, kind]);
+  }, [client, hasToken, hydrated, id, kind]);
   if (error)
     return (
       <Alert variant="destructive">

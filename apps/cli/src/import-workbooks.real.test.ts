@@ -72,5 +72,17 @@ describeReal("ERP-740 real workbook controls", () => {
     expect(payload.projects.filter((item) => item.clientPartyId !== genericClientId)).toHaveLength(
       3,
     );
+    const zeroRows = payload.expenses.filter((item) => BigInt(String(item.amountMinor)) === 0n);
+    expect(zeroRows.map((item) => item.sourceRowIndex)).toEqual([
+      22, 46, 85, 90, 101, 110, 117, 129, 138, 151, 152, 161, 173, 177,
+    ]);
+    for (const item of zeroRows) {
+      expect(item.legacyControlTreatment).toMatchObject({
+        sourceSheet: "Chi phí",
+        sourceRow: item.sourceRowIndex,
+        classification: expect.any(String),
+        evidence: expect.any(String),
+      });
+    }
   });
 });

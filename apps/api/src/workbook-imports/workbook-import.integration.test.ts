@@ -9,6 +9,7 @@ const describeIntegration = enabled ? describe : describe.skip;
 describeIntegration("ERP-740 Workbook Import API Integration", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   let app: Awaited<ReturnType<typeof createApp>>;
+  let committedAuditEventId: string;
   const importToken = "import-secret-token";
 
   beforeAll(async () => {
@@ -162,6 +163,18 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
         sourceIdentity: "test-workbook-sha256:Chi phí:2",
         projectId: "prj-project-1",
       },
+      {
+        id: "exp-row3-zero-2025-01-16",
+        amountMinor: "0",
+        taxMinor: "0",
+        date: "2025-01-16",
+        class: "petty_cash",
+        payeePartyId: "party-supplier-1",
+        businessPurpose: "Zero-value source marker",
+        currency: "VND",
+        sourceRowIndex: 3,
+        sourceIdentity: "test-workbook-sha256:Chi phí:3",
+      },
     ],
   };
 
@@ -179,6 +192,14 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     const body = JSON.parse(res.payload);
     expect(body.data.valid).toBe(true);
     expect(body.data.errors).toEqual([]);
+    expect(body.data.issues).toContainEqual(
+      expect.objectContaining({
+        severity: "warning",
+        sheet: "Chi phí",
+        row: 3,
+        message: "zero-total source row retained for reconciliation and skipped on commit",
+      }),
+    );
 
     // Reconciliation checks:
     // Sales = netMinor = 100,000,000
@@ -430,6 +451,7 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     const body = JSON.parse(res.payload);
     expect(body.data.valid).toBe(true);
     expect(body.data.details).toBeDefined();
+    committedAuditEventId = body.data.details.auditEventId;
 
     // Verify parties created
     const parties = await pool.query(
@@ -458,6 +480,12 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     expect(exp.rows).toHaveLength(1);
     expect(exp.rows[0].state).toBe("posted");
     expect(exp.rows[0].gross_minor).toBe("22000000");
+    const skippedExpense = await pool.query(
+      "select count(*) from expenses where organization_id='org-import' and id='exp-row3-zero-2025-01-16'",
+    );
+    expect(skippedExpense.rows[0].count).toBe("0");
+    expect(body.data.details.expensesSkipped).toBe(1);
+    expect(body.data.details.auditEventId).toBe(committedAuditEventId);
 
     // Verify balanced double-entry journal entries for sales invoice
     // DR AR 131: 110,000,000
@@ -517,6 +545,8 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     // details created should be 0 because on conflict do nothing skips them
     expect(body.data.details.salesInvoicesCreated).toBe(0);
     expect(body.data.details.expensesCreated).toBe(0);
+    expect(body.data.details.expensesSkipped).toBe(1);
+    expect(body.data.details.auditEventId).toBe(committedAuditEventId);
 
     // Verify total counts of entities remain 1
     const docCount = await pool.query(
@@ -528,5 +558,9 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
       "select count(*) from expenses where organization_id='org-import' and id='exp-row2-gross-2025-01-15'",
     );
     expect(expCount.rows[0].count).toBe("1");
+    const audit = await pool.query(
+      "select id from resource_audit_events where organization_id='org-import' and resource_type='workbook_import' and action='commit'",
+    );
+    expect(audit.rows).toEqual([{ id: committedAuditEventId }]);
   });
 });

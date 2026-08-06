@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
@@ -17,14 +17,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Spinner } from "@/components/ui/spinner";
 import {
   agingApi,
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
+  useAuthenticatedApiClient,
   type AgingItem,
   type AgingReport,
   type AgingSide,
-  type ApiConnectionSettingsV1,
 } from "@/lib/api";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -67,23 +63,21 @@ export function AgingPartyWorkspace({
 }: Readonly<{ side: AgingSide; partyId: string }>) {
   const searchParams = useSearchParams();
   const asOf = searchParams.get("asOf") || today();
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [report, setReport] = useState<AgingReport>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setConnection(loadConnectionSettings(window.localStorage));
-    setToken(loadApiToken(window.sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
+    if (!hasToken) {
+      setReport(undefined);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     try {
       setReport(await client.data<AgingReport>(agingApi.party(side, partyId, { asOf })));
     } catch (caught) {
@@ -91,7 +85,7 @@ export function AgingPartyWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [asOf, client, partyId, side]);
+  }, [asOf, client, hasToken, hydrated, partyId, side]);
   useEffect(() => {
     void load();
   }, [load]);

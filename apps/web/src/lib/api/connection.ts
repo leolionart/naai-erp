@@ -1,4 +1,4 @@
-export const API_CONNECTION_SETTINGS_KEY = "naai-erp-admin-settings-v1";
+export const API_CONNECTION_SETTINGS_KEY = "naai-erp-admin-settings-v2";
 export const API_TOKEN_KEY = "naai-erp-admin-token";
 
 export type ApiConnectionSettingsV1 = Readonly<{
@@ -11,9 +11,14 @@ export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export const DEFAULT_API_CONNECTION: ApiConnectionSettingsV1 = Object.freeze({
   version: 1,
-  baseUrl: "http://localhost:3001",
-  organizationId: "org-demo",
+  baseUrl: process.env.NEXT_PUBLIC_NAAI_ERP_API_URL ?? "http://localhost:3001",
+  organizationId: process.env.NEXT_PUBLIC_NAAI_ERP_ORGANIZATION ?? "naai",
 });
+
+export const LOCAL_DEVELOPMENT_TOKEN =
+  process.env.NODE_ENV === "development"
+    ? (process.env.NEXT_PUBLIC_NAAI_ERP_DEV_TOKEN?.trim() ?? "")
+    : "";
 
 export function normalizeConnectionSettings(input: {
   baseUrl: string;

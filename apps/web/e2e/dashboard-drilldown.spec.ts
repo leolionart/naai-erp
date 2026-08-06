@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const env = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp700",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown) =>
@@ -12,7 +12,7 @@ const reply = (route: Route, data: unknown) =>
 async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/executive-metrics**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
     (route) => {
       requestedUrls.push(route.request().url());
       reply(route, {
@@ -48,7 +48,7 @@ async function install(page: Page, requestedUrls: string[] = []) {
     },
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/performance-comparisons**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/performance-comparisons**",
     (route) => {
       requestedUrls.push(route.request().url());
       reply(route, {
@@ -85,7 +85,7 @@ async function install(page: Page, requestedUrls: string[] = []) {
     },
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/project-profitability**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/project-profitability**",
     (route) =>
       reply(route, {
         currency: "VND",
@@ -101,19 +101,17 @@ async function install(page: Page, requestedUrls: string[] = []) {
         totals: { fullyLoadedProfitMinor: "40000000" },
       }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/ar-aging**",
-    (route) =>
-      reply(route, {
-        asOf: "2026-08-31",
-        baseCurrency: "VND",
-        baseOutstandingTotalMinor: "30000000",
-        tieStatus: "tied",
-        exceptions: [{ code: "MISSING_DUE_DATE", itemId: "ar-700", message: "Thiếu ngày đến hạn" }],
-        items: [],
-        bucketTotals: [],
-        controlTies: [],
-      }),
+  await page.route("http://localhost:3001/api/v1/organizations/naai/reports/ar-aging**", (route) =>
+    reply(route, {
+      asOf: "2026-08-31",
+      baseCurrency: "VND",
+      baseOutstandingTotalMinor: "30000000",
+      tieStatus: "tied",
+      exceptions: [{ code: "MISSING_DUE_DATE", itemId: "ar-700", message: "Thiếu ngày đến hạn" }],
+      items: [],
+      bucketTotals: [],
+      controlTies: [],
+    }),
   );
 }
 

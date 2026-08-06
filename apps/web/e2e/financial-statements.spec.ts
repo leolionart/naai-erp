@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const envelope = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp630",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown) =>
@@ -148,28 +148,31 @@ const exceptions = {
 };
 
 async function install(page: Page) {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("naai-erp-admin-token", "financial-statements-e2e-token"),
+  );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/financial-statements/profit-and-loss**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/profit-and-loss**",
     (route) => reply(route, pnl),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/financial-statements/balance-sheet**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/balance-sheet**",
     (route) => reply(route, balance),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/financial-statements/cash-flow**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/cash-flow**",
     (route) => reply(route, cashFlow),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/tax/vat-reconciliation**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/tax/vat-reconciliation**",
     (route) => reply(route, vat),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/tax/expense-exceptions**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/tax/expense-exceptions**",
     (route) => reply(route, exceptions),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/financial-statements/drilldown**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/drilldown**",
     (route) => reply(route, drilldown),
   );
 }

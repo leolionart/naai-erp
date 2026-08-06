@@ -105,6 +105,27 @@ describeIntegration("ERP-310 expense workflow", () => {
       payload: input,
     });
     expect(created.statusCode).toBe(201);
+
+    const filtered = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-exp/expenses?class=non_documented",
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(filtered.statusCode, filtered.body).toBe(200);
+    expect(filtered.json().data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: input.id, expense_date: "2026-08-05" }),
+      ]),
+    );
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/org-exp/expenses/${input.id}`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(detail.statusCode, detail.body).toBe(200);
+    expect(detail.json().data.expense_date).toBe("2026-08-05");
+
     const replay = await app.inject({
       method: "POST",
       url: "/api/v1/organizations/org-exp/expenses",

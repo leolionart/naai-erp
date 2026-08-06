@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 type JsonRow = Record<string, unknown>;
 
 function envelope(data: unknown) {
-  return { apiVersion: "v1", requestId: "erp420-e2e", organizationId: "org-demo", data };
+  return { apiVersion: "v1", requestId: "erp420-e2e", organizationId: "naai", data };
 }
 
 async function reply(route: Route, data: unknown, status = 200) {
@@ -81,79 +81,64 @@ async function installApi(page: Page) {
   let unmatchBody: JsonRow | undefined;
   let candidatePath = "";
 
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/banking/**",
-    async (route) => {
-      const request = route.request();
-      const path = new URL(request.url()).pathname;
-      const method = request.method();
-      if (method === "GET" && path.endsWith("/internal-transfers")) {
-        return reply(route, envelope({ items: [current] }));
-      }
-      if (method === "POST" && path.endsWith("/internal-transfers")) {
-        createBody = request.postDataJSON() as JsonRow;
-        return reply(
-          route,
-          envelope({ transfer: current, mutation: { resourceVersion: "1" } }),
-          201,
-        );
-      }
-      if (method === "GET" && path.endsWith("/transactions/bank-out-1/transfer-candidates")) {
-        candidatePath = path;
-        return reply(
-          route,
-          envelope({
-            transactionId: "bank-out-1",
-            policyVersion: 1,
-            thresholdBps: 8500,
-            outcome: "unique",
-            selectedTransactionId: "bank-in-1",
-            items: [
-              {
-                transactionId: "bank-in-1",
-                financialAccountId: "bank-b",
-                bookingDate: "2026-08-06",
-                currency: "VND",
-                amountMinor: "10000000",
-                eligible: true,
-                confidenceBps: 9600,
-                factors: {
-                  amountBps: 4000,
-                  dateBps: 1600,
-                  referenceBps: 1600,
-                  currencyBps: 1200,
-                  ownAccountBps: 1200,
-                },
-                reasons: ["different_owned_account", "opposite_direction"],
+  await page.route("http://localhost:3001/api/v1/organizations/naai/banking/**", async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const method = request.method();
+    if (method === "GET" && path.endsWith("/internal-transfers")) {
+      return reply(route, envelope({ items: [current] }));
+    }
+    if (method === "POST" && path.endsWith("/internal-transfers")) {
+      createBody = request.postDataJSON() as JsonRow;
+      return reply(route, envelope({ transfer: current, mutation: { resourceVersion: "1" } }), 201);
+    }
+    if (method === "GET" && path.endsWith("/transactions/bank-out-1/transfer-candidates")) {
+      candidatePath = path;
+      return reply(
+        route,
+        envelope({
+          transactionId: "bank-out-1",
+          policyVersion: 1,
+          thresholdBps: 8500,
+          outcome: "unique",
+          selectedTransactionId: "bank-in-1",
+          items: [
+            {
+              transactionId: "bank-in-1",
+              financialAccountId: "bank-b",
+              bookingDate: "2026-08-06",
+              currency: "VND",
+              amountMinor: "10000000",
+              eligible: true,
+              confidenceBps: 9600,
+              factors: {
+                amountBps: 4000,
+                dateBps: 1600,
+                referenceBps: 1600,
+                currencyBps: 1200,
+                ownAccountBps: 1200,
               },
-            ],
-          }),
-        );
-      }
-      if (method === "GET" && path.endsWith("/transfer-e2e")) {
-        return reply(route, envelope(current));
-      }
-      if (method === "POST" && path.endsWith("/transfer-e2e/match")) {
-        matchBody = request.postDataJSON() as JsonRow;
-        current = transfer("matched", true, "2");
-        return reply(
-          route,
-          envelope({ transfer: current, mutation: { resourceVersion: "2" } }),
-          201,
-        );
-      }
-      if (method === "POST" && path.endsWith("/transfer-e2e/unmatch")) {
-        unmatchBody = request.postDataJSON() as JsonRow;
-        current = transfer("unmatched", true, "3");
-        return reply(
-          route,
-          envelope({ transfer: current, mutation: { resourceVersion: "3" } }),
-          201,
-        );
-      }
-      return reply(route, { error: { code: "E2E_UNHANDLED", message: `${method} ${path}` } }, 404);
-    },
-  );
+              reasons: ["different_owned_account", "opposite_direction"],
+            },
+          ],
+        }),
+      );
+    }
+    if (method === "GET" && path.endsWith("/transfer-e2e")) {
+      return reply(route, envelope(current));
+    }
+    if (method === "POST" && path.endsWith("/transfer-e2e/match")) {
+      matchBody = request.postDataJSON() as JsonRow;
+      current = transfer("matched", true, "2");
+      return reply(route, envelope({ transfer: current, mutation: { resourceVersion: "2" } }), 201);
+    }
+    if (method === "POST" && path.endsWith("/transfer-e2e/unmatch")) {
+      unmatchBody = request.postDataJSON() as JsonRow;
+      current = transfer("unmatched", true, "3");
+      return reply(route, envelope({ transfer: current, mutation: { resourceVersion: "3" } }), 201);
+    }
+    return reply(route, { error: { code: "E2E_UNHANDLED", message: `${method} ${path}` } }, 404);
+  });
   return {
     createBody: () => createBody,
     matchBody: () => matchBody,

@@ -90,7 +90,7 @@ function value(row: Row, key: string) {
 export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
   const config = moduleConfig[moduleKey as ModuleKey];
   const [baseUrl, setBaseUrl] = useState("http://localhost:3001");
-  const [organizationId, setOrganizationId] = useState("org-demo");
+  const [organizationId, setOrganizationId] = useState("naai");
   const [token, setToken] = useState("");
   const [items, setItems] = useState<Row[]>([]);
   const [selected, setSelected] = useState<Row>();
@@ -100,7 +100,7 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
   const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem("naai-erp-admin-settings-v1");
+    const raw = window.localStorage.getItem("naai-erp-admin-settings-v2");
     if (raw) {
       try {
         const saved = JSON.parse(raw) as Settings;
@@ -109,7 +109,7 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
           setOrganizationId(saved.organizationId);
         }
       } catch {
-        window.localStorage.removeItem("naai-erp-admin-settings-v1");
+        window.localStorage.removeItem("naai-erp-admin-settings-v2");
       }
     }
     setToken(window.sessionStorage.getItem("naai-erp-admin-token") ?? "");
@@ -131,7 +131,7 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
 
   function persist() {
     window.localStorage.setItem(
-      "naai-erp-admin-settings-v1",
+      "naai-erp-admin-settings-v2",
       JSON.stringify({ version: 1, baseUrl, organizationId } satisfies Settings),
     );
     window.sessionStorage.setItem("naai-erp-admin-token", token);

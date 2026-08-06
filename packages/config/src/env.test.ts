@@ -21,6 +21,13 @@ describe("environment validation", () => {
     expect(parseEnvironment(validEnvironment).API_PORT).toBe(3001);
   });
 
+  it("accepts an explicit web origin without defaulting production access", () => {
+    expect(
+      parseEnvironment({ ...validEnvironment, WEB_ORIGIN: "https://erp.naai.studio" }).WEB_ORIGIN,
+    ).toBe("https://erp.naai.studio");
+    expect(parseEnvironment(validEnvironment).WEB_ORIGIN).toBeUndefined();
+  });
+
   it("rejects short security secrets", () => {
     expect(() => parseEnvironment({ ...validEnvironment, SESSION_SECRET: "short" })).toThrow();
   });

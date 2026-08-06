@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const envelope = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp600",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown) =>
@@ -78,7 +78,7 @@ const composition = {
   asOfDate: "2026-08-31",
   startsOn: "2026-08-01",
   endsOn: "2026-12-31",
-  organizationId: "org-demo",
+  organizationId: "naai",
   formulaVersion: "forecast-composition-v1",
   actualToDateMinor: "40000000",
   projectedRevenueMinor: "90000000",
@@ -94,7 +94,7 @@ const composition = {
 
 async function install(page: Page) {
   const requests: Array<{ path: string; body?: unknown }> = [];
-  await page.route("http://localhost:3001/api/v1/organizations/org-demo/**", async (route) => {
+  await page.route("http://localhost:3001/api/v1/organizations/naai/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (!path.includes("revenue-targets") && !path.includes("forecast-versions"))

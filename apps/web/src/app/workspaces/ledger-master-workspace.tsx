@@ -28,7 +28,7 @@ type ApiRow = Record<string, unknown>;
 type ApiEnvelope = Readonly<{ data?: unknown; nextActions?: readonly string[] }> & ApiRow;
 type StoredSettings = { version: 1; baseUrl: string; organizationId: string };
 
-const SETTINGS_KEY = "naai-erp-admin-settings-v1";
+const SETTINGS_KEY = "naai-erp-admin-settings-v2";
 const TOKEN_KEY = "naai-erp-admin-token";
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -84,7 +84,7 @@ export function LedgerMasterWorkspace({
 }) {
   const [section, setSection] = useState<Section>(initialSection);
   const [baseUrl, setBaseUrl] = useState("http://localhost:3001");
-  const [organizationId, setOrganizationId] = useState("org-demo");
+  const [organizationId, setOrganizationId] = useState("naai");
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("Kết nối API rồi chọn Tải dữ liệu.");

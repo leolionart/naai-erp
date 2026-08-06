@@ -1,67 +1,107 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../bootstrap.js";
-describe("headless API discovery", () => {
-  it("serves canonical OpenAPI and a derived capability index", async () => {
+
+const organization = "/api/v1/organizations/{organizationId}";
+
+describe("MVP headless API discovery", () => {
+  it("publishes only invoice, ingestion, customer/project and reporting operations", async () => {
     const app = await createApp();
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
-    const spec = await app.inject({ method: "GET", url: "/api/v1/openapi.json" });
-    expect(spec.statusCode).toBe(200);
-    expect(spec.json().paths).toHaveProperty(
-      "/api/v1/organizations/{organizationId}/banking/internal-transfers",
-    );
-    expect(spec.json().paths).toHaveProperty(
-      "/api/v1/organizations/{organizationId}/reports/ar-aging",
-    );
-    expect(spec.json().paths).toHaveProperty(
-      "/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/review",
-    );
-    expect(spec.json().paths).toHaveProperty(
-      "/api/v1/organizations/{organizationId}/time/capacity-summary",
-    );
-    expect(spec.json().paths).toHaveProperty(
-      "/api/v1/organizations/{organizationId}/direct-cost-allocations",
-    );
-    expect(spec.json().paths).toHaveProperty(
-      "/api/v1/organizations/{organizationId}/reports/project-profitability",
-    );
-    const caps = await app.inject({ method: "GET", url: "/api/v1/capabilities" });
-    expect(caps.statusCode).toBe(200);
-    expect(caps.json().operations).toEqual(
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/openapi.json" });
+    expect(response.statusCode).toBe(200);
+    const spec = response.json() as {
+      paths: Record<string, Record<string, unknown>>;
+      "x-naai-resources": string[];
+      components: {
+        schemas: Record<string, { required?: string[]; properties?: Record<string, unknown> }>;
+      };
+    };
+
+    for (const retained of [
+      "/api/v1/inbound/{sourcePublicId}/events",
+      `${organization}/commercial-documents`,
+      `${organization}/commercial-documents/{documentId}`,
+      `${organization}/inbound-events`,
+      `${organization}/master-data/parties`,
+      `${organization}/master-data/party-roles`,
+      `${organization}/master-data/projects`,
+      `${organization}/reports/ar-aging`,
+      `${organization}/reports/ap-aging`,
+      `${organization}/reports/financial-statements/profit-and-loss`,
+      `${organization}/reports/financial-statements/drilldown`,
+      `${organization}/reports/project-profitability`,
+      `${organization}/accountant-exports`,
+      `${organization}/report-snapshots`,
+      `${organization}/workbook-imports/dry-run`,
+      `${organization}/workbook-imports/commit`,
+    ]) {
+      expect(spec.paths, retained).toHaveProperty(retained);
+    }
+
+    for (const excluded of [
+      `${organization}/banking/accounts`,
+      `${organization}/evidence`,
+      `${organization}/forecast-versions`,
+      `${organization}/journals`,
+      `${organization}/master-data/{resource}`,
+      `${organization}/milestone-acceptances`,
+      `${organization}/outbound-events/outbox`,
+      `${organization}/overhead-allocation-runs`,
+      `${organization}/project-budgets`,
+      `${organization}/project-costs`,
+      `${organization}/project-revenue-position/{projectId}`,
+      `${organization}/revenue-recognition-events`,
+      `${organization}/scope-changes`,
+      `${organization}/time/timesheets`,
+    ]) {
+      expect(spec.paths, excluded).not.toHaveProperty(excluded);
+    }
+    expect(spec["x-naai-resources"]).toEqual(["parties", "party-roles", "projects"]);
+    expect(spec.paths[`${organization}/workbook-imports/dry-run`]?.post).toMatchObject({
+      operationId: "dryRunWorkbookImport",
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/WorkbookImportRequest" },
+          },
+        },
+      },
+    });
+    expect(spec.paths[`${organization}/workbook-imports/commit`]?.post).toMatchObject({
+      operationId: "commitWorkbookImport",
+    });
+    expect(spec.paths[`${organization}/expenses`]?.get).toBeDefined();
+    expect(spec.components.schemas.WorkbookImportDetails?.required).toContain("expensesSkipped");
+
+    const capabilities = await app.inject({ method: "GET", url: "/api/v1/capabilities" });
+    expect(capabilities.statusCode).toBe(200);
+    const body = capabilities.json() as {
+      resources: string[];
+      operations: Array<{ operationId: string; path: string; organizationScoped: boolean }>;
+    };
+    expect(body.operations).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          operationId: "createInternalTransfer",
-          organizationScoped: true,
-        }),
-        expect.objectContaining({ operationId: "listArAging", organizationScoped: true }),
-        expect.objectContaining({
-          operationId: "createBankStatementSession",
-          organizationScoped: true,
-        }),
-        expect.objectContaining({ operationId: "createTimesheet", organizationScoped: true }),
-        expect.objectContaining({
-          operationId: "createDirectCostAllocation",
-          organizationScoped: true,
-        }),
-        expect.objectContaining({
-          operationId: "createOverheadAllocationPolicy",
-          organizationScoped: true,
-        }),
-        expect.objectContaining({
-          operationId: "createOverheadAllocationRun",
-          organizationScoped: true,
-        }),
-        expect.objectContaining({
-          operationId: "listProjectProfitability",
-          organizationScoped: true,
-        }),
-        expect.objectContaining({
-          operationId: "getProjectProfitability",
-          organizationScoped: true,
-        }),
+        expect.objectContaining({ path: `${organization}/commercial-documents` }),
+        expect.objectContaining({ path: `${organization}/master-data/parties` }),
+        expect.objectContaining({ path: `${organization}/master-data/projects` }),
+        expect.objectContaining({ path: `${organization}/reports/ar-aging` }),
+        expect.objectContaining({ path: `${organization}/accountant-exports` }),
+        expect.objectContaining({ path: `${organization}/workbook-imports/dry-run` }),
       ]),
     );
-    expect(caps.json().authentication.scheme).toBe("bearer");
+    expect(body.operations.every((operation) => !operation.path.includes("{resource}"))).toBe(true);
+    expect(
+      body.operations.every(
+        (operation) => operation.organizationScoped || operation.path.startsWith("/api/v1/"),
+      ),
+    ).toBe(true);
+    expect(body.resources).toEqual(expect.arrayContaining(["customers", "projects"]));
+    expect(body.resources).not.toEqual(
+      expect.arrayContaining(["banking", "timesheets", "overhead"]),
+    );
+
     await app.close();
   });
 });

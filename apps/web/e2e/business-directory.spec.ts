@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const envelope = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "business-directory-e2e",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 
@@ -13,7 +13,7 @@ async function authenticate(page: Page) {
 
 test("@desktop customer profile links sales invoices and accounts receivable", async ({ page }) => {
   await authenticate(page);
-  await page.route("**/api/v1/organizations/org-demo/master-data/parties/*", async (route) => {
+  await page.route("**/api/v1/organizations/naai/master-data/parties/*", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(
@@ -49,7 +49,7 @@ test("@desktop project profile exposes customer, invoice and financial drilldown
   page,
 }) => {
   await authenticate(page);
-  await page.route("**/api/v1/organizations/org-demo/master-data/projects/*", async (route) => {
+  await page.route("**/api/v1/organizations/naai/master-data/projects/*", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(
@@ -95,19 +95,19 @@ test("@desktop project profile exposes customer, invoice and financial drilldown
 
 test("@desktop directory create action opens an in-context drawer", async ({ page }) => {
   await authenticate(page);
-  await page.route("**/api/v1/organizations/org-demo/master-data/parties?limit=100", (route) =>
+  await page.route("**/api/v1/organizations/naai/master-data/parties?limit=100", (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),
     }),
   );
-  await page.route("**/api/v1/organizations/org-demo/master-data/projects?limit=100", (route) =>
+  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),
     }),
   );
-  await page.route("**/api/v1/organizations/org-demo/master-data/party-roles?limit=100", (route) =>
+  await page.route("**/api/v1/organizations/naai/master-data/party-roles?limit=100", (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),

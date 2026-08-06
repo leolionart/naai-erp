@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const env = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp720",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown) =>
@@ -80,7 +80,7 @@ async function install(
   let currentExpense = { ...expense };
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp720-token"));
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/commercial-documents**",
+    "http://localhost:3001/api/v1/organizations/naai/commercial-documents**",
     async (route) => {
       const url = new URL(route.request().url());
       if (route.request().method() === "PATCH" && url.pathname.endsWith("/invoice-720")) {
@@ -97,24 +97,21 @@ async function install(
       return reply(route, { items: [currentInvoice] });
     },
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/expenses**",
-    async (route) => {
-      const url = new URL(route.request().url());
-      if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720")) {
-        if (patchFailure?.kind === "expenses")
-          return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
-        expect(route.request().headers()["if-match"]).toBe("1");
-        const body = route.request().postDataJSON() as typeof expense;
-        currentExpense = { ...currentExpense, ...body, resourceVersion: "2" };
-        return reply(route, { expenseId: currentExpense.id, resourceVersion: "2" });
-      }
-      if (route.request().method() === "POST" && url.pathname.endsWith("/expenses"))
-        return reply(route, currentExpense);
-      if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
-      return reply(route, { items: [currentExpense] });
-    },
-  );
+  await page.route("http://localhost:3001/api/v1/organizations/naai/expenses**", async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720")) {
+      if (patchFailure?.kind === "expenses")
+        return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
+      expect(route.request().headers()["if-match"]).toBe("1");
+      const body = route.request().postDataJSON() as typeof expense;
+      currentExpense = { ...currentExpense, ...body, resourceVersion: "2" };
+      return reply(route, { expenseId: currentExpense.id, resourceVersion: "2" });
+    }
+    if (route.request().method() === "POST" && url.pathname.endsWith("/expenses"))
+      return reply(route, currentExpense);
+    if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
+    return reply(route, { items: [currentExpense] });
+  });
 }
 
 test("@desktop T-MVP-UI-001 uses stable invoice list new and detail routes", async ({ page }) => {

@@ -35,16 +35,6 @@ async function expectDocumentCreateForm(page: Page) {
   ).toBeVisible();
 }
 
-async function expectBankingAccountForm(page: Page) {
-  await expect(page).toHaveURL(/\/banking$/);
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { level: 1, name: "Ngân hàng & tiền mặt" })).toBeVisible();
-  await page.getByRole("button", { name: "Thêm tài khoản" }).click();
-  await expect(page.getByRole("dialog", { name: "Thêm tài khoản tiền" })).toBeVisible();
-  await expect(page.getByLabel("Tên tài khoản")).toBeVisible();
-  await expect(page.getByLabel("ID tài khoản sổ cái")).toBeVisible();
-}
-
 test("@desktop dashboard navigates to documents and opens the create form", async ({ page }) => {
   const assertNoBrowserErrors = failOnBrowserErrors(page);
   await expectDashboard(page);
@@ -53,16 +43,14 @@ test("@desktop dashboard navigates to documents and opens the create form", asyn
   assertNoBrowserErrors();
 });
 
-test("@desktop banking route opens the account creation workflow", async ({ page }) => {
-  const assertNoBrowserErrors = failOnBrowserErrors(page);
-  await expectDashboard(page);
-  await page.getByRole("link", { name: "Ngân hàng & tiền mặt", exact: true }).click();
-  await expectBankingAccountForm(page);
-  assertNoBrowserErrors();
-});
-
 test("@desktop primary navigation exposes customers and projects", async ({ page }) => {
   await expectDashboard(page);
+  for (const hidden of ["Dữ liệu nền", "Sổ kế toán", "Ngân hàng & tiền mặt"]) {
+    await expect(page.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
+  }
+  await expect(
+    page.getByRole("link", { name: "Chi phí không hóa đơn", exact: true }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Khách hàng", exact: true }).click();
   await expect(page).toHaveURL(/\/customers$/);
   await expect(page.getByRole("heading", { level: 1, name: "Khách hàng" })).toBeVisible();
@@ -85,32 +73,16 @@ test("@mobile Sheet navigation reaches documents and keeps the primary workflow 
   assertNoBrowserErrors();
 });
 
-test("@mobile Sheet navigation reaches banking and opens the account workflow", async ({
-  page,
-}) => {
-  const assertNoBrowserErrors = failOnBrowserErrors(page);
-  await expectDashboard(page);
-  await page.getByRole("button", { name: "Mở menu chính" }).click();
-  const navigation = page.getByRole("dialog", { name: "Điều hướng NAAI ERP" });
-  await navigation.getByRole("link", { name: "Ngân hàng & tiền mặt", exact: true }).click();
-  await expect(page).toHaveURL(/\/banking$/);
-  await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
-  const accountSectionTitle = page.getByText("Tài khoản ngân hàng và tiền mặt", { exact: true });
-  const refreshButton = page.getByRole("button", { name: "Tải dữ liệu" });
-  await expect(accountSectionTitle).toBeVisible();
-  await expect(refreshButton).toBeVisible();
-  const titleBox = await accountSectionTitle.boundingBox();
-  const buttonBox = await refreshButton.boundingBox();
-  expect(titleBox?.width).toBeGreaterThan(240);
-  expect(buttonBox?.y).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
-  await expectBankingAccountForm(page);
-  assertNoBrowserErrors();
-});
-
 test("@mobile Sheet navigation exposes customer and project modules", async ({ page }) => {
   await expectDashboard(page);
   await page.getByRole("button", { name: "Mở menu chính" }).click();
   const navigation = page.getByRole("dialog", { name: "Điều hướng NAAI ERP" });
+  for (const hidden of ["Dữ liệu nền", "Sổ kế toán", "Ngân hàng & tiền mặt"]) {
+    await expect(navigation.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
+  }
+  await expect(
+    navigation.getByRole("link", { name: "Chi phí không hóa đơn", exact: true }),
+  ).toBeVisible();
   await navigation.getByRole("link", { name: "Khách hàng", exact: true }).click();
   await expect(page).toHaveURL(/\/customers$/);
   await navigation.getByRole("button", { name: "Close" }).click();

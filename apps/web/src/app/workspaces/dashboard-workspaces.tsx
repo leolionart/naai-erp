@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   AgingReportContract,
   ExecutiveMetricsContract,
@@ -51,13 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
-  type ApiConnectionSettingsV1,
-} from "@/lib/api";
+import { useAuthenticatedApiClient } from "@/lib/api";
 
 const ExecutiveTrendChart = dynamic(() => import("@/components/dashboard/executive-trend-chart"), {
   loading: () => <Skeleton className="h-48 w-full" />,
@@ -76,20 +70,6 @@ type Preview = Readonly<{
   sourceIds: readonly string[];
   href: string;
 }>;
-
-function useClient() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-  return { client, hasToken: Boolean(token) };
-}
 
 function reportQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
@@ -304,13 +284,14 @@ function PreviewDrawer({ preview, onClose }: { preview?: Preview; onClose(): voi
 }
 
 function useDashboardData() {
-  const { client, hasToken } = useClient();
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const params = useSearchParams();
   const [data, setData] = useState<DashboardData>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const key = params.toString();
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
     if (!hasToken) {
@@ -342,7 +323,7 @@ function useDashboardData() {
     if (!next.executive && !next.performance && !next.projects && !next.aging)
       setError("Không thể tải các báo cáo nguồn của dashboard.");
     setLoading(false);
-  }, [client, hasToken, key]);
+  }, [client, hasToken, hydrated, key]);
   useEffect(() => void load(), [load]);
   return { data, loading, error, reload: load, search: new URLSearchParams(key) };
 }

@@ -97,7 +97,9 @@
     "report-snapshots/reproduce",
     "accountant-exports/create",
     "accountant-exports/download",
-    "accountant-exports/supersede"
+    "accountant-exports/supersede",
+    "workbook-imports/dry-run",
+    "workbook-imports/commit"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -2861,6 +2863,58 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/workbook-imports/dry-run": {
+      "post": {
+        "operationId": "dryRunWorkbookImport",
+        "tags": ["workbook-imports"],
+        "summary": "Validate and reconcile a versioned workbook import without database mutations",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorkbookImportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dry-run validation, coverage, calendar totals and legacy controls",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WorkbookImportEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/workbook-imports/commit": {
+      "post": {
+        "operationId": "commitWorkbookImport",
+        "tags": ["workbook-imports"],
+        "summary": "Commit a validated workbook import transactionally and idempotently",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorkbookImportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Commit result with created and explicitly skipped source-row counts",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WorkbookImportEnvelope" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3183,6 +3237,180 @@
       }
     },
     "schemas": {
+      "WorkbookImportRequest": {
+        "type": "object",
+        "required": [
+          "mappingVersion",
+          "sources",
+          "inventory",
+          "issues",
+          "controls",
+          "varianceRules",
+          "parties",
+          "projects",
+          "salesInvoices",
+          "expenses"
+        ],
+        "properties": {
+          "mappingVersion": { "type": "integer", "enum": [1, 2] },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["kind", "sha256", "filename"],
+              "properties": {
+                "kind": { "type": "string", "enum": ["projects", "finance"] },
+                "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                "filename": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "inventory": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkbookImportInventoryItem" }
+          },
+          "issues": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkbookImportIssue" }
+          },
+          "controls": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkbookImportControl" }
+          },
+          "varianceRules": { "type": "array", "items": { "type": "object" } },
+          "parties": { "type": "array", "items": { "type": "object" } },
+          "projects": { "type": "array", "items": { "type": "object" } },
+          "salesInvoices": { "type": "array", "items": { "type": "object" } },
+          "expenses": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "WorkbookImportInventoryItem": {
+        "type": "object",
+        "required": [
+          "workbook",
+          "sheet",
+          "rowCount",
+          "dataRowCount",
+          "formulaCellCount",
+          "disposition"
+        ],
+        "properties": {
+          "workbook": { "type": "string" },
+          "sheet": { "type": "string" },
+          "rowCount": { "type": "integer", "minimum": 0 },
+          "dataRowCount": { "type": "integer", "minimum": 0 },
+          "formulaCellCount": { "type": "integer", "minimum": 0 },
+          "disposition": {
+            "type": "string",
+            "enum": ["projects", "sales", "expenses", "control", "reference"]
+          }
+        }
+      },
+      "WorkbookImportIssue": {
+        "type": "object",
+        "required": ["severity", "workbook", "sheet", "message"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["error", "warning"] },
+          "workbook": { "type": "string" },
+          "sheet": { "type": "string" },
+          "row": { "type": "integer", "minimum": 1 },
+          "field": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      },
+      "WorkbookImportControl": {
+        "type": "object",
+        "required": ["workbook", "sheet", "year", "salesMinor", "expenseMinor", "profitMinor"],
+        "properties": {
+          "workbook": { "type": "string" },
+          "sheet": { "type": "string" },
+          "year": { "type": "integer" },
+          "salesMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "expenseMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "profitMinor": { "type": "string", "pattern": "^-?[0-9]+$" }
+        }
+      },
+      "WorkbookImportDetails": {
+        "type": "object",
+        "required": [
+          "partiesCreated",
+          "projectsCreated",
+          "salesInvoicesCreated",
+          "expensesCreated",
+          "expensesSkipped",
+          "auditEventId"
+        ],
+        "properties": {
+          "partiesCreated": { "type": "integer", "minimum": 0 },
+          "projectsCreated": { "type": "integer", "minimum": 0 },
+          "salesInvoicesCreated": { "type": "integer", "minimum": 0 },
+          "expensesCreated": { "type": "integer", "minimum": 0 },
+          "expensesSkipped": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Zero-total source rows retained in reconciliation but intentionally not materialized as expenses"
+          },
+          "auditEventId": { "type": "string" }
+        }
+      },
+      "WorkbookImportOutcome": {
+        "type": "object",
+        "required": ["valid", "errors", "issues", "reconciliation", "coverage"],
+        "properties": {
+          "valid": { "type": "boolean" },
+          "errors": { "type": "array", "items": { "type": "string" } },
+          "issues": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkbookImportIssue" }
+          },
+          "reconciliation": {
+            "type": "object",
+            "required": ["totalSales", "totalExpense", "totalProfit", "controls", "variances"],
+            "properties": {
+              "totalSales": { "type": "string", "pattern": "^-?[0-9]+$" },
+              "totalExpense": { "type": "string", "pattern": "^-?[0-9]+$" },
+              "totalProfit": { "type": "string", "pattern": "^-?[0-9]+$" },
+              "controls": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WorkbookImportControl" }
+              },
+              "variances": { "type": "array", "items": { "type": "object" } },
+              "legacyControl": { "type": "object" }
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "required": ["inventory", "sourceRows"],
+            "properties": {
+              "inventory": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WorkbookImportInventoryItem" }
+              },
+              "sourceRows": {
+                "type": "object",
+                "required": ["projects", "sales", "expenses"],
+                "properties": {
+                  "projects": { "type": "integer", "minimum": 0 },
+                  "sales": { "type": "integer", "minimum": 0 },
+                  "expenses": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          },
+          "details": { "$ref": "#/components/schemas/WorkbookImportDetails" }
+        }
+      },
+      "WorkbookImportEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/WorkbookImportOutcome" }
+        }
+      },
       "OrganizationDataEnvelope": {
         "type": "object",
         "required": ["apiVersion", "requestId", "organizationId", "data"],

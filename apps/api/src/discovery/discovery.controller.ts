@@ -1,15 +1,13 @@
 import { Controller, Get } from "@nestjs/common";
 import { readFile } from "node:fs/promises";
+import { mvpDiscoverySpec, type DiscoverySpec } from "./mvp-discovery.js";
 @Controller("api/v1")
 export class DiscoveryController {
   private async spec() {
-    return JSON.parse(
+    const source = JSON.parse(
       await readFile(new URL("../../../../docs/api/openapi-v1.json", import.meta.url), "utf8"),
-    ) as {
-      openapi: string;
-      info: { version: string };
-      paths: Record<string, Record<string, { operationId?: string; tags?: string[] }>>;
-    };
+    ) as DiscoverySpec;
+    return mvpDiscoverySpec(source);
   }
   @Get("openapi.json") openapi() {
     return this.spec();

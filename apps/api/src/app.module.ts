@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { HealthController } from "./health.controller.js";
+import { DatabaseReadinessService, HealthController } from "./health.controller.js";
 import { MasterDataController } from "./master-data/master-data.controller.js";
 import { MasterDataService } from "./master-data/master-data.service.js";
 import { PgMasterDataStore } from "./master-data/pg-master-data.store.js";
@@ -145,6 +145,7 @@ import { WorkbookImportService } from "./workbook-imports/workbook-import.servic
     WorkbookImportController,
   ],
   providers: [
+    DatabaseReadinessService,
     MasterDataService,
     PgMasterDataStore,
     JournalService,

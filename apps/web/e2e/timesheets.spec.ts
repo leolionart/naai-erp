@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const envelope = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp500",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown) =>
@@ -45,7 +45,7 @@ function timesheet(state = "submitted", version = "1") {
 async function install(page: Page) {
   let current = timesheet();
   const bodies: Record<string, Record<string, unknown> | undefined> = {};
-  await page.route("http://localhost:3001/api/v1/organizations/org-demo/time/**", async (route) => {
+  await page.route("http://localhost:3001/api/v1/organizations/naai/time/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
     if (req.method() === "GET" && path.endsWith("/timesheets"))

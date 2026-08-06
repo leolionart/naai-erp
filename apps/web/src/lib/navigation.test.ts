@@ -12,10 +12,9 @@ describe("typed admin navigation", () => {
   });
 
   it("exposes only the narrowed MVP destinations", () => {
-    expect(findNavigationItem("ledger")?.href).toBe("/accounting/journals");
-    expect(isNavigationAvailable(findNavigationItem("ledger")!)).toBe(true);
-    expect(findNavigationItem("banking")?.href).toBe("/banking");
-    expect(isNavigationAvailable(findNavigationItem("banking")!)).toBe(true);
+    expect(findNavigationItem("overview")?.href).toBe("/dashboard");
+    expect(findNavigationItem("documents")?.href).toBe("/documents");
+    expect(findNavigationItem("expenses")?.href).toBe("/expenses");
     expect(findNavigationItem("performance")?.href).toBe("/reports/performance");
     expect(isNavigationAvailable(findNavigationItem("performance")!)).toBe(true);
     expect(findNavigationItem("financial-statements")?.href).toBe("/reports/financial-statements");
@@ -29,6 +28,9 @@ describe("typed admin navigation", () => {
     for (const hidden of [
       "evidence",
       "integrations",
+      "master-data",
+      "ledger",
+      "banking",
       "timesheets",
       "cost-rates",
       "project-costs",

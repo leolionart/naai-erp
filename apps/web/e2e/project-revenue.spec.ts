@@ -2,14 +2,14 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const env = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp520",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (r: Route, d: unknown) =>
   r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(env(d)) });
 async function install(page: Page) {
   const bodies: Record<string, Record<string, unknown> | undefined> = {};
-  await page.route("http://localhost:3001/api/v1/organizations/org-demo/**", async (route) => {
+  await page.route("http://localhost:3001/api/v1/organizations/naai/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
     if (req.method() === "GET" && path.endsWith("/budget-versions"))

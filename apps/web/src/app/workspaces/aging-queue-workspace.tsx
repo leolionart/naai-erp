@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FilterIcon, RefreshCwIcon } from "lucide-react";
@@ -28,14 +28,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import {
   agingApi,
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
+  useAuthenticatedApiClient,
   type AgingItem,
   type AgingReport,
   type AgingSide,
-  type ApiConnectionSettingsV1,
 } from "@/lib/api";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -58,8 +54,7 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [report, setReport] = useState<AgingReport>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -72,18 +67,16 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
   const paymentStatus = searchParams.get("paymentStatus") || "";
   const includeSettled = searchParams.get("includeSettled") === "true";
 
-  useEffect(() => {
-    setConnection(loadConnectionSettings(window.localStorage));
-    setToken(loadApiToken(window.sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
+    if (!hasToken) {
+      setReport(undefined);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     try {
       setReport(
         await client.data<AgingReport>(
@@ -105,7 +98,18 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
     } finally {
       setLoading(false);
     }
-  }, [accountCode, asOf, bucket, client, includeSettled, partyId, paymentStatus, side]);
+  }, [
+    accountCode,
+    asOf,
+    bucket,
+    client,
+    hasToken,
+    hydrated,
+    includeSettled,
+    partyId,
+    paymentStatus,
+    side,
+  ]);
 
   useEffect(() => {
     void load();

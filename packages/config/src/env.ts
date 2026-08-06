@@ -3,6 +3,7 @@ import { z } from "zod";
 const environmentSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_BASE_URL: z.url(),
+  WEB_ORIGIN: z.url().optional(),
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
   DATABASE_URL: z.url().startsWith("postgresql://"),
   REDIS_URL: z.url().startsWith("redis://"),

@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 type JsonRow = Record<string, unknown>;
 
 function envelope(data: unknown) {
-  return { apiVersion: "v1", requestId: "e2e-request", organizationId: "org-demo", data };
+  return { apiVersion: "v1", requestId: "e2e-request", organizationId: "naai", data };
 }
 
 async function json(route: Route, data: unknown, status = 200) {
@@ -15,131 +15,128 @@ async function installReconciliationApi(page: Page) {
   let reconciliation: JsonRow | undefined;
   let matchBody: JsonRow | undefined;
 
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/banking/**",
-    async (route) => {
-      const request = route.request();
-      const url = new URL(request.url());
-      const path = url.pathname;
-      const method = request.method();
+  await page.route("http://localhost:3001/api/v1/organizations/naai/banking/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+    const method = request.method();
 
-      if (method === "GET" && path.endsWith("/transactions/tx-e2e/candidates")) {
-        return json(
-          route,
-          envelope({
-            id: "candidate-run-1",
-            algorithmVersion: 1,
-            thresholdBps: 8500,
-            ambiguityMarginBps: 500,
-            items: [
-              {
-                id: "candidate-1",
-                rank: 1,
-                targetType: "commercial_document",
-                targetId: "invoice-e2e",
-                currency: "VND",
-                outstandingMinor: "900000",
-                confidenceBps: 9200,
-                factors: {
-                  amountBps: 3000,
-                  dateBps: 1500,
-                  referenceBps: 1800,
-                  partyBps: 1200,
-                  currencyBps: 900,
-                  outstandingBps: 800,
-                  daysApart: 1,
-                },
-                status: "open",
+    if (method === "GET" && path.endsWith("/transactions/tx-e2e/candidates")) {
+      return json(
+        route,
+        envelope({
+          id: "candidate-run-1",
+          algorithmVersion: 1,
+          thresholdBps: 8500,
+          ambiguityMarginBps: 500,
+          items: [
+            {
+              id: "candidate-1",
+              rank: 1,
+              targetType: "commercial_document",
+              targetId: "invoice-e2e",
+              currency: "VND",
+              outstandingMinor: "900000",
+              confidenceBps: 9200,
+              factors: {
+                amountBps: 3000,
+                dateBps: 1500,
+                referenceBps: 1800,
+                partyBps: 1200,
+                currencyBps: 900,
+                outstandingBps: 800,
+                daysApart: 1,
               },
-            ],
-          }),
-        );
-      }
-      if (method === "GET" && path.endsWith("/transactions/tx-e2e")) {
-        return json(
-          route,
-          envelope({
-            id: "tx-e2e",
-            state: transactionState,
-            bookingDate: "2026-08-05",
-            amountMinor: "1000000",
-            currency: "VND",
-            sourceKey: "provider:E2E-1",
-            resourceVersion: "tx-v1",
-          }),
-        );
-      }
-      if (method === "GET" && path.endsWith("/banking/reconciliations")) {
-        return json(route, envelope({ items: reconciliation ? [reconciliation] : [] }));
-      }
-      if (method === "GET" && path.endsWith("/banking/reconciliations/rec-e2e")) {
-        return json(route, envelope(reconciliation));
-      }
-      if (method === "POST" && path.endsWith("/transactions/tx-e2e/match")) {
-        matchBody = request.postDataJSON() as JsonRow;
-        transactionState = "matched";
-        reconciliation = {
-          id: "rec-e2e",
+              status: "open",
+            },
+          ],
+        }),
+      );
+    }
+    if (method === "GET" && path.endsWith("/transactions/tx-e2e")) {
+      return json(
+        route,
+        envelope({
+          id: "tx-e2e",
+          state: transactionState,
+          bookingDate: "2026-08-05",
+          amountMinor: "1000000",
+          currency: "VND",
+          sourceKey: "provider:E2E-1",
+          resourceVersion: "tx-v1",
+        }),
+      );
+    }
+    if (method === "GET" && path.endsWith("/banking/reconciliations")) {
+      return json(route, envelope({ items: reconciliation ? [reconciliation] : [] }));
+    }
+    if (method === "GET" && path.endsWith("/banking/reconciliations/rec-e2e")) {
+      return json(route, envelope(reconciliation));
+    }
+    if (method === "POST" && path.endsWith("/transactions/tx-e2e/match")) {
+      matchBody = request.postDataJSON() as JsonRow;
+      transactionState = "matched";
+      reconciliation = {
+        id: "rec-e2e",
+        bankTransactionId: "tx-e2e",
+        direction: "receipt",
+        statementAmountMinor: "1000000",
+        statementCurrency: "VND",
+        state: "matched",
+        currentAttemptNumber: 1,
+        attempts: [
+          {
+            attemptNumber: 1,
+            state: "matched",
+            policyVersion: 1,
+            candidateGeneration: 1,
+            bankBaseAmountMinor: "1000000",
+            allocations: (matchBody.allocations as unknown[]) ?? [],
+            adjustments: [],
+          },
+        ],
+        resourceVersion: "rec-v1",
+        nextActions: ["reconcile"],
+        drilldown: {
           bankTransactionId: "tx-e2e",
-          direction: "receipt",
-          statementAmountMinor: "1000000",
-          statementCurrency: "VND",
-          state: "matched",
-          currentAttemptNumber: 1,
-          attempts: [
-            {
-              attemptNumber: 1,
-              state: "matched",
-              policyVersion: 1,
-              candidateGeneration: 1,
-              bankBaseAmountMinor: "1000000",
-              allocations: (matchBody.allocations as unknown[]) ?? [],
-              adjustments: [],
-            },
-          ],
-          resourceVersion: "rec-v1",
-          nextActions: ["reconcile"],
-          drilldown: {
-            bankTransactionId: "tx-e2e",
-            sourceDocumentIds: ["invoice-e2e"],
-            evidenceIds: ["evidence-e2e"],
-          },
-        };
-        return json(
-          route,
-          envelope({ reconciliation, mutation: { auditEventId: "audit-match" } }),
-          201,
-        );
-      }
-      if (method === "POST" && path.endsWith("/transactions/tx-e2e/reconcile")) {
-        transactionState = "reconciled";
-        reconciliation = {
-          ...reconciliation,
-          state: "reconciled",
-          resourceVersion: "rec-v2",
-          nextActions: ["unreconcile"],
-          attempts: [
-            {
-              ...((reconciliation?.attempts as JsonRow[])[0] ?? {}),
-              state: "reconciled",
-              journalId: "journal-e2e",
-              reconciledReason: "Đã kiểm tra sao kê",
-            },
-          ],
-          drilldown: {
-            ...((reconciliation?.drilldown as JsonRow | undefined) ?? {}),
+          sourceDocumentIds: ["invoice-e2e"],
+          evidenceIds: ["evidence-e2e"],
+        },
+      };
+      return json(
+        route,
+        envelope({ reconciliation, mutation: { auditEventId: "audit-match" } }),
+        201,
+      );
+    }
+    if (method === "POST" && path.endsWith("/transactions/tx-e2e/reconcile")) {
+      transactionState = "reconciled";
+      reconciliation = {
+        ...reconciliation,
+        state: "reconciled",
+        resourceVersion: "rec-v2",
+        nextActions: ["unreconcile"],
+        attempts: [
+          {
+            ...((reconciliation?.attempts as JsonRow[])[0] ?? {}),
+            state: "reconciled",
             journalId: "journal-e2e",
+            reconciledReason: "Đã kiểm tra sao kê",
           },
-        };
-        return json(
-          route,
-          envelope({ reconciliation, mutation: { auditEventId: "audit-reconcile" } }),
-          201,
-        );
-      }
-      return json(route, { error: { code: "E2E_UNHANDLED", message: `${method} ${path}` } }, 404);
-    },
-  );
+        ],
+        drilldown: {
+          ...((reconciliation?.drilldown as JsonRow | undefined) ?? {}),
+          journalId: "journal-e2e",
+        },
+      };
+      return json(
+        route,
+        envelope({ reconciliation, mutation: { auditEventId: "audit-reconcile" } }),
+        201,
+      );
+    }
+    return json(route, { error: { code: "E2E_UNHANDLED", message: `${method} ${path}` } }, 404);
+  });
 
   return { matchBody: () => matchBody };
 }

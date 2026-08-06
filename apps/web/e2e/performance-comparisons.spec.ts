@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const envelope = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp620",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown) =>
@@ -41,7 +41,7 @@ const line = (
 
 const report = {
   schemaVersion: 1,
-  organizationId: "org-demo",
+  organizationId: "naai",
   metricKey: "revenue",
   actualBasis: "recognized",
   currency: "VND",
@@ -134,8 +134,11 @@ const report = {
 
 async function install(page: Page) {
   const requests: string[] = [];
+  await page.addInitScript(() =>
+    sessionStorage.setItem("naai-erp-admin-token", "performance-e2e-token"),
+  );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/performance-comparisons**",
+    "http://localhost:3001/api/v1/organizations/naai/reports/performance-comparisons**",
     async (route) => {
       requests.push(route.request().url());
       await reply(route, report);

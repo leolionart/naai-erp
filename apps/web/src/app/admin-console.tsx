@@ -65,7 +65,7 @@ type StoredSettings = { version: 1; baseUrl: string; organizationId: string };
 export function AdminConsole({ moduleKey }: { moduleKey: string }) {
   const path = resourcePath[moduleKey];
   const [baseUrl, setBaseUrl] = useState("http://localhost:3001");
-  const [organizationId, setOrganizationId] = useState("org-demo");
+  const [organizationId, setOrganizationId] = useState("naai");
   const [token, setToken] = useState("");
   const [requestPath, setRequestPath] = useState(path ?? "health/live");
   const [method, setMethod] = useState<"GET" | "POST">("GET");
@@ -76,7 +76,7 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem("naai-erp-admin-settings-v1");
+    const raw = window.localStorage.getItem("naai-erp-admin-settings-v2");
     if (raw) {
       try {
         const saved = JSON.parse(raw) as StoredSettings;
@@ -85,7 +85,7 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
           setOrganizationId(saved.organizationId);
         }
       } catch {
-        window.localStorage.removeItem("naai-erp-admin-settings-v1");
+        window.localStorage.removeItem("naai-erp-admin-settings-v2");
       }
     }
     setToken(window.sessionStorage.getItem("naai-erp-admin-token") ?? "");
@@ -109,7 +109,7 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
     setBusy(true);
     setResult("Đang tải…");
     window.localStorage.setItem(
-      "naai-erp-admin-settings-v1",
+      "naai-erp-admin-settings-v2",
       JSON.stringify({ version: 1, baseUrl, organizationId } satisfies StoredSettings),
     );
     window.sessionStorage.setItem("naai-erp-admin-token", token);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, Filter, Plus } from "lucide-react";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -45,13 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
-  type ApiConnectionSettingsV1,
-} from "@/lib/api";
+import { useAuthenticatedApiClient } from "@/lib/api";
 import { DocumentForm, ExpenseForm } from "./invoice-expense-workspace";
 
 type Kind = "documents" | "expenses";
@@ -108,20 +102,6 @@ function human(value: string) {
   return value ? value.replaceAll("_", " ") : "—";
 }
 
-function useApi() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-  return { client, hasToken: Boolean(token) };
-}
-
 function queryFor(kind: Kind, params: URLSearchParams) {
   const query = new URLSearchParams();
   for (const key of kind === "documents"
@@ -134,7 +114,7 @@ function queryFor(kind: Kind, params: URLSearchParams) {
 }
 
 export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
-  const { client, hasToken } = useApi();
+  const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -145,10 +125,12 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
   const key = params.toString();
   const current = config[kind];
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
     if (!hasToken) {
       setRows([]);
+      setError("AUTH_REQUIRED");
       setLoading(false);
       return;
     }
@@ -162,7 +144,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
     } finally {
       setLoading(false);
     }
-  }, [client, current, hasToken, key, kind]);
+  }, [client, current, hasToken, hydrated, key, kind]);
   useEffect(() => void load(), [load]);
   function apply(form: FormData) {
     const query = new URLSearchParams();
@@ -405,12 +387,16 @@ function FilterSheet({
 }
 
 export function FocusedRecordCreateWorkspace({ kind }: { kind: Kind }) {
-  const { client } = useApi();
+  const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const router = useRouter();
   const current = config[kind];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function create(body: Row) {
+    if (!hydrated || !hasToken) {
+      setError("AUTH_REQUIRED");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -473,7 +459,7 @@ function externalReference(record?: Row) {
 }
 
 export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; recordId: string }) {
-  const { client } = useApi();
+  const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const current = config[kind];
   const [record, setRecord] = useState<Row>();
   const [loading, setLoading] = useState(true);
@@ -486,8 +472,15 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const [axis, setAxis] = useState("management");
   const [reviewState, setReviewState] = useState("valid");
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
+    if (!hasToken) {
+      setRecord(undefined);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     try {
       setRecord(await client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`));
     } catch (cause) {
@@ -495,7 +488,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
     } finally {
       setLoading(false);
     }
-  }, [client, current, recordId]);
+  }, [client, current, hasToken, hydrated, recordId]);
   useEffect(() => void load(), [load]);
   const state = text(record, "state");
   const type = text(record, "type");

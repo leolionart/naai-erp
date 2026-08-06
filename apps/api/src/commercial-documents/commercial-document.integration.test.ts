@@ -196,6 +196,49 @@ describeIntegration("ERP-300 commercial documents", () => {
         .data.items.map((item: { id: string }) => item.id)
         .sort(),
     ).toEqual(["purchase-001", "sales-001"]);
+    expect(
+      projectA
+        .json()
+        .data.items.map((item: { id: string; document_date: string; due_date: string }) => ({
+          id: item.id,
+          documentDate: item.document_date,
+          dueDate: item.due_date,
+        })),
+    ).toEqual(
+      expect.arrayContaining([
+        { id: "sales-001", documentDate: "2026-01-25", dueDate: "2026-02-24" },
+        { id: "purchase-001", documentDate: "2026-01-26", dueDate: "2026-02-25" },
+      ]),
+    );
+
+    const party = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-doc/commercial-documents?partyId=CLIENT-A",
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(party.statusCode, party.body).toBe(200);
+    expect(party.json().data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "sales-001",
+          document_date: "2026-01-25",
+          due_date: "2026-02-24",
+        }),
+      ]),
+    );
+
+    const detail = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-doc/commercial-documents/sales-001",
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(detail.statusCode, detail.body).toBe(200);
+    expect(detail.json().data).toEqual(
+      expect.objectContaining({
+        document_date: "2026-01-25",
+        due_date: "2026-02-24",
+      }),
+    );
 
     const unrelated = await app.inject({
       method: "GET",

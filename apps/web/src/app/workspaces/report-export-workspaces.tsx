@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   AccountantExportContract,
   AccountantReportKindContract,
@@ -65,13 +65,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
-  type ApiConnectionSettingsV1,
-} from "@/lib/api";
+import { useAuthenticatedApiClient } from "@/lib/api";
 
 type Format = "csv" | "xlsx";
 const reportLabels: Record<AccountantReportKindContract, string> = {
@@ -86,7 +80,7 @@ const demoSnapshot: ReportSnapshotContract = {
   schemaVersion: 1,
   id: "snapshot-demo-2026-07",
   version: 1,
-  organizationId: "org-demo",
+  organizationId: "naai",
   reportKind: "profit_and_loss",
   period: { startsOn: "2026-07-01", endsOn: "2026-07-31", asOfDate: "2026-07-31" },
   dimensions: {},
@@ -146,17 +140,7 @@ const demoExport: AccountantExportContract = {
 };
 
 function useApi() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  const client = useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-  return { client, connection, token };
+  return useAuthenticatedApiClient();
 }
 
 function Readiness({ value }: { value: ReportSnapshotContract["readiness"] }) {
@@ -238,12 +222,13 @@ function SourceDrawer({
 }
 
 export function AccountantExportListWorkspace() {
-  const { client } = useApi();
+  const { client, hydrated, hasToken } = useApi();
   const [exports, setExports] = useState<readonly AccountantExportContract[]>([demoExport]);
   const [fallback, setFallback] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [format, setFormat] = useState<"all" | Format>("all");
   useEffect(() => {
+    if (!hydrated || !hasToken) return;
     void client
       .data<{ items: AccountantExportContract[] }>("accountant-exports")
       .then((result) => {
@@ -253,7 +238,7 @@ export function AccountantExportListWorkspace() {
         }
       })
       .catch(() => undefined);
-  }, [client]);
+  }, [client, hasToken, hydrated]);
   const visible = format === "all" ? exports : exports.filter((item) => item.format === format);
   return (
     <ModulePage
@@ -381,7 +366,7 @@ export function AccountantExportListWorkspace() {
 
 export function AccountantExportCreateWorkspace() {
   const router = useRouter();
-  const { client } = useApi();
+  const { client, hydrated, hasToken } = useApi();
   const [snapshots, setSnapshots] = useState<readonly ReportSnapshotContract[]>([demoSnapshot]);
   const [snapshotId, setSnapshotId] = useState(demoSnapshot.id);
   const [format, setFormat] = useState<Format>("xlsx");
@@ -390,6 +375,7 @@ export function AccountantExportCreateWorkspace() {
   const [error, setError] = useState("");
   const selected = snapshots.find((item) => item.id === snapshotId) ?? snapshots[0];
   useEffect(() => {
+    if (!hydrated || !hasToken) return;
     void client
       .data<{ items: ReportSnapshotContract[] }>("report-snapshots")
       .then((r) => {
@@ -399,7 +385,7 @@ export function AccountantExportCreateWorkspace() {
         }
       })
       .catch(() => undefined);
-  }, [client]);
+  }, [client, hasToken, hydrated]);
   async function create() {
     if (!selected) return;
     setBusy(true);
@@ -416,7 +402,7 @@ export function AccountantExportCreateWorkspace() {
       });
       router.push(`/reports/accountant-exports/${result.id}?version=${result.version}`);
     } catch (cause) {
-      if (!loadApiToken(sessionStorage)) {
+      if (!hasToken) {
         router.push(`/reports/accountant-exports/${demoExport.id}?version=1&preview=1`);
         return;
       }
@@ -535,7 +521,7 @@ export function AccountantExportDetailWorkspace({
   exportId: string;
   version?: string;
 }) {
-  const { client, connection, token } = useApi();
+  const { client, connection, token, hydrated, hasToken } = useApi();
   const [item, setItem] = useState<AccountantExportContract>({ ...demoExport, id: exportId });
   const [fallback, setFallback] = useState(true);
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -543,6 +529,7 @@ export function AccountantExportDetailWorkspace({
   const [supersedeReason, setSupersedeReason] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
+    if (!hydrated || !hasToken) return;
     const query = version ? `?version=${encodeURIComponent(version)}` : "";
     void client
       .data<AccountantExportContract>(`accountant-exports/${encodeURIComponent(exportId)}${query}`)
@@ -551,7 +538,7 @@ export function AccountantExportDetailWorkspace({
         setFallback(false);
       })
       .catch(() => undefined);
-  }, [client, exportId, version]);
+  }, [client, exportId, hasToken, hydrated, version]);
   async function download() {
     if (fallback) {
       const blob = new Blob(
@@ -749,7 +736,7 @@ export function ReportSnapshotDetailWorkspace({
   snapshotId: string;
   version?: string;
 }) {
-  const { client } = useApi();
+  const { client, hydrated, hasToken } = useApi();
   const [snapshot, setSnapshot] = useState<ReportSnapshotContract>({
     ...demoSnapshot,
     id: snapshotId,
@@ -758,6 +745,7 @@ export function ReportSnapshotDetailWorkspace({
   const [sourceOpen, setSourceOpen] = useState(false);
   const [reproduction, setReproduction] = useState<SnapshotReproductionContract>();
   useEffect(() => {
+    if (!hydrated || !hasToken) return;
     const query = version ? `?version=${encodeURIComponent(version)}` : "";
     void client
       .data<ReportSnapshotContract>(`report-snapshots/${encodeURIComponent(snapshotId)}${query}`)
@@ -766,7 +754,7 @@ export function ReportSnapshotDetailWorkspace({
         setFallback(false);
       })
       .catch(() => undefined);
-  }, [client, snapshotId, version]);
+  }, [client, hasToken, hydrated, snapshotId, version]);
   async function reproduce() {
     try {
       setReproduction(

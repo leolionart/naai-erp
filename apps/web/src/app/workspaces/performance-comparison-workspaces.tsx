@@ -46,13 +46,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
   performanceComparisonApi,
-  type ApiConnectionSettingsV1,
   type PerformanceComparison,
+  useAuthenticatedApiClient,
 } from "@/lib/api";
 
 type ComparisonRow = Readonly<{
@@ -78,19 +74,6 @@ const reasonLabels: Readonly<Record<string, string>> = {
   "denominator_missing:prior_year_missing": "Chưa có dữ liệu cùng kỳ năm trước",
   comparison_denominator_zero: "Mẫu số bằng 0 nên phần trăm không có ý nghĩa",
 };
-
-function useClient() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  return useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-}
 
 function formatBps(value: number | null) {
   return value === null
@@ -333,18 +316,26 @@ function SelectField({
 }
 
 function usePerformanceReport(fixedPeriodId?: string) {
-  const client = useClient();
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
   const query = useMemo(
-    () => queryFrom(new URLSearchParams(searchParams.toString()), fixedPeriodId),
-    [fixedPeriodId, searchParams],
+    () => queryFrom(new URLSearchParams(searchKey), fixedPeriodId),
+    [fixedPeriodId, searchKey],
   );
   const [report, setReport] = useState<PerformanceComparison>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError(undefined);
+    if (!hasToken) {
+      setReport(undefined);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     try {
       setReport(
         await client.data<PerformanceComparison>(
@@ -356,7 +347,7 @@ function usePerformanceReport(fixedPeriodId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [client, query]);
+  }, [client, hasToken, hydrated, query]);
   useEffect(() => void load(), [load]);
   return { report, loading, error, query };
 }

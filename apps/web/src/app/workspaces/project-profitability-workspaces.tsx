@@ -34,17 +34,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
   projectProfitabilityApi,
-  type ApiConnectionSettingsV1,
   type ProfitabilityBreakdownRow,
   type ProfitabilityConfidenceFlag,
   type ProjectProfitabilityDetail,
   type ProjectProfitabilityReport,
   type ProjectProfitabilitySummary,
+  useAuthenticatedApiClient,
 } from "@/lib/api";
 import { formatExactInteger } from "@/lib/format";
 
@@ -70,19 +66,6 @@ const flagLabels: Readonly<Record<ProfitabilityConfidenceFlag, string>> = {
   budget_overrun: "Vượt ngân sách",
   missing_dimensions: "Thiếu dimensions",
 };
-
-function useClient() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  return useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-}
 
 function queryFrom(searchParams: URLSearchParams) {
   const query = new URLSearchParams();
@@ -115,7 +98,7 @@ function ConfidenceBadges({ flags }: Readonly<{ flags: readonly ProfitabilityCon
 }
 
 export function ProjectProfitabilityQueueWorkspace() {
-  const client = useClient();
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -131,8 +114,15 @@ export function ProjectProfitabilityQueueWorkspace() {
     return next;
   }, [searchParams]);
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError(undefined);
+    if (!hasToken) {
+      setReport(undefined);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     try {
       setReport(
         await client.data<ProjectProfitabilityReport>(`${projectProfitabilityApi.report}?${query}`),
@@ -142,7 +132,7 @@ export function ProjectProfitabilityQueueWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [client, query]);
+  }, [client, hasToken, hydrated, query]);
   useEffect(() => void load(), [load]);
 
   const columns: readonly FinancialColumn<ProjectProfitabilitySummary>[] = [
@@ -462,7 +452,7 @@ function BreakdownTable({
 export function ProjectProfitabilityDetailWorkspace({
   projectId,
 }: Readonly<{ projectId: string }>) {
-  const client = useClient();
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const searchParams = useSearchParams();
   const [detail, setDetail] = useState<ProjectProfitabilityDetail>();
   const [error, setError] = useState<string>();
@@ -471,7 +461,13 @@ export function ProjectProfitabilityDetailWorkspace({
     [searchParams],
   );
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setError(undefined);
+    if (!hasToken) {
+      setDetail(undefined);
+      setError("AUTH_REQUIRED");
+      return;
+    }
     try {
       setDetail(
         await client.data<ProjectProfitabilityDetail>(
@@ -481,7 +477,7 @@ export function ProjectProfitabilityDetailWorkspace({
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải profitability drill-down");
     }
-  }, [client, projectId, query]);
+  }, [client, hasToken, hydrated, projectId, query]);
   useEffect(() => void load(), [load]);
   if (error)
     return (

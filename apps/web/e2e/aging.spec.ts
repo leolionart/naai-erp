@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 function envelope(data: unknown) {
-  return { apiVersion: "v1", requestId: "erp430-e2e", organizationId: "org-demo", data };
+  return { apiVersion: "v1", requestId: "erp430-e2e", organizationId: "naai", data };
 }
 
 async function reply(route: Route, data: unknown, status = 200) {
@@ -29,7 +29,7 @@ function report(side: "ar" | "ap", party = false) {
   });
   return {
     schemaVersion: 1,
-    organizationId: "org-demo",
+    organizationId: "naai",
     side,
     asOf: "2026-08-05",
     timezone: "Asia/Ho_Chi_Minh",
@@ -118,15 +118,13 @@ function report(side: "ar" | "ap", party = false) {
 
 async function installApi(page: Page) {
   const requested: string[] = [];
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/reports/**",
-    async (route) => {
-      const url = new URL(route.request().url());
-      requested.push(`${url.pathname}${url.search}`);
-      const side = url.pathname.includes("/ap-aging") ? "ap" : "ar";
-      return reply(route, envelope(report(side, url.pathname.includes("/parties/"))));
-    },
-  );
+  await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "aging-e2e-token"));
+  await page.route("http://localhost:3001/api/v1/organizations/naai/reports/**", async (route) => {
+    const url = new URL(route.request().url());
+    requested.push(`${url.pathname}${url.search}`);
+    const side = url.pathname.includes("/ap-aging") ? "ap" : "ar";
+    return reply(route, envelope(report(side, url.pathname.includes("/parties/"))));
+  });
   return requested;
 }
 

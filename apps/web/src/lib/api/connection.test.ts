@@ -40,7 +40,7 @@ describe("ERP-345 versioned API connection settings", () => {
   it("rejects stale/invalid settings and strips Bearer from stored token", () => {
     const storage = memoryStorage();
     storage.setItem(API_CONNECTION_SETTINGS_KEY, JSON.stringify({ version: 2, baseUrl: "x" }));
-    expect(loadConnectionSettings(storage).organizationId).toBe("org-demo");
+    expect(loadConnectionSettings(storage).organizationId).toBe("naai");
     expect(parseConnectionSettings("not json")).toBeUndefined();
     expect(saveApiToken(storage, " Bearer secret-token ")).toBe("secret-token");
     expect(loadApiToken(storage)).toBe("secret-token");

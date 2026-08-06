@@ -42,14 +42,6 @@ export const adminNavigation = [
         status: "available",
       },
       {
-        key: "master-data",
-        label: "Dữ liệu nền",
-        href: "/settings/master-data",
-        description: "Tài khoản, thuế, dimensions, parties và dự án.",
-        icon: "folder",
-        status: "available",
-      },
-      {
         key: "customers",
         label: "Khách hàng",
         href: "/customers",
@@ -72,14 +64,6 @@ export const adminNavigation = [
     label: "Tài chính",
     items: [
       {
-        key: "ledger",
-        label: "Sổ kế toán",
-        href: "/accounting/journals",
-        description: "Journal, kỳ kế toán, Trial Balance và General Ledger.",
-        icon: "ledger",
-        status: "available",
-      },
-      {
         key: "documents",
         label: "Hóa đơn",
         href: "/documents",
@@ -89,18 +73,10 @@ export const adminNavigation = [
       },
       {
         key: "expenses",
-        label: "Chi phí",
+        label: "Chi phí không hóa đơn",
         href: "/expenses",
-        description: "Chi phí, hoàn ứng và review quản trị/CIT/VAT.",
+        description: "Các khoản chi phí vận hành không đủ dữ liệu để ghi nhận là hóa đơn đầu vào.",
         icon: "expense",
-        status: "available",
-      },
-      {
-        key: "banking",
-        label: "Ngân hàng & tiền mặt",
-        href: "/banking",
-        description: "Tài khoản tiền, import và reconciliation.",
-        icon: "bank",
         status: "available",
       },
       {

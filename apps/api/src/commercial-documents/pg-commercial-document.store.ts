@@ -51,7 +51,8 @@ export class PgCommercialDocumentStore {
     filters: { type?: string; state?: string; partyId?: string; projectId?: string },
   ) {
     const result = await this.pool.query(
-      `select d.*,coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null),'[]') lines
+      `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+       coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null),'[]') lines
        from commercial_documents d left join commercial_document_lines l
          on l.organization_id=d.organization_id and l.document_id=d.id
        where d.organization_id=$1 and ($2::text is null or d.type::text=$2)
@@ -83,7 +84,7 @@ export class PgCommercialDocumentStore {
 
   async get(organizationId: string, id: string) {
     const result = await this.pool.query(
-      `select d.*,
+      `select d.*,d.document_date::text document_date,d.due_date::text due_date,
        (select jsonb_build_object(
           'system', r.system,
           'externalId', r.external_id,

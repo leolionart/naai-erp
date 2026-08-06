@@ -47,6 +47,50 @@ async function invoke(args: string[]) {
   return { ...result, requestedUrl };
 }
 
+async function invokeRejected(resource: string) {
+  try {
+    await execFileAsync(
+      fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url)),
+      ["src/main.ts", resource, "list", "--base-url", "http://127.0.0.1:1"],
+      {
+        cwd: cliDirectory,
+        env: {
+          ...process.env,
+          NAAI_ERP_ORGANIZATION: "org-a",
+          NAAI_ERP_TOKEN: "secret",
+        },
+      },
+    );
+    throw new Error(`Expected ${resource} to be rejected`);
+  } catch (error) {
+    return error as Error & { code?: number; stdout?: string; stderr?: string };
+  }
+}
+
+describe("invoice MVP CLI resource boundary", () => {
+  it.each([
+    "bank-accounts",
+    "workers",
+    "timesheets",
+    "cost-rates",
+    "project-budgets",
+    "recognition-policies",
+    "overhead-policies",
+    "forecast-versions",
+    "outbound-events",
+    "evidence",
+    "journals",
+  ])("rejects surplus resource %s before making an HTTP request", async (resource) => {
+    const result = await invokeRejected(resource);
+
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stderr ?? "{}")).toEqual({
+      error: `Resource "${resource}" is unsupported in the invoice MVP CLI`,
+    });
+    expect(result.stdout).toBe("");
+  });
+});
+
 describe("ERP-640 CLI executable", () => {
   it("maps report options to the executive metrics projection query", async () => {
     const result = await invoke([
@@ -70,19 +114,11 @@ describe("ERP-640 CLI executable", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({ apiVersion: "v1" });
   });
 
-  it("maps ROI fact filters without routing through master data", async () => {
-    const result = await invoke([
-      "roi-input-facts",
-      "list",
-      "--definition-id",
-      "roi-project",
-      "--review-state",
-      "reviewed",
-    ]);
+  it("rejects ROI fact mutation workflow outside the invoice MVP", async () => {
+    const result = await invokeRejected("roi-input-facts");
 
-    expect(result.requestedUrl).toBe(
-      "/api/v1/organizations/org-a/roi-input-facts?definitionId=roi-project&reviewState=reviewed",
-    );
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("unsupported in the invoice MVP CLI");
   });
 });
 

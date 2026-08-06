@@ -42,12 +42,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
   financialStatementsApi,
-  loadApiToken,
-  loadConnectionSettings,
-  type ApiConnectionSettingsV1,
   type FinancialStatementDrilldown,
   type FinancialStatementKind,
   type FinancialStatementLine,
@@ -55,6 +50,7 @@ import {
   type RawFinancialStatementReport,
   type RawTaxExpenseReview,
   type TaxExpenseException,
+  useAuthenticatedApiClient,
 } from "@/lib/api";
 
 const endpointByKind = {
@@ -272,19 +268,6 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
   };
 }
 
-function useClient() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  return useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-}
-
 function reportQuery(searchParams: URLSearchParams, kind: FinancialStatementKind) {
   const query = new URLSearchParams();
   const endsOn = searchParams.get("endsOn") ?? today();
@@ -420,13 +403,17 @@ function SourceDrawer({
   line?: FinancialStatementLine;
   onClose: () => void;
 }>) {
-  const api = useClient();
+  const { client: api, hydrated, hasToken } = useAuthenticatedApiClient();
   const [data, setData] = useState<FinancialStatementDrilldown>();
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!report || !line) return;
+    if (!report || !line || !hydrated) return;
     setData(undefined);
     setError("");
+    if (!hasToken) {
+      setError("AUTH_REQUIRED");
+      return;
+    }
     const query = new URLSearchParams({
       statement: report.statement,
       lineCode: line.lineCode,
@@ -438,11 +425,14 @@ function SourceDrawer({
     if (report.range.startsOn) query.set("startsOn", report.range.startsOn);
     api
       .data<FinancialStatementDrilldown>(`${financialStatementsApi.drilldown}?${query}`)
-      .then(setData)
+      .then((next) => {
+        setData(next);
+        setError("");
+      })
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : "Không tải được nguồn"),
       );
-  }, [api, line, report]);
+  }, [api, hasToken, hydrated, line, report]);
   return (
     <Drawer
       direction="right"
@@ -615,32 +605,40 @@ function ReportKpis({ report }: Readonly<{ report: FinancialStatementReport }>) 
 }
 
 export function FinancialStatementWorkspace({ kind }: Readonly<{ kind: FinancialStatementKind }>) {
-  const api = useClient();
+  const { client: api, hydrated, hasToken } = useAuthenticatedApiClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const query = useMemo(
-    () => reportQuery(new URLSearchParams(searchParams.toString()), kind),
-    [kind, searchParams],
-  );
+  const searchKey = searchParams.toString();
+  const query = useMemo(() => reportQuery(new URLSearchParams(searchKey), kind), [kind, searchKey]);
   const [report, setReport] = useState<FinancialStatementReport>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedLine, setSelectedLine] = useState<FinancialStatementLine>();
   useEffect(() => {
+    if (!hydrated) return;
     setLoading(true);
     setError("");
+    if (!hasToken) {
+      setReport(undefined);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     api
       .data<RawFinancialStatementReport | FinancialStatementReport>(
         `${endpointByKind[kind]}?${query}`,
       )
-      .then((raw) => setReport(normalizeReport(kind, raw, query)))
+      .then((raw) => {
+        setReport(normalizeReport(kind, raw, query));
+        setError("");
+      })
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : "Không tải được báo cáo"),
       )
       .finally(() => setLoading(false));
-  }, [api, kind, query]);
+  }, [api, hasToken, hydrated, kind, query]);
   const apply = useCallback(
     (form: FormData) => {
       const next = new URLSearchParams();
@@ -755,26 +753,39 @@ export function FinancialStatementWorkspace({ kind }: Readonly<{ kind: Financial
 }
 
 export function TaxExpenseExceptionsWorkspace() {
-  const api = useClient();
+  const { client: api, hydrated, hasToken } = useAuthenticatedApiClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
   const [rows, setRows] = useState<readonly TaxExpenseException[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const query = useMemo(() => new URLSearchParams(searchParams.toString()), [searchParams]);
+  const query = useMemo(() => new URLSearchParams(searchKey), [searchKey]);
   useEffect(() => {
+    if (!hydrated) return;
+    setLoading(true);
+    setError("");
+    if (!hasToken) {
+      setRows([]);
+      setError("AUTH_REQUIRED");
+      setLoading(false);
+      return;
+    }
     api
       .data<RawTaxExpenseReview | { items: readonly TaxExpenseException[] }>(
         `${financialStatementsApi.expenseExceptions}?${query}`,
       )
-      .then((data) => setRows(data.items.map((item) => normalizeTaxException(item))))
+      .then((data) => {
+        setRows(data.items.map((item) => normalizeTaxException(item)));
+        setError("");
+      })
       .catch((reason: unknown) =>
         setError(reason instanceof Error ? reason.message : "Không tải được queue"),
       )
       .finally(() => setLoading(false));
-  }, [api, query]);
+  }, [api, hasToken, hydrated, query]);
   const columns = useMemo<readonly FinancialColumn<TaxExpenseException>[]>(
     () => [
       {

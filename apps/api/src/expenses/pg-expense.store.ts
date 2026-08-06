@@ -38,14 +38,14 @@ export class PgExpenseStore {
     filters: { state?: string; expenseClass?: string; payeePartyId?: string },
   ) {
     const r = await this.pool.query(
-      `select * from expenses where organization_id=$1 and ($2::text is null or state::text=$2) and ($3::text is null or expense_class::text=$3) and ($4::text is null or payee_party_id=$4) order by expense_date desc,id`,
+      `select e.*,e.expense_date::text expense_date from expenses e where e.organization_id=$1 and ($2::text is null or e.state::text=$2) and ($3::text is null or e.expense_class::text=$3) and ($4::text is null or e.payee_party_id=$4) order by e.expense_date desc,e.id`,
       [org, filters.state ?? null, filters.expenseClass ?? null, filters.payeePartyId ?? null],
     );
     return r.rows;
   }
   async get(org: string, id: string) {
     const r = await this.pool.query(
-      `select e.*,
+      `select e.*,e.expense_date::text expense_date,
        (select jsonb_build_object(
           'system', r.system,
           'externalId', r.external_id,

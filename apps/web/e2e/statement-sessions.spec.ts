@@ -3,7 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const envelope = (data: unknown) => ({
   apiVersion: "v1",
   requestId: "erp440",
-  organizationId: "org-demo",
+  organizationId: "naai",
   data,
 });
 const reply = (route: Route, data: unknown, status = 200) =>
@@ -82,7 +82,7 @@ async function installApi(page: Page) {
   const bodies: Record<string, Record<string, unknown> | undefined> = {};
   const requested: string[] = [];
   await page.route(
-    "http://localhost:3001/api/v1/organizations/org-demo/banking/statement-sessions**",
+    "http://localhost:3001/api/v1/organizations/naai/banking/statement-sessions**",
     async (route) => {
       const request = route.request(),
         url = new URL(request.url()),
