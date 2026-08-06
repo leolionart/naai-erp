@@ -387,13 +387,6 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
             </div>
           ) : null}
           <DialogFooter>
-            {quickRecord ? (
-              <Button variant="outline" asChild>
-                <Link href={`/${sourceKind}/${encodeURIComponent(text(quickRecord, "id"))}`}>
-                  Mở trang chi tiết
-                </Link>
-              </Button>
-            ) : null}
             <Button onClick={() => setQuickRecord(undefined)}>Đóng</Button>
           </DialogFooter>
         </DialogContent>
