@@ -44,6 +44,8 @@ const { values, positionals } = parseArgs({
     "account-id": { type: "string" },
     framework: { type: "string" },
     "mapping-version-id": { type: "string" },
+    "definition-id": { type: "string" },
+    "review-state": { type: "string" },
     "line-code": { type: "string" },
     "cost-center": { type: "string" },
     file: { type: "string" },
@@ -213,38 +215,73 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                               ...(values["line-code"] ? { lineCode: values["line-code"] } : {}),
                               ...(values.status ? { state: values.status } : {}),
                             }
-                          : resource === "financial-statement-mappings"
+                          : resource === "executive-metrics"
                             ? {
+                                ...(values.from ? { startsOn: values.from } : {}),
+                                ...(values.to ? { endsOn: values.to } : {}),
+                                ...(values["as-of"] ? { asOfInstant: values["as-of"] } : {}),
                                 ...(values.framework ? { framework: values.framework } : {}),
-                                ...(values.status ? { state: values.status } : {}),
-                                ...(values["as-of"] ? { effectiveOn: values["as-of"] } : {}),
+                                ...(values["project-id"]
+                                  ? { projectId: values["project-id"] }
+                                  : {}),
+                                ...(values.party ? { clientId: values.party } : {}),
+                                ...(values["cost-center"]
+                                  ? { costCenter: values["cost-center"] }
+                                  : {}),
+                                ...(values["service-line"]
+                                  ? { serviceLine: values["service-line"] }
+                                  : {}),
+                                ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
+                                ...(values["account-owner"]
+                                  ? { ownerId: values["account-owner"] }
+                                  : {}),
                               }
-                            : resource === "performance-comparisons"
+                            : resource === "roi-input-facts"
                               ? {
-                                  periodId: values["period-id"],
-                                  periodBasis: values["period-basis"],
-                                  actualBasis: values.basis,
-                                  asOfInstant: values["as-of"],
-                                  ...(values["forecast-version-id"]
-                                    ? { forecastVersionId: values["forecast-version-id"] }
+                                  ...(values["definition-id"]
+                                    ? { definitionId: values["definition-id"] }
                                     : {}),
-                                  ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
-                                  ...(values["service-line"]
-                                    ? { serviceLineCode: values["service-line"] }
-                                    : {}),
-                                  ...(values["account-owner"]
-                                    ? { ownerId: values["account-owner"] }
+                                  ...(values["review-state"]
+                                    ? { reviewState: values["review-state"] }
                                     : {}),
                                 }
-                              : resource.startsWith("bank-")
-                                ? {
-                                    ...(values["account-id"]
-                                      ? { financialAccountId: values["account-id"] }
-                                      : {}),
-                                    ...(values.from ? { from: values.from } : {}),
-                                    ...(values.to ? { to: values.to } : {}),
-                                  }
-                                : undefined;
+                              : resource === "executive-metric-policies" ||
+                                  resource === "roi-definitions"
+                                ? action === "get" && values.version
+                                  ? { version: values.version }
+                                  : undefined
+                                : resource === "financial-statement-mappings"
+                                  ? {
+                                      ...(values.framework ? { framework: values.framework } : {}),
+                                      ...(values.status ? { state: values.status } : {}),
+                                      ...(values["as-of"] ? { effectiveOn: values["as-of"] } : {}),
+                                    }
+                                  : resource === "performance-comparisons"
+                                    ? {
+                                        periodId: values["period-id"],
+                                        periodBasis: values["period-basis"],
+                                        actualBasis: values.basis,
+                                        asOfInstant: values["as-of"],
+                                        ...(values["forecast-version-id"]
+                                          ? { forecastVersionId: values["forecast-version-id"] }
+                                          : {}),
+                                        ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
+                                        ...(values["service-line"]
+                                          ? { serviceLineCode: values["service-line"] }
+                                          : {}),
+                                        ...(values["account-owner"]
+                                          ? { ownerId: values["account-owner"] }
+                                          : {}),
+                                      }
+                                    : resource.startsWith("bank-")
+                                      ? {
+                                          ...(values["account-id"]
+                                            ? { financialAccountId: values["account-id"] }
+                                            : {}),
+                                          ...(values.from ? { from: values.from } : {}),
+                                          ...(values.to ? { to: values.to } : {}),
+                                        }
+                                      : undefined;
     const result = await client.request(
       resource,
       action,

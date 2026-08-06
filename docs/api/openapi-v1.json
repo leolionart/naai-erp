@@ -2314,6 +2314,232 @@
         "responses": { "201": { "description": "Audited actual-fact backfill result" } }
       }
     },
+    "/api/v1/organizations/{organizationId}/executive-metric-policies": {
+      "get": {
+        "operationId": "listExecutiveMetricPolicies",
+        "tags": ["executive-metrics", "configuration"],
+        "summary": "List versioned executive metric formula and semantic account mapping policies",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "Executive metric policy versions" } }
+      },
+      "post": {
+        "operationId": "createExecutiveMetricPolicy",
+        "tags": ["executive-metrics", "configuration"],
+        "summary": "Create an idempotent draft executive metric policy",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateExecutiveMetricPolicyRequest" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Draft executive metric policy" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/executive-metric-policies/{id}": {
+      "get": {
+        "operationId": "getExecutiveMetricPolicy",
+        "tags": ["executive-metrics", "configuration"],
+        "summary": "Get an executive metric policy, optionally at an exact version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/OptionalVersion" }
+        ],
+        "responses": { "200": { "description": "Executive metric policy version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/executive-metric-policies/{id}/versions/{version}/approve": {
+      "post": {
+        "operationId": "approveExecutiveMetricPolicyVersion",
+        "tags": ["executive-metrics", "configuration", "maker-checker"],
+        "summary": "Approve an exact executive metric policy version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/RequiredVersion" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/ExecutiveMetricApproval" },
+        "responses": { "200": { "description": "Approved policy version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/roi-definitions": {
+      "get": {
+        "operationId": "listRoiDefinitions",
+        "tags": ["executive-metrics", "roi", "configuration"],
+        "summary": "List purpose-specific, versioned ROI definitions",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": { "200": { "description": "ROI definition versions" } }
+      },
+      "post": {
+        "operationId": "createRoiDefinition",
+        "tags": ["executive-metrics", "roi", "configuration"],
+        "summary": "Create an idempotent draft ROI definition without merging project, marketing, or custom purposes",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRoiDefinitionRequest" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Draft ROI definition" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/roi-definitions/{id}": {
+      "get": {
+        "operationId": "getRoiDefinition",
+        "tags": ["executive-metrics", "roi", "configuration"],
+        "summary": "Get an ROI definition, optionally at an exact version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/OptionalVersion" }
+        ],
+        "responses": { "200": { "description": "ROI definition version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/roi-definitions/{id}/versions/{version}/approve": {
+      "post": {
+        "operationId": "approveRoiDefinitionVersion",
+        "tags": ["executive-metrics", "roi", "maker-checker"],
+        "summary": "Approve an exact ROI definition version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/RequiredVersion" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/ExecutiveMetricApproval" },
+        "responses": { "200": { "description": "Approved ROI definition version" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/roi-input-facts": {
+      "get": {
+        "operationId": "listRoiInputFacts",
+        "tags": ["executive-metrics", "roi", "reviewed-facts"],
+        "summary": "List ROI benefit and included-cost facts by definition and review state",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "definitionId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "reviewState",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["pending", "reviewed", "rejected"] }
+          }
+        ],
+        "responses": { "200": { "description": "ROI input facts" } }
+      },
+      "post": {
+        "operationId": "createRoiInputFact",
+        "tags": ["executive-metrics", "roi", "reviewed-facts"],
+        "summary": "Create an idempotent nonnegative ROI benefit or included-cost fact",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRoiInputFactRequest" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Pending ROI input fact" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/roi-input-facts/{id}/review": {
+      "post": {
+        "operationId": "reviewRoiInputFact",
+        "tags": ["executive-metrics", "roi", "reviewed-facts", "maker-checker"],
+        "summary": "Mark an ROI input fact reviewed or rejected with a reason",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReviewRoiInputFactRequest" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Reviewed or rejected ROI input fact" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/executive-metrics": {
+      "get": {
+        "operationId": "getExecutiveMetrics",
+        "tags": ["executive-metrics", "reports"],
+        "summary": "Get equity consumption, operating burn, runway, profitability, returns, and purpose-specific ROI from one auditable cutoff",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricStartsOn" },
+          { "$ref": "#/components/parameters/ExecutiveMetricEndsOn" },
+          { "$ref": "#/components/parameters/ExecutiveMetricAsOfInstant" },
+          { "$ref": "#/components/parameters/ExecutiveMetricFramework" },
+          { "$ref": "#/components/parameters/ExecutiveMetricCostCenter" },
+          { "$ref": "#/components/parameters/ExecutiveMetricServiceLine" },
+          { "$ref": "#/components/parameters/ExecutiveMetricProjectId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricClientId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricTeamId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricOwnerId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete executive metric report",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExecutiveMetricsEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/executive-metrics/{projection}": {
+      "get": {
+        "operationId": "getExecutiveMetricProjection",
+        "tags": ["executive-metrics", "reports"],
+        "summary": "Get an equity, liquidity, profitability, returns, or ROI projection from the same report contract",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "projection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["equity", "liquidity", "profitability", "returns", "roi"]
+            }
+          },
+          { "$ref": "#/components/parameters/ExecutiveMetricStartsOn" },
+          { "$ref": "#/components/parameters/ExecutiveMetricEndsOn" },
+          { "$ref": "#/components/parameters/ExecutiveMetricAsOfInstant" },
+          { "$ref": "#/components/parameters/ExecutiveMetricFramework" },
+          { "$ref": "#/components/parameters/ExecutiveMetricCostCenter" },
+          { "$ref": "#/components/parameters/ExecutiveMetricServiceLine" },
+          { "$ref": "#/components/parameters/ExecutiveMetricProjectId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricClientId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricTeamId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricOwnerId" }
+        ],
+        "responses": { "200": { "description": "Selected executive metric projection" } }
+      }
+    },
     "/api/v1/organizations/{organizationId}/reports/performance-comparisons": {
       "get": {
         "operationId": "getPerformanceComparisons",
@@ -2367,6 +2593,76 @@
         "schema": {
           "type": "string"
         }
+      },
+      "ExecutiveMetricResourceId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
+      },
+      "OptionalVersion": {
+        "name": "version",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1 }
+      },
+      "RequiredVersion": {
+        "name": "version",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "integer", "minimum": 1 }
+      },
+      "ExecutiveMetricStartsOn": {
+        "name": "startsOn",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "ExecutiveMetricEndsOn": {
+        "name": "endsOn",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "ExecutiveMetricAsOfInstant": {
+        "name": "asOfInstant",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "format": "date-time" }
+      },
+      "ExecutiveMetricFramework": {
+        "name": "framework",
+        "in": "query",
+        "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
+      },
+      "ExecutiveMetricCostCenter": {
+        "name": "costCenter",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "ExecutiveMetricServiceLine": {
+        "name": "serviceLine",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "ExecutiveMetricProjectId": {
+        "name": "projectId",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "ExecutiveMetricClientId": {
+        "name": "clientId",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "ExecutiveMetricTeamId": {
+        "name": "teamId",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "ExecutiveMetricOwnerId": {
+        "name": "ownerId",
+        "in": "query",
+        "schema": { "type": "string" }
       },
       "TransactionId": {
         "name": "transactionId",
@@ -2532,6 +2828,260 @@
       }
     },
     "schemas": {
+      "ExecutiveMetricRatio": {
+        "type": "object",
+        "required": ["status", "formulaVersion", "numeratorMinor", "denominatorMinor", "valueBps"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["available", "zero_denominator", "non_positive_denominator"]
+          },
+          "formulaVersion": { "type": "string" },
+          "numeratorMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "denominatorMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "valueBps": { "type": ["integer", "null"] },
+          "reason": { "type": "string" }
+        }
+      },
+      "CreateExecutiveMetricPolicyRequest": {
+        "type": "object",
+        "required": [
+          "effectiveFrom",
+          "formulaVersion",
+          "formulaPolicy",
+          "changeReason",
+          "mappings"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "effectiveFrom": { "type": "string", "format": "date" },
+          "effectiveTo": { "type": ["string", "null"], "format": "date" },
+          "formulaVersion": { "type": "string", "minLength": 1 },
+          "formulaPolicy": {
+            "type": "object",
+            "required": [
+              "averageBurnMonths",
+              "equityConsumedDenominator",
+              "runwayCashSemantic",
+              "runwayFlowClass",
+              "signedRevenueDenominator"
+            ],
+            "properties": {
+              "averageBurnMonths": { "type": "integer", "minimum": 1 },
+              "equityConsumedDenominator": { "const": "contributed_capital" },
+              "runwayCashSemantic": { "const": "unrestricted_cash" },
+              "runwayFlowClass": { "const": "operating" },
+              "signedRevenueDenominator": { "type": "boolean" }
+            }
+          },
+          "changeReason": { "type": "string", "minLength": 1 },
+          "mappings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["semantic", "accountCode"],
+              "properties": {
+                "semantic": {
+                  "type": "string",
+                  "enum": [
+                    "contributed_capital",
+                    "retained_earnings",
+                    "unrestricted_cash",
+                    "restricted_cash",
+                    "reviewed_equity_adjustment",
+                    "other_equity",
+                    "owner_withdrawal"
+                  ]
+                },
+                "accountCode": { "type": "string" },
+                "sign": { "type": "integer", "enum": [-1, 1] },
+                "notes": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "CreateRoiDefinitionRequest": {
+        "type": "object",
+        "required": [
+          "purpose",
+          "name",
+          "effectiveFrom",
+          "formulaVersion",
+          "includedCostPolicy",
+          "changeReason"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "purpose": { "type": "string", "enum": ["project", "marketing", "custom"] },
+          "name": { "type": "string", "minLength": 1 },
+          "effectiveFrom": { "type": "string", "format": "date" },
+          "effectiveTo": { "type": ["string", "null"], "format": "date" },
+          "formulaVersion": { "type": "string", "minLength": 1 },
+          "includedCostPolicy": {
+            "type": "object",
+            "required": ["includedKinds", "excludedKinds"],
+            "properties": {
+              "includedKinds": { "type": "array", "items": { "type": "string" } },
+              "excludedKinds": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "changeReason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "CreateRoiInputFactRequest": {
+        "type": "object",
+        "required": [
+          "definitionId",
+          "definitionVersion",
+          "kind",
+          "periodStartsOn",
+          "periodEndsOn",
+          "amountMinor",
+          "currency",
+          "sourceType",
+          "sourceId"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "definitionId": { "type": "string", "minLength": 1 },
+          "definitionVersion": { "type": "integer", "minimum": 1 },
+          "kind": { "type": "string", "enum": ["benefit", "included_cost"] },
+          "periodStartsOn": { "type": "string", "format": "date" },
+          "periodEndsOn": { "type": "string", "format": "date" },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "amountMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Za-z]{3}$" },
+          "sourceType": { "type": "string", "minLength": 1 },
+          "sourceId": { "type": "string", "minLength": 1 }
+        }
+      },
+      "ReviewRoiInputFactRequest": {
+        "type": "object",
+        "required": ["state", "reason"],
+        "properties": {
+          "state": { "type": "string", "enum": ["reviewed", "rejected"] },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "PurposeSpecificRoi": {
+        "type": "object",
+        "required": [
+          "id",
+          "purpose",
+          "label",
+          "benefitMinor",
+          "includedCostMinor",
+          "returnMinor",
+          "policyVersionId",
+          "sourceIds",
+          "formulaVersion",
+          "ratio"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "purpose": { "type": "string", "enum": ["project", "marketing", "custom"] },
+          "label": { "type": "string" },
+          "benefitMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "includedCostMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "returnMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "policyVersionId": { "type": "string" },
+          "sourceIds": { "type": "array", "items": { "type": "string" } },
+          "formulaVersion": { "const": "purpose-specific-roi-v1" },
+          "ratio": { "$ref": "#/components/schemas/ExecutiveMetricRatio" }
+        }
+      },
+      "ExecutiveMetrics": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "organizationId",
+          "currency",
+          "period",
+          "dimensions",
+          "sourceBoundary",
+          "formulaVersion",
+          "grossMargin",
+          "operatingMargin",
+          "netMargin",
+          "ros",
+          "roe",
+          "roa",
+          "accumulatedLossMinor",
+          "contributedCapitalMinor",
+          "ownerLoansMinor",
+          "equityConsumed",
+          "equityRollForward",
+          "averageOperatingNetCashFlowMinor",
+          "netBurnMinor",
+          "unrestrictedCashMinor",
+          "restrictedCashMinor",
+          "runwayMonthsThousandths",
+          "runwayStatus",
+          "roi"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "organizationId": { "type": "string" },
+          "currency": { "type": "string" },
+          "period": {
+            "type": "object",
+            "required": ["startsOn", "endsOn", "asOfDate"],
+            "properties": {
+              "startsOn": { "type": "string", "format": "date" },
+              "endsOn": { "type": "string", "format": "date" },
+              "asOfDate": { "type": "string", "format": "date" }
+            }
+          },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "sourceBoundary": {
+            "type": "object",
+            "required": ["ledgerCutoffFingerprint", "sourceIds"],
+            "properties": {
+              "ledgerCutoffFingerprint": { "type": "string" },
+              "sourceIds": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "formulaVersion": { "const": "executive-metrics-v1" },
+          "grossMargin": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "operatingMargin": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "netMargin": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "ros": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "roe": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "roa": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "accumulatedLossMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "contributedCapitalMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "ownerLoansMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "equityConsumed": { "$ref": "#/components/schemas/ExecutiveMetricRatio" },
+          "equityRollForward": { "type": "object", "additionalProperties": true },
+          "burnFormulaVersion": { "type": "string" },
+          "averageOperatingNetCashFlowMinor": { "type": ["string", "null"] },
+          "netBurnMinor": { "type": ["string", "null"] },
+          "unrestrictedCashMinor": { "type": "string" },
+          "restrictedCashMinor": { "type": "string" },
+          "runwayFormulaVersion": { "type": "string" },
+          "runwayMonthsThousandths": { "type": ["string", "null"] },
+          "runwayStatus": {
+            "type": "string",
+            "enum": ["available", "cash_generating", "missing_reviewed_burn"]
+          },
+          "roi": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PurposeSpecificRoi" }
+          }
+        }
+      },
+      "ExecutiveMetricsEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/ExecutiveMetrics" }
+        }
+      },
       "AgingBucket": {
         "type": "string",
         "enum": ["current", "1_30", "31_60", "61_90", "over_90", "unclassified"]
@@ -3499,6 +4049,18 @@
       }
     },
     "requestBodies": {
+      "ExecutiveMetricApproval": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["reason"],
+              "properties": { "reason": { "type": "string", "minLength": 1 } }
+            }
+          }
+        }
+      },
       "CreateForecastComponent": {
         "required": true,
         "content": {

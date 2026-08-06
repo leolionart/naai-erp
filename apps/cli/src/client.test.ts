@@ -116,6 +116,88 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("routes ERP-640 executive metric configuration, ROI facts, and projections", async () => {
+    const fetchFn = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+
+    await client.request("executive-metric-policies", "list");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/executive-metric-policies",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("executive-metric-policies", "get", { version: 2 }, "policy-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/executive-metric-policies/policy-1?version=2",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request(
+      "executive-metric-policies",
+      "approve",
+      { reason: "Reviewed" },
+      "policy-1",
+      "2",
+      "approve-policy-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/executive-metric-policies/policy-1/versions/2/approve",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    await client.request("roi-definitions", "get", { version: 3 }, "roi-project");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/roi-definitions/roi-project?version=3",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("roi-input-facts", "list", {
+      definitionId: "roi-project",
+      reviewState: "reviewed",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/roi-input-facts?definitionId=roi-project&reviewState=reviewed",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request(
+      "roi-input-facts",
+      "review",
+      { state: "reviewed", reason: "Source checked" },
+      "fact-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/roi-input-facts/fact-1/review",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    const reportQuery = {
+      startsOn: "2026-01-01",
+      endsOn: "2026-01-31",
+      asOfInstant: "2026-02-01T00:00:00Z",
+      framework: "TT133",
+      projectId: "project-1",
+    };
+    await client.request("executive-metrics", "get", reportQuery);
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      expect.stringContaining("/reports/executive-metrics?startsOn=2026-01-01"),
+      expect.objectContaining({ method: "GET" }),
+    );
+    for (const projection of ["equity", "liquidity", "profitability", "returns", "roi"]) {
+      await client.request("executive-metrics", projection, reportQuery);
+      expect(fetchFn).toHaveBeenLastCalledWith(
+        expect.stringContaining(`/reports/executive-metrics/${projection}?`),
+        expect.objectContaining({ method: "GET" }),
+      );
+    }
+  });
+
   it("calls REST API with scoped bearer and correlation headers", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ apiVersion: "v1", data: [] }), {
