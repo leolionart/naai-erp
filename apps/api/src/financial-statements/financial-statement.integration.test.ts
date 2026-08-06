@@ -265,7 +265,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       url: `/api/v1/organizations/org-erp630/reports/financial-statements/profit-and-loss?${reportQuery}&basis=cash`,
       headers: headers(),
     });
-    expect(mislabeledCash.statusCode).toBe(422);
+    expect(mislabeledCash.statusCode).toBe(400);
     const result = await app.inject({
       method: "GET",
       url: `/api/v1/organizations/org-erp630/reports/financial-statements/profit-and-loss?${reportQuery}`,

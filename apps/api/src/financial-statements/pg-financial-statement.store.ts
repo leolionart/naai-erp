@@ -364,12 +364,14 @@ export class PgFinancialStatementStore {
     return result.rows[0].base_currency;
   }
   private cutoff(rows: LedgerRow[], throughDate: string): LedgerCutoff {
+    const maxPostedAt = rows.reduce(
+      (max, row) =>
+        new Date(row.posted_at).getTime() > max.getTime() ? new Date(row.posted_at) : max,
+      new Date("1970-01-01T00:00:00.000Z"),
+    );
     return {
       throughDate,
-      maxPostedAt: rows.reduce(
-        (max, row) => (row.posted_at > max ? row.posted_at : max),
-        "1970-01-01T00:00:00.000Z",
-      ),
+      maxPostedAt: maxPostedAt.toISOString(),
       journalCount: new Set(rows.map((r) => r.journal_id)).size,
       lineCount: rows.length,
       sourceFingerprint: fingerprint(rows),
@@ -518,7 +520,7 @@ export class PgFinancialStatementStore {
     const source = await this.pool.query(
       `select concat('document:',d.id,':',l.line_number) id,d.id source_id,
         case when d.type='credit_note' and original.type='purchase_invoice' then 'purchase_credit_note'
-             when d.type='credit_note' then 'sales_credit_note' else d.type end source_type,
+             when d.type='credit_note' then 'sales_credit_note' else d.type::text end source_type,
         case when d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice') then 'output' else 'input' end tax_kind,
         l.tax_minor::text tax_minor,case when d.type='credit_note' then 'reversal' else 'normal' end direction,
         case when d.type='purchase_invoice' or (d.type='credit_note' and original.type='purchase_invoice') then 'unreviewed' else null end review_state,null::text eligible_minor,
