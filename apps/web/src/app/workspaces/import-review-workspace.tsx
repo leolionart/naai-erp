@@ -312,7 +312,7 @@ export function ImportReviewWorkspace() {
   const [parties, setParties] = useState<readonly MasterRow[]>([]);
   const [projects, setProjects] = useState<readonly MasterRow[]>([]);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState("pending_review");
   const [kind, setKind] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
