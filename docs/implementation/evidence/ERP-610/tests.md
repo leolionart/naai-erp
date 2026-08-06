@@ -44,4 +44,4 @@ The PostgreSQL integration test covers two durability controls in addition to fo
 - forecast publish validates composition, calculates the result and stores forecast state plus `composition_snapshot` atomically in the same transaction;
 - after publish, insertion of a late backdated recognition event does not change readback of the retained 90,000,000 projected-revenue snapshot.
 
-It was not run locally because no local PostgreSQL service was available. These PostgreSQL assertions and the complete quality job must pass for the exact pushed commit in GitHub Actions before ERP-610 is marked done.
+It was not run locally because no local PostgreSQL service was available. Exact-commit CI executed the PostgreSQL assertions successfully for `6cb0f3e6025549bf16f00f23ff296ddd5f694143`; the complete job, including 37 Playwright journeys, passed at https://github.com/leolionart/naai-erp/actions/runs/31058711237.

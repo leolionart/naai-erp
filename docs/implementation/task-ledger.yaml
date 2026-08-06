@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T06:30:06+07:00
+updated_at: 2026-08-06T07:16:37+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G6
-current_task: ERP-610
+current_task: ERP-620
 
 tasks:
   - id: ERP-000
@@ -762,20 +762,26 @@ tasks:
   - id: ERP-610
     title: Revenue and expense forecast
     phase: P6
-    status: in_progress
+    status: done
     dependencies: [ERP-600, ERP-520]
     business_rules: [BR-FCT-003, BR-FCT-004]
     tests: [T-FCT-003, T-FCT-004]
     evidence: docs/implementation/evidence/ERP-610/
     started_at: 2026-08-06T06:30:06+07:00
+    completed_at: 2026-08-06T07:16:37+07:00
+    implementation_commit: e95742f5b4c60d8d9e26059d5e9d79ce5c6bd90f
+    proof_commit: 6cb0f3e6025549bf16f00f23ff296ddd5f694143
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31058711237
 
   - id: ERP-620
     title: Performance comparisons
     phase: P6
-    status: blocked
+    status: in_progress
     dependencies: [ERP-610]
     business_rules: [BR-KPI-001, BR-KPI-002]
     tests: [T-KPI-001, T-KPI-002]
+    evidence: docs/implementation/evidence/ERP-620/
+    started_at: 2026-08-06T07:16:37+07:00
 
   - id: ERP-630
     title: Financial statements and tax reconciliation
