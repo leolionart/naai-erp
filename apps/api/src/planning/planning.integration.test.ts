@@ -140,6 +140,27 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       "forecast-create",
     );
     expect(created.statusCode, created.body).toBe(201);
+    const openingCash = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/forecast-versions/forecast-aug/components`,
+      headers: {
+        authorization: "Bearer maker-token",
+        "idempotency-key": "forecast-opening-cash",
+      },
+      payload: {
+        schemaVersion: 1,
+        id: "forecast-aug-opening",
+        section: "cash",
+        kind: "opening_cash",
+        direction: "increase",
+        scheduledOn: "2026-08-31",
+        amountMinor: "0",
+        currency: "VND",
+        source: { type: "bank_balance", id: "forecast-aug-opening-balance" },
+        reason: "Month-end opening cash control",
+      },
+    });
+    expect(openingCash.statusCode, openingCash.body).toBe(201);
     const published = await request(
       "forecast-versions",
       "forecast-aug",

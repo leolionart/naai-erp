@@ -209,7 +209,7 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
     const excluded = await post(
       "/forecast-versions/forecast-610/components/manual-revenue/exclude",
       crossOperationPayload,
-      "checker610-token",
+      "maker610-token",
       "cross-operation-key",
     );
     expect(excluded.statusCode, excluded.body).toBe(201);
