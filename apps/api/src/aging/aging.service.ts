@@ -27,7 +27,9 @@ export class AgingService {
     };
   }
   parseQuery(input: Record<string, string | undefined>): AgingQuery {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.asOf ?? "")) throw new Error("VALIDATION_FAILED");
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const asOf = input.asOf ?? todayStr;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) throw new Error("VALIDATION_FAILED");
     const limit = input.limit ? Number(input.limit) : 50;
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("VALIDATION_FAILED");
     if (input.includeSettled && !["true", "false"].includes(input.includeSettled))
@@ -40,7 +42,7 @@ export class AgingService {
     if (input.paymentStatus && !["unpaid", "partially_paid", "paid"].includes(input.paymentStatus))
       throw new Error("VALIDATION_FAILED");
     return {
-      asOf: input.asOf!,
+      asOf,
       ...(input.partyId ? { partyId: input.partyId } : {}),
       ...(input.accountCode ? { accountCode: input.accountCode } : {}),
       ...(input.bucket ? { bucket: input.bucket as NonNullable<AgingQuery["bucket"]> } : {}),

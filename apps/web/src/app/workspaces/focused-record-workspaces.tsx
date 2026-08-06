@@ -386,9 +386,6 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
               )}
             </div>
           ) : null}
-          <DialogFooter>
-            <Button onClick={() => setQuickRecord(undefined)}>Đóng</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

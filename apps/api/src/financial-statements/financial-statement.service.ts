@@ -34,23 +34,23 @@ export class FinancialStatementService {
     };
   }
   parseQuery(input: Record<string, string | undefined>, balanceSheet = false): StatementQuery {
-    const endsOn = input.endsOn ?? input.to;
-    const startsOn = input.startsOn ?? input.from;
-    const asOfInstant = input.asOfInstant ?? input.asOf;
-    const framework = input.framework ?? "TT133";
-    const basis = input.basis ?? "accrual";
-    if (
-      !endsOn ||
-      !DATE.test(endsOn) ||
-      (!balanceSheet && (!startsOn || !DATE.test(startsOn))) ||
-      (startsOn && startsOn > endsOn) ||
-      !asOfInstant ||
-      Number.isNaN(Date.parse(asOfInstant)) ||
-      !asOfInstant.includes("T") ||
-      !["TT133", "TT200"].includes(framework) ||
-      !["accrual", "cash"].includes(basis)
-    )
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const endsOn = (input.endsOn ?? input.to ?? todayStr).substring(0, 10);
+    const defaultStart = `${endsOn.substring(0, 4)}-01-01`;
+    const startsOn = (input.startsOn ?? input.from ?? defaultStart).substring(0, 10);
+    const rawAsOf = input.asOfInstant ?? input.asOf;
+    const asOfInstant =
+      rawAsOf && rawAsOf.includes("T") && !Number.isNaN(Date.parse(rawAsOf))
+        ? rawAsOf
+        : `${endsOn}T16:59:59.999Z`;
+    const framework = ["TT133", "TT200"].includes(input.framework ?? "")
+      ? input.framework!
+      : "TT133";
+    const basis = ["accrual", "cash"].includes(input.basis ?? "") ? input.basis! : "accrual";
+
+    if (!DATE.test(endsOn) || (!balanceSheet && !DATE.test(startsOn)) || startsOn > endsOn) {
       throw new Error("VALIDATION_FAILED");
+    }
     const dimensions = Object.fromEntries(
       Object.entries({
         cost_center: input.costCenter ?? input.costCenterId ?? input.costCenterCode,
