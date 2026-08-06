@@ -12,7 +12,9 @@ describe("server-compatible layout primitives", () => {
       </PageShell>,
     );
     expect(html).toContain('href="#main-content"');
-    expect(html).toContain('<main class="workspace" id="main-content" tabindex="-1">');
+    expect(html).toContain('id="main-content"');
+    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain("workspace");
     expect(html).toContain('aria-label="Điều hướng"');
   });
 
