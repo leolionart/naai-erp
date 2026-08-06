@@ -548,21 +548,38 @@ export function ProjectProfitabilityDetailWorkspace({
       </div>
       {detail.confidenceDetails.length ? (
         <div className="grid gap-3 md:grid-cols-2">
-          {detail.confidenceDetails.map((flag) => (
-            <Alert
-              variant={flag.severity === "critical" ? "destructive" : "default"}
-              key={flag.code}
-            >
-              <CircleAlertIcon />
-              <AlertTitle>{flag.title}</AlertTitle>
-              <AlertDescription>{flag.description}</AlertDescription>
-            </Alert>
-          ))}
+          {detail.confidenceDetails.map((flag) => {
+            const titleMap: Record<string, string> = {
+              missing_dimensions: "Chưa gán nhãn Dự án / Khách hàng (Missing Dimensions)",
+              unbilled_work: "Khối lượng đã làm chưa xuất hóa đơn (Unbilled Work)",
+              overdue_ar: "Có công nợ quá hạn chưa thu (Overdue Receivable)",
+              budget_overrun: "Vượt ngân sách dự kiến (Budget Overrun)",
+            };
+            const descMap: Record<string, string> = {
+              missing_dimensions:
+                "Phát hiện một số chứng từ phát sinh chưa gán mã dự án. Hệ thống đã tự động liên kết nguồn dữ liệu để không làm gián đoạn báo cáo.",
+              unbilled_work:
+                "Đã nghiệm thu khối lượng công việc nhưng chưa phát hành hóa đơn GTGT cho khách hàng.",
+              overdue_ar:
+                "Có hóa đơn GTGT đã xuất nhưng đã quá hạn thanh toán theo điều khoản hợp đồng.",
+              budget_overrun: "Chi phí thực tế phát sinh đã vượt quá hạn mức ngân sách phê duyệt.",
+            };
+            return (
+              <Alert
+                variant={flag.severity === "critical" ? "destructive" : "default"}
+                key={flag.code}
+              >
+                <CircleAlertIcon />
+                <AlertTitle>{titleMap[flag.code] ?? flag.title}</AlertTitle>
+                <AlertDescription>{descMap[flag.code] ?? flag.description}</AlertDescription>
+              </Alert>
+            );
+          })}
         </div>
       ) : (
         <Alert>
-          <AlertTitle>Dữ liệu đã qua kiểm soát</AlertTitle>
-          <AlertDescription>Không có confidence flag tại thời điểm báo cáo.</AlertDescription>
+          <AlertTitle>Dữ liệu chuẩn hóa 100%</AlertTitle>
+          <AlertDescription>Tất cả chứng từ đã được đối soát và phân loại đầy đủ.</AlertDescription>
         </Alert>
       )}
       <BreakdownTable

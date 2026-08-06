@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ChevronLeft, ChevronRight, Filter, Search } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -330,7 +331,7 @@ function reportQuery(
       : undefined;
 
   const kindParam = (searchParams.get("periodKind") as PeriodKind | null) ?? "year";
-  const requestedPeriod = searchParams.get("periodId");
+  const requestedPeriod = searchParams.get("periodId") ?? searchParams.get("period");
   const periodMatch = /^(?:CAL-)?(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(
     requestedPeriod ?? `CAL-${currentMonth()}`,
   );
@@ -516,56 +517,126 @@ function SourceDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="flex max-h-[min(90vh,48rem)] flex-col sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Nguồn · {line?.label}</DialogTitle>
-          <DialogDescription>
-            Journal, document/expense source IDs từ cùng cutoff và mapping version của báo cáo.
-          </DialogDescription>
+      <DialogContent className="flex max-h-[min(90vh,52rem)] flex-col sm:max-w-4xl">
+        <DialogHeader className="border-b pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-xl font-bold">
+                Chi tiết Nguồn · {line?.label}
+              </DialogTitle>
+              <DialogDescription className="text-xs mt-1">
+                Danh sách bút toán & chứng từ cấu thành nên chỉ số {line?.label} trong kỳ báo cáo.
+              </DialogDescription>
+            </div>
+            {line?.amountMinor ? (
+              <div className="text-right">
+                <span className="text-xs text-muted-foreground block">Tổng tiền chỉ số:</span>
+                <span className="text-lg font-bold text-primary">
+                  <MoneyCell minor={line.amountMinor} />
+                </span>
+              </div>
+            ) : null}
+          </div>
         </DialogHeader>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2 pr-1">
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Không tải được nguồn</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
+          {data?.items && data.items.length > 0 ? (
+            <div className="rounded-md border overflow-hidden">
+              <div className="bg-muted/50 px-4 py-2 text-xs font-semibold grid grid-cols-12 gap-2 border-b">
+                <span className="col-span-3">TÀI KHOẢN KẾ TOÁN</span>
+                <span className="col-span-3">NGÀY & MÃ BÚT TOÁN</span>
+                <span className="col-span-3">CHỨNG TỪ NGUỒN</span>
+                <span className="col-span-3 text-right">SỐ TIỀN</span>
+              </div>
+              <div className="divide-y max-h-96 overflow-y-auto">
+                {data.items.map((item) => (
+                  <div
+                    key={`${item.journalId}:${item.lineNumber}`}
+                    className="px-4 py-3 text-sm grid grid-cols-12 gap-2 items-center hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="col-span-3">
+                      <p className="font-semibold text-xs text-primary">{item.accountCode}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.accountName}</p>
+                    </div>
+                    <div className="col-span-3">
+                      <p className="text-xs font-mono">{item.journalDate}</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Journal #{item.journalId}
+                      </p>
+                    </div>
+                    <div className="col-span-3">
+                      {item.sourceId ? (
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge
+                            variant="secondary"
+                            className="font-mono text-[10px] px-1.5 py-0.5"
+                          >
+                            {item.sourceId}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="h-6 text-[11px] px-1.5 text-blue-600 dark:text-blue-400"
+                          >
+                            <Link
+                              href={
+                                item.sourceId.startsWith("doc-") || item.sourceId.startsWith("inv-")
+                                  ? `/documents/${encodeURIComponent(item.sourceId)}`
+                                  : `/documents`
+                              }
+                            >
+                              Mở chứng từ <ChevronRight className="size-3 ml-0.5" />
+                            </Link>
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">
+                          Bút toán trực tiếp
+                        </span>
+                      )}
+                    </div>
+                    <div className="col-span-3 text-right">
+                      <span className="font-bold text-sm">
+                        <MoneyCell minor={item.amountMinor} />
+                      </span>
+                      <p className="text-[10px] text-muted-foreground">
+                        Dòng {item.lineNumber} · v{item.journalVersion}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : !error ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              Đang tải danh sách dòng bút toán chi tiết...
+            </div>
+          ) : null}
+
           {line?.sourceLineIds?.length ? (
-            <section className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Source IDs</h3>
-              <div className="flex flex-wrap gap-2">
+            <section className="flex flex-col gap-1.5 rounded-lg border bg-muted/20 p-3 mt-2">
+              <h4 className="text-xs font-semibold text-muted-foreground">
+                DANH SÁCH MÃ CHỨNG TỪ NGUỒN (SOURCE IDS)
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
                 {line.sourceLineIds.map((id) => (
-                  <Badge key={id} variant="outline" className="max-w-full break-all">
+                  <Badge key={id} variant="outline" className="font-mono text-xs bg-background">
                     {id}
                   </Badge>
                 ))}
               </div>
             </section>
           ) : null}
-          {data?.items.map((item) => (
-            <Card key={`${item.journalId}:${item.lineNumber}`}>
-              <CardHeader>
-                <CardTitle>
-                  {item.accountCode} · {item.accountName}
-                </CardTitle>
-                <CardDescription>
-                  {item.journalDate} · Journal {item.journalId}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2 text-sm">
-                <MoneyCell minor={item.amountMinor} />
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">Line {item.lineNumber}</Badge>
-                  <Badge variant="outline">v{item.journalVersion}</Badge>
-                  {item.sourceId ? <Badge variant="outline">{item.sourceId}</Badge> : null}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
         </div>
-        <DialogFooter>
+        <DialogFooter className="border-t pt-3">
           <DialogClose asChild>
-            <Button variant="outline">Đóng</Button>
+            <Button variant="outline">Đóng cửa sổ</Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
@@ -690,10 +761,17 @@ export function FinancialStatementWorkspace({
   const searchKey = searchParams.toString();
 
   const periodKind = (searchParams.get("periodKind") as PeriodKind | null) ?? "year";
-  const requestedAnchor = (searchParams.get("periodId") ?? `CAL-${currentMonth()}`).replace(
-    /^CAL-/,
-    "",
-  );
+  const defaultAnchor =
+    routeValue && /^\d{4}/.test(routeValue)
+      ? `${routeValue.slice(0, 4)}-01`
+      : searchParams.get("startsOn")
+        ? `${searchParams.get("startsOn")!.slice(0, 7)}`
+        : `CAL-${currentMonth()}`;
+  const requestedAnchor = (
+    searchParams.get("periodId") ??
+    searchParams.get("period") ??
+    defaultAnchor
+  ).replace(/^CAL-/, "");
   const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor)
     ? requestedAnchor
     : currentMonth();
