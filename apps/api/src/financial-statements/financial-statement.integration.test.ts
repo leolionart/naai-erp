@@ -319,10 +319,14 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       expect.objectContaining({ sourceId: expect.any(String), sourceType: "journal_entry" }),
     );
     await pool.query(`insert into journal_entries (organization_id,id,journal_date,description,currency,state,posted_at,posted_by,approved_at,approved_by,approval_reason)
-      values ('org-erp630','bad-ledger','2026-08-31','bad','VND','posted','2026-08-31T12:00:00Z','maker','2026-08-31T12:00:00Z','approver','test')`);
+      values ('org-erp630','bad-ledger','2026-08-31','bad','VND','posted','2026-09-01T01:00:00Z','maker','2026-09-01T01:00:00Z','approver','test')`);
     await pool.query(`insert into journal_lines (organization_id,journal_id,line_number,account_code,debit_minor,description,dimensions)
       values ('org-erp630','bad-ledger',1,'999-UNMAPPED',1,'deliberate mismatch','{}')`);
-    const mismatch = await app.inject({ method: "GET", url, headers: headers() });
+    const mismatch = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-erp630/reports/financial-statements/balance-sheet?endsOn=2026-08-31&asOfInstant=2026-09-01T01%3A00%3A00.000Z&framework=TT133",
+      headers: headers(),
+    });
     expect(mismatch.statusCode, mismatch.body).toBe(400);
     expect(mismatch.json().error).toMatchObject({
       code: "BALANCE_SHEET_SOURCE_LEDGER_IS_UNBALANCED",
