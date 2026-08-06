@@ -85,11 +85,14 @@ function text(row: Row | undefined, ...keys: string[]) {
   }
   return "";
 }
-function money(value: string) {
+function money(value: unknown) {
+  if (value === undefined || value === null || value === "") return "—";
   try {
-    return `${new Intl.NumberFormat("vi-VN").format(BigInt(value || "0"))} ₫`;
+    const cleanStr = String(value).replace(/[^0-9-]/g, "");
+    if (!cleanStr) return `${value} ₫`;
+    return `${new Intl.NumberFormat("vi-VN").format(BigInt(cleanStr))} ₫`;
   } catch {
-    return value || "—";
+    return `${value} ₫`;
   }
 }
 function human(value: string) {
