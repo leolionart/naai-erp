@@ -17,6 +17,7 @@ describe("ERP-640 executive metric schema", () => {
         "retained_earnings",
         "other_equity",
         "owner_withdrawal",
+        "owner_loan",
         "unrestricted_cash",
         "restricted_cash",
       ]),

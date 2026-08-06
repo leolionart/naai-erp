@@ -78,6 +78,7 @@ export const executiveMetricSemanticKind = pgEnum("executive_metric_semantic_kin
   "reviewed_equity_adjustment",
   "other_equity",
   "owner_withdrawal",
+  "owner_loan",
 ]);
 export const roiPurpose = pgEnum("roi_purpose", ["project", "marketing", "custom"]);
 export const roiInputKind = pgEnum("roi_input_kind", ["benefit", "included_cost"]);

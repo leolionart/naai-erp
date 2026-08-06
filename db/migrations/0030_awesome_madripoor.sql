@@ -1,5 +1,5 @@
 CREATE TYPE "public"."executive_metric_policy_state" AS ENUM('draft', 'approved', 'retired');--> statement-breakpoint
-CREATE TYPE "public"."executive_metric_semantic_kind" AS ENUM('contributed_capital', 'retained_earnings', 'unrestricted_cash', 'restricted_cash', 'reviewed_equity_adjustment', 'other_equity', 'owner_withdrawal');--> statement-breakpoint
+CREATE TYPE "public"."executive_metric_semantic_kind" AS ENUM('contributed_capital', 'retained_earnings', 'unrestricted_cash', 'restricted_cash', 'reviewed_equity_adjustment', 'other_equity', 'owner_withdrawal', 'owner_loan');--> statement-breakpoint
 CREATE TYPE "public"."roi_input_kind" AS ENUM('benefit', 'included_cost');--> statement-breakpoint
 CREATE TYPE "public"."roi_input_review_state" AS ENUM('pending', 'reviewed', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."roi_purpose" AS ENUM('project', 'marketing', 'custom');--> statement-breakpoint

@@ -1,5 +1,5 @@
 {
-  "id": "2a604770-4a15-45d1-96b4-f7be6fefaacd",
+  "id": "405dfc5f-cc37-435d-85a0-a06d5e98b87e",
   "prevId": "10920e05-e91f-4c86-a9d6-468ce8239a03",
   "version": "7",
   "dialect": "postgresql",
@@ -15243,7 +15243,8 @@
         "restricted_cash",
         "reviewed_equity_adjustment",
         "other_equity",
-        "owner_withdrawal"
+        "owner_withdrawal",
+        "owner_loan"
       ]
     },
     "public.expense_class": {
