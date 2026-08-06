@@ -203,13 +203,12 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
     }
   }
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold">Danh sách {current.singular}</h2>
-          <p className="text-sm text-muted-foreground">
-            Mở từng bản ghi bằng URL ổn định để kiểm tra và thao tác lifecycle.
-          </p>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs font-normal">
+            {rows.length} bản ghi
+          </Badge>
         </div>
         <div className="flex gap-2">
           <FilterPopover
@@ -219,10 +218,10 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
             params={new URLSearchParams(key)}
             onApply={apply}
           />
-          <Button asChild>
+          <Button asChild size="sm">
             <Link href={`/${sourceKind}/new`}>
               <Plus data-icon="inline-start" />
-              Tạo mới
+              Tạo {current.singular} mới
             </Link>
           </Button>
         </div>
@@ -234,11 +233,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
         </Alert>
       ) : null}
       <Card>
-        <CardHeader>
-          <CardTitle>{current.title}</CardTitle>
-          <CardDescription>{rows.length} bản ghi theo bộ lọc hiện tại.</CardDescription>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <Skeleton className="h-64 w-full" />
           ) : rows.length ? (
