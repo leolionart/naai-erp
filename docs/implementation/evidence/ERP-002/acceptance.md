@@ -9,4 +9,3 @@
 | No domain schema precedes ADR approval | PASS |
 | Documentation verification is automated | PASS |
 | Full repository check remains green | PASS |
-

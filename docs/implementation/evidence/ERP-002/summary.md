@@ -11,4 +11,3 @@ Accepted seven Architecture Decision Records covering:
 7. Source/dependency license policy.
 
 No accounting schema was introduced before these decisions.
-

@@ -10,4 +10,3 @@
 | Health/readiness contract matches scaffold endpoints | PASS |
 | Automated baseline verification passes | PASS |
 | Full repository check remains green | PASS |
-

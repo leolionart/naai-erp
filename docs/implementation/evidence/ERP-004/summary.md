@@ -9,4 +9,3 @@ Implemented the security/operations baseline:
 - Backup/restore design.
 - API/web/worker health-readiness contract.
 - Automated baseline document verification.
-

@@ -13,4 +13,3 @@ Security tests include:
 - Empty organization identifier rejected.
 - Explicit role allowed.
 - Unassigned role denied by default.
-

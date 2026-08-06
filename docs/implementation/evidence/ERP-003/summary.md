@@ -9,4 +9,3 @@ Implemented the engineering foundation:
 - Git pre-commit hook setup.
 - Baseline GitHub Actions CI for Node 22/pnpm 10.
 - ADR-008 for database access and migrations.
-

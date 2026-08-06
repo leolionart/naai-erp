@@ -4,4 +4,3 @@
 - Authentication provider remains replaceable; organization/auth contracts are fixed, vendor choice is not.
 - Vietnam tax rules remain configurable and require accountant review.
 - Dependency licenses need automated inventory/scanning in later CI/release tasks.
-

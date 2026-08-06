@@ -10,4 +10,3 @@
 | Pre-commit hook runs format/lint/docs checks | PASS |
 | Baseline GitHub Actions CI exists | PASS |
 | No business schema added before owning task | PASS |
-
