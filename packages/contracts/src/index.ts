@@ -292,3 +292,10 @@ export {
   type WorkbookCellValueContract,
   type WorkbookSheetContract,
 } from "./accountant-exports.js";
+export {
+  FINANCIAL_DRILLDOWN_CONTRACT_VERSION,
+  type FinancialSourceRefContract,
+  type FinancialSourceResolutionContract,
+  type FinancialSourceResourceTypeContract,
+  type FinancialStatementDrilldownItemContract,
+} from "./financial-drilldown.js";

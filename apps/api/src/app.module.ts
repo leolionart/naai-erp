@@ -96,6 +96,7 @@ import { FinancialStatementController } from "./financial-statements/financial-s
 import { FinancialStatementService } from "./financial-statements/financial-statement.service.js";
 import { FINANCIAL_STATEMENT_STORE } from "./financial-statements/financial-statement.types.js";
 import { PgFinancialStatementStore } from "./financial-statements/pg-financial-statement.store.js";
+import { FinancialSourceResolver } from "./financial-statements/financial-source-resolver.js";
 import { ExecutiveMetricController } from "./executive-metrics/executive-metric.controller.js";
 import { ExecutiveMetricService } from "./executive-metrics/executive-metric.service.js";
 import { EXECUTIVE_METRIC_STORE } from "./executive-metrics/executive-metric.types.js";
@@ -202,6 +203,7 @@ import { PgReportExportStore } from "./report-exports/pg-report-export.store.js"
     PgPerformanceComparisonStore,
     { provide: PERFORMANCE_STORE, useExisting: PgPerformanceComparisonStore },
     FinancialStatementService,
+    FinancialSourceResolver,
     PgFinancialStatementStore,
     { provide: FINANCIAL_STATEMENT_STORE, useExisting: PgFinancialStatementStore },
     ExecutiveMetricService,

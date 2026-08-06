@@ -56,5 +56,10 @@ export type FinancialStatementStore = Readonly<{
     q: StatementQuery,
     state?: string,
   ): Promise<unknown>;
+  resolveSource(
+    c: FinancialStatementContext,
+    journalId: string,
+    lineNumber: number,
+  ): Promise<unknown>;
 }>;
 export const FINANCIAL_STATEMENT_STORE = Symbol("FINANCIAL_STATEMENT_STORE");

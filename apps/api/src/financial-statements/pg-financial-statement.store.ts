@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
   buildBalanceSheet,
   buildDirectCashFlow,
@@ -19,6 +19,7 @@ import type {
   StatementKind,
   StatementQuery,
 } from "./financial-statement.types.js";
+import { FinancialSourceResolver } from "./financial-source-resolver.js";
 
 type LedgerRow = {
   journal_id: string;
@@ -71,6 +72,9 @@ const jsonMoney = (value: unknown): unknown =>
 @Injectable()
 export class PgFinancialStatementStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  constructor(
+    @Inject(FinancialSourceResolver) private readonly sourceResolver: FinancialSourceResolver,
+  ) {}
 
   async listMappings(c: FinancialStatementContext) {
     const result = await this.pool.query(
@@ -631,7 +635,7 @@ export class PgFinancialStatementStore {
       liabilities_and_equity: ["liability", "equity", "revenue", "expense"],
     };
     const roots = new Set(acceptedRoots[q.lineCode] ?? []);
-    const rows = loaded.rows
+    const sourceRows = loaded.rows
       .filter(
         (r) =>
           roots.has(r.root_type) ||
@@ -640,6 +644,11 @@ export class PgFinancialStatementStore {
           (q.statement === "cash_flow" && accepted.has(r.cash_flow_class ?? "")),
       )
       .map((r) => ({
+        raw: r,
+        amountMinor: (natural(r) * BigInt(r.sign ?? 1)).toString(),
+      }));
+    const rows = await Promise.all(
+      sourceRows.map(async ({ raw: r, amountMinor }) => ({
         journalId: r.journal_id,
         journalVersion: r.journal_version,
         journalDate: r.journal_date,
@@ -649,11 +658,13 @@ export class PgFinancialStatementStore {
         accountName: r.account_name,
         debitMinor: r.debit_minor ?? "0",
         creditMinor: r.credit_minor ?? "0",
-        amountMinor: (natural(r) * BigInt(r.sign ?? 1)).toString(),
+        amountMinor,
         dimensions: r.dimensions,
         sourceId: r.journal_id,
         sourceType: "journal_entry",
-      }));
+        refs: (await this.sourceResolver.resolve(c, r.journal_id, r.line_number, amountMinor)).refs,
+      })),
+    );
     return {
       statement: q.statement,
       lineCode: q.lineCode,
@@ -662,6 +673,9 @@ export class PgFinancialStatementStore {
       sourceFingerprint: fingerprint(loaded.rows),
       count: rows.length,
     };
+  }
+  resolveSource(c: FinancialStatementContext, journalId: string, lineNumber: number) {
+    return this.sourceResolver.resolve(c, journalId, lineNumber);
   }
   async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, state?: string) {
     const result = await this.pool.query(

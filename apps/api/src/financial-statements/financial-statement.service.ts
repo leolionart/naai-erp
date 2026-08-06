@@ -140,6 +140,11 @@ export class FinancialStatementService {
   drilldown(c: FinancialStatementContext, q: DrilldownQuery) {
     return this.store.drilldown(c, q).then((x) => this.envelope(c, x));
   }
+  resolveSource(c: FinancialStatementContext, journalId: string, lineNumber: number) {
+    if (!journalId.trim() || !Number.isInteger(lineNumber) || lineNumber < 1)
+      throw new Error("VALIDATION_FAILED");
+    return this.store.resolveSource(c, journalId, lineNumber).then((x) => this.envelope(c, x));
+  }
   expenseExceptions(c: FinancialStatementContext, q: StatementQuery, state?: string) {
     if (state && !["all", "unreviewed", "exception", "reviewed"].includes(state))
       throw new Error("VALIDATION_FAILED");

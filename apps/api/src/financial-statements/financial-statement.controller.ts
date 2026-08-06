@@ -129,5 +129,18 @@ export class FinancialStatementController {
       lineCode: q.lineCode,
     });
   }
+  @Get("reports/financial-statements/source-resolver") async sourceResolver(
+    @Param("organizationId") org: string,
+    @Query("journalId") journalId: string,
+    @Query("lineNumber") lineNumber: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") correlation?: string,
+  ) {
+    return this.service.resolveSource(
+      await this.context(org, auth, correlation),
+      journalId ?? "",
+      Number(lineNumber),
+    );
+  }
 }
 const kinds = new Set(["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"]);

@@ -11,6 +11,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
   let app: Awaited<ReturnType<typeof createApp>>;
   const makerToken = "erp630-maker";
   const approverToken = "erp630-approver";
+  const otherToken = "erp630-other";
   const headers = (token = makerToken) => ({ authorization: `Bearer ${token}` });
   const reportQuery =
     "startsOn=2026-08-01&endsOn=2026-08-31&asOfInstant=2026-08-31T16%3A59%3A59.000Z&framework=TT133";
@@ -77,11 +78,13 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       `
       insert into api_credentials (organization_id,id,actor_id,token_hash,roles)
       values ('org-erp630','erp630-maker','maker',$1,'["finance_admin"]'),
-             ('org-erp630','erp630-approver','approver',$2,'["approver","accountant"]');
+             ('org-erp630','erp630-approver','approver',$2,'["approver","accountant"]'),
+             ('org-erp630-other','erp630-other','other',$3,'["viewer"]');
     `,
       [
         createHash("sha256").update(makerToken).digest("hex"),
         createHash("sha256").update(approverToken).digest("hex"),
+        createHash("sha256").update(otherToken).digest("hex"),
       ],
     );
     await pool.query(`
@@ -202,6 +205,10 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       values ('org-erp630','expense630','invoice_backed','posted','supplier630','2026-08-16','Operations','VND',50,5,55,'331-AP','eligible','eligible','vat-expense','maker');
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
       values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'approver',now(),'Reviewed','TAX-630');
+      insert into evidence_records(organization_id,id,subject_type,subject_id,evidence_type,current_version,created_by)
+      values ('org-erp630','evidence-sale-630','commercial_document','sale-doc','invoice',1,'maker');
+      insert into evidence_versions(organization_id,evidence_id,version_number,status,review_state,object_bucket,object_key,original_filename,declared_media_type,detected_media_type,byte_size,sha256,source,uploaded_by)
+      values ('org-erp630','evidence-sale-630',1,'active','pending','test','erp630/sale.pdf','sale.pdf','application/pdf','application/pdf',1,'${"a".repeat(64)}','fixture','maker');
     `);
     await journal("unmapped-pnl", "2026-08-15", "2026-08-15T10:00:00Z", [
       ["997-UNMAPPED-EXP", "d", "1"],
@@ -298,6 +305,42 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       "sale",
       "vat-sale",
     ]);
+    expect(
+      drill
+        .json()
+        .data.items.reduce(
+          (sum: bigint, item: { amountMinor: string }) => sum + BigInt(item.amountMinor),
+          0n,
+        ),
+    ).toBe(200n);
+    const vatSale = drill
+      .json()
+      .data.items.find((item: { journalId: string }) => item.journalId === "vat-sale");
+    expect(vatSale.refs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ resourceType: "journal_line", id: "vat-sale:2" }),
+        expect.objectContaining({ resourceType: "journal_entry", id: "vat-sale" }),
+        expect.objectContaining({ resourceType: "commercial_document", id: "sale-doc" }),
+        expect.objectContaining({ resourceType: "evidence", id: "evidence-sale-630" }),
+      ]),
+    );
+    const resolved = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-erp630/reports/financial-statements/source-resolver?journalId=vat-sale&lineNumber=2",
+      headers: headers(),
+    });
+    expect(resolved.statusCode, resolved.body).toBe(200);
+    expect(resolved.json().data).toMatchObject({
+      journalId: "vat-sale",
+      lineNumber: 2,
+      amountMinor: "100",
+    });
+    const isolated = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-erp630-other/reports/financial-statements/source-resolver?journalId=vat-sale&lineNumber=2",
+      headers: { authorization: `Bearer ${otherToken}` },
+    });
+    expect(isolated.statusCode).toBe(404);
   });
 
   it("builds an exactly balanced Balance Sheet and rejects a deliberately unbalanced ledger", async () => {
