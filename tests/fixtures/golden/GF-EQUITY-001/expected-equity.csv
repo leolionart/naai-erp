@@ -1,0 +1,13 @@
+metric,amount_minor,included_in_equity_consumed,status
+opening_equity,400000000,no,reviewed
+equity_contributions,200000000,no,reviewed
+equity_withdrawals,50000000,no,reviewed
+profit_or_loss,-400000000,no,reviewed
+reviewed_equity_adjustments,0,no,reviewed
+expected_closing_equity,150000000,no,calculated
+actual_closing_equity,150000000,no,reviewed
+equity_roll_forward_difference,0,no,tied_out
+retained_earnings,-700000000,yes,reviewed
+accumulated_loss,700000000,yes,calculated
+contributed_capital,650000000,yes,reviewed
+owner_loans,250000000,no,liability

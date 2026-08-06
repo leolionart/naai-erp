@@ -1,0 +1,40 @@
+{
+  "fixtureId": "GF-EQUITY-001",
+  "organizationId": "org-naai",
+  "currency": "VND",
+  "period": { "startsOn": "2025-01-01", "endsOn": "2025-12-31", "asOfDate": "2025-12-31" },
+  "ledgerCutoffFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "openingEquityMinor": "400000000",
+  "closingEquityMinor": "150000000",
+  "reviewedEquityAdjustmentsMinor": "0",
+  "openingAssetsMinor": "1200000000",
+  "closingAssetsMinor": "1000000000",
+  "revenueMinor": "2000000000",
+  "grossProfitMinor": "900000000",
+  "operatingProfitMinor": "-300000000",
+  "netProfitMinor": "-400000000",
+  "retainedEarningsMinor": "-700000000",
+  "contributedCapital": {
+    "openingMinor": "500000000",
+    "addedMinor": "200000000",
+    "withdrawnMinor": "50000000",
+    "closingMinor": "650000000"
+  },
+  "ownerLoansMinor": "250000000",
+  "cash": { "unrestrictedMinor": "450000000", "restrictedMinor": "100000000" },
+  "reviewedOperatingNetCashFlowMinor": ["-120000000", "-80000000", "-100000000"],
+  "roi": [
+    {
+      "id": "project-web-a",
+      "purpose": "project",
+      "benefitMinor": "480000000",
+      "includedCostMinor": "320000000"
+    },
+    {
+      "id": "marketing-q4",
+      "purpose": "marketing",
+      "benefitMinor": "180000000",
+      "includedCostMinor": "120000000"
+    }
+  ]
+}

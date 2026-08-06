@@ -1,0 +1,6 @@
+metric,amount_minor,value,status
+average_operating_net_cash_flow,-100000000,-100000000,available
+net_burn,100000000,100000000,available
+unrestricted_cash,450000000,450000000,available
+restricted_cash,100000000,100000000,excluded
+runway_months,,4.5,available

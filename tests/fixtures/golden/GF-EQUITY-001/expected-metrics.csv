@@ -1,0 +1,10 @@
+metric,status,numerator_minor,denominator_minor,value_bps,value_decimal
+gross_margin,available,900000000,2000000000,4500,0.45
+operating_margin,available,-300000000,2000000000,-1500,-0.15
+net_margin,available,-400000000,2000000000,-2000,-0.20
+ros,available,-400000000,2000000000,-2000,-0.20
+roe,available,-400000000,275000000,-14545,-1.4545
+roa,available,-400000000,1100000000,-3636,-0.3636
+equity_consumed,available,700000000,650000000,10769,1.0769
+project_roi:project-web-a,available,160000000,320000000,5000,0.50
+marketing_roi:marketing-q4,available,60000000,120000000,5000,0.50

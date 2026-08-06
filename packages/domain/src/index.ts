@@ -535,3 +535,23 @@ export {
   type VatReconciliationPolicy,
   type VatSourceItem,
 } from "./tax-reconciliation.js";
+export {
+  EQUITY_CONSUMED_FORMULA_VERSION,
+  EQUITY_ROLL_FORWARD_CONTROL_VERSION,
+  EXECUTIVE_METRICS_FORMULA_VERSION,
+  OPERATING_BURN_FORMULA_VERSION,
+  PROFITABILITY_RATIO_FORMULA_VERSION,
+  PURPOSE_SPECIFIC_ROI_FORMULA_VERSION,
+  RETURN_RATIO_FORMULA_VERSION,
+  RUNWAY_FORMULA_VERSION,
+  buildExecutiveMetrics,
+  type ExecutiveDimensions,
+  type ExecutiveMetricPeriod,
+  type ExecutiveMetricStatus,
+  type ExecutiveMetrics,
+  type ExecutiveMetricsInput,
+  type ExecutiveRatio,
+  type ExecutiveSourceBoundary,
+  type PurposeSpecificRoi,
+  type PurposeSpecificRoiInput,
+} from "./executive-metrics.js";

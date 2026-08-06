@@ -255,3 +255,21 @@ export {
   type VatReconciliationPolicyContract,
   type VatReconciliationQueryContract,
 } from "./tax-reconciliation.js";
+export {
+  EQUITY_CONSUMED_FORMULA_VERSION,
+  EQUITY_ROLL_FORWARD_CONTROL_VERSION,
+  EXECUTIVE_METRICS_CONTRACT_VERSION,
+  EXECUTIVE_METRICS_FORMULA_VERSION,
+  OPERATING_BURN_FORMULA_VERSION,
+  PROFITABILITY_RATIO_FORMULA_VERSION,
+  PURPOSE_SPECIFIC_ROI_FORMULA_VERSION,
+  RETURN_RATIO_FORMULA_VERSION,
+  RUNWAY_FORMULA_VERSION,
+  type ExecutiveMetricPeriodContract,
+  type ExecutiveMetricQueryContract,
+  type ExecutiveMetricStatusContract,
+  type ExecutiveMetricsContract,
+  type ExecutiveRatioContract,
+  type ExecutiveSourceBoundaryContract,
+  type PurposeSpecificRoiContract,
+} from "./executive-metrics.js";
