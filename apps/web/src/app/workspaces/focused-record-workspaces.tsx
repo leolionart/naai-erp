@@ -328,9 +328,10 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Xem nhanh {current.singular}</DialogTitle>
+            <DialogTitle>Chi tiết & Chỉnh sửa {current.singular}</DialogTitle>
             <DialogDescription>
-              Xem và sửa draft ngay tại danh sách. URL chi tiết ổn định vẫn được giữ để chia sẻ.
+              Xem toàn bộ thông tin chứng từ và cập nhật trực tiếp tại đây nếu dữ liệu ghi nhận chưa
+              chính xác.
             </DialogDescription>
           </DialogHeader>
           {quickLoading ? (
@@ -366,25 +367,23 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                   </CardHeader>
                 </Card>
               </div>
-              {text(quickRecord, "state") === "draft" ? (
-                sourceKind === "documents" ? (
-                  <DocumentForm
-                    key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
-                    busy={quickBusy}
-                    initial={quickRecord}
-                    submitLabel="Lưu thay đổi hóa đơn"
-                    onSubmit={(body: Row) => void updateQuickRecord(body)}
-                  />
-                ) : (
-                  <ExpenseForm
-                    key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
-                    busy={quickBusy}
-                    initial={quickRecord}
-                    submitLabel="Lưu thay đổi chi phí"
-                    onSubmit={(body: Row) => void updateQuickRecord(body)}
-                  />
-                )
-              ) : null}
+              {sourceKind === "documents" ? (
+                <DocumentForm
+                  key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                  busy={quickBusy}
+                  initial={quickRecord}
+                  submitLabel="Cập nhật thông tin hóa đơn"
+                  onSubmit={(body: Row) => void updateQuickRecord(body)}
+                />
+              ) : (
+                <ExpenseForm
+                  key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                  busy={quickBusy}
+                  initial={quickRecord}
+                  submitLabel="Cập nhật thông tin chi phí"
+                  onSubmit={(body: Row) => void updateQuickRecord(body)}
+                />
+              )}
             </div>
           ) : null}
           <DialogFooter>

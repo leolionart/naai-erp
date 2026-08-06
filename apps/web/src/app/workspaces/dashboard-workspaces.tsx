@@ -802,6 +802,65 @@ export function ExecutiveDashboardWorkspace() {
             </AlertDescription>
           </Alert>
         ) : null}
+        {!loading ? (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-amber-500">
+                  💡 Cảnh báo Tối ưu Thuế TNDN (CIT Advisory)
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="border-amber-500/40 text-amber-600 dark:text-amber-400"
+                >
+                  Tạm tính quý hiện tại
+                </Badge>
+              </div>
+              <CardDescription className="text-xs">
+                So sánh Doanh thu xuất Hóa đơn vs Chi phí Mua vào có Hóa đơn đỏ hợp lệ để ước tính
+                số thuế TNDN cần nộp.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-3 text-xs">
+              <div className="rounded-md border bg-background/80 p-2.5">
+                <span className="text-muted-foreground">Doanh thu có HĐ (GTGT):</span>
+                <p className="font-semibold text-sm mt-0.5">
+                  {money(
+                    operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
+                    operating?.currency ?? data.projects?.currency,
+                  )}
+                </p>
+              </div>
+              <div className="rounded-md border bg-background/80 p-2.5">
+                <span className="text-muted-foreground">Chi phí có HĐ được trừ:</span>
+                <p className="font-semibold text-sm mt-0.5">
+                  {money(data.projects?.totals.directCostMinor ?? "0", data.projects?.currency)}
+                </p>
+              </div>
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
+                <span className="text-amber-700 dark:text-amber-300 font-medium">
+                  Ước tính Thuế TNDN (20%):
+                </span>
+                <p className="font-semibold text-sm mt-0.5 text-amber-600 dark:text-amber-400">
+                  ~
+                  {money(
+                    (BigInt(operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor) >
+                    BigInt(data.projects?.totals.directCostMinor ?? "0")
+                      ? ((BigInt(
+                          operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
+                        ) -
+                          BigInt(data.projects?.totals.directCostMinor ?? "0")) *
+                          20n) /
+                        100n
+                      : 0n
+                    ).toString(),
+                    operating?.currency ?? data.projects?.currency,
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }, (_, index) => (
