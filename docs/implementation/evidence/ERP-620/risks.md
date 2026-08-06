@@ -11,4 +11,4 @@
 - MTD day proration is a simple planning convention, not a seasonality model. Future weighted-working-day or milestone target curves require a new labeled formula version.
 - Real workbook tab/column shapes were not inspected in the fixture-planning subtask because the required artifact-tool runtime was unavailable. Import mapping must be verified separately before loading customer data.
 - Fixture data is anonymized and must remain free of customer-identifying financial records.
-- Local non-PostgreSQL, fixture, build and 41/41 Playwright proof is green. Exact-commit PostgreSQL integration remains the final unverified durability/read-model boundary.
+- Local non-PostgreSQL, fixture, build and 41/41 Playwright proof is green. Exact-commit PostgreSQL integration also passed for `bb048f4d291cacaedbc32fb132665b5901b43bbd` in GitHub Actions run `31060887883`; no ERP-620 acceptance boundary remains open.

@@ -1,0 +1,1 @@
+ALTER TABLE "financial_statement_mapping_versions" ADD COLUMN "report_policy" jsonb DEFAULT '{"maxLedgerDifferenceMinor":"0","maxUnreviewedInputMinor":"0","maxUnresolvedItemCount":0,"maxMissingEvidenceCount":0}'::jsonb NOT NULL;

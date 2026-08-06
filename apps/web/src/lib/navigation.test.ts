@@ -20,6 +20,8 @@ describe("typed admin navigation", () => {
     expect(isNavigationAvailable(findNavigationItem("forecast-composition")!)).toBe(true);
     expect(findNavigationItem("performance")?.href).toBe("/reports/performance");
     expect(isNavigationAvailable(findNavigationItem("performance")!)).toBe(true);
+    expect(findNavigationItem("financial-statements")?.href).toBe("/reports/financial-statements");
+    expect(isNavigationAvailable(findNavigationItem("financial-statements")!)).toBe(true);
     expect(findNavigationItem("missing")).toBeUndefined();
   });
 });

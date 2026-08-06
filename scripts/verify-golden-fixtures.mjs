@@ -181,3 +181,11 @@ execFileSync(process.execPath, [join(fixtureRoot, "GF-FORECAST-002", "verify.mjs
 execFileSync(process.execPath, [join(fixtureRoot, "GF-KPI-001", "verify.mjs")], {
   stdio: "inherit",
 });
+
+execFileSync(process.execPath, [join(fixtureRoot, "GF-FINANCIAL-001", "verify.mjs")], {
+  stdio: "inherit",
+});
+
+execFileSync(process.execPath, [join(fixtureRoot, "GF-VAT-001", "verify.mjs")], {
+  stdio: "inherit",
+});

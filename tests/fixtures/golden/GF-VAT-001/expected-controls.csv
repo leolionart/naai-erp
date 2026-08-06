@@ -1,0 +1,6 @@
+control,value
+status,review_required
+missing_evidence_items,EXPENSE-UNREVIEWED|PURCHASE-PARTIAL
+unreconciled_items,EXPENSE-UNREVIEWED
+invalid_tax_code_items,EXPENSE-UNREVIEWED
+unreviewed_items,EXPENSE-UNREVIEWED

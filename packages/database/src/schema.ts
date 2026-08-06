@@ -48,6 +48,23 @@ export const accountRootType = pgEnum("account_root_type", [
 ]);
 
 export const statutoryFramework = pgEnum("statutory_framework", ["TT133", "TT200"]);
+export const financialStatementMappingState = pgEnum("financial_statement_mapping_state", [
+  "draft",
+  "approved",
+  "retired",
+]);
+export const financialStatementKind = pgEnum("financial_statement_kind", [
+  "profit_and_loss",
+  "balance_sheet",
+  "cash_flow",
+  "vat_reconciliation",
+]);
+export const cashFlowClass = pgEnum("cash_flow_class", [
+  "operating",
+  "investing",
+  "financing",
+  "non_cash",
+]);
 export const taxKind = pgEnum("tax_kind", [
   "vat_input",
   "vat_output",
@@ -4269,6 +4286,111 @@ export const postingRuleVersions = pgTable(
   ],
 );
 
+export const financialStatementMappingVersions = pgTable(
+  "financial_statement_mapping_versions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    version: integer("version").notNull(),
+    framework: statutoryFramework("framework").notNull(),
+    state: financialStatementMappingState("state").notNull().default("draft"),
+    effectiveFrom: date("effective_from").notNull(),
+    effectiveTo: date("effective_to"),
+    changeReason: text("change_reason").notNull(),
+    reportPolicy: jsonb("report_policy")
+      .$type<{
+        maxLedgerDifferenceMinor: string;
+        maxUnreviewedInputMinor: string;
+        maxUnresolvedItemCount: number;
+        maxMissingEvidenceCount: number;
+      }>()
+      .notNull()
+      .default({
+        maxLedgerDifferenceMinor: "0",
+        maxUnreviewedInputMinor: "0",
+        maxUnresolvedItemCount: 0,
+        maxMissingEvidenceCount: 0,
+      }),
+    createdBy: text("created_by").notNull(),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id, table.version] }),
+    check("financial_statement_mapping_version_positive", sql`${table.version} > 0`),
+    check("financial_statement_mapping_reason_not_blank", sql`btrim(${table.changeReason}) <> ''`),
+    check(
+      "financial_statement_mapping_date_order",
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`,
+    ),
+    check(
+      "financial_statement_mapping_approval_metadata",
+      sql`(${table.state} = 'draft' and ${table.approvedBy} is null and ${table.approvedAt} is null) or (${table.state} in ('approved','retired') and ${table.approvedBy} is not null and ${table.approvedAt} is not null)`,
+    ),
+  ],
+);
+
+export const financialStatementMappingLines = pgTable(
+  "financial_statement_mapping_lines",
+  {
+    organizationId: text("organization_id").notNull(),
+    mappingId: text("mapping_id").notNull(),
+    mappingVersion: integer("mapping_version").notNull(),
+    lineNumber: integer("line_number").notNull(),
+    statement: financialStatementKind("statement").notNull(),
+    lineCode: text("line_code").notNull(),
+    label: text("label").notNull(),
+    accountCode: text("account_code").notNull(),
+    displayOrder: integer("display_order").notNull(),
+    sign: integer("sign").notNull().default(1),
+    cashFlowClass: cashFlowClass("cash_flow_class"),
+    vatTreatment: text("vat_treatment"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.organizationId, table.mappingId, table.mappingVersion, table.lineNumber],
+    }),
+    foreignKey({
+      columns: [table.organizationId, table.mappingId, table.mappingVersion],
+      foreignColumns: [
+        financialStatementMappingVersions.organizationId,
+        financialStatementMappingVersions.id,
+        financialStatementMappingVersions.version,
+      ],
+      name: "financial_statement_mapping_lines_version_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.accountCode],
+      foreignColumns: [accounts.organizationId, accounts.code],
+      name: "financial_statement_mapping_lines_account_fk",
+    }).onDelete("restrict"),
+    unique("financial_statement_mapping_account_unique").on(
+      table.organizationId,
+      table.mappingId,
+      table.mappingVersion,
+      table.statement,
+      table.accountCode,
+    ),
+    check("financial_statement_mapping_line_number_positive", sql`${table.lineNumber} > 0`),
+    check("financial_statement_mapping_display_order_nonnegative", sql`${table.displayOrder} >= 0`),
+    check("financial_statement_mapping_sign", sql`${table.sign} in (-1, 1)`),
+    check("financial_statement_mapping_line_code_not_blank", sql`btrim(${table.lineCode}) <> ''`),
+    check("financial_statement_mapping_label_not_blank", sql`btrim(${table.label}) <> ''`),
+    check(
+      "financial_statement_mapping_cash_flow_class",
+      sql`${table.statement} = 'cash_flow' or ${table.cashFlowClass} is null`,
+    ),
+    check(
+      "financial_statement_mapping_vat_treatment",
+      sql`${table.vatTreatment} is null or ${table.vatTreatment} in ('output','input_eligible','input_ineligible')`,
+    ),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -4367,4 +4489,6 @@ export const schema = {
   forecastVersions,
   planningAuditEvents,
   postingRuleVersions,
+  financialStatementMappingVersions,
+  financialStatementMappingLines,
 } as const;

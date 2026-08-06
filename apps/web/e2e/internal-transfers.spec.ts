@@ -204,7 +204,9 @@ test("@desktop reviews candidates in a Sheet, pairs in a short Dialog and unmatc
   await page.goto("http://localhost:3000/banking/internal-transfers/transfer-e2e");
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Tải chi tiết" }).click();
-  expect(api.candidatePath()).toContain("/banking/transactions/bank-out-1/transfer-candidates");
+  await expect
+    .poll(api.candidatePath)
+    .toContain("/banking/transactions/bank-out-1/transfer-candidates");
   await expect(page.getByText("Chờ đối ứng qua transit")).toBeVisible();
   await expect(page.getByText("100.000 ₫", { exact: true }).first()).toBeVisible();
 

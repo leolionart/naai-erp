@@ -42,6 +42,10 @@ const { values, positionals } = parseArgs({
     "team-id": { type: "string" },
     disposition: { type: "string" },
     "account-id": { type: "string" },
+    framework: { type: "string" },
+    "mapping-version-id": { type: "string" },
+    "line-code": { type: "string" },
+    "cost-center": { type: "string" },
     file: { type: "string" },
     adapter: { type: "string" },
     "adapter-version": { type: "string" },
@@ -183,32 +187,64 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                               ? { confidenceCode: values["confidence-code"] }
                               : {}),
                           }
-                        : resource === "performance-comparisons"
+                        : [
+                              "financial-statements",
+                              "financial-statement-drilldown",
+                              "vat-reconciliation",
+                              "expense-exceptions",
+                            ].includes(resource)
                           ? {
-                              periodId: values["period-id"],
-                              periodBasis: values["period-basis"],
-                              actualBasis: values.basis,
-                              asOfInstant: values["as-of"],
-                              ...(values["forecast-version-id"]
-                                ? { forecastVersionId: values["forecast-version-id"] }
+                              ...(values.from ? { startsOn: values.from } : {}),
+                              ...(values.to ? { endsOn: values.to } : {}),
+                              ...(values["as-of"] ? { asOfInstant: values["as-of"] } : {}),
+                              ...(values.basis ? { basis: values.basis } : {}),
+                              ...(values.framework ? { framework: values.framework } : {}),
+                              ...(values["mapping-version-id"]
+                                ? { mappingVersionId: values["mapping-version-id"] }
                                 : {}),
-                              ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
+                              ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
+                              ...(values.party ? { clientId: values.party } : {}),
+                              ...(values["cost-center"]
+                                ? { costCenter: values["cost-center"] }
+                                : {}),
                               ...(values["service-line"]
-                                ? { serviceLineCode: values["service-line"] }
+                                ? { serviceLine: values["service-line"] }
                                 : {}),
-                              ...(values["account-owner"]
-                                ? { ownerId: values["account-owner"] }
-                                : {}),
+                              ...(values["line-code"] ? { lineCode: values["line-code"] } : {}),
+                              ...(values.status ? { state: values.status } : {}),
                             }
-                          : resource.startsWith("bank-")
+                          : resource === "financial-statement-mappings"
                             ? {
-                                ...(values["account-id"]
-                                  ? { financialAccountId: values["account-id"] }
-                                  : {}),
-                                ...(values.from ? { from: values.from } : {}),
-                                ...(values.to ? { to: values.to } : {}),
+                                ...(values.framework ? { framework: values.framework } : {}),
+                                ...(values.status ? { state: values.status } : {}),
+                                ...(values["as-of"] ? { effectiveOn: values["as-of"] } : {}),
                               }
-                            : undefined;
+                            : resource === "performance-comparisons"
+                              ? {
+                                  periodId: values["period-id"],
+                                  periodBasis: values["period-basis"],
+                                  actualBasis: values.basis,
+                                  asOfInstant: values["as-of"],
+                                  ...(values["forecast-version-id"]
+                                    ? { forecastVersionId: values["forecast-version-id"] }
+                                    : {}),
+                                  ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
+                                  ...(values["service-line"]
+                                    ? { serviceLineCode: values["service-line"] }
+                                    : {}),
+                                  ...(values["account-owner"]
+                                    ? { ownerId: values["account-owner"] }
+                                    : {}),
+                                }
+                              : resource.startsWith("bank-")
+                                ? {
+                                    ...(values["account-id"]
+                                      ? { financialAccountId: values["account-id"] }
+                                      : {}),
+                                    ...(values.from ? { from: values.from } : {}),
+                                    ...(values.to ? { to: values.to } : {}),
+                                  }
+                                : undefined;
     const result = await client.request(
       resource,
       action,

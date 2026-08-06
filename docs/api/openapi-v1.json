@@ -54,6 +54,14 @@
     "planning-actual-facts/backfill",
     "planning-actual-facts/list",
     "performance-comparisons/read",
+    "financial-statement-mappings/create",
+    "financial-statement-mappings/approve",
+    "financial-statements/profit-and-loss",
+    "financial-statements/balance-sheet",
+    "financial-statements/cash-flow",
+    "financial-statements/drilldown",
+    "tax/vat-reconciliation",
+    "tax/expense-exceptions",
     "commercial-documents/create",
     "commercial-documents/capture",
     "commercial-documents/validate",
@@ -179,6 +187,238 @@
     "/api/v1/organizations/{organizationId}/reports/general-ledger": {
       "get": {
         "summary": "Read ordered journal-line drill-down with exact running balances"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/financial-statement-mappings": {
+      "get": {
+        "summary": "List effective-dated financial statement mapping versions by framework and workflow state",
+        "tags": ["financial-statements", "configuration"]
+      },
+      "post": {
+        "summary": "Create an idempotent draft mapping from ledger accounts to explicit statement lines and cash-flow classes",
+        "tags": ["financial-statements", "configuration"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/financial-statement-mappings/{mappingVersionId}": {
+      "get": {
+        "summary": "Read a financial statement mapping version and its ordered account mappings",
+        "tags": ["financial-statements", "configuration"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/financial-statement-mappings/{mappingVersionId}/versions/{version}/approve": {
+      "post": {
+        "summary": "Approve a versioned financial statement mapping through maker-checker workflow",
+        "tags": ["financial-statements", "configuration"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/financial-statements/profit-and-loss": {
+      "get": {
+        "summary": "Read an exact mapped profit and loss statement with gross, operating, tax, and net profit subtotals",
+        "tags": ["financial-statements", "profit-and-loss"],
+        "parameters": [
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "description": "Repeatable posted-at cutoff; backdated journals posted later are excluded",
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "framework",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
+          },
+          {
+            "name": "basis",
+            "in": "query",
+            "description": "P&L uses accrual management basis. Use the direct Cash Flow endpoint for cash movements.",
+            "schema": { "type": "string", "enum": ["accrual"], "default": "accrual" }
+          },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          { "name": "teamId", "in": "query", "schema": { "type": "string" } },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "costCenterId", "in": "query", "schema": { "type": "string" } }
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/financial-statements/balance-sheet": {
+      "get": {
+        "summary": "Read an exact as-of balance sheet with explicit equality validation and no hidden balancing plug",
+        "tags": ["financial-statements", "balance-sheet"],
+        "parameters": [
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "description": "Balance Sheet as-of date",
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "framework",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
+          },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          { "name": "teamId", "in": "query", "schema": { "type": "string" } },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "costCenterId", "in": "query", "schema": { "type": "string" } }
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/financial-statements/cash-flow": {
+      "get": {
+        "summary": "Read a direct cash-flow statement classified as operating, investing, financing, or non-cash",
+        "tags": ["financial-statements", "cash-flow"],
+        "parameters": [
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "framework",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
+          },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          { "name": "teamId", "in": "query", "schema": { "type": "string" } },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "ownerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "costCenterId", "in": "query", "schema": { "type": "string" } }
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/financial-statements/drilldown": {
+      "get": {
+        "summary": "Read exact journal and journal-line sources for a financial statement line",
+        "tags": ["financial-statements", "drilldown"],
+        "parameters": [
+          {
+            "name": "statement",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"]
+            }
+          },
+          {
+            "name": "lineCode",
+            "in": "query",
+            "required": true,
+            "description": "Canonical derived line code, mapped line code, or account code returned by the statement",
+            "schema": { "type": "string" }
+          },
+          { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "framework",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
+          }
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/tax/vat-reconciliation": {
+      "get": {
+        "summary": "Reconcile output, input, eligible, and ineligible VAT with ledger and evidence exceptions",
+        "tags": ["tax", "vat-reconciliation"],
+        "parameters": [
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          {
+            "name": "framework",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["TT133", "TT200"], "default": "TT133" }
+          }
+        ]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/tax/expense-exceptions": {
+      "get": {
+        "summary": "List management, CIT, VAT, evidence, and posting exceptions for expenses in a cutoff period",
+        "tags": ["tax", "expenses", "exceptions"],
+        "parameters": [
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          { "name": "state", "in": "query", "required": false, "schema": { "type": "string" } }
+        ]
       }
     },
     "/api/v1/organizations/{organizationId}/opening-balances/dry-run": {

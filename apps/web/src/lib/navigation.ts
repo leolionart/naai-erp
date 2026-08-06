@@ -98,6 +98,14 @@ export const adminNavigation = [
         icon: "report",
         status: "available",
       },
+      {
+        key: "financial-statements",
+        label: "Báo cáo tài chính",
+        href: "/reports/financial-statements",
+        description: "P&L, Balance Sheet, dòng tiền trực tiếp và đối soát VAT.",
+        icon: "report",
+        status: "available",
+      },
     ],
   },
   {

@@ -812,6 +812,39 @@ tests:
     command: node tests/fixtures/golden/GF-KPI-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/performance-comparisons.spec.ts
     blocking_gate: G6
 
+  - id: T-INT-ERP-630-001
+    aliases: [T-RPT-002, T-RPT-003]
+    task: ERP-630
+    rules: [BR-RPT-002, BR-RPT-003]
+    title: Accrual P&L and Balance Sheet tie the same posted-ledger cutoff without hidden plugs
+    layer: integration
+    fixture: GF-FINANCIAL-001
+    oracle: independently-maintained-ledger
+    command: node tests/fixtures/golden/GF-FINANCIAL-001/verify.mjs && RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- financial-statements.integration
+    blocking_gate: G6
+
+  - id: T-INT-ERP-630-002
+    aliases: [T-RPT-004]
+    task: ERP-630
+    rules: [BR-RPT-004]
+    title: Direct Cash Flow separates operating investing and financing and ties opening to closing cash
+    layer: integration
+    fixture: GF-FINANCIAL-001
+    oracle: independently-maintained-ledger
+    command: node tests/fixtures/golden/GF-FINANCIAL-001/verify.mjs && RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- financial-statements.integration
+    blocking_gate: G6
+
+  - id: T-E2E-ERP-630-003
+    aliases: [T-TAX-003]
+    task: ERP-630
+    rules: [BR-TAX-003]
+    title: VAT reconciliation and tax expense exceptions preserve independent eligibility evidence and readiness controls
+    layer: e2e
+    fixture: GF-VAT-001
+    oracle: independently-maintained-ledger
+    command: node tests/fixtures/golden/GF-VAT-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/financial-statements.spec.ts
+    blocking_gate: G6
+
   - id: T-E2E-ERP-640-001
     aliases: [T-KPI-005]
     task: ERP-640

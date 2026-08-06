@@ -1,0 +1,88 @@
+{
+  "fixtureId": "GF-FINANCIAL-001",
+  "organizationId": "org-fixture",
+  "currency": "VND",
+  "startsOn": "2026-08-01",
+  "endsOn": "2026-08-31",
+  "openingCashMinor": "300000000",
+  "pnl": [
+    { "account": "511-REVENUE", "section": "revenue", "amountMinor": "100000000" },
+    { "account": "632-DIRECT", "section": "direct_cost", "amountMinor": "40000000" },
+    { "account": "642-OPEX", "section": "operating_expense", "amountMinor": "20000000" },
+    { "account": "515-OTHER-INCOME", "section": "other_income", "amountMinor": "5000000" },
+    { "account": "811-OTHER-EXPENSE", "section": "other_expense", "amountMinor": "2000000" },
+    { "account": "821-INCOME-TAX", "section": "income_tax", "amountMinor": "5000000" }
+  ],
+  "balanceSheet": {
+    "assets": [
+      { "account": "112-BANK", "amountMinor": "363000000" },
+      { "account": "111-CASH", "amountMinor": "10000000" },
+      { "account": "211-EQUIPMENT", "amountMinor": "30000000" }
+    ],
+    "liabilities": [
+      { "account": "3331-VAT-OUTPUT", "amountMinor": "20000000" },
+      { "account": "3334-TAX-PAYABLE", "amountMinor": "5000000" },
+      { "account": "341-LOAN", "amountMinor": "50000000" }
+    ],
+    "ledgerEquity": [
+      { "account": "411-CAPITAL", "amountMinor": "300000000" },
+      { "account": "421-DRAWINGS", "amountMinor": "-10000000" }
+    ]
+  },
+  "cashFlow": [
+    {
+      "journalId": "SALE",
+      "classification": "operating",
+      "sourceKind": "customer_receipt",
+      "amountMinor": "120000000"
+    },
+    {
+      "journalId": "DIRECT",
+      "classification": "operating",
+      "sourceKind": "supplier_payment",
+      "amountMinor": "-40000000"
+    },
+    {
+      "journalId": "OTHER-INCOME",
+      "classification": "operating",
+      "sourceKind": "other",
+      "amountMinor": "5000000"
+    },
+    {
+      "journalId": "OTHER-EXPENSE",
+      "classification": "operating",
+      "sourceKind": "other",
+      "amountMinor": "-2000000"
+    },
+    {
+      "journalId": "AP-PAYMENT",
+      "classification": "operating",
+      "sourceKind": "supplier_payment",
+      "amountMinor": "-20000000"
+    },
+    {
+      "journalId": "EQUIPMENT",
+      "classification": "investing",
+      "sourceKind": "asset_purchase",
+      "amountMinor": "-30000000"
+    },
+    {
+      "journalId": "LOAN",
+      "classification": "financing",
+      "sourceKind": "loan_proceeds",
+      "amountMinor": "50000000"
+    },
+    {
+      "journalId": "WITHDRAWAL",
+      "classification": "financing",
+      "sourceKind": "owner_withdrawal",
+      "amountMinor": "-10000000"
+    },
+    {
+      "journalId": "OWN-TRANSFER",
+      "classification": "internal_transfer",
+      "sourceKind": "internal_transfer",
+      "amountMinor": "0"
+    }
+  ]
+}

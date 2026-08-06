@@ -1,0 +1,10 @@
+line,amount_minor
+accounting_booked,40000000
+cit_basis,38000000
+cit_eligible,27000000
+cit_ineligible,6000000
+cit_unreviewed,5000000
+vat_basis,2000000
+vat_eligible,1000000
+vat_ineligible,1000000
+vat_unreviewed,0

@@ -92,6 +92,10 @@ import { PerformanceComparisonController } from "./performance-comparison/perfor
 import { PerformanceComparisonService } from "./performance-comparison/performance-comparison.service.js";
 import { PERFORMANCE_STORE } from "./performance-comparison/performance-comparison.types.js";
 import { PgPerformanceComparisonStore } from "./performance-comparison/pg-performance-comparison.store.js";
+import { FinancialStatementController } from "./financial-statements/financial-statement.controller.js";
+import { FinancialStatementService } from "./financial-statements/financial-statement.service.js";
+import { FINANCIAL_STATEMENT_STORE } from "./financial-statements/financial-statement.types.js";
+import { PgFinancialStatementStore } from "./financial-statements/pg-financial-statement.store.js";
 
 @Module({
   controllers: [
@@ -124,6 +128,7 @@ import { PgPerformanceComparisonStore } from "./performance-comparison/pg-perfor
     ForecastVersionController,
     ForecastComponentController,
     PerformanceComparisonController,
+    FinancialStatementController,
   ],
   providers: [
     MasterDataService,
@@ -186,6 +191,9 @@ import { PgPerformanceComparisonStore } from "./performance-comparison/pg-perfor
     PerformanceComparisonService,
     PgPerformanceComparisonStore,
     { provide: PERFORMANCE_STORE, useExisting: PgPerformanceComparisonStore },
+    FinancialStatementService,
+    PgFinancialStatementStore,
+    { provide: FINANCIAL_STATEMENT_STORE, useExisting: PgFinancialStatementStore },
   ],
 })
 export class AppModule {}

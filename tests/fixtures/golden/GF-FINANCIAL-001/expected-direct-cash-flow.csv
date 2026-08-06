@@ -1,0 +1,8 @@
+line,amount_minor
+opening_cash,300000000
+operating,63000000
+investing,-30000000
+financing,40000000
+internal_transfer,0
+net_cash_flow,73000000
+closing_cash,373000000

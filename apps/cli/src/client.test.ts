@@ -35,6 +35,87 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("routes ERP-630 financial statements, VAT, drilldown, and mapping workflows", async () => {
+    const fetchFn = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+
+    const query = {
+      startsOn: "2026-01-01",
+      endsOn: "2026-01-31",
+      asOfInstant: "2026-02-01T00:00:00Z",
+      framework: "TT133",
+      basis: "accrual",
+    };
+    await client.request("financial-statements", "profit-and-loss", query);
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/financial-statements/profit-and-loss?startsOn=2026-01-01&endsOn=2026-01-31&asOfInstant=2026-02-01T00%3A00%3A00Z&framework=TT133&basis=accrual",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("financial-statements", "balance-sheet", query);
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      expect.stringContaining("/reports/financial-statements/balance-sheet?"),
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("financial-statements", "cash-flow", query);
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      expect.stringContaining("/reports/financial-statements/cash-flow?"),
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("vat-reconciliation", "get", query);
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      expect.stringContaining("/reports/tax/vat-reconciliation?"),
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("expense-exceptions", "get", {
+      startsOn: "2026-01-01",
+      endsOn: "2026-01-31",
+      asOfInstant: "2026-02-01T00:00:00Z",
+      state: "open",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/tax/expense-exceptions?startsOn=2026-01-01&endsOn=2026-01-31&asOfInstant=2026-02-01T00%3A00%3A00Z&state=open",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("financial-statement-drilldown", "get", query, "profit_and_loss/revenue");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      expect.stringContaining(
+        "/reports/financial-statements/drilldown?startsOn=2026-01-01&endsOn=2026-01-31&asOfInstant=2026-02-01T00%3A00%3A00Z&framework=TT133&basis=accrual&statement=profit_and_loss&lineCode=revenue",
+      ),
+      expect.objectContaining({ method: "GET" }),
+    );
+
+    await client.request("financial-statement-mappings", "list", {
+      framework: "TT133",
+      state: "approved",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/financial-statement-mappings?framework=TT133&state=approved",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request(
+      "financial-statement-mappings",
+      "approve",
+      { reason: "Reviewed" },
+      "mapping-1",
+      "3",
+      "mapping-approve-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/financial-statement-mappings/mapping-1/versions/3/approve",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("calls REST API with scoped bearer and correlation headers", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ apiVersion: "v1", data: [] }), {

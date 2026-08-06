@@ -1,0 +1,129 @@
+{
+  "fixtureId": "GF-VAT-001",
+  "organizationId": "org-fixture",
+  "currency": "VND",
+  "startsOn": "2026-08-01",
+  "endsOn": "2026-08-31",
+  "policy": {
+    "id": "VAT-STRICT",
+    "version": 1,
+    "maxLedgerDifferenceMinor": "0",
+    "maxUnreviewedInputMinor": "0",
+    "maxUnresolvedItemCount": 0,
+    "maxMissingEvidenceCount": 0
+  },
+  "ledger": { "outputVatMinor": "8000000", "inputVatMinor": "6500000" },
+  "vatItems": [
+    {
+      "id": "SALE",
+      "sourceType": "sales_invoice",
+      "taxKind": "output",
+      "taxMinor": "10000000",
+      "direction": "normal",
+      "taxCodeApproved": true,
+      "posted": true,
+      "missingEvidence": false
+    },
+    {
+      "id": "CREDIT",
+      "sourceType": "sales_credit_note",
+      "taxKind": "output",
+      "taxMinor": "2000000",
+      "direction": "reversal",
+      "taxCodeApproved": true,
+      "posted": true,
+      "missingEvidence": false
+    },
+    {
+      "id": "PURCHASE-ELIGIBLE",
+      "sourceType": "purchase_invoice",
+      "taxKind": "input",
+      "taxMinor": "3000000",
+      "direction": "normal",
+      "reviewState": "eligible",
+      "eligibleMinor": "3000000",
+      "taxCodeApproved": true,
+      "posted": true,
+      "missingEvidence": false
+    },
+    {
+      "id": "PURCHASE-PARTIAL",
+      "sourceType": "purchase_invoice",
+      "taxKind": "input",
+      "taxMinor": "2000000",
+      "direction": "normal",
+      "reviewState": "partially_eligible",
+      "eligibleMinor": "1200000",
+      "taxCodeApproved": true,
+      "posted": true,
+      "missingEvidence": true
+    },
+    {
+      "id": "EXPENSE-INELIGIBLE",
+      "sourceType": "expense",
+      "taxKind": "input",
+      "taxMinor": "1000000",
+      "direction": "normal",
+      "reviewState": "ineligible",
+      "eligibleMinor": "0",
+      "taxCodeApproved": true,
+      "posted": true,
+      "missingEvidence": false
+    },
+    {
+      "id": "EXPENSE-UNREVIEWED",
+      "sourceType": "expense",
+      "taxKind": "input",
+      "taxMinor": "1000000",
+      "direction": "normal",
+      "reviewState": "unreviewed",
+      "taxCodeApproved": false,
+      "posted": false,
+      "missingEvidence": true
+    }
+  ],
+  "taxExpenseItems": [
+    {
+      "id": "A",
+      "accountingBookedMinor": "21000000",
+      "citBasisMinor": "20000000",
+      "citState": "eligible",
+      "citEligibleMinor": "20000000",
+      "vatBasisMinor": "1000000",
+      "vatState": "eligible",
+      "vatEligibleMinor": "1000000",
+      "missingEvidence": false
+    },
+    {
+      "id": "B",
+      "accountingBookedMinor": "11000000",
+      "citBasisMinor": "10000000",
+      "citState": "partially_eligible",
+      "citEligibleMinor": "6000000",
+      "vatBasisMinor": "1000000",
+      "vatState": "ineligible",
+      "vatEligibleMinor": "0",
+      "missingEvidence": true
+    },
+    {
+      "id": "C",
+      "accountingBookedMinor": "5000000",
+      "citBasisMinor": "5000000",
+      "citState": "unreviewed",
+      "vatBasisMinor": "0",
+      "vatState": "unreviewed",
+      "missingEvidence": true
+    },
+    {
+      "id": "D",
+      "accountingBookedMinor": "3000000",
+      "citBasisMinor": "3000000",
+      "citState": "accountant_override",
+      "citEligibleMinor": "1000000",
+      "vatBasisMinor": "0",
+      "vatState": "ineligible",
+      "vatEligibleMinor": "0",
+      "missingEvidence": false
+    }
+  ]
+}

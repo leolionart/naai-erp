@@ -1,0 +1,11 @@
+line,amount_minor
+output_vat,8000000
+input_vat,7000000
+eligible_input_vat,4200000
+ineligible_input_vat,1800000
+unreviewed_input_vat,1000000
+net_vat_payable,3800000
+output_ledger,8000000
+input_ledger,6500000
+output_difference,0
+input_difference,500000
