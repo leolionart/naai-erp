@@ -93,16 +93,12 @@ function useClient() {
 
 function reportQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
-  for (const key of [
-    "periodId",
-    "startsOn",
-    "endsOn",
-    "asOfDate",
-    "serviceLineCode",
-    "teamId",
-    "ownerId",
-    "projectId",
-  ]) {
+  const endsOn = search.get("endsOn") ?? "2026-08-31";
+  query.set("startsOn", search.get("startsOn") ?? "2026-08-01");
+  query.set("endsOn", endsOn);
+  query.set("asOfInstant", `${search.get("asOfDate") ?? endsOn}T16:59:59.999Z`);
+  query.set("framework", "TT133");
+  for (const key of ["serviceLineCode", "teamId", "ownerId", "projectId"]) {
     const value = search.get(key);
     if (value) query.set(key, value);
   }
@@ -110,10 +106,16 @@ function reportQuery(search: URLSearchParams) {
 }
 
 function performanceQuery(search: URLSearchParams) {
-  const query = reportQuery(search);
-  query.set("periodId", query.get("periodId") ?? "CAL-2026-08");
+  const query = new URLSearchParams();
+  query.set("periodId", search.get("periodId") ?? "CAL-2026-08");
   query.set("periodBasis", "calendar");
   query.set("actualBasis", "recognized");
+  const asOfDate = search.get("asOfDate") ?? search.get("endsOn") ?? "2026-08-31";
+  query.set("asOfInstant", `${asOfDate}T16:59:59.999Z`);
+  for (const key of ["serviceLineCode", "teamId", "ownerId"]) {
+    const value = search.get(key);
+    if (value) query.set(key, value);
+  }
   return query;
 }
 

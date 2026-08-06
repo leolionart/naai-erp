@@ -9,11 +9,12 @@ const env = (data: unknown) => ({
 const reply = (route: Route, data: unknown) =>
   route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(env(data)) });
 
-async function install(page: Page) {
+async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
   await page.route(
     "http://localhost:3001/api/v1/organizations/org-demo/reports/executive-metrics**",
-    (route) =>
+    (route) => {
+      requestedUrls.push(route.request().url());
       reply(route, {
         currency: "VND",
         period: { startsOn: "2026-08-01", endsOn: "2026-08-31", asOfDate: "2026-08-31" },
@@ -43,11 +44,13 @@ async function install(page: Page) {
         runwayStatus: "available",
         roi: [],
         equityRollForward: { status: "tied_out" },
-      }),
+      });
+    },
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/org-demo/reports/performance-comparisons**",
-    (route) =>
+    (route) => {
+      requestedUrls.push(route.request().url());
       reply(route, {
         currency: "VND",
         formulaVersion: "performance-comparison-v1",
@@ -78,7 +81,8 @@ async function install(page: Page) {
         },
         actualVsRetainedForecast: { status: "available", denominatorMinor: "110000000" },
         monthOverMonth: { denominatorMinor: "90000000" },
-      }),
+      });
+    },
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/org-demo/reports/project-profitability**",
@@ -116,13 +120,20 @@ async function install(page: Page) {
 test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", async ({
   page,
 }) => {
-  await install(page);
+  const requestedUrls: string[] = [];
+  await install(page, requestedUrls);
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
   await expect(page.getByRole("heading", { name: "Tổng quan điều hành" })).toBeVisible();
   await expect(page.getByText("100.000.000 ₫")).toBeVisible();
   await expect(page.getByText("38%")).toBeVisible();
   await expect(page.getByText("4,25 tháng")).toBeVisible();
   await expect(page.getByText("3 tín hiệu cần rà soát")).toBeVisible();
+  expect(requestedUrls.find((url) => url.includes("/reports/executive-metrics"))).toContain(
+    "asOfInstant=2026-08-31T16%3A59%3A59.999Z",
+  );
+  expect(requestedUrls.find((url) => url.includes("/reports/performance-comparisons"))).toContain(
+    "periodId=CAL-2026-08",
+  );
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const filters = page.getByRole("dialog", { name: "Bộ lọc dashboard" });
   await filters.getByLabel("Service line").fill("web-app");
