@@ -1,10 +1,10 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T07:16:37+07:00
+updated_at: 2026-08-06T07:57:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G6
-current_task: ERP-620
+current_task: ERP-630
 
 tasks:
   - id: ERP-000
@@ -776,20 +776,26 @@ tasks:
   - id: ERP-620
     title: Performance comparisons
     phase: P6
-    status: in_progress
+    status: done
     dependencies: [ERP-610]
     business_rules: [BR-KPI-001, BR-KPI-002]
     tests: [T-KPI-001, T-KPI-002]
     evidence: docs/implementation/evidence/ERP-620/
     started_at: 2026-08-06T07:16:37+07:00
+    completed_at: 2026-08-06T07:57:00+07:00
+    implementation_commit: bb048f4d291cacaedbc32fb132665b5901b43bbd
+    proof_commit: bb048f4d291cacaedbc32fb132665b5901b43bbd
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31060887883
 
   - id: ERP-630
     title: Financial statements and tax reconciliation
     phase: P6
-    status: blocked
+    status: in_progress
     dependencies: [G5, ERP-240]
     business_rules: [BR-RPT-002, BR-RPT-003, BR-RPT-004, BR-TAX-003]
     tests: [T-RPT-002, T-RPT-003, T-RPT-004, T-TAX-003]
+    evidence: docs/implementation/evidence/ERP-630/
+    started_at: 2026-08-06T07:57:00+07:00
 
   - id: ERP-640
     title: Executive metrics

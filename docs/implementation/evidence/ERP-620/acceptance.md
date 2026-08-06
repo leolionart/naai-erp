@@ -19,4 +19,4 @@ Current acceptance coverage:
 - Pass locally: collected facts inherit dimensions only when every allocation on the settled invoice shares one identical dimension set; mixed-dimension invoices remain unclassified instead of being guessed into a filtered result.
 - Pass locally: reports reject stale actual-fact materializations and per-row readback requires the source to remain in an eligible state at the captured version.
 
-Exact-commit PostgreSQL integration and complete GitHub quality-job evidence must pass before ERP-620 is marked done.
+Accepted in exact-commit GitHub CI for `bb048f4d291cacaedbc32fb132665b5901b43bbd`: PostgreSQL migration/integration, repository quality checks and all 41 Playwright journeys passed at https://github.com/leolionart/naai-erp/actions/runs/31060887883.

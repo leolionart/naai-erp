@@ -38,10 +38,10 @@ Local integrated results:
 
 The local suite also proves public contract exports, aggregate API/CLI routing, admin navigation, production rendering, selected-basis labels, structured `N/A` reasons, URL-backed filtering, source Drawer and responsive queue/detail pages.
 
-## Exact PostgreSQL proof pending
+## Exact PostgreSQL proof
 
 ```sh
 RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- performance-comparison.integration
 ```
 
-No local PostgreSQL service was available. The exact pushed commit must execute the PostgreSQL cases for organization isolation, idempotent actual-fact refresh, source freshness/version checks, safe collected-dimension attribution, calendar/fiscal windows and aggregate formula readback before ERP-620 is marked done.
+No local PostgreSQL service was available. Exact-commit CI executed the PostgreSQL cases for organization isolation, idempotent actual-fact refresh, source freshness/version checks, safe collected-dimension attribution, calendar/fiscal windows and aggregate formula readback successfully for `bb048f4d291cacaedbc32fb132665b5901b43bbd`. The same job passed the complete repository gates and 41/41 Playwright journeys: https://github.com/leolionart/naai-erp/actions/runs/31060887883.
