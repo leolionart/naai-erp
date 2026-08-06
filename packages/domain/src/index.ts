@@ -555,3 +555,33 @@ export {
   type PurposeSpecificRoi,
   type PurposeSpecificRoiInput,
 } from "./executive-metrics.js";
+export {
+  ACCOUNTANT_REPORT_KINDS,
+  REPORT_SNAPSHOT_HASH_ALGORITHM,
+  REPORT_SNAPSHOT_SCHEMA_VERSION,
+  assertSnapshotFinal,
+  canonicalJson,
+  createReportSnapshot,
+  sha256Hex,
+  snapshotReadiness,
+  verifySnapshotReproduction,
+  type AccountantReportKind,
+  type CanonicalJsonValue,
+  type ReportSnapshot,
+  type SnapshotLedgerCutoff,
+  type SnapshotMapping,
+  type SnapshotMappingStatus,
+  type SnapshotReadiness,
+  type SnapshotUnresolvedItem,
+} from "./report-snapshots.js";
+export {
+  ACCOUNTANT_EXPORT_SCHEMA_VERSION,
+  createAccountantExportManifest,
+  createAccountantWorkbook,
+  workbookSheetToCsv,
+  type AccountantExportManifest,
+  type AccountantWorkbook,
+  type WorkbookCell,
+  type WorkbookCellValue,
+  type WorkbookSheet,
+} from "./accountant-exports.js";

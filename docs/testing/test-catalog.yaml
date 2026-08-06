@@ -878,6 +878,28 @@ tests:
     command: node tests/fixtures/golden/GF-EQUITY-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/executive-metrics.spec.ts
     blocking_gate: G6
 
+  - id: T-UNIT-ERP-650-001
+    aliases: [T-SNP-001]
+    task: ERP-650
+    rules: [BR-SNP-001]
+    title: Canonical snapshot inputs reproduce stable SHA-256 results and changed boundaries require a new immutable version
+    layer: unit
+    fixture: GF-EXPORT-001
+    oracle: independently-reviewed-export
+    command: node tests/fixtures/golden/GF-EXPORT-001/verify.mjs && pnpm --filter @naai-erp/domain test -- report-snapshots
+    blocking_gate: G6
+
+  - id: T-INT-ERP-650-002
+    aliases: [T-EXPOR-001]
+    task: ERP-650
+    rules: [BR-EXPOR-001]
+    title: Accountant CSV and XLSX use one audited workbook model and mapping or review exceptions can never be labelled final
+    layer: integration
+    fixture: GF-EXPORT-001
+    oracle: independently-reviewed-export
+    command: node tests/fixtures/golden/GF-EXPORT-001/verify.mjs && RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- accountant-exports.integration
+    blocking_gate: G6
+
   - id: T-COMPOSE-ERP-810-001
     aliases: [T-CMP-001]
     task: ERP-810
@@ -917,6 +939,7 @@ golden_fixtures:
   - GF-PROJECT-001
   - GF-FORECAST-001
   - GF-EQUITY-001
+  - GF-EXPORT-001
   - GF-FX-001
   - GF-PERIOD-001
   - GF-YEAR-END-001

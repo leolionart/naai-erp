@@ -273,3 +273,22 @@ export {
   type ExecutiveSourceBoundaryContract,
   type PurposeSpecificRoiContract,
 } from "./executive-metrics.js";
+export {
+  REPORT_SNAPSHOT_CONTRACT_VERSION,
+  type AccountantReportKindContract,
+  type CreateReportSnapshotRequest,
+  type ReportSnapshotContract,
+  type SnapshotMappingContract,
+  type SnapshotReadinessContract,
+  type SnapshotReproductionContract,
+  type SnapshotUnresolvedItemContract,
+} from "./report-snapshots.js";
+export {
+  ACCOUNTANT_EXPORT_CONTRACT_VERSION,
+  type AccountantExportContract,
+  type AccountantWorkbookContract,
+  type CreateAccountantExportRequest,
+  type WorkbookCellContract,
+  type WorkbookCellValueContract,
+  type WorkbookSheetContract,
+} from "./accountant-exports.js";

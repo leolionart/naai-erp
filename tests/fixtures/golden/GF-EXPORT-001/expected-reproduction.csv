@@ -1,0 +1,3 @@
+case,request_matches,result_matches,reproducible
+identical,true,true,true
+changed_result,true,false,false

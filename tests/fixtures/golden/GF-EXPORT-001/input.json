@@ -1,0 +1,56 @@
+{
+  "fixtureId": "GF-EXPORT-001",
+  "organizationId": "org-fixture",
+  "snapshotId": "snapshot-august-v1",
+  "snapshotVersion": 1,
+  "reportKind": "profit_and_loss",
+  "request": {
+    "endsOn": "2026-08-31",
+    "dimensions": {},
+    "startsOn": "2026-08-01",
+    "accountingBasis": "accrual_management"
+  },
+  "result": {
+    "status": "ready",
+    "netProfitMinor": "38000000",
+    "revenueMinor": "100000000",
+    "formulaVersion": "profit-and-loss-v1"
+  },
+  "changedResult": {
+    "status": "ready",
+    "netProfitMinor": "39000000",
+    "revenueMinor": "100000000",
+    "formulaVersion": "profit-and-loss-v1"
+  },
+  "ledgerCutoff": {
+    "throughDate": "2026-08-31",
+    "maxPostedAt": "2026-08-31T16:00:00.000Z",
+    "journalCount": 11,
+    "lineCount": 22,
+    "sourceFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "mappings": [
+    {
+      "sourceKey": "511-REVENUE",
+      "targetKey": "revenue",
+      "mappingVersionId": "map-v1",
+      "status": "mapped"
+    },
+    {
+      "sourceKey": "642-OPEX",
+      "targetKey": "operating_expense",
+      "mappingVersionId": "map-v1",
+      "status": "mapped"
+    }
+  ],
+  "workbook": {
+    "title": "August 2026 Profit and Loss",
+    "currency": "VND",
+    "sheetKey": "profit_and_loss",
+    "sheetName": "Profit and Loss",
+    "rows": [
+      ["Revenue", "100000000", "mapped"],
+      ["Net profit", "38000000", "mapped"]
+    ]
+  }
+}
