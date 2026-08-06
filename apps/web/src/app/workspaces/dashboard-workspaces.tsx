@@ -784,12 +784,28 @@ export function ExecutiveDashboardWorkspace() {
           </Alert>
         ) : null}
         {flagged ? (
-          <Alert>
-            <AlertTriangle />
-            <AlertTitle>{flagged} tín hiệu cần rà soát</AlertTitle>
-            <AlertDescription>
-              Mở finance review để xử lý theo module nguồn; dashboard không tự sửa hoặc che số liệu.
-            </AlertDescription>
+          <Alert className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-amber-500/50 bg-amber-500/10">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="size-5 text-amber-500 shrink-0" />
+              <div>
+                <AlertTitle className="text-amber-600 dark:text-amber-400 font-semibold">
+                  {flagged} tín hiệu / chứng từ cần rà soát
+                </AlertTitle>
+                <AlertDescription className="text-xs">
+                  Phát hiện các khoản chi chưa có hóa đơn đỏ hợp lệ hoặc số nợ quá hạn cần xử lý.
+                </AlertDescription>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              asChild
+              className="shrink-0 border-amber-500/40 hover:bg-amber-500/20"
+            >
+              <Link href={`/dashboard/finance-review?${q}`}>
+                Rà soát ngay <ChevronRight data-icon="inline-end" />
+              </Link>
+            </Button>
           </Alert>
         ) : null}
         {usingOperatingFallback && !loading ? (
