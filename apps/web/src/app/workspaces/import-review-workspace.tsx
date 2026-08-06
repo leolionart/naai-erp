@@ -136,6 +136,48 @@ const sourceFieldLabels: Record<string, string> = {
   notes: "Nội dung nguồn",
 };
 
+const mappedFieldLabels: Record<string, string> = {
+  documentNumber: "Số chứng từ",
+  documentDate: "Ngày chứng từ",
+  date: "Ngày ghi sổ",
+  startsOn: "Ngày bắt đầu",
+  endsOn: "Ngày kết thúc",
+  netMinor: "Tiền hàng (chưa VAT)",
+  taxMinor: "Tiền thuế (VAT)",
+  grossMinor: "Tổng thanh toán",
+  amountMinor: "Giá trị ghi nhận",
+  budgetMinor: "Ngân sách dự án",
+  class: "Phân loại chi phí",
+  categoryCode: "Mã danh mục",
+  categoryLabel: "Danh mục chi phí",
+  businessPurpose: "Mục đích kinh doanh",
+  currency: "Loại tiền",
+  code: "Mã dự án",
+  name: "Tên dự án ghi sổ",
+  state: "Trạng thái",
+  period: "Kỳ đối chiếu",
+  projectLabel: "Nhãn dự án đối chiếu",
+  personName: "Họ và tên nhân sự",
+  debtMinor: "Công nợ",
+  projectCostMinor: "Chi phí dự án kiểm soát",
+  collectedMinor: "Các khoản đã thu",
+  revenueMinor: "Doanh thu kiểm soát",
+  receivedMinor: "Thực nhận kiểm soát",
+  expenseMinor: "Chi phí kiểm soát",
+  profitMinor: "Lợi nhuận kiểm soát",
+  forecastExpenseMinor: "Dự báo chi phí",
+  forecastCashMinor: "Dự báo dòng tiền",
+  targetAttainmentBps: "Tỷ lệ đạt mục tiêu",
+  bonusMinor: "Tổng thưởng kiểm soát",
+  payrollNetMinor: "Lương NET",
+  employmentStatus: "Trạng thái làm việc",
+  department: "Bộ phận",
+  tenure: "Thâm niên (năm)",
+  employmentType: "Hình thức làm việc",
+  hireDate: "Ngày vào làm",
+  category: "Hạng mục đối chiếu",
+};
+
 const fieldLabels: Record<string, string> = {
   partyId: "Khách hàng",
   clientPartyId: "Khách hàng",
@@ -425,8 +467,9 @@ export function ImportReviewWorkspace() {
             <Table className="min-w-[900px]">
               <TableHeader className="bg-muted/40">
                 <TableRow>
-                  <TableHead className="w-[180px]">Nguồn & Ngày</TableHead>
-                  <TableHead className="w-[200px]">Loại & Chi tiết</TableHead>
+                  <TableHead className="w-[140px]">Nguồn</TableHead>
+                  <TableHead className="w-[120px]">Ngày</TableHead>
+                  <TableHead className="w-[220px]">Loại & Chi tiết</TableHead>
                   <TableHead className="w-[140px]">Số tiền</TableHead>
                   <TableHead>Vấn đề cần xử lý</TableHead>
                   <TableHead className="w-[130px]">Trạng thái</TableHead>
@@ -440,10 +483,10 @@ export function ImportReviewWorkspace() {
                       <div className="flex flex-col gap-0.5">
                         <span className="font-semibold text-foreground">{row.sheet}</span>
                         <span className="text-xs text-muted-foreground">Dòng {row.sourceRow}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {getRowDate(row)}
-                        </span>
                       </div>
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground tabular-nums">
+                      {getRowDate(row)}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
@@ -608,6 +651,78 @@ function ReviewRowEditor({
     setError("");
   }, [row]);
 
+  const renderedMappedFields = useMemo(() => {
+    if (!row) return [];
+    const fields: { label: string; value: string }[] = [];
+
+    // Resource type and details
+    fields.push({
+      label: "Đối tượng đề xuất",
+      value: `${row.proposedResourceType} (${row.proposedResourceId || "Chưa tạo"})`,
+    });
+
+    for (const [key, val] of Object.entries(row.mappedData)) {
+      if (val === null || val === undefined || val === "") continue;
+
+      const label = mappedFieldLabels[key] ?? key;
+
+      // Resolve party
+      if (["partyId", "clientPartyId", "payeePartyId"].includes(key)) {
+        const match = parties.find((p) => String(p.id) === String(val));
+        const name = match ? String(match.display_name ?? match.name ?? val) : String(val);
+        fields.push({ label, value: name });
+        continue;
+      }
+
+      // Resolve project
+      if (key === "projectId") {
+        const match = projects.find((p) => String(p.id) === String(val));
+        const name = match ? String(match.name ?? match.display_name ?? val) : String(val);
+        fields.push({ label, value: name });
+        continue;
+      }
+
+      // Format money fields
+      if (key.endsWith("Minor") || key.includes("Minor")) {
+        try {
+          fields.push({ label, value: formatMinorVnd(String(val)) });
+        } catch {
+          fields.push({ label, value: String(val) });
+        }
+        continue;
+      }
+
+      // Format percentage (bps)
+      if (key === "targetAttainmentBps") {
+        fields.push({ label, value: `${(Number(val) / 100).toFixed(2)}%` });
+        continue;
+      }
+
+      // Format arrays (e.g. monthlyAmounts)
+      if (Array.isArray(val)) {
+        const listStr = val
+          .map((item) => {
+            if (item && typeof item === "object" && "period" in item && "amountMinor" in item) {
+              return `${item.period}: ${formatMinorVnd(String(item.amountMinor))}`;
+            }
+            return JSON.stringify(item);
+          })
+          .join(", ");
+        fields.push({ label, value: listStr });
+        continue;
+      }
+
+      if (typeof val === "object") {
+        fields.push({ label, value: JSON.stringify(val) });
+        continue;
+      }
+
+      fields.push({ label, value: String(val) });
+    }
+
+    return fields;
+  }, [row, parties, projects]);
+
   async function save() {
     if (!row) return;
     setBusy(true);
@@ -709,6 +824,27 @@ function ReviewRowEditor({
                   />
                 </Field>
               </FieldGroup>
+            </div>
+
+            <div className="space-y-4 border-b border-border/40 pb-6 px-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <CheckCircle2Icon className="h-4 w-4 text-emerald-500" />
+                <span>Dữ liệu đề xuất ghi sổ (Thông tin chi tiết)</span>
+              </div>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {renderedMappedFields.map((field) => (
+                  <Card key={field.label} className="bg-muted/30 border-muted/40">
+                    <CardHeader className="p-3 gap-1">
+                      <CardDescription className="text-[11px] font-medium text-muted-foreground">
+                        {field.label}
+                      </CardDescription>
+                      <CardTitle className="text-sm font-semibold text-foreground tabular-nums">
+                        {field.value}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-4 px-1">
