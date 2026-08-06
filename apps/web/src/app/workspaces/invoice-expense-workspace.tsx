@@ -61,6 +61,16 @@ function translateDocumentType(type: unknown): string {
   return t.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function translateExpenseClass(cls: unknown): string {
+  if (!cls) return "—";
+  const c = String(cls).toLowerCase();
+  if (c === "documented_operational") return "Chi phí vận hành có hóa đơn";
+  if (c === "non_documented") return "Chi phí không hóa đơn";
+  if (c === "employee_reimbursement") return "Hoàn ứng nhân viên";
+  if (c === "petty_cash") return "Tiền mặt / Tiền tạm ứng";
+  return c.replace(/_/g, " ");
+}
+
 function translateState(state: unknown): string {
   if (!state) return "—";
   const s = String(state).toLowerCase();
@@ -343,19 +353,27 @@ export function InvoiceExpenseWorkspace({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[150px]">
+                <TableHead className="w-[140px]">
                   {kind === "documents" ? "Số hóa đơn" : "Mã chi phí"}
                 </TableHead>
-                <TableHead className="w-[120px]">Ngày</TableHead>
-                <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
-                <TableHead>Đối tượng</TableHead>
-                <TableHead className="w-[150px]">Tổng tiền</TableHead>
-                <TableHead className="w-[140px]">Trạng thái</TableHead>
+                <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
+                <TableHead className="w-[140px]">
+                  {kind === "documents" ? "Loại hóa đơn" : "Phân loại chi phí"}
+                </TableHead>
+                <TableHead>
+                  {kind === "documents" ? "Đối tượng (Mua/Bán)" : "Chi cho ai / Người nhận"}
+                </TableHead>
+                <TableHead>
+                  {kind === "documents" ? "Nội dung / Diễn giải" : "Mục đích chi"}
+                </TableHead>
+                <TableHead className="w-[140px] text-right">Tổng tiền</TableHead>
+                <TableHead className="w-[130px]">Trạng thái</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.map((row, index) => {
                 const id = String(field(row, "id") ?? index);
+
                 return (
                   <TableRow
                     key={id}
@@ -370,16 +388,28 @@ export function InvoiceExpenseWorkspace({
                       {label(field(row, kind === "documents" ? "documentDate" : "expenseDate"))}
                     </TableCell>
                     <TableCell>
-                      {kind === "documents"
-                        ? translateDocumentType(field(row, "type"))
-                        : label(field(row, "businessPurpose"))}
+                      {kind === "documents" ? (
+                        <Badge variant="outline">{translateDocumentType(field(row, "type"))}</Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          {translateExpenseClass(field(row, "expenseClass"))}
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium">
                       {kind === "documents"
                         ? getPartyName(field(row, "partyId"))
-                        : getPartyName(field(row, "payeePartyId"))}
+                        : getPartyName(field(row, "payeePartyId") ?? field(row, "employeePartyId"))}
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums text-foreground">
+                    <TableCell
+                      className="max-w-[220px] truncate text-muted-foreground"
+                      title={String(
+                        field(row, kind === "documents" ? "reason" : "businessPurpose") ?? "",
+                      )}
+                    >
+                      {label(field(row, kind === "documents" ? "reason" : "businessPurpose"))}
+                    </TableCell>
+                    <TableCell className="font-semibold tabular-nums text-foreground text-right">
                       {money(field(row, "grossMinor"))}
                     </TableCell>
                     <TableCell>

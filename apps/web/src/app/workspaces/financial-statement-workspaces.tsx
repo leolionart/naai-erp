@@ -910,7 +910,16 @@ export function TaxExpenseExceptionsWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const query = useMemo(() => new URLSearchParams(searchKey), [searchKey]);
+  const query = useMemo(() => {
+    const q = new URLSearchParams(searchKey);
+    const end = q.get("endsOn") ?? q.get("to") ?? today();
+    const start = q.get("startsOn") ?? q.get("from") ?? `${end.substring(0, 4)}-01-01`;
+    if (!q.has("startsOn")) q.set("startsOn", start);
+    if (!q.has("endsOn")) q.set("endsOn", end);
+    if (!q.has("asOfInstant")) q.set("asOfInstant", `${end}T16:59:59.999Z`);
+    if (!q.has("framework")) q.set("framework", "TT133");
+    return q;
+  }, [searchKey]);
   useEffect(() => {
     if (!hydrated) return;
     setLoading(true);

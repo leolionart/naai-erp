@@ -88,10 +88,22 @@ function unavailableReason(line: PerformanceComparisonLineContract) {
 
 function queryFrom(searchParams: URLSearchParams, periodId?: string) {
   const query = new URLSearchParams();
-  query.set("periodId", periodId ?? searchParams.get("periodId") ?? currentPeriodId());
-  query.set("periodBasis", searchParams.get("periodBasis") ?? "calendar");
-  query.set("actualBasis", searchParams.get("actualBasis") ?? "recognized");
-  for (const key of ["asOfInstant", "forecastVersionId", "teamId", "serviceLineCode", "ownerId"]) {
+  const activePeriod = periodId ?? searchParams.get("periodId") ?? currentPeriodId();
+  const todayStr = new Date().toISOString().substring(0, 10);
+  query.set("periodId", activePeriod);
+  query.set(
+    "periodBasis",
+    searchParams.get("periodBasis") ?? (activePeriod.startsWith("FY") ? "fiscal" : "calendar"),
+  );
+  query.set(
+    "actualBasis",
+    searchParams.get("actualBasis") ?? searchParams.get("basis") ?? "recognized",
+  );
+  query.set(
+    "asOfInstant",
+    searchParams.get("asOfInstant") ?? searchParams.get("asOf") ?? `${todayStr}T16:59:59.999Z`,
+  );
+  for (const key of ["forecastVersionId", "teamId", "serviceLineCode", "ownerId"]) {
     const value = searchParams.get(key);
     if (value) query.set(key, value);
   }

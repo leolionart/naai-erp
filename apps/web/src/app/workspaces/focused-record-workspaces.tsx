@@ -21,6 +21,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
 import {
   Select,
   SelectContent,
@@ -381,9 +382,15 @@ function FilterPopover({
   onApply(data: FormData): void;
 }) {
   const [invoiceStatus, setInvoiceStatus] = useState(params.get("invoiceStatus") ?? "present");
+  const [startsOn, setStartsOn] = useState(params.get("startsOn") ?? params.get("from") ?? "");
+  const [endsOn, setEndsOn] = useState(params.get("endsOn") ?? params.get("to") ?? "");
 
   useEffect(() => {
-    if (open) setInvoiceStatus(params.get("invoiceStatus") ?? "present");
+    if (open) {
+      setInvoiceStatus(params.get("invoiceStatus") ?? "present");
+      setStartsOn(params.get("startsOn") ?? params.get("from") ?? "");
+      setEndsOn(params.get("endsOn") ?? params.get("to") ?? "");
+    }
   }, [open, params]);
 
   return (
@@ -406,6 +413,34 @@ function FilterPopover({
             </p>
           </div>
           <FieldGroup className="p-4">
+            <QuickDatePresetButtons
+              onSelectRange={(start, end) => {
+                setStartsOn(start);
+                setEndsOn(end);
+              }}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Field>
+                <FieldLabel htmlFor="filter-starts-on">Từ ngày</FieldLabel>
+                <Input
+                  id="filter-starts-on"
+                  name="startsOn"
+                  type="date"
+                  value={startsOn}
+                  onChange={(e) => setStartsOn(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="filter-ends-on">Đến ngày</FieldLabel>
+                <Input
+                  id="filter-ends-on"
+                  name="endsOn"
+                  type="date"
+                  value={endsOn}
+                  onChange={(e) => setEndsOn(e.target.value)}
+                />
+              </Field>
+            </div>
             <Field>
               <FieldLabel>Trạng thái</FieldLabel>
               <Select name="state" defaultValue={params.get("state") ?? "all"}>

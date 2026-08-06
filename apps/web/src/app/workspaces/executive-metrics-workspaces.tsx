@@ -14,6 +14,7 @@ import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
 import {
   Card,
   CardContent,
@@ -548,6 +549,12 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
           </PopoverHeader>
           <div className="px-4">
             <FieldGroup>
+              <QuickDatePresetButtons
+                onSelectRange={(start, end) => {
+                  setStartsOn(start);
+                  setEndsOn(end);
+                }}
+              />
               <Field>
                 <FieldLabel htmlFor="executive-start">Từ ngày</FieldLabel>
                 <Input
