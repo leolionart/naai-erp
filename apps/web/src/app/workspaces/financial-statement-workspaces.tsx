@@ -344,7 +344,7 @@ function reportQuery(
   if (kind !== "balance_sheet")
     query.set("startsOn", searchParams.get("startsOn") ?? routeRange?.startsOn ?? defaultStart);
   query.set("endsOn", endsOn);
-  query.set("asOfInstant", searchParams.get("asOfInstant") ?? `${endsOn}T16:59:59.999Z`);
+  query.set("asOfInstant", searchParams.get("asOfInstant") ?? new Date().toISOString());
   query.set("framework", searchParams.get("framework") ?? "TT133");
   query.set("basis", kind === "cash_flow" ? "cash" : (searchParams.get("basis") ?? "accrual"));
   for (const key of ["projectId", "teamId", "serviceLineCode", "costCenterId"]) {
@@ -715,7 +715,7 @@ export function FinancialStatementWorkspace({
       next.set("periodId", `CAL-${nextAnchor}`);
       next.set("startsOn", range.startsOn);
       next.set("endsOn", range.endsOn);
-      next.set("asOfInstant", `${range.endsOn}T16:59:59.999Z`);
+      next.set("asOfInstant", new Date().toISOString());
       router.replace(`${pathname}?${next.toString()}`);
     },
     [anchorMonth, pathname, router, searchParams],
