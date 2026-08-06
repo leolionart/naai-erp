@@ -3,6 +3,7 @@ import {
   boolean,
   bigint,
   check,
+  customType,
   date,
   foreignKey,
   index,
@@ -17,6 +18,12 @@ import {
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Uint8Array }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 const auditColumns = {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -59,6 +66,13 @@ export const financialStatementKind = pgEnum("financial_statement_kind", [
   "cash_flow",
   "vat_reconciliation",
 ]);
+export const reportSnapshotState = pgEnum("report_snapshot_state", ["captured"]);
+export const reportSnapshotReadiness = pgEnum("report_snapshot_readiness", [
+  "final",
+  "review_required",
+]);
+export const accountantExportState = pgEnum("accountant_export_state", ["generated", "superseded"]);
+export const accountantExportFormat = pgEnum("accountant_export_format", ["csv", "xlsx"]);
 export const cashFlowClass = pgEnum("cash_flow_class", [
   "operating",
   "investing",
@@ -4622,6 +4636,174 @@ export const roiInputFacts = pgTable(
   ],
 );
 
+export const reportSnapshots = pgTable(
+  "report_snapshots",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    version: integer("version").notNull(),
+    previousSnapshotId: text("previous_snapshot_id"),
+    previousSnapshotVersion: integer("previous_snapshot_version"),
+    reportKind: text("report_kind").notNull(),
+    state: reportSnapshotState("state").notNull().default("captured"),
+    readiness: reportSnapshotReadiness("readiness").notNull(),
+    periodStartsOn: date("period_starts_on").notNull(),
+    periodEndsOn: date("period_ends_on").notNull(),
+    dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull().default({}),
+    accountingBasis: text("accounting_basis").notNull(),
+    framework: text("framework"),
+    currency: text("currency").notNull(),
+    canonicalRequest: jsonb("canonical_request").$type<Record<string, unknown>>().notNull(),
+    requestHash: text("request_hash").notNull(),
+    canonicalResult: jsonb("canonical_result").$type<Record<string, unknown>>().notNull(),
+    resultHash: text("result_hash").notNull(),
+    formulaVersions: jsonb("formula_versions").$type<Record<string, string>>().notNull(),
+    mappingVersions: jsonb("mapping_versions").$type<Record<string, string>>().notNull(),
+    ledgerCutoff: jsonb("ledger_cutoff").$type<Record<string, unknown>>().notNull(),
+    sourceManifest: jsonb("source_manifest").$type<readonly Record<string, unknown>[]>().notNull(),
+    sourceFingerprint: text("source_fingerprint").notNull(),
+    readinessSummary: jsonb("readiness_summary").$type<Record<string, unknown>>().notNull(),
+    unresolvedItems: jsonb("unresolved_items")
+      .$type<readonly Record<string, unknown>[]>()
+      .notNull()
+      .default([]),
+    capturedBy: text("captured_by").notNull(),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id, table.version] }),
+    foreignKey({
+      columns: [table.organizationId, table.previousSnapshotId, table.previousSnapshotVersion],
+      foreignColumns: [table.organizationId, table.id, table.version],
+      name: "report_snapshots_previous_fk",
+    }).onDelete("restrict"),
+    unique("report_snapshot_reproduction_unique").on(
+      table.organizationId,
+      table.reportKind,
+      table.requestHash,
+      table.sourceFingerprint,
+    ),
+    index("report_snapshots_period_idx").on(
+      table.organizationId,
+      table.reportKind,
+      table.periodStartsOn,
+      table.periodEndsOn,
+    ),
+    check("report_snapshot_version_positive", sql`${table.version} > 0`),
+    check(
+      "report_snapshot_previous_pair",
+      sql`(${table.previousSnapshotId} is null and ${table.previousSnapshotVersion} is null) or (${table.previousSnapshotId} is not null and ${table.previousSnapshotVersion} is not null and ${table.previousSnapshotVersion} > 0)`,
+    ),
+    check("report_snapshot_period_order", sql`${table.periodEndsOn} >= ${table.periodStartsOn}`),
+    check("report_snapshot_kind_not_blank", sql`btrim(${table.reportKind}) <> ''`),
+    check("report_snapshot_basis_not_blank", sql`btrim(${table.accountingBasis}) <> ''`),
+    check("report_snapshot_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("report_snapshot_request_hash_not_blank", sql`btrim(${table.requestHash}) <> ''`),
+    check("report_snapshot_result_hash_not_blank", sql`btrim(${table.resultHash}) <> ''`),
+    check(
+      "report_snapshot_source_fingerprint_not_blank",
+      sql`btrim(${table.sourceFingerprint}) <> ''`,
+    ),
+    check("report_snapshot_dimensions_object", sql`jsonb_typeof(${table.dimensions}) = 'object'`),
+    check(
+      "report_snapshot_canonical_objects",
+      sql`jsonb_typeof(${table.canonicalRequest}) = 'object' and jsonb_typeof(${table.canonicalResult}) = 'object'`,
+    ),
+    check(
+      "report_snapshot_version_objects",
+      sql`jsonb_typeof(${table.formulaVersions}) = 'object' and jsonb_typeof(${table.mappingVersions}) = 'object'`,
+    ),
+    check(
+      "report_snapshot_ledger_cutoff_object",
+      sql`jsonb_typeof(${table.ledgerCutoff}) = 'object'`,
+    ),
+    check(
+      "report_snapshot_source_manifest_array",
+      sql`jsonb_typeof(${table.sourceManifest}) = 'array'`,
+    ),
+    check(
+      "report_snapshot_readiness_summary_object",
+      sql`jsonb_typeof(${table.readinessSummary}) = 'object'`,
+    ),
+    check(
+      "report_snapshot_unresolved_items_array",
+      sql`jsonb_typeof(${table.unresolvedItems}) = 'array'`,
+    ),
+  ],
+);
+
+export const accountantExports = pgTable(
+  "accountant_exports",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    version: integer("version").notNull(),
+    previousExportId: text("previous_export_id"),
+    previousExportVersion: integer("previous_export_version"),
+    snapshotId: text("snapshot_id").notNull(),
+    snapshotVersion: integer("snapshot_version").notNull(),
+    format: accountantExportFormat("format").notNull(),
+    state: accountantExportState("state").notNull().default("generated"),
+    label: text("label").notNull(),
+    manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull(),
+    content: bytea("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "bigint" }).notNull(),
+    mediaType: text("media_type").notNull(),
+    filename: text("filename").notNull(),
+    generatedBy: text("generated_by").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+    supersededBy: text("superseded_by"),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    supersedeReason: text("supersede_reason"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id, table.version] }),
+    foreignKey({
+      columns: [table.organizationId, table.snapshotId, table.snapshotVersion],
+      foreignColumns: [reportSnapshots.organizationId, reportSnapshots.id, reportSnapshots.version],
+      name: "accountant_exports_snapshot_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.previousExportId, table.previousExportVersion],
+      foreignColumns: [table.organizationId, table.id, table.version],
+      name: "accountant_exports_previous_fk",
+    }).onDelete("restrict"),
+    unique("accountant_export_content_unique").on(
+      table.organizationId,
+      table.snapshotId,
+      table.snapshotVersion,
+      table.format,
+      table.contentHash,
+    ),
+    index("accountant_exports_snapshot_idx").on(
+      table.organizationId,
+      table.snapshotId,
+      table.snapshotVersion,
+    ),
+    check("accountant_export_version_positive", sql`${table.version} > 0`),
+    check("accountant_export_snapshot_version_positive", sql`${table.snapshotVersion} > 0`),
+    check(
+      "accountant_export_previous_pair",
+      sql`(${table.previousExportId} is null and ${table.previousExportVersion} is null) or (${table.previousExportId} is not null and ${table.previousExportVersion} is not null and ${table.previousExportVersion} > 0)`,
+    ),
+    check("accountant_export_label_not_blank", sql`btrim(${table.label}) <> ''`),
+    check("accountant_export_manifest_object", sql`jsonb_typeof(${table.manifest}) = 'object'`),
+    check("accountant_export_content_hash_not_blank", sql`btrim(${table.contentHash}) <> ''`),
+    check("accountant_export_size_nonnegative", sql`${table.sizeBytes} >= 0`),
+    check("accountant_export_media_type_not_blank", sql`btrim(${table.mediaType}) <> ''`),
+    check("accountant_export_filename_not_blank", sql`btrim(${table.filename}) <> ''`),
+    check(
+      "accountant_export_supersede_metadata",
+      sql`(${table.state} = 'generated' and ${table.supersededBy} is null and ${table.supersededAt} is null and ${table.supersedeReason} is null) or (${table.state} = 'superseded' and ${table.supersededBy} is not null and ${table.supersededAt} is not null and btrim(coalesce(${table.supersedeReason}, '')) <> '')`,
+    ),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -4726,4 +4908,6 @@ export const schema = {
   executiveMetricSemanticMappings,
   roiDefinitionVersions,
   roiInputFacts,
+  reportSnapshots,
+  accountantExports,
 } as const;
