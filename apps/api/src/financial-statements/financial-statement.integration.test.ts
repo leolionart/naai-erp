@@ -282,9 +282,9 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       otherExpenseMinor: "2",
       profitBeforeTaxMinor: "93",
       incomeTaxMinor: "5",
-      sectionFormulaNetProfitMinor: "38",
-      netProfitMinor: "89",
-      unclassifiedNetMinor: "1",
+      sectionFormulaNetProfitMinor: "88",
+      netProfitMinor: "88",
+      unclassifiedNetMinor: "0",
       status: "review_required",
       control: { status: "tied_out", differenceMinor: "0" },
     });
@@ -296,6 +296,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
     expect(drill.statusCode, drill.body).toBe(200);
     expect(drill.json().data.items.map((x: { journalId: string }) => x.journalId)).toEqual([
       "sale",
+      "vat-sale",
     ]);
   });
 
@@ -321,11 +322,17 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       values ('org-erp630','bad-ledger','2026-08-31','bad','VND','posted','2026-08-31T12:00:00Z','maker','2026-08-31T12:00:00Z','approver','test')`);
     await pool.query(`insert into journal_lines (organization_id,journal_id,line_number,account_code,debit_minor,description,dimensions)
       values ('org-erp630','bad-ledger',1,'111-BANK',1,'deliberate mismatch','{}')`);
-    const mismatch = await app.inject({ method: "GET", url, headers: headers() });
-    expect(mismatch.statusCode).toBe(422);
-    await pool.query(
-      "delete from journal_lines where organization_id='org-erp630' and journal_id='bad-ledger'; delete from journal_entries where organization_id='org-erp630' and id='bad-ledger'",
-    );
+    try {
+      const mismatch = await app.inject({ method: "GET", url, headers: headers() });
+      expect(mismatch.statusCode, mismatch.body).toBe(400);
+      expect(mismatch.json().error).toMatchObject({
+        code: "BALANCE_SHEET_SOURCE_LEDGER_IS_UNBALANCED",
+      });
+    } finally {
+      await pool.query(
+        "delete from journal_lines where organization_id='org-erp630' and journal_id='bad-ledger'; delete from journal_entries where organization_id='org-erp630' and id='bad-ledger'",
+      );
+    }
   });
 
   it("classifies direct cash flow, excludes internal transfer, ties opening/net/closing, and flags unclassified", async () => {

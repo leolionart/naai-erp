@@ -523,7 +523,7 @@ export class PgFinancialStatementStore {
              when d.type='credit_note' then 'sales_credit_note' else d.type::text end source_type,
         case when d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice') then 'output' else 'input' end tax_kind,
         l.tax_minor::text tax_minor,case when d.type='credit_note' then 'reversal' else 'normal' end direction,
-        case when d.type='purchase_invoice' or (d.type='credit_note' and original.type='purchase_invoice') then 'unreviewed' else null end review_state,null::text eligible_minor,
+        case when d.type='purchase_invoice' or (d.type='credit_note' and original.type='purchase_invoice') then 'unreviewed'::text else null::text end review_state,null::text eligible_minor,
         null::text reviewer_id,null::text review_reason,null::text review_reference_id,l.tax_code,
         exists(select 1 from tax_code_versions t where t.organization_id=d.organization_id and t.code=l.tax_code and t.review_state='accountant_approved' and t.effective_from<=d.document_date and (t.effective_to is null or t.effective_to>=d.document_date)) tax_code_approved,
         d.journal_id is not null posted_to_ledger,d.journal_id,
@@ -533,7 +533,7 @@ export class PgFinancialStatementStore {
        left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
        where d.organization_id=$1 and d.document_date between $2::date and $3::date and d.created_at <= $4::timestamptz and l.tax_minor>0
        union all
-       select concat('expense:',e.id,':',l.line_number),e.id,'expense','input',l.vat_minor::text,'normal',l.vat_state,l.vat_eligible_minor::text,
+       select concat('expense:',e.id,':',l.line_number),e.id,'expense','input',l.vat_minor::text,'normal',l.vat_state::text,l.vat_eligible_minor::text,
         l.reviewed_by,l.review_reason,l.review_reference,null::text,true,e.journal_id is not null,e.journal_id,
         array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) then array['source_document']::text[] else array[]::text[] end
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
