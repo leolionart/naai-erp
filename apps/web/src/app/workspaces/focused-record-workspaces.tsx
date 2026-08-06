@@ -40,7 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
-import { DocumentForm, ExpenseForm } from "./invoice-expense-workspace";
+import { DocumentForm, ExpenseForm } from "@/components/forms/document-expense-forms";
 
 type Kind = "documents" | "expenses";
 type Row = Record<string, unknown>;
@@ -373,7 +373,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                     busy={quickBusy}
                     initial={quickRecord}
                     submitLabel="Lưu thay đổi hóa đơn"
-                    onSubmit={(body) => void updateQuickRecord(body)}
+                    onSubmit={(body: Row) => void updateQuickRecord(body)}
                   />
                 ) : (
                   <ExpenseForm
@@ -381,7 +381,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                     busy={quickBusy}
                     initial={quickRecord}
                     submitLabel="Lưu thay đổi chi phí"
-                    onSubmit={(body) => void updateQuickRecord(body)}
+                    onSubmit={(body: Row) => void updateQuickRecord(body)}
                   />
                 )
               ) : null}
@@ -935,7 +935,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 busy={busy}
                 initial={record}
                 submitLabel="Lưu thay đổi hóa đơn"
-                onSubmit={(body) => void update(body)}
+                onSubmit={(body: Row) => void update(body)}
               />
             ) : (
               <ExpenseForm
