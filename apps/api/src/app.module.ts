@@ -96,6 +96,10 @@ import { FinancialStatementController } from "./financial-statements/financial-s
 import { FinancialStatementService } from "./financial-statements/financial-statement.service.js";
 import { FINANCIAL_STATEMENT_STORE } from "./financial-statements/financial-statement.types.js";
 import { PgFinancialStatementStore } from "./financial-statements/pg-financial-statement.store.js";
+import { ExecutiveMetricController } from "./executive-metrics/executive-metric.controller.js";
+import { ExecutiveMetricService } from "./executive-metrics/executive-metric.service.js";
+import { EXECUTIVE_METRIC_STORE } from "./executive-metrics/executive-metric.types.js";
+import { PgExecutiveMetricStore } from "./executive-metrics/pg-executive-metric.store.js";
 
 @Module({
   controllers: [
@@ -129,6 +133,7 @@ import { PgFinancialStatementStore } from "./financial-statements/pg-financial-s
     ForecastComponentController,
     PerformanceComparisonController,
     FinancialStatementController,
+    ExecutiveMetricController,
   ],
   providers: [
     MasterDataService,
@@ -194,6 +199,9 @@ import { PgFinancialStatementStore } from "./financial-statements/pg-financial-s
     FinancialStatementService,
     PgFinancialStatementStore,
     { provide: FINANCIAL_STATEMENT_STORE, useExisting: PgFinancialStatementStore },
+    ExecutiveMetricService,
+    PgExecutiveMetricStore,
+    { provide: EXECUTIVE_METRIC_STORE, useExisting: PgExecutiveMetricStore },
   ],
 })
 export class AppModule {}
