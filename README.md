@@ -1,12 +1,12 @@
 # NAAI ERP
 
-Management accounting and project-profitability system for NAAI Studio.
+Invoice/expense data and financial reporting system for NAAI Studio.
 
 Canonical repository: https://github.com/leolionart/naai-erp
 
 ## Current status
 
-Foundation Gate G0 is complete. Platform/master-data Gate G1 is being implemented sequentially.
+The accounting/reporting foundation through ERP-700 is complete. The active narrow MVP has four remaining tasks: Paperless-linked ingestion, focused invoice/expense UI, clean-install report setup, and Docker release with real-data import.
 
 ## Local development preview (no Docker build)
 
@@ -53,4 +53,4 @@ Supported resource families and operations are documented in [OpenAPI v1](./docs
 - [Overnight Codex Runbook](./docs/agent/overnight-runbook.md)
 - [Machine-readable Task Ledger](./docs/implementation/task-ledger.yaml)
 
-The sequential coding plan is the implementation source of truth. Do not skip phase dependencies or acceptance gates.
+The sequential coding plan is the implementation source of truth. Historical enterprise scope is deferred unless the owner explicitly reactivates it.

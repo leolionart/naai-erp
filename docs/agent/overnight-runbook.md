@@ -25,9 +25,10 @@ Validate:
 
 1. Find tasks with `status: ready`.
 2. Remove tasks whose dependencies/gate are not `done`.
-3. Select lowest task ID in the dependency spine.
-4. If multiple parallel tasks are explicitly allowed, assign disjoint file ownership.
-5. If no task remains, stop with a blocker report; never invent a task.
+3. Remove tasks with `status: deferred`; they are outside the active MVP.
+4. Select lowest task ID in the dependency spine.
+5. If multiple parallel tasks are explicitly allowed, assign disjoint file ownership.
+6. If no task remains, stop with a blocker report; never invent a task.
 
 ## 3. Per-task loop
 
@@ -66,6 +67,7 @@ Stop when:
 - credentials or external authority are missing;
 - production mutation/push/deploy was not explicitly authorized;
 - scope would cross into a blocked task/phase;
+- work belongs to Paperless file management, OCR/n8n orchestration or another deferred enterprise task;
 - worktree changes overlap unknown user work;
 - gate repair has failed three times.
 

@@ -23,6 +23,15 @@ Do not start implementation if any mandatory file is missing, unreadable, or con
 - Do not bypass an acceptance gate.
 - One agent owns one task scope at a time unless the task explicitly permits parallel file ownership.
 - If no task is ready, stop and report the exact missing dependency or decision.
+- Tasks marked `deferred` are explicitly outside the active MVP and must not be implemented unless the owner reactivates them.
+
+## Active MVP boundary
+
+- NAAI ERP receives structured invoice/expense data. Paperless-ngx owns source files and search; n8n/OCR owns extraction, normalization and retry orchestration.
+- Do not implement OCR, document archiving, an OCR review inbox, onboarding wizard, replay/dead-letter orchestration or broad enterprise workflows.
+- Invalid inbound payloads return structured field errors. n8n handles retry; users edit ERP drafts directly. Do not add a separate review/approval lifecycle for ingestion.
+- The only remaining active tasks are ERP-710 through ERP-740 in the task ledger.
+- Prefer Antigravity/Gemini for bounded mechanical CRUD, client, test-boilerplate, Docker and documentation work when available; Codex integrates and verifies accounting/API gates.
 
 ## Required execution loop
 
@@ -55,7 +64,7 @@ Any implementation that violates an invariant must stop; do not weaken a test to
 
 - Every business resource must be readable and writable, where permitted, through versioned REST/OpenAPI and the first-party CLI.
 - CLI, UI and optional AI/MCP adapters call the same application services; none use direct PostgreSQL access as an integration path.
-- AI/service identities never bypass organization scope, RBAC, audit, idempotency, maker-checker, period locks or accounting rules.
+- AI/service identities never bypass organization scope, RBAC, audit, idempotency, period locks or accounting rules. Existing accounting lifecycle controls remain intact, but external ingestion has no additional review workflow.
 - A feature is not `done` if it only has schema/domain/UI without its applicable machine-readable contract.
 
 ## Testing requirements

@@ -2,6 +2,44 @@
 
 This catalog is the authoritative behavior specification for implementation. Repository benchmarks are design inspiration only; Vietnamese tax rules remain configurable and require accountant approval.
 
+## Active invoice MVP rules
+
+These rules define the active release boundary. Historical rules remain valid for completed modules but do not authorize new scope.
+
+### BR-MVP-001 — External identity and idempotent upsert
+
+- Paperless/n8n sends structured invoice, credit-note or expense data through REST/webhook.
+- Each resource may carry a generic external reference with system, external ID, canonical URL, checksum/version, sync timestamp and metadata.
+- `(organization, external system, external ID)` is unique.
+- Re-sending the same external identity returns or updates one business resource even when the HTTP idempotency key changes.
+- Invalid payloads create no business effect and return structured field errors; NAAI ERP has no separate ingestion review workflow.
+
+### BR-MVP-002 — Paperless boundary and duplicate prevention
+
+- Paperless-ngx owns source file bytes, search and document lifecycle. NAAI ERP stores references only.
+- Purchase invoice is the canonical supplier-invoice record. Non-invoice expense must not duplicate it through a second invoice-backed path.
+- Duplicate checks prioritize external identity, then supplier, invoice number, date, gross amount and currency.
+- The same external ID may exist in different organizations.
+
+### BR-MVP-003 — Focused invoice and expense UI
+
+- Invoice and expense use dedicated list, new and detail routes with URL-backed filters.
+- Drafts may be corrected directly. Posted financial records retain existing cancel/reverse controls and are not hard-deleted.
+- Detail pages show Paperless reference, journal and payment/reconciliation links.
+- UI uses organization master data and never silently applies demo account codes.
+
+### BR-MVP-004 — Minimal report readiness
+
+- A clean installation receives a minimal approved TT133 account, tax and statement-mapping setup.
+- Revenue, expense, profit, direct Cash Flow, VAT, paid/unpaid, MoM/YoY and target reports use existing canonical report formulas.
+- Dashboard values must equal the report API response and drill down to posted sources.
+
+### BR-MVP-005 — Release and controlled workbook import
+
+- Production containers run non-root and become healthy through Docker Compose after migrate-once.
+- A successful main-branch check publishes `main` and immutable `sha-<12>` images.
+- Workbook import supports inventory, zero-mutation dry-run, explicit commit, row-level errors, retry idempotency and exact reconciliation to source controls.
+
 ## AI-native access
 
 ### BR-AI-001 — Machine-readable coverage

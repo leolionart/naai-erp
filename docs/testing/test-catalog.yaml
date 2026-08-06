@@ -922,6 +922,87 @@ tests:
     command: node tests/fixtures/golden/GF-DASHBOARD-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts
     blocking_gate: G7
 
+  - id: T-INT-ERP-710-001
+    aliases: [T-MVP-API-001]
+    task: ERP-710
+    rules: [BR-MVP-001]
+    title: External invoice identity produces organization-isolated idempotent upserts
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- external-invoice-ingestion.integration
+    blocking_gate: G7
+
+  - id: T-INT-ERP-710-002
+    aliases: [T-MVP-API-002]
+    task: ERP-710
+    rules: [BR-MVP-002]
+    title: Credit note webhook ingestion and canonical purchase-invoice duplicate prevention are enforced
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- external-credit-note-and-duplicates.integration
+    blocking_gate: G7
+
+  - id: T-E2E-ERP-720-001
+    aliases: [T-MVP-UI-001]
+    task: ERP-720
+    rules: [BR-MVP-003]
+    title: Dedicated invoice and expense routes support create detail edit and Paperless reference access
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/invoice-expense-admin.spec.ts
+    blocking_gate: G7
+
+  - id: T-E2E-ERP-720-002
+    aliases: [T-MVP-UI-002]
+    task: ERP-720
+    rules: [BR-MVP-003]
+    title: Invoice and expense admin remains usable on desktop and mobile and shows structured API errors
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/invoice-expense-responsive.spec.ts
+    blocking_gate: G7
+
+  - id: T-INT-ERP-730-001
+    aliases: [T-MVP-RPT-001]
+    task: ERP-730
+    rules: [BR-MVP-004]
+    title: Fresh seeded organization opens required reports without missing account or report mapping errors
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- clean-install-report-readiness.integration
+    blocking_gate: G7
+
+  - id: T-E2E-ERP-730-002
+    aliases: [T-MVP-RPT-002]
+    task: ERP-730
+    rules: [BR-MVP-004]
+    title: MVP dashboard reports and accountant exports expose exact filters totals and drill-down controls
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/mvp-reporting.spec.ts
+    blocking_gate: G7
+
+  - id: T-COMPOSE-ERP-740-001
+    aliases: [T-MVP-CMP-001]
+    task: ERP-740
+    rules: [BR-MVP-005]
+    title: Fresh Compose stack becomes healthy and preserves data across restart
+    layer: compose
+    command: pnpm test:compose
+    blocking_gate: G7
+
+  - id: T-RELEASE-ERP-740-001
+    aliases: [T-MVP-REL-001]
+    task: ERP-740
+    rules: [BR-MVP-005]
+    title: Main publishes usable GHCR main and immutable commit SHA images
+    layer: release
+    command: pnpm test:release-manifest
+    blocking_gate: G7
+
+  - id: T-INT-ERP-740-002
+    aliases: [T-MVP-IMPORT-001]
+    task: ERP-740
+    rules: [BR-MVP-005]
+    title: Real workbook import supports inventory dry-run idempotency and exact reconciliation
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- real-workbook-import.integration
+    blocking_gate: G7
+
   - id: T-COMPOSE-ERP-810-001
     aliases: [T-CMP-001]
     task: ERP-810

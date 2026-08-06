@@ -2,7 +2,7 @@
 title: "NAAI ERP - Product Discovery and Development Plan"
 doc_type: project-doc
 project: "NAAI ERP"
-status: draft
+status: archived
 tags:
   - accounting
   - invoice
@@ -19,6 +19,8 @@ sources:
 ---
 
 # NAAI ERP
+
+> **Historical discovery document.** The active product boundary and implementation source of truth is now [NAAI ERP - Sequential Coding Plan](./NAAI%20ERP%20-%20Sequential%20Coding%20Plan.md). The active MVP excludes OCR, source-file storage, document review workflows and broad enterprise ERP scope. Paperless-ngx stores source documents; n8n/OCR sends structured data to NAAI ERP through API/webhooks.
 
 ## Product Discovery and Development Plan cho NAAI Studio
 
@@ -70,36 +72,36 @@ Không được coi ba số này là một.
 
 ## 4. Benchmark open-source
 
-| Repo | Điểm mạnh có thể học/tái sử dụng | Khoảng trống với NAAI Studio | Vai trò đề xuất |
-|---|---|---|---|
-| [ERPNext](https://github.com/frappe/erpnext) | Kế toán kép, invoices, journal, project, timesheet, project profitability, REST API | Nặng; forecast và KPI agency cần custom; tax/e-invoice Việt Nam chưa turnkey | Reference nghiệp vụ và phương án fallback ERP |
-| [Dolibarr](https://github.com/Dolibarr/dolibarr) | Invoice, expense report, project/task/timesheet, margin, REST API và webhook trong core | Dashboard quản trị, forecast, equity burn và localization Việt Nam còn thiếu | Reference MVP nhẹ |
-| [Bigcapital](https://github.com/bigcapitalhq/bigcapital) | Headless double-entry accounting, invoices, bills, expenses, P&L, Balance Sheet, Cash Flow | Project/timesheet backend và forecast chưa đủ tin cậy | Reference API và financial reports |
-| [Odoo Community](https://github.com/odoo/odoo) | Project, timesheet, analytic accounting và localization `l10n_vn` | Nhiều tính năng/report/API/webhook thuận tiện gắn với Enterprise hoặc cần custom sâu | Reference localization và analytic accounting |
-| [Frappe Books](https://github.com/frappe/books) | UX kế toán gọn, double-entry và báo cáo cơ bản | Desktop/offline, thiếu project economics và integration platform | Reference UX nhập liệu |
-| [Akaunting](https://github.com/akaunting/akaunting) | UI SMB, invoices, bills, banking, REST API | BSL giới hạn production; nhiều chức năng sâu là app trả phí | Không chọn làm nền |
-| [Invoice Ninja](https://github.com/invoiceninja/invoiceninja) | Invoice, quote, payment, project/time tracking và client portal | Không phải general ledger/accounting source of truth | Reference invoicing/client portal |
-| [Kimai](https://github.com/kimai/kimai) | Timesheet, rate, team/project reporting và invoicing | Không có accounting ledger | Reference time-costing workflow |
-| [Solidtime](https://github.com/solidtime-io/solidtime) | Time tracking hiện đại, project/member workflow | Không có financial accounting | Reference timesheet UX |
-| [Medici](https://github.com/flash-oss/medici) | Library double-entry cho Node.js | Dùng MongoDB, không cung cấp ERP/reporting hoàn chỉnh | Reference invariant của ledger, không dùng nguyên trạng |
-| [Metabase](https://github.com/metabase/metabase) | BI/dashboard nhanh trên PostgreSQL | Không phải transaction system; metric governance phải nằm trong app | Embedded BI ở giai đoạn đầu |
-| [Lago](https://github.com/getlago/lago) | Metering, billing API, usage-based billing | Quá thiên SaaS subscription; không giải quyết bookkeeping/project costs | Reference recurring billing nếu phát sinh |
+| Repo                                                          | Điểm mạnh có thể học/tái sử dụng                                                           | Khoảng trống với NAAI Studio                                                         | Vai trò đề xuất                                         |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| [ERPNext](https://github.com/frappe/erpnext)                  | Kế toán kép, invoices, journal, project, timesheet, project profitability, REST API        | Nặng; forecast và KPI agency cần custom; tax/e-invoice Việt Nam chưa turnkey         | Reference nghiệp vụ và phương án fallback ERP           |
+| [Dolibarr](https://github.com/Dolibarr/dolibarr)              | Invoice, expense report, project/task/timesheet, margin, REST API và webhook trong core    | Dashboard quản trị, forecast, equity burn và localization Việt Nam còn thiếu         | Reference MVP nhẹ                                       |
+| [Bigcapital](https://github.com/bigcapitalhq/bigcapital)      | Headless double-entry accounting, invoices, bills, expenses, P&L, Balance Sheet, Cash Flow | Project/timesheet backend và forecast chưa đủ tin cậy                                | Reference API và financial reports                      |
+| [Odoo Community](https://github.com/odoo/odoo)                | Project, timesheet, analytic accounting và localization `l10n_vn`                          | Nhiều tính năng/report/API/webhook thuận tiện gắn với Enterprise hoặc cần custom sâu | Reference localization và analytic accounting           |
+| [Frappe Books](https://github.com/frappe/books)               | UX kế toán gọn, double-entry và báo cáo cơ bản                                             | Desktop/offline, thiếu project economics và integration platform                     | Reference UX nhập liệu                                  |
+| [Akaunting](https://github.com/akaunting/akaunting)           | UI SMB, invoices, bills, banking, REST API                                                 | BSL giới hạn production; nhiều chức năng sâu là app trả phí                          | Không chọn làm nền                                      |
+| [Invoice Ninja](https://github.com/invoiceninja/invoiceninja) | Invoice, quote, payment, project/time tracking và client portal                            | Không phải general ledger/accounting source of truth                                 | Reference invoicing/client portal                       |
+| [Kimai](https://github.com/kimai/kimai)                       | Timesheet, rate, team/project reporting và invoicing                                       | Không có accounting ledger                                                           | Reference time-costing workflow                         |
+| [Solidtime](https://github.com/solidtime-io/solidtime)        | Time tracking hiện đại, project/member workflow                                            | Không có financial accounting                                                        | Reference timesheet UX                                  |
+| [Medici](https://github.com/flash-oss/medici)                 | Library double-entry cho Node.js                                                           | Dùng MongoDB, không cung cấp ERP/reporting hoàn chỉnh                                | Reference invariant của ledger, không dùng nguyên trạng |
+| [Metabase](https://github.com/metabase/metabase)              | BI/dashboard nhanh trên PostgreSQL                                                         | Không phải transaction system; metric governance phải nằm trong app                  | Embedded BI ở giai đoạn đầu                             |
+| [Lago](https://github.com/getlago/lago)                       | Metering, billing API, usage-based billing                                                 | Quá thiên SaaS subscription; không giải quyết bookkeeping/project costs              | Reference recurring billing nếu phát sinh               |
 
 ### Extended component benchmark
 
 Các dự án dưới đây không nhất thiết phù hợp để fork, nhưng cung cấp pattern đã được kiểm chứng:
 
-| Repo | License / trạng thái khi kiểm tra | Pattern đáng nghiên cứu |
-|---|---|---|
-| [LedgerSMB](https://github.com/ledgersmb/LedgerSMB) | GPL-2.0, active 2026-08 | GL, AR/AP, invoice, tax, project và audit/reporting model |
-| [Tryton](https://github.com/tryton/tryton) | Hệ sinh thái module GPL-3.0, active 2026-08 | Module boundaries, document workflow, project/timesheet/budget |
-| [FrontAccounting](https://github.com/FrontAccountingERP/FA) | GPL, active 2026 | SME posting flow, accounting dimensions và budget reports |
-| [OpenProject](https://github.com/opf/openproject) | GPL-3.0, active 2026-08 | Project, milestone, work package, time tracking, API/webhook |
-| [Actual Budget](https://github.com/actualbudget/actual) | MIT, active 2026-08 | Budget target, rules, import/reconciliation và local-first UX |
-| [Firefly III](https://github.com/firefly-iii/firefly-iii) | AGPL-3.0, active 2026-08 | Transaction categorization, rules, imports, recurring và dashboard |
-| [Kill Bill](https://github.com/killbill/killbill) | Apache-2.0, active 2026-08 | Billing state machine, retry, plugin, audit và event architecture |
-| [SolidInvoice](https://github.com/SolidInvoice/SolidInvoice) | MIT, active 2026-08 | Quote/invoice/payment lifecycle, PDF/email UX |
-| [Beancount](https://github.com/beancount/beancount) | GPL-2.0 | Independent accounting oracle và reproducible ledger test fixtures |
+| Repo                                                         | License / trạng thái khi kiểm tra           | Pattern đáng nghiên cứu                                            |
+| ------------------------------------------------------------ | ------------------------------------------- | ------------------------------------------------------------------ |
+| [LedgerSMB](https://github.com/ledgersmb/LedgerSMB)          | GPL-2.0, active 2026-08                     | GL, AR/AP, invoice, tax, project và audit/reporting model          |
+| [Tryton](https://github.com/tryton/tryton)                   | Hệ sinh thái module GPL-3.0, active 2026-08 | Module boundaries, document workflow, project/timesheet/budget     |
+| [FrontAccounting](https://github.com/FrontAccountingERP/FA)  | GPL, active 2026                            | SME posting flow, accounting dimensions và budget reports          |
+| [OpenProject](https://github.com/opf/openproject)            | GPL-3.0, active 2026-08                     | Project, milestone, work package, time tracking, API/webhook       |
+| [Actual Budget](https://github.com/actualbudget/actual)      | MIT, active 2026-08                         | Budget target, rules, import/reconciliation và local-first UX      |
+| [Firefly III](https://github.com/firefly-iii/firefly-iii)    | AGPL-3.0, active 2026-08                    | Transaction categorization, rules, imports, recurring và dashboard |
+| [Kill Bill](https://github.com/killbill/killbill)            | Apache-2.0, active 2026-08                  | Billing state machine, retry, plugin, audit và event architecture  |
+| [SolidInvoice](https://github.com/SolidInvoice/SolidInvoice) | MIT, active 2026-08                         | Quote/invoice/payment lifecycle, PDF/email UX                      |
+| [Beancount](https://github.com/beancount/beancount)          | GPL-2.0                                     | Independent accounting oracle và reproducible ledger test fixtures |
 
 Không trộn trực tiếp code từ nhiều repo GPL/AGPL vào core. Ưu tiên nghiên cứu pattern, clean-room implementation hoặc tích hợp qua API; mọi tái sử dụng code phải được review license riêng.
 
@@ -481,5 +483,3 @@ Không bắt đầu bằng scaffold code. Bước kế tiếp nên là **Phase 0
 6. Sau khi số liệu mẫu đúng mới scaffold codebase production.
 
 Điều này giảm rủi ro xây một dashboard đẹp nhưng cho ra số không thể giải thích hoặc không khớp với sổ kế toán.
-
-
