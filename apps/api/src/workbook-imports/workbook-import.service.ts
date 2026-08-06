@@ -27,6 +27,23 @@ export type ImportOutcome = {
       varianceMinor: string;
       classifiedBy?: string;
     }>[];
+    legacyControl?: Readonly<{
+      totalSales: string;
+      totalExpense: string;
+      totalProfit: string;
+      components: readonly Readonly<{
+        kind: "sales" | "expense";
+        sourceIdentity: string;
+        sourceSheet: string;
+        sourceRow: number;
+        controlYear: number;
+        controlMonth: number | null;
+        amountMinor: string;
+        included: boolean;
+        classification?: string;
+        evidence?: string;
+      }>[];
+    }>;
   };
   details?: {
     partiesCreated: number;
@@ -68,7 +85,7 @@ export class WorkbookImportService {
         (issue) =>
           `${issue.workbook}/${issue.sheet}${issue.row ? ` row ${issue.row}` : ""}: ${issue.message}`,
       );
-    if (payload.mappingVersion !== 1)
+    if (![1, 2].includes(payload.mappingVersion))
       errors.push(`Unsupported workbook mapping version: ${String(payload.mappingVersion)}`);
     if (!payload.sources?.length) errors.push("At least one workbook source identity is required");
     if (!payload.inventory?.length) errors.push("Workbook sheet inventory is required");
@@ -98,6 +115,63 @@ export class WorkbookImportService {
     }
 
     let salesSum = 0n;
+    let legacySalesSum = 0n;
+    let legacyExpenseSum = 0n;
+    const legacyComponents: NonNullable<
+      ImportOutcome["reconciliation"]["legacyControl"]
+    >["components"][number][] = [];
+    const validateTreatment = (
+      kind: "sales" | "expense",
+      sourceIdentity: string,
+      sourceRowIndex: number,
+      amount: bigint,
+      treatment: (typeof payload.salesInvoices)[number]["legacyControlTreatment"],
+      expectedSheet: string,
+    ) => {
+      if (payload.mappingVersion !== 2) return;
+      if (!treatment) {
+        errors.push(`${kind} row ${sourceRowIndex} is missing mapping v2 legacy control treatment`);
+        return;
+      }
+      if (
+        treatment.sourceSheet !== expectedSheet ||
+        treatment.sourceRow !== sourceRowIndex ||
+        !Number.isInteger(treatment.controlYear) ||
+        (treatment.controlMonth !== null &&
+          (!Number.isInteger(treatment.controlMonth) ||
+            treatment.controlMonth < 1 ||
+            treatment.controlMonth > 12)) ||
+        (treatment.included && treatment.controlMonth === null)
+      ) {
+        errors.push(
+          `${kind} row ${sourceRowIndex} has invalid legacy control source/period evidence`,
+        );
+      }
+      if (
+        !treatment.included &&
+        (!treatment.classification?.trim() || !treatment.evidence?.trim())
+      ) {
+        errors.push(
+          `${kind} row ${sourceRowIndex} legacy control exclusion requires classification and evidence`,
+        );
+      }
+      legacyComponents.push({
+        kind,
+        sourceIdentity,
+        sourceSheet: treatment.sourceSheet,
+        sourceRow: treatment.sourceRow,
+        controlYear: treatment.controlYear,
+        controlMonth: treatment.controlMonth,
+        amountMinor: amount.toString(),
+        included: treatment.included,
+        ...(treatment.classification ? { classification: treatment.classification } : {}),
+        ...(treatment.evidence ? { evidence: treatment.evidence } : {}),
+      });
+      if (treatment.included) {
+        if (kind === "sales") legacySalesSum += amount;
+        else legacyExpenseSum += amount;
+      }
+    };
     for (const invoice of payload.salesInvoices) {
       if (!invoice.id || !invoice.documentNumber || !invoice.partyId) {
         errors.push(
@@ -142,6 +216,14 @@ export class WorkbookImportService {
           `Sales invoice ${invoice.documentNumber} at row ${invoice.sourceRowIndex} fails total check: gross (${gross}) != net (${net}) + tax (${tax})`,
         );
       }
+      validateTreatment(
+        "sales",
+        invoice.sourceIdentity,
+        invoice.sourceRowIndex,
+        net,
+        invoice.legacyControlTreatment,
+        "Doanh thu",
+      );
 
       // Check if this falls in 2025
       if (invoice.documentDate.startsWith("2025")) {
@@ -180,26 +262,57 @@ export class WorkbookImportService {
         if (gross < tax)
           errors.push(`Expense at row ${exp.sourceRowIndex} has tax greater than gross`);
         if (exp.date.startsWith("2025")) expenseSum += gross - tax;
+        validateTreatment(
+          "expense",
+          exp.sourceIdentity,
+          exp.sourceRowIndex,
+          gross - tax,
+          exp.legacyControlTreatment,
+          "Chi phí",
+        );
       } catch {
         errors.push(`Expense at row ${exp.sourceRowIndex} has invalid integer money`);
       }
     }
 
     const profitSum = salesSum - expenseSum;
+    const legacyProfitSum = legacySalesSum - legacyExpenseSum;
     const variances: ImportOutcome["reconciliation"]["variances"][number][] = [];
     for (const control of payload.controls ?? []) {
       const detail = {
-        sales: control.year === 2025 ? salesSum : 0n,
-        expense: control.year === 2025 ? expenseSum : 0n,
-        profit: control.year === 2025 ? profitSum : 0n,
+        sales:
+          payload.mappingVersion === 2
+            ? legacyComponents
+                .filter(
+                  (item) =>
+                    item.kind === "sales" && item.included && item.controlYear === control.year,
+                )
+                .reduce((sum, item) => sum + BigInt(item.amountMinor), 0n)
+            : control.year === 2025
+              ? salesSum
+              : 0n,
+        expense:
+          payload.mappingVersion === 2
+            ? legacyComponents
+                .filter(
+                  (item) =>
+                    item.kind === "expense" && item.included && item.controlYear === control.year,
+                )
+                .reduce((sum, item) => sum + BigInt(item.amountMinor), 0n)
+            : control.year === 2025
+              ? expenseSum
+              : 0n,
+        profit: 0n,
       };
+      detail.profit = detail.sales - detail.expense;
       for (const metric of ["sales", "expense", "profit"] as const) {
         const controlMinor = BigInt(control[`${metric}Minor`]);
         const variance = controlMinor - detail[metric];
         if (variance === 0n) continue;
         const rule = (payload.varianceRules ?? []).find(
           (candidate) =>
-            candidate.mappingVersion === payload.mappingVersion &&
+            payload.mappingVersion === 1 &&
+            candidate.mappingVersion === 1 &&
             candidate.sheet === control.sheet &&
             candidate.metric === metric &&
             BigInt(candidate.varianceMinor) === variance,
@@ -230,6 +343,16 @@ export class WorkbookImportService {
         totalProfit: profitSum.toString(),
         controls: payload.controls ?? [],
         variances,
+        ...(payload.mappingVersion === 2
+          ? {
+              legacyControl: {
+                totalSales: legacySalesSum.toString(),
+                totalExpense: legacyExpenseSum.toString(),
+                totalProfit: legacyProfitSum.toString(),
+                components: legacyComponents,
+              },
+            }
+          : {}),
       },
       coverage: {
         inventory: payload.inventory ?? [],

@@ -318,6 +318,104 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     ]);
   });
 
+  it("mapping v2 preserves calendar totals while reconciling controls from row treatments", async () => {
+    const v2 = {
+      ...payload,
+      mappingVersion: 2 as const,
+      salesInvoices: [
+        {
+          ...payload.salesInvoices[0],
+          documentDate: "2026-01-10",
+          dueDate: "2026-01-10",
+          legacyControlTreatment: {
+            sourceSheet: "Doanh thu",
+            sourceRow: 2,
+            controlYear: 2025,
+            controlMonth: 1,
+            included: true,
+            classification: "source_month_period_basis",
+            evidence: "Doanh thu!H2=1",
+          },
+        },
+      ],
+      expenses: [
+        {
+          ...payload.expenses[0],
+          date: "2026-01-15",
+          legacyControlTreatment: {
+            sourceSheet: "Chi phí",
+            sourceRow: 2,
+            controlYear: 2025,
+            controlMonth: 1,
+            included: true,
+            classification: "source_month_period_basis",
+            evidence: "Chi phí!C2=1",
+          },
+        },
+      ],
+      varianceRules: [],
+    };
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-import/workbook-imports/dry-run",
+      headers: { authorization: `Bearer ${importToken}` },
+      payload: v2,
+    });
+    expect(res.statusCode).toBe(201);
+    const data = JSON.parse(res.payload).data;
+    expect(data.valid).toBe(true);
+    expect(data.reconciliation).toMatchObject({
+      totalSales: "0",
+      totalExpense: "0",
+      totalProfit: "0",
+      variances: [],
+      legacyControl: {
+        totalSales: "100000000",
+        totalExpense: "20000000",
+        totalProfit: "80000000",
+      },
+    });
+    expect(data.reconciliation.legacyControl.components).toEqual([
+      expect.objectContaining({ kind: "sales", sourceSheet: "Doanh thu", sourceRow: 2 }),
+      expect.objectContaining({ kind: "expense", sourceSheet: "Chi phí", sourceRow: 2 }),
+    ]);
+  });
+
+  it("mapping v2 rejects missing treatment and unaudited exclusions", async () => {
+    const invalidV2 = {
+      ...payload,
+      mappingVersion: 2 as const,
+      expenses: [
+        {
+          ...payload.expenses[0],
+          legacyControlTreatment: {
+            sourceSheet: "Chi phí",
+            sourceRow: 2,
+            controlYear: 2025,
+            controlMonth: 1,
+            included: false,
+          },
+        },
+      ],
+      varianceRules: [],
+    };
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-import/workbook-imports/dry-run",
+      headers: { authorization: `Bearer ${importToken}` },
+      payload: invalidV2,
+    });
+    const data = JSON.parse(res.payload).data;
+    expect(data.valid).toBe(false);
+    expect(data.errors).toContain("sales row 2 is missing mapping v2 legacy control treatment");
+    expect(data.errors).toContain(
+      "expense row 2 legacy control exclusion requires classification and evidence",
+    );
+    expect(data.reconciliation.legacyControl.components).toEqual([
+      expect.objectContaining({ kind: "expense", included: false }),
+    ]);
+  });
+
   it("successful commit writes all entities and balanced journal entries", async () => {
     const res = await app.inject({
       method: "POST",

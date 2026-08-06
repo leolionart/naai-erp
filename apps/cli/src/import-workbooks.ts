@@ -21,6 +21,39 @@ type SheetInventory = Readonly<{
   disposition: "projects" | "sales" | "expenses" | "control" | "reference";
 }>;
 
+type ControlTreatment = Readonly<{
+  sourceSheet: "Doanh thu" | "Chi phí";
+  sourceRow: number;
+  controlYear: 2025;
+  controlMonth: number | null;
+  included: boolean;
+  classification: string;
+  evidence: string;
+}>;
+
+type ImportedSalesInvoice = Record<string, unknown> &
+  Readonly<{
+    documentDate: string;
+    netMinor: string;
+    legacyControlTreatment: ControlTreatment;
+  }>;
+
+type ImportedExpense = Record<string, unknown> &
+  Readonly<{
+    date: string;
+    amountMinor: string;
+    taxMinor: string;
+    legacyControlTreatment: ControlTreatment;
+  }>;
+
+const REVIEWED_SALES_PROJECT_ROWS = new Map<number, number>([
+  [5, 9],
+  [21, 7],
+  [22, 18],
+  [33, 7],
+  [39, 7],
+]);
+
 const textValue = (value: ExcelJS.CellValue): string => {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") {
@@ -92,8 +125,9 @@ export async function buildWorkbookImportPayload(
     { id: string; displayName: string; normalizedTaxId: null; status: "active"; roles: string[] }
   >();
   const projects: Record<string, unknown>[] = [];
-  const salesInvoices: Record<string, unknown>[] = [];
-  const expenses: Record<string, unknown>[] = [];
+  const projectsBySourceRow = new Map<number, Record<string, unknown>>();
+  const salesInvoices: ImportedSalesInvoice[] = [];
+  const expenses: ImportedExpense[] = [];
   const controls: {
     workbook: string;
     sheet: string;
@@ -179,7 +213,8 @@ export async function buildWorkbookImportPayload(
               field: "Project Cost",
               message: "missing project cost mapped explicitly to zero",
             });
-          projects.push({
+          const sourceStage = textValue(row.getCell(4).value);
+          const project = {
             id,
             code: `IMP${id.slice(-17).toUpperCase()}`,
             name: `${name}${textValue(row.getCell(14).value) ? ` — ${textValue(row.getCell(14).value)}` : ""}`,
@@ -191,9 +226,16 @@ export async function buildWorkbookImportPayload(
             startsOn,
             endsOn,
             state:
-              textValue(row.getCell(4).value).toLowerCase() === "done" ? "completed" : "active",
+              sourceStage.toLowerCase() === "done"
+                ? "completed"
+                : sourceStage.toLowerCase() === "ended"
+                  ? "closed"
+                  : "active",
+            sourceStage,
             sourceRowIndex: rowNumber,
-          });
+          };
+          projects.push(project);
+          projectsBySourceRow.set(rowNumber, project);
         } catch (error) {
           issues.push({
             severity: "error",
@@ -284,10 +326,48 @@ export async function buildWorkbookImportPayload(
       const tax = parseMoney(row.getCell(4).value);
       const gross = net + tax;
       const id = stableId("sales", hash, "Doanh thu", rowNumber);
+      const clientPartyId = party(textValue(row.getCell(9).value), "client");
+      const mappedProjectSourceRow = REVIEWED_SALES_PROJECT_ROWS.get(rowNumber);
+      const mappedProject = mappedProjectSourceRow
+        ? projectsBySourceRow.get(mappedProjectSourceRow)
+        : undefined;
+      if (mappedProject && mappedProjectSourceRow) {
+        mappedProject.clientPartyId = clientPartyId;
+        issues.push({
+          severity: "warning",
+          workbook: "finance",
+          sheet: "Doanh thu",
+          row: rowNumber,
+          field: "Project mapping",
+          message: `linked to Projects row ${mappedProjectSourceRow} by reviewed workbook mapping v2`,
+        });
+      }
+      const sourceMonthRaw = textValue(row.getCell(8).value);
+      const sourceMonth = /^\d{1,2}$/.test(sourceMonthRaw) ? Number(sourceMonthRaw) : null;
+      if (sourceMonth === null) {
+        issues.push({
+          severity: "warning",
+          workbook: "finance",
+          sheet: "Doanh thu",
+          row: rowNumber,
+          field: "Tháng",
+          message: "legacy profitability control excludes this row because source month is blank",
+        });
+      } else if (!date.startsWith("2025")) {
+        issues.push({
+          severity: "warning",
+          workbook: "finance",
+          sheet: "Doanh thu",
+          row: rowNumber,
+          field: "Tháng",
+          message: `legacy profitability control assigns ${date} transaction to month ${sourceMonth} of its 2025 rollup`,
+        });
+      }
       salesInvoices.push({
         id,
         documentNumber: `WB-${id.slice(-16).toUpperCase()}`,
-        partyId: party(textValue(row.getCell(9).value), "client"),
+        partyId: clientPartyId,
+        ...(mappedProject ? { projectId: String(mappedProject.id) } : {}),
         documentDate: date,
         dueDate: date,
         currency: "VND",
@@ -297,6 +377,24 @@ export async function buildWorkbookImportPayload(
         controlAccountCode: "131",
         sourceRowIndex: rowNumber,
         sourceIdentity: `${hash}:Doanh thu:${rowNumber}`,
+        legacyControlTreatment: {
+          sourceSheet: "Doanh thu",
+          sourceRow: rowNumber,
+          controlYear: 2025,
+          controlMonth: sourceMonth,
+          included: sourceMonth !== null,
+          classification:
+            sourceMonth === null
+              ? "unassigned_source_month"
+              : date.startsWith("2025")
+                ? "legacy_explicit_month"
+                : "legacy_month_crosses_calendar_year",
+          evidence: JSON.stringify({
+            periodField: "Tháng",
+            periodValue: sourceMonthRaw || null,
+            transactionDate: date,
+          }),
+        },
       });
     });
     parseRows("Chi phí", (row, rowNumber) => {
@@ -304,8 +402,26 @@ export async function buildWorkbookImportPayload(
       const gross = parseMoney(row.getCell(2).value);
       const tax = parseMoney(row.getCell(7).value);
       const type = textValue(row.getCell(9).value) || "Chi phí vận hành";
+      const note = textValue(row.getCell(14).value);
       const id = stableId("expense", hash, "Chi phí", rowNumber);
       const lower = type.toLocaleLowerCase("vi");
+      const noteLower = note.toLocaleLowerCase("vi");
+      const recurringPersonnel =
+        (lower.includes("lương") || lower.includes("thưởng")) &&
+        !noteLower.includes("freelance dự án") &&
+        !noteLower.includes("thưởng dự án");
+      const sourceMonthRaw = textValue(row.getCell(3).value);
+      const sourceMonth = /^\d{1,2}$/.test(sourceMonthRaw) ? Number(sourceMonthRaw) : null;
+      if (sourceMonth !== null && !date.startsWith("2025")) {
+        issues.push({
+          severity: "warning",
+          workbook: "finance",
+          sheet: "Chi phí",
+          row: rowNumber,
+          field: "Tháng",
+          message: `legacy profitability control assigns ${date} transaction to month ${sourceMonth} of its 2025 rollup`,
+        });
+      }
       const expenseClass =
         lower.includes("lương") || lower.includes("thưởng")
           ? "payroll_personnel"
@@ -321,10 +437,35 @@ export async function buildWorkbookImportPayload(
         date,
         class: expenseClass,
         payeePartyId: party(textValue(row.getCell(10).value), "supplier"),
-        businessPurpose: textValue(row.getCell(14).value) || type,
+        businessPurpose: note || type,
         currency: "VND",
         sourceRowIndex: rowNumber,
         sourceIdentity: `${hash}:Chi phí:${rowNumber}`,
+        legacyControlTreatment: {
+          sourceSheet: "Chi phí",
+          sourceRow: rowNumber,
+          controlYear: 2025,
+          controlMonth: sourceMonth,
+          included: sourceMonth !== null && !recurringPersonnel,
+          classification:
+            sourceMonth === null
+              ? "unassigned_source_month"
+              : recurringPersonnel
+                ? "recurring_personnel_excluded_from_operating_expense_control"
+                : !date.startsWith("2025")
+                  ? "legacy_month_crosses_calendar_year"
+                  : lower.includes("lương") || lower.includes("thưởng")
+                    ? "direct_project_personnel_included"
+                    : "legacy_explicit_month",
+          evidence: JSON.stringify({
+            periodField: "Tháng",
+            periodValue: sourceMonthRaw || null,
+            scopeField: "Loại chi phí",
+            scopeValue: type,
+            transactionDate: date,
+            note: note || null,
+          }),
+        },
       });
     });
     const profitSheet = workbook.getWorksheet("Tỷ suất lợi nhuận");
@@ -348,8 +489,21 @@ export async function buildWorkbookImportPayload(
     }
   }
 
+  const genericClientId = party("Generic Client", "client");
+  for (const project of projects) {
+    if (project.clientPartyId !== genericClientId) continue;
+    issues.push({
+      severity: "warning",
+      workbook: "projects",
+      sheet: "🏔️ Projects",
+      row: Number(project.sourceRowIndex),
+      field: "Client",
+      message: "source workbook has no client field; project remains linked to Generic Client",
+    });
+  }
+
   return {
-    mappingVersion: 1,
+    mappingVersion: 2,
     sources,
     inventory,
     issues,

@@ -17,6 +17,15 @@ describeReal("ERP-740 real workbook controls", () => {
         (sum, item) => sum + BigInt(String(item.amountMinor)) - BigInt(String(item.taxMinor)),
         0n,
       );
+    const legacySales = payload.salesInvoices
+      .filter((item) => item.legacyControlTreatment.included)
+      .reduce((sum, item) => sum + BigInt(String(item.netMinor)), 0n);
+    const legacyExpense = payload.expenses
+      .filter((item) => item.legacyControlTreatment.included)
+      .reduce(
+        (sum, item) => sum + BigInt(String(item.amountMinor)) - BigInt(String(item.taxMinor)),
+        0n,
+      );
     expect({ sales: sales.toString(), expense: expense.toString() }).toEqual({
       sales: "195261583",
       expense: "443293388",
@@ -31,5 +40,37 @@ describeReal("ERP-740 real workbook controls", () => {
         profitMinor: "-53430234",
       },
     ]);
+    expect({
+      legacySales: legacySales.toString(),
+      legacyExpense: legacyExpense.toString(),
+    }).toEqual({
+      legacySales: "244717833",
+      legacyExpense: "298148067",
+    });
+    expect(
+      payload.salesInvoices.filter(
+        (item) =>
+          item.documentDate.startsWith("2025") &&
+          item.legacyControlTreatment.classification === "unassigned_source_month",
+      ),
+    ).toHaveLength(1);
+    expect(
+      payload.expenses
+        .filter(
+          (item) =>
+            item.legacyControlTreatment.classification ===
+            "recurring_personnel_excluded_from_operating_expense_control",
+        )
+        .reduce((sum, item) => sum + BigInt(String(item.amountMinor)), 0n)
+        .toString(),
+    ).toBe("203000000");
+    expect(payload.salesInvoices.filter((item) => item.projectId)).toHaveLength(5);
+    const genericClientId = payload.parties.find(
+      (item) => item.displayName === "Generic Client",
+    )?.id;
+    expect(genericClientId).toBeTruthy();
+    expect(payload.projects.filter((item) => item.clientPartyId !== genericClientId)).toHaveLength(
+      3,
+    );
   });
 });

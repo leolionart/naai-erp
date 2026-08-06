@@ -34,6 +34,7 @@ export interface ImportSalesInvoiceInput {
   controlAccountCode: string;
   sourceRowIndex: number;
   sourceIdentity: string;
+  legacyControlTreatment?: LegacyControlTreatment;
 }
 
 export interface ImportExpenseInput {
@@ -48,10 +49,21 @@ export interface ImportExpenseInput {
   sourceRowIndex: number;
   sourceIdentity: string;
   projectId?: string;
+  legacyControlTreatment?: LegacyControlTreatment;
+}
+
+export interface LegacyControlTreatment {
+  sourceSheet: string;
+  sourceRow: number;
+  controlYear: number;
+  controlMonth: number | null;
+  included: boolean;
+  classification?: string;
+  evidence?: string;
 }
 
 export interface WorkbookImportPayload {
-  mappingVersion: 1;
+  mappingVersion: 1 | 2;
   sources: readonly Readonly<{ kind: "projects" | "finance"; sha256: string; filename: string }>[];
   inventory: readonly Readonly<{
     workbook: string;
@@ -79,7 +91,7 @@ export interface WorkbookImportPayload {
   }>[];
   varianceRules: readonly Readonly<{
     id: string;
-    mappingVersion: 1;
+    mappingVersion: 1 | 2;
     sheet: string;
     metric: "sales" | "expense" | "profit";
     varianceMinor: string;
