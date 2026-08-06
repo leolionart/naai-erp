@@ -38,9 +38,9 @@ suite("ERP-640 executive metric policy persistence", () => {
              ('org-erp640','revenue','2026-08-10','Revenue','VND','posted','2026-08-10T01:00:00Z','maker','2026-08-10T00:30:00Z','approver','Fixture'),
              ('org-erp640','expense','2026-08-20','Expense','VND','posted','2026-08-20T01:00:00Z','maker','2026-08-20T00:30:00Z','approver','Fixture');
        insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)values
-       ('org-erp640','opening',1,'111-CASH',100,0,'Cash','{}'),('org-erp640','opening',2,'411-CAPITAL',0,100,'Capital','{}'),
-       ('org-erp640','revenue',1,'111-CASH',100,0,'Receipt','{}'),('org-erp640','revenue',2,'511-REV',0,100,'Revenue','{}'),
-       ('org-erp640','expense',1,'642-OPEX',20,0,'Expense','{}'),('org-erp640','expense',2,'111-CASH',0,20,'Payment','{}');`,
+       ('org-erp640','opening',1,'111-CASH',100,null,'Cash','{}'),('org-erp640','opening',2,'411-CAPITAL',null,100,'Capital','{}'),
+       ('org-erp640','revenue',1,'111-CASH',100,null,'Receipt','{}'),('org-erp640','revenue',2,'511-REV',null,100,'Revenue','{}'),
+       ('org-erp640','expense',1,'642-OPEX',20,null,'Expense','{}'),('org-erp640','expense',2,'111-CASH',null,20,'Payment','{}');`,
     );
     await pool.query(
       `insert into api_credentials(organization_id,id,actor_id,token_hash,roles)values('org-erp640','m','maker',$1,'["finance_admin"]'),('org-erp640','a','approver',$2,'["approver"]')`,
