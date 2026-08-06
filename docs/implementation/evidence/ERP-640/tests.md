@@ -27,13 +27,13 @@ Local results:
 
 - `GF-EQUITY-001`: pass for equity roll-forward, Equity Consumed, purpose-specific ROI, signed three-month burn, owner-loan exclusion and restricted-cash exclusion; all fixture hashes pass.
 - Domain: 175/175 tests pass, including seven executive-metric formula/policy tests.
-- Public contracts: 45/45 tests pass.
+- Public contracts: 46/46 tests pass, including the explicit selected policy version.
 - Database: 13 tests pass and 15 PostgreSQL tests are CI-only locally; migration journal validation passes for all 33 entries.
-- API non-PostgreSQL suite: 61 tests pass and 58 PostgreSQL tests are CI-only locally.
+- API non-PostgreSQL suite: 61 tests pass. A disposable PostgreSQL 16 container passes the ERP-640 migration plus 2/2 executive-metric integration tests, including full-period policy selection, maker-checker, nullable journal-line arithmetic, three-month Cash Flow burn and source-boundary controls.
 - First-party CLI: 212/212 tests pass, including executable routing from the package-local `tsx` binary used by clean workspace installs.
 - Web unit tests: 28/28 pass.
 - ERP-640 targeted desktop/mobile Playwright: 4/4 pass.
 - Full Playwright: 51/51 pass.
 - `pnpm check`, `pnpm db:check`, `pnpm test:fixtures` and `git diff --check`: pass in the integrated worktree.
 
-Exact-commit GitHub CI must still execute PostgreSQL migrations/integration, the full API/worker suites and all Playwright journeys before acceptance.
+Exact-commit GitHub CI must still execute the complete PostgreSQL API/worker suites and all Playwright journeys before acceptance.

@@ -54,7 +54,6 @@ suite("ERP-640 executive metric policy persistence", () => {
   });
   afterAll(async () => {
     if (app) await app.close();
-    await pool.query(`delete from organizations where id='org-erp640'`);
     await pool.end();
   });
   it("enforces maker-checker and idempotent policy versioning", async () => {

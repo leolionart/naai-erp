@@ -2997,6 +2997,7 @@
         "required": [
           "schemaVersion",
           "organizationId",
+          "policyVersionId",
           "currency",
           "period",
           "dimensions",
@@ -3024,6 +3025,7 @@
         "properties": {
           "schemaVersion": { "const": 1 },
           "organizationId": { "type": "string" },
+          "policyVersionId": { "type": "string" },
           "currency": { "type": "string" },
           "period": {
             "type": "object",

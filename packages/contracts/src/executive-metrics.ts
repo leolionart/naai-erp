@@ -53,6 +53,7 @@ export type PurposeSpecificRoiContract = Readonly<{
 export type ExecutiveMetricsContract = Readonly<{
   schemaVersion: typeof EXECUTIVE_METRICS_CONTRACT_VERSION;
   organizationId: string;
+  policyVersionId: string;
   currency: string;
   period: ExecutiveMetricPeriodContract;
   dimensions: Readonly<Record<string, string>>;

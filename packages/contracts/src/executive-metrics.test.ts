@@ -12,6 +12,7 @@ describe("ERP-640 executive metric public contracts", () => {
       "project" | "marketing" | "custom"
     >();
     expectTypeOf<ExecutiveMetricsContract["ownerLoansMinor"]>().toEqualTypeOf<string>();
+    expectTypeOf<ExecutiveMetricsContract["policyVersionId"]>().toEqualTypeOf<string>();
     expectTypeOf<ExecutiveMetricsContract["runwayMonthsThousandths"]>().toEqualTypeOf<
       string | null
     >();

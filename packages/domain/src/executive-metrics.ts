@@ -48,6 +48,7 @@ export type PurposeSpecificRoi = PurposeSpecificRoiInput &
 
 export type ExecutiveMetricsInput = Readonly<{
   organizationId: string;
+  policyVersionId: string;
   currency: string;
   period: ExecutiveMetricPeriod;
   dimensions?: ExecutiveDimensions;
@@ -74,6 +75,7 @@ export type ExecutiveMetricsInput = Readonly<{
 
 export type ExecutiveMetrics = Readonly<{
   organizationId: string;
+  policyVersionId: string;
   currency: string;
   period: ExecutiveMetricPeriod;
   dimensions: ExecutiveDimensions;
@@ -176,6 +178,7 @@ const unique = (values: readonly string[]) =>
 
 export function buildExecutiveMetrics(input: ExecutiveMetricsInput): ExecutiveMetrics {
   const organizationId = required(input.organizationId, "Organization ID");
+  const policyVersionId = required(input.policyVersionId, "Executive metric policy version ID");
   const currency = required(input.currency, "Currency").toUpperCase();
   if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Currency must be ISO-4217");
   date(input.period.startsOn, "Executive metric start date");
@@ -251,6 +254,7 @@ export function buildExecutiveMetrics(input: ExecutiveMetricsInput): ExecutiveMe
 
   return Object.freeze({
     organizationId,
+    policyVersionId,
     currency,
     period: Object.freeze({ ...input.period }),
     dimensions: Object.freeze({ ...(input.dimensions ?? {}) }),

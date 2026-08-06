@@ -310,7 +310,7 @@ export class PgExecutiveMetricStore {
       B = closing as Record<string, unknown>,
       O = opening as Record<string, unknown>;
     const sem = await this.pool.query<{ semantic: string; amount: string; source_ids: string[] }>(
-      `select m.semantic,sum((case when a.root_type in('liability','equity','revenue')then l.credit_minor-l.debit_minor else l.debit_minor-l.credit_minor end)*m.sign)::text amount,array_agg(distinct j.id) source_ids from executive_metric_semantic_mappings m join accounts a on a.organization_id=m.organization_id and a.code=m.account_code join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where m.organization_id=$1 and m.policy_id=$2 and m.policy_version=$3 and j.state in('posted','reversed') and j.posted_at<=$4::timestamptz and j.journal_date<=$5::date and l.dimensions@>$6::jsonb group by m.semantic`,
+      `select m.semantic,sum((case when a.root_type in('liability','equity','revenue')then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) end)*m.sign)::text amount,array_agg(distinct j.id) source_ids from executive_metric_semantic_mappings m join accounts a on a.organization_id=m.organization_id and a.code=m.account_code join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where m.organization_id=$1 and m.policy_id=$2 and m.policy_version=$3 and j.state in('posted','reversed') and j.posted_at<=$4::timestamptz and j.journal_date<=$5::date and l.dimensions@>$6::jsonb group by m.semantic`,
       [
         c.organizationId,
         policyRow.id,
@@ -322,7 +322,7 @@ export class PgExecutiveMetricStore {
     );
     const amounts = Object.fromEntries(sem.rows.map((x) => [x.semantic, BigInt(x.amount ?? "0")]));
     const periodSem = await this.pool.query<{ semantic: string; amount: string }>(
-      `select m.semantic,sum((case when a.root_type in('liability','equity','revenue')then l.credit_minor-l.debit_minor else l.debit_minor-l.credit_minor end)*m.sign)::text amount from executive_metric_semantic_mappings m join accounts a on a.organization_id=m.organization_id and a.code=m.account_code join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where m.organization_id=$1 and m.policy_id=$2 and m.policy_version=$3 and j.state in('posted','reversed') and j.posted_at<=$4::timestamptz and j.journal_date between $5::date and $6::date and l.dimensions@>$7::jsonb group by m.semantic`,
+      `select m.semantic,sum((case when a.root_type in('liability','equity','revenue')then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) end)*m.sign)::text amount from executive_metric_semantic_mappings m join accounts a on a.organization_id=m.organization_id and a.code=m.account_code join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where m.organization_id=$1 and m.policy_id=$2 and m.policy_version=$3 and j.state in('posted','reversed') and j.posted_at<=$4::timestamptz and j.journal_date between $5::date and $6::date and l.dimensions@>$7::jsonb group by m.semantic`,
       [
         c.organizationId,
         policyRow.id,
@@ -421,9 +421,11 @@ export class PgExecutiveMetricStore {
         }),
       )
       .digest("hex");
-    return jsonMoney(
-      buildExecutiveMetrics({
+    return jsonMoney({
+      schemaVersion: 1,
+      ...buildExecutiveMetrics({
         organizationId: c.organizationId,
+        policyVersionId: `${policyRow.id}:${policyRow.version}`,
         currency: String(P.currency),
         period: { startsOn: q.startsOn, endsOn: q.endsOn, asOfDate: q.endsOn },
         dimensions: q.dimensions,
@@ -454,6 +456,6 @@ export class PgExecutiveMetricStore {
           : [],
         roi: [...groups.values()],
       }),
-    );
+    });
   }
 }

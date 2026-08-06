@@ -8,7 +8,7 @@ ERP-640 exposes profitability ratios, purpose-specific returns, accumulated loss
 
 Project ROI, marketing ROI, ROE and ROA remain distinct. Owner loans remain liabilities; owner funding is excluded from operating inflow; restricted cash is excluded from runway. Missing or non-positive denominators return a structured N/A state rather than zero or Infinity.
 
-Approved executive-metric policies and semantic mappings define contributed capital, retained earnings, reviewed equity adjustments, owner withdrawals, owner loans and unrestricted/restricted cash. Approved ROI definitions and reviewed ROI facts remain purpose- and version-specific. A policy must cover the complete requested reporting period, and ROI facts must remain within the definition's effective dates.
+Approved executive-metric policies and semantic mappings define contributed capital, retained earnings, reviewed equity adjustments, owner withdrawals, owner loans and unrestricted/restricted cash. The selected policy version is explicit in the report contract and source fingerprint. Approved ROI definitions and reviewed ROI facts remain purpose- and version-specific. A policy must cover the complete requested reporting period, and ROI facts must remain within the definition's effective dates.
 
 The REST API, canonical OpenAPI document, capability discovery and first-party CLI expose policy versioning, approvals, ROI definitions/facts and the aggregate plus five focused projections. The admin UI provides a report landing page and dedicated equity, liquidity, profitability, returns and ROI pages with URL-backed Sheet filters, source Drawers, structured Alerts and responsive exact-value tables. AI access remains underneath the UI through the same discoverable contracts.
 

@@ -6,4 +6,4 @@
 - Negative revenue can occur after credit notes. Profitability and ROS use a signed nonzero denominator; ROI/ROE/ROA and Equity Consumed require a positive reviewed denominator.
 - ROI objects and included-cost policies must remain purpose-specific and versioned; a combined ROI would be misleading.
 - Calculated outputs remain read-time reports in ERP-640. Reproducible persisted snapshots belong to ERP-650.
-- Local PostgreSQL is unavailable, so policy-period selection, versioned ROI persistence, organization isolation and source-boundary integration remain CI-authoritative until the exact implementation commit passes.
+- Targeted PostgreSQL 16 integration is green locally. The complete shared database/API/worker suite remains CI-authoritative until the exact implementation commit passes.

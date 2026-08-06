@@ -3,6 +3,7 @@ import { buildExecutiveMetrics, type ExecutiveMetricsInput } from "./executive-m
 
 const base = (overrides: Partial<ExecutiveMetricsInput> = {}): ExecutiveMetricsInput => ({
   organizationId: "org-naai",
+  policyVersionId: "executive-policy:1",
   currency: "VND",
   period: { startsOn: "2025-01-01", endsOn: "2025-12-31", asOfDate: "2025-12-31" },
   dimensions: { company: "NAAI Studio" },
@@ -51,6 +52,7 @@ describe("ERP-640 executive metrics", () => {
   it("calculates profitability, average-balance returns and purpose-specific ROI", () => {
     const result = buildExecutiveMetrics(base());
     expect(result).toMatchObject({
+      policyVersionId: "executive-policy:1",
       grossMargin: { valueBps: 6000 },
       operatingMargin: { valueBps: 3000 },
       netMargin: { valueBps: 2000 },
