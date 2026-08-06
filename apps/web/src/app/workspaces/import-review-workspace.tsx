@@ -36,6 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { KpiCard } from "@/components/financial/kpi-card";
 import { useAuthenticatedApiClient } from "@/lib/api";
+import { formatMinorVnd } from "@/lib/format/money";
 import type { LucideIcon } from "lucide-react";
 import {
   RefreshCwIcon,
@@ -144,6 +145,110 @@ const fieldLabels: Record<string, string> = {
   amountMinor: "Giá trị",
   classification: "Phân loại giao dịch",
 };
+
+function getRowDate(row: ReviewRow): string {
+  const mapped = row.mappedData;
+  const raw = row.rawData;
+  if (mapped.documentDate) return String(mapped.documentDate);
+  if (mapped.date) return String(mapped.date);
+  if (mapped.startsOn) return String(mapped.startsOn);
+  if (mapped.period) return String(mapped.period);
+  if (raw.transactionDate) return String(raw.transactionDate);
+  if (raw.invoiceDate) return String(raw.invoiceDate);
+  return "—";
+}
+
+function getRowAmount(row: ReviewRow): string {
+  const mapped = row.mappedData;
+  const raw = row.rawData;
+  const minorVal =
+    mapped.grossMinor ??
+    mapped.amountMinor ??
+    mapped.budgetMinor ??
+    mapped.payrollNetMinor ??
+    mapped.bonusMinor ??
+    mapped.debtMinor ??
+    mapped.revenueMinor ??
+    mapped.expenseMinor;
+
+  if (minorVal !== undefined && minorVal !== null && minorVal !== "") {
+    try {
+      return formatMinorVnd(String(minorVal));
+    } catch {
+      // ignore
+    }
+  }
+
+  const rawVal =
+    raw.gross ??
+    raw.projectRevenue ??
+    raw.projectCost ??
+    raw.ctvRefCost ??
+    raw.cash ??
+    raw.received;
+
+  if (rawVal !== undefined && rawVal !== null && rawVal !== "") {
+    const cleaned = String(rawVal).replace(/[^0-9-]/g, "");
+    if (cleaned) {
+      try {
+        return formatMinorVnd(cleaned);
+      } catch {
+        // ignore
+      }
+    }
+    return String(rawVal);
+  }
+
+  return "—";
+}
+
+function getRowDescription(
+  row: ReviewRow,
+  parties: readonly MasterRow[],
+  projects: readonly MasterRow[],
+): string {
+  const mapped = row.mappedData;
+  const raw = row.rawData;
+
+  const partyId = mapped.partyId ?? mapped.clientPartyId ?? mapped.payeePartyId;
+  let partyName = "";
+  if (partyId) {
+    const match = parties.find((p) => String(p.id) === String(partyId));
+    if (match) {
+      partyName = String(match.display_name ?? match.name ?? partyId);
+    }
+  }
+
+  const rawParty = raw.companyOrClient ?? raw.personnel;
+  if (!partyName && rawParty) {
+    partyName = String(rawParty);
+  }
+
+  const projectId = mapped.projectId;
+  let projectLabel = "";
+  if (projectId) {
+    const match = projects.find((p) => String(p.id) === String(projectId));
+    if (match) {
+      projectLabel = String(match.name ?? match.display_name ?? projectId);
+    }
+  }
+  if (!projectLabel && mapped.projectLabel) {
+    projectLabel = String(mapped.projectLabel);
+  }
+  if (!projectLabel && raw.projectName) {
+    projectLabel = String(raw.projectName);
+  }
+
+  const notes = String(raw.notes ?? mapped.businessPurpose ?? mapped.category ?? "");
+
+  const parts: string[] = [];
+  if (projectLabel) parts.push(`Dự án: ${projectLabel}`);
+  if (partyName) parts.push(partyName);
+  if (notes) parts.push(notes);
+  if (mapped.personName) parts.push(String(mapped.personName));
+
+  return parts.filter(Boolean).join(" · ") || "—";
+}
 
 function correctionFields(row: ReviewRow) {
   const keys = new Set<string>();
@@ -320,11 +425,12 @@ export function ImportReviewWorkspace() {
             <Table className="min-w-[900px]">
               <TableHeader className="bg-muted/40">
                 <TableRow>
-                  <TableHead className="w-[200px]">Nguồn</TableHead>
-                  <TableHead className="w-[180px]">Loại</TableHead>
+                  <TableHead className="w-[180px]">Nguồn & Ngày</TableHead>
+                  <TableHead className="w-[200px]">Loại & Chi tiết</TableHead>
+                  <TableHead className="w-[140px]">Số tiền</TableHead>
                   <TableHead>Vấn đề cần xử lý</TableHead>
-                  <TableHead className="w-[150px]">Trạng thái</TableHead>
-                  <TableHead className="text-right w-[150px]">Thao tác</TableHead>
+                  <TableHead className="w-[130px]">Trạng thái</TableHead>
+                  <TableHead className="text-right w-[120px]">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -334,32 +440,50 @@ export function ImportReviewWorkspace() {
                       <div className="flex flex-col gap-0.5">
                         <span className="font-semibold text-foreground">{row.sheet}</span>
                         <span className="text-xs text-muted-foreground">Dòng {row.sourceRow}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {getRowDate(row)}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {(() => {
-                        const metadata = kindMetadata[row.kind];
-                        const KindIcon = metadata?.icon ?? FileTextIcon;
-                        return (
-                          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                            <KindIcon className="h-4 w-4 text-muted-foreground" />
-                            <span>{metadata?.label ?? row.kind}</span>
-                          </div>
-                        );
-                      })()}
+                      <div className="flex flex-col gap-1">
+                        {(() => {
+                          const metadata = kindMetadata[row.kind];
+                          const KindIcon = metadata?.icon ?? FileTextIcon;
+                          return (
+                            <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                              <KindIcon className="h-4 w-4 text-muted-foreground" />
+                              <span>{metadata?.label ?? row.kind}</span>
+                            </div>
+                          );
+                        })()}
+                        <span
+                          className="text-xs text-muted-foreground line-clamp-2 max-w-xs"
+                          title={getRowDescription(row, parties, projects)}
+                        >
+                          {getRowDescription(row, parties, projects)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold text-foreground tabular-nums">
+                      {getRowAmount(row)}
                     </TableCell>
                     <TableCell>
                       <div className="flex max-w-xl flex-wrap gap-1">
                         {row.reviewFlags.length ? (
                           row.reviewFlags.map((flag) => (
-                            <Badge key={flag} variant="destructive" className="px-1.5 py-0">
+                            <Badge
+                              key={flag}
+                              variant="destructive"
+                              className="px-1.5 py-0 text-[10px] gap-1"
+                            >
                               <AlertCircleIcon className="h-3 w-3 shrink-0" />
                               {flagLabels[flag] ?? flag}
                             </Badge>
                           ))
                         ) : (
                           <span className="text-muted-foreground flex items-center gap-1 text-xs">
-                            <CheckIcon />
+                            <CheckIcon className="h-3.5 w-3.5 text-emerald-500" />
                             Không có vấn đề
                           </span>
                         )}
