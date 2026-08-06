@@ -198,6 +198,80 @@ describe("NAAI ERP JSON-first CLI client", () => {
     }
   });
 
+  it("routes ERP-650 snapshot and accountant export workflows", async () => {
+    const fetchFn = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("report-snapshots", "list");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/report-snapshots",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("report-snapshots", "get", { version: 2 }, "snapshot-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/report-snapshots/snapshot-1?version=2",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request("report-snapshots", "reproduce", undefined, "snapshot-1", "2");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/report-snapshots/snapshot-1/versions/2/reproduce",
+      expect.objectContaining({ method: "POST" }),
+    );
+    await client.request("accountant-exports", "create", {
+      snapshotId: "snapshot-1",
+      snapshotVersion: 2,
+      format: "xlsx",
+      reportKind: "profit_and_loss",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/accountant-exports",
+      expect.objectContaining({ method: "POST" }),
+    );
+    await client.request(
+      "accountant-exports",
+      "supersede",
+      { reason: "Replaced" },
+      "export-1",
+      "3",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/accountant-exports/export-1/versions/3/supersede",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("downloads ERP-650 export bytes without JSON decoding", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(new Uint8Array([80, 75, 3, 4]), {
+        status: 200,
+        headers: {
+          "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": 'attachment; filename="p-and-l.xlsx"',
+        },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const file = await client.downloadAccountantExport("export-1", "2");
+    expect([...file.content]).toEqual([80, 75, 3, 4]);
+    expect(file.filename).toBe("p-and-l.xlsx");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/accountant-exports/export-1/versions/2/download",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("calls REST API with scoped bearer and correlation headers", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ apiVersion: "v1", data: [] }), {

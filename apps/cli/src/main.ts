@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
 
@@ -52,6 +52,14 @@ const { values, positionals } = parseArgs({
     adapter: { type: "string" },
     "adapter-version": { type: "string" },
     mapping: { type: "string" },
+    "report-kind": { type: "string" },
+    "snapshot-id": { type: "string" },
+    "snapshot-version": { type: "string" },
+    format: { type: "string" },
+    output: { type: "string" },
+    dimensions: { type: "string" },
+    "formula-versions": { type: "string" },
+    request: { type: "string" },
     human: { type: "boolean", default: false },
   },
 });
@@ -81,6 +89,38 @@ if (!resource || (!discovery && (!organizationId || !token))) {
       if (!bankAccountId) throw new Error("--account-id or --key is required for bank imports");
       if (!Number.isInteger(bankAdapterVersion) || bankAdapterVersion < 1) {
         throw new Error("--adapter-version must be a positive integer");
+      }
+    }
+    if (resource === "report-snapshots" && action === "create" && !values.data) {
+      if (
+        !values["report-kind"] ||
+        !values["as-of"] ||
+        !values.basis ||
+        !values["formula-versions"] ||
+        !values.request
+      ) {
+        throw new Error(
+          "report-snapshots create requires --report-kind, --as-of, --basis, --formula-versions, and --request (or --data)",
+        );
+      }
+    }
+    if (
+      ["report-snapshots", "accountant-exports"].includes(resource) &&
+      values["snapshot-version"] &&
+      !/^[1-9]\d*$/.test(values["snapshot-version"])
+    ) {
+      throw new Error("--snapshot-version must be a positive integer");
+    }
+    if (resource === "accountant-exports" && action === "create" && !values.data) {
+      if (
+        !values["snapshot-id"] ||
+        !values["snapshot-version"] ||
+        !values.format ||
+        !values["report-kind"]
+      ) {
+        throw new Error(
+          "accountant-exports create requires --snapshot-id, --snapshot-version, --format, and --report-kind (or --data)",
+        );
       }
     }
     const payload = values.data
@@ -215,84 +255,137 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                               ...(values["line-code"] ? { lineCode: values["line-code"] } : {}),
                               ...(values.status ? { state: values.status } : {}),
                             }
-                          : resource === "executive-metrics"
-                            ? {
-                                ...(values.from ? { startsOn: values.from } : {}),
-                                ...(values.to ? { endsOn: values.to } : {}),
-                                ...(values["as-of"] ? { asOfInstant: values["as-of"] } : {}),
-                                ...(values.framework ? { framework: values.framework } : {}),
-                                ...(values["project-id"]
-                                  ? { projectId: values["project-id"] }
-                                  : {}),
-                                ...(values.party ? { clientId: values.party } : {}),
-                                ...(values["cost-center"]
-                                  ? { costCenter: values["cost-center"] }
-                                  : {}),
-                                ...(values["service-line"]
-                                  ? { serviceLine: values["service-line"] }
-                                  : {}),
-                                ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
-                                ...(values["account-owner"]
-                                  ? { ownerId: values["account-owner"] }
-                                  : {}),
-                              }
-                            : resource === "roi-input-facts"
+                          : resource === "report-snapshots"
+                            ? action === "create"
                               ? {
-                                  ...(values["definition-id"]
-                                    ? { definitionId: values["definition-id"] }
+                                  reportKind: values["report-kind"],
+                                  period: {
+                                    ...(values.from ? { startsOn: values.from } : {}),
+                                    ...(values.to ? { endsOn: values.to } : {}),
+                                    asOfDate: values["as-of"],
+                                  },
+                                  ...(values.dimensions
+                                    ? { dimensions: JSON.parse(values.dimensions) }
                                     : {}),
-                                  ...(values["review-state"]
-                                    ? { reviewState: values["review-state"] }
-                                    : {}),
+                                  accountingBasis: values.basis,
+                                  ...(values.framework ? { framework: values.framework } : {}),
+                                  formulaVersions: values["formula-versions"]
+                                    ? JSON.parse(values["formula-versions"])
+                                    : {},
+                                  request: values.request ? JSON.parse(values.request) : {},
                                 }
-                              : resource === "executive-metric-policies" ||
-                                  resource === "roi-definitions"
-                                ? action === "get" && values.version
-                                  ? { version: values.version }
+                              : action === "get" && values["snapshot-version"]
+                                ? { version: values["snapshot-version"] }
+                                : undefined
+                            : resource === "accountant-exports"
+                              ? action === "create"
+                                ? {
+                                    snapshotId: values["snapshot-id"],
+                                    snapshotVersion: Number(values["snapshot-version"]),
+                                    format: values.format,
+                                    reportKind: values["report-kind"],
+                                  }
+                                : action === "get" && values["snapshot-version"]
+                                  ? { version: values["snapshot-version"] }
                                   : undefined
-                                : resource === "financial-statement-mappings"
+                              : resource === "executive-metrics"
+                                ? {
+                                    ...(values.from ? { startsOn: values.from } : {}),
+                                    ...(values.to ? { endsOn: values.to } : {}),
+                                    ...(values["as-of"] ? { asOfInstant: values["as-of"] } : {}),
+                                    ...(values.framework ? { framework: values.framework } : {}),
+                                    ...(values["project-id"]
+                                      ? { projectId: values["project-id"] }
+                                      : {}),
+                                    ...(values.party ? { clientId: values.party } : {}),
+                                    ...(values["cost-center"]
+                                      ? { costCenter: values["cost-center"] }
+                                      : {}),
+                                    ...(values["service-line"]
+                                      ? { serviceLine: values["service-line"] }
+                                      : {}),
+                                    ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
+                                    ...(values["account-owner"]
+                                      ? { ownerId: values["account-owner"] }
+                                      : {}),
+                                  }
+                                : resource === "roi-input-facts"
                                   ? {
-                                      ...(values.framework ? { framework: values.framework } : {}),
-                                      ...(values.status ? { state: values.status } : {}),
-                                      ...(values["as-of"] ? { effectiveOn: values["as-of"] } : {}),
+                                      ...(values["definition-id"]
+                                        ? { definitionId: values["definition-id"] }
+                                        : {}),
+                                      ...(values["review-state"]
+                                        ? { reviewState: values["review-state"] }
+                                        : {}),
                                     }
-                                  : resource === "performance-comparisons"
-                                    ? {
-                                        periodId: values["period-id"],
-                                        periodBasis: values["period-basis"],
-                                        actualBasis: values.basis,
-                                        asOfInstant: values["as-of"],
-                                        ...(values["forecast-version-id"]
-                                          ? { forecastVersionId: values["forecast-version-id"] }
-                                          : {}),
-                                        ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
-                                        ...(values["service-line"]
-                                          ? { serviceLineCode: values["service-line"] }
-                                          : {}),
-                                        ...(values["account-owner"]
-                                          ? { ownerId: values["account-owner"] }
-                                          : {}),
-                                      }
-                                    : resource.startsWith("bank-")
+                                  : resource === "executive-metric-policies" ||
+                                      resource === "roi-definitions"
+                                    ? action === "get" && values.version
+                                      ? { version: values.version }
+                                      : undefined
+                                    : resource === "financial-statement-mappings"
                                       ? {
-                                          ...(values["account-id"]
-                                            ? { financialAccountId: values["account-id"] }
+                                          ...(values.framework
+                                            ? { framework: values.framework }
                                             : {}),
-                                          ...(values.from ? { from: values.from } : {}),
-                                          ...(values.to ? { to: values.to } : {}),
+                                          ...(values.status ? { state: values.status } : {}),
+                                          ...(values["as-of"]
+                                            ? { effectiveOn: values["as-of"] }
+                                            : {}),
                                         }
-                                      : undefined;
-    const result = await client.request(
-      resource,
-      action,
-      payload,
-      values.key,
-      values.version,
-      values["idempotency-key"],
-    );
-    process.stdout.write(
-      values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
-    );
+                                      : resource === "performance-comparisons"
+                                        ? {
+                                            periodId: values["period-id"],
+                                            periodBasis: values["period-basis"],
+                                            actualBasis: values.basis,
+                                            asOfInstant: values["as-of"],
+                                            ...(values["forecast-version-id"]
+                                              ? { forecastVersionId: values["forecast-version-id"] }
+                                              : {}),
+                                            ...(values["team-id"]
+                                              ? { teamId: values["team-id"] }
+                                              : {}),
+                                            ...(values["service-line"]
+                                              ? { serviceLineCode: values["service-line"] }
+                                              : {}),
+                                            ...(values["account-owner"]
+                                              ? { ownerId: values["account-owner"] }
+                                              : {}),
+                                          }
+                                        : resource.startsWith("bank-")
+                                          ? {
+                                              ...(values["account-id"]
+                                                ? { financialAccountId: values["account-id"] }
+                                                : {}),
+                                              ...(values.from ? { from: values.from } : {}),
+                                              ...(values.to ? { to: values.to } : {}),
+                                            }
+                                          : undefined;
+    if (resource === "accountant-exports" && action === "download") {
+      if (!values.key || !values["snapshot-version"] || !values.output) {
+        throw new Error(
+          "accountant-exports download requires --key, --snapshot-version, and explicit --output",
+        );
+      }
+      const file = await client.downloadAccountantExport(values.key, values["snapshot-version"]);
+      await writeFile(values.output, file.content);
+      process.stdout.write(
+        `${JSON.stringify({ output: values.output, bytes: file.content.byteLength, contentType: file.contentType, ...(file.filename ? { filename: file.filename } : {}) })}\n`,
+      );
+      process.exitCode = 0;
+    } else {
+      const result = await client.request(
+        resource,
+        action,
+        payload,
+        values.key,
+        values["snapshot-version"] ?? values.version,
+        values["idempotency-key"],
+      );
+      process.stdout.write(
+        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+      );
+    }
   } catch (error) {
     process.stderr.write(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown CLI error" }) +

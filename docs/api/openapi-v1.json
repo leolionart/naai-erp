@@ -92,7 +92,12 @@
     "banking/transactions/suggest",
     "banking/transactions/match",
     "banking/transactions/reconcile",
-    "banking/transactions/unreconcile"
+    "banking/transactions/unreconcile",
+    "report-snapshots/create",
+    "report-snapshots/reproduce",
+    "accountant-exports/create",
+    "accountant-exports/download",
+    "accountant-exports/supersede"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -2362,8 +2367,7 @@
         "parameters": [
           { "$ref": "#/components/parameters/OrganizationId" },
           { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
-          { "$ref": "#/components/parameters/RequiredVersion" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
+          { "$ref": "#/components/parameters/RequiredVersion" }
         ],
         "requestBody": { "$ref": "#/components/requestBodies/ExecutiveMetricApproval" },
         "responses": { "200": { "description": "Approved policy version" } }
@@ -2538,6 +2542,221 @@
           { "$ref": "#/components/parameters/ExecutiveMetricOwnerId" }
         ],
         "responses": { "200": { "description": "Selected executive metric projection" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/report-snapshots": {
+      "get": {
+        "operationId": "listReportSnapshots",
+        "tags": ["report-exports", "snapshots"],
+        "summary": "List immutable accountant report snapshots",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Snapshot list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReportSnapshotListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createReportSnapshot",
+        "tags": ["report-exports", "snapshots"],
+        "summary": "Capture an immutable, reproducible report snapshot at an exact ledger cutoff",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateReportSnapshotRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReportSnapshotEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/report-snapshots/{id}": {
+      "get": {
+        "operationId": "getReportSnapshot",
+        "tags": ["report-exports", "snapshots"],
+        "summary": "Get the latest or an exact snapshot version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/OptionalVersion" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReportSnapshotEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/report-snapshots/{id}/versions/{version}/reproduce": {
+      "post": {
+        "operationId": "reproduceReportSnapshot",
+        "tags": ["report-exports", "snapshots", "audit"],
+        "summary": "Re-run the canonical request and verify request/result hashes",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/RequiredVersion" }
+        ],
+        "responses": {
+          "201": {
+            "description": "Reproduction proof",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SnapshotReproductionEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/accountant-exports": {
+      "get": {
+        "operationId": "listAccountantExports",
+        "tags": ["report-exports", "accountant-exports"],
+        "summary": "List versioned accountant exports",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Export list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountantExportListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAccountantExport",
+        "tags": ["report-exports", "accountant-exports"],
+        "summary": "Generate a CSV or XLSX export from an exact snapshot version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAccountantExportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Generated export",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountantExportEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/accountant-exports/{id}": {
+      "get": {
+        "operationId": "getAccountantExport",
+        "tags": ["report-exports", "accountant-exports"],
+        "summary": "Get the latest or an exact export version",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/OptionalVersion" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export metadata",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountantExportEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/accountant-exports/{id}/versions/{version}/download": {
+      "get": {
+        "operationId": "downloadAccountantExport",
+        "tags": ["report-exports", "accountant-exports"],
+        "summary": "Download exact immutable CSV or XLSX export bytes",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/RequiredVersion" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file",
+            "headers": { "Content-Disposition": { "schema": { "type": "string" } } },
+            "content": {
+              "text/csv": { "schema": { "type": "string", "format": "binary" } },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/accountant-exports/{id}/versions/{version}/supersede": {
+      "post": {
+        "operationId": "supersedeAccountantExport",
+        "tags": ["report-exports", "accountant-exports", "maker-checker"],
+        "summary": "Supersede an exact export version while preserving its audit history",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ExecutiveMetricResourceId" },
+          { "$ref": "#/components/parameters/RequiredVersion" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reason"],
+                "properties": { "reason": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Superseded export",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AccountantExportEnvelope" }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/reports/performance-comparisons": {
@@ -2828,6 +3047,269 @@
       }
     },
     "schemas": {
+      "AccountantReportKind": {
+        "type": "string",
+        "enum": [
+          "profit_and_loss",
+          "balance_sheet",
+          "direct_cash_flow",
+          "vat_reconciliation",
+          "tax_expense_review"
+        ]
+      },
+      "ReportSnapshot": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "id",
+          "version",
+          "organizationId",
+          "reportKind",
+          "period",
+          "dimensions",
+          "accountingBasis",
+          "formulaVersions",
+          "mappingVersions",
+          "ledgerCutoff",
+          "sourceManifest",
+          "mappings",
+          "unresolvedItems",
+          "state",
+          "readiness",
+          "canonicalRequestJson",
+          "canonicalResultJson",
+          "requestHash",
+          "resultHash",
+          "snapshotHash",
+          "createdAt",
+          "createdBy"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "version": { "type": "integer", "minimum": 1 },
+          "organizationId": { "type": "string" },
+          "reportKind": { "$ref": "#/components/schemas/AccountantReportKind" },
+          "period": { "$ref": "#/components/schemas/ReportSnapshotPeriod" },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "accountingBasis": { "type": "string" },
+          "framework": { "type": "string" },
+          "formulaVersions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "mappingVersions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "ledgerCutoff": {
+            "type": "object",
+            "required": [
+              "throughDate",
+              "maxPostedAt",
+              "journalCount",
+              "lineCount",
+              "sourceFingerprint"
+            ],
+            "properties": {
+              "throughDate": { "type": "string", "format": "date" },
+              "maxPostedAt": { "type": "string", "format": "date-time" },
+              "journalCount": { "type": "integer", "minimum": 0 },
+              "lineCount": { "type": "integer", "minimum": 0 },
+              "sourceFingerprint": { "type": "string" }
+            }
+          },
+          "sourceManifest": {
+            "type": "array",
+            "items": { "type": "object", "additionalProperties": true }
+          },
+          "mappings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["sourceKey", "status"],
+              "properties": {
+                "sourceKey": { "type": "string" },
+                "targetKey": { "type": "string" },
+                "mappingVersionId": { "type": "string" },
+                "status": { "type": "string", "enum": ["mapped", "unmapped", "review_required"] },
+                "reason": { "type": "string" }
+              }
+            }
+          },
+          "unresolvedItems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["code", "severity", "sourceIds", "message"],
+              "properties": {
+                "code": { "type": "string" },
+                "severity": { "type": "string", "enum": ["warning", "critical"] },
+                "sourceIds": { "type": "array", "items": { "type": "string" } },
+                "message": { "type": "string" }
+              }
+            }
+          },
+          "state": { "const": "captured" },
+          "readiness": { "type": "string", "enum": ["review_required", "final"] },
+          "canonicalRequestJson": { "type": "string" },
+          "canonicalResultJson": { "type": "string" },
+          "requestHash": { "type": "string" },
+          "resultHash": { "type": "string" },
+          "snapshotHash": { "type": "string" },
+          "previousSnapshotId": { "type": "string" },
+          "previousSnapshotVersion": { "type": "integer", "minimum": 1 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "createdBy": { "type": "string" }
+        }
+      },
+      "ReportSnapshotPeriod": {
+        "type": "object",
+        "required": ["asOfDate"],
+        "properties": {
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": "string", "format": "date" },
+          "asOfDate": { "type": "string", "format": "date" }
+        }
+      },
+      "CreateReportSnapshotRequest": {
+        "type": "object",
+        "required": ["reportKind", "period", "accountingBasis", "formulaVersions", "request"],
+        "properties": {
+          "reportKind": { "$ref": "#/components/schemas/AccountantReportKind" },
+          "period": { "$ref": "#/components/schemas/ReportSnapshotPeriod" },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+          "accountingBasis": { "type": "string", "minLength": 1 },
+          "framework": { "type": "string" },
+          "formulaVersions": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "type": "string" }
+          },
+          "request": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "SnapshotReproduction": {
+        "type": "object",
+        "required": [
+          "requestHash",
+          "resultHash",
+          "requestMatches",
+          "resultMatches",
+          "reproducible"
+        ],
+        "properties": {
+          "requestHash": { "type": "string" },
+          "resultHash": { "type": "string" },
+          "requestMatches": { "type": "boolean" },
+          "resultMatches": { "type": "boolean" },
+          "reproducible": { "type": "boolean" }
+        }
+      },
+      "CreateAccountantExportRequest": {
+        "type": "object",
+        "required": ["snapshotId", "snapshotVersion", "format", "reportKind"],
+        "properties": {
+          "snapshotId": { "type": "string", "minLength": 1 },
+          "snapshotVersion": { "type": "integer", "minimum": 1 },
+          "format": { "type": "string", "enum": ["csv", "xlsx"] },
+          "reportKind": { "$ref": "#/components/schemas/AccountantReportKind" }
+        }
+      },
+      "AccountantExport": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "id",
+          "version",
+          "snapshotId",
+          "snapshotVersion",
+          "snapshot",
+          "format",
+          "workbookHash",
+          "state",
+          "isFinal",
+          "createdAt",
+          "createdBy"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "version": { "type": "integer", "minimum": 1 },
+          "snapshotId": { "type": "string" },
+          "snapshotVersion": { "type": "integer", "minimum": 1 },
+          "snapshot": { "$ref": "#/components/schemas/ReportSnapshot" },
+          "format": { "type": "string", "enum": ["csv", "xlsx"] },
+          "workbookHash": { "type": "string" },
+          "state": { "type": "string", "enum": ["generated", "superseded"] },
+          "isFinal": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "createdBy": { "type": "string" },
+          "downloadUrl": { "type": "string" }
+        }
+      },
+      "ReportSnapshotEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/ReportSnapshot" }
+        }
+      },
+      "ReportSnapshotListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ReportSnapshot" }
+              }
+            }
+          }
+        }
+      },
+      "SnapshotReproductionEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/SnapshotReproduction" }
+        }
+      },
+      "AccountantExportEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/AccountantExport" }
+        }
+      },
+      "AccountantExportListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/AccountantExport" }
+              }
+            }
+          }
+        }
+      },
       "ExecutiveMetricRatio": {
         "type": "object",
         "required": ["status", "formulaVersion", "numeratorMinor", "denominatorMinor", "valueBps"],
