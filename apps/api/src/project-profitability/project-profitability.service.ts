@@ -29,20 +29,19 @@ export class ProjectProfitabilityService {
   }
 
   parseQuery(input: Record<string, string | undefined>): ProjectProfitabilityQuery {
-    const asOf = input.asOf ?? input.endsOn;
-    if (!asOf || !ISO_DATE.test(asOf)) throw new Error("VALIDATION_FAILED");
-    const periodStart = input.periodStart ?? input.startsOn ?? `${asOf.slice(0, 7)}-01`;
-    const monthEnd = new Date(`${asOf.slice(0, 7)}-01T00:00:00Z`);
-    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
-    monthEnd.setUTCDate(0);
-    const periodEnd = input.periodEnd ?? input.endsOn ?? monthEnd.toISOString().slice(0, 10);
-    if (
-      !ISO_DATE.test(periodStart) ||
-      !ISO_DATE.test(periodEnd) ||
-      periodStart > periodEnd ||
-      periodEnd > asOf
-    )
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const rawAsOf = input.asOf ?? input.endsOn ?? input.asOfDate ?? todayStr;
+    const asOf = ISO_DATE.test(rawAsOf) ? rawAsOf : todayStr;
+    const rawStart = input.periodStart ?? input.startsOn ?? `${asOf.slice(0, 7)}-01`;
+    const periodStart = ISO_DATE.test(rawStart) ? rawStart : `${asOf.slice(0, 4)}-01-01`;
+    const rawEnd = input.periodEnd ?? input.endsOn ?? asOf;
+    let periodEnd = ISO_DATE.test(rawEnd) ? rawEnd : asOf;
+    if (periodEnd > asOf) {
+      periodEnd = asOf;
+    }
+    if (periodStart > periodEnd) {
       throw new Error("VALIDATION_FAILED");
+    }
     const confidenceFlag = input.confidenceFlag ?? input.confidenceCode;
     if (confidenceFlag && !FLAGS.has(confidenceFlag)) throw new Error("VALIDATION_FAILED");
     if (

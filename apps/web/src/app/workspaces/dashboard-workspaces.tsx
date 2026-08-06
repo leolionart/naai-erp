@@ -9,15 +9,7 @@ import type {
   ExecutiveMetricsContract,
   PerformanceComparisonContract,
 } from "@naai-erp/contracts";
-import {
-  AlertTriangle,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Info,
-  ListChecks,
-} from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Filter, Info, ListChecks } from "lucide-react";
 import type {
   ProjectProfitabilityReport,
   ProjectProfitabilitySummary,
@@ -636,7 +628,6 @@ export function ExecutiveDashboardWorkspace() {
   const projects = data.projects?.items ?? [];
   const recognizedMinor = sumMinor(projects.map((item) => item.recognizedRevenueMinor));
   const invoicedMinor = sumMinor(projects.map((item) => item.invoicedRevenueMinor));
-  const collectedMinor = sumMinor(projects.map((item) => item.collectedRevenueMinor));
   const recognizedDisplayMinor = projects.some((item) => item.recognizedRevenueMinor != null)
     ? recognizedMinor
     : performance?.actualVsFullTarget.numeratorMinor;
@@ -775,108 +766,6 @@ export function ExecutiveDashboardWorkspace() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
-        {data.failures?.executive && !loading ? (
-          <Alert variant="destructive">
-            <AlertTitle>Không tải được Executive Metrics</AlertTitle>
-            <AlertDescription>
-              Các KPI ROS, runway và tiền mặt không khả dụng; dashboard không thay bằng số giả.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {flagged ? (
-          <Alert className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-amber-500/50 bg-amber-500/10">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="size-5 text-amber-500 shrink-0" />
-              <div>
-                <AlertTitle className="text-amber-600 dark:text-amber-400 font-semibold">
-                  {flagged} tín hiệu / chứng từ cần rà soát
-                </AlertTitle>
-                <AlertDescription className="text-xs">
-                  Phát hiện các khoản chi chưa có hóa đơn đỏ hợp lệ hoặc số nợ quá hạn cần xử lý.
-                </AlertDescription>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              asChild
-              className="shrink-0 border-amber-500/40 hover:bg-amber-500/20"
-            >
-              <Link href={`/dashboard/finance-review?${q}`}>
-                Rà soát ngay <ChevronRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          </Alert>
-        ) : null}
-        {usingOperatingFallback && !loading ? (
-          <Alert>
-            <Info />
-            <AlertTitle>Đang dùng dữ liệu fallback</AlertTitle>
-            <AlertDescription>
-              Operating Dashboard API chưa khả dụng; backlog, DSO, project burn/EAC, client
-              concentration và data quality đang lấy từ các báo cáo cũ.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {!loading ? (
-          <Card className="border-amber-500/40 bg-amber-500/5">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-amber-500">
-                  💡 Cảnh báo Tối ưu Thuế TNDN (CIT Advisory)
-                </CardTitle>
-                <Badge
-                  variant="outline"
-                  className="border-amber-500/40 text-amber-600 dark:text-amber-400"
-                >
-                  Tạm tính quý hiện tại
-                </Badge>
-              </div>
-              <CardDescription className="text-xs">
-                So sánh Doanh thu xuất Hóa đơn vs Chi phí Mua vào có Hóa đơn đỏ hợp lệ để ước tính
-                số thuế TNDN cần nộp.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-3 text-xs">
-              <div className="rounded-md border bg-background/80 p-2.5">
-                <span className="text-muted-foreground">Doanh thu có HĐ (GTGT):</span>
-                <p className="font-semibold text-sm mt-0.5">
-                  {money(
-                    operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
-                    operating?.currency ?? data.projects?.currency,
-                  )}
-                </p>
-              </div>
-              <div className="rounded-md border bg-background/80 p-2.5">
-                <span className="text-muted-foreground">Chi phí có HĐ được trừ:</span>
-                <p className="font-semibold text-sm mt-0.5">
-                  {money(data.projects?.totals.directCostMinor ?? "0", data.projects?.currency)}
-                </p>
-              </div>
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
-                <span className="text-amber-700 dark:text-amber-300 font-medium">
-                  Ước tính Thuế TNDN (20%):
-                </span>
-                <p className="font-semibold text-sm mt-0.5 text-amber-600 dark:text-amber-400">
-                  ~
-                  {money(
-                    (BigInt(operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor) >
-                    BigInt(data.projects?.totals.directCostMinor ?? "0")
-                      ? ((BigInt(
-                          operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
-                        ) -
-                          BigInt(data.projects?.totals.directCostMinor ?? "0")) *
-                          20n) /
-                        100n
-                      : 0n
-                    ).toString(),
-                    operating?.currency ?? data.projects?.currency,
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }, (_, index) => (
@@ -899,33 +788,39 @@ export function ExecutiveDashboardWorkspace() {
                   operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
                   operating?.currency ?? data.projects?.currency,
                 )}
-                description={
-                  operating ? "Operating Dashboard API" : "Project profitability fallback"
-                }
+                description="Tổng tiền hóa đơn GTGT đã xuất trong kỳ"
                 href={`/dashboard/drilldown/revenue?${q}`}
                 provisional={usingOperatingFallback}
               />
               <MetricCard
-                title={
-                  (search.get("actualBasis") ?? "invoiced") === "invoiced"
-                    ? "Doanh thu đã xuất hóa đơn"
-                    : "Doanh thu ghi nhận"
-                }
+                title="Doanh thu ghi nhận (Theo mốc hợp đồng)"
                 value={money(
                   recognizedDisplayMinor,
                   data.projects?.currency ?? performance?.currency,
                 )}
                 description={
-                  performance?.actualVsFullTarget.formulaVersion ?? "Project profitability report"
+                  performance?.actualVsFullTarget.formulaVersion ??
+                  "Giá trị nghiệm thực tế theo dự án"
                 }
                 href={`/dashboard/drilldown/revenue?${q}`}
                 status={performance?.actualVsFullTarget.status}
               />
               <MetricCard
-                title="Tiền đã thu"
-                value={money(collectedMinor, data.projects?.currency)}
-                description="Tổng collected revenue theo dự án trong kỳ"
-                href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
+                title="Cảnh báo Thuế TNDN (Tạm tính 20%)"
+                value={`~${money(
+                  (BigInt(operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor) >
+                  BigInt(data.projects?.totals.directCostMinor ?? "0")
+                    ? ((BigInt(operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor) -
+                        BigInt(data.projects?.totals.directCostMinor ?? "0")) *
+                        20n) /
+                      100n
+                    : 0n
+                  ).toString(),
+                  operating?.currency ?? data.projects?.currency,
+                )}`}
+                description={`Chi phí có HĐ: ${money(data.projects?.totals.directCostMinor ?? "0", data.projects?.currency)}`}
+                href="/reports/tax/expense-exceptions"
+                status="Cần rà soát"
                 provisional
               />
               <MetricCard
@@ -933,7 +828,7 @@ export function ExecutiveDashboardWorkspace() {
                 value={money(overdueMinor, data.aging?.baseCurrency)}
                 description={`DSO: ${dso}`}
                 href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
-                status={data.aging?.tieStatus}
+                status={flagged ? `${flagged} khoản cần thu` : data.aging?.tieStatus}
                 provisional={usingOperatingFallback}
                 onQuick={() =>
                   setPreview({

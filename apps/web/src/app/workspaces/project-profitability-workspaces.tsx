@@ -70,15 +70,21 @@ const flagLabels: Readonly<Record<ProfitabilityConfidenceFlag, string>> = {
 
 function queryFrom(searchParams: URLSearchParams) {
   const query = new URLSearchParams();
-  for (const key of [
-    "asOf",
-    "periodStart",
-    "periodEnd",
-    "clientId",
-    "serviceLineId",
-    "accountOwnerId",
-    "confidenceFlag",
-  ]) {
+  const startsOn = searchParams.get("startsOn") ?? searchParams.get("periodStart");
+  const endsOn = searchParams.get("endsOn") ?? searchParams.get("periodEnd");
+  const asOf =
+    searchParams.get("asOfDate") ??
+    searchParams.get("asOf") ??
+    endsOn ??
+    new Date().toISOString().slice(0, 10);
+  const periodStart = startsOn ?? `${asOf.slice(0, 4)}-01-01`;
+  const periodEnd = endsOn ?? asOf;
+
+  query.set("asOf", asOf);
+  query.set("periodStart", periodStart);
+  query.set("periodEnd", periodEnd);
+
+  for (const key of ["clientId", "serviceLineId", "accountOwnerId", "confidenceFlag"]) {
     const value = searchParams.get(key);
     if (value) query.set(key, value);
   }

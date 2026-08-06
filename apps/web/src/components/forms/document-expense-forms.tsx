@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentProps, type FormEvent, useId, useState } from "react";
+import { type ComponentProps, type FormEvent, useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,74 @@ function field(source: unknown, ...keys: string[]): unknown {
     if (key in record && record[key] !== undefined) return record[key];
   }
   return undefined;
+}
+
+function formatMoneyDisplay(rawVal: string): string {
+  const digits = rawVal.replace(/[^0-9-]/g, "");
+  if (!digits) return "";
+  try {
+    return `${new Intl.NumberFormat("vi-VN").format(BigInt(digits))} ₫`;
+  } catch {
+    return rawVal;
+  }
+}
+
+function MoneyField({
+  label: fieldLabel,
+  value,
+  onChange,
+  error,
+  ...props
+}: Omit<ComponentProps<typeof Input>, "onChange" | "value"> & {
+  label: string;
+  value: string;
+  onChange: (rawMinor: string) => void;
+  error?: string;
+}) {
+  const generatedId = useId();
+  const controlId = props.id ?? generatedId;
+  const [display, setDisplay] = useState(() => formatMoneyDisplay(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setDisplay(formatMoneyDisplay(value));
+    }
+  }, [value, focused]);
+
+  function handleChange(val: string) {
+    const rawDigits = val.replace(/[^0-9-]/g, "");
+    setDisplay(val);
+    onChange(rawDigits);
+  }
+
+  function handleBlur() {
+    setFocused(false);
+    setDisplay(formatMoneyDisplay(value));
+  }
+
+  function handleFocus() {
+    setFocused(true);
+    const rawDigits = value.replace(/[^0-9-]/g, "");
+    setDisplay(rawDigits);
+  }
+
+  return (
+    <Field data-invalid={Boolean(error)}>
+      <FieldLabel htmlFor={controlId}>{fieldLabel}</FieldLabel>
+      <Input
+        {...props}
+        id={controlId}
+        value={display}
+        aria-invalid={Boolean(error)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="0 ₫"
+      />
+      {error ? <FieldError>{error}</FieldError> : null}
+    </Field>
+  );
 }
 
 function TextField({
@@ -221,16 +289,16 @@ export function DocumentForm({
           className="col-span-full"
         />
         <TextField label="Số lượng" value={quantity} onChange={setQuantity} required />
-        <TextField
-          label="Đơn giá (xu)"
+        <MoneyField
+          label="Đơn giá (VNĐ)"
           value={unitPriceMinor}
           onChange={setUnitPriceMinor}
           required
         />
-        <TextField label="Tiền chưa thuế (xu)" value={netMinor} onChange={setNetMinor} required />
-        <TextField label="Tiền thuế (xu)" value={taxMinor} onChange={setTaxMinor} required />
-        <TextField
-          label="Tổng cộng gồm thuế (xu)"
+        <MoneyField label="Tiền chưa thuế (VNĐ)" value={netMinor} onChange={setNetMinor} required />
+        <MoneyField label="Tiền thuế (VNĐ)" value={taxMinor} onChange={setTaxMinor} required />
+        <MoneyField
+          label="Tổng cộng gồm thuế (VNĐ)"
           value={grossMinor}
           onChange={setGrossMinor}
           required
@@ -378,14 +446,19 @@ export function ExpenseForm({
 
       <FieldSet className="grid gap-4 sm:grid-cols-2">
         <FieldLegend className="col-span-full font-semibold">Giá trị & Hạch toán</FieldLegend>
-        <TextField
-          label="Tiền gốc chưa VAT (xu)"
+        <MoneyField
+          label="Tiền gốc chưa VAT (VNĐ)"
           value={netMinor}
           onChange={setNetMinor}
           required
         />
-        <TextField label="Tiền VAT (xu)" value={vatMinor} onChange={setVatMinor} required />
-        <TextField label="Tổng chi phí (xu)" value={grossMinor} onChange={setGrossMinor} required />
+        <MoneyField label="Tiền VAT (VNĐ)" value={vatMinor} onChange={setVatMinor} required />
+        <MoneyField
+          label="Tổng chi phí (VNĐ)"
+          value={grossMinor}
+          onChange={setGrossMinor}
+          required
+        />
         <TextField
           label="Tài khoản hạch toán chi phí"
           value={postingAccountCode}
