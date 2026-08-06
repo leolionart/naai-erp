@@ -903,13 +903,24 @@ tasks:
   - id: ERP-800
     title: Import staging and UI-correctable source data
     phase: P8
-    status: review
+    status: blocked
     dependencies: [G7]
     business_rules: [BR-MIG-001, BR-MIG-002, BR-MIG-003]
     tests: [T-INT-ERP-800-001, T-INT-ERP-800-002, T-E2E-ERP-800-001]
     evidence: docs/implementation/evidence/ERP-800/
     started_at: 2026-08-06T18:48:00+07:00
-    notes: Persist every workbook business row into an organization-scoped review queue so unresolved source data can be corrected through UI without guessing or rewriting posted accounting history. Local implementation and real-data load are complete; exact-commit CI/release proof is pending.
+    resumed_at: 2026-08-06T20:25:00+07:00
+    agent: codex-root
+    planned_files:
+      - apps/api/src/workbook-imports/
+      - apps/cli/src/
+      - apps/web/src/app/workspaces/import-review-workspace.tsx
+      - packages/database/src/schema.ts
+      - db/migrations/
+      - docs/api/openapi-v1.json
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-800/
+    notes: Persist every workbook business row into an organization-scoped review queue so unresolved source data can be corrected through UI without guessing or rewriting posted accounting history. Reopened after live-data audit showed that review edits are not promotable through canonical application services and legacy import-posted rows need controlled linkage/correction evidence before G8 can close. Blocked on owner/accountant classification for four owner movements, unidentified payees, and payment/counter-account semantics; guessing would change posted accounting and tax/report results.
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
