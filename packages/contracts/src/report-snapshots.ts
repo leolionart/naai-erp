@@ -30,6 +30,7 @@ export type ReportSnapshotContract = Readonly<{
   accountingBasis: string;
   framework?: string;
   formulaVersions: Readonly<Record<string, string>>;
+  mappingVersions: Readonly<Record<string, string>>;
   ledgerCutoff: Readonly<{
     throughDate: string;
     maxPostedAt: string;
@@ -37,6 +38,7 @@ export type ReportSnapshotContract = Readonly<{
     lineCount: number;
     sourceFingerprint: string;
   }>;
+  sourceManifest: readonly Readonly<Record<string, unknown>>[];
   mappings: readonly SnapshotMappingContract[];
   unresolvedItems: readonly SnapshotUnresolvedItemContract[];
   state: "captured";

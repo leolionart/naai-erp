@@ -19,5 +19,7 @@ describe("ERP-650 export contracts", () => {
       >
     >();
     expectTypeOf<AccountantExportContract["isFinal"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<AccountantExportContract["contentHash"]>().toEqualTypeOf<string>();
+    expectTypeOf<AccountantExportContract["sizeBytes"]>().toEqualTypeOf<string>();
   });
 });

@@ -14,6 +14,7 @@ const input = {
   period: { startsOn: "2026-08-01", endsOn: "2026-08-31", asOfDate: "2026-08-31" },
   accountingBasis: "accrual_management",
   formulaVersions: { pnl: "profit-and-loss-v1" },
+  mappingVersions: { financialStatement: "map-1:1" },
   ledgerCutoff: {
     throughDate: "2026-08-31",
     maxPostedAt: "2026-08-31T16:00:00.000Z",
@@ -21,6 +22,7 @@ const input = {
     lineCount: 4,
     sourceFingerprint: "a".repeat(64),
   },
+  sourceManifest: [{ id: "journal-1", version: 2 }],
   mappings: [
     {
       sourceKey: "511",
@@ -45,6 +47,8 @@ describe("ERP-650 report snapshots", () => {
   it("reproduces identical inputs and detects changed result", () => {
     const snapshot = createReportSnapshot(input);
     expect(snapshot.readiness).toBe("final");
+    expect(snapshot.mappingVersions).toEqual({ financialStatement: "map-1:1" });
+    expect(snapshot.sourceManifest).toEqual([{ id: "journal-1", version: 2 }]);
     expect(
       verifySnapshotReproduction(
         snapshot,

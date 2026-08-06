@@ -53,7 +53,9 @@ export type ReportSnapshot = Readonly<{
   accountingBasis: string;
   framework?: string;
   formulaVersions: Readonly<Record<string, string>>;
+  mappingVersions: Readonly<Record<string, string>>;
   ledgerCutoff: SnapshotLedgerCutoff;
+  sourceManifest: readonly CanonicalJsonObject[];
   mappings: readonly SnapshotMapping[];
   unresolvedItems: readonly SnapshotUnresolvedItem[];
   state: "captured";
@@ -228,7 +230,9 @@ export function createReportSnapshot(
     accountingBasis: string;
     framework?: string;
     formulaVersions: Readonly<Record<string, string>>;
+    mappingVersions?: Readonly<Record<string, string>>;
     ledgerCutoff: SnapshotLedgerCutoff;
+    sourceManifest?: readonly CanonicalJsonObject[];
     mappings: readonly SnapshotMapping[];
     unresolvedItems: readonly SnapshotUnresolvedItem[];
     request: CanonicalJsonValue;
@@ -299,7 +303,9 @@ export function createReportSnapshot(
       accountingBasis: input.accountingBasis.trim(),
       framework: input.framework,
       formulaVersions: input.formulaVersions,
+      mappingVersions: input.mappingVersions ?? {},
       ledgerCutoff: input.ledgerCutoff,
+      sourceManifest: input.sourceManifest ?? [],
       mappings,
       unresolvedItems,
       requestHash,
@@ -334,7 +340,20 @@ export function createReportSnapshot(
           ]),
       ),
     ),
+    mappingVersions: Object.freeze(
+      Object.fromEntries(
+        Object.entries(input.mappingVersions ?? {})
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([key, value]) => [
+            required(key, "Mapping key"),
+            required(value, "Mapping version"),
+          ]),
+      ),
+    ),
     ledgerCutoff: Object.freeze({ ...input.ledgerCutoff }),
+    sourceManifest: Object.freeze(
+      (input.sourceManifest ?? []).map((source) => Object.freeze({ ...source })),
+    ),
     mappings,
     unresolvedItems,
     state: "captured",

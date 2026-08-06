@@ -100,6 +100,10 @@ import { ExecutiveMetricController } from "./executive-metrics/executive-metric.
 import { ExecutiveMetricService } from "./executive-metrics/executive-metric.service.js";
 import { EXECUTIVE_METRIC_STORE } from "./executive-metrics/executive-metric.types.js";
 import { PgExecutiveMetricStore } from "./executive-metrics/pg-executive-metric.store.js";
+import { ReportExportController } from "./report-exports/report-export.controller.js";
+import { ReportExportService } from "./report-exports/report-export.service.js";
+import { REPORT_EXPORT_STORE } from "./report-exports/report-export.types.js";
+import { PgReportExportStore } from "./report-exports/pg-report-export.store.js";
 
 @Module({
   controllers: [
@@ -134,6 +138,7 @@ import { PgExecutiveMetricStore } from "./executive-metrics/pg-executive-metric.
     PerformanceComparisonController,
     FinancialStatementController,
     ExecutiveMetricController,
+    ReportExportController,
   ],
   providers: [
     MasterDataService,
@@ -202,6 +207,9 @@ import { PgExecutiveMetricStore } from "./executive-metrics/pg-executive-metric.
     ExecutiveMetricService,
     PgExecutiveMetricStore,
     { provide: EXECUTIVE_METRIC_STORE, useExisting: PgExecutiveMetricStore },
+    ReportExportService,
+    PgReportExportStore,
+    { provide: REPORT_EXPORT_STORE, useExisting: PgReportExportStore },
   ],
 })
 export class AppModule {}

@@ -15,6 +15,12 @@ describe("ERP-650 snapshot contracts", () => {
     >();
     expectTypeOf<ReportSnapshotContract["resultHash"]>().toEqualTypeOf<string>();
     expectTypeOf<ReportSnapshotContract["snapshotHash"]>().toEqualTypeOf<string>();
+    expectTypeOf<ReportSnapshotContract["mappingVersions"]>().toEqualTypeOf<
+      Readonly<Record<string, string>>
+    >();
+    expectTypeOf<ReportSnapshotContract["sourceManifest"]>().toEqualTypeOf<
+      readonly Readonly<Record<string, unknown>>[]
+    >();
     expectTypeOf<ReportSnapshotContract["readiness"]>().toEqualTypeOf<
       "review_required" | "final"
     >();

@@ -40,6 +40,10 @@ export type AccountantExportContract = Readonly<{
   snapshot: ReportSnapshotContract;
   format: "csv" | "xlsx";
   workbookHash: string;
+  contentHash: string;
+  sizeBytes: string;
+  mediaType: string;
+  filename: string;
   state: "generated" | "superseded";
   isFinal: boolean;
   createdAt: string;
