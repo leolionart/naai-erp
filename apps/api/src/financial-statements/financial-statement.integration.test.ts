@@ -57,8 +57,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
   };
 
   beforeAll(async () => {
-    await pool.query(
-      `
+    await pool.query(`
       insert into organizations (id,legal_name,base_currency,timezone)
       values ('org-erp630','ERP 630 Org','VND','Asia/Ho_Chi_Minh'),
              ('org-erp630-other','ERP 630 Other','VND','Asia/Ho_Chi_Minh');
@@ -73,19 +72,24 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
         ('635-OTHER','Other expense','expense'),('642-OPEX','Opex','expense'),('821-TAX','Income tax','expense'),
         ('998-UNMAPPED-REV','Unmapped revenue','revenue'),('999-UNMAPPED','Unmapped asset','asset'),
         ('997-UNMAPPED-EXP','Unmapped expense','expense')) a(code,name,root_type);
+    `);
+    await pool.query(
+      `
       insert into api_credentials (organization_id,id,actor_id,token_hash,roles)
       values ('org-erp630','erp630-maker','maker',$1,'["finance_admin"]'),
              ('org-erp630','erp630-approver','approver',$2,'["approver","accountant"]');
-      insert into financial_accounts
-        (organization_id,id,code,display_name,kind,currency,ledger_account_code,bank_code,status,version,created_by,updated_by)
-      values ('org-erp630','fa-bank','BANK','Bank','bank','VND','111-BANK','TESTBANK','active',1,'fixture','fixture'),
-             ('org-erp630','fa-cash','CASH','Cash','cash','VND','111-CASH',null,'active',1,'fixture','fixture');
     `,
       [
         createHash("sha256").update(makerToken).digest("hex"),
         createHash("sha256").update(approverToken).digest("hex"),
       ],
     );
+    await pool.query(`
+      insert into financial_accounts
+        (organization_id,id,code,display_name,kind,currency,ledger_account_code,bank_code,status,version,created_by,updated_by)
+      values ('org-erp630','fa-bank','BANK','Bank','bank','VND','111-BANK','TESTBANK','active',1,'fixture','fixture'),
+             ('org-erp630','fa-cash','CASH','Cash','cash','VND','111-CASH',null,'active',1,'fixture','fixture');
+    `);
 
     const journal = async (
       id: string,
