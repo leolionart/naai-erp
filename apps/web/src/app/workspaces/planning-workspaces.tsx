@@ -86,6 +86,9 @@ export function PlanningTabs() {
       <Button asChild variant="outline">
         <Link href="/forecast/scenarios">Forecast scenarios</Link>
       </Button>
+      <Button asChild variant="outline">
+        <Link href="/forecast/composition">Revenue & cash forecast</Link>
+      </Button>
     </nav>
   );
 }
@@ -540,6 +543,13 @@ export function PlanningDetailWorkspace({
         </CardContent>
       </Card>
       <div className="flex flex-wrap gap-2">
+        {kind === "forecasts" ? (
+          <Button asChild variant="outline">
+            <Link href={`/forecast/scenarios/${encodeURIComponent(id)}/composition`}>
+              Xem cấu phần dự báo
+            </Link>
+          </Button>
+        ) : null}
         {resource.nextActions.includes("publish") && (
           <Button onClick={() => setAction("publish")}>Publish version</Button>
         )}

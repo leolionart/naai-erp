@@ -101,7 +101,10 @@ export {
   planningVersionState,
   forecastScenario,
   forecastSnapshotKind,
+  forecastComponentSection,
+  forecastComponentDirection,
   revenueTargetVersions,
   forecastVersions,
+  forecastComponents,
   planningAuditEvents,
 } from "./schema.js";

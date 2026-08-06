@@ -183,6 +183,13 @@
       "when": 1785970305354,
       "tag": "0025_handy_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785974316800,
+      "tag": "0026_petite_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

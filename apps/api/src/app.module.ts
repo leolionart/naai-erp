@@ -84,6 +84,10 @@ import {
 import { PlanningService } from "./planning/planning.service.js";
 import { PLANNING_STORE } from "./planning/planning.types.js";
 import { PgPlanningStore } from "./planning/pg-planning.store.js";
+import { ForecastComponentController } from "./forecast-components/forecast-component.controller.js";
+import { ForecastComponentService } from "./forecast-components/forecast-component.service.js";
+import { FORECAST_COMPONENT_STORE } from "./forecast-components/forecast-component.types.js";
+import { PgForecastComponentStore } from "./forecast-components/pg-forecast-component.store.js";
 
 @Module({
   controllers: [
@@ -114,6 +118,7 @@ import { PgPlanningStore } from "./planning/pg-planning.store.js";
     ProjectProfitabilityController,
     RevenueTargetController,
     ForecastVersionController,
+    ForecastComponentController,
   ],
   providers: [
     MasterDataService,
@@ -170,6 +175,9 @@ import { PgPlanningStore } from "./planning/pg-planning.store.js";
     PlanningService,
     PgPlanningStore,
     { provide: PLANNING_STORE, useExisting: PgPlanningStore },
+    ForecastComponentService,
+    PgForecastComponentStore,
+    { provide: FORECAST_COMPONENT_STORE, useExisting: PgForecastComponentStore },
   ],
 })
 export class AppModule {}

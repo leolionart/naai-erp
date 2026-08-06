@@ -1,0 +1,16 @@
+id,section,kind,direction,amount_minor,probability_bps,signed_weighted_minor
+rev-milestone-1,revenue,committed_milestone,increase,30000000,10000,30000000
+rev-recurring-1,revenue,scheduled_recurring,increase,12000000,10000,12000000
+rev-pipeline-1,revenue,weighted_pipeline,increase,20000000,5000,10000000
+rev-adjustment-1,revenue,manual_adjustment,decrease,2000000,10000,-2000000
+exp-payroll-1,expense,payroll,increase,35000000,10000,35000000
+exp-opex-1,expense,recurring_opex,increase,8000000,10000,8000000
+exp-adjustment-1,expense,manual_adjustment,increase,1000000,10000,1000000
+cash-opening-1,cash,opening_cash,increase,25000000,10000,25000000
+cash-collection-1,cash,expected_collection,increase,50000000,10000,50000000
+cash-owner-funding-1,cash,financing,increase,10000000,10000,10000000
+cash-payroll-1,cash,payroll,decrease,35000000,10000,-35000000
+cash-ap-1,cash,ap_due,decrease,12000000,10000,-12000000
+cash-recurring-1,cash,recurring_expense,decrease,8000000,10000,-8000000
+cash-tax-1,cash,tax,decrease,3000000,10000,-3000000
+cash-capex-1,cash,capex,decrease,5000000,10000,-5000000

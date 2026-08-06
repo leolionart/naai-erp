@@ -45,6 +45,12 @@
     "forecast-versions/create",
     "forecast-versions/publish",
     "forecast-versions/supersede",
+    "forecast-components/create",
+    "forecast-components/update",
+    "forecast-components/delete",
+    "forecast-components/review",
+    "forecast-components/exclude",
+    "forecast-composition/read",
     "commercial-documents/create",
     "commercial-documents/capture",
     "commercial-documents/validate",
@@ -1411,7 +1417,43 @@
       "get": {
         "operationId": "getScopeChange",
         "tags": ["project-economics"],
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "forecastId", "in": "path", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "section",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["revenue", "expense", "cash"] }
+          },
+          { "name": "kind", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["active", "excluded"] }
+          },
+          {
+            "name": "reviewState",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["not_required", "pending", "reviewed"] }
+          },
+          {
+            "name": "scheduledFrom",
+            "in": "query",
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "scheduledTo",
+            "in": "query",
+            "schema": { "type": "string", "format": "date" }
+          },
+          { "name": "sourceType", "in": "query", "schema": { "type": "string" } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
         "responses": { "200": { "description": "Scope-change detail" } }
       }
     },
@@ -1913,6 +1955,83 @@
           { "$ref": "#/components/parameters/IdempotencyKey" }
         ],
         "responses": { "201": { "description": "Audited forecast transition" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components": {
+      "get": {
+        "operationId": "listForecastComponents",
+        "tags": ["planning", "forecast-components"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Organization-scoped forecast components with exact money strings and review state"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createForecastComponent",
+        "tags": ["planning", "forecast-components"],
+        "summary": "Add a revenue, expense, or cash component to a draft forecast",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/CreateForecastComponent" },
+        "responses": { "201": { "description": "Idempotent forecast component mutation" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}": {
+      "get": {
+        "operationId": "getForecastComponent",
+        "tags": ["planning", "forecast-components"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": { "description": "Forecast component and machine-discoverable next actions" }
+        }
+      },
+      "patch": {
+        "operationId": "updateForecastComponent",
+        "tags": ["planning", "forecast-components"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/UpdateForecastComponent" },
+        "responses": { "200": { "description": "Version-checked component update" } }
+      },
+      "delete": {
+        "operationId": "deleteForecastComponent",
+        "tags": ["planning", "forecast-components"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "200": { "description": "Audited deletion from a draft forecast" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}/{action}": {
+      "post": {
+        "operationId": "transitionForecastComponent",
+        "tags": ["planning", "forecast-components"],
+        "summary": "Review a manual adjustment or exclude a component",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Audited maker-checker review or exclusion" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/composition": {
+      "get": {
+        "operationId": "getForecastComposition",
+        "tags": ["planning", "forecast-components"],
+        "summary": "Actual-to-date plus committed, recurring, weighted pipeline and reviewed adjustments; cash uses the BR-FCT-004 formula",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Exact revenue, expense, and cash composition with cutoff, formula version, confidence flags, and drill-down IDs"
+          }
+        }
       }
     }
   },
@@ -3057,6 +3176,74 @@
       }
     },
     "requestBodies": {
+      "CreateForecastComponent": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "schemaVersion",
+                "section",
+                "kind",
+                "amountMinor",
+                "direction",
+                "scheduledOn",
+                "currency",
+                "source",
+                "reason"
+              ],
+              "properties": {
+                "schemaVersion": { "const": 1 },
+                "section": { "type": "string", "enum": ["revenue", "expense", "cash"] },
+                "kind": { "type": "string" },
+                "amountMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                "direction": { "type": "string", "enum": ["increase", "decrease"] },
+                "probabilityBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+                "scheduledOn": { "type": "string", "format": "date" },
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+                "source": {
+                  "type": "object",
+                  "required": ["type", "id"],
+                  "properties": {
+                    "type": { "type": "string" },
+                    "id": { "type": "string" },
+                    "commercialRootType": { "type": "string" },
+                    "commercialRootId": { "type": "string" }
+                  }
+                },
+                "sourceSnapshot": { "type": "object", "additionalProperties": true },
+                "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+                "note": { "type": "string" },
+                "expectedResourceVersion": { "type": "string", "pattern": "^[0-9]+$" },
+                "reason": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
+      "UpdateForecastComponent": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["schemaVersion", "expectedResourceVersion", "reason"],
+              "properties": {
+                "schemaVersion": { "const": 1 },
+                "expectedResourceVersion": { "type": "string", "pattern": "^[0-9]+$" },
+                "scheduledOn": { "type": "string", "format": "date" },
+                "amountMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                "probabilityBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+                "sourceSnapshot": { "type": "object", "additionalProperties": true },
+                "dimensions": { "type": "object", "additionalProperties": { "type": "string" } },
+                "note": { "type": "string" },
+                "reason": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
       "ReviewBankStatementSession": {
         "required": true,
         "content": {

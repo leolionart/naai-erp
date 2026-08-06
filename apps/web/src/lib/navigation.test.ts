@@ -17,6 +17,7 @@ describe("typed admin navigation", () => {
     expect(findNavigationItem("banking")?.href).toBe("/banking");
     expect(isNavigationAvailable(findNavigationItem("banking")!)).toBe(true);
     expect(isNavigationAvailable(findNavigationItem("forecast")!)).toBe(true);
+    expect(isNavigationAvailable(findNavigationItem("forecast-composition")!)).toBe(true);
     expect(findNavigationItem("missing")).toBeUndefined();
   });
 });

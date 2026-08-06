@@ -1,0 +1,8 @@
+control,source_value,fixture_value,difference,status
+component_count,15,15,0,tied_out
+projected_revenue_minor,90000000,90000000,0,tied_out
+projected_expense_minor,44000000,44000000,0,tied_out
+projected_closing_cash_minor,22000000,22000000,0,tied_out
+duplicate_commercial_source_rejected,1,1,0,tied_out
+owner_funding_financing_only,1,1,0,tied_out
+pending_manual_adjustment_count,0,0,0,tied_out

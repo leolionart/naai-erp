@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- PostgreSQL rows are normalized at the store boundary. */
 import { createHash, randomUUID } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
   createForecastVersion,
   createRevenueTargetVersion,
@@ -8,11 +8,14 @@ import {
   publishRevenueTargetVersion,
   supersedeForecastVersion,
   supersedeRevenueTargetVersion,
+  assertForecastCompositionPublishable,
+  type ForecastComponent,
   type ForecastVersion,
   type RevenueTargetVersion,
 } from "@naai-erp/domain";
 import pg, { type PoolClient } from "pg";
 import type { PlanningContext, PlanningResource } from "./planning.types.js";
+import { PgForecastComponentStore } from "../forecast-components/pg-forecast-component.store.js";
 
 const TABLE: Record<PlanningResource, string> = {
   "revenue-targets": "revenue_target_versions",
@@ -23,6 +26,10 @@ const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(valu
 @Injectable()
 export class PgPlanningStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  constructor(
+    @Inject(PgForecastComponentStore)
+    private readonly forecastComponents: PgForecastComponentStore,
+  ) {}
 
   async list(
     c: PlanningContext,
@@ -200,6 +207,33 @@ export class PgPlanningStore {
         );
       if (action === "publish" && raw.created_by === c.actorId)
         throw new Error("MAKER_CHECKER_VIOLATION");
+      let compositionSnapshot: unknown;
+      if (resource === "forecast-versions" && action === "publish") {
+        const components = (
+          await q.query(
+            `select * from forecast_components where organization_id=$1 and forecast_version_id=$2`,
+            [c.organizationId, id],
+          )
+        ).rows.map((row) => this.forecastComponentDomain(row));
+        try {
+          assertForecastCompositionPublishable(components);
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("requires review"))
+            throw new Error("FORECAST_MANUAL_REVIEW_REQUIRED");
+          if (error instanceof Error && error.message.includes("double-counted"))
+            throw new Error("FORECAST_COMMERCIAL_SOURCE_DUPLICATE");
+          if (error instanceof Error && error.message.includes("opening cash"))
+            throw new Error("FORECAST_OPENING_CASH_REQUIRED");
+          throw error;
+        }
+        compositionSnapshot = await this.forecastComponents.compositionWith(
+          q,
+          c.organizationId,
+          id,
+          raw,
+          true,
+        );
+      }
       if (resource === "revenue-targets") {
         if (action === "publish")
           publishRevenueTargetVersion(
@@ -225,10 +259,23 @@ export class PgPlanningStore {
       }
       const nextState = action === "publish" ? "published" : "superseded",
         version = (BigInt(raw.version) + 1n).toString();
-      await q.query(
-        `update ${table} set state=$3::planning_version_state,version=$4,published_by=case when $3::planning_version_state='published'::planning_version_state then $5 else published_by end,published_at=case when $3::planning_version_state='published'::planning_version_state then now() else published_at end,updated_at=now() where organization_id=$1 and id=$2`,
-        [c.organizationId, id, nextState, version, c.actorId],
-      );
+      if (resource === "forecast-versions")
+        await q.query(
+          `update forecast_versions set state=$3::planning_version_state,version=$4,published_by=case when $3::planning_version_state='published'::planning_version_state then $5 else published_by end,published_at=case when $3::planning_version_state='published'::planning_version_state then now() else published_at end,composition_snapshot=case when $3::planning_version_state='published'::planning_version_state then $6::jsonb else composition_snapshot end,composition_snapshotted_at=case when $3::planning_version_state='published'::planning_version_state then now() else composition_snapshotted_at end,updated_at=now() where organization_id=$1 and id=$2`,
+          [
+            c.organizationId,
+            id,
+            nextState,
+            version,
+            c.actorId,
+            JSON.stringify(compositionSnapshot),
+          ],
+        );
+      else
+        await q.query(
+          `update ${table} set state=$3::planning_version_state,version=$4,published_by=case when $3::planning_version_state='published'::planning_version_state then $5 else published_by end,published_at=case when $3::planning_version_state='published'::planning_version_state then now() else published_at end,updated_at=now() where organization_id=$1 and id=$2`,
+          [c.organizationId, id, nextState, version, c.actorId],
+        );
       if (action === "publish" && raw.previous_version_id)
         await q.query(
           `update ${table} set state='superseded',version=version+1,updated_at=now() where organization_id=$1 and id=$2 and state='published'`,
@@ -334,6 +381,56 @@ export class PgPlanningStore {
   }
   private dateText(value: unknown) {
     return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+  }
+  private forecastComponentDomain(row: any): ForecastComponent {
+    return {
+      organizationId: row.organization_id,
+      forecastVersionId: row.forecast_version_id,
+      id: row.id,
+      section: row.section,
+      kind: row.kind,
+      direction: row.direction,
+      scheduledOn: this.dateText(row.scheduled_on),
+      amountMinor: BigInt(row.amount_minor),
+      probabilityBps: row.probability_bps,
+      currency: row.currency,
+      source: {
+        type: row.source_type,
+        id: row.source_id,
+        ...(row.commercial_root_type
+          ? {
+              commercialRootType: row.commercial_root_type,
+              commercialRootId: row.commercial_root_id,
+            }
+          : {}),
+      },
+      sourceSnapshot: row.source_snapshot ?? {},
+      dimensions: row.dimensions ?? {},
+      ...(row.note ? { note: row.note } : {}),
+      createdBy: row.created_by,
+      state: row.excluded ? "excluded" : "active",
+      reviewState:
+        row.kind !== "manual_adjustment"
+          ? "not_required"
+          : row.reviewed_by
+            ? "reviewed"
+            : "pending",
+      version: Number(row.version),
+      ...(row.reviewed_by
+        ? {
+            reviewedBy: row.reviewed_by,
+            reviewedAt: new Date(row.reviewed_at).toISOString(),
+            reviewReason: row.review_reason,
+          }
+        : {}),
+      ...(row.excluded_by
+        ? {
+            excludedBy: row.excluded_by,
+            excludedAt: new Date(row.excluded_at).toISOString(),
+            exclusionReason: row.exclusion_reason,
+          }
+        : {}),
+    };
   }
   private meta(
     c: PlanningContext,

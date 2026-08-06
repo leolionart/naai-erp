@@ -1,0 +1,230 @@
+{
+  "fixtureId": "GF-FORECAST-002",
+  "organizationId": "org-naai",
+  "forecastVersionId": "forecast-base-2026-v1",
+  "actualBasis": "recognized",
+  "asOfDate": "2026-08-31",
+  "startsOn": "2026-08-01",
+  "endsOn": "2026-12-31",
+  "currency": "VND",
+  "actualToDateMinor": "40000000",
+  "components": [
+    {
+      "id": "rev-milestone-1",
+      "section": "revenue",
+      "kind": "committed_milestone",
+      "direction": "increase",
+      "scheduledOn": "2026-09-15",
+      "amountMinor": "30000000",
+      "probabilityBps": 10000,
+      "source": {
+        "type": "milestone",
+        "id": "milestone-1",
+        "commercialRootType": "contract",
+        "commercialRootId": "contract-1"
+      },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "rev-recurring-1",
+      "section": "revenue",
+      "kind": "scheduled_recurring",
+      "direction": "increase",
+      "scheduledOn": "2026-10-01",
+      "amountMinor": "12000000",
+      "probabilityBps": 10000,
+      "source": {
+        "type": "recurring_schedule",
+        "id": "schedule-1",
+        "commercialRootType": "contract",
+        "commercialRootId": "contract-2"
+      },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "rev-pipeline-1",
+      "section": "revenue",
+      "kind": "weighted_pipeline",
+      "direction": "increase",
+      "scheduledOn": "2026-11-01",
+      "amountMinor": "20000000",
+      "probabilityBps": 5000,
+      "source": {
+        "type": "opportunity",
+        "id": "opportunity-1",
+        "commercialRootType": "opportunity",
+        "commercialRootId": "opportunity-1"
+      },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "rev-adjustment-1",
+      "section": "revenue",
+      "kind": "manual_adjustment",
+      "direction": "decrease",
+      "scheduledOn": "2026-12-01",
+      "amountMinor": "2000000",
+      "probabilityBps": 10000,
+      "source": { "type": "manual", "id": "assumption-revenue-1" },
+      "reviewState": "reviewed",
+      "createdBy": "planner-1",
+      "reviewedBy": "approver-1"
+    },
+    {
+      "id": "exp-payroll-1",
+      "section": "expense",
+      "kind": "payroll",
+      "direction": "increase",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "35000000",
+      "probabilityBps": 10000,
+      "source": { "type": "payroll_schedule", "id": "payroll-2026-09" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "exp-opex-1",
+      "section": "expense",
+      "kind": "recurring_opex",
+      "direction": "increase",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "8000000",
+      "probabilityBps": 10000,
+      "source": { "type": "recurring_schedule", "id": "opex-schedule-1" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "exp-adjustment-1",
+      "section": "expense",
+      "kind": "manual_adjustment",
+      "direction": "increase",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "1000000",
+      "probabilityBps": 10000,
+      "source": { "type": "manual", "id": "assumption-expense-1" },
+      "reviewState": "reviewed",
+      "createdBy": "planner-1",
+      "reviewedBy": "approver-1"
+    },
+    {
+      "id": "cash-opening-1",
+      "section": "cash",
+      "kind": "opening_cash",
+      "direction": "increase",
+      "scheduledOn": "2026-08-31",
+      "amountMinor": "25000000",
+      "probabilityBps": 10000,
+      "source": { "type": "bank_balance", "id": "cash-control-2026-08-31" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-collection-1",
+      "section": "cash",
+      "kind": "expected_collection",
+      "direction": "increase",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "50000000",
+      "probabilityBps": 10000,
+      "source": { "type": "receivable", "id": "receivable-control-1" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-owner-funding-1",
+      "section": "cash",
+      "kind": "financing",
+      "direction": "increase",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "10000000",
+      "probabilityBps": 10000,
+      "source": { "type": "owner_funding", "id": "capital-call-1" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-payroll-1",
+      "section": "cash",
+      "kind": "payroll",
+      "direction": "decrease",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "35000000",
+      "probabilityBps": 10000,
+      "source": { "type": "payroll_schedule", "id": "payroll-2026-09" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-ap-1",
+      "section": "cash",
+      "kind": "ap_due",
+      "direction": "decrease",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "12000000",
+      "probabilityBps": 10000,
+      "source": { "type": "payable", "id": "payable-control-1" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-recurring-1",
+      "section": "cash",
+      "kind": "recurring_expense",
+      "direction": "decrease",
+      "scheduledOn": "2026-09-30",
+      "amountMinor": "8000000",
+      "probabilityBps": 10000,
+      "source": { "type": "recurring_schedule", "id": "opex-schedule-1" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-tax-1",
+      "section": "cash",
+      "kind": "tax",
+      "direction": "decrease",
+      "scheduledOn": "2026-10-30",
+      "amountMinor": "3000000",
+      "probabilityBps": 10000,
+      "source": { "type": "tax_schedule", "id": "tax-schedule-1" },
+      "reviewState": "not_required"
+    },
+    {
+      "id": "cash-capex-1",
+      "section": "cash",
+      "kind": "capex",
+      "direction": "decrease",
+      "scheduledOn": "2026-11-30",
+      "amountMinor": "5000000",
+      "probabilityBps": 10000,
+      "source": { "type": "capex_schedule", "id": "capex-plan-1" },
+      "reviewState": "not_required"
+    }
+  ],
+  "negativeControls": {
+    "duplicateCommercialSource": [
+      {
+        "id": "duplicate-contract-view",
+        "section": "revenue",
+        "scheduledOn": "2026-10-15",
+        "source": {
+          "type": "milestone",
+          "id": "milestone-duplicate",
+          "commercialRootType": "deal",
+          "commercialRootId": "deal-duplicate"
+        }
+      },
+      {
+        "id": "duplicate-opportunity-view",
+        "section": "revenue",
+        "scheduledOn": "2026-10-15",
+        "source": {
+          "type": "opportunity",
+          "id": "opportunity-duplicate",
+          "commercialRootType": "deal",
+          "commercialRootId": "deal-duplicate"
+        }
+      }
+    ],
+    "misclassifiedOwnerFunding": {
+      "id": "bad-owner-funding",
+      "section": "revenue",
+      "kind": "scheduled_recurring",
+      "direction": "increase",
+      "source": { "type": "owner_funding", "id": "capital-call-bad" }
+    }
+  }
+}

@@ -98,6 +98,15 @@ export const planningVersionState = pgEnum("planning_version_state", [
 ]);
 export const forecastScenario = pgEnum("forecast_scenario", ["base", "best", "worst", "custom"]);
 export const forecastSnapshotKind = pgEnum("forecast_snapshot_kind", ["working", "month_end"]);
+export const forecastComponentSection = pgEnum("forecast_component_section", [
+  "revenue",
+  "expense",
+  "cash",
+]);
+export const forecastComponentDirection = pgEnum("forecast_component_direction", [
+  "increase",
+  "decrease",
+]);
 export const commercialDocumentType = pgEnum("commercial_document_type", [
   "sales_invoice",
   "purchase_invoice",
@@ -4041,6 +4050,8 @@ export const forecastVersions = pgTable(
     createdBy: text("created_by").notNull(),
     publishedBy: text("published_by"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    compositionSnapshot: jsonb("composition_snapshot").$type<Record<string, unknown>>(),
+    compositionSnapshottedAt: timestamp("composition_snapshotted_at", { withTimezone: true }),
     ...auditColumns,
   },
   (table) => [
@@ -4056,6 +4067,10 @@ export const forecastVersions = pgTable(
     check("forecast_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
     check("forecast_reason", sql`btrim(${table.reason}) <> ''`),
     check(
+      "forecast_composition_snapshot_pair",
+      sql`(${table.compositionSnapshot} is null and ${table.compositionSnapshottedAt} is null) or (${table.compositionSnapshot} is not null and ${table.compositionSnapshottedAt} is not null)`,
+    ),
+    check(
       "forecast_custom_name",
       sql`(${table.scenario} = 'custom' and ${table.customScenarioName} is not null and btrim(${table.customScenarioName}) <> '') or (${table.scenario} <> 'custom' and ${table.customScenarioName} is null)`,
     ),
@@ -4064,6 +4079,82 @@ export const forecastVersions = pgTable(
       table.startsOn,
       table.endsOn,
       table.asOfDate,
+    ),
+  ],
+);
+
+export const forecastComponents = pgTable(
+  "forecast_components",
+  {
+    organizationId: text("organization_id").notNull(),
+    forecastVersionId: text("forecast_version_id").notNull(),
+    id: text("id").notNull(),
+    section: forecastComponentSection("section").notNull(),
+    kind: text("kind").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    direction: forecastComponentDirection("direction").notNull(),
+    probabilityBps: integer("probability_bps").notNull().default(10000),
+    scheduledOn: date("scheduled_on"),
+    sourceType: text("source_type"),
+    sourceId: text("source_id"),
+    commercialRootType: text("commercial_root_type"),
+    commercialRootId: text("commercial_root_id"),
+    sourceIdentityKey: text("source_identity_key").notNull(),
+    currency: text("currency").notNull(),
+    sourceSnapshot: jsonb("source_snapshot")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default({}),
+    dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull().default({}),
+    note: text("note"),
+    excluded: boolean("excluded").notNull().default(false),
+    excludedBy: text("excluded_by"),
+    excludedAt: timestamp("excluded_at", { withTimezone: true }),
+    exclusionReason: text("exclusion_reason"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.forecastVersionId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.forecastVersionId],
+      foreignColumns: [forecastVersions.organizationId, forecastVersions.id],
+      name: "forecast_components_version_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("forecast_component_commercial_root_date_unique")
+      .on(
+        table.organizationId,
+        table.forecastVersionId,
+        table.section,
+        table.sourceIdentityKey,
+        table.scheduledOn,
+      )
+      .where(sql`${table.sourceType} <> 'manual' and ${table.excluded} = false`),
+    check("forecast_component_kind", sql`btrim(${table.kind}) <> ''`),
+    check("forecast_component_amount", sql`${table.amountMinor} >= 0`),
+    check("forecast_component_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "forecast_component_probability",
+      sql`${table.probabilityBps} between 0 and 10000 and (${table.kind} = 'weighted_pipeline' or ${table.probabilityBps} = 10000)`,
+    ),
+    check(
+      "forecast_component_source",
+      sql`${table.sourceType} is not null and btrim(${table.sourceType}) <> '' and ${table.sourceId} is not null and btrim(${table.sourceId}) <> '' and ${table.scheduledOn} is not null and ((${table.commercialRootType} is null and ${table.commercialRootId} is null) or (${table.commercialRootType} is not null and btrim(${table.commercialRootType}) <> '' and ${table.commercialRootId} is not null and btrim(${table.commercialRootId}) <> '')) and ((${table.kind} = 'manual_adjustment' and ${table.sourceType} = 'manual' and ${table.commercialRootType} is null) or (${table.kind} <> 'manual_adjustment' and ${table.sourceType} <> 'manual')) and (${table.section} <> 'revenue' or ${table.kind} = 'manual_adjustment' or ${table.commercialRootType} is not null)`,
+    ),
+    check("forecast_component_reason", sql`btrim(${table.reason}) <> ''`),
+    check("forecast_component_version", sql`${table.version} > 0`),
+    index("forecast_component_version_section_idx").on(
+      table.organizationId,
+      table.forecastVersionId,
+      table.section,
+      table.scheduledOn,
     ),
   ],
 );

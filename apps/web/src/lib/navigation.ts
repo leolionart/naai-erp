@@ -183,6 +183,14 @@ export const adminNavigation = [
         status: "available",
       },
       {
+        key: "forecast-composition",
+        label: "Dự báo dòng tiền",
+        href: "/forecast/composition",
+        description: "Cấu phần doanh thu, chi phí và projected closing cash.",
+        icon: "forecast",
+        status: "available",
+      },
+      {
         key: "reports",
         label: "Lợi nhuận dự án",
         href: "/reports/project-profitability",

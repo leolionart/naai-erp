@@ -30,6 +30,24 @@ export {
   type PlanningTransitionRequest,
   type RevenueTargetVersionContract,
 } from "./planning.js";
+export {
+  FORECAST_COMPOSITION_CONTRACT_VERSION,
+  type CreateForecastComponentRequest,
+  type ForecastComponentContract,
+  type ForecastComponentDirectionContract,
+  type ForecastComponentKindContract,
+  type ForecastComponentListQueryContract,
+  type ForecastComponentMutationResult,
+  type ForecastComponentReviewStateContract,
+  type ForecastComponentSectionContract,
+  type ForecastComponentStateContract,
+  type ForecastComponentTransitionRequest,
+  type ForecastCompositionContract,
+  type ForecastSourceIdentityContract,
+  type ForecastSourceSnapshotContract,
+  type ForecastSourceTypeContract,
+  type UpdateForecastComponentRequest,
+} from "./forecast-composition.js";
 
 export type ApiError = Readonly<{
   code: string;

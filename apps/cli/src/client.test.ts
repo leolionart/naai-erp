@@ -57,11 +57,13 @@ describe("NAAI ERP JSON-first CLI client", () => {
   });
 
   it("sends mutation idempotency and optimistic version", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: {} }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
     );
     const client = new NaaiErpClient(
       { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
@@ -1167,6 +1169,48 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
     expect(fetchFn).toHaveBeenCalledWith(
       "http://api/api/v1/organizations/org-a/reports/project-profitability/projects/project-1?startsOn=2026-08-01&endsOn=2026-08-31",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("routes nested forecast component mutations and composition discovery", async () => {
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "forecast-components",
+      "review",
+      { schemaVersion: 1, expectedResourceVersion: "1", reason: "Reviewed" },
+      "forecast-1/component-1",
+      "1",
+      "review-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/forecast-versions/forecast-1/components/component-1/review",
+      expect.objectContaining({ method: "POST" }),
+    );
+    await client.request("forecast-composition", "get", undefined, "forecast-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/forecast-versions/forecast-1/composition",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.request(
+      "forecast-components",
+      "list",
+      { section: "revenue", sourceType: "milestone" },
+      "forecast-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/forecast-versions/forecast-1/components?section=revenue&sourceType=milestone",
       expect.objectContaining({ method: "GET" }),
     );
   });
