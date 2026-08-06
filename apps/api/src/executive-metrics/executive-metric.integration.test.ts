@@ -22,8 +22,9 @@ suite("ERP-640 executive metric policy persistence", () => {
        ('org-erp640','511-REV','Revenue','revenue',false,true),('org-erp640','642-OPEX','Operating expense','expense',false,true);
        insert into financial_accounts(organization_id,id,code,display_name,kind,currency,ledger_account_code,status,version,created_by,updated_by)
        values('org-erp640','fa-cash','CASH','Cash','cash','VND','111-CASH','active',1,'fixture','fixture');
-       insert into financial_statement_mapping_versions(organization_id,id,version,framework,state,effective_from,change_reason,report_policy,created_by,approved_by,approved_at)
-       values('org-erp640','erp640-fs',1,'TT133','approved','2026-01-01','Fixture map','{"maxLedgerDifferenceMinor":"0","maxUnreviewedInputMinor":"0","maxUnresolvedItemCount":0,"maxMissingEvidenceCount":0}','maker','approver',now());
+       insert into financial_statement_mapping_versions(organization_id,id,version,framework,state,effective_from,effective_to,change_reason,report_policy,created_by,approved_by,approved_at)
+       values('org-erp640','erp640-fs',1,'TT133','approved','2026-01-01',null,'Fixture map','{"maxLedgerDifferenceMinor":"0","maxUnreviewedInputMinor":"0","maxUnresolvedItemCount":0,"maxMissingEvidenceCount":0}','maker','approver',now()),
+             ('org-erp640','erp640-fs-opening',1,'TT133','approved','2025-01-01','2025-12-31','Historical opening map','{"maxLedgerDifferenceMinor":"0","maxUnreviewedInputMinor":"0","maxUnresolvedItemCount":0,"maxMissingEvidenceCount":0}','maker','approver',now());
        insert into financial_statement_mapping_lines(organization_id,mapping_id,mapping_version,line_number,statement,line_code,label,account_code,display_order,sign,cash_flow_class)
        values
        ('org-erp640','erp640-fs',1,1,'profit_and_loss','revenue','Revenue','511-REV',10,1,null),
@@ -32,7 +33,10 @@ suite("ERP-640 executive metric policy persistence", () => {
        ('org-erp640','erp640-fs',1,4,'balance_sheet','capital','Capital','411-CAPITAL',20,1,null),
        ('org-erp640','erp640-fs',1,5,'balance_sheet','owner_loan','Owner loan','341-OWNER',30,1,null),
        ('org-erp640','erp640-fs',1,6,'cash_flow','operating','Operating','511-REV',10,1,'operating'),
-       ('org-erp640','erp640-fs',1,7,'cash_flow','operating','Operating','642-OPEX',20,1,'operating');
+       ('org-erp640','erp640-fs',1,7,'cash_flow','operating','Operating','642-OPEX',20,1,'operating'),
+       ('org-erp640','erp640-fs-opening',1,1,'balance_sheet','cash','Cash','111-CASH',10,1,null),
+       ('org-erp640','erp640-fs-opening',1,2,'balance_sheet','capital','Capital','411-CAPITAL',20,1,null),
+       ('org-erp640','erp640-fs-opening',1,3,'balance_sheet','owner_loan','Owner loan','341-OWNER',30,1,null);
        insert into journal_entries(organization_id,id,journal_date,description,currency,state,posted_at,posted_by,approved_at,approved_by,approval_reason)
        values('org-erp640','opening','2026-01-01','Opening capital','VND','posted','2026-01-01T01:00:00Z','maker','2026-01-01T00:30:00Z','approver','Fixture'),
              ('org-erp640','revenue','2026-08-10','Revenue','VND','posted','2026-08-10T01:00:00Z','maker','2026-08-10T00:30:00Z','approver','Fixture'),
@@ -149,5 +153,14 @@ suite("ERP-640 executive metric policy persistence", () => {
     });
     expect(response.json().data.sourceBoundary.ledgerCutoffFingerprint).toMatch(/^[0-9a-f]{64}$/);
     expect(response.json().data.sourceBoundary.sourceIds).toContain("opening");
+  });
+  it("uses the historical mapping for an opening balance before the report period", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-erp640/reports/executive-metrics?startsOn=2026-01-01&endsOn=2026-12-31&asOfInstant=2026-12-31T16%3A59%3A59.000Z&framework=TT133",
+      headers: h(),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.policyVersionId).toBe("erp640-policy:1");
   });
 });

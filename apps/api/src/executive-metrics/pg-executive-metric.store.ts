@@ -262,11 +262,18 @@ export class PgExecutiveMetricStore {
       basis: "accrual" as const,
       dimensions: q.dimensions,
     };
+    const openingFq = {
+      endsOn: fq.endsOn,
+      asOfInstant: fq.asOfInstant,
+      framework: fq.framework,
+      basis: fq.basis,
+      dimensions: fq.dimensions,
+    };
     const [pnl, closing, opening, policy] = await Promise.all([
       this.fs.report(c, "profit_and_loss", fq),
       this.fs.report(c, "balance_sheet", fq),
       this.fs.report(c, "balance_sheet", {
-        ...fq,
+        ...openingFq,
         endsOn: new Date(new Date(`${q.startsOn}T00:00:00Z`).valueOf() - 86400000)
           .toISOString()
           .slice(0, 10),
