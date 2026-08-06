@@ -5,6 +5,12 @@ import { workbookExpenseMigrationErrors } from "./workbook-expense-migration.js"
 const projectPath = process.env.ERP740_PROJECT_WORKBOOK;
 const financePath = process.env.ERP740_FINANCE_WORKBOOK;
 const describeReal = projectPath && financePath ? describe : describe.skip;
+const countBy = <T>(items: readonly T[], key: (item: T) => string) =>
+  items.reduce<Record<string, number>>((counts, item) => {
+    const value = key(item);
+    counts[value] = (counts[value] ?? 0) + 1;
+    return counts;
+  }, {});
 
 describeReal("ERP-740 real workbook controls", () => {
   it("extracts exact detail and Tỷ suất lợi nhuận control totals", async () => {
@@ -135,7 +141,7 @@ describeReal("ERP-740 real workbook controls", () => {
       duplicateInvoiceFile: flagCount("duplicate_invoice_file_reference"),
     }).toEqual({
       genericClient: 50,
-      genericPayee: 159,
+      genericPayee: 6,
       missingProject: 36,
       missingBudget: 4,
       ownerMovement: 4,
@@ -186,6 +192,51 @@ describeReal("ERP-740 real workbook controls", () => {
         item.reviewFlags.includes("purchase_tax_review_required"),
       ),
     ).toHaveLength(214);
+    expect(countBy(payload.expenses, (item) => String(item.sourceMetadata.categoryCode))).toEqual({
+      BONUS: 11,
+      CASH_TRANSFER: 5,
+      CLOUD_DIGITAL_SERVICES: 5,
+      DEPOSIT_REFUND: 1,
+      DOMAIN_SOFTWARE: 3,
+      ELECTRICITY_UTILITIES: 19,
+      ELECTRONICS_EQUIPMENT: 10,
+      EV_BATTERY_CHARGING: 30,
+      HEALTH_WELLNESS: 1,
+      INTERNET_TELECOM: 16,
+      MEALS_ENTERTAINMENT: 48,
+      OFFICE_FURNISHINGS: 4,
+      OTHER_OPERATING: 4,
+      PAYROLL: 47,
+      SPORTS_RECREATION: 2,
+      TAXES_FEES: 5,
+      TRAVEL_TRANSPORT: 3,
+    });
+    expect(
+      countBy(payload.expenses, (item) => String(item.sourceMetadata.supplierInferenceSource)),
+    ).toEqual({ category_default: 2, note: 151, personnel: 55, unresolved: 6 });
+    expect(
+      payload.expenses.find((item) => item.sourceRowIndex === 7)?.sourceMetadata,
+    ).toMatchObject({
+      supplierDisplayName: "CÔNG TY TNHH NHÀ HÀNG HÀN QUỐC MEAT & MEET",
+      supplierInferenceSource: "note",
+      categoryCode: "MEALS_ENTERTAINMENT",
+      categoryLabel: "Ăn uống và tiếp khách",
+      categoryInferenceSource: "expense_type",
+    });
+    expect(
+      payload.expenses.find((item) => item.sourceRowIndex === 141)?.sourceMetadata,
+    ).toMatchObject({
+      supplierDisplayName: "Freepik Company, SL",
+      categoryCode: "CLOUD_DIGITAL_SERVICES",
+      categoryInferenceSource: "note",
+    });
+    expect(
+      payload.expenses.find((item) => item.sourceRowIndex === 145)?.sourceMetadata,
+    ).toMatchObject({
+      supplierDisplayName: "CÔNG TY TNHH KINH DOANH THƯƠNG MẠI VÀ DỊCH VỤ VINFAST",
+      categoryCode: "EV_BATTERY_CHARGING",
+      categoryInferenceSource: "note",
+    });
     for (const payrollRow of payload.reviewRows.filter((item) => item.kind === "payroll_master")) {
       expect(payrollRow.rawData).not.toHaveProperty("Phone Number");
       expect(payrollRow.rawData).not.toHaveProperty("CCCD");

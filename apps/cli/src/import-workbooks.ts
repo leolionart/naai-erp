@@ -151,7 +151,7 @@ const expenseCategoryRules: readonly Readonly<{
   patterns: readonly string[];
 }>[] = [
   { code: "PAYROLL", label: "Lương và nhân sự", patterns: ["luong", "freelance"] },
-  { code: "BONUS", label: "Thưởng", patterns: ["thuong"] },
+  { code: "BONUS", label: "Thưởng", patterns: [] },
   {
     code: "MEALS_ENTERTAINMENT",
     label: "Ăn uống và tiếp khách",
@@ -213,6 +213,14 @@ const expenseCategoryRules: readonly Readonly<{
 ];
 
 const inferExpenseCategory = (expenseType: string, note: string): ExpenseCategoryInference => {
+  const originalType = expenseType.toLocaleLowerCase("vi");
+  const originalNote = note.toLocaleLowerCase("vi");
+  if (originalType.includes("thưởng") || originalNote.includes("thưởng"))
+    return {
+      code: "BONUS",
+      label: "Thưởng",
+      source: originalType.includes("thưởng") ? "expense_type" : "note",
+    };
   const normalizedType = normalizeForInference(expenseType);
   const normalizedNote = normalizeForInference(note);
   for (const rule of expenseCategoryRules) {
@@ -866,6 +874,9 @@ export async function buildWorkbookImportPayload(
         taxMinor: tax.toString(),
         date,
         class: category.code,
+        categoryCode: category.code,
+        categoryLabel: category.label,
+        supplierDisplayName: supplier.name,
         payeePartyId: supplier.name
           ? party(supplier.name, "supplier")
           : party("Generic Supplier", "supplier"),
