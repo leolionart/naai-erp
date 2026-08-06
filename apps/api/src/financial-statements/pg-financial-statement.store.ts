@@ -468,13 +468,20 @@ export class PgFinancialStatementStore {
         lines: journalRows.map((r) => domainById.get(`${r.journal_id}:${r.line_number}`)!),
       });
     }
-    const balances = await this.pool.query<{ opening: string; closing: string }>(
-      `select coalesce(sum((case when j.journal_date < $2::date then l.debit_minor-l.credit_minor else 0 end)),0)::text opening,
-        coalesce(sum((case when j.journal_date <= $3::date then l.debit_minor-l.credit_minor else 0 end)),0)::text closing
+    const balances = await this.pool.query<{ opening: string }>(
+      `select coalesce(sum(l.debit_minor-l.credit_minor),0)::text opening
        from journal_entries j join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
-       where j.organization_id=$1 and j.state in ('posted','reversed') and j.posted_at <= $4::timestamptz and l.account_code=any($5::text[])`,
-      [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant, [...cashAccounts]],
+       where j.organization_id=$1 and j.state in ('posted','reversed') and j.posted_at <= $3::timestamptz
+         and j.journal_date < $2::date and l.account_code=any($4::text[])`,
+      [c.organizationId, q.startsOn, q.asOfInstant, [...cashAccounts]],
     );
+    const openingCashMinor = BigInt(balances.rows[0]?.opening ?? "0");
+    const periodCashMovementMinor = rows
+      .filter((row) => cashAccounts.has(row.account_code))
+      .reduce(
+        (sum, row) => sum + BigInt(row.debit_minor ?? "0") - BigInt(row.credit_minor ?? "0"),
+        0n,
+      );
     return jsonMoney(
       buildDirectCashFlow({
         organizationId: c.organizationId,
@@ -483,8 +490,8 @@ export class PgFinancialStatementStore {
         endsOn: q.endsOn,
         ledgerCutoff: this.cutoff(rows, q.endsOn),
         cashAccountIds: [...cashAccounts],
-        openingCashMinor: BigInt(balances.rows[0]?.opening ?? "0"),
-        expectedClosingCashMinor: BigInt(balances.rows[0]?.closing ?? "0"),
+        openingCashMinor,
+        expectedClosingCashMinor: openingCashMinor + periodCashMovementMinor,
         journals: domainJournals,
       }),
     );
