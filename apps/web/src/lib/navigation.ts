@@ -106,6 +106,14 @@ export const adminNavigation = [
         icon: "report",
         status: "available",
       },
+      {
+        key: "executive-metrics",
+        label: "Chỉ số điều hành",
+        href: "/reports/executive-metrics",
+        description: "Equity consumed, burn, runway, ROS, ROE, ROA và ROI theo mục đích.",
+        icon: "report",
+        status: "available",
+      },
     ],
   },
   {
