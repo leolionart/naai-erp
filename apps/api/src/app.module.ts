@@ -107,6 +107,10 @@ import { REPORT_EXPORT_STORE } from "./report-exports/report-export.types.js";
 import { PgReportExportStore } from "./report-exports/pg-report-export.store.js";
 import { WorkbookImportController } from "./workbook-imports/workbook-import.controller.js";
 import { WorkbookImportService } from "./workbook-imports/workbook-import.service.js";
+import { OperatingDashboardController } from "./operating-dashboard/operating-dashboard.controller.js";
+import { OperatingDashboardService } from "./operating-dashboard/operating-dashboard.service.js";
+import { OPERATING_DASHBOARD_STORE } from "./operating-dashboard/operating-dashboard.types.js";
+import { PgOperatingDashboardStore } from "./operating-dashboard/pg-operating-dashboard.store.js";
 
 @Module({
   controllers: [
@@ -143,6 +147,7 @@ import { WorkbookImportService } from "./workbook-imports/workbook-import.servic
     ExecutiveMetricController,
     ReportExportController,
     WorkbookImportController,
+    OperatingDashboardController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -217,6 +222,9 @@ import { WorkbookImportService } from "./workbook-imports/workbook-import.servic
     PgReportExportStore,
     { provide: REPORT_EXPORT_STORE, useExisting: PgReportExportStore },
     WorkbookImportService,
+    OperatingDashboardService,
+    PgOperatingDashboardStore,
+    { provide: OPERATING_DASHBOARD_STORE, useExisting: PgOperatingDashboardStore },
   ],
 })
 export class AppModule {}

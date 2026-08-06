@@ -10,7 +10,10 @@ import type {
   PerformanceComparisonContract,
 } from "@naai-erp/contracts";
 import { AlertTriangle, ArrowRight, Filter, Info, ListChecks } from "lucide-react";
-import type { ProjectProfitabilityReport } from "@/lib/api/project-profitability";
+import type {
+  ProjectProfitabilityReport,
+  ProjectProfitabilitySummary,
+} from "@/lib/api/project-profitability";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +36,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -63,12 +67,70 @@ type DashboardData = Readonly<{
   performance?: PerformanceComparisonContract;
   projects?: ProjectProfitabilityReport;
   aging?: AgingReportContract;
+  operating?: OperatingDashboardWire;
 }>;
+type OperatingProjectWire = Readonly<{
+  projectId?: string;
+  code?: string;
+  name?: string;
+  clientName?: string;
+  actualCostMinor?: string;
+  budgetCostMinor?: string;
+  burnBps?: number | null;
+  estimateAtCompletionMinor?: string;
+  eacMethod?: string;
+  backlogMinor?: string;
+}>;
+type OperatingClientWire = Readonly<{
+  clientId?: string;
+  clientName?: string;
+  revenueMinor?: string;
+  invoiceCount?: number;
+}>;
+type OperatingDashboardWire = Readonly<{
+  schemaVersion: 1;
+  asOf: string;
+  currency: string;
+  backlog: Readonly<{
+    projectCount: number;
+    contractedMinor: string;
+    invoicedMinor: string;
+    remainingMinor: string;
+    projects: readonly OperatingProjectWire[];
+  }>;
+  collections: Readonly<{
+    receivablesMinor: string;
+    creditSalesMinor: string;
+    dsoDays: number | null;
+    overdueMinor: string;
+    dueWithin7DaysMinor: string;
+    dueWithin30DaysMinor: string;
+    laterMinor: string;
+  }>;
+  projectBurn: readonly OperatingProjectWire[];
+  clientConcentration: Readonly<{
+    totalRevenueMinor: string;
+    topClientShareBps: number | null;
+    topThreeShareBps: number | null;
+    clients: readonly OperatingClientWire[];
+  }>;
+  dataQuality: Readonly<{
+    pendingCount: number;
+    byFlag: readonly Readonly<{ flag: string; count: number }>[];
+    rows: readonly Record<string, unknown>[];
+  }>;
+}>;
+function isOperatingProject(
+  project: OperatingProjectWire | ProjectProfitabilitySummary,
+): project is OperatingProjectWire {
+  return "estimateAtCompletionMinor" in project;
+}
 type Preview = Readonly<{
   title: string;
   description: string;
   sourceIds: readonly string[];
   href: string;
+  facts?: readonly Readonly<{ label: string; value: string }>[];
 }>;
 
 function reportQuery(search: URLSearchParams) {
@@ -122,18 +184,39 @@ function months(value: string | null | undefined) {
   return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(Number(value) / 1000)} tháng`;
 }
 
+function sumMinor(values: readonly (string | null | undefined)[]) {
+  return values.reduce<bigint>((total, value) => total + BigInt(value ?? "0"), 0n).toString();
+}
+
+function percent(numerator: bigint, denominator: bigint) {
+  if (denominator <= 0n) return "N/A";
+  return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(Number((numerator * 1000n) / denominator) / 10)}%`;
+}
+
+function daysBetween(startsOn: string, endsOn: string) {
+  const start = Date.parse(`${startsOn}T00:00:00Z`);
+  const end = Date.parse(`${endsOn}T00:00:00Z`);
+  return Number.isFinite(start) && Number.isFinite(end)
+    ? Math.max(1, Math.round((end - start) / 86_400_000) + 1)
+    : 30;
+}
+
 function MetricCard({
   title,
   value,
   description,
   href,
   status,
+  provisional = false,
+  onQuick,
 }: {
   title: string;
   value: string;
   description: string;
   href: string;
   status?: string;
+  provisional?: boolean;
+  onQuick?: () => void;
 }) {
   return (
     <Card>
@@ -143,18 +226,23 @@ function MetricCard({
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        {status ? (
-          <Badge variant="outline" className="mt-3">
-            {status}
-          </Badge>
-        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {provisional ? <Badge variant="secondary">Tạm tính</Badge> : null}
+          {status ? <Badge variant="outline">{status}</Badge> : null}
+        </div>
       </CardContent>
       <CardFooter>
-        <Button asChild variant="outline" className="w-full">
-          <Link href={href}>
-            Mở drill-down <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
+        {onQuick ? (
+          <Button variant="outline" className="w-full" onClick={onQuick}>
+            Xem nhanh
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className="w-full">
+            <Link href={href}>
+              Mở drill-down <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
@@ -259,14 +347,28 @@ function PreviewDrawer({ preview, onClose }: { preview?: Preview; onClose(): voi
           <DrawerDescription>{preview?.description}</DrawerDescription>
         </DrawerHeader>
         <div className="flex flex-col gap-3 px-4">
-          <p className="text-sm font-medium">Source IDs</p>
-          <div className="flex flex-wrap gap-2">
-            {preview?.sourceIds.map((id) => (
-              <Badge variant="outline" key={id} className="max-w-full break-all">
-                {id}
-              </Badge>
-            ))}
-          </div>
+          {preview?.facts?.length ? (
+            <dl className="grid gap-3">
+              {preview.facts.map((fact) => (
+                <div key={fact.label} className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">{fact.label}</dt>
+                  <dd className="tabular-nums">{fact.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {preview?.sourceIds.length ? (
+            <>
+              <p className="text-sm font-medium">Source IDs</p>
+              <div className="flex flex-wrap gap-2">
+                {preview.sourceIds.map((id) => (
+                  <Badge variant="outline" key={id} className="max-w-full break-all">
+                    {id}
+                  </Badge>
+                ))}
+              </div>
+            </>
+          ) : null}
           {preview ? (
             <Button asChild>
               <Link href={preview.href}>Mở trang drill-down đầy đủ</Link>
@@ -305,22 +407,30 @@ function useDashboardData() {
     const pq = performanceQuery(search);
     const jq = projectQuery(search);
     const asOf = search.get("asOfDate") ?? "2026-08-31";
-    const [executive, performance, projects, aging] = await Promise.allSettled([
+    const oq = new URLSearchParams({
+      asOf,
+      startsOn: search.get("startsOn") ?? "2026-08-01",
+      endsOn: search.get("endsOn") ?? "2026-08-31",
+      limit: "20",
+    });
+    const [executive, performance, projects, aging, operating] = await Promise.allSettled([
       client.data<ExecutiveMetricsContract>(`reports/executive-metrics?${rq}`),
       client.data<PerformanceComparisonContract>(`reports/performance-comparisons?${pq}`),
       client.data<ProjectProfitabilityReport>(`reports/project-profitability?${jq}`),
       client.data<AgingReportContract>(
         `reports/ar-aging?asOf=${encodeURIComponent(asOf)}&limit=100`,
       ),
+      client.data<OperatingDashboardWire>(`reports/operating-dashboard?${oq}`),
     ]);
     const next: DashboardData = {
       executive: executive.status === "fulfilled" ? executive.value : undefined,
       performance: performance.status === "fulfilled" ? performance.value : undefined,
       projects: projects.status === "fulfilled" ? projects.value : undefined,
       aging: aging.status === "fulfilled" ? aging.value : undefined,
+      operating: operating.status === "fulfilled" ? operating.value : undefined,
     };
     setData(next);
-    if (!next.executive && !next.performance && !next.projects && !next.aging)
+    if (!next.executive && !next.performance && !next.projects && !next.aging && !next.operating)
       setError("Không thể tải các báo cáo nguồn của dashboard.");
     setLoading(false);
   }, [client, hasToken, hydrated, key]);
@@ -335,10 +445,72 @@ export function ExecutiveDashboardWorkspace() {
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
+  const operating = data.operating;
+  const usingOperatingFallback = !operating;
+  const projects = data.projects?.items ?? [];
+  const recognizedMinor = sumMinor(projects.map((item) => item.recognizedRevenueMinor));
+  const invoicedMinor = sumMinor(projects.map((item) => item.invoicedRevenueMinor));
+  const collectedMinor = sumMinor(projects.map((item) => item.collectedRevenueMinor));
+  const recognizedDisplayMinor = projects.some((item) => item.recognizedRevenueMinor != null)
+    ? recognizedMinor
+    : performance?.actualVsFullTarget.numeratorMinor;
+  const fallbackOverdueMinor = sumMinor(
+    (data.aging?.items ?? [])
+      .filter((item) => (item.daysOverdue ?? 0) > 0)
+      .map((item) => item.baseOutstandingMinor),
+  );
+  const periodDays = daysBetween(
+    data.projects?.periodStart ?? executive?.period.startsOn ?? "2026-08-01",
+    data.projects?.periodEnd ?? executive?.period.endsOn ?? "2026-08-31",
+  );
+  const fallbackDso =
+    BigInt(recognizedMinor) > 0n
+      ? `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(Number((BigInt(data.aging?.baseOutstandingTotalMinor ?? "0") * BigInt(periodDays * 10)) / BigInt(recognizedMinor)) / 10)} ngày`
+      : "N/A";
+  const fallbackBacklogMinor = sumMinor(
+    projects.map((item) => {
+      const budget = BigInt(item.budgetRevenueMinor ?? "0");
+      const recognized = BigInt(item.recognizedRevenueMinor ?? "0");
+      return budget > recognized ? (budget - recognized).toString() : "0";
+    }),
+  );
+  const clientRevenue = new Map<string, bigint>();
+  for (const project of projects) {
+    const client = project.clientName ?? project.clientId ?? "Chưa phân loại";
+    clientRevenue.set(
+      client,
+      (clientRevenue.get(client) ?? 0n) + BigInt(project.recognizedRevenueMinor ?? "0"),
+    );
+  }
+  const topClient = [...clientRevenue.entries()].sort((a, b) => (a[1] > b[1] ? -1 : 1))[0];
+  const fallbackTopClientShare = topClient ? percent(topClient[1], BigInt(recognizedMinor)) : "N/A";
+  const overdueMinor = operating?.collections.overdueMinor ?? fallbackOverdueMinor;
+  const dso = operating
+    ? operating.collections.dsoDays == null
+      ? "N/A"
+      : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
+    : fallbackDso;
+  const backlogMinor = operating?.backlog.remainingMinor ?? fallbackBacklogMinor;
+  const operatingTopClient = operating?.clientConcentration.clients[0];
+  const topClientName = operatingTopClient?.clientName ?? topClient?.[0];
+  const topClientShare = operating
+    ? ratio(operating.clientConcentration.topClientShareBps)
+    : fallbackTopClientShare;
+  const fallbackProjectRisks = [...projects]
+    .filter((item) => BigInt(item.overrunAmountMinor ?? "0") > 0n || item.confidenceCodes.length)
+    .sort((a, b) =>
+      BigInt(a.overrunAmountMinor ?? "0") > BigInt(b.overrunAmountMinor ?? "0") ? -1 : 1,
+    )
+    .slice(0, 5);
+  const projectBurnRows = operating?.projectBurn.slice(0, 5);
+  const hasProjectBurnRows = operating
+    ? Boolean(projectBurnRows?.length)
+    : fallbackProjectRisks.length > 0;
   const flagged =
     (performance?.confidenceFlags.length ?? 0) +
     (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
-    (data.aging?.exceptions.length ?? 0);
+    (data.aging?.exceptions.length ?? 0) +
+    (operating?.dataQuality.pendingCount ?? 0);
   const chartPoints = [
     performance?.monthOverMonth.denominatorMinor,
     performance?.actualVsFullTarget.numeratorMinor,
@@ -388,59 +560,242 @@ export function ExecutiveDashboardWorkspace() {
             </AlertDescription>
           </Alert>
         ) : null}
+        {usingOperatingFallback && !loading ? (
+          <Alert>
+            <Info />
+            <AlertTitle>Đang dùng dữ liệu fallback</AlertTitle>
+            <AlertDescription>
+              Operating Dashboard API chưa khả dụng; backlog, DSO, project burn/EAC, client
+              concentration và data quality đang lấy từ các báo cáo cũ.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }, (_, index) => (
               <Skeleton key={index} className="h-48 w-full" />
             ))}
           </div>
+        ) : !executive && !performance && !data.projects && !data.aging && !operating ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>Chưa có dữ liệu dashboard</EmptyTitle>
+              <EmptyDescription>Kiểm tra kết nối API hoặc chọn kỳ có dữ liệu.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <MetricCard
-              title="Doanh thu thực tế"
-              value={money(performance?.actualVsFullTarget.numeratorMinor, performance?.currency)}
-              description={
-                performance?.actualVsFullTarget.formulaVersion ?? "Report API unavailable"
-              }
-              href={`/dashboard/drilldown/revenue?${q}`}
-              status={performance?.actualVsFullTarget.status}
-            />
-            <MetricCard
-              title="ROS"
-              value={ratio(executive?.ros.valueBps)}
-              description={executive?.ros.formulaVersion ?? "Report API unavailable"}
-              href={`/dashboard/drilldown/ros?${q}`}
-              status={executive?.ros.status}
-            />
-            <MetricCard
-              title="Runway"
-              value={months(executive?.runwayMonthsThousandths)}
-              description={executive?.runwayFormulaVersion ?? "Report API unavailable"}
-              href={`/dashboard/drilldown/runway?${q}`}
-              status={executive?.runwayStatus}
-            />
-            <MetricCard
-              title="Equity consumed"
-              value={ratio(executive?.equityConsumed.valueBps)}
-              description={executive?.equityConsumed.formulaVersion ?? "Report API unavailable"}
-              href={`/dashboard/drilldown/equity-consumed?${q}`}
-              status={executive?.equityConsumed.status}
-            />
-            <MetricCard
-              title="Fully loaded profit"
-              value={money(data.projects?.totals.fullyLoadedProfitMinor, data.projects?.currency)}
-              description="Project profitability report API"
-              href={`/reports/project-profitability?${q}`}
-              status={`${data.projects?.items.length ?? 0} dự án`}
-            />
-            <MetricCard
-              title="Công nợ phải thu"
-              value={money(data.aging?.baseOutstandingTotalMinor, data.aging?.baseCurrency)}
-              description="Posted-ledger AR aging"
-              href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
-              status={data.aging?.tieStatus}
-            />
-          </div>
+          <>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <MetricCard
+                title="Doanh thu đã xuất hóa đơn"
+                value={money(
+                  operating?.backlog.invoicedMinor ?? invoicedMinor,
+                  operating?.currency ?? data.projects?.currency,
+                )}
+                description={
+                  operating ? "Operating Dashboard API" : "Project profitability fallback"
+                }
+                href={`/dashboard/drilldown/revenue?${q}`}
+                provisional={usingOperatingFallback}
+              />
+              <MetricCard
+                title="Doanh thu ghi nhận"
+                value={money(
+                  recognizedDisplayMinor,
+                  data.projects?.currency ?? performance?.currency,
+                )}
+                description={
+                  performance?.actualVsFullTarget.formulaVersion ?? "Project profitability report"
+                }
+                href={`/dashboard/drilldown/revenue?${q}`}
+                status={performance?.actualVsFullTarget.status}
+              />
+              <MetricCard
+                title="Tiền đã thu"
+                value={money(collectedMinor, data.projects?.currency)}
+                description="Tổng collected revenue theo dự án trong kỳ"
+                href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
+                provisional
+              />
+              <MetricCard
+                title="Công nợ quá hạn"
+                value={money(overdueMinor, data.aging?.baseCurrency)}
+                description={`DSO: ${dso}`}
+                href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
+                status={data.aging?.tieStatus}
+                provisional={usingOperatingFallback}
+                onQuick={() =>
+                  setPreview({
+                    title: "Công nợ quá hạn & DSO",
+                    description:
+                      "Thông tin quản trị nhanh từ AR aging và doanh thu ghi nhận trong kỳ.",
+                    sourceIds:
+                      data.aging?.items
+                        .filter((item) => (item.daysOverdue ?? 0) > 0)
+                        .map((item) => item.id) ?? [],
+                    href: `/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`,
+                    facts: [
+                      {
+                        label: "Công nợ quá hạn",
+                        value: money(overdueMinor, data.aging?.baseCurrency),
+                      },
+                      { label: usingOperatingFallback ? "DSO fallback" : "DSO", value: dso },
+                    ],
+                  })
+                }
+              />
+              <MetricCard
+                title="Tiền mặt khả dụng"
+                value={money(executive?.unrestrictedCashMinor, executive?.currency)}
+                description={`Burn: ${money(executive?.netBurnMinor, executive?.currency)}`}
+                href={`/dashboard/drilldown/runway?${q}`}
+                status={executive?.runwayStatus}
+              />
+              <MetricCard
+                title="Runway"
+                value={months(executive?.runwayMonthsThousandths)}
+                description={executive?.runwayFormulaVersion ?? "Report API unavailable"}
+                href={`/dashboard/drilldown/runway?${q}`}
+                status={executive?.runwayStatus}
+              />
+              <MetricCard
+                title="Backlog hợp đồng"
+                value={money(backlogMinor, data.projects?.currency)}
+                description={
+                  operating
+                    ? `${operating.backlog.projectCount} dự án có hợp đồng`
+                    : "Budget revenue chưa ghi nhận"
+                }
+                href={`/reports/project-profitability?${q}`}
+                provisional={usingOperatingFallback}
+              />
+              <MetricCard
+                title="Tập trung khách hàng"
+                value={topClientShare}
+                description={
+                  topClientName
+                    ? `Khách hàng lớn nhất: ${topClientName}`
+                    : "Chưa có doanh thu theo khách hàng"
+                }
+                href={`/customers`}
+                provisional={usingOperatingFallback}
+                onQuick={() =>
+                  setPreview({
+                    title: "Tập trung khách hàng",
+                    description: "Tỷ trọng doanh thu ghi nhận của khách hàng lớn nhất trong kỳ.",
+                    sourceIds: [],
+                    href: "/customers",
+                    facts: [
+                      { label: "Khách hàng lớn nhất", value: topClientName ?? "N/A" },
+                      { label: "Tỷ trọng", value: topClientShare },
+                    ],
+                  })
+                }
+              />
+              <MetricCard
+                title="Lợi nhuận fully loaded"
+                value={money(data.projects?.totals.fullyLoadedProfitMinor, data.projects?.currency)}
+                description="Project profitability report API"
+                href={`/reports/project-profitability?${q}`}
+                status={`${projects.length} dự án`}
+              />
+              <MetricCard
+                title="ROS"
+                value={ratio(executive?.ros.valueBps)}
+                description={executive?.ros.formulaVersion ?? "Report API unavailable"}
+                href={`/dashboard/drilldown/ros?${q}`}
+                status={executive?.ros.status}
+              />
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Budget burn & EAC dự án</CardTitle>
+                <CardDescription>
+                  Các dự án có overrun hoặc cảnh báo chất lượng dữ liệu.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                {hasProjectBurnRows ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Dự án</TableHead>
+                        <TableHead>Budget burn</TableHead>
+                        <TableHead>EAC</TableHead>
+                        <TableHead>Phương pháp</TableHead>
+                        <TableHead className="text-right">Chi tiết</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(operating ? (projectBurnRows ?? []) : fallbackProjectRisks).map(
+                        (project) => {
+                          const isOperating = isOperatingProject(project);
+                          const projectId = project.projectId ?? "";
+                          const cost = BigInt(
+                            isOperating
+                              ? (project.actualCostMinor ?? "0")
+                              : (project.directCostMinor ?? "0"),
+                          );
+                          const budget = BigInt(project.budgetCostMinor ?? "0");
+                          const eac = isOperating
+                            ? (project.estimateAtCompletionMinor ?? "0")
+                            : (budget + BigInt(project.overrunAmountMinor ?? "0")).toString();
+                          return (
+                            <TableRow key={projectId}>
+                              <TableCell>
+                                {isOperating
+                                  ? (project.name ?? project.code)
+                                  : (project.projectName ?? project.projectCode)}
+                              </TableCell>
+                              <TableCell>
+                                {isOperating && project.burnBps != null
+                                  ? ratio(project.burnBps)
+                                  : percent(cost, budget)}
+                              </TableCell>
+                              <TableCell>
+                                {money(
+                                  eac,
+                                  operating?.currency ??
+                                    (!isOperating ? project.currency : undefined),
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {isOperating ? (
+                                  <Badge variant="outline">
+                                    {project.eacMethod ?? "operating-dashboard"}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary">Fallback</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button asChild size="sm" variant="outline">
+                                  <Link
+                                    href={`/reports/project-profitability/projects/${encodeURIComponent(projectId)}?${q}`}
+                                  >
+                                    Mở dự án
+                                  </Link>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        },
+                      )}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyTitle>Không có dự án cảnh báo</EmptyTitle>
+                      <EmptyDescription>
+                        Chưa phát hiện overrun hoặc thiếu dữ liệu trong kỳ.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                )}
+              </CardContent>
+            </Card>
+          </>
         )}
         <Card>
           <CardHeader>
@@ -510,6 +865,14 @@ export function FinanceReviewWorkspace() {
       issue: flag.reason,
       source: flag.sourceIds.join(", "),
       href: `/reports/performance/${encodeURIComponent(data.performance!.period.id)}?${q}`,
+    })) ?? []),
+    ...(data.operating?.dataQuality.byFlag.map((flag) => ({
+      id: `data-quality:${flag.flag}`,
+      severity: "warning",
+      module: "Dữ liệu import",
+      issue: `${flag.flag}: ${flag.count} bản ghi chờ bổ sung`,
+      source: "Operating Dashboard API",
+      href: "/imports/review",
     })) ?? []),
   ];
   return (

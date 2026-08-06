@@ -585,3 +585,15 @@ export {
   type WorkbookCellValue,
   type WorkbookSheet,
 } from "./accountant-exports.js";
+export {
+  SERVICE_BUSINESS_METRICS_FORMULA_VERSION,
+  buildServiceBusinessMetrics,
+  type ClientPerformanceInput,
+  type ContractBacklogInput,
+  type ProjectDeliveryInput,
+  type RevenueMixInput,
+  type ServiceBusinessConfidenceCode,
+  type ServiceBusinessConfidenceFlag,
+  type ServiceBusinessMetrics,
+  type ServiceBusinessMetricsInput,
+} from "./service-business-metrics.js";

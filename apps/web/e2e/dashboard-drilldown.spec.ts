@@ -113,6 +113,63 @@ async function install(page: Page, requestedUrls: string[] = []) {
       controlTies: [],
     }),
   );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/operating-dashboard**",
+    (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+  );
+}
+
+async function installOperatingDashboard(page: Page) {
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/operating-dashboard**",
+    (route) =>
+      reply(route, {
+        schemaVersion: 1,
+        asOf: "2026-08-31",
+        currency: "VND",
+        backlog: {
+          projectCount: 2,
+          contractedMinor: "300000000",
+          invoicedMinor: "180000000",
+          remainingMinor: "120000000",
+          projects: [],
+        },
+        collections: {
+          receivablesMinor: "45000000",
+          creditSalesMinor: "270000000",
+          dsoDays: 15,
+          overdueMinor: "25000000",
+          dueWithin7DaysMinor: "5000000",
+          dueWithin30DaysMinor: "10000000",
+          laterMinor: "5000000",
+        },
+        projectBurn: [
+          {
+            projectId: "project-700",
+            code: "WEB-700",
+            name: "Web App 700",
+            actualCostMinor: "60000000",
+            budgetCostMinor: "100000000",
+            burnBps: 6000,
+            estimateAtCompletionMinor: "100000000",
+            eacMethod: "approved-direct-cost-budget",
+          },
+        ],
+        clientConcentration: {
+          totalRevenueMinor: "180000000",
+          topClientShareBps: 6500,
+          topThreeShareBps: 10000,
+          clients: [
+            { clientId: "client-700", clientName: "NAAI Client", revenueMinor: "117000000" },
+          ],
+        },
+        dataQuality: {
+          pendingCount: 2,
+          byFlag: [{ flag: "missing_project", count: 2 }],
+          rows: [],
+        },
+      }),
+  );
 }
 
 test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", async ({
@@ -174,4 +231,18 @@ test("@mobile dashboard and review queue avoid document overflow", async ({ page
     );
     expect(overflow).toBeLessThanOrEqual(1);
   }
+});
+
+test("@desktop uses operating dashboard read model instead of provisional fallback", async ({
+  page,
+}) => {
+  await install(page);
+  await installOperatingDashboard(page);
+  await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
+  await expect(page.getByText("120.000.000 ₫")).toBeVisible();
+  await expect(page.getByText("DSO: 15 ngày")).toBeVisible();
+  await expect(page.getByText("65%")).toBeVisible();
+  await expect(page.getByText("Web App 700")).toBeVisible();
+  await expect(page.getByText("approved-direct-cost-budget")).toBeVisible();
+  await expect(page.getByText("Đang dùng dữ liệu fallback")).toHaveCount(0);
 });

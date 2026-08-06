@@ -299,3 +299,11 @@ export {
   type FinancialSourceResourceTypeContract,
   type FinancialStatementDrilldownItemContract,
 } from "./financial-drilldown.js";
+export {
+  SERVICE_BUSINESS_METRICS_CONTRACT_VERSION,
+  SERVICE_BUSINESS_METRICS_FORMULA_VERSION,
+  type ServiceBusinessConfidenceCodeContract,
+  type ServiceBusinessConfidenceFlagContract,
+  type ServiceBusinessMetricsContract,
+  type ServiceBusinessMetricsQueryContract,
+} from "./service-business-metrics.js";
