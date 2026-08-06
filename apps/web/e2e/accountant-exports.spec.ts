@@ -6,8 +6,10 @@ test("@desktop browses accountant exports and distinguishes review_required from
   await page.goto("http://localhost:3000/reports/accountant-exports");
   await expect(page.getByRole("heading", { name: "Xuất dữ liệu kế toán" })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Xuất dữ liệu kế toán", exact: true }),
-  ).toHaveAttribute("href", "/reports/accountant-exports");
+    page.locator('[data-slot="sidebar-content"]').getByRole("link", {
+      name: "Xuất dữ liệu kế toán",
+    }),
+  ).toHaveCount(0);
   await expect(page.getByText("Dữ liệu preview được gắn nhãn")).toBeVisible();
   await expect(page.getByText("Cần rà soát · chưa phải bản cuối")).toBeVisible();
 

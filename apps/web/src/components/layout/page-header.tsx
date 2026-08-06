@@ -1,7 +1,16 @@
-import * as React from "react";
-import type { ReactNode } from "react";
-import { SidebarContext, SidebarTrigger } from "@/components/ui/sidebar";
+import Link from "next/link";
+import { Fragment, type ReactNode } from "react";
+import {
+  Breadcrumb,
+  BreadcrumbItem as BreadcrumbListItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 export type BreadcrumbItem = Readonly<{
   label: string;
@@ -27,46 +36,42 @@ export function PageHeader({
   status,
   className,
 }: PageHeaderProps) {
-  const sidebarContext = React.useContext(SidebarContext);
-  const showTrigger = sidebarContext !== null;
+  const trail = breadcrumbs.length ? breadcrumbs : eyebrow ? [{ label: eyebrow }] : [];
 
   return (
-    <header className={["topbar", "page-header", className].filter(Boolean).join(" ")}>
-      <div className="flex items-center gap-4">
-        {showTrigger && (
-          <>
-            <SidebarTrigger className="-ml-1 hidden md:inline-flex" />
-            <Separator orientation="vertical" className="h-6 hidden md:block" />
-          </>
-        )}
-        <div>
-          {breadcrumbs.length ? (
-            <nav aria-label="Breadcrumb">
-              <ol className="breadcrumb">
-                {breadcrumbs.map((item, index) => (
-                  <li key={`${item.label}-${index}`}>
-                    {item.href ? (
-                      <a href={item.href}>{item.label}</a>
-                    ) : (
-                      <span aria-current="page">{item.label}</span>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          ) : eyebrow ? (
-            <span className="breadcrumb">{eyebrow}</span>
-          ) : null}
-          <h1 className="flex items-center gap-2">{title}</h1>
-          {description ? <p>{description}</p> : null}
-        </div>
+    <header className={cn("flex flex-col border-b", className)}>
+      <div className="flex h-16 shrink-0 items-center gap-2 px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        <SidebarTrigger className="-ml-1" aria-label="Mở menu chính" />
+        <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            {trail.map((item, index) => (
+              <Fragment key={`${item.label}-${index}`}>
+                <BreadcrumbListItem>
+                  {item.href ? (
+                    <BreadcrumbLink asChild>
+                      <Link href={item.href}>{item.label}</Link>
+                    </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  )}
+                </BreadcrumbListItem>
+                {index < trail.length - 1 ? <BreadcrumbSeparator /> : null}
+              </Fragment>
+            ))}
+          </BreadcrumbList>
+        </Breadcrumb>
+        {status || actions ? (
+          <div className="ml-auto flex items-center gap-2">
+            {status}
+            {actions}
+          </div>
+        ) : null}
       </div>
-      {actions || status ? (
-        <div className="page-header-actions">
-          {status}
-          {actions}
-        </div>
-      ) : null}
+      <div className="flex flex-col gap-1 px-4 pb-4">
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+      </div>
     </header>
   );
 }

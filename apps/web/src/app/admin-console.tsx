@@ -1,6 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 const resourcePath: Record<string, string> = {
   "master-data": "master-data/accounts",
@@ -141,71 +162,88 @@ export function AdminConsole({ moduleKey }: { moduleKey: string }) {
 
   if (!path) return null;
   return (
-    <section className="panel api-console">
-      <div className="panel-head">
-        <div>
-          <h2>Thao tác dữ liệu thật</h2>
-          <p>Admin UI gọi trực tiếp REST API local, có RBAC và audit như CLI/AI.</p>
+    <Card>
+      <CardHeader>
+        <CardTitle>Thao tác dữ liệu thật</CardTitle>
+        <CardDescription>
+          Admin UI gọi trực tiếp REST API local, có RBAC và audit như CLI/AI.
+        </CardDescription>
+        <CardAction>
+          <Badge variant="secondary">LIVE API</Badge>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <FieldGroup className="grid gap-4 md:grid-cols-3">
+          <Field>
+            <FieldLabel htmlFor="admin-api-url">API URL</FieldLabel>
+            <Input
+              id="admin-api-url"
+              value={baseUrl}
+              onChange={(event) => setBaseUrl(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="admin-organization-id">Organization ID</FieldLabel>
+            <Input
+              id="admin-organization-id"
+              value={organizationId}
+              onChange={(event) => setOrganizationId(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="admin-access-token">Access token</FieldLabel>
+            <Input
+              id="admin-access-token"
+              type="password"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              placeholder="Bearer token"
+            />
+          </Field>
+        </FieldGroup>
+        <div className="flex gap-2">
+          <Select value={method} onValueChange={(value) => setMethod(value as "GET" | "POST")}>
+            <SelectTrigger aria-label="HTTP method" className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="GET">GET</SelectItem>
+                <SelectItem value="POST">POST</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Input
+            value={requestPath}
+            onChange={(event) => setRequestPath(event.target.value)}
+            aria-label="API path"
+          />
+          <Button onClick={execute} disabled={busy}>
+            {busy ? "Đang gửi…" : "Gửi request"}
+          </Button>
         </div>
-        <span className="api-badge">LIVE API</span>
-      </div>
-      <div className="connection-grid">
-        <label>
-          API URL
-          <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-        </label>
-        <label>
-          Organization ID
-          <input
-            value={organizationId}
-            onChange={(event) => setOrganizationId(event.target.value)}
-          />
-        </label>
-        <label>
-          Access token
-          <input
-            type="password"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            placeholder="Bearer token"
-          />
-        </label>
-      </div>
-      <div className="request-row">
-        <select
-          value={method}
-          onChange={(event) => setMethod(event.target.value as "GET" | "POST")}
-        >
-          <option>GET</option>
-          <option>POST</option>
-        </select>
-        <input
-          value={requestPath}
-          onChange={(event) => setRequestPath(event.target.value)}
-          aria-label="API path"
-        />
-        <button className="primary" onClick={execute} disabled={busy}>
-          {busy ? "Đang gửi…" : "Gửi request"}
-        </button>
-      </div>
-      <div className="console-grid">
-        <label>
-          Request JSON
-          <textarea
-            value={payload}
-            onChange={(event) => setPayload(event.target.value)}
-            disabled={method === "GET"}
-            spellCheck={false}
-          />
-        </label>
-        <label>
-          Response<pre>{result}</pre>
-        </label>
-      </div>
-      <p className="helper">
-        Ví dụ workflow: đổi path thành <code>{path}/&lt;id&gt;/approve</code>, chọn POST và gửi{" "}
-        <code>{`{"reason":"Đã kiểm tra"}`}</code>.
-      </p>
-    </section>
+        <FieldGroup className="grid gap-4 lg:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="admin-request-json">Request JSON</FieldLabel>
+            <Textarea
+              id="admin-request-json"
+              className="min-h-64 font-mono"
+              value={payload}
+              onChange={(event) => setPayload(event.target.value)}
+              disabled={method === "GET"}
+              spellCheck={false}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>Response</FieldLabel>
+            <pre className="min-h-64 overflow-auto rounded-md border p-3">{result}</pre>
+          </Field>
+        </FieldGroup>
+        <p className="text-muted-foreground text-sm">
+          Ví dụ workflow: đổi path thành <code>{path}/&lt;id&gt;/approve</code>, chọn POST và gửi{" "}
+          <code>{`{"reason":"Đã kiểm tra"}`}</code>.
+        </p>
+      </CardContent>
+    </Card>
   );
 }

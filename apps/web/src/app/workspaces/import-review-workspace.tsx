@@ -36,7 +36,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { KpiCard } from "@/components/financial/kpi-card";
 import { useAuthenticatedApiClient } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   RefreshCwIcon,
@@ -339,7 +338,7 @@ export function ImportReviewWorkspace() {
                           ))
                         ) : (
                           <span className="text-muted-foreground flex items-center gap-1 text-xs">
-                            <CheckIcon className="h-3.5 w-3.5 text-emerald-500" />
+                            <CheckIcon />
                             Không có vấn đề
                           </span>
                         )}
@@ -347,19 +346,13 @@ export function ImportReviewWorkspace() {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const styles: Record<ReviewStatus, string> = {
-                          pending_review:
-                            "bg-amber-500/10 text-amber-500 border-amber-500/20 dark:bg-amber-500/20",
-                          approved:
-                            "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:bg-emerald-500/20",
-                          ignored: "bg-muted text-muted-foreground border-border",
-                          posted:
-                            "bg-blue-500/10 text-blue-500 border-blue-500/20 dark:bg-blue-500/20",
-                        };
                         return (
                           <Badge
-                            variant="outline"
-                            className={cn("font-medium", styles[row.status])}
+                            variant={
+                              row.status === "approved" || row.status === "posted"
+                                ? "secondary"
+                                : "outline"
+                            }
                           >
                             {statusLabels[row.status]}
                           </Badge>

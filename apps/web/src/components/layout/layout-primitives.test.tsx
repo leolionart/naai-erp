@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PageHeader } from "./page-header";
 import { PageShell } from "./page-shell";
 import { SkipLink } from "./skip-link";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 describe("server-compatible layout primitives", () => {
   it("renders a skip target and semantic main content without client state", () => {
@@ -14,21 +15,23 @@ describe("server-compatible layout primitives", () => {
     expect(html).toContain('href="#main-content"');
     expect(html).toContain('id="main-content"');
     expect(html).toContain('tabindex="-1"');
-    expect(html).toContain("workspace");
+    expect(html).toContain('data-slot="sidebar-inset"');
     expect(html).toContain('aria-label="Điều hướng"');
   });
 
   it("renders accessible breadcrumbs, page status and actions", () => {
     const html = renderToStaticMarkup(
-      <PageHeader
-        title="Sổ kế toán"
-        description="Journal và báo cáo"
-        breadcrumbs={[{ label: "Admin", href: "/" }, { label: "Sổ kế toán" }]}
-        status={<span>Đã đồng bộ</span>}
-        actions={<button>Thêm journal</button>}
-      />,
+      <SidebarProvider>
+        <PageHeader
+          title="Sổ kế toán"
+          description="Journal và báo cáo"
+          breadcrumbs={[{ label: "Admin", href: "/" }, { label: "Sổ kế toán" }]}
+          status={<span>Đã đồng bộ</span>}
+          actions={<button>Thêm journal</button>}
+        />
+      </SidebarProvider>,
     );
-    expect(html).toContain('aria-label="Breadcrumb"');
+    expect(html).toContain('aria-label="breadcrumb"');
     expect(html).toContain('aria-current="page"');
     expect(html).toContain("Thêm journal");
     expect(html).toContain("Đã đồng bộ");

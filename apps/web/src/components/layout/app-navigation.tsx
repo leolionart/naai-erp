@@ -1,22 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   BanknoteIcon,
   BookOpenIcon,
   BoxesIcon,
   BriefcaseBusinessIcon,
+  ChevronRightIcon,
+  ChevronsUpDownIcon,
   FileTextIcon,
   GaugeIcon,
   ListChecksIcon,
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
   ReceiptTextIcon,
+  SunIcon,
   UsersIcon,
   WalletCardsIcon,
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { adminNavigation, isNavigationAvailable, type NavigationIcon } from "@/lib/navigation";
-import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -28,8 +43,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { API_TOKEN_KEY } from "@/lib/api";
+import { adminNavigation, isNavigationAvailable, type NavigationIcon } from "@/lib/navigation";
 
 const icons = {
   overview: GaugeIcon,
@@ -44,23 +65,89 @@ const icons = {
   review: ListChecksIcon,
 } satisfies Record<NavigationIcon, typeof GaugeIcon>;
 
+function NavigationUser() {
+  const router = useRouter();
+  const { setTheme } = useTheme();
+  const { isMobile } = useSidebar();
+
+  function logout() {
+    window.sessionStorage.removeItem(API_TOKEN_KEY);
+    router.push("/login");
+  }
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton size="lg">
+              <Avatar className="size-8 rounded-lg">
+                <AvatarFallback className="rounded-lg">AT</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">Ái Trần</span>
+                <span className="truncate text-xs">Owner · NAAI Studio</span>
+              </div>
+              <ChevronsUpDownIcon className="ml-auto" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side={isMobile ? "bottom" : "right"} sideOffset={4}>
+            <DropdownMenuLabel>NAAI Studio</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => setTheme("light")}>
+                <SunIcon />
+                Sáng
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTheme("dark")}>
+                <MoonIcon />
+                Tối
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTheme("system")}>
+                <MonitorIcon />
+                Theo hệ thống
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={logout}>
+              <LogOutIcon />
+              Đăng xuất
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 export function AppNavigation() {
   const pathname = usePathname();
+
+  function matchesPath(href: string) {
+    const target = new URL(href, "http://naai.local");
+    return pathname === target.pathname || pathname.startsWith(`${target.pathname}/`);
+  }
+
+  function isActive(href: string) {
+    const target = new URL(href, "http://naai.local");
+    return !target.search && matchesPath(href);
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="pointer-events-none">
-              <div className="flex items-center gap-3">
-                <div className="flex aspect-square size-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shrink-0">
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/dashboard">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   N
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold text-sm">NAAI ERP</span>
-                  <span className="truncate text-xs text-muted-foreground">Finance operations</span>
+                  <span className="truncate font-medium">NAAI ERP</span>
+                  <span className="truncate text-xs">Finance operations</span>
                 </div>
-              </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -68,44 +155,54 @@ export function AppNavigation() {
       <SidebarContent>
         {adminNavigation.map((group) => (
           <SidebarGroup key={group.key}>
-            <SidebarGroupLabel className="px-2">{group.label}</SidebarGroupLabel>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => {
+                {group.items.filter(isNavigationAvailable).map((item) => {
                   const Icon = icons[item.icon];
-                  const available = isNavigationAvailable(item);
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                  const button = (
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={available ? item.label : undefined}
-                      className={cn(
-                        !available &&
-                          "cursor-not-allowed text-muted-foreground/60 hover:bg-transparent hover:text-muted-foreground/60 active:bg-transparent active:text-muted-foreground/60",
-                      )}
-                    >
-                      {available ? (
+                  if ("children" in item && item.children?.length) {
+                    const children = item.children.filter(isNavigationAvailable);
+                    const active = children.some((child) => matchesPath(child.href));
+                    return (
+                      <Collapsible
+                        key={item.key}
+                        asChild
+                        defaultOpen={active}
+                        className="group/collapsible"
+                      >
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip={item.label} isActive={active}>
+                              <Icon />
+                              <span>{item.label}</span>
+                              <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {children.map((child) => (
+                                <SidebarMenuSubItem key={child.key}>
+                                  <SidebarMenuSubButton asChild isActive={isActive(child.href)}>
+                                    <Link href={child.href}>{child.label}</Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    );
+                  }
+                  if (!("href" in item) || !item.href) return null;
+                  const active = isActive(item.href);
+                  return (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                         <Link href={item.href} aria-current={active ? "page" : undefined}>
-                          <Icon aria-hidden="true" />
+                          <Icon />
                           <span>{item.label}</span>
                         </Link>
-                      ) : (
-                        <span aria-disabled="true" className="flex w-full items-center gap-2">
-                          <Icon aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </span>
-                      )}
-                    </SidebarMenuButton>
-                  );
-                  return available ? (
-                    <SidebarMenuItem key={item.key}>{button}</SidebarMenuItem>
-                  ) : (
-                    <SidebarMenuItem key={item.key}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>{button}</TooltipTrigger>
-                        <TooltipContent side="right">{item.description}</TooltipContent>
-                      </Tooltip>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 })}
@@ -115,19 +212,7 @@ export function AppNavigation() {
         ))}
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="pointer-events-none">
-              <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-semibold shrink-0">
-                AT
-              </div>
-              <div className="grid flex-1 text-left text-xs leading-tight">
-                <span className="truncate font-semibold text-xs">Ái Trần</span>
-                <span className="truncate text-xs text-muted-foreground">Owner · NAAI Studio</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <NavigationUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

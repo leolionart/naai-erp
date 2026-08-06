@@ -13,16 +13,21 @@ describe("typed admin navigation", () => {
 
   it("exposes only the narrowed MVP destinations", () => {
     expect(findNavigationItem("overview")?.href).toBe("/dashboard");
-    expect(findNavigationItem("documents")?.href).toBe("/documents");
-    expect(findNavigationItem("expenses")?.href).toBe("/expenses");
+    expect(findNavigationItem("documents")?.href).toBeUndefined();
+    expect(findNavigationItem("sales-documents")?.href).toBe("/documents?type=sales_invoice");
+    expect(findNavigationItem("purchase-documents")?.href).toBe("/documents?type=purchase_invoice");
+    expect(findNavigationItem("expenses")).toBeUndefined();
     expect(findNavigationItem("performance")?.href).toBe("/reports/performance");
     expect(isNavigationAvailable(findNavigationItem("performance")!)).toBe(true);
-    expect(findNavigationItem("financial-statements")?.href).toBe("/reports/financial-statements");
+    expect(findNavigationItem("financial-statements")?.href).toBeUndefined();
     expect(isNavigationAvailable(findNavigationItem("financial-statements")!)).toBe(true);
+    expect(findNavigationItem("profit-and-loss")?.href).toContain("profit-and-loss");
+    expect(findNavigationItem("balance-sheet")?.href).toContain("balance-sheet");
+    expect(findNavigationItem("cash-flow")?.href).toContain("cash-flow");
     expect(findNavigationItem("receivables")?.href).toBe("/receivables");
     expect(findNavigationItem("payables")?.href).toBe("/payables");
-    expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
-    expect(isNavigationAvailable(findNavigationItem("accountant-exports")!)).toBe(true);
+    expect(findNavigationItem("debt")?.href).toBeUndefined();
+    expect(findNavigationItem("accountant-exports")).toBeUndefined();
     expect(findNavigationItem("customers")?.href).toBe("/customers");
     expect(findNavigationItem("projects")?.href).toBe("/projects");
     expect(findNavigationItem("import-review")?.href).toBe("/imports/review");

@@ -122,6 +122,6 @@ test("@desktop directory create action opens an in-context drawer", async ({ pag
   await page.goto("http://localhost:3000/customers");
   await page.getByRole("button", { name: "Tạo mới" }).click();
   await expect(page.getByRole("dialog", { name: "Tạo khách hàng" })).toBeVisible();
-  await expect(page.getByLabel("ID")).toBeVisible();
+  await expect(page.getByLabel("ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Tên khách hàng")).toBeVisible();
 });

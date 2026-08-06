@@ -22,7 +22,7 @@ async function expectDashboard(page: Page) {
 }
 
 async function expectDocumentCreateForm(page: Page) {
-  await expect(page).toHaveURL(/\/documents$/);
+  await expect(page).toHaveURL(/\/documents(?:\?.*)?$/);
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "Hóa đơn" })).toBeVisible();
   await page.getByRole("link", { name: "Tạo mới", exact: true }).click();
@@ -38,7 +38,8 @@ async function expectDocumentCreateForm(page: Page) {
 test("@desktop dashboard navigates to documents and opens the create form", async ({ page }) => {
   const assertNoBrowserErrors = failOnBrowserErrors(page);
   await expectDashboard(page);
-  await page.getByRole("link", { name: "Hóa đơn", exact: true }).click();
+  await page.getByRole("button", { name: "Hóa đơn", exact: true }).click();
+  await page.getByRole("link", { name: "Đầu ra", exact: true }).click();
   await expectDocumentCreateForm(page);
   assertNoBrowserErrors();
 });
@@ -48,9 +49,12 @@ test("@desktop primary navigation exposes customers and projects", async ({ page
   for (const hidden of ["Dữ liệu nền", "Sổ kế toán", "Ngân hàng & tiền mặt"]) {
     await expect(page.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
   }
-  await expect(
-    page.getByRole("link", { name: "Chi phí không hóa đơn", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Chi phí không hóa đơn" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Báo cáo tài chính", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Kết quả kinh doanh" })).toBeVisible();
+  await page.getByRole("button", { name: "Công nợ", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Phải thu", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Phải trả", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Khách hàng", exact: true }).click();
   await expect(page).toHaveURL(/\/customers$/);
   await expect(page.getByRole("heading", { level: 1, name: "Khách hàng" })).toBeVisible();
@@ -66,8 +70,10 @@ test("@mobile Sheet navigation reaches documents and keeps the primary workflow 
   await expectDashboard(page);
   await page.getByRole("button", { name: "Mở menu chính" }).click();
   await expect(page.getByRole("dialog", { name: "Điều hướng NAAI ERP" })).toBeVisible();
-  await page.getByRole("dialog").getByRole("link", { name: "Hóa đơn", exact: true }).click();
-  await expect(page).toHaveURL(/\/documents$/);
+  const navigation = page.getByRole("dialog", { name: "Điều hướng NAAI ERP" });
+  await navigation.getByRole("button", { name: "Hóa đơn", exact: true }).click();
+  await navigation.getByRole("link", { name: "Đầu vào", exact: true }).click();
+  await expect(page).toHaveURL(/\/documents\?type=purchase_invoice$/);
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
   await expectDocumentCreateForm(page);
   assertNoBrowserErrors();
@@ -80,9 +86,11 @@ test("@mobile Sheet navigation exposes customer and project modules", async ({ p
   for (const hidden of ["Dữ liệu nền", "Sổ kế toán", "Ngân hàng & tiền mặt"]) {
     await expect(navigation.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
   }
-  await expect(
-    navigation.getByRole("link", { name: "Chi phí không hóa đơn", exact: true }),
-  ).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Chi phí không hóa đơn" })).toHaveCount(0);
+  await navigation.getByRole("button", { name: "Báo cáo tài chính", exact: true }).click();
+  await expect(navigation.getByRole("link", { name: "Bảng cân đối kế toán" })).toBeVisible();
+  await navigation.getByRole("button", { name: "Công nợ", exact: true }).click();
+  await expect(navigation.getByRole("link", { name: "Phải thu", exact: true })).toBeVisible();
   await navigation.getByRole("link", { name: "Khách hàng", exact: true }).click();
   await expect(page).toHaveURL(/\/customers$/);
   await navigation.getByRole("button", { name: "Close" }).click();

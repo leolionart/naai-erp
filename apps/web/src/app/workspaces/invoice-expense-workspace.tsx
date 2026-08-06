@@ -3,7 +3,16 @@
 import { type ComponentProps, type FormEvent, useEffect, useId, useMemo, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -214,97 +223,96 @@ export function InvoiceExpenseWorkspace({
   }, [items, query]);
 
   return (
-    <section className="panel operational-workspace">
-      <div className="panel-head workspace-head">
-        <div>
-          <h2>{kind === "documents" ? "Hóa đơn bán / mua" : "Chi phí vận hành"}</h2>
-          <p>Nhập liệu theo form nghiệp vụ; hệ thống tự tạo payload REST chính xác.</p>
-        </div>
-        <div className="workspace-actions">
+    <Card>
+      <CardHeader>
+        <CardTitle>{kind === "documents" ? "Hóa đơn bán / mua" : "Chi phí vận hành"}</CardTitle>
+        <CardDescription>
+          Nhập liệu theo form nghiệp vụ; hệ thống tự tạo payload REST chính xác.
+        </CardDescription>
+        <CardAction className="flex gap-2">
           <Button variant="outline" type="button" onClick={load} disabled={busy}>
             {busy ? "Đang xử lý…" : "Tải dữ liệu"}
           </Button>
           <Button type="button" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Đóng form" : "+ Tạo mới"}
           </Button>
-        </div>
-      </div>
-
-      {showCreate ? (
-        kind === "documents" ? (
-          <DocumentForm busy={busy} onSubmit={create} />
-        ) : (
-          <ExpenseForm busy={busy} onSubmit={create} />
-        )
-      ) : null}
-
-      <Alert
-        className={`inline-notice ${notice.includes("Không") ? "error" : ""}`}
-        variant={notice.includes("Không") ? "destructive" : "default"}
-      >
-        <AlertDescription>{notice}</AlertDescription>
-      </Alert>
-      <div className="table-toolbar">
-        <Input
-          aria-label="Tìm kiếm"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Tìm theo số, đối tác, nội dung, trạng thái…"
-        />
-        <span>{visible.length} bản ghi</span>
-      </div>
-      <div className="data-table-wrap">
-        <Table className="data-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
-              <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
-              <TableHead>Đối tượng</TableHead>
-              <TableHead>Tổng tiền</TableHead>
-              <TableHead>Trạng thái</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.map((row, index) => {
-              const id = String(field(row, "id") ?? index);
-              return (
-                <TableRow
-                  key={id}
-                  className={String(field(selected, "id") ?? "") === id ? "selected" : ""}
-                  onClick={() => choose(row)}
-                >
-                  <TableCell>
-                    {label(field(row, kind === "documents" ? "documentNumber" : "expenseDate"))}
-                  </TableCell>
-                  <TableCell>
-                    {label(field(row, kind === "documents" ? "type" : "businessPurpose"))}
-                  </TableCell>
-                  <TableCell>
-                    {label(field(row, kind === "documents" ? "partyId" : "payeePartyId"))}
-                  </TableCell>
-                  <TableCell>{money(field(row, "grossMinor"))}</TableCell>
-                  <TableCell>
-                    <span className="status-pill ready">{label(field(row, "state"))}</span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-        {!visible.length ? (
-          <Empty className="empty-state">
-            <EmptyHeader>
-              <EmptyTitle>Chưa có dữ liệu</EmptyTitle>
-              <EmptyDescription>Không có bản ghi phù hợp với bộ lọc hiện tại.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {showCreate ? (
+          kind === "documents" ? (
+            <DocumentForm busy={busy} onSubmit={create} />
+          ) : (
+            <ExpenseForm busy={busy} onSubmit={create} />
+          )
         ) : null}
-      </div>
 
-      {selected ? (
-        <RecordActions kind={kind} record={selected} busy={busy} onAction={action} />
-      ) : null}
-    </section>
+        <Alert variant={notice.includes("Không") ? "destructive" : "default"}>
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+        <div className="flex items-center gap-3">
+          <Input
+            aria-label="Tìm kiếm"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Tìm theo số, đối tác, nội dung, trạng thái…"
+          />
+          <Badge variant="secondary">{visible.length} bản ghi</Badge>
+        </div>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
+                <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
+                <TableHead>Đối tượng</TableHead>
+                <TableHead>Tổng tiền</TableHead>
+                <TableHead>Trạng thái</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visible.map((row, index) => {
+                const id = String(field(row, "id") ?? index);
+                return (
+                  <TableRow
+                    key={id}
+                    data-state={String(field(selected, "id") ?? "") === id ? "selected" : undefined}
+                    className="cursor-pointer"
+                    onClick={() => choose(row)}
+                  >
+                    <TableCell>
+                      {label(field(row, kind === "documents" ? "documentNumber" : "expenseDate"))}
+                    </TableCell>
+                    <TableCell>
+                      {label(field(row, kind === "documents" ? "type" : "businessPurpose"))}
+                    </TableCell>
+                    <TableCell>
+                      {label(field(row, kind === "documents" ? "partyId" : "payeePartyId"))}
+                    </TableCell>
+                    <TableCell>{money(field(row, "grossMinor"))}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{label(field(row, "state"))}</Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          {!visible.length ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Chưa có dữ liệu</EmptyTitle>
+                <EmptyDescription>Không có bản ghi phù hợp với bộ lọc hiện tại.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : null}
+        </div>
+
+        {selected ? (
+          <RecordActions kind={kind} record={selected} busy={busy} onAction={action} />
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -404,7 +412,7 @@ export function DocumentForm({
   }
 
   return (
-    <form className="business-form" onSubmit={submit}>
+    <form className="flex flex-col gap-4" onSubmit={submit}>
       <FieldGroup className="contents">
         <Field>
           <FieldLabel>Loại chứng từ</FieldLabel>
@@ -629,7 +637,7 @@ export function ExpenseForm({
   }
 
   return (
-    <form className="business-form" onSubmit={submit}>
+    <form className="flex flex-col gap-4" onSubmit={submit}>
       <FieldGroup className="contents">
         <Field>
           <FieldLabel>Nhóm chi phí</FieldLabel>
@@ -778,7 +786,7 @@ function RecordActions({
     kind === "documents" ? (documentActions[type]?.[state] ?? []) : (expenseActions[state] ?? []);
 
   return (
-    <div className="lifecycle-actions">
+    <div className="flex flex-wrap items-center gap-2">
       <strong>
         Đang chọn: {label(field(record, kind === "documents" ? "documentNumber" : "id"))} ·{" "}
         {label(state)}

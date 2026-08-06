@@ -3,6 +3,14 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -276,117 +284,121 @@ export function LedgerMasterWorkspace({
   }
 
   return (
-    <section className="panel operational-workspace" aria-label="Ledger and master data workspace">
-      <div className="panel-head workspace-head">
-        <div>
-          <h2>Sổ kế toán & dữ liệu nền</h2>
-          <p>
-            Thao tác thân thiện qua REST v1; quyền, maker-checker, audit và idempotency do server
-            thực thi.
-          </p>
-        </div>
-        <Button variant="outline" type="button" onClick={loadCurrent} disabled={busy}>
-          {busy ? "Đang tải…" : "Tải dữ liệu"}
-        </Button>
-      </div>
-
-      <details className="connection-settings">
-        <summary>Kết nối API local</summary>
-        <FieldGroup className="connection-grid">
-          <LabeledField label="API URL">
-            <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-          </LabeledField>
-          <LabeledField label="Organization ID">
-            <Input
-              value={organizationId}
-              onChange={(event) => setOrganizationId(event.target.value)}
-            />
-          </LabeledField>
-          <LabeledField label="Access token">
-            <Input
-              type="password"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-            />
-          </LabeledField>
-        </FieldGroup>
-      </details>
-
-      <div className="table-toolbar" role="tablist" aria-label="Phân hệ kế toán">
-        {(["journals", "reports", "accounts", "resources"] as const).map((item) => (
-          <Button
-            key={item}
-            type="button"
-            role="tab"
-            aria-selected={section === item}
-            variant={section === item ? "default" : "ghost"}
-            onClick={() => setSection(item)}
-          >
-            {item === "journals"
-              ? "Bút toán"
-              : item === "reports"
-                ? "Sổ & báo cáo"
-                : item === "accounts"
-                  ? "Tài khoản"
-                  : "Danh mục khác"}
+    <Card aria-label="Ledger and master data workspace">
+      <CardHeader>
+        <CardTitle>Sổ kế toán & dữ liệu nền</CardTitle>
+        <CardDescription>
+          Thao tác thân thiện qua REST v1; quyền, maker-checker, audit và idempotency do server thực
+          thi.
+        </CardDescription>
+        <CardAction>
+          <Button variant="outline" type="button" onClick={loadCurrent} disabled={busy}>
+            {busy ? "Đang tải…" : "Tải dữ liệu"}
           </Button>
-        ))}
-      </div>
-      <Alert
-        className="inline-notice"
-        variant={notice.includes("Không") || notice.includes("HTTP") ? "destructive" : "default"}
-      >
-        <AlertDescription>{notice}</AlertDescription>
-      </Alert>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <details>
+          <summary>Kết nối API local</summary>
+          <FieldGroup className="grid gap-4 md:grid-cols-3">
+            <LabeledField label="API URL">
+              <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+            </LabeledField>
+            <LabeledField label="Organization ID">
+              <Input
+                value={organizationId}
+                onChange={(event) => setOrganizationId(event.target.value)}
+              />
+            </LabeledField>
+            <LabeledField label="Access token">
+              <Input
+                type="password"
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+              />
+            </LabeledField>
+          </FieldGroup>
+        </details>
 
-      {section === "journals" ? (
-        <JournalSection
-          journals={journals}
-          selected={selectedJournal}
-          busy={busy}
-          onSelect={setSelectedJournal}
-          onCreate={(body) =>
-            run(async () => {
-              await request("journals", { method: "POST", body });
-              await loadJournals();
-            })
-          }
-          onAction={journalAction}
-        />
-      ) : section === "reports" ? (
-        <ReportSection
-          range={reportRange}
-          onRange={setReportRange}
-          trialBalance={trialBalance}
-          generalLedger={generalLedger}
-          onLoad={() => run(loadReports)}
-          busy={busy}
-        />
-      ) : section === "accounts" ? (
-        <AccountSection
-          accounts={accounts}
-          selected={selectedAccount}
-          busy={busy}
-          onSelect={setSelectedAccount}
-          onCreate={(data) =>
-            run(async () => {
-              await request("master-data/accounts", { method: "POST", body: { data } });
-              await loadAccounts();
-            })
-          }
-          onDeactivate={deactivateAccount}
-        />
-      ) : (
-        <ResourceSection
-          resources={resources}
-          resourceName={resourceName}
-          onResourceName={setResourceName}
-          rows={resourceRows}
-          onLoad={() => run(loadResources)}
-          busy={busy}
-        />
-      )}
-    </section>
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="tablist"
+          aria-label="Phân hệ kế toán"
+        >
+          {(["journals", "reports", "accounts", "resources"] as const).map((item) => (
+            <Button
+              key={item}
+              type="button"
+              role="tab"
+              aria-selected={section === item}
+              variant={section === item ? "default" : "ghost"}
+              onClick={() => setSection(item)}
+            >
+              {item === "journals"
+                ? "Bút toán"
+                : item === "reports"
+                  ? "Sổ & báo cáo"
+                  : item === "accounts"
+                    ? "Tài khoản"
+                    : "Danh mục khác"}
+            </Button>
+          ))}
+        </div>
+        <Alert
+          variant={notice.includes("Không") || notice.includes("HTTP") ? "destructive" : "default"}
+        >
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+
+        {section === "journals" ? (
+          <JournalSection
+            journals={journals}
+            selected={selectedJournal}
+            busy={busy}
+            onSelect={setSelectedJournal}
+            onCreate={(body) =>
+              run(async () => {
+                await request("journals", { method: "POST", body });
+                await loadJournals();
+              })
+            }
+            onAction={journalAction}
+          />
+        ) : section === "reports" ? (
+          <ReportSection
+            range={reportRange}
+            onRange={setReportRange}
+            trialBalance={trialBalance}
+            generalLedger={generalLedger}
+            onLoad={() => run(loadReports)}
+            busy={busy}
+          />
+        ) : section === "accounts" ? (
+          <AccountSection
+            accounts={accounts}
+            selected={selectedAccount}
+            busy={busy}
+            onSelect={setSelectedAccount}
+            onCreate={(data) =>
+              run(async () => {
+                await request("master-data/accounts", { method: "POST", body: { data } });
+                await loadAccounts();
+              })
+            }
+            onDeactivate={deactivateAccount}
+          />
+        ) : (
+          <ResourceSection
+            resources={resources}
+            resourceName={resourceName}
+            onResourceName={setResourceName}
+            rows={resourceRows}
+            onLoad={() => run(loadResources)}
+            busy={busy}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -431,14 +443,14 @@ function JournalSection({
   }
   return (
     <div>
-      <div className="workspace-actions">
+      <div className="flex justify-end">
         <Button type="button" onClick={() => setShowForm((value) => !value)}>
           + Bút toán nháp
         </Button>
       </div>
       {showForm ? (
-        <form className="create-form" onSubmit={submit}>
-          <FieldGroup className="connection-grid">
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <FieldGroup className="grid gap-4 md:grid-cols-3">
             <LabeledField label="ID tùy chọn">
               <Input
                 value={form.id}
@@ -493,7 +505,7 @@ function JournalSection({
         onSelect={onSelect}
       />
       {selected ? (
-        <div className="workspace-actions">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -540,7 +552,7 @@ function ReportSection({
 }) {
   return (
     <div>
-      <FieldGroup className="connection-grid">
+      <FieldGroup className="grid gap-4 md:grid-cols-3">
         <LabeledField label="Từ ngày">
           <Input
             type="date"
@@ -633,8 +645,8 @@ function AccountSection({
   }
   return (
     <div>
-      <form className="create-form" onSubmit={submit}>
-        <FieldGroup className="connection-grid">
+      <form className="flex flex-col gap-4" onSubmit={submit}>
+        <FieldGroup className="grid gap-4 md:grid-cols-3">
           <LabeledField label="Mã tài khoản">
             <Input
               required
@@ -711,7 +723,7 @@ function ResourceSection({
     : ["parties", "projects", "contracts", "milestones", "dimensions", "tax-code-versions"];
   return (
     <div>
-      <div className="request-row">
+      <div className="flex items-center gap-2">
         <Select value={resourceName} onValueChange={onResourceName}>
           <SelectTrigger aria-label="Danh mục" className="min-w-52">
             <SelectValue />
@@ -752,8 +764,8 @@ function SimpleTable({
   amountColumns?: ReadonlySet<string>;
 }) {
   return (
-    <div className="data-table-wrap">
-      <Table className="data-table">
+    <div className="overflow-x-auto rounded-lg border">
+      <Table>
         <TableHeader>
           <TableRow>
             {columns.map((column) => (
@@ -767,7 +779,8 @@ function SimpleTable({
           {rows.map((row, index) => (
             <TableRow
               key={String(field(row, "id", "code") ?? index)}
-              className={row === selected ? "selected" : ""}
+              data-state={row === selected ? "selected" : undefined}
+              className={onSelect ? "cursor-pointer" : undefined}
               onClick={() => onSelect?.(row)}
               onKeyDown={(event) => {
                 if (onSelect && (event.key === "Enter" || event.key === " ")) {
@@ -777,7 +790,6 @@ function SimpleTable({
               }}
               tabIndex={onSelect ? 0 : undefined}
               aria-selected={onSelect ? row === selected : undefined}
-              data-state={row === selected ? "selected" : undefined}
             >
               {columns.map((column) => (
                 <TableCell
@@ -799,7 +811,7 @@ function SimpleTable({
         </TableBody>
       </Table>
       {rows.length ? null : (
-        <Empty className="empty-state">
+        <Empty>
           <EmptyHeader>
             <EmptyTitle>Chưa có dữ liệu</EmptyTitle>
             <EmptyDescription>Không có bản ghi cho bộ lọc hiện tại.</EmptyDescription>

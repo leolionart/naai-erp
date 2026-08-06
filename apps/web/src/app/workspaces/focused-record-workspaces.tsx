@@ -123,7 +123,9 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
   const key = params.toString();
-  const current = config[kind];
+  const invoiceStatus = params.get("invoiceStatus") ?? "present";
+  const sourceKind: Kind = kind === "documents" && invoiceStatus === "missing" ? "expenses" : kind;
+  const current = config[sourceKind];
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
@@ -135,8 +137,12 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       return;
     }
     try {
+      const sourceParams = new URLSearchParams(key);
+      if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
+        sourceParams.set("class", "non_documented");
+      }
       const result = await client.data<{ items?: Row[] } | Row[]>(
-        `${current.endpoint}?${queryFor(kind, new URLSearchParams(key))}`,
+        `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
       );
       setRows(Array.isArray(result) ? result : (result.items ?? []));
     } catch (cause) {
@@ -144,13 +150,16 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
     } finally {
       setLoading(false);
     }
-  }, [client, current, hasToken, hydrated, key, kind]);
+  }, [client, current, hasToken, hydrated, key, kind, sourceKind]);
   useEffect(() => void load(), [load]);
   function apply(form: FormData) {
     const query = new URLSearchParams();
-    for (const name of kind === "documents"
-      ? ["type", "state", "partyId", "projectId"]
-      : ["class", "state", "payeePartyId"]) {
+    const selectedInvoiceStatus = String(form.get("invoiceStatus") ?? "present");
+    for (const name of kind === "documents" && selectedInvoiceStatus !== "missing"
+      ? ["invoiceStatus", "type", "state", "partyId", "projectId"]
+      : kind === "documents"
+        ? ["invoiceStatus", "state", "class", "payeePartyId"]
+        : ["class", "state", "payeePartyId"]) {
       const value = String(form.get(name) ?? "").trim();
       if (value && value !== "all") query.set(name, value);
     }
@@ -172,7 +181,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
             Bộ lọc
           </Button>
           <Button asChild>
-            <Link href={`/${kind}/new`}>
+            <Link href={`/${sourceKind}/new`}>
               <Plus data-icon="inline-start" />
               Tạo mới
             </Link>
@@ -197,8 +206,8 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
-                  <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
+                  <TableHead>{sourceKind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
+                  <TableHead>{sourceKind === "documents" ? "Loại" : "Mục đích"}</TableHead>
                   <TableHead>Đối tượng</TableHead>
                   <TableHead className="text-right">Tổng tiền</TableHead>
                   <TableHead>Trạng thái</TableHead>
@@ -211,13 +220,14 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                   return (
                     <TableRow key={id}>
                       <TableCell className="font-medium">
-                        {text(row, kind === "documents" ? "documentNumber" : "expenseDate") || id}
+                        {text(row, sourceKind === "documents" ? "documentNumber" : "expenseDate") ||
+                          id}
                       </TableCell>
                       <TableCell>
-                        {human(text(row, kind === "documents" ? "type" : "businessPurpose"))}
+                        {human(text(row, sourceKind === "documents" ? "type" : "businessPurpose"))}
                       </TableCell>
                       <TableCell>
-                        {text(row, kind === "documents" ? "partyId" : "payeePartyId") || "—"}
+                        {text(row, sourceKind === "documents" ? "partyId" : "payeePartyId") || "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {money(text(row, "grossMinor"))}
@@ -227,7 +237,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở chi tiết</Link>
+                          <Link href={`/${sourceKind}/${encodeURIComponent(id)}`}>Mở chi tiết</Link>
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -269,6 +279,12 @@ function FilterSheet({
   params: URLSearchParams;
   onApply(data: FormData): void;
 }) {
+  const [invoiceStatus, setInvoiceStatus] = useState(params.get("invoiceStatus") ?? "present");
+
+  useEffect(() => {
+    if (open) setInvoiceStatus(params.get("invoiceStatus") ?? "present");
+  }, [open, params]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -314,37 +330,71 @@ function FilterSheet({
             {kind === "documents" ? (
               <>
                 <Field>
-                  <FieldLabel>Loại</FieldLabel>
-                  <Select name="type" defaultValue={params.get("type") ?? "all"}>
-                    <SelectTrigger>
+                  <FieldLabel>Tình trạng hóa đơn</FieldLabel>
+                  <Select
+                    name="invoiceStatus"
+                    value={invoiceStatus}
+                    onValueChange={setInvoiceStatus}
+                  >
+                    <SelectTrigger aria-label="Tình trạng hóa đơn">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="all">Tất cả</SelectItem>
-                        <SelectItem value="sales_invoice">Hóa đơn bán ra</SelectItem>
-                        <SelectItem value="purchase_invoice">Hóa đơn mua vào</SelectItem>
-                        <SelectItem value="credit_note">Credit note</SelectItem>
+                        <SelectItem value="present">Có hóa đơn</SelectItem>
+                        <SelectItem value="missing">Chưa có hóa đơn</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field>
-                  <FieldLabel htmlFor="filter-party">Party ID</FieldLabel>
-                  <Input
-                    id="filter-party"
-                    name="partyId"
-                    defaultValue={params.get("partyId") ?? ""}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="filter-project">Dự án ID</FieldLabel>
-                  <Input
-                    id="filter-project"
-                    name="projectId"
-                    defaultValue={params.get("projectId") ?? ""}
-                  />
-                </Field>
+                {invoiceStatus === "present" ? (
+                  <>
+                    <Field>
+                      <FieldLabel>Loại</FieldLabel>
+                      <Select name="type" defaultValue={params.get("type") ?? "all"}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="all">Tất cả</SelectItem>
+                            <SelectItem value="sales_invoice">Hóa đơn bán ra</SelectItem>
+                            <SelectItem value="purchase_invoice">Hóa đơn mua vào</SelectItem>
+                            <SelectItem value="credit_note">Credit note</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="filter-party">Party ID</FieldLabel>
+                      <Input
+                        id="filter-party"
+                        name="partyId"
+                        defaultValue={params.get("partyId") ?? ""}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="filter-project">Dự án ID</FieldLabel>
+                      <Input
+                        id="filter-project"
+                        name="projectId"
+                        defaultValue={params.get("projectId") ?? ""}
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <input type="hidden" name="class" value="non_documented" />
+                    <Field>
+                      <FieldLabel htmlFor="filter-payee">Payee ID</FieldLabel>
+                      <Input
+                        id="filter-payee"
+                        name="payeePartyId"
+                        defaultValue={params.get("payeePartyId") ?? ""}
+                      />
+                    </Field>
+                  </>
+                )}
               </>
             ) : (
               <>

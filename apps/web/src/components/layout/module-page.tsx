@@ -14,14 +14,14 @@ export function ModulePage({
   children: ReactNode;
 }>) {
   return (
-    <div className="route-page">
+    <div className="flex min-h-svh flex-col">
       <PageHeader
         title={title}
         description={description}
         breadcrumbs={[{ label: "Admin", href: "/dashboard" }, { label: section }, { label: title }]}
         status={<Badge variant="secondary">Local development</Badge>}
       />
-      <div className="route-page-content">{children}</div>
+      <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
     </div>
   );
 }

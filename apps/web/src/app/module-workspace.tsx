@@ -205,7 +205,7 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
     : items;
 
   return (
-    <Card className="operational-workspace">
+    <Card>
       <CardHeader>
         <CardTitle>{config.title}</CardTitle>
         <CardDescription>
@@ -225,7 +225,7 @@ export function ModuleWorkspace({ moduleKey }: { moduleKey: string }) {
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <details className="connection-settings">
+        <details>
           <summary>Kết nối API local</summary>
           <FieldGroup className="grid gap-4 md:grid-cols-3">
             <Field>
@@ -427,7 +427,7 @@ function CreateForm({
       });
   }
   return (
-    <form className="business-form" onSubmit={submit}>
+    <form onSubmit={submit}>
       <FieldGroup>
         {moduleKey === "master-data" ? (
           <>

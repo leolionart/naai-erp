@@ -150,6 +150,24 @@ test("@desktop T-MVP-UI-001 uses stable invoice list new and detail routes", asy
   await expect(action).not.toBeVisible();
 });
 
+test("@desktop invoice presence stays a list filter instead of a separate menu", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/documents?type=purchase_invoice");
+  await page.getByRole("button", { name: "Bộ lọc" }).click();
+  const sheet = page.getByRole("dialog", { name: "Bộ lọc hóa đơn" });
+  await sheet.getByLabel("Tình trạng hóa đơn").click();
+  await page.getByRole("option", { name: "Chưa có hóa đơn" }).click();
+  await sheet.getByRole("button", { name: "Áp dụng" }).click();
+  await expect(page).toHaveURL(/invoiceStatus=missing/);
+  await expect(page.getByText("Phí vận hành")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mở chi tiết" })).toHaveAttribute(
+    "href",
+    "/expenses/expense-720",
+  );
+});
+
 test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable detail", async ({
   page,
 }) => {
