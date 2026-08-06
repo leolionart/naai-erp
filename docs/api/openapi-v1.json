@@ -5497,11 +5497,12 @@
             "schema": {
               "type": "object",
               "required": [
-                "id",
                 "type",
                 "documentNumber",
+                "fiscalYear",
                 "partyId",
                 "documentDate",
+                "dueDate",
                 "currency",
                 "netMinor",
                 "taxMinor",
@@ -5516,8 +5517,14 @@
                   "enum": ["sales_invoice", "purchase_invoice", "credit_note"]
                 },
                 "documentNumber": { "type": "string", "minLength": 1 },
+                "fiscalYear": { "type": "integer", "minimum": 1900, "maximum": 9999 },
                 "partyId": { "type": "string", "minLength": 1 },
                 "documentDate": { "type": "string", "format": "date" },
+                "dueDate": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Must be on or after documentDate."
+                },
                 "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
                 "netMinor": { "type": "string", "pattern": "^[0-9]+$" },
                 "taxMinor": { "type": "string", "pattern": "^[0-9]+$" },

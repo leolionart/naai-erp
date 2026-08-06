@@ -52,6 +52,12 @@ type ImportedExpense = Record<string, unknown> &
       fundingSource: string;
       monthLabel: string;
       invoiceFile: string;
+      sourceExpenseType: string;
+      supplierDisplayName: string | null;
+      supplierInferenceSource: "personnel" | "note" | "category_default" | "unresolved";
+      categoryCode: string;
+      categoryLabel: string;
+      categoryInferenceSource: "expense_type" | "note" | "fallback";
     }>;
     legacyControlTreatment: ControlTreatment;
   }>;
@@ -124,6 +130,124 @@ const REVIEWED_SALES_PROJECT_ROWS = new Map<number, number>([
   [33, 7],
   [39, 7],
 ]);
+
+type ExpenseCategoryInference = Readonly<{
+  code: string;
+  label: string;
+  source: "expense_type" | "note" | "fallback";
+}>;
+
+const normalizeForInference = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLocaleLowerCase("vi");
+
+const expenseCategoryRules: readonly Readonly<{
+  code: string;
+  label: string;
+  patterns: readonly string[];
+}>[] = [
+  { code: "PAYROLL", label: "Lương và nhân sự", patterns: ["luong", "freelance"] },
+  { code: "BONUS", label: "Thưởng", patterns: ["thuong"] },
+  {
+    code: "MEALS_ENTERTAINMENT",
+    label: "Ăn uống và tiếp khách",
+    patterns: ["nha hang", "an uong", "pizza", "bbq", "kichi", "mcd premium", "golden gate"],
+  },
+  {
+    code: "EV_BATTERY_CHARGING",
+    label: "Thuê pin và sạc xe điện",
+    patterns: ["thue pin", "vinfast", "v-green", "tram sac"],
+  },
+  {
+    code: "INTERNET_TELECOM",
+    label: "Internet và viễn thông",
+    patterns: ["internet", "vien thong fpt"],
+  },
+  {
+    code: "ELECTRONICS_EQUIPMENT",
+    label: "Thiết bị điện tử",
+    patterns: ["thiet bi dien tu", "dien thoai di dong", "mobile", "macstore", "dien may xanh"],
+  },
+  {
+    code: "ELECTRICITY_UTILITIES",
+    label: "Điện và tiện ích",
+    patterns: ["tien dien", "dien luc"],
+  },
+  {
+    code: "TAXES_FEES",
+    label: "Thuế và phí",
+    patterns: ["thue & phi", "thue mon bai", "nop thue", "tien phat"],
+  },
+  {
+    code: "CASH_TRANSFER",
+    label: "Tiền mặt và điều chuyển",
+    patterns: ["rut tien mat", "so tiet kiem"],
+  },
+  {
+    code: "OFFICE_FURNISHINGS",
+    label: "Trang trí và nội thất văn phòng",
+    patterns: ["trang tri van phong", "noi that"],
+  },
+  {
+    code: "DOMAIN_SOFTWARE",
+    label: "Tên miền và phần mềm",
+    patterns: ["mua domain", "p.a viet nam"],
+  },
+  {
+    code: "CLOUD_DIGITAL_SERVICES",
+    label: "Máy chủ và dịch vụ số",
+    patterns: ["dich vu may chu", "freepik", "giza network"],
+  },
+  { code: "DEPOSIT_REFUND", label: "Hoàn tiền đặt cọc", patterns: ["hoan tien coc"] },
+  { code: "TRAVEL_TRANSPORT", label: "Đi lại và vận chuyển", patterns: ["vexere", "vjs viet nam"] },
+  {
+    code: "HEALTH_WELLNESS",
+    label: "Y tế và chăm sóc sức khỏe",
+    patterns: ["y te", "tham my", "medical"],
+  },
+  { code: "SPORTS_RECREATION", label: "Thể thao và phúc lợi", patterns: ["vnb sports", "hinoko"] },
+];
+
+const inferExpenseCategory = (expenseType: string, note: string): ExpenseCategoryInference => {
+  const normalizedType = normalizeForInference(expenseType);
+  const normalizedNote = normalizeForInference(note);
+  for (const rule of expenseCategoryRules) {
+    if (normalizedType && rule.patterns.some((pattern) => normalizedType.includes(pattern)))
+      return { code: rule.code, label: rule.label, source: "expense_type" };
+  }
+  for (const rule of expenseCategoryRules) {
+    if (rule.patterns.some((pattern) => normalizedNote.includes(pattern)))
+      return { code: rule.code, label: rule.label, source: "note" };
+  }
+  return { code: "OTHER_OPERATING", label: "Chi phí vận hành khác", source: "fallback" };
+};
+
+const inferSupplier = (
+  personnel: string,
+  note: string,
+  categoryCode: string,
+): Readonly<{
+  name: string | null;
+  source: "personnel" | "note" | "category_default" | "unresolved";
+}> => {
+  if (personnel.trim()) return { name: personnel.trim(), source: "personnel" };
+  const noteLines = note
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const supplierLines: string[] = [];
+  for (const line of noteLines) {
+    if (/^-{3,}$/.test(line) || /^\s*[\d.,]+\s*(vnd|eur|€)?\s*$/iu.test(line)) break;
+    supplierLines.push(line);
+  }
+  if (supplierLines.length > 0) return { name: supplierLines.join(" "), source: "note" };
+  if (categoryCode === "TAXES_FEES") return { name: "Cơ quan thuế", source: "category_default" };
+  return { name: null, source: "unresolved" };
+};
 
 const textValue = (value: ExcelJS.CellValue): string => {
   if (value === null || value === undefined) return "";
@@ -686,8 +810,11 @@ export async function buildWorkbookImportPayload(
       const date = parseDate(row.getCell(1).value);
       const gross = parseMoney(row.getCell(2).value);
       const tax = parseMoney(row.getCell(7).value);
-      const type = textValue(row.getCell(9).value) || "Chi phí vận hành";
+      const sourceExpenseType = textValue(row.getCell(9).value);
       const note = textValue(row.getCell(14).value);
+      const category = inferExpenseCategory(sourceExpenseType, note);
+      const supplier = inferSupplier(textValue(row.getCell(10).value), note, category.code);
+      const type = sourceExpenseType || category.label;
       reviewSources.push({
         workbook: "finance",
         sheet: "Chi phí",
@@ -713,7 +840,9 @@ export async function buildWorkbookImportPayload(
         },
       });
       const id = stableId("expense", hash, "Chi phí", rowNumber);
-      const lower = type.toLocaleLowerCase("vi");
+      // Preserve the source workbook's explicit profitability treatment. Inferred categories
+      // improve purchase-invoice classification but must not silently rewrite legacy controls.
+      const lower = sourceExpenseType.toLocaleLowerCase("vi");
       const noteLower = note.toLocaleLowerCase("vi");
       const recurringPersonnel =
         (lower.includes("lương") || lower.includes("thưởng")) &&
@@ -731,21 +860,15 @@ export async function buildWorkbookImportPayload(
           message: `legacy profitability control assigns ${date} transaction to month ${sourceMonth} of its 2025 rollup`,
         });
       }
-      const expenseClass =
-        lower.includes("lương") || lower.includes("thưởng")
-          ? "payroll_personnel"
-          : lower.includes("thuế")
-            ? "tax_payment"
-            : lower.includes("phí")
-              ? "platform_fee"
-              : "petty_cash";
       expenses.push({
         id,
         amountMinor: gross.toString(),
         taxMinor: tax.toString(),
         date,
-        class: expenseClass,
-        payeePartyId: party(textValue(row.getCell(10).value), "supplier"),
+        class: category.code,
+        payeePartyId: supplier.name
+          ? party(supplier.name, "supplier")
+          : party("Generic Supplier", "supplier"),
         businessPurpose: note || type,
         currency: "VND",
         sourceRowIndex: rowNumber,
@@ -761,6 +884,12 @@ export async function buildWorkbookImportPayload(
           fundingSource: textValue(row.getCell(12).value),
           monthLabel: textValue(row.getCell(13).value),
           invoiceFile: textValue(row.getCell(15).value),
+          sourceExpenseType,
+          supplierDisplayName: supplier.name,
+          supplierInferenceSource: supplier.source,
+          categoryCode: category.code,
+          categoryLabel: category.label,
+          categoryInferenceSource: category.source,
         },
         legacyControlTreatment: {
           sourceSheet: "Chi phí",

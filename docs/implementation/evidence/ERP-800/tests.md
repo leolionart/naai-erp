@@ -50,3 +50,13 @@ Local proof:
   test-first repair loop; no Browser screenshot is claimed.
 - Validation ran under Node 26 and emitted the repository engine warning (`>=22 <25`); all commands
   passed, but CI remains the supported-Node exact-commit proof.
+
+2026-08-06 validation-configuration hardening:
+
+- Commercial OpenAPI contract corrected: optional server-generated `id`; required `fiscalYear` and
+  `dueDate` with date-order semantics.
+- Dashboard and focused-record E2E: 15/15 passed, including reversed dashboard URL dates and invoice
+  due date before document date.
+- CLI migration preflight suite: 256 passed, 2 skipped; real workbook focused test: 1/1 passed.
+- Web typecheck and final repository `pnpm check` passed, including lint, typecheck, docs/security,
+  native PostgreSQL harness, package tests and production build.

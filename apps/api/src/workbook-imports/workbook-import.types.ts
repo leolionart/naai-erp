@@ -58,6 +58,12 @@ export interface ImportExpenseInput {
     fundingSource?: string;
     monthLabel?: string;
     invoiceFile?: string;
+    sourceExpenseType?: string;
+    supplierDisplayName?: string | null;
+    supplierInferenceSource?: "personnel" | "note" | "category_default" | "unresolved";
+    categoryCode?: string;
+    categoryLabel?: string;
+    categoryInferenceSource?: "expense_type" | "note" | "fallback";
   }>;
   legacyControlTreatment?: LegacyControlTreatment;
 }

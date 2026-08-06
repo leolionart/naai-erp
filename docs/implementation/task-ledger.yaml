@@ -913,6 +913,7 @@ tasks:
     resumed_again_at: 2026-08-06T21:05:00+07:00
     resumed_for_owner_ui_at: 2026-08-06T22:49:24+07:00
     review_ready_at: 2026-08-06T22:54:00+07:00
+    validation_hardening_review_at: 2026-08-06T23:11:00+07:00
     agent: codex-root
     planned_files:
       - apps/api/src/workbook-imports/

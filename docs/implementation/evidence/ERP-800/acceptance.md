@@ -21,3 +21,7 @@
 - Legacy expense replacement requires an exact source ID/date/party/amount/currency match and uses
   normal journal reversal plus purchase-invoice lifecycle APIs; it cannot silently bypass duplicate
   protection for a mismatched source.
+- Commercial-document OpenAPI required fields match runtime validation; invoice forms reject a due
+  date before the document date; dashboard URL dates are normalized before report requests.
+- Migration dry-run preflights money, party, date, currency and purpose fields so invalid rows stop
+  before any live API mutation rather than surfacing as `VALIDATION_FAILED` mid-run.

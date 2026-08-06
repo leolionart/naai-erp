@@ -329,3 +329,26 @@ test("@desktop surfaces executive metrics API failure without hiding other dashb
   await expect(page.getByText("Không tải được Executive Metrics")).toBeVisible();
   await expect(page.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
 });
+
+test("@desktop normalizes invalid dashboard date configuration before API requests", async ({
+  page,
+}) => {
+  const requestedUrls: string[] = [];
+  await install(page, requestedUrls);
+  await page.goto(
+    "http://localhost:3000/dashboard?periodId=invalid&startsOn=2026-09-01&endsOn=2026-08-01&asOfDate=2026-07-01",
+  );
+  await expect(page.getByRole("heading", { name: "Tổng quan điều hành" })).toBeVisible();
+  await expect
+    .poll(() => requestedUrls.some((url) => url.includes("executive-metrics")))
+    .toBe(true);
+  const executiveUrl = requestedUrls.find((url) => url.includes("executive-metrics"));
+  expect(executiveUrl).toContain("startsOn=");
+  expect(executiveUrl).toContain("endsOn=");
+  expect(executiveUrl).toContain("asOfInstant=");
+  const parsed = new URL(executiveUrl!);
+  expect(parsed.searchParams.get("startsOn")! <= parsed.searchParams.get("endsOn")!).toBe(true);
+  expect(parsed.searchParams.get("asOfInstant")!.slice(0, 10)).toBe(
+    parsed.searchParams.get("endsOn"),
+  );
+});

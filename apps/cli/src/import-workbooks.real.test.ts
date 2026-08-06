@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildWorkbookImportPayload } from "./import-workbooks.js";
+import { workbookExpenseMigrationErrors } from "./workbook-expense-migration.js";
 
 const projectPath = process.env.ERP740_PROJECT_WORKBOOK;
 const financePath = process.env.ERP740_FINANCE_WORKBOOK;
@@ -8,6 +9,7 @@ const describeReal = projectPath && financePath ? describe : describe.skip;
 describeReal("ERP-740 real workbook controls", () => {
   it("extracts exact detail and Tỷ suất lợi nhuận control totals", async () => {
     const payload = await buildWorkbookImportPayload(projectPath, financePath);
+    expect(workbookExpenseMigrationErrors(payload.expenses)).toEqual([]);
     expect(payload.mappingVersion).toBe(3);
     const sales = payload.salesInvoices
       .filter((item) => String(item.documentDate).startsWith("2025"))

@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { buildWorkbookImportPayload } from "./import-workbooks.js";
+import { workbookExpenseMigrationErrors } from "./workbook-expense-migration.js";
 
 type Envelope = { data?: Record<string, unknown>; error?: unknown };
 
@@ -61,6 +62,9 @@ const request = async (
 };
 
 const payload = await buildWorkbookImportPayload(projectWorkbook, financeWorkbook);
+const preflightErrors = workbookExpenseMigrationErrors(payload.expenses);
+if (preflightErrors.length)
+  throw new Error(`workbook expense migration preflight failed:\n${preflightErrors.join("\n")}`);
 const nonZero = payload.expenses.filter((expense) => BigInt(String(expense.amountMinor)) > 0n);
 const zero = payload.expenses.filter((expense) => BigInt(String(expense.amountMinor)) === 0n);
 const fileCounts = new Map<string, number>();

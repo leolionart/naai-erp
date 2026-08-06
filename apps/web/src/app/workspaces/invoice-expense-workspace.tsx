@@ -14,7 +14,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -95,21 +102,25 @@ function label(value: unknown) {
 function TextField({
   label: fieldLabel,
   onChange,
+  error,
   ...props
 }: Omit<ComponentProps<typeof Input>, "onChange"> & {
   label: string;
   onChange?: (value: string) => void;
+  error?: string;
 }) {
   const generatedId = useId();
   const controlId = props.id ?? generatedId;
   return (
-    <Field>
+    <Field data-invalid={Boolean(error)}>
       <FieldLabel htmlFor={controlId}>{fieldLabel}</FieldLabel>
       <Input
         {...props}
         id={controlId}
+        aria-invalid={Boolean(error)}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
       />
+      {error ? <FieldError>{error}</FieldError> : null}
     </Field>
   );
 }
@@ -356,6 +367,7 @@ export function DocumentForm({
   }));
   const set = (key: keyof typeof form, value: string) => setForm((v) => ({ ...v, [key]: value }));
   const gross = add(form.net, form.tax);
+  const dueDateInvalid = Boolean(form.date && form.dueDate && form.dueDate < form.date);
 
   function changeType(type: string) {
     setForm((current) => ({
@@ -369,6 +381,7 @@ export function DocumentForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (dueDateInvalid) return;
     const dimensions: Record<string, string> = {
       costCenter: form.costCenter || "GENERAL",
       ...(form.project ? { projectId: form.project } : {}),
@@ -452,8 +465,10 @@ export function DocumentForm({
           label="Hạn thanh toán"
           required
           type="date"
+          min={form.date}
           value={form.dueDate}
           onChange={(v) => set("dueDate", v)}
+          error={dueDateInvalid ? "Hạn thanh toán không được trước ngày hóa đơn." : undefined}
         />
         <TextField
           label="Nội dung"
@@ -542,7 +557,7 @@ export function DocumentForm({
           </>
         ) : null}
       </FieldGroup>
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || dueDateInvalid}>
         {submitLabel}
       </Button>
     </form>

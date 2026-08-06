@@ -204,6 +204,17 @@ test("@desktop edits a draft invoice through PATCH and reloads the new resource 
   await expect(page.getByText("INV-720-EDITED", { exact: true })).toBeVisible();
 });
 
+test("@desktop blocks an invoice due date before its document date", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/documents/invoice-720");
+  await page.getByRole("button", { name: "Sửa draft" }).click();
+  const dialog = page.getByRole("dialog", { name: "Sửa draft hóa đơn" });
+  await dialog.getByLabel("Ngày hóa đơn").fill("2026-08-21");
+  await expect(dialog.getByLabel("Hạn thanh toán")).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByText("Hạn thanh toán không được trước ngày hóa đơn.")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Lưu thay đổi hóa đơn" })).toBeDisabled();
+});
+
 test("@desktop reports stale draft edit conflicts without closing the form", async ({ page }) => {
   await install(page, {
     kind: "documents",

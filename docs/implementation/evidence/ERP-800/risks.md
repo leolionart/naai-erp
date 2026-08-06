@@ -16,3 +16,6 @@
   separate maker, checker and finance credentials plus explicit `--commit`; dry-run is the default.
 - Local validation used Node 26 although the repository contract is Node 22-24. Exact-commit CI on
   the supported runtime is required before closing G8.
+- Dry-run now rejects structurally invalid purchase-invoice candidates before mutation. Rows that
+  pass preflight can still require business review (supplier identity, tax eligibility and payment
+  allocation); preflight is contract validation, not accountant approval.

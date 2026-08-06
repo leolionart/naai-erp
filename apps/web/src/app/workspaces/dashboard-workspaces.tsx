@@ -161,6 +161,7 @@ type Preview = Readonly<{
 }>;
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const monthEnd = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
@@ -176,16 +177,25 @@ function resolvedDashboardSearch(
     .filter((row) => BigInt(row.revenueMinor) > 0n)
     .map((row) => row.period)
     .sort((left, right) => right.localeCompare(left))[0];
-  const period = /^(?:CAL-)?(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(
+  const periodMatch = /^(?:CAL-)?(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(
     requestedPeriod ?? latestSourcePeriod ?? currentMonth(),
-  )?.[1];
-  if (!requestedPeriod) search.set("periodId", `CAL-${period ?? currentMonth()}`);
+  );
+  const period = periodMatch?.[1] ?? latestSourcePeriod ?? currentMonth();
+  if (!periodMatch || !requestedPeriod) search.set("periodId", `CAL-${period}`);
   if (!search.has("actualBasis")) search.set("actualBasis", "invoiced");
-  if (period) {
-    if (!search.has("startsOn")) search.set("startsOn", `${period}-01`);
-    if (!search.has("endsOn")) search.set("endsOn", monthEnd(period));
-    if (!search.has("asOfDate")) search.set("asOfDate", monthEnd(period));
+  const defaultStart = `${period}-01`;
+  const defaultEnd = monthEnd(period);
+  let startsOn = search.get("startsOn") ?? defaultStart;
+  let endsOn = search.get("endsOn") ?? defaultEnd;
+  if (!ISO_DATE.test(startsOn) || !ISO_DATE.test(endsOn) || startsOn > endsOn) {
+    startsOn = defaultStart;
+    endsOn = defaultEnd;
   }
+  let asOfDate = search.get("asOfDate") ?? endsOn;
+  if (!ISO_DATE.test(asOfDate) || asOfDate < endsOn) asOfDate = endsOn;
+  search.set("startsOn", startsOn);
+  search.set("endsOn", endsOn);
+  search.set("asOfDate", asOfDate);
   return search;
 }
 
