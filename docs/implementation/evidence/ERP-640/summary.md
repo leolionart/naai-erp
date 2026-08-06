@@ -2,7 +2,7 @@
 
 - Task: ERP-640 — Executive metrics
 - Gate: G6 — Planning and management reporting
-- Status: implementation complete; exact-commit CI pending
+- Status: accepted
 
 ERP-640 exposes profitability ratios, purpose-specific returns, accumulated loss, Equity Consumed, operating net burn and runway from reviewed, versioned source semantics. Every metric retains its formula version, period, dimensions, numerator/denominator and source boundary.
 
@@ -12,4 +12,6 @@ Approved executive-metric policies and semantic mappings define contributed capi
 
 The REST API, canonical OpenAPI document, capability discovery and first-party CLI expose policy versioning, approvals, ROI definitions/facts and the aggregate plus five focused projections. The admin UI provides a report landing page and dedicated equity, liquidity, profitability, returns and ROI pages with URL-backed Sheet filters, source Drawers, structured Alerts and responsive exact-value tables. AI access remains underneath the UI through the same discoverable contracts.
 
-`GF-EQUITY-001` independently verifies the formula boundary without importing production code. The integrated local worktree passes repository checks, all 33 migration-journal entries, all golden fixtures and 51/51 desktop/mobile Playwright journeys. PostgreSQL migration and executive-metric integration remain an exact-commit CI gate before acceptance.
+`GF-EQUITY-001` independently verifies the formula boundary without importing production code. The integrated local worktree passes repository checks, all 33 migration-journal entries, all golden fixtures and 51/51 desktop/mobile Playwright journeys.
+
+Implementation began at `192d8aef7231aadcd893c6c2c2e49c392b645ac5`. Exact-commit proof passed at `b23d70bb8fdb4b27123cb41e1bea8e5830f9a9f2`, including all PostgreSQL database/API/worker suites and 51/51 Playwright journeys: https://github.com/leolionart/naai-erp/actions/runs/31069121747.

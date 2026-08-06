@@ -804,20 +804,26 @@ tasks:
   - id: ERP-640
     title: Executive metrics
     phase: P6
-    status: in_progress
+    status: done
     dependencies: [ERP-620, ERP-630]
     business_rules: [BR-KPI-003, BR-KPI-004, BR-KPI-005]
     tests: [T-KPI-003, T-KPI-004, T-KPI-005]
     evidence: docs/implementation/evidence/ERP-640/
     started_at: 2026-08-06T09:31:47+07:00
+    completed_at: 2026-08-06T10:50:57+07:00
+    implementation_commit: 192d8aef7231aadcd893c6c2c2e49c392b645ac5
+    proof_commit: b23d70bb8fdb4b27123cb41e1bea8e5830f9a9f2
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31069121747
 
   - id: ERP-650
     title: Accountant export and report snapshots
     phase: P6
-    status: blocked
+    status: in_progress
     dependencies: [ERP-630]
     business_rules: [BR-EXPOR-001, BR-SNP-001]
     tests: [T-EXPOR-001, T-SNP-001]
+    evidence: docs/implementation/evidence/ERP-650/
+    started_at: 2026-08-06T10:50:57+07:00
 
   - id: ERP-700
     title: Dashboards and drill-down

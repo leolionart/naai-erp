@@ -12,4 +12,4 @@ Current acceptance coverage:
 - Pass locally: the admin landing plus five dedicated report pages use URL-backed Sheet filters, source Drawer, blocking Alerts and responsive tables; targeted Playwright passes 4/4 and the full suite passes 51/51.
 - Pass locally: `pnpm check`, `pnpm db:check`, `pnpm test:fixtures`, `pnpm test:e2e` and `git diff --check` pass in the integrated worktree.
 
-Acceptance remains pending exact-commit GitHub CI for the complete PostgreSQL API/worker integration and Playwright suite.
+Accepted in exact-commit GitHub CI for `b23d70bb8fdb4b27123cb41e1bea8e5830f9a9f2`: repository quality/build, all 33 migrations, 28/28 database tests, 119/119 API tests, 8/8 worker tests and 51/51 desktop/mobile Playwright journeys passed at https://github.com/leolionart/naai-erp/actions/runs/31069121747.
