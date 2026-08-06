@@ -1190,6 +1190,10 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
+  const overdueMinor = data.operating?.collections.overdueMinor ?? "0";
+  const topClientShare = data.operating?.clientConcentration.topClientShareBps
+    ? ratio(data.operating.clientConcentration.topClientShareBps)
+    : "—";
   const details: Record<
     string,
     {
@@ -1203,30 +1207,45 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
     revenue: {
       title: "Doanh thu thực tế",
       value: money(performance?.actualVsFullTarget.numeratorMinor, performance?.currency),
-      formula: performance?.actualVsFullTarget.formulaVersion ?? "N/A",
+      formula: performance?.actualVsFullTarget.formulaVersion ?? "Performance Comparison API",
       sourceIds: performance?.actualVsFullTarget.numeratorSourceIds ?? [],
       canonicalHref: `/reports/performance/${encodeURIComponent(performance?.period.id ?? search.get("periodId") ?? "current")}?${q}`,
     },
     ros: {
-      title: "ROS",
+      title: "ROS (Return on Sales)",
       value: ratio(executive?.ros.valueBps),
-      formula: executive?.ros.formulaVersion ?? "N/A",
+      formula: executive?.ros.formulaVersion ?? "Executive Metrics API",
       sourceIds: executive?.sourceBoundary.sourceIds ?? [],
       canonicalHref: `/reports/executive-metrics/profitability?${q}`,
     },
     runway: {
-      title: "Runway",
+      title: "Cash Runway",
       value: months(executive?.runwayMonthsThousandths),
-      formula: executive?.runwayFormulaVersion ?? "N/A",
+      formula: executive?.runwayFormulaVersion ?? "Executive Metrics API",
       sourceIds: executive?.sourceBoundary.sourceIds ?? [],
       canonicalHref: `/reports/executive-metrics/liquidity?${q}`,
     },
     "equity-consumed": {
       title: "Equity consumed",
       value: ratio(executive?.equityConsumed.valueBps),
-      formula: executive?.equityConsumed.formulaVersion ?? "N/A",
+      formula: executive?.equityConsumed.formulaVersion ?? "Executive Metrics API",
       sourceIds: executive?.sourceBoundary.sourceIds ?? [],
       canonicalHref: `/reports/executive-metrics/equity?${q}`,
+    },
+    overdue: {
+      title: "Công nợ quá hạn & DSO",
+      value: money(overdueMinor, data.aging?.baseCurrency),
+      formula: "AR Aging Read Model",
+      sourceIds:
+        data.aging?.exceptions.map((item) => item.itemId ?? item.controlAccountCode ?? "AR") ?? [],
+      canonicalHref: `/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`,
+    },
+    client: {
+      title: "Tập trung khách hàng",
+      value: topClientShare,
+      formula: "Operating & Executive Concentration Model",
+      sourceIds: [],
+      canonicalHref: "/customers",
     },
   };
   const detail = details[metricKey];

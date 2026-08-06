@@ -113,6 +113,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
   const pathname = usePathname();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
+  const [parties, setParties] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
@@ -138,10 +139,14 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
         sourceParams.set("class", "non_documented");
       }
-      const result = await client.data<{ items?: Row[] } | Row[]>(
-        `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
-      );
+      const [result, partiesRes] = await Promise.all([
+        client.data<{ items?: Row[] } | Row[]>(
+          `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
+        ),
+        client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=100").catch(() => []),
+      ]);
       setRows(Array.isArray(result) ? result : (result.items ?? []));
+      setParties(Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
@@ -237,39 +242,69 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{sourceKind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
-                  <TableHead>{sourceKind === "documents" ? "Loại" : "Mục đích"}</TableHead>
-                  <TableHead>Đối tượng</TableHead>
-                  <TableHead className="text-right">Tổng tiền</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
+                  <TableHead className="w-[140px]">
+                    {sourceKind === "documents" ? "Số hóa đơn" : "Mã chi phí"}
+                  </TableHead>
+                  <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
+                  <TableHead className="w-[140px]">
+                    {sourceKind === "documents" ? "Loại hóa đơn" : "Phân loại chi phí"}
+                  </TableHead>
+                  <TableHead>
+                    {sourceKind === "documents" ? "Đối tượng (Mua/Bán)" : "Chi cho ai / Người nhận"}
+                  </TableHead>
+                  <TableHead>
+                    {sourceKind === "documents" ? "Nội dung / Diễn giải" : "Mục đích chi"}
+                  </TableHead>
+                  <TableHead className="w-[140px] text-right">Tổng tiền</TableHead>
+                  <TableHead className="w-[120px]">Trạng thái</TableHead>
+                  <TableHead className="w-[110px] text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((row) => {
                   const id = text(row, "id");
+                  const dateVal = text(
+                    row,
+                    sourceKind === "documents" ? "documentDate" : "expenseDate",
+                  );
+                  const rawParty =
+                    text(row, sourceKind === "documents" ? "partyId" : "payeePartyId") ||
+                    text(row, "employeePartyId");
+                  const partyMatch = parties.find((p) => String(p.id) === rawParty);
+                  const partyName = partyMatch
+                    ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
+                    : rawParty || "—";
+                  const docNumber = text(row, "documentNumber") || id;
+
                   return (
                     <TableRow key={id}>
-                      <TableCell className="font-medium">
-                        {text(row, sourceKind === "documents" ? "documentNumber" : "expenseDate") ||
-                          id}
+                      <TableCell className="font-semibold text-foreground">{docNumber}</TableCell>
+                      <TableCell className="font-medium text-foreground tabular-nums">
+                        {dateVal || "—"}
                       </TableCell>
                       <TableCell>
-                        {human(text(row, sourceKind === "documents" ? "type" : "businessPurpose"))}
+                        <Badge variant="outline">
+                          {human(text(row, sourceKind === "documents" ? "type" : "expenseClass"))}
+                        </Badge>
                       </TableCell>
-                      <TableCell>
-                        {text(row, sourceKind === "documents" ? "partyId" : "payeePartyId") || "—"}
+                      <TableCell className="font-medium">{partyName}</TableCell>
+                      <TableCell
+                        className="max-w-[200px] truncate text-muted-foreground"
+                        title={text(row, sourceKind === "documents" ? "reason" : "businessPurpose")}
+                      >
+                        {text(row, sourceKind === "documents" ? "reason" : "businessPurpose") ||
+                          "—"}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="text-right tabular-nums font-semibold text-foreground">
                         {money(text(row, "grossMinor"))}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{human(text(row, "state"))}</Badge>
+                        <Badge variant="secondary">{human(text(row, "state"))}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => void openQuickView(row)}>
                           <Eye data-icon="inline-start" />
-                          Xem nhanh
+                          Xem
                         </Button>
                       </TableCell>
                     </TableRow>
