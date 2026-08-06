@@ -209,13 +209,17 @@ function resolvedDashboardSearch(
   const period = periodMatch?.[1] ?? latestSourcePeriod ?? currentMonth();
   if (!periodMatch || !requestedPeriod) search.set("periodId", `CAL-${period}`);
   if (!search.has("actualBasis")) search.set("actualBasis", "invoiced");
-  const defaultStart = `${period}-01`;
-  const defaultEnd = monthEnd(period);
-  let startsOn = search.get("startsOn") ?? defaultStart;
-  let endsOn = search.get("endsOn") ?? defaultEnd;
+
+  const kind = (search.get("periodKind") as PeriodKind | null) ?? "year";
+  if (!search.has("periodKind")) search.set("periodKind", kind);
+
+  const range = periodRange(period, kind);
+  let startsOn = search.get("startsOn") ?? range.startsOn;
+  let endsOn = search.get("endsOn") ?? range.endsOn;
+
   if (!ISO_DATE.test(startsOn) || !ISO_DATE.test(endsOn) || startsOn > endsOn) {
-    startsOn = defaultStart;
-    endsOn = defaultEnd;
+    startsOn = range.startsOn;
+    endsOn = range.endsOn;
   }
   let asOfDate = search.get("asOfDate") ?? endsOn;
   if (!ISO_DATE.test(asOfDate) || asOfDate < endsOn) asOfDate = endsOn;
@@ -600,7 +604,7 @@ export function ExecutiveDashboardWorkspace() {
   const [preview, setPreview] = useState<Preview>();
   const router = useRouter();
   const pathname = usePathname();
-  const periodKind = (search.get("periodKind") as PeriodKind | null) ?? "month";
+  const periodKind = (search.get("periodKind") as PeriodKind | null) ?? "year";
   const requestedAnchor = (search.get("periodId") ?? `CAL-${currentMonth()}`).replace(/^CAL-/, "");
   const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor)
     ? requestedAnchor
@@ -618,6 +622,16 @@ export function ExecutiveDashboardWorkspace() {
     next.set("asOfDate", range.endsOn);
     router.replace(`${pathname}?${next}`);
   }
+
+  const now = new Date();
+  const currentYearVal = now.getFullYear();
+  const currentMonthVal = now.getMonth() + 1;
+  const nextAnchor = shiftedMonth(anchorMonth, periodKind, 1);
+  const [nextYear, nextMonth] = nextAnchor.split("-").map(Number);
+  const isFuture =
+    periodKind === "year"
+      ? nextYear > currentYearVal
+      : nextYear > currentYearVal || (nextYear === currentYearVal && nextMonth > currentMonthVal);
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
@@ -739,6 +753,7 @@ export function ExecutiveDashboardWorkspace() {
                 variant="outline"
                 aria-label="Kỳ sau"
                 onClick={() => setPeriod(periodKind, 1)}
+                disabled={isFuture}
               >
                 <ChevronRight />
               </Button>
