@@ -60,3 +60,25 @@ Local proof:
 - CLI migration preflight suite: 256 passed, 2 skipped; real workbook focused test: 1/1 passed.
 - Web typecheck and final repository `pnpm check` passed, including lint, typecheck, docs/security,
   native PostgreSQL harness, package tests and production build.
+
+2026-08-06 receipt and supplier reconciliation:
+
+- Real-workbook inference regression: 1/1 passed; CLI and API typechecks passed.
+- Supplier proposals: 151 from notes, 55 from personnel, 2 category defaults, 6 unresolved.
+- Live workbook dry-run and commit: valid with zero errors; 56 supplier parties created and staging
+  refreshed without duplicating projects, sales invoices or expenses.
+- Banking/Reconciliation API readback: 41 transactions, 41 reconciliations and 41 allocations totaling
+  400,271,725 VND.
+- AR aging at 2026-08-06: 2,100,000 VND outstanding; account 131 variance 0.
+- Ledger readback after receipts: debit = credit = 2,558,787,746 VND.
+- Bootstrap body-limit regression: 4/4 passed; API typecheck passed.
+- In-app browser: dashboard chart renders with no console errors; `/receivables` shows only AREUS at
+  2,100,000 VND and variance 0; `/payables` remains tied at variance 0.
+
+2026-08-06 listing-first UI and period controls:
+
+- Web typecheck passed.
+- Full Playwright rerun after constraining Popover content to Radix's available viewport height:
+  80/80 passed across desktop and 390px mobile projects.
+- Dashboard suite: 8/8 passed, including Month/Quarter/Year URL mapping and regression proof that
+  broader selections never send unsupported quarter/year `periodId` values.

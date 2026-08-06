@@ -26,13 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import {
   projectProfitabilityApi,
   type ProfitabilityBreakdownRow,
@@ -308,16 +309,21 @@ export function ProjectProfitabilityQueueWorkspace() {
         </CardContent>
       </Card>
 
-      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent>
-          <form action={applyFilters} className="flex h-full flex-col">
-            <SheetHeader>
-              <SheetTitle>Bộ lọc profitability</SheetTitle>
-              <SheetDescription>
+      <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <PopoverActiveAnchor open={Boolean(filtersOpen)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
+          <form action={applyFilters} className="flex flex-col">
+            <PopoverHeader>
+              <PopoverTitle>Bộ lọc profitability</PopoverTitle>
+              <PopoverDescription>
                 Kỳ và dimensions được lưu trên URL để chia sẻ đúng ngữ cảnh.
-              </SheetDescription>
-            </SheetHeader>
-            <FieldGroup className="min-h-0 flex-1 overflow-y-auto py-4 pr-1">
+              </PopoverDescription>
+            </PopoverHeader>
+            <FieldGroup className="py-4 pr-1">
               <Field>
                 <FieldLabel htmlFor="prf-start">Từ ngày</FieldLabel>
                 <Input
@@ -384,15 +390,15 @@ export function ProjectProfitabilityQueueWorkspace() {
                 </Select>
               </Field>
             </FieldGroup>
-            <SheetFooter>
+            <PopoverFooter className="sticky bottom-0 bg-popover py-2">
               <Button type="button" variant="outline" onClick={() => router.replace(pathname)}>
                 Xóa bộ lọc
               </Button>
               <Button type="submit">Áp dụng</Button>
-            </SheetFooter>
+            </PopoverFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

@@ -36,12 +36,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createApiClient,
@@ -276,14 +277,19 @@ export function InternalTransferListWorkspace() {
         </CardContent>
       </Card>
 
-      <Sheet open={filterSheet} onOpenChange={setFilterSheet}>
-        <SheetContent className="w-[min(92vw,28rem)]">
-          <SheetHeader>
-            <SheetTitle>Lọc transfer queue</SheetTitle>
-            <SheetDescription>
+      <Popover open={filterSheet} onOpenChange={setFilterSheet}>
+        <PopoverActiveAnchor open={Boolean(filterSheet)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,28rem)] overflow-y-auto"
+        >
+          <PopoverHeader>
+            <PopoverTitle>Lọc transfer queue</PopoverTitle>
+            <PopoverDescription>
               Lọc theo trạng thái, tài khoản sở hữu hoặc tham chiếu.
-            </SheetDescription>
-          </SheetHeader>
+            </PopoverDescription>
+          </PopoverHeader>
           <FieldGroup className="px-4">
             <Field>
               <FieldLabel htmlFor="transfer-query">Tìm kiếm</FieldLabel>
@@ -331,8 +337,8 @@ export function InternalTransferListWorkspace() {
               />
             </Field>
           </FieldGroup>
-        </SheetContent>
-      </Sheet>
+        </PopoverContent>
+      </Popover>
 
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">

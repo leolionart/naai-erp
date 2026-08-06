@@ -32,7 +32,7 @@ suite("ERP-410 reconciliation PostgreSQL API", () => {
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,description) values('org-erp410','source-journal',1,'131',110000000,'AR');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,credit_minor,description) values('org-erp410','source-journal',2,'511',110000000,'Revenue');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,created_by,issued_or_posted_by,issued_or_posted_at)
-       values('org-erp410','sales-1','sales_invoice','issued','SI-001','SI',2026,'client-1','2026-08-01','2026-08-31','VND',110000000,0,110000000,'131','source-journal','finance','finance',now());
+       values('org-erp410','sales-1','sales_invoice','posted','SI-001','SI',2026,'client-1','2026-08-01','2026-08-31','VND',110000000,0,110000000,'131','source-journal','finance','finance',now());
     `);
     await pool.query(
       "insert into api_credentials(organization_id,id,actor_id,token_hash,roles) values('org-erp410','cred','finance',$1,'[\"finance_admin\"]')",

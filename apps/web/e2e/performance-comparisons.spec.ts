@@ -169,7 +169,7 @@ test("@desktop persists performance filters on URL and opens dedicated period pa
   const requests = await install(page);
   await page.goto("http://localhost:3000/reports/performance?periodId=CAL-2024-02");
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc hiệu suất" });
+  const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Actual basis").click();
   await page.getByRole("option", { name: "Collected" }).click();
   await sheet.getByLabel("Service line").fill("web-app");

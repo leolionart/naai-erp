@@ -44,13 +44,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createApiClient,
@@ -256,13 +257,18 @@ export function TimesheetQueueWorkspace({ approvals = false }: Readonly<{ approv
           />
         </CardContent>
       </Card>
-      <Sheet open={filters} onOpenChange={setFilters}>
-        <SheetContent className="w-[min(96vw,30rem)]">
+      <Popover open={filters} onOpenChange={setFilters}>
+        <PopoverActiveAnchor open={Boolean(filters)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
           <form action={apply} className="flex h-full flex-col">
-            <SheetHeader>
-              <SheetTitle>Bộ lọc timesheet</SheetTitle>
-              <SheetDescription>Filter được lưu trên URL.</SheetDescription>
-            </SheetHeader>
+            <PopoverHeader>
+              <PopoverTitle>Bộ lọc timesheet</PopoverTitle>
+              <PopoverDescription>Filter được lưu trên URL.</PopoverDescription>
+            </PopoverHeader>
             <div className="flex-1 px-4 py-2">
               <FieldGroup>
                 <Field>
@@ -285,12 +291,12 @@ export function TimesheetQueueWorkspace({ approvals = false }: Readonly<{ approv
                 ) : null}
               </FieldGroup>
             </div>
-            <SheetFooter>
+            <PopoverFooter>
               <Button type="submit">Áp dụng</Button>
-            </SheetFooter>
+            </PopoverFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

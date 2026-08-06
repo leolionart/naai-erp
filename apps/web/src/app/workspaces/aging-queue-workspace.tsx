@@ -18,13 +18,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import {
   agingApi,
@@ -286,15 +287,20 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
         </CardContent>
       </Card>
 
-      <Sheet open={filterSheet} onOpenChange={setFilterSheet}>
-        <SheetContent className="w-[min(96vw,30rem)]">
+      <Popover open={filterSheet} onOpenChange={setFilterSheet}>
+        <PopoverActiveAnchor open={Boolean(filterSheet)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
           <form action={applyFilters} className="flex h-full flex-col">
-            <SheetHeader>
-              <SheetTitle>Bộ lọc tuổi nợ</SheetTitle>
-              <SheetDescription>
+            <PopoverHeader>
+              <PopoverTitle>Bộ lọc tuổi nợ</PopoverTitle>
+              <PopoverDescription>
                 Bộ lọc được lưu trên URL để chia sẻ và tải lại đúng snapshot.
-              </SheetDescription>
-            </SheetHeader>
+              </PopoverDescription>
+            </PopoverHeader>
             <div className="flex-1 px-4 py-2">
               <FieldGroup>
                 <Field>
@@ -339,12 +345,12 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
                 </Field>
               </FieldGroup>
             </div>
-            <SheetFooter>
+            <PopoverFooter>
               <Button type="submit">Áp dụng bộ lọc</Button>
-            </SheetFooter>
+            </PopoverFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

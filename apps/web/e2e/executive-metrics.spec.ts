@@ -22,7 +22,7 @@ test("@desktop persists executive filters in the URL and opens source Drawer", a
   await page.goto("http://localhost:3000/reports/executive-metrics/equity");
   await expect(page.getByText("42,00%").first()).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc chỉ số điều hành" });
+  const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Service line").fill("web-app");
   await sheet.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
@@ -53,9 +53,7 @@ test("@mobile executive metrics keep filters and exact table within the viewport
   await expect(page.getByText("4,00 tháng").first()).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   await expect(
-    page
-      .getByRole("dialog", { name: "Bộ lọc chỉ số điều hành" })
-      .getByRole("button", { name: "Áp dụng" }),
+    page.locator('[data-slot="popover-content"]').getByRole("button", { name: "Áp dụng" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   const overflow = await page.evaluate(

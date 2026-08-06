@@ -24,21 +24,13 @@ import {
 } from "@/components/ui/card";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,13 +42,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -164,7 +157,7 @@ function PreviewAlert({ fallback }: { fallback: boolean }) {
   ) : null;
 }
 
-function SourceDrawer({
+function SourceDialog({
   snapshot,
   open,
   onOpenChange,
@@ -174,15 +167,15 @@ function SourceDrawer({
   onOpenChange(open: boolean): void;
 }) {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>Nguồn và readiness</DrawerTitle>
-          <DrawerDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(90vh,48rem)] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Nguồn và readiness</DialogTitle>
+          <DialogDescription>
             Đường biên dữ liệu bất biến dùng để tạo file bàn giao.
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-4 px-4 text-sm">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 text-sm">
           <Readiness value={snapshot?.readiness ?? "review_required"} />
           <dl className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -211,13 +204,13 @@ function SourceDrawer({
             </Alert>
           ) : null}
         </div>
-        <DrawerFooter>
-          <DrawerClose asChild>
+        <DialogFooter>
+          <DialogClose asChild>
             <Button variant="outline">Đóng</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -327,12 +320,17 @@ export function AccountantExportListWorkspace() {
           </CardContent>
         </Card>
       </div>
-      <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Lọc gói xuất</SheetTitle>
-            <SheetDescription>Thu hẹp danh sách theo định dạng bàn giao.</SheetDescription>
-          </SheetHeader>
+      <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+        <PopoverActiveAnchor open={Boolean(filterOpen)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
+          <PopoverHeader>
+            <PopoverTitle>Lọc gói xuất</PopoverTitle>
+            <PopoverDescription>Thu hẹp danh sách theo định dạng bàn giao.</PopoverDescription>
+          </PopoverHeader>
           <div className="px-4">
             <FieldGroup>
               <Field>
@@ -355,11 +353,11 @@ export function AccountantExportListWorkspace() {
               </Field>
             </FieldGroup>
           </div>
-          <SheetFooter>
+          <PopoverFooter>
             <Button onClick={() => setFilterOpen(false)}>Áp dụng</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </PopoverFooter>
+        </PopoverContent>
+      </Popover>
     </ModulePage>
   );
 }
@@ -696,7 +694,7 @@ export function AccountantExportDetailWorkspace({
           </CardFooter>
         </Card>
       </div>
-      <SourceDrawer snapshot={item.snapshot} open={sourceOpen} onOpenChange={setSourceOpen} />
+      <SourceDialog snapshot={item.snapshot} open={sourceOpen} onOpenChange={setSourceOpen} />
       <Dialog open={supersedeOpen} onOpenChange={setSupersedeOpen}>
         <DialogContent>
           <DialogHeader>
@@ -879,7 +877,7 @@ export function ReportSnapshotDetailWorkspace({
           </CardContent>
         </Card>
       </div>
-      <SourceDrawer snapshot={snapshot} open={sourceOpen} onOpenChange={setSourceOpen} />
+      <SourceDialog snapshot={snapshot} open={sourceOpen} onOpenChange={setSourceOpen} />
     </ModulePage>
   );
 }

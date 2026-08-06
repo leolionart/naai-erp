@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, Filter, Plus } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, Filter, Plus } from "lucide-react";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -28,14 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -122,6 +115,9 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
+  const [quickRecord, setQuickRecord] = useState<Row>();
+  const [quickLoading, setQuickLoading] = useState(false);
+  const [quickBusy, setQuickBusy] = useState(false);
   const key = params.toString();
   const invoiceStatus = params.get("invoiceStatus") ?? "present";
   const sourceKind: Kind = kind === "documents" && invoiceStatus === "missing" ? "expenses" : kind;
@@ -166,6 +162,37 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
     router.replace(`${pathname}?${query}`);
     setFilters(false);
   }
+  async function openQuickView(row: Row) {
+    const id = text(row, "id");
+    setQuickRecord(row);
+    setQuickLoading(true);
+    try {
+      setQuickRecord(await client.data<Row>(`${current.endpoint}/${encodeURIComponent(id)}`));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
+    } finally {
+      setQuickLoading(false);
+    }
+  }
+  async function updateQuickRecord(body: Row) {
+    if (!quickRecord) return;
+    const id = text(quickRecord, "id");
+    setQuickBusy(true);
+    setError("");
+    try {
+      const updated = await client.data<Row>(`${current.endpoint}/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        expectedVersion: text(quickRecord, "resourceVersion", "version"),
+        body,
+      });
+      setQuickRecord({ ...quickRecord, ...body, ...updated });
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể sửa ${current.singular}.`);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -176,10 +203,13 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setFilters(true)}>
-            <Filter data-icon="inline-start" />
-            Bộ lọc
-          </Button>
+          <FilterPopover
+            kind={kind}
+            open={filters}
+            onOpenChange={setFilters}
+            params={new URLSearchParams(key)}
+            onApply={apply}
+          />
           <Button asChild>
             <Link href={`/${sourceKind}/new`}>
               <Plus data-icon="inline-start" />
@@ -236,8 +266,9 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                         <Badge variant="outline">{human(text(row, "state"))}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/${sourceKind}/${encodeURIComponent(id)}`}>Mở chi tiết</Link>
+                        <Button variant="outline" size="sm" onClick={() => void openQuickView(row)}>
+                          <Eye data-icon="inline-start" />
+                          Xem nhanh
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -255,18 +286,88 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
           )}
         </CardContent>
       </Card>
-      <FilterSheet
-        kind={kind}
-        open={filters}
-        onOpenChange={setFilters}
-        params={new URLSearchParams(key)}
-        onApply={apply}
-      />
+      <Dialog
+        open={Boolean(quickRecord)}
+        onOpenChange={(open) => !open && setQuickRecord(undefined)}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Xem nhanh {current.singular}</DialogTitle>
+            <DialogDescription>
+              Xem và sửa draft ngay tại danh sách. URL chi tiết ổn định vẫn được giữ để chia sẻ.
+            </DialogDescription>
+          </DialogHeader>
+          {quickLoading ? (
+            <Skeleton className="h-72 w-full" />
+          ) : quickRecord ? (
+            <div className="grid gap-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Card>
+                  <CardHeader>
+                    <CardDescription>
+                      {sourceKind === "documents" ? "Số hóa đơn" : "Ngày"}
+                    </CardDescription>
+                    <CardTitle>
+                      {text(
+                        quickRecord,
+                        sourceKind === "documents" ? "documentNumber" : "expenseDate",
+                      ) || text(quickRecord, "id")}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardDescription>Tổng tiền</CardDescription>
+                    <CardTitle>{money(text(quickRecord, "grossMinor"))}</CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardDescription>Trạng thái</CardDescription>
+                    <CardTitle>
+                      <Badge variant="outline">{human(text(quickRecord, "state"))}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
+              {text(quickRecord, "state") === "draft" ? (
+                sourceKind === "documents" ? (
+                  <DocumentForm
+                    key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                    busy={quickBusy}
+                    initial={quickRecord}
+                    submitLabel="Lưu thay đổi hóa đơn"
+                    onSubmit={(body) => void updateQuickRecord(body)}
+                  />
+                ) : (
+                  <ExpenseForm
+                    key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                    busy={quickBusy}
+                    initial={quickRecord}
+                    submitLabel="Lưu thay đổi chi phí"
+                    onSubmit={(body) => void updateQuickRecord(body)}
+                  />
+                )
+              ) : null}
+            </div>
+          ) : null}
+          <DialogFooter>
+            {quickRecord ? (
+              <Button variant="outline" asChild>
+                <Link href={`/${sourceKind}/${encodeURIComponent(text(quickRecord, "id"))}`}>
+                  Mở trang chi tiết
+                </Link>
+              </Button>
+            ) : null}
+            <Button onClick={() => setQuickRecord(undefined)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function FilterSheet({
+function FilterPopover({
   kind,
   open,
   onOpenChange,
@@ -286,16 +387,25 @@ function FilterSheet({
   }, [open, params]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <form action={onApply} className="flex h-full flex-col">
-          <SheetHeader>
-            <SheetTitle>Bộ lọc {config[kind].singular}</SheetTitle>
-            <SheetDescription>
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="outline">
+          <Filter data-icon="inline-start" />
+          Bộ lọc
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(70vh,36rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-0"
+      >
+        <form action={onApply} className="flex flex-col">
+          <div className="border-b p-4">
+            <h3 className="font-medium">Bộ lọc {config[kind].singular}</h3>
+            <p className="text-sm text-muted-foreground">
               Bộ lọc được giữ trên URL để có thể chia sẻ và tải lại.
-            </SheetDescription>
-          </SheetHeader>
-          <FieldGroup className="flex-1 px-4">
+            </p>
+          </div>
+          <FieldGroup className="p-4">
             <Field>
               <FieldLabel>Trạng thái</FieldLabel>
               <Select name="state" defaultValue={params.get("state") ?? "all"}>
@@ -427,12 +537,12 @@ function FilterSheet({
               </>
             )}
           </FieldGroup>
-          <SheetFooter>
+          <div className="flex justify-end border-t bg-muted/50 p-4">
             <Button type="submit">Áp dụng</Button>
-          </SheetFooter>
+          </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </PopoverContent>
+    </Popover>
   );
 }
 

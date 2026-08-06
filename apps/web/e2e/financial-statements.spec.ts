@@ -203,7 +203,7 @@ test("@desktop persists P&L filters and drills to exact journal source", async (
   await install(page);
   await page.goto("http://localhost:3000/reports/financial-statements/profit-and-loss/current");
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc báo cáo" });
+  const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Service line").fill("web-app");
   await sheet.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
@@ -267,7 +267,7 @@ test("@mobile statement pages keep filters and tables inside the viewport", asyn
   await page.goto("http://localhost:3000/reports/financial-statements/profit-and-loss/current");
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   await expect(
-    page.getByRole("dialog", { name: "Bộ lọc báo cáo" }).getByRole("button", { name: "Áp dụng" }),
+    page.locator('[data-slot="popover-content"]').getByRole("button", { name: "Áp dụng" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   const overflow = await page.evaluate(

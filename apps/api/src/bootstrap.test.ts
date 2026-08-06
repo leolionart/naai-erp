@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createApp, webOrigin } from "./bootstrap.js";
+import { apiBodyLimit, createApp, webOrigin } from "./bootstrap.js";
 
 describe("API CORS bootstrap", () => {
   const apps: Awaited<ReturnType<typeof createApp>>[] = [];
   afterEach(async () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  it("allows full workbook import payloads while validating overrides", () => {
+    expect(apiBodyLimit({})).toBe(5 * 1024 * 1024);
+    expect(apiBodyLimit({ API_BODY_LIMIT_BYTES: "8388608" })).toBe(8 * 1024 * 1024);
+    expect(() => apiBodyLimit({ API_BODY_LIMIT_BYTES: "not-a-number" })).toThrow();
+    expect(() => apiBodyLimit({ API_BODY_LIMIT_BYTES: "1024" })).toThrow();
   });
 
   it("defaults only development to the local web origin", () => {

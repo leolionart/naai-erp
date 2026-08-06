@@ -205,7 +205,7 @@ test("@desktop keeps report filters in the URL", async ({ page }) => {
   const requested = await install(page);
   await page.goto("http://localhost:3000/reports/project-profitability");
   await page.getByRole("button", { name: "Bộ lọc báo cáo" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc profitability" });
+  const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Từ ngày").fill("2026-07-01");
   await sheet.getByLabel("Đến ngày").fill("2026-07-31");
   await sheet.getByLabel("Client ID").fill("client-naai");

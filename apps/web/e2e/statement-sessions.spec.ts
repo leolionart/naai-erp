@@ -122,7 +122,7 @@ test("@desktop creates a session and keeps filters in URL", async ({ page }) => 
   await page.goto("http://localhost:3000/banking/statements");
   await expect(page.getByRole("link", { name: "2026-08-01 → 2026-08-31" })).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc kỳ sao kê" });
+  const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Account ID").fill("bank-vcb");
   await sheet.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/accountId=bank-vcb/);

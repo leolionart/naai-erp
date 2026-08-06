@@ -19,14 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,13 +38,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import {
   performanceComparisonApi,
   type PerformanceComparison,
@@ -118,26 +119,25 @@ function ResultStatus({ status }: Readonly<{ status: PerformanceResultStatusCont
   return <StatusBadge status={status === "available" ? "verified" : "needs_review"} />;
 }
 
-function SourceDrawer({
+function SourceDialog({
   selection,
   onOpenChange,
 }: Readonly<{ selection?: SourceSelection; onOpenChange: (open: boolean) => void }>) {
   return (
-    <Drawer
-      direction="right"
+    <Dialog
       open={Boolean(selection)}
       onOpenChange={(open) => {
         if (!open) onOpenChange(false);
       }}
     >
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>Nguồn · {selection?.label}</DrawerTitle>
-          <DrawerDescription>
+      <DialogContent className="flex max-h-[min(90vh,48rem)] flex-col sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Nguồn · {selection?.label}</DialogTitle>
+          <DialogDescription>
             Source IDs và formula metadata từ cùng read model của báo cáo.
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pr-1">
           {selection ? (
             <>
               <div className="rounded-lg border p-3 text-sm">
@@ -162,13 +162,13 @@ function SourceDrawer({
             </>
           ) : null}
         </div>
-        <DrawerFooter>
-          <DrawerClose asChild>
+        <DialogFooter>
+          <DialogClose asChild>
             <Button variant="outline">Đóng</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -203,16 +203,21 @@ function FilterSheet({
   onApply: (data: FormData) => void;
 }>) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <form action={onApply} className="flex h-full min-h-0 flex-col">
-          <SheetHeader>
-            <SheetTitle>Bộ lọc hiệu suất</SheetTitle>
-            <SheetDescription>
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverActiveAnchor open={Boolean(open)} />
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+      >
+        <form action={onApply} className="flex flex-col">
+          <PopoverHeader>
+            <PopoverTitle>Bộ lọc hiệu suất</PopoverTitle>
+            <PopoverDescription>
               Chọn period, actual basis và dimensions. Các lựa chọn được lưu trên URL.
-            </SheetDescription>
-          </SheetHeader>
-          <FieldGroup className="min-h-0 flex-1 overflow-y-auto px-4">
+            </PopoverDescription>
+          </PopoverHeader>
+          <FieldGroup className="px-4">
             <Field>
               <FieldLabel htmlFor="performance-period">Period ID</FieldLabel>
               <Input
@@ -274,12 +279,12 @@ function FilterSheet({
               </Field>
             ))}
           </FieldGroup>
-          <SheetFooter>
+          <PopoverFooter className="sticky bottom-0 bg-popover py-2">
             <Button type="submit">Áp dụng</Button>
-          </SheetFooter>
+          </PopoverFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -588,7 +593,7 @@ export function PerformanceComparisonDetailWorkspace({ periodId }: Readonly<{ pe
         <CardHeader>
           <CardTitle>Chi tiết công thức và nguồn</CardTitle>
           <CardDescription>
-            Mở Drawer để xem source IDs. Kết quả thiếu dữ liệu hoặc mẫu số 0 hiển thị N/A cùng
+            Mở dialog để xem source IDs. Kết quả thiếu dữ liệu hoặc mẫu số 0 hiển thị N/A cùng
             nguyên nhân.
           </CardDescription>
         </CardHeader>
@@ -614,7 +619,7 @@ export function PerformanceComparisonDetailWorkspace({ periodId }: Readonly<{ pe
         query={query}
         onApply={applyFilters}
       />
-      <SourceDrawer selection={selection} onOpenChange={() => setSelection(undefined)} />
+      <SourceDialog selection={selection} onOpenChange={() => setSelection(undefined)} />
     </div>
   );
 }

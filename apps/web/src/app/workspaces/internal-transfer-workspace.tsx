@@ -44,13 +44,6 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createApiClient,
@@ -338,15 +331,15 @@ export function InternalTransferWorkspace({ transferId }: Readonly<{ transferId:
       <FeeCard fee={fee} />
       <JournalAndDrilldown attempt={attempt} />
 
-      <Sheet open={candidateSheet} onOpenChange={setCandidateSheet}>
-        <SheetContent className="w-[min(96vw,42rem)] sm:max-w-2xl">
-          <SheetHeader>
-            <SheetTitle>Candidate giao dịch đối ứng</SheetTitle>
-            <SheetDescription>
+      <Dialog open={candidateSheet} onOpenChange={setCandidateSheet}>
+        <DialogContent className="flex max-h-[min(90vh,48rem)] w-[min(96vw,42rem)] flex-col sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Candidate giao dịch đối ứng</DialogTitle>
+            <DialogDescription>
               Chỉ ghép giao dịch tài khoản sở hữu khác, chiều ngược dấu và đủ điều kiện API.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="overflow-y-auto px-4 pb-4">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-y-auto pr-1">
             <FinancialDataTable
               rows={candidates}
               columns={candidateColumns}
@@ -377,8 +370,8 @@ export function InternalTransferWorkspace({ transferId }: Readonly<{ transferId:
               </div>
             ))}
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={pairDialog} onOpenChange={setPairDialog}>
         <DialogContent>

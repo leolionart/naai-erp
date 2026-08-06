@@ -6,16 +6,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import type { createApiClient } from "@/lib/api";
 
@@ -360,17 +360,17 @@ function DirectoryEditor({
     }
   }
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[min(90vh,48rem)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
             {initial ? "Chỉnh sửa" : "Tạo"} {customer ? "khách hàng" : "dự án"}
-          </SheetTitle>
-          <SheetDescription>
+          </DialogTitle>
+          <DialogDescription>
             Dữ liệu được ghi trực tiếp vào danh mục ERP và có audit phía server.
-          </SheetDescription>
-        </SheetHeader>
-        <form className="space-y-4 px-4" action={(form) => void submit(form)}>
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" action={(form) => void submit(form)}>
           {!initial ? <EditorField name="id" label="ID" required /> : null}
           {customer ? (
             <>
@@ -453,17 +453,17 @@ function DirectoryEditor({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
-          <SheetFooter className="px-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Hủy
             </Button>
             <Button type="submit" disabled={busy}>
               {busy ? "Đang lưu…" : "Lưu"}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 

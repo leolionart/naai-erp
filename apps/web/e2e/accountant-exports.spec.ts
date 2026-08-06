@@ -14,7 +14,7 @@ test("@desktop browses accountant exports and distinguishes review_required from
   await expect(page.getByText("Cần rà soát · chưa phải bản cuối")).toBeVisible();
 
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const filters = page.getByRole("dialog", { name: "Lọc gói xuất" });
+  const filters = page.locator('[data-slot="popover-content"]');
   await expect(filters.getByText("Thu hẹp danh sách theo định dạng bàn giao.")).toBeVisible();
   await filters.getByRole("button", { name: "Áp dụng" }).click();
 
@@ -57,5 +57,5 @@ test("@mobile keeps accountant export controls inside the viewport", async ({ pa
   );
   expect(overflow).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  await expect(page.getByRole("dialog", { name: "Lọc gói xuất" })).toBeVisible();
+  await expect(page.locator('[data-slot="popover-content"]')).toBeVisible();
 });

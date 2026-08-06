@@ -133,11 +133,14 @@ test("@desktop T-MVP-UI-001 uses stable invoice list new and detail routes", asy
   await page.goto("http://localhost:3000/documents");
   await expect(page.getByText("INV-720")).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc hóa đơn" });
-  await sheet.getByLabel("Party ID").fill("client-720");
-  await sheet.getByRole("button", { name: "Áp dụng" }).click();
+  const filters = page.locator('[data-slot="popover-content"]');
+  await filters.getByLabel("Party ID").fill("client-720");
+  await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/partyId=client-720/);
-  await page.getByRole("link", { name: "Mở chi tiết" }).click();
+  await page.getByRole("button", { name: "Xem nhanh" }).click();
+  const quickView = page.getByRole("dialog", { name: "Xem nhanh hóa đơn" });
+  await expect(quickView.getByText("11.000.000 ₫")).toBeVisible();
+  await quickView.getByRole("link", { name: "Mở trang chi tiết" }).click();
   await expect(page).toHaveURL(/\/documents\/invoice-720$/);
   await expect(page.getByRole("heading", { name: "Chi tiết hóa đơn" })).toBeVisible();
   await expect(page.getByText("11.000.000 ₫").first()).toBeVisible();
@@ -156,13 +159,14 @@ test("@desktop invoice presence stays a list filter instead of a separate menu",
   await install(page);
   await page.goto("http://localhost:3000/documents?type=purchase_invoice");
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc hóa đơn" });
-  await sheet.getByLabel("Tình trạng hóa đơn").click();
+  const filters = page.locator('[data-slot="popover-content"]');
+  await filters.getByLabel("Tình trạng hóa đơn").click();
   await page.getByRole("option", { name: "Chưa có hóa đơn" }).click();
-  await sheet.getByRole("button", { name: "Áp dụng" }).click();
+  await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/invoiceStatus=missing/);
   await expect(page.getByText("Phí vận hành")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Mở chi tiết" })).toHaveAttribute(
+  await page.getByRole("button", { name: "Xem nhanh" }).click();
+  await expect(page.getByRole("link", { name: "Mở trang chi tiết" })).toHaveAttribute(
     "href",
     "/expenses/expense-720",
   );

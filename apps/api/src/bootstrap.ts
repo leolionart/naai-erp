@@ -3,7 +3,20 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./api-exception.filter.js";
 
-type BootstrapEnvironment = Readonly<{ NODE_ENV?: string; WEB_ORIGIN?: string }>;
+type BootstrapEnvironment = Readonly<{
+  NODE_ENV?: string;
+  WEB_ORIGIN?: string;
+  API_BODY_LIMIT_BYTES?: string;
+}>;
+
+export function apiBodyLimit(environment: BootstrapEnvironment = process.env): number {
+  const configured = environment.API_BODY_LIMIT_BYTES?.trim();
+  if (!configured) return 5 * 1024 * 1024;
+  const limit = Number(configured);
+  if (!Number.isSafeInteger(limit) || limit < 1024 * 1024)
+    throw new Error("API_BODY_LIMIT_BYTES must be an integer of at least 1048576 bytes");
+  return limit;
+}
 
 export function webOrigin(environment: BootstrapEnvironment = process.env): string | undefined {
   const configured = environment.WEB_ORIGIN?.trim();
@@ -27,10 +40,14 @@ export async function createApp(
   options: { environment?: BootstrapEnvironment } = {},
 ): Promise<NestFastifyApplication> {
   const environment = options.environment ?? process.env;
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
-    logger: environment.NODE_ENV === "test" ? false : ["error", "warn", "log"],
-    rawBody: true,
-  });
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ bodyLimit: apiBodyLimit(environment) }),
+    {
+      logger: environment.NODE_ENV === "test" ? false : ["error", "warn", "log"],
+      rawBody: true,
+    },
+  );
   const origin = webOrigin(environment);
   if (origin) {
     app.enableCors({

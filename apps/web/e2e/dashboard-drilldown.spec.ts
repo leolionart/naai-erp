@@ -233,7 +233,7 @@ test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", 
     "periodId=CAL-2026-08",
   );
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const filters = page.getByRole("dialog", { name: "Bộ lọc dashboard" });
+  const filters = page.locator('[data-slot="popover-content"]');
   await filters.getByLabel("Service line").fill("web-app");
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
@@ -306,7 +306,7 @@ test("@desktop selects the latest source-control period and invoiced basis by de
   await installOperatingDashboard(page);
   await page.goto("http://localhost:3000/dashboard");
 
-  await expect(page.getByText("CAL-2025-03")).toBeVisible();
+  await expect(page.getByText("2025-03", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Basis: invoiced")).toBeVisible();
   expect(requestedUrls.find((url) => url.includes("performance-comparisons"))).toContain(
     "periodId=CAL-2025-03",
@@ -314,6 +314,31 @@ test("@desktop selects the latest source-control period and invoiced basis by de
   expect(requestedUrls.find((url) => url.includes("performance-comparisons"))).toContain(
     "actualBasis=invoiced",
   );
+});
+
+test("@desktop switches month quarter and year without sending unsupported period IDs", async ({
+  page,
+}) => {
+  const requestedUrls: string[] = [];
+  await install(page, requestedUrls);
+  await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08&actualBasis=collected");
+
+  await page.getByRole("radio", { name: "Quý" }).click();
+  await expect(page).toHaveURL(/periodKind=quarter/);
+  await expect(page).toHaveURL(/period=2026-Q3/);
+  await expect(page).toHaveURL(/startsOn=2026-07-01/);
+  await expect(page).toHaveURL(/endsOn=2026-09-30/);
+  await expect(page).toHaveURL(/actualBasis=collected/);
+
+  await page.getByRole("radio", { name: "Năm" }).click();
+  await expect(page).toHaveURL(/periodKind=year/);
+  await expect(page).toHaveURL(/startsOn=2026-01-01/);
+  await expect(page).toHaveURL(/endsOn=2026-12-31/);
+
+  await expect
+    .poll(() => requestedUrls.filter((url) => url.includes("performance-comparisons")).at(-1))
+    .toContain("periodId=CAL-2026-08");
+  expect(requestedUrls.some((url) => /periodId=CAL-2026-(?:Q|year)/.test(url))).toBe(false);
 });
 
 test("@desktop surfaces executive metrics API failure without hiding other dashboard data", async ({

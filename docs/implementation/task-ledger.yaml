@@ -914,6 +914,7 @@ tasks:
     resumed_for_owner_ui_at: 2026-08-06T22:49:24+07:00
     review_ready_at: 2026-08-06T22:54:00+07:00
     validation_hardening_review_at: 2026-08-06T23:11:00+07:00
+    listing_first_ui_review_at: 2026-08-06T23:48:00+07:00
     agent: codex-root
     planned_files:
       - apps/api/src/workbook-imports/
@@ -926,6 +927,7 @@ tasks:
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
       - apps/web/src/app/workspaces/import-review-workspace.tsx
       - apps/web/src/app/workspaces/financial-statement-workspaces.tsx
+      - apps/web/src/app/workspaces/
       - apps/web/src/app/(app)/reports/
       - apps/web/e2e/
       - packages/database/src/schema.ts

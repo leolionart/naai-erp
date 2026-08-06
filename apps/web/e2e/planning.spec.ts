@@ -123,7 +123,7 @@ test("@desktop manages target versions with create Dialog and URL filter Sheet",
   await expect(page.getByText("120.000.000 ₫")).toBeVisible();
 
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const filter = page.getByRole("dialog", { name: "Bộ lọc kế hoạch" });
+  const filter = page.locator('[data-slot="popover-content"]');
   await filter.getByLabel("Actual basis").click();
   await page.getByRole("option", { name: "collected" }).click();
   await filter.getByRole("button", { name: "Áp dụng" }).click();
@@ -191,7 +191,7 @@ test("@desktop creates a forecast component and persists URL filters", async ({ 
   const requests = await install(page);
   await page.goto("http://localhost:3000/forecast/scenarios/forecast-base-aug-v1/composition");
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const filter = page.getByRole("dialog", { name: "Bộ lọc forecast components" });
+  const filter = page.locator('[data-slot="popover-content"]');
   await filter.getByLabel("Section").click();
   await page.getByRole("option", { name: "revenue" }).click();
   await filter.getByRole("button", { name: "Áp dụng" }).click();

@@ -23,24 +23,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import {
   createApiClient,
   DEFAULT_API_CONNECTION,
@@ -532,14 +533,19 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
           <FinancialDataTable rows={rows} columns={columns} rowKey={(row) => row.code} />
         </CardContent>
       </Card>
-      <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Bộ lọc chỉ số điều hành</SheetTitle>
-            <SheetDescription>
+      <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+        <PopoverActiveAnchor open={Boolean(filterOpen)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
+          <PopoverHeader>
+            <PopoverTitle>Bộ lọc chỉ số điều hành</PopoverTitle>
+            <PopoverDescription>
               Filter được lưu vào URL để chia sẻ và tải lại cùng phạm vi.
-            </SheetDescription>
-          </SheetHeader>
+            </PopoverDescription>
+          </PopoverHeader>
           <div className="px-4">
             <FieldGroup>
               <Field>
@@ -571,25 +577,25 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
               </Field>
             </FieldGroup>
           </div>
-          <SheetFooter>
+          <PopoverFooter>
             <Button onClick={applyFilters}>Áp dụng</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-      <Drawer
+          </PopoverFooter>
+        </PopoverContent>
+      </Popover>
+      <Dialog
         open={Boolean(source)}
         onOpenChange={(open) => {
           if (!open) setSource(null);
         }}
       >
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Nguồn chỉ số {source?.label}</DrawerTitle>
-            <DrawerDescription>
+        <DialogContent className="max-h-[min(90vh,48rem)] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nguồn chỉ số {source?.label}</DialogTitle>
+            <DialogDescription>
               Trace công thức và source set dùng để tính giá trị exact.
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="grid gap-3 px-4 text-sm">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 text-sm">
             <div>
               <strong>Source</strong>
               <p className="text-muted-foreground">{source?.source}</p>
@@ -605,13 +611,13 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
               </p>
             </div>
           </div>
-          <DrawerFooter>
-            <DrawerClose asChild>
+          <DialogFooter>
+            <DialogClose asChild>
               <Button variant="outline">Đóng</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ModulePage>
   );
 }

@@ -808,7 +808,7 @@ export class PgReconciliationStore implements ReconciliationStore {
       `select d.id,d.document_number,d.document_date,d.currency,d.gross_minor::text,p.display_name,
       (d.gross_minor-coalesce((select sum(a.target_amount_minor) from reconciliation_allocations a join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id where a.organization_id=d.organization_id and a.commercial_document_id=d.id and r.state in ('matched','reconciled')),0))::text outstanding
       from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id
-      where d.organization_id=$1 and (($2 and d.type='sales_invoice' and d.state in ('issued','partially_paid')) or (not $2 and d.type='purchase_invoice' and d.state in ('posted','partially_paid')))`,
+      where d.organization_id=$1 and (($2 and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid')) or (not $2 and d.type='purchase_invoice' and d.state in ('posted','partially_paid')))`,
       [org, positive],
     );
     const amount =
@@ -908,7 +908,8 @@ export class PgReconciliationStore implements ReconciliationStore {
         !row ||
         row.currency !== allocation.targetCurrency ||
         (positive
-          ? row.type !== "sales_invoice" || !["issued", "partially_paid"].includes(row.state)
+          ? row.type !== "sales_invoice" ||
+            !["issued", "posted", "partially_paid"].includes(row.state)
           : row.type !== "purchase_invoice" || !["posted", "partially_paid"].includes(row.state))
       )
         throw new Error("RECONCILIATION_TARGET_INVALID");

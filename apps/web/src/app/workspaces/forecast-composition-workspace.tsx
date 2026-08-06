@@ -26,21 +26,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -52,13 +44,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import {
   createApiClient,
   DEFAULT_API_CONNECTION,
@@ -559,13 +552,20 @@ export function ForecastCompositionDetailWorkspace({
         </DialogContent>
       </Dialog>
 
-      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent>
+      <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <PopoverActiveAnchor open={Boolean(filtersOpen)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
           <form action={applyFilters} className="flex h-full min-h-0 flex-col">
-            <SheetHeader>
-              <SheetTitle>Bộ lọc forecast components</SheetTitle>
-              <SheetDescription>Filter được lưu trên URL để chia sẻ đúng view.</SheetDescription>
-            </SheetHeader>
+            <PopoverHeader>
+              <PopoverTitle>Bộ lọc forecast components</PopoverTitle>
+              <PopoverDescription>
+                Filter được lưu trên URL để chia sẻ đúng view.
+              </PopoverDescription>
+            </PopoverHeader>
             <FieldGroup className="min-h-0 flex-1 overflow-y-auto px-4">
               <SelectField
                 name="section"
@@ -584,27 +584,23 @@ export function ForecastCompositionDetailWorkspace({
                 allowAll
               />
             </FieldGroup>
-            <SheetFooter>
+            <PopoverFooter>
               <Button type="submit">Áp dụng</Button>
               <Button type="button" variant="outline" onClick={() => router.replace(pathname)}>
                 Xóa lọc
               </Button>
-            </SheetFooter>
+            </PopoverFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </PopoverContent>
+      </Popover>
 
-      <Drawer
-        open={Boolean(selected)}
-        onOpenChange={(open) => !open && setSelected(undefined)}
-        direction="right"
-      >
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Source drill-down</DrawerTitle>
-            <DrawerDescription>{selected?.id}</DrawerDescription>
-          </DrawerHeader>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">
+      <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(undefined)}>
+        <DialogContent className="flex max-h-[min(90vh,48rem)] flex-col sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Source drill-down</DialogTitle>
+            <DialogDescription>{selected?.id}</DialogDescription>
+          </DialogHeader>
+          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
             <Detail
               label="Section / kind"
               value={selected ? `${selected.section} · ${selected.kind}` : ""}
@@ -626,13 +622,13 @@ export function ForecastCompositionDetailWorkspace({
               value={JSON.stringify(selected?.sourceSnapshot ?? {}, null, 2)}
             />
           </div>
-          <DrawerFooter>
-            <DrawerClose asChild>
+          <DialogFooter>
+            <DialogClose asChild>
               <Button variant="outline">Đóng</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={Boolean(transition)}

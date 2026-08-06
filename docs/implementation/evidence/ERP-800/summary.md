@@ -19,3 +19,14 @@ the existing dashboard dynamic import so non-chart content is not blocked by the
 The controlled expense-to-purchase-invoice migration CLI links each replacement to an exact legacy
 expense and date, creates the purchase invoice through the REST lifecycle, reverses the original
 journal through the normal journal API, then posts the replacement. Dry-run performs no mutation.
+
+The owner-provided receipt evidence has also been promoted through Banking/Reconciliation APIs:
+41 receipt transactions allocate 400,271,725 VND to the 41 sales invoices. Forty invoices are paid;
+AREUS remains partially paid with an evidence-backed 2,100,000 VND balance. Expense-note inference
+now proposes concrete suppliers for 208 of 214 rows and classifies all rows into business categories.
+
+The UI is now listing-first: invoice and expense rows open a responsive quick-view Dialog, draft
+records can be edited in place, and stable detail URLs remain available for sharing and refresh.
+Workspace Drawers and action/editor Sheets were replaced by Dialogs; URL-backed filter Sheets were
+replaced by anchored Popovers. The dashboard exposes fast Month/Quarter/Year switching while keeping
+the monthly-only performance contract on `CAL-YYYY-MM` to avoid invalid quarter/year period IDs.

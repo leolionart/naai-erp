@@ -139,7 +139,7 @@ test("@desktop keeps AR and AP as separate queues and persists report filters in
   await expect(page.getByText("Đã tie-out tài khoản kiểm soát")).toBeVisible();
 
   await page.getByRole("button", { name: "Bộ lọc" }).click();
-  const sheet = page.getByRole("dialog", { name: "Bộ lọc tuổi nợ" });
+  const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Party ID").fill("customer-1");
   await sheet.getByLabel("Control account").fill("131-AR");
   await sheet.getByLabel("Bucket").fill("31_60");

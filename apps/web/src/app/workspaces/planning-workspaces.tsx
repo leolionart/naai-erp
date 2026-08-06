@@ -42,13 +42,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Popover,
+  PopoverActiveAnchor,
+  PopoverContent,
+  PopoverDescription,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import {
   createApiClient,
   DEFAULT_API_CONNECTION,
@@ -364,13 +365,20 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
         </DialogContent>
       </Dialog>
 
-      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent className="w-[min(96vw,30rem)]">
+      <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <PopoverActiveAnchor open={Boolean(filtersOpen)} />
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="max-h-[min(80vh,40rem)] w-[min(92vw,30rem)] overflow-y-auto"
+        >
           <form action={applyFilters} className="flex h-full min-h-0 flex-col">
-            <SheetHeader>
-              <SheetTitle>Bộ lọc kế hoạch</SheetTitle>
-              <SheetDescription>Bộ lọc được giữ trên URL để chia sẻ cùng team.</SheetDescription>
-            </SheetHeader>
+            <PopoverHeader>
+              <PopoverTitle>Bộ lọc kế hoạch</PopoverTitle>
+              <PopoverDescription>
+                Bộ lọc được giữ trên URL để chia sẻ cùng team.
+              </PopoverDescription>
+            </PopoverHeader>
             <FieldGroup className="min-h-0 flex-1 overflow-y-auto py-4">
               {kind === "targets" ? (
                 <SelectField
@@ -426,12 +434,12 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
                 />
               </Field>
             </FieldGroup>
-            <SheetFooter>
+            <PopoverFooter>
               <Button type="submit">Áp dụng</Button>
-            </SheetFooter>
+            </PopoverFooter>
           </form>
-        </SheetContent>
-      </Sheet>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

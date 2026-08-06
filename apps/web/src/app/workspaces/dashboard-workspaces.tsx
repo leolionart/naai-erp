@@ -9,7 +9,15 @@ import type {
   ExecutiveMetricsContract,
   PerformanceComparisonContract,
 } from "@naai-erp/contracts";
-import { AlertTriangle, ArrowRight, Filter, Info, ListChecks } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Info,
+  ListChecks,
+} from "lucide-react";
 import type {
   ProjectProfitabilityReport,
   ProjectProfitabilitySummary,
@@ -27,25 +35,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -55,6 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Table,
   TableBody,
@@ -166,6 +167,31 @@ const monthEnd = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
 };
+type PeriodKind = "month" | "quarter" | "year";
+
+function periodRange(anchorMonth: string, kind: PeriodKind) {
+  const [year, month] = anchorMonth.split("-").map(Number);
+  if (kind === "year")
+    return { label: String(year), startsOn: `${year}-01-01`, endsOn: `${year}-12-31` };
+  if (kind === "quarter") {
+    const quarter = Math.floor((month - 1) / 3) + 1;
+    const startMonth = String((quarter - 1) * 3 + 1).padStart(2, "0");
+    const endMonth = `${year}-${String(quarter * 3).padStart(2, "0")}`;
+    return {
+      label: `${year}-Q${quarter}`,
+      startsOn: `${year}-${startMonth}-01`,
+      endsOn: monthEnd(endMonth),
+    };
+  }
+  return { label: anchorMonth, startsOn: `${anchorMonth}-01`, endsOn: monthEnd(anchorMonth) };
+}
+
+function shiftedMonth(anchorMonth: string, kind: PeriodKind, delta: number) {
+  const [year, month] = anchorMonth.split("-").map(Number);
+  const step = kind === "year" ? 12 : kind === "quarter" ? 3 : 1;
+  const shifted = new Date(Date.UTC(year, month - 1 + delta * step, 1));
+  return shifted.toISOString().slice(0, 7);
+}
 
 function resolvedDashboardSearch(
   input: URLSearchParams,
@@ -342,16 +368,25 @@ function DashboardFilters({
     onOpenChange(false);
   }
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <form action={apply} className="flex h-full flex-col">
-          <SheetHeader>
-            <SheetTitle>Bộ lọc dashboard</SheetTitle>
-            <SheetDescription>
-              Kỳ và dimensions được giữ trên URL và truyền nguyên vẹn tới báo cáo nguồn.
-            </SheetDescription>
-          </SheetHeader>
-          <FieldGroup className="min-h-0 flex-1 overflow-y-auto px-4">
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="outline">
+          <Filter data-icon="inline-start" />
+          Bộ lọc
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(70vh,36rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-0"
+      >
+        <form action={apply} className="flex flex-col">
+          <div className="border-b p-4">
+            <h3 className="font-medium">Bộ lọc dashboard</h3>
+            <p className="text-sm text-muted-foreground">
+              Basis và dimensions nâng cao được giữ trên URL.
+            </p>
+          </div>
+          <FieldGroup className="p-4">
             <Field>
               <FieldLabel htmlFor="dash-period">Period ID</FieldLabel>
               <Input
@@ -411,30 +446,29 @@ function DashboardFilters({
               />
             </Field>
           </FieldGroup>
-          <SheetFooter>
+          <div className="flex justify-end border-t bg-muted/50 p-4">
             <Button type="submit">Áp dụng</Button>
-          </SheetFooter>
+          </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </PopoverContent>
+    </Popover>
   );
 }
 
-function PreviewDrawer({ preview, onClose }: { preview?: Preview; onClose(): void }) {
+function PreviewDialog({ preview, onClose }: { preview?: Preview; onClose(): void }) {
   return (
-    <Drawer
-      direction="right"
+    <Dialog
       open={Boolean(preview)}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>{preview?.title ?? "Nguồn dashboard"}</DrawerTitle>
-          <DrawerDescription>{preview?.description}</DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-3 px-4">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{preview?.title ?? "Nguồn dashboard"}</DialogTitle>
+          <DialogDescription>{preview?.description}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
           {preview?.facts?.length ? (
             <dl className="grid gap-3">
               {preview.facts.map((fact) => (
@@ -463,13 +497,13 @@ function PreviewDrawer({ preview, onClose }: { preview?: Preview; onClose(): voi
             </Button>
           ) : null}
         </div>
-        <DrawerFooter>
-          <DrawerClose asChild>
-            <Button variant="outline">Đóng</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Đóng
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -564,6 +598,26 @@ export function ExecutiveDashboardWorkspace() {
   const { data, loading, error, search } = useDashboardData();
   const [filters, setFilters] = useState(false);
   const [preview, setPreview] = useState<Preview>();
+  const router = useRouter();
+  const pathname = usePathname();
+  const periodKind = (search.get("periodKind") as PeriodKind | null) ?? "month";
+  const requestedAnchor = (search.get("periodId") ?? `CAL-${currentMonth()}`).replace(/^CAL-/, "");
+  const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor)
+    ? requestedAnchor
+    : currentMonth();
+  const selectedPeriod = periodRange(anchorMonth, periodKind);
+  function setPeriod(kind: PeriodKind, delta = 0) {
+    const nextAnchor = shiftedMonth(anchorMonth, kind, delta);
+    const range = periodRange(nextAnchor, kind);
+    const next = new URLSearchParams(search);
+    next.set("periodKind", kind);
+    next.set("period", range.label);
+    next.set("periodId", `CAL-${nextAnchor}`);
+    next.set("startsOn", range.startsOn);
+    next.set("endsOn", range.endsOn);
+    next.set("asOfDate", range.endsOn);
+    router.replace(`${pathname}?${next}`);
+  }
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
@@ -655,18 +709,47 @@ export function ExecutiveDashboardWorkspace() {
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{search.get("periodId") ?? "CAL-2026-08"}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleGroup
+              type="single"
+              value={periodKind}
+              onValueChange={(value: string) => value && setPeriod(value as PeriodKind)}
+              variant="outline"
+              size="sm"
+              aria-label="Chọn cấp kỳ"
+            >
+              <ToggleGroupItem value="year">Năm</ToggleGroupItem>
+              <ToggleGroupItem value="quarter">Quý</ToggleGroupItem>
+              <ToggleGroupItem value="month">Tháng</ToggleGroupItem>
+            </ToggleGroup>
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon-sm"
+                variant="outline"
+                aria-label="Kỳ trước"
+                onClick={() => setPeriod(periodKind, -1)}
+              >
+                <ChevronLeft />
+              </Button>
+              <Badge variant="outline" className="min-w-24 justify-center">
+                {selectedPeriod.label}
+              </Badge>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                aria-label="Kỳ sau"
+                onClick={() => setPeriod(periodKind, 1)}
+              >
+                <ChevronRight />
+              </Button>
+            </div>
             <Badge variant="secondary">Basis: {search.get("actualBasis") ?? "invoiced"}</Badge>
             {search.get("serviceLineCode") ? (
               <Badge variant="outline">Service line: {search.get("serviceLineCode")}</Badge>
             ) : null}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setFilters(true)}>
-              <Filter data-icon="inline-start" />
-              Bộ lọc
-            </Button>
+            <DashboardFilters open={filters} onOpenChange={setFilters} search={search} />
             <Button asChild>
               <Link href={`/dashboard/finance-review?${q}`}>
                 <ListChecks data-icon="inline-start" />
@@ -980,8 +1063,7 @@ export function ExecutiveDashboardWorkspace() {
           </CardFooter>
         </Card>
       </div>
-      <DashboardFilters open={filters} onOpenChange={setFilters} search={search} />
-      <PreviewDrawer preview={preview} onClose={() => setPreview(undefined)} />
+      <PreviewDialog preview={preview} onClose={() => setPreview(undefined)} />
     </ModulePage>
   );
 }

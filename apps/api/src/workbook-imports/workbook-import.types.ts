@@ -43,6 +43,9 @@ export interface ImportExpenseInput {
   taxMinor: string;
   date: string;
   class: string;
+  categoryCode?: string;
+  categoryLabel?: string;
+  supplierDisplayName?: string | null;
   payeePartyId: string | null;
   businessPurpose: string;
   currency: string;

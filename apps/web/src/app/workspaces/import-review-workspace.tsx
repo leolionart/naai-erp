@@ -17,13 +17,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -509,17 +509,17 @@ function ReviewRowEditor({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-2xl border-l border-border/80 bg-background/95 backdrop-blur-md">
-        <SheetHeader className="border-b border-border/40 pb-4">
-          <SheetTitle className="text-xl font-bold flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader className="border-b border-border/40 pb-4">
+          <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <SlidersIcon className="h-5 w-5 text-primary" />
             Kiểm tra {row ? `${row.sheet} · dòng ${row.sourceRow}` : "dữ liệu"}
-          </SheetTitle>
-          <SheetDescription>
+          </DialogTitle>
+          <DialogDescription>
             Bổ sung các trường còn thiếu và ghi rõ cách xử lý. Dữ liệu nguồn luôn chỉ đọc.
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
         {row ? (
           <div className="flex flex-col gap-6 py-6">
             <div className="flex flex-wrap gap-1.5 px-1">
@@ -619,7 +619,7 @@ function ReviewRowEditor({
             ) : null}
           </div>
         ) : null}
-        <SheetFooter className="border-t border-border/40 pt-4 mt-6">
+        <DialogFooter className="border-t border-border/40 pt-4 mt-6">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="gap-1">
             <XIcon className="h-4 w-4" />
             Đóng
@@ -628,9 +628,9 @@ function ReviewRowEditor({
             {busy ? <Spinner data-icon="inline-start" /> : <SaveIcon className="h-4 w-4" />}
             Lưu thay đổi
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

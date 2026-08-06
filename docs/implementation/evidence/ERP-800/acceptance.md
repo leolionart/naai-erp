@@ -25,3 +25,13 @@
   date before the document date; dashboard URL dates are normalized before report requests.
 - Migration dry-run preflights money, party, date, currency and purpose fields so invalid rows stop
   before any live API mutation rather than surfacing as `VALIDATION_FAILED` mid-run.
+- Workbook receipt evidence is represented as idempotent bank transactions and reconciliation
+  allocations; it never recognizes revenue twice. Forty sales invoices are paid and the sole
+  evidence-backed residual is AREUS at 2,100,000 VND.
+- Expense review proposals expose deterministic supplier and category labels; only six rows remain
+  supplier-unresolved instead of retaining 159 generic-payee warnings.
+- The API accepts the complete validated workbook payload under a bounded configurable body limit.
+- Invoice/expense listing quick view and draft correction use Dialog without removing stable detail
+  routes; filters use anchored Popovers and remain URL-backed.
+- Dashboard switches Month/Quarter/Year with deterministic date ranges, while the monthly-only
+  performance API continues to receive a valid `CAL-YYYY-MM` identifier.
