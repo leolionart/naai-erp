@@ -18,6 +18,8 @@ describe("typed admin navigation", () => {
     expect(isNavigationAvailable(findNavigationItem("banking")!)).toBe(true);
     expect(isNavigationAvailable(findNavigationItem("forecast")!)).toBe(true);
     expect(isNavigationAvailable(findNavigationItem("forecast-composition")!)).toBe(true);
+    expect(findNavigationItem("performance")?.href).toBe("/reports/performance");
+    expect(isNavigationAvailable(findNavigationItem("performance")!)).toBe(true);
     expect(findNavigationItem("missing")).toBeUndefined();
   });
 });

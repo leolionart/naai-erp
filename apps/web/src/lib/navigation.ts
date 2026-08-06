@@ -198,6 +198,14 @@ export const adminNavigation = [
         icon: "report",
         status: "available",
       },
+      {
+        key: "performance",
+        label: "Hiệu suất kế hoạch",
+        href: "/reports/performance",
+        description: "Actual vs target, MoM, YoY và forecast variance.",
+        icon: "report",
+        status: "available",
+      },
     ],
   },
 ] as const satisfies readonly NavigationGroup[];

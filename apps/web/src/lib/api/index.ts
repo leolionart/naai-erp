@@ -8,6 +8,7 @@ export * from "./time";
 export * from "./project-costs";
 export * from "./project-revenue";
 export * from "./project-profitability";
+export * from "./performance-comparisons";
 export * from "./planning";
 export * from "./overhead";
 export * from "./types";

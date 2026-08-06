@@ -1,0 +1,83 @@
+{
+  "fixtureId": "GF-KPI-001",
+  "organizationId": "org-naai",
+  "currency": "VND",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "formulaVersion": "performance-comparison-v1",
+  "periods": [
+    {
+      "id": "CAL-2023-02",
+      "definition": "calendar_month",
+      "startsOn": "2023-02-01",
+      "endsOn": "2023-02-28"
+    },
+    {
+      "id": "CAL-2024-01",
+      "definition": "calendar_month",
+      "startsOn": "2024-01-01",
+      "endsOn": "2024-01-31"
+    },
+    {
+      "id": "CAL-2024-02",
+      "definition": "calendar_month",
+      "startsOn": "2024-02-01",
+      "endsOn": "2024-02-29",
+      "priorPeriodId": "CAL-2024-01",
+      "priorYearPeriodId": "CAL-2023-02"
+    },
+    {
+      "id": "CAL-2024-03",
+      "definition": "calendar_month",
+      "startsOn": "2024-03-01",
+      "endsOn": "2024-03-31"
+    },
+    {
+      "id": "FY2024-P02",
+      "definition": "fiscal_period",
+      "startsOn": "2024-01-26",
+      "endsOn": "2024-02-25",
+      "priorPeriodId": "FY2024-P01",
+      "priorYearPeriodId": "FY2023-P02"
+    }
+  ],
+  "selectedActualBasis": "recognized",
+  "actualAxesAtCutoff": {
+    "periodId": "CAL-2024-02",
+    "cutoffUtc": "2024-02-15T16:59:59Z",
+    "recognizedMinor": "120000000",
+    "invoicedMinor": "150000000",
+    "collectedMinor": "90000000"
+  },
+  "observations": {
+    "mtdRecognizedMinor": "120000000",
+    "fullMonthTargetMinor": "290000000",
+    "priorMonthComparableMinor": "100000000",
+    "priorYearComparableMinor": "80000000",
+    "currentForecastMinor": "270000000",
+    "closedPeriodActualMinor": "300000000",
+    "retainedForecastSnapshotMinor": "280000000",
+    "missingComparisonActualMinor": "50000000",
+    "zeroDenominatorActualMinor": "10000000",
+    "zeroDenominatorComparisonMinor": "0",
+    "fiscalMtdActualMinor": "168000000",
+    "fiscalFullTargetMinor": "310000000"
+  },
+  "cutoffCases": [
+    {
+      "utcInstant": "2024-02-15T16:59:59Z",
+      "periodId": "CAL-2024-02"
+    },
+    {
+      "utcInstant": "2024-02-29T16:59:59Z",
+      "periodId": "CAL-2024-02"
+    },
+    {
+      "utcInstant": "2024-02-29T17:00:00Z",
+      "periodId": "CAL-2024-03"
+    },
+    {
+      "utcInstant": "2024-02-15T16:59:59Z",
+      "periodId": "FY2024-P02"
+    }
+  ]
+}

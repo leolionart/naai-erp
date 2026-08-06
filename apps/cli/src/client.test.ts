@@ -1214,4 +1214,59 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "GET" }),
     );
   });
+
+  it("routes aggregate performance comparisons and planning actual backfill", async () => {
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              actualVsRetainedForecast: {
+                numeratorMinor: "120",
+                denominatorMinor: "270",
+                varianceMinor: "-150",
+              },
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const report = await client.request("performance-comparisons", "get", {
+      periodId: "CAL-2024-02",
+      periodBasis: "calendar",
+      actualBasis: "recognized",
+      asOfInstant: "2024-02-15T16:59:59Z",
+      teamId: "delivery",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/performance-comparisons?periodId=CAL-2024-02&periodBasis=calendar&actualBasis=recognized&asOfInstant=2024-02-15T16%3A59%3A59Z&teamId=delivery",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(report).toMatchObject({
+      data: { actualVsRetainedForecast: { varianceMinor: "-150" } },
+    });
+    await client.request(
+      "planning-actual-facts",
+      "backfill",
+      {
+        schemaVersion: 1,
+        actualBasis: "recognized",
+        from: "2024-02-01",
+        to: "2024-02-29",
+        reason: "Refresh",
+      },
+      undefined,
+      undefined,
+      "facts-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/planning-actual-facts/backfill",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

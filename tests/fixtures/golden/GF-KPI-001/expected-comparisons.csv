@@ -1,0 +1,10 @@
+id,period_id,period_definition,actual_basis,comparison_kind,actual_minor,comparison_minor,variance_minor,variance_bps,attainment_bps,status,unavailable_reason
+calendar_mtd_prorated_target,CAL-2024-02,calendar_month,recognized,prorated_target,120000000,150000000,-30000000,-2000,8000,available,
+calendar_mtd_full_target,CAL-2024-02,calendar_month,recognized,full_target,120000000,290000000,-170000000,-5862,4138,available,
+calendar_mom,CAL-2024-02,calendar_month,recognized,prior_period,120000000,100000000,20000000,2000,12000,available,
+calendar_yoy,CAL-2024-02,calendar_month,recognized,prior_year,120000000,80000000,40000000,5000,15000,available,
+forecast_vs_target,CAL-2024-02,calendar_month,recognized,forecast_vs_target,270000000,290000000,-20000000,-690,9310,available,
+retained_forecast_accuracy,CAL-2024-02,calendar_month,recognized,actual_vs_forecast_snapshot,300000000,280000000,20000000,714,10714,available,
+missing_prior_year,CAL-2024-02,calendar_month,recognized,prior_year,50000000,,,,,not_available,missing_comparison
+zero_denominator,CAL-2024-02,calendar_month,recognized,prior_period,10000000,0,10000000,,,not_available,zero_denominator
+fiscal_mtd_prorated_target,FY2024-P02,fiscal_period,recognized,prorated_target,168000000,210000000,-42000000,-2000,8000,available,

@@ -1,0 +1,5 @@
+utc_instant,timezone,local_date,period_id,elapsed_days,period_days,prior_year_comparable_date
+2024-02-15T16:59:59Z,Asia/Ho_Chi_Minh,2024-02-15,CAL-2024-02,15,29,2023-02-15
+2024-02-29T16:59:59Z,Asia/Ho_Chi_Minh,2024-02-29,CAL-2024-02,29,29,2023-02-28
+2024-02-29T17:00:00Z,Asia/Ho_Chi_Minh,2024-03-01,CAL-2024-03,1,31,2023-03-01
+2024-02-15T16:59:59Z,Asia/Ho_Chi_Minh,2024-02-15,FY2024-P02,21,31,2023-02-15

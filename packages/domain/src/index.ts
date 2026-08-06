@@ -480,3 +480,23 @@ export {
   type ForecastSourceSnapshot,
   type ForecastSourceType,
 } from "./forecast-composition.js";
+export {
+  PERFORMANCE_COMPARISON_FORMULA_VERSION,
+  PERFORMANCE_NULL_POLICY_VERSION,
+  PERFORMANCE_PRORATION_FORMULA_VERSION,
+  PERFORMANCE_WINDOW_FORMULA_VERSION,
+  buildPerformanceComparison,
+  prorateTargetInclusive,
+  type PerformanceAmount,
+  type PerformanceAmountStatus,
+  type PerformanceComparison,
+  type PerformanceComparisonBasis,
+  type PerformanceComparisonInput,
+  type PerformanceComparisonLine,
+  type PerformanceConfidenceFlag,
+  type PerformancePeriod,
+  type PerformancePeriodBasis,
+  type PerformancePeriodKind,
+  type PerformanceResultStatus,
+  type PerformanceWindow,
+} from "./performance-comparisons.js";

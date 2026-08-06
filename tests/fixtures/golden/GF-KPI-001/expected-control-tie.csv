@@ -1,0 +1,12 @@
+control,source_value,fixture_value,difference,status
+comparison_row_count,9,9,0,tied_out
+calendar_period_days,29,29,0,tied_out
+calendar_elapsed_days,15,15,0,tied_out
+calendar_prorated_target_minor,150000000,150000000,0,tied_out
+fiscal_period_days,31,31,0,tied_out
+fiscal_elapsed_days,21,21,0,tied_out
+fiscal_prorated_target_minor,210000000,210000000,0,tied_out
+selected_basis_actual_minor,120000000,120000000,0,tied_out
+missing_comparison_na_count,1,1,0,tied_out
+zero_denominator_na_count,1,1,0,tied_out
+leap_day_clamp_count,1,1,0,tied_out

@@ -88,6 +88,10 @@ import { ForecastComponentController } from "./forecast-components/forecast-comp
 import { ForecastComponentService } from "./forecast-components/forecast-component.service.js";
 import { FORECAST_COMPONENT_STORE } from "./forecast-components/forecast-component.types.js";
 import { PgForecastComponentStore } from "./forecast-components/pg-forecast-component.store.js";
+import { PerformanceComparisonController } from "./performance-comparison/performance-comparison.controller.js";
+import { PerformanceComparisonService } from "./performance-comparison/performance-comparison.service.js";
+import { PERFORMANCE_STORE } from "./performance-comparison/performance-comparison.types.js";
+import { PgPerformanceComparisonStore } from "./performance-comparison/pg-performance-comparison.store.js";
 
 @Module({
   controllers: [
@@ -119,6 +123,7 @@ import { PgForecastComponentStore } from "./forecast-components/pg-forecast-comp
     RevenueTargetController,
     ForecastVersionController,
     ForecastComponentController,
+    PerformanceComparisonController,
   ],
   providers: [
     MasterDataService,
@@ -178,6 +183,9 @@ import { PgForecastComponentStore } from "./forecast-components/pg-forecast-comp
     ForecastComponentService,
     PgForecastComponentStore,
     { provide: FORECAST_COMPONENT_STORE, useExisting: PgForecastComponentStore },
+    PerformanceComparisonService,
+    PgPerformanceComparisonStore,
+    { provide: PERFORMANCE_STORE, useExisting: PgPerformanceComparisonStore },
   ],
 })
 export class AppModule {}

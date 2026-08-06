@@ -790,6 +790,28 @@ tests:
     command: node tests/fixtures/golden/GF-FORECAST-002/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/planning.spec.ts
     blocking_gate: G6
 
+  - id: T-INT-ERP-620-001
+    aliases: [T-KPI-001]
+    task: ERP-620
+    rules: [BR-KPI-001]
+    title: MoM and YoY honor explicit periods leap years timezone and null denominator policy
+    layer: integration
+    fixture: GF-KPI-001
+    oracle: reviewed-spreadsheet
+    command: node tests/fixtures/golden/GF-KPI-001/verify.mjs && RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- performance-comparison.integration
+    blocking_gate: G6
+
+  - id: T-E2E-ERP-620-002
+    aliases: [T-KPI-002]
+    task: ERP-620
+    rules: [BR-KPI-002]
+    title: MTD actual shows prorated and full target with selected basis and forecast variance
+    layer: e2e
+    fixture: GF-KPI-001
+    oracle: reviewed-spreadsheet
+    command: node tests/fixtures/golden/GF-KPI-001/verify.mjs && pnpm --filter @naai-erp/web exec playwright test e2e/performance-comparisons.spec.ts
+    blocking_gate: G6
+
   - id: T-E2E-ERP-640-001
     aliases: [T-KPI-005]
     task: ERP-640

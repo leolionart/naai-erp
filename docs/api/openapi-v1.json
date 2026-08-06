@@ -51,6 +51,9 @@
     "forecast-components/review",
     "forecast-components/exclude",
     "forecast-composition/read",
+    "planning-actual-facts/backfill",
+    "planning-actual-facts/list",
+    "performance-comparisons/read",
     "commercial-documents/create",
     "commercial-documents/capture",
     "commercial-documents/validate",
@@ -2030,6 +2033,86 @@
         "responses": {
           "200": {
             "description": "Exact revenue, expense, and cash composition with cutoff, formula version, confidence flags, and drill-down IDs"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/planning-actual-facts": {
+      "get": {
+        "operationId": "listPlanningActualFacts",
+        "tags": ["planning", "performance-comparisons"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "actualBasis",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["recognized", "invoiced", "collected"] }
+          },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Versioned planning actual facts and source drill-down IDs" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/planning-actual-facts/backfill": {
+      "post": {
+        "operationId": "backfillPlanningActualFacts",
+        "tags": ["planning", "performance-comparisons"],
+        "summary": "Idempotently rebuild recognized, invoiced, or collected facts for a date range",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "responses": { "201": { "description": "Audited actual-fact backfill result" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/performance-comparisons": {
+      "get": {
+        "operationId": "getPerformanceComparisons",
+        "tags": ["planning", "performance-comparisons"],
+        "summary": "Actual vs prorated/full target, forecast vs target, actual vs retained forecast snapshot, MoM and YoY using explicit calendar or fiscal windows; stale fact projections are rejected and collected facts inherit dimensions only when every invoice allocation agrees",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "periodId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "examples": ["CAL-2024-02", "FY2024-P02"] }
+          },
+          {
+            "name": "periodBasis",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["calendar", "fiscal"] }
+          },
+          {
+            "name": "actualBasis",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["recognized", "invoiced", "collected"] }
+          },
+          {
+            "name": "asOfInstant",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" }
+          },
+          { "name": "forecastVersionId", "in": "query", "schema": { "type": "string" } },
+          { "name": "teamId", "in": "query", "schema": { "type": "string" } },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "ownerId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregate PerformanceComparisonContract including actualVsRetainedForecast, exact money strings, null policy, confidence flags and source IDs"
           }
         }
       }

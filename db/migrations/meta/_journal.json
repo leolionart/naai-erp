@@ -190,6 +190,13 @@
       "when": 1785974316800,
       "tag": "0026_petite_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785976478442,
+      "tag": "0027_silky_lila_cheney",
+      "breakpoints": true
     }
   ]
 }

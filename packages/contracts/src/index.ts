@@ -208,3 +208,22 @@ export {
   type RevenueRecognitionPolicyContract,
   type ScopeChangeContract,
 } from "./project-economics.js";
+export {
+  PERFORMANCE_COMPARISON_CONTRACT_VERSION,
+  PERFORMANCE_COMPARISON_FORMULA_VERSION,
+  PERFORMANCE_NULL_POLICY_VERSION,
+  PERFORMANCE_PRORATION_FORMULA_VERSION,
+  PERFORMANCE_WINDOW_FORMULA_VERSION,
+  type BuildPerformanceComparisonRequest,
+  type PerformanceAmountContract,
+  type PerformanceAmountStatusContract,
+  type PerformanceComparisonBasisContract,
+  type PerformanceComparisonContract,
+  type PerformanceComparisonLineContract,
+  type PerformanceConfidenceFlagContract,
+  type PerformancePeriodBasisContract,
+  type PerformancePeriodContract,
+  type PerformancePeriodKindContract,
+  type PerformanceResultStatusContract,
+  type PerformanceWindowContract,
+} from "./performance-comparisons.js";
