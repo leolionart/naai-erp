@@ -107,6 +107,27 @@ suite("ERP-640 executive metric policy persistence", () => {
       payload: { reason: "Independent review" },
     });
     expect(ok.statusCode).toBe(201);
+
+    const partialPeriodVersion = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-erp640/executive-metric-policies",
+      headers: h(),
+      payload: {
+        ...body,
+        effectiveFrom: "2026-08-15",
+        formulaVersion: "executive-metrics-v2-partial-period",
+        changeReason: "Must not apply to a report period that starts before this version",
+      },
+    });
+    expect(partialPeriodVersion.statusCode).toBe(201);
+    expect(partialPeriodVersion.json().data.version).toBe(2);
+    const partialPeriodApproval = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-erp640/executive-metric-policies/erp640-policy/versions/2/approve",
+      headers: h(approver),
+      payload: { reason: "Approve future partial-period version" },
+    });
+    expect(partialPeriodApproval.statusCode).toBe(201);
   });
   it("derives executive formulas from the controlled ledger cutoff", async () => {
     const response = await app.inject({
@@ -116,6 +137,7 @@ suite("ERP-640 executive metric policy persistence", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toMatchObject({
+      policyVersionId: "erp640-policy:1",
       grossMargin: { valueBps: 10_000 },
       operatingMargin: { valueBps: 8_000 },
       netMargin: { valueBps: 8_000 },

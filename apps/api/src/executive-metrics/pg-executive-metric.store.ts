@@ -273,7 +273,7 @@ export class PgExecutiveMetricStore {
       }),
       this.pool.query(
         `select * from executive_metric_policy_versions where organization_id=$1 and state='approved' and effective_from<=$2 and(effective_to is null or effective_to>=$3) order by effective_from desc,version desc limit 1`,
-        [c.organizationId, q.endsOn, q.startsOn],
+        [c.organizationId, q.startsOn, q.endsOn],
       ),
     ]);
     if (!policy.rows[0]) throw new Error("EXECUTIVE_METRIC_POLICY_NOT_FOUND");
@@ -346,7 +346,7 @@ export class PgExecutiveMetricStore {
       amount: string;
       source_ids: string[];
     }>(
-      `select d.id,d.id definition_id,d.version definition_version,d.purpose,d.name,f.kind,sum(f.amount_minor)::text amount,array_agg(distinct f.source_type||':'||f.source_id) source_ids from roi_definition_versions d join roi_input_facts f on f.organization_id=d.organization_id and f.definition_id=d.id and f.definition_version=d.version where d.organization_id=$1 and d.state='approved' and f.review_state='reviewed' and f.period_starts_on>=$2 and f.period_ends_on<=$3 and f.currency=$4 and f.dimensions@>$5::jsonb group by d.id,d.version,d.purpose,d.name,f.kind`,
+      `select d.id,d.id definition_id,d.version definition_version,d.purpose,d.name,f.kind,sum(f.amount_minor)::text amount,array_agg(distinct f.source_type||':'||f.source_id) source_ids from roi_definition_versions d join roi_input_facts f on f.organization_id=d.organization_id and f.definition_id=d.id and f.definition_version=d.version where d.organization_id=$1 and d.state='approved' and f.review_state='reviewed' and f.period_starts_on>=$2 and f.period_ends_on<=$3 and f.period_starts_on>=d.effective_from and(d.effective_to is null or f.period_ends_on<=d.effective_to) and f.currency=$4 and f.dimensions@>$5::jsonb group by d.id,d.version,d.purpose,d.name,f.kind`,
       [c.organizationId, q.startsOn, q.endsOn, String(P.currency), JSON.stringify(q.dimensions)],
     );
     type RoiGroup = {
@@ -360,8 +360,9 @@ export class PgExecutiveMetricStore {
     };
     const groups = new Map<string, RoiGroup>();
     for (const x of rf.rows) {
-      const g = groups.get(x.id) ?? {
-        id: x.id,
+      const groupId = `${x.id}:${x.definition_version}`;
+      const g = groups.get(groupId) ?? {
+        id: groupId,
         purpose: x.purpose,
         label: x.name,
         benefitMinor: 0n,
@@ -372,19 +373,54 @@ export class PgExecutiveMetricStore {
       if (x.kind === "benefit") g.benefitMinor = BigInt(x.amount);
       else g.includedCostMinor = BigInt(x.amount);
       g.sourceIds.push(...x.source_ids);
-      groups.set(x.id, g);
+      groups.set(groupId, g);
     }
     const ledgerCutoff = P.ledgerCutoff as {
       sourceFingerprint: string;
       sourceIds?: readonly string[];
     };
+    const statementSourceIds = (statement: Record<string, unknown>) =>
+      [
+        ...((statement.rows as { sourceIds?: readonly string[] }[] | undefined) ?? []),
+        ...((statement.assetRows as { sourceIds?: readonly string[] }[] | undefined) ?? []),
+        ...((statement.liabilityRows as { sourceIds?: readonly string[] }[] | undefined) ?? []),
+        ...((statement.equityRows as { sourceIds?: readonly string[] }[] | undefined) ?? []),
+        ...((statement.earningsRows as { sourceIds?: readonly string[] }[] | undefined) ?? []),
+        ...((statement.movements as { sourceIds?: readonly string[] }[] | undefined) ?? []),
+      ].flatMap((row) => row.sourceIds ?? []);
     const sources = [
       ...new Set([
         ...(ledgerCutoff.sourceIds ?? []),
+        ...statementSourceIds(P),
+        ...statementSourceIds(B),
+        ...statementSourceIds(O),
+        ...monthlyCashFlows.flatMap(statementSourceIds),
         ...sem.rows.flatMap((x) => x.source_ids),
         ...rf.rows.flatMap((x) => x.source_ids),
       ]),
-    ];
+    ].sort();
+    const componentFingerprints = [P, B, O, ...monthlyCashFlows]
+      .map((statement) =>
+        String(
+          (statement.ledgerCutoff as { sourceFingerprint?: string } | undefined)
+            ?.sourceFingerprint ?? "",
+        ),
+      )
+      .filter(Boolean);
+    const sourceFingerprint = createHash("sha256")
+      .update(
+        JSON.stringify({
+          organizationId: c.organizationId,
+          policyVersionId: `${policyRow.id}:${policyRow.version}`,
+          period: { startsOn: q.startsOn, endsOn: q.endsOn, asOfInstant: q.asOfInstant },
+          dimensions: Object.fromEntries(
+            Object.entries(q.dimensions).sort(([left], [right]) => left.localeCompare(right)),
+          ),
+          componentFingerprints,
+          sourceIds: sources,
+        }),
+      )
+      .digest("hex");
     return jsonMoney(
       buildExecutiveMetrics({
         organizationId: c.organizationId,
@@ -392,8 +428,8 @@ export class PgExecutiveMetricStore {
         period: { startsOn: q.startsOn, endsOn: q.endsOn, asOfDate: q.endsOn },
         dimensions: q.dimensions,
         sourceBoundary: {
-          ledgerCutoffFingerprint: String(ledgerCutoff.sourceFingerprint),
-          sourceIds: sources.length ? sources : [`ledger:${ledgerCutoff.sourceFingerprint}`],
+          ledgerCutoffFingerprint: sourceFingerprint,
+          sourceIds: sources.length ? sources : [`ledger:${sourceFingerprint}`],
         },
         revenueMinor: BigInt(String(P.revenueMinor)),
         grossProfitMinor: BigInt(String(P.grossProfitMinor)),
@@ -411,9 +447,11 @@ export class PgExecutiveMetricStore {
         ownerLoansMinor: amounts.owner_loan ?? 0n,
         unrestrictedCashMinor: amounts.unrestricted_cash ?? 0n,
         restrictedCashMinor: amounts.restricted_cash ?? 0n,
-        reviewedOperatingNetCashFlowMinor: monthlyCashFlows.map((cashFlow) =>
-          BigInt(String(cashFlow.operatingCashFlowMinor)),
-        ),
+        reviewedOperatingNetCashFlowMinor: monthlyCashFlows.every(
+          (cashFlow) => cashFlow.status === "ready",
+        )
+          ? monthlyCashFlows.map((cashFlow) => BigInt(String(cashFlow.operatingCashFlowMinor)))
+          : [],
         roi: [...groups.values()],
       }),
     );
