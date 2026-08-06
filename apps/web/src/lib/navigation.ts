@@ -114,6 +114,14 @@ export const adminNavigation = [
         icon: "report",
         status: "available",
       },
+      {
+        key: "accountant-exports",
+        label: "Xuất dữ liệu kế toán",
+        href: "/reports/accountant-exports",
+        description: "Snapshot bất biến và file CSV/XLSX bàn giao cho kế toán.",
+        icon: "report",
+        status: "available",
+      },
     ],
   },
   {

@@ -24,6 +24,8 @@ describe("typed admin navigation", () => {
     expect(isNavigationAvailable(findNavigationItem("financial-statements")!)).toBe(true);
     expect(findNavigationItem("executive-metrics")?.href).toBe("/reports/executive-metrics");
     expect(isNavigationAvailable(findNavigationItem("executive-metrics")!)).toBe(true);
+    expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
+    expect(isNavigationAvailable(findNavigationItem("accountant-exports")!)).toBe(true);
     expect(findNavigationItem("missing")).toBeUndefined();
   });
 });
