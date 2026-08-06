@@ -10,7 +10,8 @@ export type NavigationIcon =
   | "bank"
   | "report"
   | "customer"
-  | "project";
+  | "project"
+  | "review";
 
 export type NavigationItem = Readonly<{
   key: string;
@@ -56,6 +57,22 @@ export const adminNavigation = [
         description: "Dự án, khách hàng, ngân sách, chi phí và lợi nhuận liên quan.",
         icon: "project",
         status: "available",
+      },
+    ],
+  },
+  {
+    key: "data",
+    label: "Dữ liệu",
+    items: [
+      {
+        key: "import-review",
+        label: "Dữ liệu cần bổ sung",
+        href: "/imports/review",
+        description:
+          "Các dòng workbook cần xác nhận khách hàng, dự án, nhà cung cấp hoặc phân loại.",
+        icon: "review",
+        status: "available",
+        badge: "Review",
       },
     ],
   },

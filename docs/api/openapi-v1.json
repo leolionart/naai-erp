@@ -99,7 +99,10 @@
     "accountant-exports/download",
     "accountant-exports/supersede",
     "workbook-imports/dry-run",
-    "workbook-imports/commit"
+    "workbook-imports/commit",
+    "workbook-imports/review-rows/list",
+    "workbook-imports/review-rows/get",
+    "workbook-imports/review-rows/update"
   ],
   "paths": {
     "/api/v1/organizations/{organizationId}/master-data/resources": {
@@ -2915,6 +2918,73 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/workbook-imports/review-rows": {
+      "get": {
+        "operationId": "listWorkbookImportReviewRows",
+        "tags": ["workbook-imports"],
+        "summary": "List organization-scoped workbook source rows requiring review",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Workbook import review rows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/workbook-imports/review-rows/{id}": {
+      "get": {
+        "operationId": "getWorkbookImportReviewRow",
+        "tags": ["workbook-imports"],
+        "summary": "Get one staged workbook source row",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workbook import review row",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateWorkbookImportReviewRow",
+        "tags": ["workbook-imports"],
+        "summary": "Correct mapped source data with optimistic versioning and audit",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorkbookImportReviewUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated workbook import review row",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3282,7 +3352,62 @@
           "parties": { "type": "array", "items": { "type": "object" } },
           "projects": { "type": "array", "items": { "type": "object" } },
           "salesInvoices": { "type": "array", "items": { "type": "object" } },
-          "expenses": { "type": "array", "items": { "type": "object" } }
+          "expenses": { "type": "array", "items": { "type": "object" } },
+          "reviewRows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkbookImportReviewRowInput" }
+          }
+        }
+      },
+      "WorkbookImportReviewRowInput": {
+        "type": "object",
+        "required": [
+          "id",
+          "sourceIdentity",
+          "workbook",
+          "sheet",
+          "row",
+          "kind",
+          "proposedResourceType",
+          "status",
+          "reviewFlags",
+          "rawData",
+          "mappedData"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "sourceIdentity": { "type": "string" },
+          "workbook": { "type": "string" },
+          "sheet": { "type": "string" },
+          "row": { "type": "integer", "minimum": 1 },
+          "kind": {
+            "type": "string",
+            "enum": ["project", "sales", "expense", "owner_movement"]
+          },
+          "proposedResourceType": {
+            "type": "string",
+            "enum": ["project", "sales_invoice", "expense", "owner_equity_or_transfer_pending"]
+          },
+          "proposedResourceId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending_review", "posted", "ignored"]
+          },
+          "reviewFlags": { "type": "array", "items": { "type": "string" } },
+          "rawData": { "type": "object", "additionalProperties": true },
+          "mappedData": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "WorkbookImportReviewUpdate": {
+        "type": "object",
+        "properties": {
+          "mappedData": { "type": "object", "additionalProperties": true },
+          "resolution": { "type": "object", "additionalProperties": true },
+          "status": {
+            "type": "string",
+            "enum": ["pending_review", "approved", "ignored", "posted"]
+          },
+          "notes": { "type": ["string", "null"] }
         }
       },
       "WorkbookImportInventoryItem": {

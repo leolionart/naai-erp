@@ -340,6 +340,41 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("lists and updates workbook review rows through the headless CLI", async () => {
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "naai", token: "secret" },
+      fetchFn,
+    );
+    await client.request("workbook-review-rows", "list");
+    await client.request(
+      "workbook-review-rows",
+      "update",
+      { notes: "Đã xác nhận" },
+      "review-row-1",
+      "3",
+    );
+    expect(fetchFn.mock.calls[0]?.[0]).toBe(
+      "http://api/api/v1/organizations/naai/workbook-imports/review-rows",
+    );
+    expect(fetchFn.mock.calls[1]?.[0]).toBe(
+      "http://api/api/v1/organizations/naai/workbook-imports/review-rows/review-row-1",
+    );
+    expect(fetchFn.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({ "if-match": "3" }),
+      }),
+    );
+  });
+
   it("has no database dependency", async () => {
     const packageJson = await import("../package.json", { with: { type: "json" } });
     expect(JSON.stringify(packageJson.default)).not.toContain("@naai-erp/database");

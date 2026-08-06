@@ -338,7 +338,9 @@ export function DocumentForm({
     controlAccount: String(field(initial, "controlAccountCode") ?? "131"),
     primaryAccount: String(field(initialLine, "primaryAccountCode") ?? "511"),
     taxAccount: String(field(initialLine, "taxAccountCode") ?? "3331"),
-    project: String(field(initialDimensions, "project") ?? ""),
+    project: String(
+      field(initialDimensions, "projectId") ?? field(initialDimensions, "project") ?? "",
+    ),
     costCenter: String(field(initialDimensions, "costCenter") ?? "DELIVERY"),
     taxState: String(field(initialDimensions, "taxState") ?? "eligible"),
     originalDocumentId: String(field(initial, "originalDocumentId") ?? ""),
@@ -361,7 +363,7 @@ export function DocumentForm({
     event.preventDefault();
     const dimensions: Record<string, string> = {
       costCenter: form.costCenter || "GENERAL",
-      ...(form.project ? { project: form.project } : {}),
+      ...(form.project ? { projectId: form.project } : {}),
       ...(form.type === "purchase_invoice" && form.tax !== "0" ? { taxState: form.taxState } : {}),
     };
     onSubmit({
@@ -569,7 +571,9 @@ export function ExpenseForm({
     postingAccount: String(field(initialLine, "postingAccountCode") ?? "642"),
     vatAccount: String(field(initialLine, "vatAccountCode") ?? "1331"),
     counterAccount: String(field(initial, "counterAccountCode") ?? "331"),
-    project: String(field(initialDimensions, "project") ?? ""),
+    project: String(
+      field(initialDimensions, "projectId") ?? field(initialDimensions, "project") ?? "",
+    ),
     costCenter: String(field(initialDimensions, "costCenter") ?? "ADMIN"),
     invoice: Boolean(field(initialEvidence, "invoice") ?? true),
     receipt: Boolean(field(initialEvidence, "receipt") ?? false),
@@ -584,7 +588,7 @@ export function ExpenseForm({
     event.preventDefault();
     const dimensions = {
       costCenter: form.costCenter || "GENERAL",
-      ...(form.project ? { project: form.project } : {}),
+      ...(form.project ? { projectId: form.project } : {}),
     };
     onSubmit({
       expenseClass: form.expenseClass,

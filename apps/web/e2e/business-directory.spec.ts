@@ -58,6 +58,7 @@ test("@desktop project profile exposes customer, invoice and financial drilldown
           code: "WEB-A",
           name: "Website khách hàng A",
           client_party_id: "client-a",
+          owner_user_id: "owner-a",
           contract_type: "fixed_fee",
           currency: "VND",
           budget_minor: "250000000",
@@ -91,6 +92,10 @@ test("@desktop project profile exposes customer, invoice and financial drilldown
     "href",
     "/reports/project-profitability/projects/website-a",
   );
+  await page.getByRole("button", { name: "Chỉnh sửa" }).click();
+  const editor = page.getByRole("dialog", { name: "Chỉnh sửa dự án" });
+  await expect(editor.getByLabel("ID khách hàng")).toHaveValue("client-a");
+  await expect(editor.getByLabel("ID người phụ trách")).toHaveValue("owner-a");
 });
 
 test("@desktop directory create action opens an in-context drawer", async ({ page }) => {

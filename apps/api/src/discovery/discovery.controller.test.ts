@@ -36,6 +36,8 @@ describe("MVP headless API discovery", () => {
       `${organization}/report-snapshots`,
       `${organization}/workbook-imports/dry-run`,
       `${organization}/workbook-imports/commit`,
+      `${organization}/workbook-imports/review-rows`,
+      `${organization}/workbook-imports/review-rows/{id}`,
     ]) {
       expect(spec.paths, retained).toHaveProperty(retained);
     }
@@ -71,6 +73,12 @@ describe("MVP headless API discovery", () => {
     });
     expect(spec.paths[`${organization}/workbook-imports/commit`]?.post).toMatchObject({
       operationId: "commitWorkbookImport",
+    });
+    expect(spec.paths[`${organization}/workbook-imports/review-rows`]?.get).toMatchObject({
+      operationId: "listWorkbookImportReviewRows",
+    });
+    expect(spec.paths[`${organization}/workbook-imports/review-rows/{id}`]?.patch).toMatchObject({
+      operationId: "updateWorkbookImportReviewRow",
     });
     expect(spec.paths[`${organization}/expenses`]?.get).toBeDefined();
     expect(spec.components.schemas.WorkbookImportDetails?.required).toContain("expensesSkipped");

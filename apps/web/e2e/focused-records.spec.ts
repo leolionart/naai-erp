@@ -38,7 +38,11 @@ const invoice = {
       taxMinor: "1000000",
       grossMinor: "11000000",
       allocations: [
-        { id: "allocation-1", amountMinor: "10000000", dimensions: { costCenter: "DELIVERY" } },
+        {
+          id: "allocation-1",
+          amountMinor: "10000000",
+          dimensions: { costCenter: "DELIVERY", projectId: "project-720" },
+        },
       ],
     },
   ],
@@ -66,7 +70,11 @@ const expense = {
       vatMinor: "0",
       grossMinor: "2000000",
       allocations: [
-        { id: "allocation-2", amountMinor: "2000000", dimensions: { costCenter: "ADMIN" } },
+        {
+          id: "allocation-2",
+          amountMinor: "2000000",
+          dimensions: { costCenter: "ADMIN", projectId: "project-720" },
+        },
       ],
     },
   ],
@@ -88,6 +96,10 @@ async function install(
           return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
         expect(route.request().headers()["if-match"]).toBe("1");
         const body = route.request().postDataJSON() as typeof invoice;
+        expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({
+          projectId: "project-720",
+        });
+        expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("project");
         currentInvoice = { ...currentInvoice, ...body, resourceVersion: "2" };
         return reply(route, { documentId: currentInvoice.id, resourceVersion: "2" });
       }
@@ -104,6 +116,8 @@ async function install(
         return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
       expect(route.request().headers()["if-match"]).toBe("1");
       const body = route.request().postDataJSON() as typeof expense;
+      expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({ projectId: "project-720" });
+      expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("project");
       currentExpense = { ...currentExpense, ...body, resourceVersion: "2" };
       return reply(route, { expenseId: currentExpense.id, resourceVersion: "2" });
     }

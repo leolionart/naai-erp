@@ -62,6 +62,31 @@ export interface LegacyControlTreatment {
   evidence?: string;
 }
 
+export type WorkbookImportReviewStatus = "pending_review" | "approved" | "ignored" | "posted";
+
+export interface WorkbookImportReviewRowInput {
+  id: string;
+  sourceIdentity: string;
+  workbook: string;
+  sheet: string;
+  row: number;
+  kind: "project" | "sales" | "expense" | "owner_movement";
+  proposedResourceType:
+    "project" | "sales_invoice" | "expense" | "owner_equity_or_transfer_pending";
+  proposedResourceId?: string;
+  status: "pending_review" | "posted" | "ignored";
+  reviewFlags: readonly string[];
+  rawData: Readonly<Record<string, unknown>>;
+  mappedData: Readonly<Record<string, unknown>>;
+}
+
+export interface UpdateWorkbookImportReviewRowInput {
+  mappedData?: Readonly<Record<string, unknown>>;
+  resolution?: Readonly<Record<string, unknown>>;
+  status?: WorkbookImportReviewStatus;
+  notes?: string | null;
+}
+
 export interface WorkbookImportPayload {
   mappingVersion: 1 | 2;
   sources: readonly Readonly<{ kind: "projects" | "finance"; sha256: string; filename: string }>[];
@@ -101,4 +126,5 @@ export interface WorkbookImportPayload {
   projects: readonly ImportProjectInput[];
   salesInvoices: readonly ImportSalesInvoiceInput[];
   expenses: readonly ImportExpenseInput[];
+  reviewRows?: readonly WorkbookImportReviewRowInput[];
 }

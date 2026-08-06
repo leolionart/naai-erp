@@ -11,6 +11,7 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
   let app: Awaited<ReturnType<typeof createApp>>;
   let committedAuditEventId: string;
   const importToken = "import-secret-token";
+  const viewerToken = "import-viewer-token";
 
   beforeAll(async () => {
     // Set up database schema references, organizations, fiscal period, accounts
@@ -51,9 +52,15 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     const tokenHash = createHash("sha256").update(importToken).digest("hex");
     await pool.query(
       `insert into api_credentials (organization_id, id, actor_id, token_hash, roles)
-       values ('org-import', 'import-actor-id', 'maker-import', $1, '["integration"]')
-       on conflict do nothing`,
+       values ('org-import', 'import-actor-id', 'maker-import', $1, '["accountant"]')
+       on conflict (organization_id,id) do update set token_hash=excluded.token_hash,roles=excluded.roles,status='active'`,
       [tokenHash],
+    );
+    await pool.query(
+      `insert into api_credentials (organization_id, id, actor_id, token_hash, roles)
+       values ('org-import', 'import-viewer-id', 'maker-import', $1, '["viewer"]')
+       on conflict (organization_id,id) do update set token_hash=excluded.token_hash,roles=excluded.roles,status='active'`,
+      [createHash("sha256").update(viewerToken).digest("hex")],
     );
 
     app = await createApp();
@@ -174,6 +181,35 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
         currency: "VND",
         sourceRowIndex: 3,
         sourceIdentity: "test-workbook-sha256:Chi phí:3",
+      },
+    ],
+    reviewRows: [
+      {
+        id: "review-zero-expense-row-3",
+        sourceIdentity: "test-workbook-sha256:Chi phí:3",
+        workbook: "finance",
+        sheet: "Chi phí",
+        row: 3,
+        kind: "expense" as const,
+        proposedResourceType: "expense" as const,
+        proposedResourceId: "exp-row3-zero-2025-01-16",
+        status: "pending_review" as const,
+        reviewFlags: ["zero_amount"],
+        rawData: { label: "Zero-value source marker", amount: 0 },
+        mappedData: { amountMinor: "0", taxMinor: "0" },
+      },
+      {
+        id: "review-owner-movement-row-4",
+        sourceIdentity: "test-workbook-sha256:Chi phí:4",
+        workbook: "finance",
+        sheet: "Chi phí",
+        row: 4,
+        kind: "owner_movement" as const,
+        proposedResourceType: "owner_equity_or_transfer_pending" as const,
+        status: "pending_review" as const,
+        reviewFlags: ["owner_equity_or_transfer"],
+        rawData: { label: "Owner cash movement", amount: 5000000 },
+        mappedData: { amountMinor: "5000000" },
       },
     ],
   };
@@ -487,6 +523,20 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     expect(body.data.details.expensesSkipped).toBe(1);
     expect(body.data.details.auditEventId).toBe(committedAuditEventId);
 
+    const reviewRows = await pool.query(
+      `select id,status,version::text from workbook_import_review_rows
+       where organization_id='org-import' order by id`,
+    );
+    expect(reviewRows.rows).toEqual([
+      { id: "review-owner-movement-row-4", status: "pending_review", version: "1" },
+      { id: "review-zero-expense-row-3", status: "pending_review", version: "1" },
+    ]);
+    const reviewOnlyJournals = await pool.query(
+      `select count(*) from journal_entries where organization_id='org-import'
+       and id in ('journal-expense-import-review-zero-expense-row-3','journal-expense-import-review-owner-movement-row-4')`,
+    );
+    expect(reviewOnlyJournals.rows[0].count).toBe("0");
+
     // Verify balanced double-entry journal entries for sales invoice
     // DR AR 131: 110,000,000
     // CR Revenue 511: 100,000,000
@@ -562,5 +612,103 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
       "select id from resource_audit_events where organization_id='org-import' and resource_type='workbook_import' and action='commit'",
     );
     expect(audit.rows).toEqual([{ id: committedAuditEventId }]);
+    const reviewVersions = await pool.query(
+      `select distinct version::text version from workbook_import_review_rows
+       where organization_id='org-import'`,
+    );
+    expect(reviewVersions.rows).toEqual([{ version: "1" }]);
+  });
+
+  it("lists, reads and optimistically updates organization-scoped review rows with audit", async () => {
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-import/workbook-imports/review-rows",
+      headers: { authorization: `Bearer ${importToken}` },
+    });
+    expect(list.statusCode, list.payload).toBe(200);
+    expect(JSON.parse(list.payload).data.items).toHaveLength(2);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-import/workbook-imports/review-rows/review-owner-movement-row-4",
+      headers: { authorization: `Bearer ${importToken}` },
+    });
+    expect(detail.statusCode, detail.payload).toBe(200);
+    expect(JSON.parse(detail.payload).data).toMatchObject({
+      sourceRow: 4,
+      kind: "owner_movement",
+      resourceVersion: "1",
+    });
+
+    const update = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/organizations/org-import/workbook-imports/review-rows/review-owner-movement-row-4",
+      headers: { authorization: `Bearer ${importToken}`, "if-match": "1" },
+      payload: {
+        status: "approved",
+        mappedData: { amountMinor: "5000000", treatment: "owner_equity" },
+        resolution: { decidedBy: "accountant", targetAccount: "411" },
+        notes: "Confirmed owner equity contribution",
+      },
+    });
+    expect(update.statusCode, update.payload).toBe(200);
+    expect(JSON.parse(update.payload).data).toMatchObject({
+      status: "approved",
+      resourceVersion: "2",
+      notes: "Confirmed owner equity contribution",
+      resolution: { targetAccount: "411" },
+    });
+
+    const repeatedImport = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-import/workbook-imports/commit",
+      headers: { authorization: `Bearer ${importToken}` },
+      payload,
+    });
+    expect(repeatedImport.statusCode, repeatedImport.payload).toBe(201);
+    const preserved = await pool.query(
+      `select status,mapped_data,resolution,notes,version::text
+       from workbook_import_review_rows
+       where organization_id='org-import' and id='review-owner-movement-row-4'`,
+    );
+    expect(preserved.rows[0]).toMatchObject({
+      status: "approved",
+      mapped_data: { amountMinor: "5000000", treatment: "owner_equity" },
+      resolution: { decidedBy: "accountant", targetAccount: "411" },
+      notes: "Confirmed owner equity contribution",
+      version: "2",
+    });
+
+    const stale = await app.inject({
+      method: "PATCH",
+      url: "/api/v1/organizations/org-import/workbook-imports/review-rows/review-owner-movement-row-4",
+      headers: { authorization: `Bearer ${importToken}`, "if-match": "1" },
+      payload: { notes: "stale" },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(JSON.parse(stale.payload).error.code).toBe("VERSION_CONFLICT");
+
+    const audit = await pool.query(
+      `select action,resource_version::text version from resource_audit_events
+       where organization_id='org-import' and resource_type='workbook_import_review_row'
+         and resource_key='review-owner-movement-row-4'`,
+    );
+    expect(audit.rows).toEqual([{ action: "update", version: "2" }]);
+
+    const crossOrg = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-other/workbook-imports/review-rows/review-owner-movement-row-4",
+      headers: { authorization: `Bearer ${importToken}` },
+    });
+    expect(crossOrg.statusCode).toBe(400);
+    expect(JSON.parse(crossOrg.payload).error.code).toBe("UNAUTHORIZED");
+
+    const forbidden = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-import/workbook-imports/review-rows",
+      headers: { authorization: `Bearer ${viewerToken}` },
+    });
+    expect(forbidden.statusCode).toBe(403);
+    expect(JSON.parse(forbidden.payload).error.code).toBe("FORBIDDEN");
   });
 });

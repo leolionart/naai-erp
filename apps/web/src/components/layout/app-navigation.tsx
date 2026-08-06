@@ -9,6 +9,7 @@ import {
   BriefcaseBusinessIcon,
   FileTextIcon,
   GaugeIcon,
+  ListChecksIcon,
   MenuIcon,
   ReceiptTextIcon,
   UsersIcon,
@@ -32,6 +33,7 @@ const icons = {
   report: WalletCardsIcon,
   customer: UsersIcon,
   project: BriefcaseBusinessIcon,
+  review: ListChecksIcon,
 } satisfies Record<NavigationIcon, typeof GaugeIcon>;
 
 function NavigationContent({ pathname }: { pathname: string }) {

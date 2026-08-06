@@ -1,7 +1,36 @@
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
 import { createHash, randomUUID } from "node:crypto";
-import type { WorkbookImportPayload } from "./workbook-import.types.js";
+import type {
+  UpdateWorkbookImportReviewRowInput,
+  WorkbookImportPayload,
+  WorkbookImportReviewStatus,
+} from "./workbook-import.types.js";
+
+const REVIEW_ROLES = new Set(["owner", "finance_admin", "accountant"]);
+
+type ReviewRowRecord = {
+  id: string;
+  import_identity: string;
+  source_identity: string;
+  workbook: string;
+  sheet: string;
+  source_row: number;
+  kind: string;
+  proposed_resource_type: string;
+  proposed_resource_id: string | null;
+  status: WorkbookImportReviewStatus;
+  review_flags: unknown;
+  raw_data: unknown;
+  mapped_data: unknown;
+  resolution: unknown;
+  notes: string | null;
+  version: string;
+  created_by: string;
+  updated_by: string;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
 
 export type ImportOutcome = {
   valid: boolean;
@@ -62,6 +91,128 @@ export type ImportOutcome = {
 @Injectable()
 export class WorkbookImportService {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+  private requireReviewRole(roles: readonly string[]) {
+    if (!roles.some((role) => REVIEW_ROLES.has(role))) throw new Error("FORBIDDEN");
+  }
+
+  private reviewRow(row: ReviewRowRecord) {
+    return {
+      id: row.id,
+      importIdentity: row.import_identity,
+      sourceIdentity: row.source_identity,
+      workbook: row.workbook,
+      sheet: row.sheet,
+      sourceRow: row.source_row,
+      kind: row.kind,
+      proposedResourceType: row.proposed_resource_type,
+      proposedResourceId: row.proposed_resource_id,
+      status: row.status,
+      reviewFlags: row.review_flags,
+      rawData: row.raw_data,
+      mappedData: row.mapped_data,
+      resolution: row.resolution,
+      notes: row.notes,
+      resourceVersion: row.version,
+      createdBy: row.created_by,
+      updatedBy: row.updated_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async listReviewRows(organizationId: string, roles: readonly string[]) {
+    this.requireReviewRole(roles);
+    const result = await this.pool.query<ReviewRowRecord>(
+      `select * from workbook_import_review_rows
+       where organization_id=$1 order by workbook,sheet,source_row,id`,
+      [organizationId],
+    );
+    return result.rows.map((row) => this.reviewRow(row));
+  }
+
+  async getReviewRow(organizationId: string, id: string, roles: readonly string[]) {
+    this.requireReviewRole(roles);
+    const result = await this.pool.query<ReviewRowRecord>(
+      `select * from workbook_import_review_rows where organization_id=$1 and id=$2`,
+      [organizationId, id],
+    );
+    if (!result.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
+    return this.reviewRow(result.rows[0]);
+  }
+
+  async updateReviewRow(
+    organizationId: string,
+    id: string,
+    expectedVersion: string,
+    input: UpdateWorkbookImportReviewRowInput,
+    actorId: string,
+    roles: readonly string[],
+    correlationId: string,
+  ) {
+    this.requireReviewRole(roles);
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (
+      input.status !== undefined &&
+      !["pending_review", "approved", "ignored", "posted"].includes(input.status)
+    )
+      throw new Error("VALIDATION_FAILED");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const current = await client.query<ReviewRowRecord>(
+        `select * from workbook_import_review_rows
+         where organization_id=$1 and id=$2 for update`,
+        [organizationId, id],
+      );
+      const before = current.rows[0];
+      if (!before) throw new Error("RESOURCE_NOT_FOUND");
+      if (before.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      const updated = await client.query<ReviewRowRecord>(
+        `update workbook_import_review_rows set
+           mapped_data=coalesce($3::jsonb,mapped_data),
+           resolution=coalesce($4::jsonb,resolution),
+           status=coalesce($5::workbook_import_review_status,status),
+           notes=case when $6::boolean then $7::text else notes end,
+           version=version+1,updated_by=$8,updated_at=now()
+         where organization_id=$1 and id=$2 and version=$9::bigint returning *`,
+        [
+          organizationId,
+          id,
+          input.mappedData === undefined ? null : JSON.stringify(input.mappedData),
+          input.resolution === undefined ? null : JSON.stringify(input.resolution),
+          input.status ?? null,
+          input.notes !== undefined,
+          input.notes ?? null,
+          actorId,
+          expectedVersion,
+        ],
+      );
+      if (!updated.rows[0]) throw new Error("VERSION_CONFLICT");
+      await client.query(
+        `insert into resource_audit_events
+          (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values ($1,$2,'workbook_import_review_row',$3,$4,'update',$5,$6,$7::jsonb,$8::jsonb)`,
+        [
+          organizationId,
+          randomUUID(),
+          id,
+          updated.rows[0].version,
+          actorId,
+          correlationId,
+          JSON.stringify(this.reviewRow(before)),
+          JSON.stringify(this.reviewRow(updated.rows[0])),
+        ],
+      );
+      await client.query("commit");
+      return this.reviewRow(updated.rows[0]);
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 
   async authenticate(
     rawToken: string,
@@ -396,6 +547,9 @@ export class WorkbookImportService {
     }
 
     // 2. Perform transaction mutations
+    const importIdentity = createHash("sha256")
+      .update(JSON.stringify(payload.sources))
+      .digest("hex");
     const client = await this.pool.connect();
     let auditEventId: string = randomUUID();
 
@@ -407,6 +561,69 @@ export class WorkbookImportService {
 
     try {
       await client.query("begin");
+
+      // 2.0 Review staging. These rows never create journals by themselves.
+      for (const row of payload.reviewRows ?? []) {
+        await client.query(
+          `insert into workbook_import_review_rows
+            (organization_id,id,import_identity,source_identity,workbook,sheet,source_row,kind,
+             proposed_resource_type,proposed_resource_id,status,review_flags,raw_data,mapped_data,
+             resolution,notes,version,created_by,updated_by,created_at,updated_at)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb,
+                   '{}'::jsonb,null,1,$15,$15,now(),now())
+           on conflict (organization_id,source_identity) do update set
+             import_identity=excluded.import_identity,workbook=excluded.workbook,sheet=excluded.sheet,
+             source_row=excluded.source_row,kind=excluded.kind,
+             proposed_resource_type=excluded.proposed_resource_type,
+             proposed_resource_id=excluded.proposed_resource_id,
+             status=case
+               when workbook_import_review_rows.resolution='{}'::jsonb
+                 and workbook_import_review_rows.notes is null
+               then excluded.status
+               else workbook_import_review_rows.status
+             end,
+             review_flags=excluded.review_flags,raw_data=excluded.raw_data,
+             mapped_data=case
+               when workbook_import_review_rows.resolution='{}'::jsonb
+                 and workbook_import_review_rows.notes is null
+               then excluded.mapped_data
+               else workbook_import_review_rows.mapped_data
+             end,
+             version=workbook_import_review_rows.version+1,updated_by=excluded.updated_by,updated_at=now()
+           where (workbook_import_review_rows.import_identity,workbook_import_review_rows.workbook,
+                  workbook_import_review_rows.sheet,workbook_import_review_rows.source_row,
+                  workbook_import_review_rows.kind,workbook_import_review_rows.proposed_resource_type,
+                  workbook_import_review_rows.proposed_resource_id,
+                  workbook_import_review_rows.review_flags,workbook_import_review_rows.raw_data)
+             is distinct from
+                 (excluded.import_identity,excluded.workbook,excluded.sheet,excluded.source_row,
+                  excluded.kind,excluded.proposed_resource_type,excluded.proposed_resource_id,
+                  excluded.review_flags,excluded.raw_data)
+              or (
+                workbook_import_review_rows.resolution='{}'::jsonb
+                and workbook_import_review_rows.notes is null
+                and (workbook_import_review_rows.status,workbook_import_review_rows.mapped_data)
+                    is distinct from (excluded.status,excluded.mapped_data)
+              )`,
+          [
+            organizationId,
+            row.id,
+            importIdentity,
+            row.sourceIdentity,
+            row.workbook,
+            row.sheet,
+            row.row,
+            row.kind,
+            row.proposedResourceType,
+            row.proposedResourceId ?? null,
+            row.status,
+            JSON.stringify(row.reviewFlags),
+            JSON.stringify(row.rawData),
+            JSON.stringify(row.mappedData),
+            actorId,
+          ],
+        );
+      }
 
       // 2.1 Parties
       for (const party of payload.parties) {
@@ -709,9 +926,6 @@ export class WorkbookImportService {
       }
 
       // 2.5 Audit log mutation record
-      const importIdentity = createHash("sha256")
-        .update(JSON.stringify(payload.sources))
-        .digest("hex");
       const existingAudit = await client.query<{ id: string }>(
         `select id from resource_audit_events where organization_id=$1 and resource_type='workbook_import' and resource_key=$2 and action='commit' limit 1`,
         [organizationId, importIdentity],

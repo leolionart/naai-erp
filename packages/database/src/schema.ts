@@ -73,6 +73,12 @@ export const reportSnapshotReadiness = pgEnum("report_snapshot_readiness", [
 ]);
 export const accountantExportState = pgEnum("accountant_export_state", ["generated", "superseded"]);
 export const accountantExportFormat = pgEnum("accountant_export_format", ["csv", "xlsx"]);
+export const workbookImportReviewStatus = pgEnum("workbook_import_review_status", [
+  "pending_review",
+  "approved",
+  "ignored",
+  "posted",
+]);
 export const cashFlowClass = pgEnum("cash_flow_class", [
   "operating",
   "investing",
@@ -4852,6 +4858,45 @@ export const externalReferences = pgTable(
   ],
 );
 
+export const workbookImportReviewRows = pgTable(
+  "workbook_import_review_rows",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    importIdentity: text("import_identity").notNull(),
+    sourceIdentity: text("source_identity").notNull(),
+    workbook: text("workbook").notNull(),
+    sheet: text("sheet").notNull(),
+    sourceRow: integer("source_row").notNull(),
+    kind: text("kind").notNull(),
+    proposedResourceType: text("proposed_resource_type").notNull(),
+    proposedResourceId: text("proposed_resource_id"),
+    status: workbookImportReviewStatus("status").notNull().default("pending_review"),
+    reviewFlags: jsonb("review_flags").$type<readonly string[]>().notNull(),
+    rawData: jsonb("raw_data").$type<Record<string, unknown>>().notNull(),
+    mappedData: jsonb("mapped_data").$type<Record<string, unknown>>().notNull(),
+    resolution: jsonb("resolution").$type<Record<string, unknown>>().notNull().default({}),
+    notes: text("notes"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("workbook_import_review_rows_source_unique").on(
+      table.organizationId,
+      table.sourceIdentity,
+    ),
+    index("workbook_import_review_rows_import_idx").on(table.organizationId, table.importIdentity),
+    index("workbook_import_review_rows_status_idx").on(table.organizationId, table.status),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -4959,4 +5004,5 @@ export const schema = {
   reportSnapshots,
   accountantExports,
   externalReferences,
+  workbookImportReviewRows,
 } as const;

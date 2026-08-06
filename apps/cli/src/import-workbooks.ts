@@ -46,6 +46,22 @@ type ImportedExpense = Record<string, unknown> &
     legacyControlTreatment: ControlTreatment;
   }>;
 
+type ReviewRow = Readonly<{
+  id: string;
+  sourceIdentity: string;
+  workbook: "projects" | "finance";
+  sheet: "🏔️ Projects" | "Doanh thu" | "Chi phí";
+  row: number;
+  kind: "project" | "sales" | "expense" | "owner_movement";
+  proposedResourceType:
+    "project" | "sales_invoice" | "expense" | "owner_equity_or_transfer_pending";
+  proposedResourceId?: string;
+  status: "pending_review" | "posted" | "ignored";
+  reviewFlags: string[];
+  rawData: Record<string, unknown>;
+  mappedData: Record<string, unknown>;
+}>;
+
 const REVIEWED_SALES_PROJECT_ROWS = new Map<number, number>([
   [5, 9],
   [21, 7],
@@ -128,6 +144,14 @@ export async function buildWorkbookImportPayload(
   const projectsBySourceRow = new Map<number, Record<string, unknown>>();
   const salesInvoices: ImportedSalesInvoice[] = [];
   const expenses: ImportedExpense[] = [];
+  const reviewSources: {
+    workbook: "projects" | "finance";
+    sheet: "🏔️ Projects" | "Doanh thu" | "Chi phí";
+    row: number;
+    hash: string;
+    kind: ReviewRow["kind"];
+    rawData: Record<string, unknown>;
+  }[] = [];
   const controls: {
     workbook: string;
     sheet: string;
@@ -199,6 +223,23 @@ export async function buildWorkbookImportPayload(
           continue;
         }
         try {
+          reviewSources.push({
+            workbook: "projects",
+            sheet: "🏔️ Projects",
+            row: rowNumber,
+            hash,
+            kind: "project",
+            rawData: {
+              projectName: name,
+              projectStage: textValue(row.getCell(4).value),
+              startDate: textValue(row.getCell(5).value),
+              endDate: textValue(row.getCell(6).value),
+              projectCost: textValue(row.getCell(8).value),
+              projectType: textValue(row.getCell(11).value),
+              package: textValue(row.getCell(12).value),
+              notes: textValue(row.getCell(14).value),
+            },
+          });
           const startsOn = parseDate(row.getCell(5).value);
           const endRaw = row.getCell(6).value;
           const endsOn = textValue(endRaw) ? parseDate(endRaw) : null;
@@ -309,10 +350,31 @@ export async function buildWorkbookImportPayload(
     };
     parseRows("Doanh thu", (row, rowNumber) => {
       const date = parseDate(row.getCell(1).value);
+      const salesRawData = {
+        transactionDate: textValue(row.getCell(1).value),
+        projectRevenue: textValue(row.getCell(2).value),
+        contractValue: textValue(row.getCell(3).value),
+        vat: textValue(row.getCell(4).value),
+        cash: textValue(row.getCell(5).value),
+        received: textValue(row.getCell(6).value),
+        revenueType: textValue(row.getCell(7).value),
+        sourceMonth: textValue(row.getCell(8).value),
+        companyOrClient: textValue(row.getCell(9).value),
+        notes: textValue(row.getCell(10).value),
+        invoiceMode: textValue(row.getCell(11).value),
+      };
       if (
         !textValue(row.getCell(2).value) &&
         textValue(row.getCell(7).value).toLocaleLowerCase("vi").includes("cá nhân")
       ) {
+        reviewSources.push({
+          workbook: "finance",
+          sheet: "Doanh thu",
+          row: rowNumber,
+          hash,
+          kind: "owner_movement",
+          rawData: salesRawData,
+        });
         issues.push({
           severity: "warning",
           workbook: "finance",
@@ -396,6 +458,14 @@ export async function buildWorkbookImportPayload(
           }),
         },
       });
+      reviewSources.push({
+        workbook: "finance",
+        sheet: "Doanh thu",
+        row: rowNumber,
+        hash,
+        kind: "sales",
+        rawData: salesRawData,
+      });
     });
     parseRows("Chi phí", (row, rowNumber) => {
       const date = parseDate(row.getCell(1).value);
@@ -403,6 +473,29 @@ export async function buildWorkbookImportPayload(
       const tax = parseMoney(row.getCell(7).value);
       const type = textValue(row.getCell(9).value) || "Chi phí vận hành";
       const note = textValue(row.getCell(14).value);
+      reviewSources.push({
+        workbook: "finance",
+        sheet: "Chi phí",
+        row: rowNumber,
+        hash,
+        kind: "expense",
+        rawData: {
+          transactionDate: textValue(row.getCell(1).value),
+          gross: textValue(row.getCell(2).value),
+          sourceMonth: textValue(row.getCell(3).value),
+          manualCost: textValue(row.getCell(4).value),
+          cash: textValue(row.getCell(5).value),
+          vatRate: textValue(row.getCell(6).value),
+          vat: textValue(row.getCell(7).value),
+          invoiceDate: textValue(row.getCell(8).value),
+          expenseType: textValue(row.getCell(9).value),
+          personnel: textValue(row.getCell(10).value),
+          department: textValue(row.getCell(11).value),
+          fundingSource: textValue(row.getCell(12).value),
+          notes: note,
+          invoiceFile: textValue(row.getCell(15).value),
+        },
+      });
       const id = stableId("expense", hash, "Chi phí", rowNumber);
       const lower = type.toLocaleLowerCase("vi");
       const noteLower = note.toLocaleLowerCase("vi");
@@ -502,6 +595,62 @@ export async function buildWorkbookImportPayload(
     });
   }
 
+  const genericSupplierId = [...parties.values()].find(
+    (candidate) => candidate.displayName === "Generic Supplier",
+  )?.id;
+  const reviewRows: ReviewRow[] = reviewSources.map((source) => {
+    const sourceIdentity = `${source.hash}:${source.sheet}:${source.row}`;
+    if (source.kind === "owner_movement") {
+      return {
+        id: stableId("review", source.hash, source.sheet, source.row),
+        sourceIdentity,
+        workbook: source.workbook,
+        sheet: source.sheet,
+        row: source.row,
+        kind: source.kind,
+        proposedResourceType: "owner_equity_or_transfer_pending",
+        status: "pending_review",
+        reviewFlags: ["owner_movement_requires_classification"],
+        rawData: source.rawData,
+        mappedData: {},
+      };
+    }
+    const mapped =
+      source.kind === "project"
+        ? projects.find((item) => item.sourceRowIndex === source.row)
+        : source.kind === "sales"
+          ? salesInvoices.find((item) => item.sourceRowIndex === source.row)
+          : expenses.find((item) => item.sourceRowIndex === source.row);
+    const flags: string[] = [];
+    if (source.kind === "project") {
+      if (mapped?.clientPartyId === genericClientId) flags.push("generic_client");
+      if (mapped?.budgetMinor === "0" && !source.rawData.projectCost) flags.push("missing_budget");
+    } else if (source.kind === "sales") {
+      if (mapped?.partyId === genericClientId) flags.push("generic_client");
+      if (!mapped?.projectId) flags.push("missing_project");
+    } else {
+      if (genericSupplierId && mapped?.payeePartyId === genericSupplierId)
+        flags.push("generic_payee");
+      if (mapped?.amountMinor === "0") flags.push("zero_value");
+    }
+    const proposedResourceType =
+      source.kind === "project" ? "project" : source.kind === "sales" ? "sales_invoice" : "expense";
+    return {
+      id: stableId("review", source.hash, source.sheet, source.row),
+      sourceIdentity,
+      workbook: source.workbook,
+      sheet: source.sheet,
+      row: source.row,
+      kind: source.kind,
+      proposedResourceType,
+      ...(mapped?.id ? { proposedResourceId: String(mapped.id) } : {}),
+      status: flags.length ? "pending_review" : "posted",
+      reviewFlags: flags,
+      rawData: source.rawData,
+      mappedData: mapped ?? {},
+    };
+  });
+
   return {
     mappingVersion: 2,
     sources,
@@ -513,6 +662,7 @@ export async function buildWorkbookImportPayload(
     projects,
     salesInvoices,
     expenses,
+    reviewRows,
   };
 }
 

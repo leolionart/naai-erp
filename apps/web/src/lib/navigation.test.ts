@@ -25,6 +25,7 @@ describe("typed admin navigation", () => {
     expect(isNavigationAvailable(findNavigationItem("accountant-exports")!)).toBe(true);
     expect(findNavigationItem("customers")?.href).toBe("/customers");
     expect(findNavigationItem("projects")?.href).toBe("/projects");
+    expect(findNavigationItem("import-review")?.href).toBe("/imports/review");
     for (const hidden of [
       "evidence",
       "integrations",

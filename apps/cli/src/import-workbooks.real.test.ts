@@ -84,5 +84,51 @@ describeReal("ERP-740 real workbook controls", () => {
         evidence: expect.any(String),
       });
     }
+    expect(payload.reviewRows).toHaveLength(288);
+    expect(
+      Object.fromEntries(
+        ["project", "sales", "expense", "owner_movement"].map((kind) => [
+          kind,
+          payload.reviewRows.filter((item) => item.kind === kind).length,
+        ]),
+      ),
+    ).toEqual({ project: 29, sales: 41, expense: 214, owner_movement: 4 });
+    expect(
+      Object.fromEntries(
+        ["pending_review", "posted", "ignored"].map((status) => [
+          status,
+          payload.reviewRows.filter((item) => item.status === status).length,
+        ]),
+      ),
+    ).toEqual({ pending_review: 234, posted: 54, ignored: 0 });
+    const flagCount = (flag: string) =>
+      payload.reviewRows.filter((item) => item.reviewFlags.includes(flag)).length;
+    expect({
+      genericClient: flagCount("generic_client"),
+      genericPayee: flagCount("generic_payee"),
+      missingProject: flagCount("missing_project"),
+      missingBudget: flagCount("missing_budget"),
+      ownerMovement: flagCount("owner_movement_requires_classification"),
+      zeroValue: flagCount("zero_value"),
+    }).toEqual({
+      genericClient: 50,
+      genericPayee: 159,
+      missingProject: 36,
+      missingBudget: 4,
+      ownerMovement: 4,
+      zeroValue: 14,
+    });
+    expect(
+      payload.reviewRows.filter((item) => item.kind === "owner_movement").map((item) => item.row),
+    ).toEqual([25, 27, 29, 31]);
+    expect(
+      payload.reviewRows
+        .filter((item) => item.reviewFlags.includes("zero_value"))
+        .map((item) => item.row),
+    ).toEqual([22, 46, 85, 90, 101, 110, 117, 129, 138, 151, 152, 161, 173, 177]);
+    const rebuilt = await buildWorkbookImportPayload(projectPath, financePath);
+    expect(rebuilt.reviewRows.map((item) => item.id)).toEqual(
+      payload.reviewRows.map((item) => item.id),
+    );
   });
 });

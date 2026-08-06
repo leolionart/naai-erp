@@ -26,6 +26,7 @@ const MVP_CLI_RESOURCES = new Set([
   "report-snapshots",
   "accountant-exports",
   "workbook-import",
+  "workbook-review-rows",
 ]);
 
 const { values, positionals } = parseArgs({

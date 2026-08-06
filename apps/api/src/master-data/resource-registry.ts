@@ -167,7 +167,14 @@ export const MASTER_DATA_RESOURCES = {
       "ends_on",
       "state",
     ],
-    mutableColumns: ["name", "owner_user_id", "budget_minor", "ends_on", "state"],
+    mutableColumns: [
+      "name",
+      "client_party_id",
+      "owner_user_id",
+      "budget_minor",
+      "ends_on",
+      "state",
+    ],
   },
   contracts: {
     table: "contracts",

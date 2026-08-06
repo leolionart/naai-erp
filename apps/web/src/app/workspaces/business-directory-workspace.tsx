@@ -319,7 +319,10 @@ function DirectoryEditor({
         }
       : {
           ...(initial
-            ? {}
+            ? {
+                client_party_id: String(form.get("client_party_id") ?? "").trim(),
+                owner_user_id: String(form.get("owner_user_id") ?? "").trim(),
+              }
             : {
                 id,
                 code: String(form.get("code") ?? "").trim(),
@@ -398,12 +401,18 @@ function DirectoryEditor({
                 defaultValue={value(initial ?? {}, "name")}
                 required
               />
-              {!initial ? (
-                <EditorField name="client_party_id" label="ID khách hàng" required />
-              ) : null}
-              {!initial ? (
-                <EditorField name="owner_user_id" label="ID người phụ trách" required />
-              ) : null}
+              <EditorField
+                name="client_party_id"
+                label="ID khách hàng"
+                defaultValue={value(initial ?? {}, "client_party_id")}
+                required
+              />
+              <EditorField
+                name="owner_user_id"
+                label="ID người phụ trách"
+                defaultValue={value(initial ?? {}, "owner_user_id")}
+                required
+              />
               {!initial ? (
                 <EditorField
                   name="contract_type"
