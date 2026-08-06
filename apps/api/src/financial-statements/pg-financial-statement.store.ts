@@ -265,7 +265,7 @@ export class PgFinancialStatementStore {
         c.organizationId,
         q.asOfInstant,
         q.endsOn,
-        kind === "balance_sheet" ? null : (q.startsOn ?? null),
+        kind === "balance_sheet" || kind === "cash_flow" ? null : (q.startsOn ?? null),
         mapping.rows[0].id,
         mapping.rows[0].version,
         kind,
@@ -468,16 +468,19 @@ export class PgFinancialStatementStore {
         lines: journalRows.map((r) => domainById.get(`${r.journal_id}:${r.line_number}`)!),
       });
     }
-    const balances = await this.pool.query<{ opening: string }>(
-      `select coalesce(sum(l.debit_minor-l.credit_minor),0)::text opening
-       from journal_entries j join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
-       where j.organization_id=$1 and j.state in ('posted','reversed') and j.posted_at <= $3::timestamptz
-         and j.journal_date < $2::date and l.account_code=any($4::text[])`,
-      [c.organizationId, q.startsOn, q.asOfInstant, [...cashAccounts]],
-    );
-    const openingCashMinor = BigInt(balances.rows[0]?.opening ?? "0");
+    const openingCashMinor = rows
+      .filter((row) => cashAccounts.has(row.account_code) && row.journal_date < q.startsOn!)
+      .reduce(
+        (sum, row) => sum + BigInt(row.debit_minor ?? "0") - BigInt(row.credit_minor ?? "0"),
+        0n,
+      );
     const periodCashMovementMinor = rows
-      .filter((row) => cashAccounts.has(row.account_code))
+      .filter(
+        (row) =>
+          cashAccounts.has(row.account_code) &&
+          row.journal_date >= q.startsOn! &&
+          row.journal_date <= q.endsOn,
+      )
       .reduce(
         (sum, row) => sum + BigInt(row.debit_minor ?? "0") - BigInt(row.credit_minor ?? "0"),
         0n,
