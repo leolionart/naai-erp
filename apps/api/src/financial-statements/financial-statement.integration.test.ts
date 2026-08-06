@@ -321,18 +321,12 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
     await pool.query(`insert into journal_entries (organization_id,id,journal_date,description,currency,state,posted_at,posted_by,approved_at,approved_by,approval_reason)
       values ('org-erp630','bad-ledger','2026-08-31','bad','VND','posted','2026-08-31T12:00:00Z','maker','2026-08-31T12:00:00Z','approver','test')`);
     await pool.query(`insert into journal_lines (organization_id,journal_id,line_number,account_code,debit_minor,description,dimensions)
-      values ('org-erp630','bad-ledger',1,'111-BANK',1,'deliberate mismatch','{}')`);
-    try {
-      const mismatch = await app.inject({ method: "GET", url, headers: headers() });
-      expect(mismatch.statusCode, mismatch.body).toBe(400);
-      expect(mismatch.json().error).toMatchObject({
-        code: "BALANCE_SHEET_SOURCE_LEDGER_IS_UNBALANCED",
-      });
-    } finally {
-      await pool.query(
-        "delete from journal_lines where organization_id='org-erp630' and journal_id='bad-ledger'; delete from journal_entries where organization_id='org-erp630' and id='bad-ledger'",
-      );
-    }
+      values ('org-erp630','bad-ledger',1,'999-UNMAPPED',1,'deliberate mismatch','{}')`);
+    const mismatch = await app.inject({ method: "GET", url, headers: headers() });
+    expect(mismatch.statusCode, mismatch.body).toBe(400);
+    expect(mismatch.json().error).toMatchObject({
+      code: "BALANCE_SHEET_SOURCE_LEDGER_IS_UNBALANCED",
+    });
   });
 
   it("classifies direct cash flow, excludes internal transfer, ties opening/net/closing, and flags unclassified", async () => {
