@@ -43,6 +43,16 @@ type ImportedExpense = Record<string, unknown> &
     date: string;
     amountMinor: string;
     taxMinor: string;
+    sourceMetadata: Readonly<{
+      manualCost: string;
+      cashMinor: string | null;
+      vatRate: string;
+      invoiceDate: string;
+      department: string;
+      fundingSource: string;
+      monthLabel: string;
+      invoiceFile: string;
+    }>;
     legacyControlTreatment: ControlTreatment;
   }>;
 
@@ -50,16 +60,61 @@ type ReviewRow = Readonly<{
   id: string;
   sourceIdentity: string;
   workbook: "projects" | "finance";
-  sheet: "🏔️ Projects" | "Doanh thu" | "Chi phí";
+  sheet: string;
   row: number;
-  kind: "project" | "sales" | "expense" | "owner_movement";
+  kind:
+    | "project"
+    | "sales"
+    | "expense"
+    | "owner_movement"
+    | "debt_control"
+    | "profitability_control"
+    | "planning_control"
+    | "bonus_control"
+    | "payroll_master"
+    | "expense_category_control";
   proposedResourceType:
-    "project" | "sales_invoice" | "expense" | "owner_equity_or_transfer_pending";
+    | "project"
+    | "sales_invoice"
+    | "purchase_invoice"
+    | "owner_equity_or_transfer_pending"
+    | "ar_control"
+    | "profitability_control"
+    | "planning_control"
+    | "bonus_control"
+    | "workforce_profile_pending"
+    | "expense_category_control";
   proposedResourceId?: string;
   status: "pending_review" | "posted" | "ignored";
   reviewFlags: string[];
   rawData: Record<string, unknown>;
   mappedData: Record<string, unknown>;
+}>;
+
+type WorkbookControlMappedData = Readonly<{
+  sourceControl: Readonly<{ workbook: "finance"; sheet: string; row: number }>;
+  period?: string | undefined;
+  projectLabel?: string;
+  personName?: string;
+  category?: string;
+  debtMinor?: string;
+  projectCostMinor?: string;
+  collectedMinor?: string | null;
+  revenueMinor?: string;
+  receivedMinor?: string;
+  expenseMinor?: string;
+  profitMinor?: string;
+  forecastExpenseMinor?: string | null;
+  forecastCashMinor?: string | null;
+  targetAttainmentBps?: number | null;
+  bonusMinor?: string;
+  payrollNetMinor?: string;
+  employmentStatus?: string;
+  department?: string;
+  tenure?: string;
+  employmentType?: string;
+  hireDate?: string | null;
+  monthlyAmounts?: readonly Readonly<{ period: string; amountMinor: string }>[];
 }>;
 
 const REVIEWED_SALES_PROJECT_ROWS = new Map<number, number>([
@@ -91,6 +146,8 @@ function parseDate(value: ExcelJS.CellValue): string {
   if (vietnamese) {
     return `${vietnamese[3]}-${vietnamese[2]!.padStart(2, "0")}-${vietnamese[1]!.padStart(2, "0")}`;
   }
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString().slice(0, 10);
   throw new Error(`invalid date ${JSON.stringify(raw)}`);
 }
 
@@ -113,6 +170,113 @@ function parseMoney(value: ExcelJS.CellValue): bigint {
   if (!digits) throw new Error(`invalid money ${JSON.stringify(raw)}`);
   return BigInt(`${negative ? "-" : ""}${digits}`);
 }
+
+const optionalMoney = (value: unknown): string | null => {
+  const raw = textValue(value as ExcelJS.CellValue);
+  return raw ? parseMoney(value as ExcelJS.CellValue).toString() : null;
+};
+
+const controlPeriod = (value: unknown): string | undefined => {
+  const raw = textValue(value as ExcelJS.CellValue);
+  const exact = raw.match(/^(\d{4})-(\d{1,2})$/);
+  if (exact) return `${exact[1]}-${exact[2]!.padStart(2, "0")}`;
+  const month = raw.match(/^(\d{1,2})$/);
+  if (month && Number(month[1]) >= 1 && Number(month[1]) <= 12)
+    return `2025-${month[1]!.padStart(2, "0")}`;
+  const date = raw.match(/^(\d{4})-(\d{2})-\d{2}/);
+  return date ? `${date[1]}-${date[2]}` : undefined;
+};
+
+const targetAttainmentBps = (value: unknown): number | null => {
+  const raw = textValue(value as ExcelJS.CellValue).replace(/\s/g, "");
+  if (!raw) return null;
+  const numeric = Number(raw.replace("%", "").replace(",", "."));
+  if (!Number.isFinite(numeric)) return null;
+  const percentage = raw.includes("%") ? numeric : Math.abs(numeric) <= 1 ? numeric * 100 : numeric;
+  return Math.round(percentage * 100);
+};
+
+const mapWorkbookControl = (source: {
+  workbook: "projects" | "finance";
+  sheet: string;
+  row: number;
+  kind: ReviewRow["kind"];
+  rawData: Record<string, unknown>;
+}): WorkbookControlMappedData => {
+  const raw = source.rawData;
+  const sourceControl = { workbook: "finance" as const, sheet: source.sheet, row: source.row };
+  if (source.kind === "debt_control")
+    return {
+      sourceControl,
+      ...(controlPeriod(raw["Tháng"]) ? { period: controlPeriod(raw["Tháng"]) } : {}),
+      projectLabel: textValue(raw["Project Name"] as ExcelJS.CellValue),
+      debtMinor: optionalMoney(raw["Công nợ"]) ?? "0",
+      projectCostMinor: optionalMoney(raw["Project Cost"]) ?? "0",
+      collectedMinor: optionalMoney(raw["Các khoản đã thu"]),
+    };
+  if (source.kind === "profitability_control")
+    return {
+      sourceControl,
+      ...(controlPeriod(raw["Tháng"]) ? { period: controlPeriod(raw["Tháng"]) } : {}),
+      revenueMinor: optionalMoney(raw["Tổng doanh thu"]) ?? "0",
+      receivedMinor: optionalMoney(raw["Thực nhận"]) ?? "0",
+      expenseMinor: optionalMoney(raw["Chi phí"]) ?? "0",
+      profitMinor: optionalMoney(raw["Lợi nhuận (chưa công nợ)"]) ?? "0",
+    };
+  if (source.kind === "planning_control")
+    return {
+      sourceControl,
+      ...(controlPeriod(raw["Tháng"]) ? { period: controlPeriod(raw["Tháng"]) } : {}),
+      revenueMinor: optionalMoney(raw.Revenue) ?? "0",
+      receivedMinor: optionalMoney(raw["Real Income"]) ?? "0",
+      expenseMinor: optionalMoney(raw["Real Cost"]) ?? "0",
+      profitMinor: optionalMoney(raw.Profit) ?? "0",
+      targetAttainmentBps: targetAttainmentBps(raw.Target),
+      forecastExpenseMinor: optionalMoney(raw["Forcast Cost"]),
+      forecastCashMinor: optionalMoney(raw["Forcast Cash"]),
+    };
+  if (source.kind === "bonus_control")
+    return {
+      sourceControl,
+      ...(controlPeriod(raw.Tháng ?? raw.Month ?? raw.Date)
+        ? { period: controlPeriod(raw.Tháng ?? raw.Month ?? raw.Date) }
+        : {}),
+      personName: textValue(raw.Person as ExcelJS.CellValue),
+      bonusMinor: optionalMoney(raw["Tổng thường"]) ?? "0",
+      revenueMinor: optionalMoney(raw.Revenue) ?? "0",
+    };
+  if (source.kind === "payroll_master") {
+    const hireDate = textValue(raw["Hire date"] as ExcelJS.CellValue);
+    return {
+      sourceControl,
+      personName: textValue(raw.Name as ExcelJS.CellValue),
+      payrollNetMinor: optionalMoney(raw["Lương NET"]) ?? "0",
+      employmentStatus: textValue(raw.Status as ExcelJS.CellValue),
+      department: textValue(raw.Department as ExcelJS.CellValue),
+      tenure: textValue(raw["Thâm niên"] as ExcelJS.CellValue),
+      employmentType: textValue(raw.Type as ExcelJS.CellValue),
+      hireDate: hireDate ? parseDate(hireDate) : null,
+    };
+  }
+  if (source.kind === "expense_category_control") {
+    const monthlyAmounts = Object.entries(raw)
+      .flatMap(([header, value]) => {
+        const match = header.match(/^Tháng\s+(\d{1,2})$/);
+        if (!match) return [];
+        const amountMinor = optionalMoney(value);
+        return amountMinor !== null
+          ? [{ period: `2025-${match[1]!.padStart(2, "0")}`, amountMinor }]
+          : [];
+      })
+      .sort((left, right) => left.period.localeCompare(right.period));
+    return {
+      sourceControl,
+      category: textValue(raw["Hạng mục chi"] as ExcelJS.CellValue),
+      monthlyAmounts,
+    };
+  }
+  return { sourceControl };
+};
 
 const stableId = (kind: string, workbookHash: string, sheet: string, row: number) =>
   `${kind}-${createHash("sha256").update(`${workbookHash}:${sheet}:${row}`).digest("hex").slice(0, 24)}`;
@@ -146,12 +310,13 @@ export async function buildWorkbookImportPayload(
   const expenses: ImportedExpense[] = [];
   const reviewSources: {
     workbook: "projects" | "finance";
-    sheet: "🏔️ Projects" | "Doanh thu" | "Chi phí";
+    sheet: string;
     row: number;
     hash: string;
     kind: ReviewRow["kind"];
     rawData: Record<string, unknown>;
   }[] = [];
+  const controlResourceTypes = new Map<ReviewRow["kind"], ReviewRow["proposedResourceType"]>();
   const controls: {
     workbook: string;
     sheet: string;
@@ -231,13 +396,21 @@ export async function buildWorkbookImportPayload(
             kind: "project",
             rawData: {
               projectName: name,
+              groupChat: textValue(row.getCell(2).value),
+              participants: textValue(row.getCell(3).value),
               projectStage: textValue(row.getCell(4).value),
               startDate: textValue(row.getCell(5).value),
               endDate: textValue(row.getCell(6).value),
+              taskDone: textValue(row.getCell(7).value),
               projectCost: textValue(row.getCell(8).value),
+              projectTimeDays: textValue(row.getCell(9).value),
+              workloadHours: textValue(row.getCell(10).value),
               projectType: textValue(row.getCell(11).value),
               package: textValue(row.getCell(12).value),
+              projectLink: textValue(row.getCell(13).value),
               notes: textValue(row.getCell(14).value),
+              ctvRefCost: textValue(row.getCell(15).value),
+              sourceMonth: textValue(row.getCell(16).value),
             },
           });
           const startsOn = parseDate(row.getCell(5).value);
@@ -274,6 +447,19 @@ export async function buildWorkbookImportPayload(
                   : "active",
             sourceStage,
             sourceRowIndex: rowNumber,
+            sourceMetadata: {
+              groupChat: textValue(row.getCell(2).value),
+              participants: textValue(row.getCell(3).value),
+              taskDone: textValue(row.getCell(7).value),
+              projectTimeDays: textValue(row.getCell(9).value),
+              workloadHours: textValue(row.getCell(10).value),
+              projectType: textValue(row.getCell(11).value),
+              package: textValue(row.getCell(12).value),
+              projectLink: textValue(row.getCell(13).value),
+              notes: textValue(row.getCell(14).value),
+              ctvRefCost: textValue(row.getCell(15).value),
+              sourceMonth: textValue(row.getCell(16).value),
+            },
           };
           projects.push(project);
           projectsBySourceRow.set(rowNumber, project);
@@ -357,11 +543,18 @@ export async function buildWorkbookImportPayload(
         vat: textValue(row.getCell(4).value),
         cash: textValue(row.getCell(5).value),
         received: textValue(row.getCell(6).value),
+        actualReceived: textValue(row.getCell(6).value),
         revenueType: textValue(row.getCell(7).value),
         sourceMonth: textValue(row.getCell(8).value),
         companyOrClient: textValue(row.getCell(9).value),
         notes: textValue(row.getCell(10).value),
         invoiceMode: textValue(row.getCell(11).value),
+        refCtv: textValue(row.getCell(12).value),
+        monthLabel: textValue(row.getCell(13).value),
+        status: textValue(row.getCell(14).value),
+        invoiceIssued: textValue(row.getCell(15).value),
+        ctvPay: textValue(row.getCell(16).value),
+        action: textValue(row.getCell(17).value),
       };
       if (
         !textValue(row.getCell(2).value) &&
@@ -439,6 +632,28 @@ export async function buildWorkbookImportPayload(
         controlAccountCode: "131",
         sourceRowIndex: rowNumber,
         sourceIdentity: `${hash}:Doanh thu:${rowNumber}`,
+        sourceMetadata: {
+          contractValueMinor: textValue(row.getCell(3).value)
+            ? parseMoney(row.getCell(3).value).toString()
+            : null,
+          cashMinor: textValue(row.getCell(5).value)
+            ? parseMoney(row.getCell(5).value).toString()
+            : null,
+          actualReceivedMinor: textValue(row.getCell(6).value)
+            ? parseMoney(row.getCell(6).value).toString()
+            : null,
+          revenueType: textValue(row.getCell(7).value),
+          notes: textValue(row.getCell(10).value),
+          invoiceMode: textValue(row.getCell(11).value),
+          refCtvMinor: textValue(row.getCell(12).value)
+            ? parseMoney(row.getCell(12).value).toString()
+            : null,
+          monthLabel: textValue(row.getCell(13).value),
+          status: textValue(row.getCell(14).value),
+          invoiceIssued: textValue(row.getCell(15).value),
+          ctvPay: textValue(row.getCell(16).value),
+          action: textValue(row.getCell(17).value),
+        },
         legacyControlTreatment: {
           sourceSheet: "Doanh thu",
           sourceRow: rowNumber,
@@ -492,6 +707,7 @@ export async function buildWorkbookImportPayload(
           personnel: textValue(row.getCell(10).value),
           department: textValue(row.getCell(11).value),
           fundingSource: textValue(row.getCell(12).value),
+          monthLabel: textValue(row.getCell(13).value),
           notes: note,
           invoiceFile: textValue(row.getCell(15).value),
         },
@@ -534,6 +750,18 @@ export async function buildWorkbookImportPayload(
         currency: "VND",
         sourceRowIndex: rowNumber,
         sourceIdentity: `${hash}:Chi phí:${rowNumber}`,
+        sourceMetadata: {
+          manualCost: textValue(row.getCell(4).value),
+          cashMinor: textValue(row.getCell(5).value)
+            ? parseMoney(row.getCell(5).value).toString()
+            : null,
+          vatRate: textValue(row.getCell(6).value),
+          invoiceDate: textValue(row.getCell(8).value),
+          department: textValue(row.getCell(11).value),
+          fundingSource: textValue(row.getCell(12).value),
+          monthLabel: textValue(row.getCell(13).value),
+          invoiceFile: textValue(row.getCell(15).value),
+        },
         legacyControlTreatment: {
           sourceSheet: "Chi phí",
           sourceRow: rowNumber,
@@ -580,6 +808,54 @@ export async function buildWorkbookImportPayload(
         profitMinor: profit.toString(),
       });
     }
+
+    const stageControlSheet = (
+      sheetName: string,
+      kind: ReviewRow["kind"],
+      proposedResourceType: ReviewRow["proposedResourceType"],
+    ) => {
+      const sheet = workbook.getWorksheet(sheetName);
+      if (!sheet) return;
+      const headers = sheet.getRow(1).values as ExcelJS.CellValue[];
+      for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
+        const row = sheet.getRow(rowNumber);
+        const rawData: Record<string, unknown> = {};
+        for (let column = 1; column <= sheet.columnCount; column += 1) {
+          const header = textValue(headers[column] ?? `column_${column}`) || `column_${column}`;
+          if (
+            kind === "payroll_master" &&
+            ![
+              "Lương NET",
+              "Status",
+              "Name",
+              "Department",
+              "Thâm niên",
+              "Type",
+              "Hire date",
+            ].includes(header)
+          )
+            continue;
+          rawData[header] = textValue(row.getCell(column).value);
+        }
+        if (!Object.values(rawData).some((value) => textValue(value as ExcelJS.CellValue)))
+          continue;
+        reviewSources.push({
+          workbook: "finance",
+          sheet: sheetName,
+          row: rowNumber,
+          hash,
+          kind,
+          rawData,
+        });
+      }
+      controlResourceTypes.set(kind, proposedResourceType);
+    };
+    stageControlSheet("Công nợ", "debt_control", "ar_control");
+    stageControlSheet("Tỷ suất lợi nhuận", "profitability_control", "profitability_control");
+    stageControlSheet("Planing & Target", "planning_control", "planning_control");
+    stageControlSheet("Tỉ lệ thưởng", "bonus_control", "bonus_control");
+    stageControlSheet("Bảng lương", "payroll_master", "workforce_profile_pending");
+    stageControlSheet("Hạng mục chi", "expense_category_control", "expense_category_control");
   }
 
   const genericClientId = party("Generic Client", "client");
@@ -598,6 +874,13 @@ export async function buildWorkbookImportPayload(
   const genericSupplierId = [...parties.values()].find(
     (candidate) => candidate.displayName === "Generic Supplier",
   )?.id;
+  const invoiceFileCounts = new Map<string, number>();
+  for (const source of reviewSources) {
+    if (source.kind !== "expense") continue;
+    const invoiceFile = textValue(source.rawData.invoiceFile as ExcelJS.CellValue);
+    if (invoiceFile)
+      invoiceFileCounts.set(invoiceFile, (invoiceFileCounts.get(invoiceFile) ?? 0) + 1);
+  }
   const reviewRows: ReviewRow[] = reviewSources.map((source) => {
     const sourceIdentity = `${source.hash}:${source.sheet}:${source.row}`;
     if (source.kind === "owner_movement") {
@@ -613,6 +896,21 @@ export async function buildWorkbookImportPayload(
         reviewFlags: ["owner_movement_requires_classification"],
         rawData: source.rawData,
         mappedData: {},
+      };
+    }
+    if (controlResourceTypes.has(source.kind)) {
+      return {
+        id: stableId("review", source.hash, source.sheet, source.row),
+        sourceIdentity,
+        workbook: source.workbook,
+        sheet: source.sheet,
+        row: source.row,
+        kind: source.kind,
+        proposedResourceType: controlResourceTypes.get(source.kind)!,
+        status: "pending_review",
+        reviewFlags: ["control_only"],
+        rawData: source.rawData,
+        mappedData: mapWorkbookControl(source),
       };
     }
     const mapped =
@@ -632,9 +930,18 @@ export async function buildWorkbookImportPayload(
       if (genericSupplierId && mapped?.payeePartyId === genericSupplierId)
         flags.push("generic_payee");
       if (mapped?.amountMinor === "0") flags.push("zero_value");
+      const invoiceFile = textValue(source.rawData.invoiceFile as ExcelJS.CellValue);
+      if (invoiceFile && (invoiceFileCounts.get(invoiceFile) ?? 0) > 1)
+        flags.push("duplicate_invoice_file_reference");
+      if (!source.rawData.invoiceDate) flags.push("invoice_date_inferred_from_transaction_date");
+      flags.push("purchase_tax_review_required");
     }
     const proposedResourceType =
-      source.kind === "project" ? "project" : source.kind === "sales" ? "sales_invoice" : "expense";
+      source.kind === "project"
+        ? "project"
+        : source.kind === "sales"
+          ? "sales_invoice"
+          : "purchase_invoice";
     return {
       id: stableId("review", source.hash, source.sheet, source.row),
       sourceIdentity,
@@ -652,7 +959,7 @@ export async function buildWorkbookImportPayload(
   });
 
   return {
-    mappingVersion: 2,
+    mappingVersion: 3,
     sources,
     inventory,
     issues,

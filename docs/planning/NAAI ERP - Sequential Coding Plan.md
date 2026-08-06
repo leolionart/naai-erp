@@ -55,7 +55,8 @@ If an inbound payload is invalid, ERP returns a structured field error. n8n deci
 ## 2. Delivery principles
 
 1. Reuse completed accounting/reporting modules; do not rebuild them.
-2. Only the four remaining tasks in the ledger are active scope.
+2. ERP-710 through ERP-740 close the invoice MVP. ERP-800 is the only owner-reactivated extension
+   and remains bounded by its ledger entry; no other enterprise scope is implied.
 3. Out-of-scope UI routes and workflow commands are removed or unregistered from primary navigation and machine discovery. Underlying completed code may remain only as an explicitly supported, tested compatibility surface.
 4. No generic approval, maker-checker or replay workflow is added for external invoice ingestion.
 5. The same external Paperless identity must never create duplicate business records inside one organization.
@@ -162,6 +163,13 @@ Acceptance:
 ## 5. Gate
 
 Gate G7/MVP is complete only when ERP-710 through ERP-740 are done with evidence and exact-commit CI. Enterprise work outside these four tasks is not registered in the active ledger and requires explicit owner reactivation.
+
+### Owner-reactivated extension
+
+ERP-800/G8 retains every supplied workbook row as organization-scoped review evidence, supports
+safe correction through application services, and exposes explicitly non-canonical source controls
+for dashboard/report review. It does not authorize guessed postings or bypass reversal, audit,
+idempotency, organization scope or accounting reconciliation.
 
 ## 6. Cost-control execution
 

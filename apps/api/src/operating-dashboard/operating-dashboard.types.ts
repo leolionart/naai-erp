@@ -9,6 +9,67 @@ export type OperatingDashboardQuery = Readonly<{
 
 export type OperatingDashboardContext = JournalActorContext;
 
+export type WorkbookSourceControlKind =
+  | "debt_control"
+  | "profitability_control"
+  | "planning_control"
+  | "bonus_control"
+  | "payroll_master"
+  | "expense_category_control";
+
+export type WorkbookSourceControlMonthlyRow = Readonly<{
+  id: string;
+  kind: "profitability_control" | "planning_control";
+  period: string;
+  revenueMinor: string;
+  receivedMinor: string;
+  expenseMinor: string;
+  profitMinor: string;
+  targetAttainmentBps?: number | null;
+  forecastExpenseMinor?: string | null;
+  forecastCashMinor?: string | null;
+  reviewFlags: readonly string[];
+}>;
+
+export type WorkbookSourceControls = Readonly<{
+  source: "workbook_import_review_rows";
+  accountingStatus: "unconfirmed_non_canonical";
+  rowCount: number;
+  byKind: readonly Readonly<{ kind: WorkbookSourceControlKind; count: number }>[];
+  monthly: readonly WorkbookSourceControlMonthlyRow[];
+  debt: readonly Readonly<{
+    id: string;
+    period?: string | undefined;
+    projectLabel: string;
+    debtMinor: string;
+    projectCostMinor: string;
+    collectedMinor: string | null;
+    reviewFlags: readonly string[];
+  }>[];
+  expenseCategories: readonly Readonly<{
+    id: string;
+    category: string;
+    monthlyAmounts: readonly Readonly<{ period: string; amountMinor: string }>[];
+    reviewFlags: readonly string[];
+  }>[];
+  workforce: Readonly<{
+    payrollNetMinor: string;
+    bonusMinor: string;
+    payrollRowCount: number;
+    bonusRowCount: number;
+  }>;
+  rows: readonly Readonly<{
+    id: string;
+    kind: WorkbookSourceControlKind;
+    workbook: string;
+    sheet: string;
+    sourceRow: number;
+    status: "pending_review" | "approved" | "posted";
+    reviewFlags: readonly string[];
+    mappedData: Readonly<Record<string, unknown>>;
+  }>[];
+}>;
+
 export type OperatingDashboardReadModel = Readonly<{
   schemaVersion: 1;
   asOf: string;
@@ -41,6 +102,7 @@ export type OperatingDashboardReadModel = Readonly<{
     byFlag: readonly Readonly<{ flag: string; count: number }>[];
     rows: readonly Record<string, unknown>[];
   }>;
+  sourceControls: WorkbookSourceControls;
 }>;
 
 export type OperatingDashboardStore = Readonly<{

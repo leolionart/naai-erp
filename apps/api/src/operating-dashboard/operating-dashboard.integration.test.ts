@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../bootstrap.js";
 
@@ -34,7 +36,14 @@ suite("operating dashboard PostgreSQL API", () => {
       insert into commercial_document_allocations(organization_id,document_id,line_number,allocation_number,amount_minor,dimensions)
         values('${org}','invoice',1,1,1000,'{"projectId":"project"}');
       insert into workbook_import_review_rows(organization_id,id,import_identity,source_identity,workbook,sheet,source_row,kind,proposed_resource_type,status,review_flags,raw_data,mapped_data,created_by,updated_by)
-        values('${org}','review','import','source','source.xlsx','Sheet1',2,'sales','commercial_document','pending_review','["missing_project"]','{}','{}','${owner}','${owner}');
+        values
+        ('${org}','review','import','source','source.xlsx','Sheet1',2,'sales','commercial_document','pending_review','["missing_project"]','{}','{}','${owner}','${owner}'),
+        ('${org}','control-profit','import','control-profit','finance','Tỷ suất lợi nhuận',2,'profitability_control','profitability_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Tỷ suất lợi nhuận","row":2},"period":"2025-01","revenueMinor":"1000","receivedMinor":"900","expenseMinor":"400","profitMinor":"600"}','${owner}','${owner}'),
+        ('${org}','control-plan','import','control-plan','finance','Planing & Target',2,'planning_control','planning_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Planing & Target","row":2},"period":"2025-01","revenueMinor":"1000","receivedMinor":"900","expenseMinor":"450","profitMinor":"550","targetAttainmentBps":4000,"forecastExpenseMinor":"500","forecastCashMinor":"400"}','${owner}','${owner}'),
+        ('${org}','control-debt','import','control-debt','finance','Công nợ',2,'debt_control','ar_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Công nợ","row":2},"period":"2025-01","projectLabel":"Project","debtMinor":"100","projectCostMinor":"2000","collectedMinor":"1900"}','${owner}','${owner}'),
+        ('${org}','control-bonus','import','control-bonus','finance','Tỉ lệ thưởng',2,'bonus_control','bonus_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Tỉ lệ thưởng","row":2},"period":"2025-01","personName":"Owner","bonusMinor":"50","revenueMinor":"1000"}','${owner}','${owner}'),
+        ('${org}','control-payroll','import','control-payroll','finance','Bảng lương',2,'payroll_master','workforce_profile_pending','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Bảng lương","row":2},"personName":"Owner","payrollNetMinor":"300","employmentStatus":"Active","department":"Ops"}','${owner}','${owner}'),
+        ('${org}','control-category','import','control-category','finance','Hạng mục chi',2,'expense_category_control','expense_category_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Hạng mục chi","row":2},"category":"Payroll","monthlyAmounts":[{"period":"2025-01","amountMinor":"300"}]}','${owner}','${owner}');
     `);
     await pool.query(
       `insert into api_credentials(organization_id,id,actor_id,token_hash,roles) values($1,'credential',$2,$3,'["owner"]')`,
@@ -50,6 +59,16 @@ suite("operating dashboard PostgreSQL API", () => {
   });
 
   it("serves an organization-scoped derived dashboard from existing accounting data", async () => {
+    const before = (
+      await pool.query(
+        `select
+          (select count(*)::int from journal_entries where organization_id=$1) journals,
+          (select count(*)::int from commercial_documents where organization_id=$1) documents,
+          (select count(*)::int from expenses where organization_id=$1) expenses,
+          (select count(*)::int from reconciliation_attempts where organization_id=$1) reconciliations`,
+        [org],
+      )
+    ).rows[0];
     const response = await app.inject({
       method: "GET",
       url: `/api/v1/organizations/${org}/reports/operating-dashboard?asOf=2026-08-06&startsOn=2026-01-01&endsOn=2026-08-06`,
@@ -65,10 +84,60 @@ suite("operating dashboard PostgreSQL API", () => {
         backlog: { contractedMinor: "2000", invoicedMinor: "1000", remainingMinor: "1000" },
         collections: { receivablesMinor: "1000", overdueMinor: "1000" },
         clientConcentration: { totalRevenueMinor: "1000", topClientShareBps: 10000 },
-        dataQuality: { pendingCount: 1 },
+        dataQuality: { pendingCount: 7 },
+        sourceControls: {
+          source: "workbook_import_review_rows",
+          accountingStatus: "unconfirmed_non_canonical",
+          rowCount: 6,
+          byKind: [
+            { kind: "bonus_control", count: 1 },
+            { kind: "debt_control", count: 1 },
+            { kind: "expense_category_control", count: 1 },
+            { kind: "payroll_master", count: 1 },
+            { kind: "planning_control", count: 1 },
+            { kind: "profitability_control", count: 1 },
+          ],
+          monthly: [
+            expect.objectContaining({
+              id: "control-plan",
+              kind: "planning_control",
+              period: "2025-01",
+              targetAttainmentBps: 4000,
+            }),
+            expect.objectContaining({
+              id: "control-profit",
+              kind: "profitability_control",
+              period: "2025-01",
+              profitMinor: "600",
+            }),
+          ],
+          debt: [expect.objectContaining({ id: "control-debt", debtMinor: "100" })],
+          expenseCategories: [
+            expect.objectContaining({
+              id: "control-category",
+              category: "Payroll",
+              monthlyAmounts: [{ period: "2025-01", amountMinor: "300" }],
+            }),
+          ],
+          workforce: {
+            payrollNetMinor: "300",
+            bonusMinor: "50",
+            payrollRowCount: 1,
+            bonusRowCount: 1,
+          },
+        },
       },
     });
+    const after = (
+      await pool.query(
+        `select
+          (select count(*)::int from journal_entries where organization_id=$1) journals,
+          (select count(*)::int from commercial_documents where organization_id=$1) documents,
+          (select count(*)::int from expenses where organization_id=$1) expenses,
+          (select count(*)::int from reconciliation_attempts where organization_id=$1) reconciliations`,
+        [org],
+      )
+    ).rows[0];
+    expect(after).toEqual(before);
   });
 });
-import { createHash } from "node:crypto";
-import pg from "pg";

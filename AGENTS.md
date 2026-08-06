@@ -30,7 +30,8 @@ Do not start implementation if any mandatory file is missing, unreadable, or con
 - NAAI ERP receives structured invoice/expense data. Paperless-ngx owns source files and search; n8n/OCR owns extraction, normalization and retry orchestration.
 - Do not implement OCR, document archiving, an OCR review inbox, onboarding wizard, replay/dead-letter orchestration or broad enterprise workflows.
 - Invalid inbound payloads return structured field errors. n8n handles retry; users edit ERP drafts directly. Do not add a separate review/approval lifecycle for ingestion.
-- The only remaining active tasks are ERP-710 through ERP-740 in the task ledger.
+- ERP-710 through ERP-740 are the completed invoice MVP spine. ERP-800 is an owner-reactivated,
+  ledger-controlled extension for import staging, correction evidence and source-data reporting.
 - Prefer Antigravity/Gemini for bounded mechanical CRUD, client, test-boilerplate, Docker and documentation work when available; Codex integrates and verifies accounting/API gates.
 
 ## Required execution loop

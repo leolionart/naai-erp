@@ -100,6 +100,18 @@ Golden changes require explicit review and a documented reason.
 Gate G7/MVP is complete only when ERP-710 through ERP-740 are done with evidence and the final
 exact-commit CI/release readback is green.
 
+### ERP-800 — Owner-reactivated import correction extension
+
+- Every supplied workbook row has a stable, organization-scoped review identity and dry-run is
+  deterministic with zero mutations.
+- Review edits are audited, version-checked and retry-idempotent.
+- Replacing a legacy posted expense with a purchase invoice requires exact source linkage, normal
+  reversal and replacement posting; control totals must reconcile without duplicate accounting.
+- Source controls remain explicitly non-canonical in reports and the interactive dashboard chart.
+- Review, dashboard and financial-statement journeys pass on desktop and 390px mobile.
+
+Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push readback are green.
+
 ## 5. Evidence
 
 Each task evidence folder records:

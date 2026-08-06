@@ -254,6 +254,14 @@ export class CommercialDocumentService {
   }
   private validate(input: CreateCommercialDocumentInput) {
     if (
+      (input.migrationSourceExpenseId || input.migrationSourceExpenseDate) &&
+      (input.type !== "purchase_invoice" ||
+        !input.migrationSourceExpenseId ||
+        !input.migrationSourceExpenseDate ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(input.migrationSourceExpenseDate))
+    )
+      throw new Error("MIGRATION_SOURCE_EXPENSE_INVALID");
+    if (
       !input.documentNumber?.trim() ||
       !input.partyId?.trim() ||
       !input.controlAccountCode?.trim() ||

@@ -60,6 +60,12 @@ describe("ERP-300 CommercialDocumentService", () => {
     const result = await service.create(context, sales, "idem-1");
     expect(result.data).toMatchObject({ documentId: "sales-1", state: "draft" });
   });
+  it("restricts migration source expenses to purchase invoices", async () => {
+    const service = new CommercialDocumentService({} as never, {} as never);
+    await expect(
+      service.create(context, { ...sales, migrationSourceExpenseId: "expense-1" }, "idem"),
+    ).rejects.toThrow("MIGRATION_SOURCE_EXPENSE_INVALID");
+  });
   it("rejects mismatched allocations and control totals", async () => {
     const service = new CommercialDocumentService({} as never, {} as never);
     await expect(

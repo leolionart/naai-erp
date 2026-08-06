@@ -50,6 +50,8 @@ export type CreateCommercialDocumentInput = Readonly<{
   grossMinor: string;
   controlAccountCode: string;
   originalDocumentId?: string;
+  migrationSourceExpenseId?: string;
+  migrationSourceExpenseDate?: string;
   reason?: string;
   lines: readonly CommercialDocumentLineInput[];
   externalReference?: ExternalReferenceInput;

@@ -168,6 +168,49 @@ async function installOperatingDashboard(page: Page) {
           byFlag: [{ flag: "missing_project", count: 2 }],
           rows: [],
         },
+        sourceControls: {
+          accountingStatus: "unconfirmed_non_canonical",
+          rowCount: 2,
+          byKind: [{ kind: "profitability_control", count: 2 }],
+          monthly: [
+            {
+              id: "profit-2024-12",
+              kind: "profitability_control",
+              period: "2024-12",
+              revenueMinor: "70000000",
+              receivedMinor: "60000000",
+              expenseMinor: "45000000",
+              profitMinor: "25000000",
+            },
+            {
+              id: "profit-2025-01",
+              kind: "profitability_control",
+              period: "2025-01",
+              revenueMinor: "80000000",
+              receivedMinor: "70000000",
+              expenseMinor: "50000000",
+              profitMinor: "30000000",
+            },
+            {
+              id: "profit-2025-02",
+              kind: "profitability_control",
+              period: "2025-02",
+              revenueMinor: "95000000",
+              receivedMinor: "85000000",
+              expenseMinor: "55000000",
+              profitMinor: "40000000",
+            },
+            {
+              id: "profit-2025-03",
+              kind: "profitability_control",
+              period: "2025-03",
+              revenueMinor: "105000000",
+              receivedMinor: "90000000",
+              expenseMinor: "60000000",
+              profitMinor: "45000000",
+            },
+          ],
+        },
       }),
   );
 }
@@ -245,4 +288,44 @@ test("@desktop uses operating dashboard read model instead of provisional fallba
   await expect(page.getByText("Web App 700")).toBeVisible();
   await expect(page.getByText("approved-direct-cost-budget")).toBeVisible();
   await expect(page.getByText("Đang dùng dữ liệu fallback")).toHaveCount(0);
+  await expect(page.getByText("2025-01", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("2025-01: 80.000.000 ₫", { exact: true })).toBeAttached();
+  await expect(page.getByRole("img", { name: "Xu hướng doanh thu tương tác" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Khoảng thời gian" }).click();
+  await page.getByRole("option", { name: "3 tháng gần nhất" }).click();
+  await expect(page.getByText("2024-12", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("2025-03", { exact: true })).toBeVisible();
+  await expect(page.getByText("2 dòng workbook chưa xác nhận kế toán")).toBeVisible();
+});
+
+test("@desktop selects the latest source-control period and invoiced basis by default", async ({
+  page,
+}) => {
+  const requestedUrls: string[] = [];
+  await install(page, requestedUrls);
+  await installOperatingDashboard(page);
+  await page.goto("http://localhost:3000/dashboard");
+
+  await expect(page.getByText("CAL-2025-03")).toBeVisible();
+  await expect(page.getByText("Basis: invoiced")).toBeVisible();
+  expect(requestedUrls.find((url) => url.includes("performance-comparisons"))).toContain(
+    "periodId=CAL-2025-03",
+  );
+  expect(requestedUrls.find((url) => url.includes("performance-comparisons"))).toContain(
+    "actualBasis=invoiced",
+  );
+});
+
+test("@desktop surfaces executive metrics API failure without hiding other dashboard data", async ({
+  page,
+}) => {
+  await install(page);
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
+    (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+  );
+  await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
+
+  await expect(page.getByText("Không tải được Executive Metrics")).toBeVisible();
+  await expect(page.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
 });

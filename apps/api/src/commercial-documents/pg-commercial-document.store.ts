@@ -341,7 +341,22 @@ export class PgCommercialDocumentStore {
             input.currency,
           ],
         );
-        if (duplicateExpense.rows.length > 0) {
+        if (input.migrationSourceExpenseId) {
+          const migrationSource = await client.query<{ id: string }>(
+            `select id from expenses
+             where organization_id=$1 and id=$2 and payee_party_id=$3 and expense_date=$4
+               and gross_minor=$5 and currency=$6`,
+            [
+              context.organizationId,
+              input.migrationSourceExpenseId,
+              input.partyId,
+              input.migrationSourceExpenseDate,
+              input.grossMinor,
+              input.currency,
+            ],
+          );
+          if (!migrationSource.rows[0]) throw new Error("MIGRATION_SOURCE_EXPENSE_MISMATCH");
+        } else if (duplicateExpense.rows.length > 0) {
           throw new Error("DUPLICATE_DOCUMENT");
         }
       }
@@ -443,7 +458,16 @@ export class PgCommercialDocumentStore {
           id,
           context.actorId,
           context.correlationId,
-          { type: input.type, state: "draft" },
+          {
+            type: input.type,
+            state: "draft",
+            ...(input.migrationSourceExpenseId
+              ? {
+                  migrationSourceExpenseId: input.migrationSourceExpenseId,
+                  migrationSourceExpenseDate: input.migrationSourceExpenseDate,
+                }
+              : {}),
+          },
         ],
       );
       await client.query(
@@ -1100,13 +1124,15 @@ export class PgCommercialDocumentStore {
               dimensions,
             });
         } else if (document.type === "purchase_invoice") {
+          const taxState = allocation.dimensions.taxState;
+          const taxIsDeductible = ["eligible", "accountant_override"].includes(taxState ?? "");
           journalLines.push({
             account: line.primary_account_code,
-            debit: net,
+            debit: net + (taxIsDeductible ? 0n : tax),
             description: line.description,
             dimensions,
           });
-          if (tax > 0n)
+          if (tax > 0n && taxIsDeductible)
             journalLines.push({
               account: line.tax_account_code!,
               debit: tax,

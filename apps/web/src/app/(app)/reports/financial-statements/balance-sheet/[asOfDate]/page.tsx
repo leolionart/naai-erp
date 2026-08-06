@@ -3,7 +3,8 @@ import { ModulePage } from "@/components/layout/module-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FinancialStatementWorkspace } from "@/app/workspaces/financial-statement-workspaces";
 
-export default function Page() {
+export default async function Page({ params }: { params: Promise<{ asOfDate: string }> }) {
+  const { asOfDate } = await params;
   return (
     <ModulePage
       title="Bảng cân đối kế toán"
@@ -11,7 +12,7 @@ export default function Page() {
       description="Assets = Liabilities + Equity; mọi chênh lệch đều chặn trạng thái final."
     >
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <FinancialStatementWorkspace kind="balance_sheet" />
+        <FinancialStatementWorkspace kind="balance_sheet" routeValue={asOfDate} />
       </Suspense>
     </ModulePage>
   );

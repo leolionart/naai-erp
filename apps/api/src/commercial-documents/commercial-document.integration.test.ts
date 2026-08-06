@@ -149,7 +149,7 @@ describeIntegration("ERP-300 commercial documents", () => {
             {
               id: "P-B",
               amountMinor: "20000000",
-              dimensions: { projectId: "B", taxState: "eligible" },
+              dimensions: { projectId: "B", taxState: "ineligible" },
             },
           ],
         },
@@ -181,6 +181,16 @@ describeIntegration("ERP-300 commercial documents", () => {
       [posted.json().data.journalId],
     );
     expect(purchaseTotals.rows[0]).toEqual({ debit: "55000000", credit: "55000000" });
+    const purchaseAccounts = await pool.query<{ account_code: string; debit: string }>(
+      `select account_code,coalesce(sum(debit_minor),0)::text debit
+       from journal_lines where organization_id='org-doc' and journal_id=$1 and debit_minor is not null
+       group by account_code order by account_code`,
+      [posted.json().data.journalId],
+    );
+    expect(purchaseAccounts.rows).toEqual([
+      { account_code: "1331-VAT-IN", debit: "3000000" },
+      { account_code: "632-COST", debit: "52000000" },
+    ]);
   });
 
   it("filters documents by project allocation without leaking sibling projects", async () => {
@@ -247,6 +257,93 @@ describeIntegration("ERP-300 commercial documents", () => {
     });
     expect(unrelated.statusCode, unrelated.body).toBe(200);
     expect(unrelated.json().data.items).toEqual([]);
+  });
+
+  it("bypasses expense duplicate protection only for an exact migration source", async () => {
+    await pool.query(`
+      insert into expenses
+        (organization_id,id,expense_class,payee_party_id,expense_date,business_purpose,currency,
+         net_minor,vat_minor,gross_minor,counter_account_code,state,created_by)
+      values
+        ('org-doc','legacy-expense-1','invoice_backed','SUPPLIER-A','2026-01-27','Legacy invoice',
+         'VND',900,100,1000,'632-COST','posted','integration-user')
+    `);
+    const payload = {
+      type: "purchase_invoice",
+      documentNumber: "WB-CP-1",
+      fiscalYear: 2026,
+      partyId: "SUPPLIER-A",
+      documentDate: "2026-01-27",
+      dueDate: "2026-01-27",
+      currency: "VND",
+      netMinor: "900",
+      taxMinor: "100",
+      grossMinor: "1000",
+      controlAccountCode: "331-AP",
+      migrationSourceExpenseId: "legacy-expense-1",
+      migrationSourceExpenseDate: "2026-01-27",
+      externalReference: {
+        system: "workbook",
+        externalId: "chi-phi:1",
+        metadata: { migrationSourceExpenseId: "legacy-expense-1" },
+      },
+      lines: [
+        {
+          description: "Legacy invoice",
+          quantity: "1",
+          unitPriceMinor: "900",
+          netMinor: "900",
+          taxMinor: "100",
+          grossMinor: "1000",
+          primaryAccountCode: "632-COST",
+          taxAccountCode: "1331-VAT-IN",
+          allocations: [
+            {
+              id: "legacy-allocation-1",
+              amountMinor: "900",
+              dimensions: { taxState: "ineligible" },
+            },
+          ],
+        },
+      ],
+    };
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-doc/commercial-documents",
+      headers: headers(integrationToken, "migration-exact-create"),
+      payload,
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const audit = await pool.query<{ after_state: Record<string, unknown> }>(
+      `select after_state from resource_audit_events
+       where organization_id='org-doc' and resource_type='commercial_document'
+         and resource_key=$1 and action='create'`,
+      [created.json().data.documentId],
+    );
+    expect(audit.rows[0]?.after_state).toMatchObject({
+      migrationSourceExpenseId: "legacy-expense-1",
+      migrationSourceExpenseDate: "2026-01-27",
+    });
+
+    const mismatch = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-doc/commercial-documents",
+      headers: headers(integrationToken, "migration-mismatch-create"),
+      payload: {
+        ...payload,
+        documentNumber: "WB-CP-2",
+        grossMinor: "1001",
+        lines: [
+          {
+            ...payload.lines[0],
+            grossMinor: "1001",
+            taxMinor: "101",
+          },
+        ],
+      },
+    });
+    expect(mismatch.statusCode).toBe(400);
+    expect(mismatch.body).toContain("MIGRATION_SOURCE_EXPENSE_MISMATCH");
   });
 
   it("posts a bounded linked credit note and rejects cumulative overflow", async () => {

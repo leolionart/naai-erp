@@ -1002,6 +1002,30 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- real-workbook-import.integration
     blocking_gate: G7
 
+  - id: T-INT-ERP-800-001
+    task: ERP-800
+    rules: [BR-MIG-001, BR-MIG-002]
+    title: Real workbook rows produce deterministic review identities classifications and zero-mutation dry-run output
+    layer: integration
+    command: ERP740_PROJECT_WORKBOOK=$ERP740_PROJECT_WORKBOOK ERP740_FINANCE_WORKBOOK=$ERP740_FINANCE_WORKBOOK pnpm --filter @naai-erp/cli exec vitest run src/import-workbooks.real.test.ts
+    blocking_gate: G8
+
+  - id: T-INT-ERP-800-002
+    task: ERP-800
+    rules: [BR-MIG-002, BR-MIG-003]
+    title: Review staging and controlled legacy-expense replacement are organization-scoped idempotent audited and reconciled
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/workbook-imports/workbook-import.integration.test.ts src/commercial-documents/commercial-document.integration.test.ts src/operating-dashboard/operating-dashboard.integration.test.ts
+    blocking_gate: G8
+
+  - id: T-E2E-ERP-800-001
+    task: ERP-800
+    rules: [BR-MIG-001, BR-MIG-002, BR-MIG-003]
+    title: Review UI edits persist and source-control reports remain explicit interactive and responsive
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/import-review.spec.ts e2e/dashboard-drilldown.spec.ts e2e/financial-statements.spec.ts
+    blocking_gate: G8
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

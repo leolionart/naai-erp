@@ -268,10 +268,36 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
   };
 }
 
-function reportQuery(searchParams: URLSearchParams, kind: FinancialStatementKind) {
+function calendarRange(routeValue: string | undefined) {
+  if (!routeValue) return undefined;
+  const month = /^(?:CAL-)?(\d{4})-(0[1-9]|1[0-2])$/.exec(routeValue);
+  if (month) {
+    const year = Number(month[1]);
+    const monthNumber = Number(month[2]);
+    const endsOn = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+    return { startsOn: `${month[1]}-${month[2]}-01`, endsOn };
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(routeValue)) {
+    return { startsOn: `${routeValue.slice(0, 7)}-01`, endsOn: routeValue };
+  }
+  if (routeValue === "current") return { startsOn: monthStart(), endsOn: today() };
+  return undefined;
+}
+
+function reportQuery(
+  searchParams: URLSearchParams,
+  kind: FinancialStatementKind,
+  routeValue?: string,
+) {
   const query = new URLSearchParams();
-  const endsOn = searchParams.get("endsOn") ?? today();
-  if (kind !== "balance_sheet") query.set("startsOn", searchParams.get("startsOn") ?? monthStart());
+  const routeRange = calendarRange(routeValue);
+  const routeAsOf =
+    kind === "balance_sheet" && routeValue && /^\d{4}-\d{2}-\d{2}$/.test(routeValue)
+      ? routeValue
+      : undefined;
+  const endsOn = searchParams.get("endsOn") ?? routeAsOf ?? routeRange?.endsOn ?? today();
+  if (kind !== "balance_sheet")
+    query.set("startsOn", searchParams.get("startsOn") ?? routeRange?.startsOn ?? monthStart());
   query.set("endsOn", endsOn);
   query.set("asOfInstant", searchParams.get("asOfInstant") ?? `${endsOn}T16:59:59.999Z`);
   query.set("framework", searchParams.get("framework") ?? "TT133");
@@ -604,13 +630,19 @@ function ReportKpis({ report }: Readonly<{ report: FinancialStatementReport }>) 
   );
 }
 
-export function FinancialStatementWorkspace({ kind }: Readonly<{ kind: FinancialStatementKind }>) {
+export function FinancialStatementWorkspace({
+  kind,
+  routeValue,
+}: Readonly<{ kind: FinancialStatementKind; routeValue?: string }>) {
   const { client: api, hydrated, hasToken } = useAuthenticatedApiClient();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
-  const query = useMemo(() => reportQuery(new URLSearchParams(searchKey), kind), [kind, searchKey]);
+  const query = useMemo(
+    () => reportQuery(new URLSearchParams(searchKey), kind, routeValue),
+    [kind, routeValue, searchKey],
+  );
   const [report, setReport] = useState<FinancialStatementReport>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

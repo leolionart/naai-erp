@@ -147,25 +147,37 @@ const exceptions = {
   ],
 };
 
-async function install(page: Page) {
+async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() =>
     sessionStorage.setItem("naai-erp-admin-token", "financial-statements-e2e-token"),
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/profit-and-loss**",
-    (route) => reply(route, pnl),
+    (route) => {
+      requestedUrls.push(route.request().url());
+      return reply(route, pnl);
+    },
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/balance-sheet**",
-    (route) => reply(route, balance),
+    (route) => {
+      requestedUrls.push(route.request().url());
+      return reply(route, balance);
+    },
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/cash-flow**",
-    (route) => reply(route, cashFlow),
+    (route) => {
+      requestedUrls.push(route.request().url());
+      return reply(route, cashFlow);
+    },
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/tax/vat-reconciliation**",
-    (route) => reply(route, vat),
+    (route) => {
+      requestedUrls.push(route.request().url());
+      return reply(route, vat);
+    },
   );
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/tax/expense-exceptions**",
@@ -219,6 +231,24 @@ test("@desktop separates direct cash flow and VAT readiness controls", async ({ 
   await page.goto("http://localhost:3000/reports/tax/vat-reconciliation/current");
   await expect(page.getByText("12.000.000 ₫").first()).toBeVisible();
   await expect(page.getByText("Báo cáo chưa sẵn sàng")).toBeVisible();
+});
+
+test("@desktop maps dynamic statement periods into canonical API dates", async ({ page }) => {
+  const requestedUrls: string[] = [];
+  await install(page, requestedUrls);
+
+  await page.goto("http://localhost:3000/reports/financial-statements/profit-and-loss/CAL-2025-01");
+  await expect(page.getByText("38.000.000 ₫").first()).toBeVisible();
+  const pnlUrl = requestedUrls.find((url) => url.includes("profit-and-loss"));
+  expect(pnlUrl).toContain("startsOn=2025-01-01");
+  expect(pnlUrl).toContain("endsOn=2025-01-31");
+  expect(pnlUrl).toContain("asOfInstant=2025-01-31T16%3A59%3A59.999Z");
+
+  await page.goto("http://localhost:3000/reports/financial-statements/balance-sheet/2025-02-28");
+  await expect(page.getByText(/Balance Sheet lệch 1 minor units/)).toBeVisible();
+  const balanceUrl = requestedUrls.find((url) => url.includes("balance-sheet"));
+  expect(balanceUrl).toContain("endsOn=2025-02-28");
+  expect(balanceUrl).toContain("asOfInstant=2025-02-28T16%3A59%3A59.999Z");
 });
 
 test("@desktop exposes independent accounting CIT VAT and evidence states", async ({ page }) => {

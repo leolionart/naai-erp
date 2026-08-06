@@ -238,7 +238,7 @@ export class WorkbookImportService {
         (issue) =>
           `${issue.workbook}/${issue.sheet}${issue.row ? ` row ${issue.row}` : ""}: ${issue.message}`,
       );
-    if (![1, 2].includes(payload.mappingVersion))
+    if (![1, 2, 3].includes(payload.mappingVersion))
       errors.push(`Unsupported workbook mapping version: ${String(payload.mappingVersion)}`);
     if (!payload.sources?.length) errors.push("At least one workbook source identity is required");
     if (!payload.inventory?.length) errors.push("Workbook sheet inventory is required");
@@ -281,7 +281,7 @@ export class WorkbookImportService {
       treatment: (typeof payload.salesInvoices)[number]["legacyControlTreatment"],
       expectedSheet: string,
     ) => {
-      if (payload.mappingVersion !== 2) return;
+      if (payload.mappingVersion < 2) return;
       if (!treatment) {
         errors.push(`${kind} row ${sourceRowIndex} is missing mapping v2 legacy control treatment`);
         return;
@@ -444,7 +444,7 @@ export class WorkbookImportService {
     for (const control of payload.controls ?? []) {
       const detail = {
         sales:
-          payload.mappingVersion === 2
+          payload.mappingVersion >= 2
             ? legacyComponents
                 .filter(
                   (item) =>
@@ -455,7 +455,7 @@ export class WorkbookImportService {
               ? salesSum
               : 0n,
         expense:
-          payload.mappingVersion === 2
+          payload.mappingVersion >= 2
             ? legacyComponents
                 .filter(
                   (item) =>
@@ -506,7 +506,7 @@ export class WorkbookImportService {
         totalProfit: profitSum.toString(),
         controls: payload.controls ?? [],
         variances,
-        ...(payload.mappingVersion === 2
+        ...(payload.mappingVersion >= 2
           ? {
               legacyControl: {
                 totalSales: legacySalesSum.toString(),

@@ -46,6 +46,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -68,6 +76,19 @@ type DashboardData = Readonly<{
   projects?: ProjectProfitabilityReport;
   aging?: AgingReportContract;
   operating?: OperatingDashboardWire;
+  failures?: Readonly<
+    Record<"executive" | "performance" | "projects" | "aging" | "operating", string>
+  >;
+  searchKey?: string;
+}>;
+type SourceControlMonthlyWire = Readonly<{
+  id: string;
+  kind: "profitability_control" | "planning_control";
+  period: string;
+  revenueMinor: string;
+  receivedMinor: string;
+  expenseMinor: string;
+  profitMinor: string;
 }>;
 type OperatingProjectWire = Readonly<{
   projectId?: string;
@@ -119,6 +140,12 @@ type OperatingDashboardWire = Readonly<{
     byFlag: readonly Readonly<{ flag: string; count: number }>[];
     rows: readonly Record<string, unknown>[];
   }>;
+  sourceControls?: Readonly<{
+    accountingStatus: "unconfirmed_non_canonical";
+    rowCount: number;
+    byKind: readonly Readonly<{ kind: string; count: number }>[];
+    monthly: readonly SourceControlMonthlyWire[];
+  }>;
 }>;
 function isOperatingProject(
   project: OperatingProjectWire | ProjectProfitabilitySummary,
@@ -132,6 +159,35 @@ type Preview = Readonly<{
   href: string;
   facts?: readonly Readonly<{ label: string; value: string }>[];
 }>;
+
+const currentMonth = () => new Date().toISOString().slice(0, 7);
+const monthEnd = (month: string) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+};
+
+function resolvedDashboardSearch(
+  input: URLSearchParams,
+  sourceControls?: OperatingDashboardWire["sourceControls"],
+) {
+  const search = new URLSearchParams(input);
+  const requestedPeriod = search.get("periodId");
+  const latestSourcePeriod = sourceControls?.monthly
+    .filter((row) => BigInt(row.revenueMinor) > 0n)
+    .map((row) => row.period)
+    .sort((left, right) => right.localeCompare(left))[0];
+  const period = /^(?:CAL-)?(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(
+    requestedPeriod ?? latestSourcePeriod ?? currentMonth(),
+  )?.[1];
+  if (!requestedPeriod) search.set("periodId", `CAL-${period ?? currentMonth()}`);
+  if (!search.has("actualBasis")) search.set("actualBasis", "invoiced");
+  if (period) {
+    if (!search.has("startsOn")) search.set("startsOn", `${period}-01`);
+    if (!search.has("endsOn")) search.set("endsOn", monthEnd(period));
+    if (!search.has("asOfDate")) search.set("asOfDate", monthEnd(period));
+  }
+  return search;
+}
 
 function reportQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
@@ -151,7 +207,7 @@ function performanceQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
   query.set("periodId", search.get("periodId") ?? "CAL-2026-08");
   query.set("periodBasis", "calendar");
-  query.set("actualBasis", "recognized");
+  query.set("actualBasis", search.get("actualBasis") ?? "invoiced");
   const asOfDate = search.get("asOfDate") ?? search.get("endsOn") ?? "2026-08-31";
   query.set("asOfInstant", `${asOfDate}T16:59:59.999Z`);
   for (const key of ["serviceLineCode", "teamId", "ownerId"]) {
@@ -261,7 +317,14 @@ function DashboardFilters({
   const pathname = usePathname();
   function apply(data: FormData) {
     const q = new URLSearchParams();
-    for (const key of ["periodId", "startsOn", "endsOn", "asOfDate", "serviceLineCode"]) {
+    for (const key of [
+      "periodId",
+      "actualBasis",
+      "startsOn",
+      "endsOn",
+      "asOfDate",
+      "serviceLineCode",
+    ]) {
       const value = String(data.get(key) ?? "").trim();
       if (value) q.set(key, value);
     }
@@ -295,6 +358,21 @@ function DashboardFilters({
                 name="startsOn"
                 defaultValue={search.get("startsOn") ?? "2026-08-01"}
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="dash-basis">Basis thực tế</FieldLabel>
+              <Select name="actualBasis" defaultValue={search.get("actualBasis") ?? "invoiced"}>
+                <SelectTrigger id="dash-basis">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="invoiced">Đã xuất hóa đơn</SelectItem>
+                    <SelectItem value="recognized">Đã ghi nhận</SelectItem>
+                    <SelectItem value="collected">Đã thu tiền</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </Field>
             <Field>
               <FieldLabel htmlFor="dash-end">Đến ngày</FieldLabel>
@@ -402,7 +480,27 @@ function useDashboardData() {
       setLoading(false);
       return;
     }
-    const search = new URLSearchParams(key);
+    const requestedSearch = new URLSearchParams(key);
+    const discoverySearch = resolvedDashboardSearch(requestedSearch);
+    let discoveredOperating: OperatingDashboardWire | undefined;
+    if (!requestedSearch.has("periodId")) {
+      const discoveryQuery = projectQuery(discoverySearch);
+      const discoveryAsOf = discoverySearch.get("asOfDate")!;
+      const discoveryOperatingQuery = new URLSearchParams({
+        asOf: discoveryAsOf,
+        startsOn: discoveryQuery.get("periodStart")!,
+        endsOn: discoveryQuery.get("periodEnd")!,
+        limit: "20",
+      });
+      try {
+        discoveredOperating = await client.data<OperatingDashboardWire>(
+          `reports/operating-dashboard?${discoveryOperatingQuery}`,
+        );
+      } catch {
+        // The settled request below exposes the operating API failure to the UI.
+      }
+    }
+    const search = resolvedDashboardSearch(requestedSearch, discoveredOperating?.sourceControls);
     const rq = reportQuery(search);
     const pq = performanceQuery(search);
     const jq = projectQuery(search);
@@ -428,6 +526,14 @@ function useDashboardData() {
       projects: projects.status === "fulfilled" ? projects.value : undefined,
       aging: aging.status === "fulfilled" ? aging.value : undefined,
       operating: operating.status === "fulfilled" ? operating.value : undefined,
+      failures: {
+        executive: executive.status === "rejected" ? String(executive.reason) : "",
+        performance: performance.status === "rejected" ? String(performance.reason) : "",
+        projects: projects.status === "rejected" ? String(projects.reason) : "",
+        aging: aging.status === "rejected" ? String(aging.reason) : "",
+        operating: operating.status === "rejected" ? String(operating.reason) : "",
+      },
+      searchKey: search.toString(),
     };
     setData(next);
     if (!next.executive && !next.performance && !next.projects && !next.aging && !next.operating)
@@ -435,7 +541,13 @@ function useDashboardData() {
     setLoading(false);
   }, [client, hasToken, hydrated, key]);
   useEffect(() => void load(), [load]);
-  return { data, loading, error, reload: load, search: new URLSearchParams(key) };
+  return {
+    data,
+    loading,
+    error,
+    reload: load,
+    search: new URLSearchParams(data.searchKey ?? key),
+  };
 }
 
 export function ExecutiveDashboardWorkspace() {
@@ -511,13 +623,20 @@ export function ExecutiveDashboardWorkspace() {
     (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
     (data.aging?.exceptions.length ?? 0) +
     (operating?.dataQuality.pendingCount ?? 0);
-  const chartPoints = [
-    performance?.monthOverMonth.denominatorMinor,
-    performance?.actualVsFullTarget.numeratorMinor,
-    performance?.actualVsRetainedForecast.denominatorMinor,
-  ]
-    .filter((value): value is string => value != null)
-    .map(Number);
+  const sourceMonthly = operating?.sourceControls?.monthly ?? [];
+  const profitabilityMonthly = sourceMonthly.filter((row) => row.kind === "profitability_control");
+  const chartPoints = (profitabilityMonthly.length ? profitabilityMonthly : sourceMonthly).map(
+    (row) => ({ label: row.period, valueMinor: row.revenueMinor }),
+  );
+  const comparisonPoints = [
+    { label: "Kỳ trước", valueMinor: performance?.monthOverMonth.denominatorMinor },
+    { label: "Thực tế kỳ này", valueMinor: performance?.actualVsFullTarget.numeratorMinor },
+    {
+      label: "Dự báo giữ lại",
+      valueMinor: performance?.actualVsRetainedForecast.denominatorMinor,
+    },
+  ].filter((point): point is { label: string; valueMinor: string } => point.valueMinor != null);
+  const displayedChartPoints = chartPoints.length ? chartPoints : comparisonPoints;
   return (
     <ModulePage
       title="Tổng quan điều hành"
@@ -528,6 +647,7 @@ export function ExecutiveDashboardWorkspace() {
         <div className="flex flex-wrap justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{search.get("periodId") ?? "CAL-2026-08"}</Badge>
+            <Badge variant="secondary">Basis: {search.get("actualBasis") ?? "invoiced"}</Badge>
             {search.get("serviceLineCode") ? (
               <Badge variant="outline">Service line: {search.get("serviceLineCode")}</Badge>
             ) : null}
@@ -549,6 +669,14 @@ export function ExecutiveDashboardWorkspace() {
           <Alert variant="destructive">
             <AlertTitle>Dashboard chưa sẵn sàng</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {data.failures?.executive && !loading ? (
+          <Alert variant="destructive">
+            <AlertTitle>Không tải được Executive Metrics</AlertTitle>
+            <AlertDescription>
+              Các KPI ROS, runway và tiền mặt không khả dụng; dashboard không thay bằng số giả.
+            </AlertDescription>
           </Alert>
         ) : null}
         {flagged ? (
@@ -589,7 +717,7 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu đã xuất hóa đơn"
                 value={money(
-                  operating?.backlog.invoicedMinor ?? invoicedMinor,
+                  operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
                   operating?.currency ?? data.projects?.currency,
                 )}
                 description={
@@ -599,7 +727,11 @@ export function ExecutiveDashboardWorkspace() {
                 provisional={usingOperatingFallback}
               />
               <MetricCard
-                title="Doanh thu ghi nhận"
+                title={
+                  (search.get("actualBasis") ?? "invoiced") === "invoiced"
+                    ? "Doanh thu đã xuất hóa đơn"
+                    : "Doanh thu ghi nhận"
+                }
                 value={money(
                   recognizedDisplayMinor,
                   data.projects?.currency ?? performance?.currency,
@@ -806,13 +938,21 @@ export function ExecutiveDashboardWorkspace() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {chartPoints.length ? (
-              <ExecutiveTrendChart points={chartPoints} />
+            {displayedChartPoints.length ? (
+              <ExecutiveTrendChart
+                points={displayedChartPoints}
+                currency={operating?.currency ?? performance?.currency ?? "VND"}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">Chưa có dữ liệu xu hướng.</p>
             )}
           </CardContent>
           <CardFooter>
+            {operating?.sourceControls ? (
+              <Badge variant="outline">
+                {operating.sourceControls.rowCount} dòng workbook chưa xác nhận kế toán
+              </Badge>
+            ) : null}
             <Button
               variant="outline"
               onClick={() =>

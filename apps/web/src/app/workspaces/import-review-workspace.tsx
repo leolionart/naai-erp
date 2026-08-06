@@ -55,6 +55,12 @@ import {
   SlidersIcon,
   XIcon,
   CheckIcon,
+  HandCoinsIcon,
+  ChartNoAxesCombinedIcon,
+  CalendarRangeIcon,
+  TrophyIcon,
+  UsersRoundIcon,
+  TagsIcon,
 } from "lucide-react";
 
 type ReviewStatus = "pending_review" | "approved" | "ignored" | "posted";
@@ -91,21 +97,24 @@ const flagLabels: Record<string, string> = {
   missing_budget: "Thiếu ngân sách",
   owner_movement_requires_classification: "Cần phân loại vốn/chuyển khoản",
   zero_value: "Giá trị bằng 0",
+  control_only: "Dữ liệu kiểm soát, không ghi sổ",
+  duplicate_invoice_file_reference: "Trùng tham chiếu file Paperless",
 };
 
-const kindLabels: Record<string, string> = {
-  project: "Dự án",
-  sales: "Doanh thu",
-  expense: "Chi phí",
-  owner_movement: "Vốn / chuyển khoản",
+const kindMetadata: Readonly<Record<string, Readonly<{ label: string; icon: LucideIcon }>>> = {
+  project: { label: "Dự án", icon: FolderIcon },
+  sales: { label: "Doanh thu", icon: TrendingUpIcon },
+  expense: { label: "Chi phí", icon: ArrowUpRightIcon },
+  owner_movement: { label: "Vốn / chuyển khoản", icon: ArrowLeftRightIcon },
+  debt_control: { label: "Kiểm soát công nợ", icon: HandCoinsIcon },
+  profitability_control: { label: "Kiểm soát lợi nhuận", icon: ChartNoAxesCombinedIcon },
+  planning_control: { label: "Kiểm soát kế hoạch", icon: CalendarRangeIcon },
+  bonus_control: { label: "Kiểm soát thưởng", icon: TrophyIcon },
+  payroll_master: { label: "Danh mục nhân sự tính lương", icon: UsersRoundIcon },
+  expense_category_control: { label: "Danh mục loại chi phí", icon: TagsIcon },
 };
 
-const kindIcons: Record<string, LucideIcon> = {
-  project: FolderIcon,
-  sales: TrendingUpIcon,
-  expense: ArrowUpRightIcon,
-  owner_movement: ArrowLeftRightIcon,
-};
+const PAGE_SIZE = 50;
 
 const sourceFieldLabels: Record<string, string> = {
   transactionDate: "Ngày giao dịch",
@@ -160,6 +169,7 @@ export function ImportReviewWorkspace() {
   const [kind, setKind] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     if (!hydrated) return;
@@ -200,6 +210,12 @@ export function ImportReviewWorkspace() {
         .includes(normalized);
     });
   }, [kind, query, rows, status]);
+
+  useEffect(() => setPage(1), [kind, query, status]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const pending = rows.filter((row) => row.status === "pending_review").length;
 
@@ -267,10 +283,11 @@ export function ImportReviewWorkspace() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="all">Mọi loại dữ liệu</SelectItem>
-                  <SelectItem value="project">Dự án</SelectItem>
-                  <SelectItem value="sales">Doanh thu</SelectItem>
-                  <SelectItem value="expense">Chi phí</SelectItem>
-                  <SelectItem value="owner_movement">Vốn / chuyển khoản</SelectItem>
+                  {Object.entries(kindMetadata).map(([value, metadata]) => (
+                    <SelectItem key={value} value={value}>
+                      {metadata.label}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -296,8 +313,11 @@ export function ImportReviewWorkspace() {
             </Alert>
           ) : null}
 
-          <div className="rounded-md border border-border/50 overflow-hidden">
-            <Table>
+          <div
+            className="overflow-x-auto rounded-md border border-border/50"
+            data-testid="import-review-table-scroll"
+          >
+            <Table className="min-w-[900px]">
               <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead className="w-[200px]">Nguồn</TableHead>
@@ -308,7 +328,7 @@ export function ImportReviewWorkspace() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((row) => (
+                {visibleRows.map((row) => (
                   <TableRow key={row.id} className="hover:bg-muted/30">
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
@@ -318,11 +338,12 @@ export function ImportReviewWorkspace() {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        const KindIcon = kindIcons[row.kind] ?? FileTextIcon;
+                        const metadata = kindMetadata[row.kind];
+                        const KindIcon = metadata?.icon ?? FileTextIcon;
                         return (
                           <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                             <KindIcon className="h-4 w-4 text-muted-foreground" />
-                            <span>{kindLabels[row.kind] ?? row.kind}</span>
+                            <span>{metadata?.label ?? row.kind}</span>
                           </div>
                         );
                       })()}
@@ -380,6 +401,37 @@ export function ImportReviewWorkspace() {
               </div>
             ) : null}
           </div>
+          {!loading && filtered.length ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span>
+                Hiển thị {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filtered.length)} trong {filtered.length} dòng
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                >
+                  Trang trước
+                </Button>
+                <span className="tabular-nums">
+                  Trang {currentPage}/{pageCount}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === pageCount}
+                  onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+                >
+                  Trang sau
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

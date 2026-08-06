@@ -495,7 +495,8 @@
         "summary": "List organization-scoped sales invoices, purchase invoices and credit notes"
       },
       "post": {
-        "summary": "Create an idempotent exact-amount commercial document draft with allocations"
+        "summary": "Create an idempotent exact-amount commercial document draft with allocations",
+        "requestBody": { "$ref": "#/components/requestBodies/CreateCommercialDocument" }
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}": {
@@ -3322,7 +3323,7 @@
           "expenses"
         ],
         "properties": {
-          "mappingVersion": { "type": "integer", "enum": [1, 2] },
+          "mappingVersion": { "type": "integer", "enum": [1, 2, 3] },
           "sources": {
             "type": "array",
             "minItems": 1,
@@ -3382,11 +3383,33 @@
           "row": { "type": "integer", "minimum": 1 },
           "kind": {
             "type": "string",
-            "enum": ["project", "sales", "expense", "owner_movement"]
+            "enum": [
+              "project",
+              "sales",
+              "expense",
+              "owner_movement",
+              "debt_control",
+              "profitability_control",
+              "planning_control",
+              "bonus_control",
+              "payroll_master",
+              "expense_category_control"
+            ]
           },
           "proposedResourceType": {
             "type": "string",
-            "enum": ["project", "sales_invoice", "expense", "owner_equity_or_transfer_pending"]
+            "enum": [
+              "project",
+              "sales_invoice",
+              "expense",
+              "owner_equity_or_transfer_pending",
+              "ar_control",
+              "profitability_control",
+              "planning_control",
+              "bonus_control",
+              "workforce_profile_pending",
+              "expense_category_control"
+            ]
           },
           "proposedResourceId": { "type": "string" },
           "status": {
@@ -5467,6 +5490,57 @@
       }
     },
     "requestBodies": {
+      "CreateCommercialDocument": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "id",
+                "type",
+                "documentNumber",
+                "partyId",
+                "documentDate",
+                "currency",
+                "netMinor",
+                "taxMinor",
+                "grossMinor",
+                "controlAccountCode",
+                "lines"
+              ],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "type": {
+                  "type": "string",
+                  "enum": ["sales_invoice", "purchase_invoice", "credit_note"]
+                },
+                "documentNumber": { "type": "string", "minLength": 1 },
+                "partyId": { "type": "string", "minLength": 1 },
+                "documentDate": { "type": "string", "format": "date" },
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+                "netMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                "taxMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                "grossMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                "controlAccountCode": { "type": "string", "minLength": 1 },
+                "migrationSourceExpenseId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Controlled purchase-invoice migration link to an exact matching legacy expense; the original posted journal must be reversed through the normal journal API before replacement posting."
+                },
+                "migrationSourceExpenseDate": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Required together with migrationSourceExpenseId and matched exactly against the legacy expense."
+                },
+                "lines": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+                "externalReference": { "type": "object", "additionalProperties": true }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
       "ExecutiveMetricApproval": {
         "required": true,
         "content": {
