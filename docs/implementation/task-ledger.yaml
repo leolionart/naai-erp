@@ -790,20 +790,26 @@ tasks:
   - id: ERP-630
     title: Financial statements and tax reconciliation
     phase: P6
-    status: in_progress
+    status: done
     dependencies: [G5, ERP-240]
     business_rules: [BR-RPT-002, BR-RPT-003, BR-RPT-004, BR-TAX-003]
     tests: [T-RPT-002, T-RPT-003, T-RPT-004, T-TAX-003]
     evidence: docs/implementation/evidence/ERP-630/
     started_at: 2026-08-06T07:57:00+07:00
+    completed_at: 2026-08-06T09:31:47+07:00
+    implementation_commit: 6d322bbbce8362314d1c41bb9abe0f4fed6a068b
+    proof_commit: 9d8c08e96feeffbe221259822918bfa4fe4ddf6b
+    ci_url: https://github.com/leolionart/naai-erp/actions/runs/31065520321
 
   - id: ERP-640
     title: Executive metrics
     phase: P6
-    status: blocked
+    status: in_progress
     dependencies: [ERP-620, ERP-630]
     business_rules: [BR-KPI-003, BR-KPI-004, BR-KPI-005]
     tests: [T-KPI-003, T-KPI-004, T-KPI-005]
+    evidence: docs/implementation/evidence/ERP-640/
+    started_at: 2026-08-06T09:31:47+07:00
 
   - id: ERP-650
     title: Accountant export and report snapshots

@@ -8,4 +8,4 @@
 - Reproducibility needs one cutoff/source fingerprint shared by all statements. ERP-650 will persist formal snapshots, but ERP-630 reads must already disclose their source boundary.
 - A cash-basis P&L cannot be derived safely by filtering journals that touch bank accounts because AR/AP settlement would lose revenue/expense lineage. ERP-630 therefore rejects `basis=cash` for P&L and exposes cash movements through the separately labeled direct Cash Flow report.
 - Fixture data is synthetic/anonymized and must not contain the user's real workbook contents.
-- Local non-PostgreSQL, fixture, build and 47/47 Playwright proof is green. Exact-commit PostgreSQL integration remains the final unverified durability/read-model boundary.
+- Local and exact-commit proof is green. PostgreSQL integration, direct Cash Flow source-boundary controls, VAT credit-note direction, all fixtures/build checks and 47/47 Playwright journeys passed for `9d8c08e96feeffbe221259822918bfa4fe4ddf6b` at https://github.com/leolionart/naai-erp/actions/runs/31065520321; no ERP-630 acceptance boundary remains open.

@@ -12,4 +12,4 @@ Current acceptance coverage:
 - Pass locally: landing plus dedicated P&L, Balance Sheet, direct Cash Flow, VAT reconciliation and tax exception pages use URL-backed Sheet filters, source Drawer, blocking Alerts and responsive tables; targeted Playwright passes 6/6 and the full suite passes 47/47.
 - Pass locally: `pnpm check`, `pnpm db:check`, `pnpm test:fixtures` and `pnpm test:e2e` pass in the integrated worktree.
 
-Exact-commit PostgreSQL integration and complete GitHub quality-job evidence must pass before ERP-630 is marked done.
+Accepted in exact-commit GitHub CI for `9d8c08e96feeffbe221259822918bfa4fe4ddf6b`: repository quality/build, all 32 migrations, PostgreSQL database/API/worker integration and 47/47 Playwright journeys passed at https://github.com/leolionart/naai-erp/actions/runs/31065520321.

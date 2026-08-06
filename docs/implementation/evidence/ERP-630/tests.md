@@ -37,4 +37,8 @@ Local integrated results:
 - ERP-630 targeted Playwright: 6/6 pass.
 - Full Playwright: 47/47 pass. One existing internal-transfer assertion was made deterministic with `expect.poll` after the full suite exposed its immediate-request race.
 
-No local PostgreSQL service was available. Exact-commit CI must execute `financial-statement.integration.test.ts`, including mapping replay/versioning/org isolation, canonical P&L, Balance Sheet mismatch rejection, direct Cash Flow classification/tie-out, VAT/credit-note/readiness controls, tax exceptions, drill-down and cutoff stability before ERP-630 is marked done.
+No local PostgreSQL service was available. Exact-commit CI executed all 46 API test files, including `financial-statement.integration.test.ts` for mapping replay/versioning/org isolation, canonical P&L, Balance Sheet mismatch rejection, direct Cash Flow classification/tie-out, VAT/credit-note/readiness controls, tax exceptions, drill-down and cutoff stability. Database and worker suites also passed, followed by 47/47 Playwright journeys.
+
+Accepted proof commit: `9d8c08e96feeffbe221259822918bfa4fe4ddf6b`.
+
+GitHub Actions: https://github.com/leolionart/naai-erp/actions/runs/31065520321.

@@ -2,7 +2,7 @@
 
 - Task: ERP-630 — Financial statements and tax reconciliation
 - Gate: G6 — Planning and management reporting
-- Status: implementation complete and locally verified; exact-commit PostgreSQL CI pending
+- Status: accepted
 
 ERP-630 derives an accrual-management P&L, Balance Sheet, direct Cash Flow, VAT reconciliation and tax-expense exception view from one organization-scoped ledger cutoff. Statement mappings and reconciliation policies are explicit and versioned; unmapped or unreconciled amounts remain visible and can block readiness instead of being silently guessed.
 
@@ -11,3 +11,5 @@ The Balance Sheet must satisfy `Assets = Liabilities + Equity`, direct Cash Flow
 The admin UI uses a report landing page plus dedicated statement pages. Filters use a Sheet, source tracing uses a Drawer, and invalid/tie-failure states use blocking Alerts. No AI surface is visible; the same REST/OpenAPI/CLI contracts remain discoverable for machine clients.
 
 `GF-FINANCIAL-001` independently verifies P&L, Balance Sheet and direct Cash Flow, while `GF-VAT-001` verifies VAT partitions and independent management/CIT/VAT tax axes without importing production code. The integrated worktree passes repository quality/build checks, all 32 migration-journal entries, all golden fixtures and 47/47 desktop/mobile Playwright journeys.
+
+Implementation began at `6d322bbbce8362314d1c41bb9abe0f4fed6a068b`. Exact-commit proof passed at `9d8c08e96feeffbe221259822918bfa4fe4ddf6b`, including PostgreSQL migration/integration, API/worker suites and all Playwright journeys: https://github.com/leolionart/naai-erp/actions/runs/31065520321.
