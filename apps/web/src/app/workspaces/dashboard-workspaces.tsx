@@ -195,18 +195,14 @@ function shiftedMonth(anchorMonth: string, kind: PeriodKind, delta: number) {
 
 function resolvedDashboardSearch(
   input: URLSearchParams,
-  sourceControls?: OperatingDashboardWire["sourceControls"],
+  _sourceControls?: OperatingDashboardWire["sourceControls"],
 ) {
   const search = new URLSearchParams(input);
   const requestedPeriod = search.get("periodId");
-  const latestSourcePeriod = sourceControls?.monthly
-    .filter((row) => BigInt(row.revenueMinor) > 0n)
-    .map((row) => row.period)
-    .sort((left, right) => right.localeCompare(left))[0];
   const periodMatch = /^(?:CAL-)?(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(
-    requestedPeriod ?? latestSourcePeriod ?? currentMonth(),
+    requestedPeriod ?? currentMonth(),
   );
-  const period = periodMatch?.[1] ?? latestSourcePeriod ?? currentMonth();
+  const period = periodMatch?.[1] ?? currentMonth();
   if (!periodMatch || !requestedPeriod) search.set("periodId", `CAL-${period}`);
   if (!search.has("actualBasis")) search.set("actualBasis", "invoiced");
 
