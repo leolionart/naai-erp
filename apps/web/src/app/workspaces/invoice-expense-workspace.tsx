@@ -39,9 +39,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FileTextIcon, LayersIcon, CheckCircle2Icon, XIcon, SlidersIcon } from "lucide-react";
 
 type Tone = "info" | "success" | "error";
 type Row = Record<string, unknown>;
+
+function translateDocumentType(type: unknown): string {
+  if (!type) return "—";
+  const t = String(type).toLowerCase().replace(/_/g, " ");
+  if (t === "purchase invoice") return "Hóa đơn mua vào";
+  if (t === "sales invoice") return "Hóa đơn bán ra";
+  if (t === "credit note") return "Giảm trừ (Credit Note)";
+  return t.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function translateState(state: unknown): string {
+  if (!state) return "—";
+  const s = String(state).toLowerCase();
+  if (s === "draft") return "Nháp";
+  if (s === "captured") return "Đã ghi nhận";
+  if (s === "verified") return "Đã xác thực";
+  if (s === "approved") return "Đã phê duyệt";
+  if (s === "posted") return "Đã vào sổ";
+  if (s === "paid") return "Đã thanh toán";
+  if (s === "partially_paid") return "Thanh toán một phần";
+  if (s === "issued") return "Đã phát hành";
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export type InvoiceExpenseWorkspaceProps = {
   kind: "documents" | "expenses";
@@ -134,15 +166,41 @@ export function InvoiceExpenseWorkspace({
   const endpoint = kind === "documents" ? "commercial-documents" : "expenses";
   const [items, setItems] = useState<Row[]>([]);
   const [selected, setSelected] = useState<Row>();
+  const [parties, setParties] = useState<Row[]>([]);
+  const [projects, setProjects] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("Bấm “Tải dữ liệu” để bắt đầu.");
 
+  function getPartyName(partyId: unknown) {
+    if (!partyId) return "—";
+    const idStr = String(partyId);
+    const match = parties.find((p) => String(field(p, "id")) === idStr);
+    if (match) {
+      return String(field(match, "displayName") ?? field(match, "name") ?? idStr);
+    }
+    return idStr;
+  }
+
   useEffect(() => {
     setItems([]);
     setSelected(undefined);
     setShowCreate(false);
+    if (apiRoot) {
+      request("master-data/parties?limit=100")
+        .then((payload) => {
+          const data = (payload.data ?? payload) as Row;
+          setParties(Array.isArray(data.items) ? (data.items as Row[]) : []);
+        })
+        .catch(() => {});
+      request("master-data/projects?limit=100")
+        .then((payload) => {
+          const data = (payload.data ?? payload) as Row;
+          setProjects(Array.isArray(data.items) ? (data.items as Row[]) : []);
+        })
+        .catch(() => {});
+    }
   }, [kind, apiRoot]);
 
   function announce(message: string, tone: Tone = "info") {
@@ -172,10 +230,21 @@ export function InvoiceExpenseWorkspace({
   async function load() {
     setBusy(true);
     try {
-      const payload = await request(endpoint);
+      const [payload, partiesPayload, projectsPayload] = await Promise.all([
+        request(endpoint),
+        request("master-data/parties?limit=100").catch(() => ({ items: [] })) as Promise<Row>,
+        request("master-data/projects?limit=100").catch(() => ({ items: [] })) as Promise<Row>,
+      ]);
       const data = (payload.data ?? payload) as Row;
       const rows = Array.isArray(data.items) ? (data.items as Row[]) : [];
       setItems(rows);
+
+      const partiesData = (partiesPayload.data ?? partiesPayload) as Row;
+      setParties(Array.isArray(partiesData.items) ? (partiesData.items as Row[]) : []);
+
+      const projectsData = (projectsPayload.data ?? projectsPayload) as Row;
+      setProjects(Array.isArray(projectsData.items) ? (projectsData.items as Row[]) : []);
+
       setSelected(undefined);
       announce(`Đã tải ${rows.length} bản ghi.`, "success");
     } catch (error) {
@@ -274,11 +343,14 @@ export function InvoiceExpenseWorkspace({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
+                <TableHead className="w-[150px]">
+                  {kind === "documents" ? "Số hóa đơn" : "Mã chi phí"}
+                </TableHead>
+                <TableHead className="w-[120px]">Ngày</TableHead>
                 <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
                 <TableHead>Đối tượng</TableHead>
-                <TableHead>Tổng tiền</TableHead>
-                <TableHead>Trạng thái</TableHead>
+                <TableHead className="w-[150px]">Tổng tiền</TableHead>
+                <TableHead className="w-[140px]">Trạng thái</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -288,21 +360,38 @@ export function InvoiceExpenseWorkspace({
                   <TableRow
                     key={id}
                     data-state={String(field(selected, "id") ?? "") === id ? "selected" : undefined}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:bg-muted/30"
                     onClick={() => choose(row)}
                   >
-                    <TableCell>
-                      {label(field(row, kind === "documents" ? "documentNumber" : "expenseDate"))}
+                    <TableCell className="font-semibold text-foreground">
+                      {label(field(row, kind === "documents" ? "documentNumber" : "id"))}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground tabular-nums">
+                      {label(field(row, kind === "documents" ? "documentDate" : "expenseDate"))}
                     </TableCell>
                     <TableCell>
-                      {label(field(row, kind === "documents" ? "type" : "businessPurpose"))}
+                      {kind === "documents"
+                        ? translateDocumentType(field(row, "type"))
+                        : label(field(row, "businessPurpose"))}
                     </TableCell>
                     <TableCell>
-                      {label(field(row, kind === "documents" ? "partyId" : "payeePartyId"))}
+                      {kind === "documents"
+                        ? getPartyName(field(row, "partyId"))
+                        : getPartyName(field(row, "payeePartyId"))}
                     </TableCell>
-                    <TableCell>{money(field(row, "grossMinor"))}</TableCell>
+                    <TableCell className="font-semibold tabular-nums text-foreground">
+                      {money(field(row, "grossMinor"))}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{label(field(row, "state"))}</Badge>
+                      <Badge
+                        variant={
+                          field(row, "state") === "posted" || field(row, "state") === "paid"
+                            ? "secondary"
+                            : "outline"
+                        }
+                      >
+                        {translateState(field(row, "state"))}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 );
@@ -320,7 +409,16 @@ export function InvoiceExpenseWorkspace({
         </div>
 
         {selected ? (
-          <RecordActions kind={kind} record={selected} busy={busy} onAction={action} />
+          <RecordActionsDialog
+            kind={kind}
+            record={selected}
+            busy={busy}
+            onAction={action}
+            open={Boolean(selected)}
+            onOpenChange={(nextOpen) => !nextOpen && setSelected(undefined)}
+            parties={parties}
+            projects={projects}
+          />
         ) : null}
       </CardContent>
     </Card>
@@ -780,16 +878,24 @@ export function ExpenseForm({
   );
 }
 
-function RecordActions({
+function RecordActionsDialog({
   kind,
   record,
   busy,
   onAction,
+  open,
+  onOpenChange,
+  parties,
+  projects,
 }: {
   kind: "documents" | "expenses";
   record: Row;
   busy: boolean;
   onAction: (name: string, body: Row) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  parties: readonly Row[];
+  projects: readonly Row[];
 }) {
   const type = String(field(record, "type") ?? "");
   const state = String(field(record, "state") ?? "");
@@ -800,112 +906,294 @@ function RecordActions({
   const actions =
     kind === "documents" ? (documentActions[type]?.[state] ?? []) : (expenseActions[state] ?? []);
 
+  function getPartyName(partyId: unknown) {
+    if (!partyId) return "—";
+    const idStr = String(partyId);
+    const match = parties.find((p) => String(field(p, "id")) === idStr);
+    if (match) {
+      return String(field(match, "displayName") ?? field(match, "name") ?? idStr);
+    }
+    return idStr;
+  }
+
+  const renderedLines = useMemo(() => {
+    const linesList = (record.lines ?? []) as Row[];
+    return linesList.map((line, idx) => {
+      const desc = String(field(line, "description") ?? field(line, "memo") ?? `Dòng ${idx + 1}`);
+      const gross = money(field(line, "grossMinor") ?? field(line, "netMinor"));
+      const allocations = (field(line, "allocations") ?? []) as Row[];
+      const allocDetails = allocations
+        .map((alloc) => {
+          const pId = field(alloc, "projectId");
+          const match = projects.find((p) => String(field(p, "id")) === String(pId));
+          const pName = match
+            ? String(field(match, "name") ?? field(match, "displayName") ?? pId)
+            : String(pId || "");
+          return pName ? `Dự án: ${pName}` : "";
+        })
+        .filter(Boolean)
+        .join(", ");
+
+      return {
+        desc,
+        gross,
+        allocDetails,
+      };
+    });
+  }, [record, projects]);
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <strong>
-        Đang chọn: {label(field(record, kind === "documents" ? "documentNumber" : "id"))} ·{" "}
-        {label(state)}
-      </strong>
-      <Field>
-        <FieldLabel className="sr-only">Lý do thao tác</FieldLabel>
-        <Input
-          aria-label="Lý do thao tác"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </Field>
-      {actions.map((name) => (
-        <Button
-          variant="outline"
-          type="button"
-          disabled={busy}
-          key={name}
-          onClick={() =>
-            onAction(name, {
-              reason,
-              ...(name === "mark-evidence-pending" ? { missingEvidenceTypes: ["invoice"] } : {}),
-            })
-          }
-        >
-          {label(name)}
-        </Button>
-      ))}
-      {kind === "expenses" ? (
-        <>
-          <Field>
-            <FieldLabel className="sr-only">Trục đánh giá</FieldLabel>
-            <Select
-              value={axis}
-              onValueChange={(value) => {
-                setAxis(value);
-                setReviewState(value === "management" ? "valid" : "eligible");
-              }}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader className="border-b border-border/40 pb-4">
+          <DialogTitle className="text-xl font-bold flex items-center gap-2">
+            <SlidersIcon className="h-5 w-5 text-primary" />
+            <span>
+              {kind === "documents"
+                ? `Hóa đơn: ${field(record, "documentNumber") || field(record, "id")}`
+                : `Chi phí: ${field(record, "id")}`}
+            </span>
+            <Badge
+              variant={state === "posted" || state === "paid" ? "secondary" : "outline"}
+              className="ml-2"
             >
-              <SelectTrigger aria-label="Trục đánh giá">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="management">Quản trị</SelectItem>
-                  <SelectItem value="cit">CIT</SelectItem>
-                  <SelectItem value="vat">VAT</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel className="sr-only">Kết quả đánh giá</FieldLabel>
-            <Select value={reviewState} onValueChange={setReviewState}>
-              <SelectTrigger aria-label="Kết quả đánh giá">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {axis === "management" ? (
-                    <>
-                      <SelectItem value="valid">Hợp lệ</SelectItem>
-                      <SelectItem value="invalid">Không hợp lệ</SelectItem>
-                      <SelectItem value="accountant_override">Kế toán override</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="eligible">Đủ điều kiện</SelectItem>
-                      <SelectItem value="partially_eligible">Một phần</SelectItem>
-                      <SelectItem value="ineligible">Không đủ điều kiện</SelectItem>
-                      <SelectItem value="accountant_override">Kế toán override</SelectItem>
-                    </>
-                  )}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
-          {reviewState === "partially_eligible" ? (
-            <Input
-              aria-label="Số tiền đủ điều kiện"
-              inputMode="numeric"
-              value={eligible}
-              onChange={(e) => setEligible(e.target.value)}
-              placeholder="Số tiền đủ điều kiện"
-            />
-          ) : null}
-          <Button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              onAction("review", {
-                axis,
-                lineNumber: 1,
-                state: reviewState,
-                reason,
-                ...(eligible ? { eligibleMinor: eligible } : {}),
-                ...(reviewState === "accountant_override" ? { reference: "admin-ui-review" } : {}),
-              })
-            }
-          >
-            Lưu đánh giá dòng 1
+              {translateState(state)}
+            </Badge>
+          </DialogTitle>
+          <DialogDescription>
+            Xem đầy đủ chi tiết chứng từ ghi sổ và thực hiện các thao tác phê duyệt quy trình.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-6 py-4">
+          {/* Thông tin chung */}
+          <div className="space-y-4 border-b border-border/40 pb-6 px-1">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <FileTextIcon className="h-4 w-4 text-primary" />
+              <span>Thông tin chứng từ</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
+                <span className="text-[11px] font-medium text-muted-foreground">Ngày ghi sổ</span>
+                <span className="text-sm font-semibold text-foreground tabular-nums">
+                  {label(field(record, kind === "documents" ? "documentDate" : "expenseDate"))}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  Đối tác / Đối tượng
+                </span>
+                <span className="text-sm font-semibold text-foreground">
+                  {getPartyName(field(record, kind === "documents" ? "partyId" : "payeePartyId"))}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
+                <span className="text-[11px] font-medium text-muted-foreground">Phân loại</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {kind === "documents"
+                    ? translateDocumentType(field(record, "type"))
+                    : label(field(record, "businessPurpose"))}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  Tổng tiền thanh toán
+                </span>
+                <span className="text-sm font-semibold text-foreground tabular-nums text-emerald-500">
+                  {money(field(record, "grossMinor"))}
+                </span>
+              </div>
+              {kind === "documents" && (
+                <>
+                  <div className="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Tiền hàng (chưa VAT)
+                    </span>
+                    <span className="text-sm font-semibold text-foreground tabular-nums">
+                      {money(field(record, "netMinor"))}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1 rounded-lg border bg-muted/20 p-3">
+                    <span className="text-[11px] font-medium text-muted-foreground">Thuế VAT</span>
+                    <span className="text-sm font-semibold text-foreground tabular-nums">
+                      {money(field(record, "taxMinor"))}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Chi tiết dòng hàng */}
+          {renderedLines.length > 0 && (
+            <div className="space-y-4 border-b border-border/40 pb-6 px-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <LayersIcon className="h-4 w-4 text-primary" />
+                <span>Chi tiết các dòng bút toán ({renderedLines.length})</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {renderedLines.map((line, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col gap-1 rounded-lg border bg-muted/10 p-3 text-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-semibold text-foreground">{line.desc}</span>
+                      <span className="font-semibold text-foreground tabular-nums shrink-0">
+                        {line.gross}
+                      </span>
+                    </div>
+                    {line.allocDetails && (
+                      <span className="text-xs text-muted-foreground">{line.allocDetails}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Workflow & Actions */}
+          <div className="space-y-4 px-1">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <CheckCircle2Icon className="h-4 w-4 text-emerald-500" />
+              <span>Thực hiện phê duyệt quy trình</span>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <Field>
+                <FieldLabel htmlFor="action-reason">Lý do / Ghi chú phê duyệt</FieldLabel>
+                <Input
+                  id="action-reason"
+                  aria-label="Lý do phê duyệt"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Nhập lý do thực hiện thao tác..."
+                />
+              </Field>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                {actions.length === 0 ? (
+                  <span className="text-xs text-muted-foreground italic">
+                    Không có hành động quy trình nào khả dụng ở trạng thái hiện tại.
+                  </span>
+                ) : (
+                  actions.map((name) => (
+                    <Button
+                      variant="outline"
+                      type="button"
+                      disabled={busy}
+                      key={name}
+                      onClick={() => {
+                        onAction(name, {
+                          reason,
+                          ...(name === "mark-evidence-pending"
+                            ? { missingEvidenceTypes: ["invoice"] }
+                            : {}),
+                        });
+                        onOpenChange(false);
+                      }}
+                    >
+                      {label(name)}
+                    </Button>
+                  ))
+                )}
+
+                {kind === "expenses" && (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/20 pt-4 w-full">
+                    <Field className="w-[120px]">
+                      <FieldLabel className="sr-only">Trục đánh giá</FieldLabel>
+                      <Select
+                        value={axis}
+                        onValueChange={(value) => {
+                          setAxis(value);
+                          setReviewState(value === "management" ? "valid" : "eligible");
+                        }}
+                      >
+                        <SelectTrigger aria-label="Trục đánh giá">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="management">Quản trị</SelectItem>
+                            <SelectItem value="cit">CIT</SelectItem>
+                            <SelectItem value="vat">VAT</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field className="w-[160px]">
+                      <FieldLabel className="sr-only">Kết quả đánh giá</FieldLabel>
+                      <Select value={reviewState} onValueChange={setReviewState}>
+                        <SelectTrigger aria-label="Kết quả đánh giá">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {axis === "management" ? (
+                              <>
+                                <SelectItem value="valid">Hợp lệ</SelectItem>
+                                <SelectItem value="invalid">Không hợp lệ</SelectItem>
+                                <SelectItem value="accountant_override">
+                                  Kế toán override
+                                </SelectItem>
+                              </>
+                            ) : (
+                              <>
+                                <SelectItem value="eligible">Đủ điều kiện</SelectItem>
+                                <SelectItem value="partially_eligible">Một phần</SelectItem>
+                                <SelectItem value="ineligible">Không đủ điều kiện</SelectItem>
+                                <SelectItem value="accountant_override">
+                                  Kế toán override
+                                </SelectItem>
+                              </>
+                            )}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    {reviewState === "partially_eligible" ? (
+                      <Input
+                        aria-label="Số tiền đủ điều kiện"
+                        inputMode="numeric"
+                        value={eligible}
+                        onChange={(e) => setEligible(e.target.value)}
+                        placeholder="Số tiền đủ điều kiện"
+                        className="w-[140px]"
+                      />
+                    ) : null}
+                    <Button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        onAction("review", {
+                          axis,
+                          lineNumber: 1,
+                          state: reviewState,
+                          reason,
+                          ...(eligible ? { eligibleMinor: eligible } : {}),
+                          ...(reviewState === "accountant_override"
+                            ? { reference: "admin-ui-review" }
+                            : {}),
+                        });
+                        onOpenChange(false);
+                      }}
+                    >
+                      Lưu đánh giá dòng 1
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="border-t border-border/40 pt-4 mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="gap-1">
+            <XIcon className="h-4 w-4" />
+            Đóng
           </Button>
-        </>
-      ) : null}
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
