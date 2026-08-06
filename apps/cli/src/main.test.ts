@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import ExcelJS from "exceljs";
 
 const execFileAsync = promisify(execFile);
 const cliDirectory = fileURLToPath(new URL("..", import.meta.url));
@@ -181,5 +182,104 @@ describe("ERP-700 CLI executable", () => {
     expect(result.requestedUrl).toBe(
       "/api/v1/organizations/org-a/reports/financial-statements/source-resolver?journalId=journal-1&lineNumber=2",
     );
+  });
+});
+
+describe("ERP-740 workbook-import CLI executable", () => {
+  async function financeFixture() {
+    const directory = await mkdtemp(join(tmpdir(), "naai-workbook-import-"));
+    const path = join(directory, "finance.xlsx");
+    const workbook = new ExcelJS.Workbook();
+    const revenue = workbook.addWorksheet("Doanh thu");
+    revenue.addRow([
+      "Ngày thu",
+      "Doanh thu dự án",
+      "Giá trị hợp đồng",
+      "VAT",
+      "Tiền mặt",
+      "Thực nhận",
+      "Loại doanh thu",
+      "Tháng",
+      "Công ty/Khách hàng",
+      "Ghi chú",
+    ]);
+    revenue.addRow([
+      new Date("2025-01-01T00:00:00Z"),
+      100,
+      100,
+      10,
+      null,
+      110,
+      null,
+      1,
+      "Client",
+      "",
+    ]);
+    const expenses = workbook.addWorksheet("Chi phí");
+    expenses.addRow([
+      "Ngày chi",
+      "Tổng chi phí",
+      "Tháng",
+      "Manual Cost",
+      "Tiền mặt",
+      "% VAT",
+      "VAT",
+      "Invoice Date",
+      "Loại chi phí",
+      "Nhân sự",
+      "Phòng ban",
+      "Nguồn tiền",
+      "Month",
+      "Ghi chú",
+    ]);
+    expenses.addRow([
+      new Date("2025-01-02T00:00:00Z"),
+      55,
+      1,
+      55,
+      null,
+      null,
+      5,
+      null,
+      "Chi phí vận hành",
+      "Supplier",
+      null,
+      null,
+      1,
+      "Test",
+    ]);
+    await workbook.xlsx.writeFile(path);
+    return { directory, path };
+  }
+
+  it("routes dry-run calls to the workbook-imports dry-run endpoint", async () => {
+    const fixture = await financeFixture();
+    try {
+      const result = await invoke([
+        "workbook-import",
+        "dry-run",
+        "--finance-workbook",
+        fixture.path,
+      ]);
+      expect(result.requestedUrl).toBe("/api/v1/organizations/org-a/workbook-imports/dry-run");
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("routes commit calls to the workbook-imports commit endpoint", async () => {
+    const fixture = await financeFixture();
+    try {
+      const result = await invoke([
+        "workbook-import",
+        "commit",
+        "--commit",
+        "--finance-workbook",
+        fixture.path,
+      ]);
+      expect(result.requestedUrl).toBe("/api/v1/organizations/org-a/workbook-imports/commit");
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
   });
 });

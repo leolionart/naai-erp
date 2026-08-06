@@ -2,7 +2,15 @@ export const NAVIGATION_STATUSES = ["available", "preview", "planned"] as const;
 export type NavigationStatus = (typeof NAVIGATION_STATUSES)[number];
 
 export type NavigationIcon =
-  "overview" | "folder" | "ledger" | "invoice" | "expense" | "bank" | "report";
+  | "overview"
+  | "folder"
+  | "ledger"
+  | "invoice"
+  | "expense"
+  | "bank"
+  | "report"
+  | "customer"
+  | "project";
 
 export type NavigationItem = Readonly<{
   key: string;
@@ -39,6 +47,22 @@ export const adminNavigation = [
         href: "/settings/master-data",
         description: "Tài khoản, thuế, dimensions, parties và dự án.",
         icon: "folder",
+        status: "available",
+      },
+      {
+        key: "customers",
+        label: "Khách hàng",
+        href: "/customers",
+        description: "Hồ sơ khách hàng, hóa đơn đầu ra và công nợ phải thu.",
+        icon: "customer",
+        status: "available",
+      },
+      {
+        key: "projects",
+        label: "Dự án",
+        href: "/projects",
+        description: "Dự án, khách hàng, ngân sách, chi phí và lợi nhuận liên quan.",
+        icon: "project",
         status: "available",
       },
     ],

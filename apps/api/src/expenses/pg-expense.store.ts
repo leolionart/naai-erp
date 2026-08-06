@@ -45,7 +45,17 @@ export class PgExpenseStore {
   }
   async get(org: string, id: string) {
     const r = await this.pool.query(
-      `select e.*,coalesce(json_agg(jsonb_build_object('lineNumber',l.line_number,'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,'vatAccountCode',l.vat_account_code,'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,'dimensions',l.dimensions,'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]') from expense_allocations a where a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number)) order by l.line_number) filter(where l.line_number is not null),'[]') lines from expenses e left join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id where e.organization_id=$1 and e.id=$2 group by e.organization_id,e.id`,
+      `select e.*,
+       (select jsonb_build_object(
+          'system', r.system,
+          'externalId', r.external_id,
+          'canonicalUrl', r.canonical_url,
+          'checksum', r.checksum,
+          'version', r.version,
+          'syncedAt', r.synced_at::text,
+          'metadata', r.metadata
+        ) from external_references r where r.organization_id=e.organization_id and r.expense_id=e.id) as "externalReference",
+       coalesce(json_agg(jsonb_build_object('lineNumber',l.line_number,'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,'vatAccountCode',l.vat_account_code,'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,'dimensions',l.dimensions,'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]') from expense_allocations a where a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number)) order by l.line_number) filter(where l.line_number is not null),'[]') lines from expenses e left join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id where e.organization_id=$1 and e.id=$2 group by e.organization_id,e.id`,
       [org, id],
     );
     return r.rows[0];
@@ -60,6 +70,212 @@ export class PgExpenseStore {
         await c.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
+      if (input.externalReference) {
+        const extRefResult = await c.query<{
+          document_id: string | null;
+          expense_id: string | null;
+          canonical_url: string | null;
+          checksum: string | null;
+          version: string | null;
+          metadata: Record<string, unknown>;
+        }>(
+          "select document_id, expense_id, canonical_url, checksum, version, metadata from external_references where organization_id=$1 and system=$2 and external_id=$3 for update",
+          [
+            context.organizationId,
+            input.externalReference.system,
+            input.externalReference.externalId,
+          ],
+        );
+        const extRef = extRefResult.rows[0];
+        if (extRef) {
+          if (extRef.document_id) {
+            throw new Error("DUPLICATE_DOCUMENT");
+          }
+          if (extRef.expense_id) {
+            const expId = extRef.expense_id;
+            const expResult = await c.query<{ state: string; version: string }>(
+              "select state, version from expenses where organization_id=$1 and id=$2 for update",
+              [context.organizationId, expId],
+            );
+            const exp = expResult.rows[0];
+            if (!exp) {
+              throw new Error("RESOURCE_NOT_FOUND");
+            }
+            if (exp.state === "draft") {
+              await c.query(
+                "delete from expense_allocations where organization_id=$1 and expense_id=$2",
+                [context.organizationId, expId],
+              );
+              await c.query(
+                "delete from expense_lines where organization_id=$1 and expense_id=$2",
+                [context.organizationId, expId],
+              );
+              const newVersion = BigInt(exp.version) + 1n;
+              await c.query(
+                `update expenses set
+                  expense_class=$3, payee_party_id=$4, employee_party_id=$5, expense_date=$6,
+                  service_period_start=$7, service_period_end=$8, business_purpose=$9, currency=$10,
+                  net_minor=$11, vat_minor=$12, gross_minor=$13, counter_account_code=$14,
+                  evidence_checklist=$15, version=$16, updated_at=now()
+                 where organization_id=$1 and id=$2`,
+                [
+                  context.organizationId,
+                  expId,
+                  input.expenseClass,
+                  input.payeePartyId ?? null,
+                  input.employeePartyId ?? null,
+                  input.expenseDate,
+                  input.servicePeriodStart ?? null,
+                  input.servicePeriodEnd ?? null,
+                  input.businessPurpose,
+                  input.currency,
+                  input.netMinor,
+                  input.vatMinor,
+                  input.grossMinor,
+                  input.counterAccountCode,
+                  input.evidenceChecklist ?? {},
+                  newVersion,
+                ],
+              );
+              for (const [index, line] of input.lines.entries()) {
+                await c.query(
+                  `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+                  [
+                    context.organizationId,
+                    expId,
+                    index + 1,
+                    line.description,
+                    line.netMinor,
+                    line.vatMinor,
+                    line.grossMinor,
+                    line.postingAccountCode,
+                    line.vatAccountCode ?? null,
+                    line.managementState ?? "unreviewed",
+                    line.citState ?? "unreviewed",
+                    input.expenseClass === "non_documented"
+                      ? "ineligible"
+                      : (line.vatState ?? "unreviewed"),
+                    line.citEligibleMinor ?? "0",
+                    line.vatEligibleMinor ?? "0",
+                    line.dimensions ?? {},
+                  ],
+                );
+                for (const [aIndex, a] of line.allocations.entries()) {
+                  await c.query(
+                    `insert into expense_allocations(organization_id,expense_id,line_number,allocation_number,amount_minor,dimensions) values($1,$2,$3,$4,$5,$6)`,
+                    [
+                      context.organizationId,
+                      expId,
+                      index + 1,
+                      aIndex + 1,
+                      a.amountMinor,
+                      { ...a.dimensions, allocationId: a.id },
+                    ],
+                  );
+                }
+              }
+              await c.query(
+                `update external_references set
+                  canonical_url=$4, checksum=$5, version=$6, synced_at=now(), metadata=$7, updated_at=now()
+                 where organization_id=$1 and system=$2 and external_id=$3`,
+                [
+                  context.organizationId,
+                  input.externalReference.system,
+                  input.externalReference.externalId,
+                  input.externalReference.canonicalUrl ?? extRef.canonical_url,
+                  input.externalReference.checksum ?? extRef.checksum,
+                  input.externalReference.version ?? extRef.version,
+                  input.externalReference.metadata ?? extRef.metadata,
+                ],
+              );
+              const audit = randomUUID(),
+                outbox = randomUUID();
+              await c.query(
+                `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'expense',$3,$4,'update',$5,$6,$7)`,
+                [
+                  context.organizationId,
+                  audit,
+                  expId,
+                  newVersion,
+                  context.actorId,
+                  context.correlationId,
+                  { state: "draft", expenseClass: input.expenseClass },
+                ],
+              );
+              await c.query(
+                `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id) values($1,$2,'expense',$3,'expense.updated',1,$4,$5)`,
+                [
+                  context.organizationId,
+                  outbox,
+                  expId,
+                  { expenseId: expId, state: "draft", expenseClass: input.expenseClass },
+                  context.correlationId,
+                ],
+              );
+              const response = {
+                expenseId: expId,
+                state: "draft",
+                resourceVersion: newVersion.toString(),
+                auditEventId: audit,
+                outboxEventId: outbox,
+                nextActions: ["submit"],
+              };
+              await c.query("commit");
+              return { ...response, idempotencyReplayed: true };
+            } else {
+              const response = {
+                expenseId: expId,
+                state: exp.state,
+                resourceVersion: exp.version.toString(),
+                auditEventId: null,
+                outboxEventId: null,
+                nextActions:
+                  exp.state === "draft"
+                    ? ["submit"]
+                    : exp.state === "submitted"
+                      ? ["approve", "reject"]
+                      : [],
+              };
+              await c.query("commit");
+              return { ...response, idempotencyReplayed: true };
+            }
+          }
+        }
+      }
+
+      // Duplicate checks:
+      const duplicateResult = await c.query<{ id: string }>(
+        `select id from expenses
+         where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5`,
+        [
+          context.organizationId,
+          input.payeePartyId ?? null,
+          input.expenseDate,
+          input.grossMinor,
+          input.currency,
+        ],
+      );
+      if (duplicateResult.rows.length > 0) {
+        throw new Error("DUPLICATE_DOCUMENT");
+      }
+
+      if (input.payeePartyId) {
+        const duplicateInvoice = await c.query<{ id: string }>(
+          `select id from commercial_documents
+           where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5`,
+          [
+            context.organizationId,
+            input.payeePartyId,
+            input.expenseDate,
+            input.grossMinor,
+            input.currency,
+          ],
+        );
+        if (duplicateInvoice.rows.length > 0) {
+          throw new Error("DUPLICATE_DOCUMENT");
+        }
+      }
+
       const id = input.id ?? randomUUID();
       await c.query(
         `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'unreviewed',$15,$16,$17)`,
@@ -119,6 +335,25 @@ export class PgExpenseStore {
             ],
           );
       }
+
+      if (input.externalReference) {
+        await c.query(
+          `insert into external_references
+           (organization_id, system, external_id, expense_id, canonical_url, checksum, version, metadata)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            context.organizationId,
+            input.externalReference.system,
+            input.externalReference.externalId,
+            id,
+            input.externalReference.canonicalUrl ?? null,
+            input.externalReference.checksum ?? null,
+            input.externalReference.version ?? null,
+            input.externalReference.metadata ?? {},
+          ],
+        );
+      }
+
       const audit = randomUUID(),
         outbox = randomUUID();
       await c.query(
@@ -151,6 +386,252 @@ export class PgExpenseStore {
         nextActions: ["submit"],
       };
       await this.save(c, context.organizationId, key, "expense:create", hash, response);
+      await c.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (e) {
+      await c.query("rollback");
+      throw e;
+    } finally {
+      c.release();
+    }
+  }
+
+  async update(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    merged: CreateExpenseInput,
+    key: string,
+  ) {
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ expectedVersion, input: merged }))
+      .digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+
+      const existingResult = await c.query<{ state: string; version: string }>(
+        `select state, version from expenses
+         where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const existing = existingResult.rows[0];
+      if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+      if (existing.state !== "draft") throw new Error("INVALID_STATE_TRANSITION");
+      if (existing.version.toString() !== expectedVersion) throw new Error("VERSION_CONFLICT");
+
+      const extRefRows = await c.query<{
+        system: string;
+        external_id: string;
+      }>(
+        "select system, external_id from external_references where organization_id=$1 and expense_id=$2 for update",
+        [context.organizationId, id],
+      );
+      const existingExtRef = extRefRows.rows[0];
+
+      if (merged.externalReference) {
+        const extRefResult = await c.query<{
+          document_id: string | null;
+          expense_id: string | null;
+        }>(
+          "select document_id, expense_id from external_references where organization_id=$1 and system=$2 and external_id=$3 for update",
+          [
+            context.organizationId,
+            merged.externalReference.system,
+            merged.externalReference.externalId,
+          ],
+        );
+        const extRef = extRefResult.rows[0];
+        if (extRef) {
+          if (extRef.document_id || (extRef.expense_id && extRef.expense_id !== id)) {
+            throw new Error("DUPLICATE_DOCUMENT");
+          }
+        }
+      }
+
+      const duplicateResult = await c.query<{ id: string }>(
+        `select id from expenses
+         where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5 and id<>$6`,
+        [
+          context.organizationId,
+          merged.payeePartyId ?? null,
+          merged.expenseDate,
+          merged.grossMinor,
+          merged.currency,
+          id,
+        ],
+      );
+      if (duplicateResult.rows.length > 0) {
+        throw new Error("DUPLICATE_DOCUMENT");
+      }
+
+      if (merged.payeePartyId) {
+        const duplicateInvoice = await c.query<{ id: string }>(
+          `select id from commercial_documents
+           where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5`,
+          [
+            context.organizationId,
+            merged.payeePartyId,
+            merged.expenseDate,
+            merged.grossMinor,
+            merged.currency,
+          ],
+        );
+        if (duplicateInvoice.rows.length > 0) {
+          throw new Error("DUPLICATE_DOCUMENT");
+        }
+      }
+
+      await c.query("delete from expense_allocations where organization_id=$1 and expense_id=$2", [
+        context.organizationId,
+        id,
+      ]);
+      await c.query("delete from expense_lines where organization_id=$1 and expense_id=$2", [
+        context.organizationId,
+        id,
+      ]);
+
+      if (merged.externalReference) {
+        if (
+          existingExtRef &&
+          (existingExtRef.system !== merged.externalReference.system ||
+            existingExtRef.external_id !== merged.externalReference.externalId)
+        ) {
+          await c.query(
+            "delete from external_references where organization_id=$1 and system=$2 and external_id=$3",
+            [context.organizationId, existingExtRef.system, existingExtRef.external_id],
+          );
+        }
+        await c.query(
+          `insert into external_references
+           (organization_id, system, external_id, expense_id, canonical_url, checksum, version, metadata)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)
+           on conflict (organization_id, system, external_id) do update set
+             expense_id=excluded.expense_id,
+             canonical_url=excluded.canonical_url,
+             checksum=excluded.checksum,
+             version=excluded.version,
+             metadata=excluded.metadata,
+             synced_at=now(),
+             updated_at=now()`,
+          [
+            context.organizationId,
+            merged.externalReference.system,
+            merged.externalReference.externalId,
+            id,
+            merged.externalReference.canonicalUrl ?? null,
+            merged.externalReference.checksum ?? null,
+            merged.externalReference.version ?? null,
+            merged.externalReference.metadata ?? {},
+          ],
+        );
+      }
+
+      const newVersion = BigInt(existing.version) + 1n;
+      await c.query(
+        `update expenses set
+          expense_class=$3, payee_party_id=$4, employee_party_id=$5, expense_date=$6,
+          service_period_start=$7, service_period_end=$8, business_purpose=$9, currency=$10,
+          net_minor=$11, vat_minor=$12, gross_minor=$13, counter_account_code=$14,
+          evidence_checklist=$15, version=$16, updated_at=now()
+         where organization_id=$1 and id=$2`,
+        [
+          context.organizationId,
+          id,
+          merged.expenseClass,
+          merged.payeePartyId ?? null,
+          merged.employeePartyId ?? null,
+          merged.expenseDate,
+          merged.servicePeriodStart ?? null,
+          merged.servicePeriodEnd ?? null,
+          merged.businessPurpose,
+          merged.currency,
+          merged.netMinor,
+          merged.vatMinor,
+          merged.grossMinor,
+          merged.counterAccountCode,
+          merged.evidenceChecklist ?? {},
+          newVersion,
+        ],
+      );
+
+      for (const [index, line] of merged.lines.entries()) {
+        await c.query(
+          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [
+            context.organizationId,
+            id,
+            index + 1,
+            line.description,
+            line.netMinor,
+            line.vatMinor,
+            line.grossMinor,
+            line.postingAccountCode,
+            line.vatAccountCode ?? null,
+            line.managementState ?? "unreviewed",
+            line.citState ?? "unreviewed",
+            merged.expenseClass === "non_documented"
+              ? "ineligible"
+              : (line.vatState ?? "unreviewed"),
+            line.citEligibleMinor ?? "0",
+            line.vatEligibleMinor ?? "0",
+            line.dimensions ?? {},
+          ],
+        );
+        for (const [aIndex, a] of line.allocations.entries()) {
+          await c.query(
+            `insert into expense_allocations(organization_id,expense_id,line_number,allocation_number,amount_minor,dimensions) values($1,$2,$3,$4,$5,$6)`,
+            [
+              context.organizationId,
+              id,
+              index + 1,
+              aIndex + 1,
+              a.amountMinor,
+              { ...a.dimensions, allocationId: a.id },
+            ],
+          );
+        }
+      }
+
+      const audit = randomUUID(),
+        outbox = randomUUID();
+      await c.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'expense',$3,$4,'update',$5,$6,$7)`,
+        [
+          context.organizationId,
+          audit,
+          id,
+          newVersion,
+          context.actorId,
+          context.correlationId,
+          { state: "draft", expenseClass: merged.expenseClass },
+        ],
+      );
+      await c.query(
+        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id) values($1,$2,'expense',$3,'expense.updated',1,$4,$5)`,
+        [
+          context.organizationId,
+          outbox,
+          id,
+          { expenseId: id, state: "draft", expenseClass: merged.expenseClass },
+          context.correlationId,
+        ],
+      );
+
+      const response = {
+        expenseId: id,
+        state: "draft",
+        resourceVersion: newVersion.toString(),
+        auditEventId: audit,
+        outboxEventId: outbox,
+        nextActions: ["submit"],
+      };
+      await this.save(c, context.organizationId, key, "expense:update", hash, response);
       await c.query("commit");
       return { ...response, idempotencyReplayed: false };
     } catch (e) {

@@ -22,6 +22,7 @@
     "dimension-requirements",
     "default-mappings",
     "parties",
+    "party-roles",
     "projects",
     "contracts",
     "milestones",
@@ -495,6 +496,9 @@
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}": {
       "get": {
         "summary": "Read a document, lines, allocations, journal link and permitted next actions"
+      },
+      "patch": {
+        "summary": "Update an existing draft commercial document, validating final state and preserving external reference"
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}": {
@@ -513,6 +517,9 @@
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}": {
       "get": {
         "summary": "Read expense lines allocations review states evidence checklist and journal link"
+      },
+      "patch": {
+        "summary": "Update an existing draft expense, validating final state and preserving external reference"
       }
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/review": {

@@ -15,7 +15,8 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@naai-erp/contracts": "workspace:*"
+    "@naai-erp/contracts": "workspace:*",
+    "exceljs": "4.4.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -25,7 +25,8 @@ async function expectDocumentCreateForm(page: Page) {
   await expect(page).toHaveURL(/\/documents$/);
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "Hóa đơn" })).toBeVisible();
-  await page.getByRole("button", { name: "+ Tạo mới", exact: true }).click();
+  await page.getByRole("link", { name: "Tạo mới", exact: true }).click();
+  await expect(page).toHaveURL(/\/documents\/new$/);
   await expect(
     page.getByText("Số hóa đơn", { exact: true }).locator("..").locator("input"),
   ).toBeVisible();
@@ -58,6 +59,16 @@ test("@desktop banking route opens the account creation workflow", async ({ page
   await page.getByRole("link", { name: "Ngân hàng & tiền mặt", exact: true }).click();
   await expectBankingAccountForm(page);
   assertNoBrowserErrors();
+});
+
+test("@desktop primary navigation exposes customers and projects", async ({ page }) => {
+  await expectDashboard(page);
+  await page.getByRole("link", { name: "Khách hàng", exact: true }).click();
+  await expect(page).toHaveURL(/\/customers$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Khách hàng" })).toBeVisible();
+  await page.getByRole("link", { name: "Dự án", exact: true }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Dự án" })).toBeVisible();
 });
 
 test("@mobile Sheet navigation reaches documents and keeps the primary workflow usable", async ({
@@ -94,4 +105,14 @@ test("@mobile Sheet navigation reaches banking and opens the account workflow", 
   expect(buttonBox?.y).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
   await expectBankingAccountForm(page);
   assertNoBrowserErrors();
+});
+
+test("@mobile Sheet navigation exposes customer and project modules", async ({ page }) => {
+  await expectDashboard(page);
+  await page.getByRole("button", { name: "Mở menu chính" }).click();
+  const navigation = page.getByRole("dialog", { name: "Điều hướng NAAI ERP" });
+  await navigation.getByRole("link", { name: "Khách hàng", exact: true }).click();
+  await expect(page).toHaveURL(/\/customers$/);
+  await navigation.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Khách hàng" })).toBeVisible();
 });

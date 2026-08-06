@@ -183,6 +183,29 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(purchaseTotals.rows[0]).toEqual({ debit: "55000000", credit: "55000000" });
   });
 
+  it("filters documents by project allocation without leaking sibling projects", async () => {
+    const projectA = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-doc/commercial-documents?projectId=A",
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(projectA.statusCode, projectA.body).toBe(200);
+    expect(
+      projectA
+        .json()
+        .data.items.map((item: { id: string }) => item.id)
+        .sort(),
+    ).toEqual(["purchase-001", "sales-001"]);
+
+    const unrelated = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-doc/commercial-documents?projectId=UNRELATED",
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(unrelated.statusCode, unrelated.body).toBe(200);
+    expect(unrelated.json().data.items).toEqual([]);
+  });
+
   it("posts a bounded linked credit note and rejects cumulative overflow", async () => {
     const credit = {
       ...sales,

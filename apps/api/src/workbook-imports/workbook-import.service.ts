@@ -1,0 +1,609 @@
+import { Injectable } from "@nestjs/common";
+import pg from "pg";
+import { createHash, randomUUID } from "node:crypto";
+import type { WorkbookImportPayload } from "./workbook-import.types.js";
+
+export type ImportOutcome = {
+  valid: boolean;
+  errors: readonly string[];
+  issues: WorkbookImportPayload["issues"];
+  reconciliation: {
+    totalSales: string;
+    totalExpense: string;
+    totalProfit: string;
+    controls: readonly Readonly<{
+      sheet: string;
+      year: number;
+      salesMinor: string;
+      expenseMinor: string;
+      profitMinor: string;
+    }>[];
+    variances: readonly Readonly<{
+      sheet: string;
+      year: number;
+      metric: "sales" | "expense" | "profit";
+      detailMinor: string;
+      controlMinor: string;
+      varianceMinor: string;
+      classifiedBy?: string;
+    }>[];
+  };
+  details?: {
+    partiesCreated: number;
+    projectsCreated: number;
+    salesInvoicesCreated: number;
+    expensesCreated: number;
+    auditEventId: string;
+  };
+  coverage: {
+    inventory: WorkbookImportPayload["inventory"];
+    sourceRows: { projects: number; sales: number; expenses: number };
+  };
+};
+
+@Injectable()
+export class WorkbookImportService {
+  private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+  async authenticate(
+    rawToken: string,
+    organizationId: string,
+    _correlationId: string,
+  ): Promise<{ actorId: string; roles: readonly string[] }> {
+    const result = await this.pool.query<{ actor_id: string; roles: string[] }>(
+      `select actor_id, roles from api_credentials
+       where organization_id=$1 and token_hash=$2 and status='active'
+         and (expires_at is null or expires_at > now())`,
+      [organizationId, createHash("sha256").update(rawToken).digest("hex")],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error("UNAUTHORIZED");
+    return { actorId: row.actor_id, roles: row.roles };
+  }
+
+  async dryRun(organizationId: string, payload: WorkbookImportPayload): Promise<ImportOutcome> {
+    const errors: string[] = (payload.issues ?? [])
+      .filter((issue) => issue.severity === "error")
+      .map(
+        (issue) =>
+          `${issue.workbook}/${issue.sheet}${issue.row ? ` row ${issue.row}` : ""}: ${issue.message}`,
+      );
+    if (payload.mappingVersion !== 1)
+      errors.push(`Unsupported workbook mapping version: ${String(payload.mappingVersion)}`);
+    if (!payload.sources?.length) errors.push("At least one workbook source identity is required");
+    if (!payload.inventory?.length) errors.push("Workbook sheet inventory is required");
+    const identities = new Set<string>();
+
+    // Local structural and domain checks
+    const partyIds = new Set<string>();
+    const projectIds = new Set<string>();
+
+    for (const party of payload.parties) {
+      if (!party.id || !party.displayName) {
+        errors.push(`Party is missing id or displayName: ${JSON.stringify(party)}`);
+      }
+      partyIds.add(party.id);
+    }
+
+    for (const project of payload.projects) {
+      if (!project.id || !project.code || !project.name) {
+        errors.push(`Project is missing id, code or name: ${JSON.stringify(project)}`);
+      }
+      if (!partyIds.has(project.clientPartyId)) {
+        errors.push(
+          `Project "${project.name}" references unknown client party ID "${project.clientPartyId}"`,
+        );
+      }
+      projectIds.add(project.id);
+    }
+
+    let salesSum = 0n;
+    for (const invoice of payload.salesInvoices) {
+      if (!invoice.id || !invoice.documentNumber || !invoice.partyId) {
+        errors.push(
+          `Sales invoice at row ${invoice.sourceRowIndex} is missing id, documentNumber or partyId`,
+        );
+      }
+      if (!partyIds.has(invoice.partyId)) {
+        errors.push(
+          `Sales invoice ${invoice.documentNumber} at row ${invoice.sourceRowIndex} references unknown party ID "${invoice.partyId}"`,
+        );
+      }
+      if (invoice.projectId && !projectIds.has(invoice.projectId)) {
+        errors.push(
+          `Sales invoice ${invoice.documentNumber} at row ${invoice.sourceRowIndex} references unknown project ID "${invoice.projectId}"`,
+        );
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(invoice.documentDate)) {
+        errors.push(
+          `Sales invoice ${invoice.documentNumber} at row ${invoice.sourceRowIndex} has invalid document date "${invoice.documentDate}"`,
+        );
+      }
+
+      if (!invoice.sourceIdentity || identities.has(invoice.sourceIdentity))
+        errors.push(
+          `Sales invoice at row ${invoice.sourceRowIndex} has missing or duplicate source identity`,
+        );
+      identities.add(invoice.sourceIdentity);
+      let net = 0n,
+        tax = 0n,
+        gross = 0n;
+      try {
+        net = BigInt(invoice.netMinor);
+        tax = BigInt(invoice.taxMinor);
+        gross = BigInt(invoice.grossMinor);
+      } catch {
+        errors.push(
+          `Sales invoice ${invoice.documentNumber} at row ${invoice.sourceRowIndex} has invalid integer money`,
+        );
+      }
+      if (gross !== net + tax) {
+        errors.push(
+          `Sales invoice ${invoice.documentNumber} at row ${invoice.sourceRowIndex} fails total check: gross (${gross}) != net (${net}) + tax (${tax})`,
+        );
+      }
+
+      // Check if this falls in 2025
+      if (invoice.documentDate.startsWith("2025")) {
+        salesSum += net;
+      }
+    }
+
+    let expenseSum = 0n;
+    for (const exp of payload.expenses) {
+      if (!exp.id || !exp.amountMinor) {
+        errors.push(`Expense at row ${exp.sourceRowIndex} is missing id or amountMinor`);
+      }
+      if (exp.payeePartyId && !partyIds.has(exp.payeePartyId)) {
+        errors.push(
+          `Expense at row ${exp.sourceRowIndex} references unknown payee party ID "${exp.payeePartyId}"`,
+        );
+      }
+      if (exp.projectId && !projectIds.has(exp.projectId)) {
+        errors.push(
+          `Expense at row ${exp.sourceRowIndex} references unknown project ID "${exp.projectId}"`,
+        );
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(exp.date)) {
+        errors.push(`Expense at row ${exp.sourceRowIndex} has invalid date "${exp.date}"`);
+      }
+
+      // Check if this falls in 2025
+      if (!exp.sourceIdentity || identities.has(exp.sourceIdentity))
+        errors.push(
+          `Expense at row ${exp.sourceRowIndex} has missing or duplicate source identity`,
+        );
+      identities.add(exp.sourceIdentity);
+      try {
+        const gross = BigInt(exp.amountMinor);
+        const tax = BigInt(exp.taxMinor || 0);
+        if (gross < tax)
+          errors.push(`Expense at row ${exp.sourceRowIndex} has tax greater than gross`);
+        if (exp.date.startsWith("2025")) expenseSum += gross - tax;
+      } catch {
+        errors.push(`Expense at row ${exp.sourceRowIndex} has invalid integer money`);
+      }
+    }
+
+    const profitSum = salesSum - expenseSum;
+    const variances: ImportOutcome["reconciliation"]["variances"][number][] = [];
+    for (const control of payload.controls ?? []) {
+      const detail = {
+        sales: control.year === 2025 ? salesSum : 0n,
+        expense: control.year === 2025 ? expenseSum : 0n,
+        profit: control.year === 2025 ? profitSum : 0n,
+      };
+      for (const metric of ["sales", "expense", "profit"] as const) {
+        const controlMinor = BigInt(control[`${metric}Minor`]);
+        const variance = controlMinor - detail[metric];
+        if (variance === 0n) continue;
+        const rule = (payload.varianceRules ?? []).find(
+          (candidate) =>
+            candidate.mappingVersion === payload.mappingVersion &&
+            candidate.sheet === control.sheet &&
+            candidate.metric === metric &&
+            BigInt(candidate.varianceMinor) === variance,
+        );
+        variances.push({
+          sheet: control.sheet,
+          year: control.year,
+          metric,
+          detailMinor: detail[metric].toString(),
+          controlMinor: controlMinor.toString(),
+          varianceMinor: variance.toString(),
+          ...(rule ? { classifiedBy: rule.id } : {}),
+        });
+        if (!rule)
+          errors.push(
+            `Unexplained control variance ${control.sheet}/${control.year}/${metric}: ${variance}`,
+          );
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      issues: payload.issues ?? [],
+      reconciliation: {
+        totalSales: salesSum.toString(),
+        totalExpense: expenseSum.toString(),
+        totalProfit: profitSum.toString(),
+        controls: payload.controls ?? [],
+        variances,
+      },
+      coverage: {
+        inventory: payload.inventory ?? [],
+        sourceRows: {
+          projects: payload.projects.length,
+          sales: payload.salesInvoices.length,
+          expenses: payload.expenses.length,
+        },
+      },
+    };
+  }
+
+  async commit(
+    organizationId: string,
+    payload: WorkbookImportPayload,
+    actorId: string,
+    correlationId: string,
+  ): Promise<ImportOutcome> {
+    // 1. Dry run verification
+    const dryRunResult = await this.dryRun(organizationId, payload);
+    if (!dryRunResult.valid) {
+      return {
+        valid: false,
+        errors: [...dryRunResult.errors, "Commit aborted due to validation errors"],
+        issues: dryRunResult.issues,
+        reconciliation: dryRunResult.reconciliation,
+        coverage: dryRunResult.coverage,
+      };
+    }
+
+    // 2. Perform transaction mutations
+    const client = await this.pool.connect();
+    const auditEventId = randomUUID();
+
+    let partiesCreated = 0;
+    let projectsCreated = 0;
+    let salesInvoicesCreated = 0;
+    let expensesCreated = 0;
+
+    try {
+      await client.query("begin");
+
+      // 2.1 Parties
+      for (const party of payload.parties) {
+        const pResult = await client.query(
+          `insert into parties (organization_id, id, display_name, status, created_at, updated_at)
+           values ($1, $2, $3, $4, now(), now())
+           on conflict (organization_id, id) do nothing`,
+          [organizationId, party.id, party.displayName, party.status],
+        );
+        if (pResult.rowCount && pResult.rowCount > 0) {
+          partiesCreated++;
+        }
+        for (const role of party.roles) {
+          await client.query(
+            `insert into party_roles (organization_id, party_id, role, created_at)
+             values ($1, $2, $3, now())
+             on conflict (organization_id, party_id, role) do nothing`,
+            [organizationId, party.id, role],
+          );
+        }
+      }
+
+      // 2.2 Projects
+      for (const project of payload.projects) {
+        const prjResult = await client.query(
+          `insert into projects (organization_id, id, code, name, client_party_id, owner_user_id, contract_type, currency, budget_minor, starts_on, ends_on, state, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), now())
+           on conflict (organization_id, id) do nothing`,
+          [
+            organizationId,
+            project.id,
+            project.code,
+            project.name,
+            project.clientPartyId,
+            actorId,
+            project.contractType,
+            project.currency,
+            project.budgetMinor,
+            project.startsOn,
+            project.endsOn,
+            project.state,
+          ],
+        );
+        if (prjResult.rowCount && prjResult.rowCount > 0) {
+          projectsCreated++;
+        }
+      }
+
+      // 2.3 Sales Invoices
+      for (const invoice of payload.salesInvoices) {
+        const journalId = `journal-sales-import-${invoice.id}`;
+        const existingDocument = await client.query(
+          `select 1 from commercial_documents where organization_id=$1 and id=$2`,
+          [organizationId, invoice.id],
+        );
+        if (existingDocument.rowCount) continue;
+        await client.query(
+          `insert into journal_entries (organization_id, id, journal_date, description, currency, state, version, created_by, approved_at, approved_by, approval_reason, self_approved, posted_at, posted_by)
+           values ($1, $2, $3, $4, $5, 'posted', 1, $6, now(), $6, 'Controlled workbook migration', true, now(), $6)`,
+          [
+            organizationId,
+            journalId,
+            invoice.documentDate,
+            `Sales Invoice ${invoice.documentNumber}`,
+            invoice.currency,
+            actorId,
+          ],
+        );
+        // Insert commercial document
+        const docResult = await client.query(
+          `insert into commercial_documents (organization_id, id, type, state, document_number, series, fiscal_year, party_id, document_date, due_date, currency, net_minor, tax_minor, gross_minor, control_account_code, journal_id, created_by, issued_or_posted_by, issued_or_posted_at, created_at, updated_at)
+           values ($1, $2, 'sales_invoice', 'posted', $3, 'WB', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14, now(), now(), now())
+           on conflict (organization_id, id) do nothing`,
+          [
+            organizationId,
+            invoice.id,
+            invoice.documentNumber,
+            Number(invoice.documentDate.substring(0, 4)),
+            invoice.partyId,
+            invoice.documentDate,
+            invoice.dueDate,
+            invoice.currency,
+            invoice.netMinor,
+            invoice.taxMinor,
+            invoice.grossMinor,
+            invoice.controlAccountCode,
+            journalId,
+            actorId,
+          ],
+        );
+
+        if (docResult.rowCount && docResult.rowCount > 0) {
+          salesInvoicesCreated++;
+
+          // Insert document line
+          await client.query(
+            `insert into commercial_document_lines (organization_id, document_id, line_number, description, quantity, unit_price_minor, net_minor, tax_minor, gross_minor, primary_account_code, tax_account_code, dimensions, created_at)
+             values ($1, $2, 1, $3, 1, $4, $4, $5, $6, '511', case when $5::bigint > 0 then '3331' else null end, $7, now())`,
+            [
+              organizationId,
+              invoice.id,
+              `Sales invoice ${invoice.documentNumber}`,
+              invoice.netMinor,
+              invoice.taxMinor,
+              invoice.grossMinor,
+              JSON.stringify({ projectId: invoice.projectId ?? null }),
+            ],
+          );
+
+          // DR Accounts Receivable 131
+          await client.query(
+            `insert into journal_lines (organization_id, journal_id, line_number, account_code, debit_minor, credit_minor, description, dimensions)
+             values ($1, $2, 1, $3, $4, null, $5, $6)`,
+            [
+              organizationId,
+              journalId,
+              invoice.controlAccountCode,
+              invoice.grossMinor,
+              `Phải thu - ${invoice.documentNumber}`,
+              JSON.stringify({
+                partyId: invoice.partyId,
+                projectId: invoice.projectId || null,
+              }),
+            ],
+          );
+
+          // CR Service Revenue 511
+          await client.query(
+            `insert into journal_lines (organization_id, journal_id, line_number, account_code, debit_minor, credit_minor, description, dimensions)
+             values ($1, $2, 2, '511', null, $3, $4, $5)`,
+            [
+              organizationId,
+              journalId,
+              invoice.netMinor,
+              `Doanh thu - ${invoice.documentNumber}`,
+              JSON.stringify({
+                category: "SALES_SERVICE",
+                projectId: invoice.projectId || null,
+              }),
+            ],
+          );
+
+          // CR VAT Output 3331 (if tax > 0)
+          if (BigInt(invoice.taxMinor) > 0n) {
+            await client.query(
+              `insert into journal_lines (organization_id, journal_id, line_number, account_code, debit_minor, credit_minor, description, dimensions)
+               values ($1, $2, 3, '3331', null, $3, $4, $5)`,
+              [
+                organizationId,
+                journalId,
+                invoice.taxMinor,
+                `Thuế VAT - ${invoice.documentNumber}`,
+                JSON.stringify({
+                  projectId: invoice.projectId || null,
+                }),
+              ],
+            );
+          }
+
+          // Link to external references
+          await client.query(
+            `insert into external_references (organization_id, system, external_id, document_id, synced_at, metadata, created_at, updated_at)
+             values ($1, 'lark', $2, $3, now(), $4, now(), now())
+             on conflict (organization_id, system, external_id) do nothing`,
+            [
+              organizationId,
+              invoice.sourceIdentity,
+              invoice.id,
+              JSON.stringify({ source: "workbook_import", row: invoice.sourceRowIndex }),
+            ],
+          );
+        }
+      }
+
+      // 2.4 Expenses
+      for (const exp of payload.expenses) {
+        const journalId = `journal-expense-import-${exp.id}`;
+        const grossMinor = exp.amountMinor;
+        const taxMinor = exp.taxMinor;
+        const netMinor = (BigInt(grossMinor) - BigInt(taxMinor)).toString();
+        const existingExpense = await client.query(
+          `select 1 from expenses where organization_id=$1 and id=$2`,
+          [organizationId, exp.id],
+        );
+        if (existingExpense.rowCount) continue;
+        await client.query(
+          `insert into journal_entries (organization_id, id, journal_date, description, currency, state, version, created_by, approved_at, approved_by, approval_reason, self_approved, posted_at, posted_by)
+           values ($1, $2, $3, $4, $5, 'posted', 1, $6, now(), $6, 'Controlled workbook migration', true, now(), $6)`,
+          [
+            organizationId,
+            journalId,
+            exp.date,
+            `Chi phí - ${exp.businessPurpose}`,
+            exp.currency,
+            actorId,
+          ],
+        );
+
+        const expResult = await client.query(
+          `insert into expenses (organization_id, id, expense_class, payee_party_id, expense_date, business_purpose, currency, net_minor, vat_minor, gross_minor, counter_account_code, state, journal_id, created_by, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '111', 'posted', $11, $12, now(), now())
+           on conflict (organization_id, id) do nothing`,
+          [
+            organizationId,
+            exp.id,
+            exp.class,
+            exp.payeePartyId,
+            exp.date,
+            exp.businessPurpose,
+            exp.currency,
+            netMinor,
+            taxMinor,
+            grossMinor,
+            journalId,
+            actorId,
+          ],
+        );
+
+        if (expResult.rowCount && expResult.rowCount > 0) {
+          expensesCreated++;
+
+          // Insert expense line
+          await client.query(
+            `insert into expense_lines (organization_id, expense_id, line_number, description, net_minor, vat_minor, gross_minor, posting_account_code, vat_account_code, created_at)
+             values ($1, $2, 1, $3, $4, $5, $6, '642', case when $5::bigint > 0 then '1331' else null end, now())`,
+            [organizationId, exp.id, exp.businessPurpose, netMinor, taxMinor, grossMinor],
+          );
+
+          // DR Expense Account 642 (or 632 if project-linked)
+          const expenseAccount = exp.projectId ? "632" : "642";
+          await client.query(
+            `insert into journal_lines (organization_id, journal_id, line_number, account_code, debit_minor, credit_minor, description, dimensions)
+             values ($1, $2, 1, $3, $4, null, $5, $6)`,
+            [
+              organizationId,
+              journalId,
+              expenseAccount,
+              netMinor,
+              exp.businessPurpose,
+              JSON.stringify({
+                category: "EXPENSE_NON_DOCUMENTED",
+                costCenter: "GENERAL",
+                serviceLine: "WEB_APP",
+                projectId: exp.projectId || null,
+              }),
+            ],
+          );
+
+          // DR VAT Input 1331 (if tax > 0)
+          if (BigInt(taxMinor) > 0n) {
+            await client.query(
+              `insert into journal_lines (organization_id, journal_id, line_number, account_code, debit_minor, credit_minor, description, dimensions)
+               values ($1, $2, 2, '1331', $3, null, $4, $5)`,
+              [
+                organizationId,
+                journalId,
+                taxMinor,
+                `Thuế VAT đầu vào`,
+                JSON.stringify({
+                  projectId: exp.projectId || null,
+                }),
+              ],
+            );
+          }
+
+          // CR Cash/Bank 111
+          const lineNum = BigInt(taxMinor) > 0n ? 3 : 2;
+          await client.query(
+            `insert into journal_lines (organization_id, journal_id, line_number, account_code, debit_minor, credit_minor, description, dimensions)
+             values ($1, $2, $3, '111', null, $4, $5, $6)`,
+            [
+              organizationId,
+              journalId,
+              lineNum,
+              grossMinor,
+              `Chi tiền mặt/ngân hàng`,
+              JSON.stringify({
+                projectId: exp.projectId || null,
+              }),
+            ],
+          );
+
+          // Link to external references
+          await client.query(
+            `insert into external_references (organization_id, system, external_id, expense_id, synced_at, metadata, created_at, updated_at)
+             values ($1, 'lark', $2, $3, now(), $4, now(), now())
+             on conflict (organization_id, system, external_id) do nothing`,
+            [
+              organizationId,
+              exp.sourceIdentity,
+              exp.id,
+              JSON.stringify({ source: "workbook_import", row: exp.sourceRowIndex }),
+            ],
+          );
+        }
+      }
+
+      // 2.5 Audit log mutation record
+      const importIdentity = createHash("sha256")
+        .update(JSON.stringify(payload.sources))
+        .digest("hex");
+      const existingAudit = await client.query(
+        `select id from resource_audit_events where organization_id=$1 and resource_type='workbook_import' and resource_key=$2 and action='commit' limit 1`,
+        [organizationId, importIdentity],
+      );
+      if (!existingAudit.rowCount)
+        await client.query(
+          `insert into resource_audit_events (organization_id, id, resource_type, resource_key, resource_version, action, actor_id, correlation_id)
+         values ($1, $2, 'workbook_import', $3, '1', 'commit', $4, $5)`,
+          [organizationId, auditEventId, importIdentity, actorId, correlationId],
+        );
+
+      await client.query("commit");
+    } catch (e) {
+      await client.query("rollback");
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    return {
+      valid: true,
+      errors: [],
+      issues: dryRunResult.issues,
+      reconciliation: dryRunResult.reconciliation,
+      coverage: dryRunResult.coverage,
+      details: {
+        partiesCreated,
+        projectsCreated,
+        salesInvoicesCreated,
+        expensesCreated,
+        auditEventId,
+      },
+    };
+  }
+}

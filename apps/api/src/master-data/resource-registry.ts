@@ -143,6 +143,13 @@ export const MASTER_DATA_RESOURCES = {
     mutableColumns: ["display_name", "normalized_tax_id", "status"],
     deactivate: { column: "status", value: "inactive" },
   },
+  "party-roles": {
+    table: "party_roles",
+    organizationColumn: "organization_id",
+    keyColumns: ["party_id", "role"],
+    writableColumns: ["party_id", "role"],
+    mutableColumns: [],
+  },
   projects: {
     table: "projects",
     organizationColumn: "organization_id",

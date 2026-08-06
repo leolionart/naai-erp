@@ -1,0 +1,902 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ExternalLink, Filter, Plus } from "lucide-react";
+import { ModulePage } from "@/components/layout/module-page";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  createApiClient,
+  DEFAULT_API_CONNECTION,
+  loadApiToken,
+  loadConnectionSettings,
+  type ApiConnectionSettingsV1,
+} from "@/lib/api";
+import { DocumentForm, ExpenseForm } from "./invoice-expense-workspace";
+
+type Kind = "documents" | "expenses";
+type Row = Record<string, unknown>;
+const config = {
+  documents: {
+    endpoint: "commercial-documents",
+    singular: "hóa đơn",
+    title: "Hóa đơn",
+    newTitle: "Tạo hóa đơn",
+    detailTitle: "Chi tiết hóa đơn",
+  },
+  expenses: {
+    endpoint: "expenses",
+    singular: "chi phí",
+    title: "Chi phí",
+    newTitle: "Tạo chi phí",
+    detailTitle: "Chi tiết chi phí",
+  },
+} as const;
+const documentActions: Record<string, Record<string, readonly string[]>> = {
+  sales_invoice: { draft: ["validate", "cancel"], validated: ["issue", "cancel"] },
+  purchase_invoice: {
+    draft: ["capture", "cancel"],
+    captured: ["verify", "cancel"],
+    verified: ["approve", "cancel"],
+    approved: ["post"],
+  },
+  credit_note: { draft: ["validate", "cancel"], validated: ["issue", "cancel"] },
+};
+const expenseActions: Record<string, readonly string[]> = {
+  draft: ["submit"],
+  submitted: ["mark-evidence-pending", "approve", "reject"],
+  evidence_pending: ["submit", "reject"],
+  approved: ["post"],
+};
+
+function text(row: Row | undefined, ...keys: string[]) {
+  for (const key of keys) {
+    const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    const value = row?.[key] ?? row?.[snake];
+    if (value !== undefined && value !== null && value !== "") return String(value);
+  }
+  return "";
+}
+function money(value: string) {
+  try {
+    return `${new Intl.NumberFormat("vi-VN").format(BigInt(value || "0"))} ₫`;
+  } catch {
+    return value || "—";
+  }
+}
+function human(value: string) {
+  return value ? value.replaceAll("_", " ") : "—";
+}
+
+function useApi() {
+  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
+  const [token, setToken] = useState("");
+  useEffect(() => {
+    setConnection(loadConnectionSettings(localStorage));
+    setToken(loadApiToken(sessionStorage));
+  }, []);
+  const client = useMemo(
+    () => createApiClient({ connection: () => connection, token: () => token }),
+    [connection, token],
+  );
+  return { client, hasToken: Boolean(token) };
+}
+
+function queryFor(kind: Kind, params: URLSearchParams) {
+  const query = new URLSearchParams();
+  for (const key of kind === "documents"
+    ? ["type", "state", "partyId", "projectId"]
+    : ["state", "class", "payeePartyId"]) {
+    const value = params.get(key);
+    if (value) query.set(key, value);
+  }
+  return query;
+}
+
+export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
+  const { client, hasToken } = useApi();
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filters, setFilters] = useState(false);
+  const key = params.toString();
+  const current = config[kind];
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    if (!hasToken) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const result = await client.data<{ items?: Row[] } | Row[]>(
+        `${current.endpoint}?${queryFor(kind, new URLSearchParams(key))}`,
+      );
+      setRows(Array.isArray(result) ? result : (result.items ?? []));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
+    } finally {
+      setLoading(false);
+    }
+  }, [client, current, hasToken, key, kind]);
+  useEffect(() => void load(), [load]);
+  function apply(form: FormData) {
+    const query = new URLSearchParams();
+    for (const name of kind === "documents"
+      ? ["type", "state", "partyId", "projectId"]
+      : ["class", "state", "payeePartyId"]) {
+      const value = String(form.get(name) ?? "").trim();
+      if (value && value !== "all") query.set(name, value);
+    }
+    router.replace(`${pathname}?${query}`);
+    setFilters(false);
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">Danh sách {current.singular}</h2>
+          <p className="text-sm text-muted-foreground">
+            Mở từng bản ghi bằng URL ổn định để kiểm tra và thao tác lifecycle.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setFilters(true)}>
+            <Filter data-icon="inline-start" />
+            Bộ lọc
+          </Button>
+          <Button asChild>
+            <Link href={`/${kind}/new`}>
+              <Plus data-icon="inline-start" />
+              Tạo mới
+            </Link>
+          </Button>
+        </div>
+      </div>
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Không thể tải dữ liệu</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Card>
+        <CardHeader>
+          <CardTitle>{current.title}</CardTitle>
+          <CardDescription>{rows.length} bản ghi theo bộ lọc hiện tại.</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : rows.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{kind === "documents" ? "Số hóa đơn" : "Ngày"}</TableHead>
+                  <TableHead>{kind === "documents" ? "Loại" : "Mục đích"}</TableHead>
+                  <TableHead>Đối tượng</TableHead>
+                  <TableHead className="text-right">Tổng tiền</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => {
+                  const id = text(row, "id");
+                  return (
+                    <TableRow key={id}>
+                      <TableCell className="font-medium">
+                        {text(row, kind === "documents" ? "documentNumber" : "expenseDate") || id}
+                      </TableCell>
+                      <TableCell>
+                        {human(text(row, kind === "documents" ? "type" : "businessPurpose"))}
+                      </TableCell>
+                      <TableCell>
+                        {text(row, kind === "documents" ? "partyId" : "payeePartyId") || "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(text(row, "grossMinor"))}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{human(text(row, "state"))}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở chi tiết</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Chưa có {current.singular}</EmptyTitle>
+                <EmptyDescription>Tạo bản ghi mới hoặc thay đổi bộ lọc.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </CardContent>
+      </Card>
+      <FilterSheet
+        kind={kind}
+        open={filters}
+        onOpenChange={setFilters}
+        params={new URLSearchParams(key)}
+        onApply={apply}
+      />
+    </div>
+  );
+}
+
+function FilterSheet({
+  kind,
+  open,
+  onOpenChange,
+  params,
+  onApply,
+}: {
+  kind: Kind;
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  params: URLSearchParams;
+  onApply(data: FormData): void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <form action={onApply} className="flex h-full flex-col">
+          <SheetHeader>
+            <SheetTitle>Bộ lọc {config[kind].singular}</SheetTitle>
+            <SheetDescription>
+              Bộ lọc được giữ trên URL để có thể chia sẻ và tải lại.
+            </SheetDescription>
+          </SheetHeader>
+          <FieldGroup className="flex-1 px-4">
+            <Field>
+              <FieldLabel>Trạng thái</FieldLabel>
+              <Select name="state" defaultValue={params.get("state") ?? "all"}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">Tất cả</SelectItem>
+                    {[
+                      "draft",
+                      "validated",
+                      "issued",
+                      "captured",
+                      "verified",
+                      "approved",
+                      "submitted",
+                      "evidence_pending",
+                      "posted",
+                      "paid",
+                      "cancelled",
+                      "rejected",
+                    ].map((state) => (
+                      <SelectItem key={state} value={state}>
+                        {human(state)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            {kind === "documents" ? (
+              <>
+                <Field>
+                  <FieldLabel>Loại</FieldLabel>
+                  <Select name="type" defaultValue={params.get("type") ?? "all"}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="sales_invoice">Hóa đơn bán ra</SelectItem>
+                        <SelectItem value="purchase_invoice">Hóa đơn mua vào</SelectItem>
+                        <SelectItem value="credit_note">Credit note</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-party">Party ID</FieldLabel>
+                  <Input
+                    id="filter-party"
+                    name="partyId"
+                    defaultValue={params.get("partyId") ?? ""}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-project">Dự án ID</FieldLabel>
+                  <Input
+                    id="filter-project"
+                    name="projectId"
+                    defaultValue={params.get("projectId") ?? ""}
+                  />
+                </Field>
+              </>
+            ) : (
+              <>
+                <Field>
+                  <FieldLabel>Nhóm chi phí</FieldLabel>
+                  <Select name="class" defaultValue={params.get("class") ?? "all"}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="non_documented">Không có hóa đơn</SelectItem>
+                        <SelectItem value="receipt_backed">Có biên nhận</SelectItem>
+                        <SelectItem value="contract_backed">Theo hợp đồng</SelectItem>
+                        <SelectItem value="employee_reimbursement">Hoàn ứng</SelectItem>
+                        <SelectItem value="bank_fee">Phí ngân hàng</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="filter-payee">Payee ID</FieldLabel>
+                  <Input
+                    id="filter-payee"
+                    name="payeePartyId"
+                    defaultValue={params.get("payeePartyId") ?? ""}
+                  />
+                </Field>
+              </>
+            )}
+          </FieldGroup>
+          <SheetFooter>
+            <Button type="submit">Áp dụng</Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export function FocusedRecordCreateWorkspace({ kind }: { kind: Kind }) {
+  const { client } = useApi();
+  const router = useRouter();
+  const current = config[kind];
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function create(body: Row) {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await client.data<Row>(current.endpoint, { method: "POST", body });
+      const id = text(result, "id");
+      if (!id) throw new Error("API không trả về ID bản ghi.");
+      router.push(`/${kind}/${encodeURIComponent(id)}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể tạo ${current.singular}.`);
+      setBusy(false);
+    }
+  }
+  return (
+    <ModulePage
+      title={current.newTitle}
+      description={`Nhập dữ liệu ${current.singular} theo form nghiệp vụ và lưu qua REST API.`}
+      section={current.title}
+    >
+      <div className="flex max-w-4xl flex-col gap-6">
+        <Button variant="ghost" asChild className="w-fit">
+          <Link href={`/${kind}`}>
+            <ArrowLeft data-icon="inline-start" />
+            Quay lại danh sách
+          </Link>
+        </Button>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Không thể lưu bản ghi</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <Card>
+          <CardHeader>
+            <CardTitle>{current.newTitle}</CardTitle>
+            <CardDescription>
+              Danh mục tài khoản hiện vẫn theo form compatibility; backend master-data selector sẽ
+              thay thế khi contract UI được công bố.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {kind === "documents" ? (
+              <DocumentForm busy={busy} onSubmit={(body) => void create(body)} />
+            ) : (
+              <ExpenseForm busy={busy} onSubmit={(body) => void create(body)} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </ModulePage>
+  );
+}
+
+function externalReference(record?: Row) {
+  const single = record?.externalReference ?? record?.external_reference;
+  if (single && typeof single === "object") return single as Row;
+  const list = record?.externalReferences ?? record?.external_references;
+  return Array.isArray(list) && list[0] && typeof list[0] === "object"
+    ? (list[0] as Row)
+    : undefined;
+}
+
+export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; recordId: string }) {
+  const { client } = useApi();
+  const current = config[kind];
+  const [record, setRecord] = useState<Row>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [action, setAction] = useState<string>();
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [axis, setAxis] = useState("management");
+  const [reviewState, setReviewState] = useState("valid");
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setRecord(await client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
+    } finally {
+      setLoading(false);
+    }
+  }, [client, current, recordId]);
+  useEffect(() => void load(), [load]);
+  const state = text(record, "state");
+  const type = text(record, "type");
+  const actions =
+    kind === "documents" ? (documentActions[type]?.[state] ?? []) : (expenseActions[state] ?? []);
+  const source = externalReference(record);
+  async function transition() {
+    if (!action || !reason.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}/${action}`, {
+        method: "POST",
+        body: {
+          reason,
+          ...(action === "mark-evidence-pending" ? { missingEvidenceTypes: ["invoice"] } : {}),
+        },
+      });
+      setAction(undefined);
+      setReason("");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể thực hiện thao tác.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function review() {
+    if (!reason.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}/review`, {
+        method: "POST",
+        body: { axis, lineNumber: 1, state: reviewState, reason },
+      });
+      setReviewOpen(false);
+      setReason("");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể lưu review.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function update(body: Row) {
+    if (!record) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}`, {
+        method: "PATCH",
+        expectedVersion: text(record, "resourceVersion", "version"),
+        body,
+      });
+      setEditOpen(false);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể sửa ${current.singular}.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <ModulePage
+      title={current.detailTitle}
+      description={`URL ổn định cho ${current.singular} ${recordId}.`}
+      section={current.title}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button variant="ghost" asChild>
+            <Link href={`/${kind}`}>
+              <ArrowLeft data-icon="inline-start" />
+              Danh sách {current.singular}
+            </Link>
+          </Button>
+          <div className="flex flex-wrap gap-2">
+            {state === "draft" ? (
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                Sửa draft
+              </Button>
+            ) : null}
+            {actions.map((name) => (
+              <Button
+                key={name}
+                variant={name === "cancel" || name === "reject" ? "destructive" : "outline"}
+                onClick={() => setAction(name)}
+              >
+                {human(name)}
+              </Button>
+            ))}
+            {kind === "expenses" && record ? (
+              <Button variant="outline" onClick={() => setReviewOpen(true)}>
+                Review quản trị / thuế
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Không thể hoàn tất thao tác</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {loading ? (
+          <Skeleton className="h-96 w-full" />
+        ) : record ? (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardDescription>
+                    {kind === "documents" ? "Số hóa đơn" : "Ngày chi phí"}
+                  </CardDescription>
+                  <CardTitle>
+                    {text(record, kind === "documents" ? "documentNumber" : "expenseDate") ||
+                      recordId}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Badge variant="outline">{human(state)}</Badge>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardDescription>Tổng tiền</CardDescription>
+                  <CardTitle>{money(text(record, "grossMinor"))}</CardTitle>
+                </CardHeader>
+                <CardContent>{text(record, "currency") || "VND"}</CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardDescription>Đối tượng</CardDescription>
+                  <CardTitle>
+                    {text(record, kind === "documents" ? "partyId" : "payeePartyId") || "—"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {human(text(record, kind === "documents" ? "type" : "expenseClass"))}
+                </CardContent>
+              </Card>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Dòng hạch toán nguồn</CardTitle>
+                <CardDescription>
+                  Giá trị từ resource API; posting vẫn tuân theo lifecycle hiện có.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mô tả</TableHead>
+                      <TableHead>Tài khoản</TableHead>
+                      <TableHead className="text-right">Net</TableHead>
+                      <TableHead className="text-right">VAT</TableHead>
+                      <TableHead className="text-right">Gross</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(Array.isArray(record.lines) ? (record.lines as Row[]) : []).map(
+                      (line, index) => (
+                        <TableRow key={text(line, "id") || index}>
+                          <TableCell>{text(line, "description") || "—"}</TableCell>
+                          <TableCell>
+                            {text(
+                              line,
+                              kind === "documents" ? "primaryAccountCode" : "postingAccountCode",
+                            ) || "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {money(text(line, "netMinor"))}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {money(text(line, kind === "documents" ? "taxMinor" : "vatMinor"))}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {money(text(line, "grossMinor"))}
+                          </TableCell>
+                        </TableRow>
+                      ),
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+            <SourceCard source={source} record={record} />
+          </>
+        ) : null}
+      </div>
+      <ActionDialog
+        action={action}
+        reason={reason}
+        setReason={setReason}
+        busy={busy}
+        onClose={() => setAction(undefined)}
+        onConfirm={() => void transition()}
+      />
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Sửa draft {current.singular}</DialogTitle>
+            <DialogDescription>
+              Lưu bằng PATCH với phiên bản {text(record, "resourceVersion", "version") || "—"}. Nếu
+              bản ghi đã thay đổi hoặc không còn draft, API sẽ từ chối cập nhật.
+            </DialogDescription>
+          </DialogHeader>
+          {record ? (
+            kind === "documents" ? (
+              <DocumentForm
+                key={`document-${recordId}-${text(record, "resourceVersion", "version")}`}
+                busy={busy}
+                initial={record}
+                submitLabel="Lưu thay đổi hóa đơn"
+                onSubmit={(body) => void update(body)}
+              />
+            ) : (
+              <ExpenseForm
+                key={`expense-${recordId}-${text(record, "resourceVersion", "version")}`}
+                busy={busy}
+                initial={record}
+                submitLabel="Lưu thay đổi chi phí"
+                onSubmit={(body) => void update(body)}
+              />
+            )
+          ) : null}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review chi phí</DialogTitle>
+            <DialogDescription>Trạng thái quản trị, CIT và VAT độc lập.</DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>Trục review</FieldLabel>
+              <Select
+                value={axis}
+                onValueChange={(value) => {
+                  setAxis(value);
+                  setReviewState(value === "management" ? "valid" : "eligible");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="management">Quản trị</SelectItem>
+                    <SelectItem value="cit">CIT</SelectItem>
+                    <SelectItem value="vat">VAT</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>Kết quả</FieldLabel>
+              <Select value={reviewState} onValueChange={setReviewState}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {(axis === "management"
+                      ? ["valid", "invalid", "accountant_override"]
+                      : ["eligible", "partially_eligible", "ineligible", "accountant_override"]
+                    ).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {human(value)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="review-reason">Lý do</FieldLabel>
+              <Input
+                id="review-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewOpen(false)}>
+              Hủy
+            </Button>
+            <Button disabled={busy || !reason.trim()} onClick={() => void review()}>
+              Lưu review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </ModulePage>
+  );
+}
+
+function ActionDialog({
+  action,
+  reason,
+  setReason,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  action?: string;
+  reason: string;
+  setReason(value: string): void;
+  busy: boolean;
+  onClose(): void;
+  onConfirm(): void;
+}) {
+  return (
+    <Dialog
+      open={Boolean(action)}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Xác nhận {human(action ?? "")}</DialogTitle>
+          <DialogDescription>
+            Thao tác lifecycle được gửi qua cùng REST service với CLI/AI và có idempotency.
+          </DialogDescription>
+        </DialogHeader>
+        <Field>
+          <FieldLabel htmlFor="action-reason">Lý do</FieldLabel>
+          <Input
+            id="action-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </Field>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Hủy
+          </Button>
+          <Button disabled={busy || !reason.trim()} onClick={onConfirm}>
+            Xác nhận
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SourceCard({ source, record }: { source?: Row; record: Row }) {
+  const url = text(source, "canonicalUrl", "url");
+  const journalId = text(record, "journalId", "postingJournalId");
+  const reconciliationIds = Array.isArray(record.reconciliationIds)
+    ? record.reconciliationIds.map(String)
+    : [];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Nguồn và liên kết kế toán</CardTitle>
+        <CardDescription>
+          Paperless chỉ được hiển thị khi API trả external-reference metadata chính thức.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-sm text-muted-foreground">Nguồn ngoài</p>
+          {source ? (
+            <div className="flex flex-col gap-1">
+              <strong>{text(source, "system") || "External"}</strong>
+              <span className="font-mono text-xs">{text(source, "externalId")}</span>
+              {url ? (
+                <Button variant="link" className="w-fit px-0" asChild>
+                  <a href={url} target="_blank" rel="noreferrer">
+                    Mở nguồn canonical <ExternalLink data-icon="inline-end" />
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <p>Chưa có external reference.</p>
+          )}
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Journal / reconciliation</p>
+          <div className="flex flex-wrap gap-2">
+            {journalId ? <Badge variant="outline">Journal {journalId}</Badge> : null}
+            {reconciliationIds.map((id) => (
+              <Button key={id} variant="outline" size="sm" asChild>
+                <Link href={`/banking/reconciliation/${encodeURIComponent(id)}`}>
+                  Reconciliation {id}
+                </Link>
+              </Button>
+            ))}
+            {!journalId && !reconciliationIds.length ? (
+              <span>Chưa có liên kết đã post/đối soát.</span>
+            ) : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -145,10 +145,30 @@ export class InboundWebhookService {
         correlationId: input.correlationId,
       };
       const key = `inbound:${input.source.id}:${input.envelope.eventType}:${input.envelope.externalId}`;
+      const data = input.envelope.data;
+      const extRef = {
+        system: "paperless",
+        externalId: input.envelope.externalId,
+        canonicalUrl: String(
+          data.canonicalUrl || `http://paperless.local/documents/${input.envelope.externalId}`,
+        ),
+        checksum: String(data.checksum || data.evidenceHash || ""),
+        version: String(data.version || ""),
+        syncedAt: new Date().toISOString(),
+        metadata: {
+          occurredAt: input.envelope.occurredAt,
+          sourceId: input.source.id,
+          publicId: input.source.publicId,
+        },
+      };
+      const enrichedData = {
+        ...data,
+        externalReference: extRef,
+      };
       const response =
         input.envelope.eventType === "expense.create"
-          ? await this.expenses.create(context, input.envelope.data as never, key)
-          : await this.documents.create(context, input.envelope.data as never, key);
+          ? await this.expenses.create(context, enrichedData as never, key)
+          : await this.documents.create(context, enrichedData as never, key);
       const result = await this.store.finish(
         input.source.organizationId,
         received.messageId,

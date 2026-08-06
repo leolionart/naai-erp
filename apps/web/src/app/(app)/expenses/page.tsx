@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { ModulePage } from "@/components/layout/module-page";
-import { ModuleWorkspace } from "../../module-workspace";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FocusedRecordListWorkspace } from "../../workspaces/focused-record-workspaces";
 
 export default function ExpensesPage() {
   return (
@@ -8,7 +10,9 @@ export default function ExpensesPage() {
       section="Tài chính"
       description="Ghi nhận chi phí có hoặc không hóa đơn, hoàn ứng và review thuế độc lập."
     >
-      <ModuleWorkspace moduleKey="expenses" />
+      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <FocusedRecordListWorkspace kind="expenses" />
+      </Suspense>
     </ModulePage>
   );
 }

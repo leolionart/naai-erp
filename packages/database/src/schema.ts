@@ -2285,6 +2285,7 @@ export const commercialDocuments = pgTable(
     grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
     controlAccountCode: text("control_account_code").notNull(),
     originalDocumentId: text("original_document_id"),
+    reason: text("reason"),
     journalId: text("journal_id"),
     version: bigint("version", { mode: "bigint" })
       .notNull()
@@ -2345,6 +2346,10 @@ export const commercialDocuments = pgTable(
     check(
       "commercial_documents_credit_origin",
       sql`(${table.type} = 'credit_note' and ${table.originalDocumentId} is not null) or (${table.type} <> 'credit_note' and ${table.originalDocumentId} is null)`,
+    ),
+    check(
+      "commercial_documents_credit_reason",
+      sql`(${table.type} = 'credit_note' and btrim(${table.reason}) <> '') or (${table.type} <> 'credit_note' and ${table.reason} is null)`,
     ),
     check("commercial_documents_version_positive", sql`${table.version} > 0`),
   ],
@@ -4804,6 +4809,49 @@ export const accountantExports = pgTable(
   ],
 );
 
+export const externalReferences = pgTable(
+  "external_references",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    system: text("system").notNull(),
+    externalId: text("external_id").notNull(),
+    documentId: text("document_id"),
+    expenseId: text("expense_id"),
+    canonicalUrl: text("canonical_url"),
+    checksum: text("checksum"),
+    version: text("version"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.system, table.externalId] }),
+    foreignKey({
+      columns: [table.organizationId, table.documentId],
+      foreignColumns: [commercialDocuments.organizationId, commercialDocuments.id],
+      name: "external_references_document_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.organizationId, table.expenseId],
+      foreignColumns: [expenses.organizationId, expenses.id],
+      name: "external_references_expense_fk",
+    }).onDelete("cascade"),
+    check("external_references_system_not_blank", sql`btrim(${table.system}) <> ''`),
+    check("external_references_external_id_not_blank", sql`btrim(${table.externalId}) <> ''`),
+    check(
+      "external_references_target_present",
+      sql`(${table.documentId} is not null or ${table.expenseId} is not null)`,
+    ),
+    check(
+      "external_references_target_exclusive",
+      sql`not (${table.documentId} is not null and ${table.expenseId} is not null)`,
+    ),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -4910,4 +4958,5 @@ export const schema = {
   roiInputFacts,
   reportSnapshots,
   accountantExports,
+  externalReferences,
 } as const;

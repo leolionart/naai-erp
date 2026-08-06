@@ -6,10 +6,12 @@ import {
   BanknoteIcon,
   BookOpenIcon,
   BoxesIcon,
+  BriefcaseBusinessIcon,
   FileTextIcon,
   GaugeIcon,
   MenuIcon,
   ReceiptTextIcon,
+  UsersIcon,
   WalletCardsIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,8 @@ const icons = {
   expense: ReceiptTextIcon,
   bank: BanknoteIcon,
   report: WalletCardsIcon,
+  customer: UsersIcon,
+  project: BriefcaseBusinessIcon,
 } satisfies Record<NavigationIcon, typeof GaugeIcon>;
 
 function NavigationContent({ pathname }: { pathname: string }) {

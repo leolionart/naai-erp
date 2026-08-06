@@ -1,0 +1,115 @@
+name: naai-erp
+
+x-service-defaults: &service-defaults
+  init: true
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16.9-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-naai_erp}
+      POSTGRES_USER: ${POSTGRES_USER:-naai_erp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  migrate:
+    image: ${MIGRATE_IMAGE:-ghcr.io/leolionart/naai-erp-migrate}:${IMAGE_TAG:-main}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-naai_erp}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *service-defaults
+    image: ${API_IMAGE:-ghcr.io/leolionart/naai-erp-api}:${IMAGE_TAG:-main}
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-naai_erp}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *service-defaults
+    image: ${WORKER_IMAGE:-ghcr.io/leolionart/naai-erp-worker}:${IMAGE_TAG:-main}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-naai_erp}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "try{process.kill(1,0)}catch{process.exit(1)}"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  web:
+    <<: *service-defaults
+    image: ${WEB_IMAGE:-ghcr.io/leolionart/naai-erp-web}:${IMAGE_TAG:-main}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: http://api:3001
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres-data:

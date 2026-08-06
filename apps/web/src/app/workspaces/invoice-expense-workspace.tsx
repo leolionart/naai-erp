@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentProps, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, type FormEvent, useEffect, useId, useMemo, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -91,10 +91,16 @@ function TextField({
   label: string;
   onChange?: (value: string) => void;
 }) {
+  const generatedId = useId();
+  const controlId = props.id ?? generatedId;
   return (
     <Field>
-      <FieldLabel>{fieldLabel}</FieldLabel>
-      <Input {...props} onChange={onChange ? (event) => onChange(event.target.value) : undefined} />
+      <FieldLabel htmlFor={controlId}>{fieldLabel}</FieldLabel>
+      <Input
+        {...props}
+        id={controlId}
+        onChange={onChange ? (event) => onChange(event.target.value) : undefined}
+      />
     </Field>
   );
 }
@@ -302,25 +308,42 @@ export function InvoiceExpenseWorkspace({
   );
 }
 
-function DocumentForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row) => void }) {
-  const [form, setForm] = useState({
-    type: "sales_invoice",
-    number: "",
-    party: "",
-    date: today(),
-    dueDate: today(),
-    description: "",
-    net: "",
-    tax: "0",
-    controlAccount: "131",
-    primaryAccount: "511",
-    taxAccount: "3331",
-    project: "",
-    costCenter: "DELIVERY",
-    taxState: "eligible",
-    originalDocumentId: "",
-    reason: "",
-  });
+export function DocumentForm({
+  busy,
+  onSubmit,
+  initial,
+  submitLabel = "Lưu hóa đơn nháp",
+}: {
+  busy: boolean;
+  onSubmit: (body: Row) => void;
+  initial?: Row;
+  submitLabel?: string;
+}) {
+  const initialLine = Array.isArray(initial?.lines)
+    ? (initial.lines[0] as Row | undefined)
+    : undefined;
+  const initialAllocation = Array.isArray(initialLine?.allocations)
+    ? (initialLine.allocations[0] as Row | undefined)
+    : undefined;
+  const initialDimensions = (field(initialAllocation, "dimensions") as Row | undefined) ?? {};
+  const [form, setForm] = useState(() => ({
+    type: String(field(initial, "type") ?? "sales_invoice"),
+    number: String(field(initial, "documentNumber") ?? ""),
+    party: String(field(initial, "partyId") ?? ""),
+    date: String(field(initial, "documentDate") ?? today()),
+    dueDate: String(field(initial, "dueDate") ?? today()),
+    description: String(field(initialLine, "description") ?? ""),
+    net: String(field(initial, "netMinor") ?? ""),
+    tax: String(field(initial, "taxMinor") ?? "0"),
+    controlAccount: String(field(initial, "controlAccountCode") ?? "131"),
+    primaryAccount: String(field(initialLine, "primaryAccountCode") ?? "511"),
+    taxAccount: String(field(initialLine, "taxAccountCode") ?? "3331"),
+    project: String(field(initialDimensions, "project") ?? ""),
+    costCenter: String(field(initialDimensions, "costCenter") ?? "DELIVERY"),
+    taxState: String(field(initialDimensions, "taxState") ?? "eligible"),
+    originalDocumentId: String(field(initial, "originalDocumentId") ?? ""),
+    reason: String(field(initial, "reason") ?? ""),
+  }));
   const set = (key: keyof typeof form, value: string) => setForm((v) => ({ ...v, [key]: value }));
   const gross = add(form.net, form.tax);
 
@@ -366,7 +389,13 @@ function DocumentForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row)
           grossMinor: gross,
           primaryAccountCode: form.primaryAccount,
           ...(form.tax !== "0" ? { taxAccountCode: form.taxAccount } : {}),
-          allocations: [{ id: crypto.randomUUID(), amountMinor: form.net, dimensions }],
+          allocations: [
+            {
+              id: String(field(initialAllocation, "id") ?? crypto.randomUUID()),
+              amountMinor: form.net,
+              dimensions,
+            },
+          ],
         },
       ],
     });
@@ -504,31 +533,49 @@ function DocumentForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row)
         ) : null}
       </FieldGroup>
       <Button type="submit" disabled={busy}>
-        Lưu hóa đơn nháp
+        {submitLabel}
       </Button>
     </form>
   );
 }
 
-function ExpenseForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row) => void }) {
-  const [form, setForm] = useState({
-    expenseClass: "invoice_backed",
-    date: today(),
-    purpose: "",
-    payee: "",
-    employee: "",
-    net: "",
-    vat: "0",
-    postingAccount: "642",
-    vatAccount: "1331",
-    counterAccount: "331",
-    project: "",
-    costCenter: "ADMIN",
-    invoice: true,
-    receipt: false,
-    contract: false,
-    payment: false,
-  });
+export function ExpenseForm({
+  busy,
+  onSubmit,
+  initial,
+  submitLabel = "Lưu chi phí nháp",
+}: {
+  busy: boolean;
+  onSubmit: (body: Row) => void;
+  initial?: Row;
+  submitLabel?: string;
+}) {
+  const initialLine = Array.isArray(initial?.lines)
+    ? (initial.lines[0] as Row | undefined)
+    : undefined;
+  const initialAllocation = Array.isArray(initialLine?.allocations)
+    ? (initialLine.allocations[0] as Row | undefined)
+    : undefined;
+  const initialDimensions = (field(initialAllocation, "dimensions") as Row | undefined) ?? {};
+  const initialEvidence = (field(initial, "evidenceChecklist") as Row | undefined) ?? {};
+  const [form, setForm] = useState(() => ({
+    expenseClass: String(field(initial, "expenseClass") ?? "invoice_backed"),
+    date: String(field(initial, "expenseDate") ?? today()),
+    purpose: String(field(initial, "businessPurpose") ?? ""),
+    payee: String(field(initial, "payeePartyId") ?? ""),
+    employee: String(field(initial, "employeePartyId") ?? ""),
+    net: String(field(initial, "netMinor") ?? ""),
+    vat: String(field(initial, "vatMinor") ?? "0"),
+    postingAccount: String(field(initialLine, "postingAccountCode") ?? "642"),
+    vatAccount: String(field(initialLine, "vatAccountCode") ?? "1331"),
+    counterAccount: String(field(initial, "counterAccountCode") ?? "331"),
+    project: String(field(initialDimensions, "project") ?? ""),
+    costCenter: String(field(initialDimensions, "costCenter") ?? "ADMIN"),
+    invoice: Boolean(field(initialEvidence, "invoice") ?? true),
+    receipt: Boolean(field(initialEvidence, "receipt") ?? false),
+    contract: Boolean(field(initialEvidence, "contract") ?? false),
+    payment: Boolean(field(initialEvidence, "payment") ?? false),
+  }));
   const set = (key: keyof typeof form, value: string | boolean) =>
     setForm((v) => ({ ...v, [key]: value }));
   const gross = add(form.net, form.vat);
@@ -565,7 +612,13 @@ function ExpenseForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row) 
           grossMinor: gross,
           postingAccountCode: form.postingAccount,
           ...(form.vat !== "0" ? { vatAccountCode: form.vatAccount } : {}),
-          allocations: [{ id: crypto.randomUUID(), amountMinor: form.net, dimensions }],
+          allocations: [
+            {
+              id: String(field(initialAllocation, "id") ?? crypto.randomUUID()),
+              amountMinor: form.net,
+              dimensions,
+            },
+          ],
         },
       ],
     });
@@ -694,7 +747,7 @@ function ExpenseForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: Row) 
         </FieldSet>
       </FieldGroup>
       <Button type="submit" disabled={busy}>
-        Lưu chi phí nháp
+        {submitLabel}
       </Button>
     </form>
   );

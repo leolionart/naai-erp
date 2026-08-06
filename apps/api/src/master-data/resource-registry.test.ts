@@ -23,5 +23,6 @@ describe("master-data resource registry", () => {
   it("rejects arbitrary resource-to-table access", () => {
     expect(() => resourceDefinition("pg_catalog")).toThrow("Unknown master-data resource");
     expect(MASTER_DATA_RESOURCES["tax-code-versions"].mutableColumns).not.toContain("rate");
+    expect(MASTER_DATA_RESOURCES["party-roles"].keyColumns).toEqual(["party_id", "role"]);
   });
 });

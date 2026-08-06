@@ -105,6 +105,8 @@ import { ReportExportController } from "./report-exports/report-export.controlle
 import { ReportExportService } from "./report-exports/report-export.service.js";
 import { REPORT_EXPORT_STORE } from "./report-exports/report-export.types.js";
 import { PgReportExportStore } from "./report-exports/pg-report-export.store.js";
+import { WorkbookImportController } from "./workbook-imports/workbook-import.controller.js";
+import { WorkbookImportService } from "./workbook-imports/workbook-import.service.js";
 
 @Module({
   controllers: [
@@ -140,6 +142,7 @@ import { PgReportExportStore } from "./report-exports/pg-report-export.store.js"
     FinancialStatementController,
     ExecutiveMetricController,
     ReportExportController,
+    WorkbookImportController,
   ],
   providers: [
     MasterDataService,
@@ -212,6 +215,7 @@ import { PgReportExportStore } from "./report-exports/pg-report-export.store.js"
     ReportExportService,
     PgReportExportStore,
     { provide: REPORT_EXPORT_STORE, useExisting: PgReportExportStore },
+    WorkbookImportService,
   ],
 })
 export class AppModule {}

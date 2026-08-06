@@ -24,6 +24,16 @@ export type ExpenseLineInput = Readonly<{
   vatEligibleMinor?: string;
   allocations: readonly ExpenseAllocationInput[];
 }>;
+export type ExternalReferenceInput = Readonly<{
+  system: string;
+  externalId: string;
+  canonicalUrl?: string;
+  checksum?: string;
+  version?: string;
+  syncedAt?: string;
+  metadata?: Readonly<Record<string, unknown>>;
+}>;
+
 export type CreateExpenseInput = Readonly<{
   id?: string;
   expenseClass: string;
@@ -40,6 +50,7 @@ export type CreateExpenseInput = Readonly<{
   counterAccountCode: string;
   evidenceChecklist?: Readonly<Record<string, boolean>>;
   lines: readonly ExpenseLineInput[];
+  externalReference?: ExternalReferenceInput;
 }>;
 export type ExpenseReviewInput = Readonly<{
   axis: ExpenseAxis;

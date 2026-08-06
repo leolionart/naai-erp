@@ -46,22 +46,54 @@ const NEXT: Record<CommercialDocumentType, Record<string, Record<string, string>
 export class PgCommercialDocumentStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-  async list(organizationId: string, filters: { type?: string; state?: string; partyId?: string }) {
+  async list(
+    organizationId: string,
+    filters: { type?: string; state?: string; partyId?: string; projectId?: string },
+  ) {
     const result = await this.pool.query(
       `select d.*,coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null),'[]') lines
        from commercial_documents d left join commercial_document_lines l
          on l.organization_id=d.organization_id and l.document_id=d.id
        where d.organization_id=$1 and ($2::text is null or d.type::text=$2)
          and ($3::text is null or d.state::text=$3) and ($4::text is null or d.party_id=$4)
+         and ($5::text is null or exists (
+           select 1 from commercial_document_lines project_line
+           left join commercial_document_allocations project_allocation
+             on project_allocation.organization_id=project_line.organization_id
+            and project_allocation.document_id=project_line.document_id
+            and project_allocation.line_number=project_line.line_number
+           where project_line.organization_id=d.organization_id
+             and project_line.document_id=d.id
+             and (
+               project_line.dimensions->>'projectId'=$5
+               or project_allocation.dimensions->>'projectId'=$5
+             )
+         ))
        group by d.organization_id,d.id order by d.document_date desc,d.id`,
-      [organizationId, filters.type ?? null, filters.state ?? null, filters.partyId ?? null],
+      [
+        organizationId,
+        filters.type ?? null,
+        filters.state ?? null,
+        filters.partyId ?? null,
+        filters.projectId ?? null,
+      ],
     );
     return result.rows;
   }
 
   async get(organizationId: string, id: string) {
     const result = await this.pool.query(
-      `select d.*,coalesce(json_agg(jsonb_build_object(
+      `select d.*,
+       (select jsonb_build_object(
+          'system', r.system,
+          'externalId', r.external_id,
+          'canonicalUrl', r.canonical_url,
+          'checksum', r.checksum,
+          'version', r.version,
+          'syncedAt', r.synced_at::text,
+          'metadata', r.metadata
+        ) from external_references r where r.organization_id=d.organization_id and r.document_id=d.id) as "externalReference",
+       coalesce(json_agg(jsonb_build_object(
         'lineNumber',l.line_number,'description',l.description,'quantity',l.quantity,
         'unitPriceMinor',l.unit_price_minor::text,'netMinor',l.net_minor::text,
         'taxMinor',l.tax_minor::text,'grossMinor',l.gross_minor::text,
@@ -98,14 +130,229 @@ export class PgCommercialDocumentStore {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
+      if (input.externalReference) {
+        const extRefResult = await client.query<{
+          document_id: string | null;
+          expense_id: string | null;
+          canonical_url: string | null;
+          checksum: string | null;
+          version: string | null;
+          metadata: Record<string, unknown>;
+        }>(
+          "select document_id, expense_id, canonical_url, checksum, version, metadata from external_references where organization_id=$1 and system=$2 and external_id=$3 for update",
+          [
+            context.organizationId,
+            input.externalReference.system,
+            input.externalReference.externalId,
+          ],
+        );
+        const extRef = extRefResult.rows[0];
+        if (extRef) {
+          if (extRef.expense_id) {
+            throw new Error("DUPLICATE_DOCUMENT");
+          }
+          if (extRef.document_id) {
+            const docId = extRef.document_id;
+            const docResult = await client.query<{ state: string; version: string; type: string }>(
+              "select state, version, type from commercial_documents where organization_id=$1 and id=$2 for update",
+              [context.organizationId, docId],
+            );
+            const doc = docResult.rows[0];
+            if (!doc) {
+              throw new Error("RESOURCE_NOT_FOUND");
+            }
+            if (doc.state === "draft") {
+              if (input.type === "credit_note") {
+                await this.assertCreditAllowed(client, context.organizationId, input, docId);
+              }
+              await client.query(
+                "delete from commercial_document_allocations where organization_id=$1 and document_id=$2",
+                [context.organizationId, docId],
+              );
+              await client.query(
+                "delete from commercial_document_lines where organization_id=$1 and document_id=$2",
+                [context.organizationId, docId],
+              );
+              const newVersion = BigInt(doc.version) + 1n;
+              await client.query(
+                `update commercial_documents set
+                  type=$3, document_number=$4, series=$5, fiscal_year=$6, party_id=$7, document_date=$8, due_date=$9,
+                  currency=$10, net_minor=$11, tax_minor=$12, gross_minor=$13, control_account_code=$14,
+                  original_document_id=$15, reason=$16, version=$17, updated_at=now()
+                 where organization_id=$1 and id=$2`,
+                [
+                  context.organizationId,
+                  docId,
+                  input.type,
+                  input.documentNumber,
+                  input.series ?? null,
+                  input.fiscalYear,
+                  input.partyId,
+                  input.documentDate,
+                  input.dueDate,
+                  input.currency,
+                  input.netMinor,
+                  input.taxMinor,
+                  input.grossMinor,
+                  input.controlAccountCode,
+                  input.originalDocumentId ?? null,
+                  input.reason ?? null,
+                  newVersion,
+                ],
+              );
+              for (const [lineIndex, line] of input.lines.entries()) {
+                await client.query(
+                  `insert into commercial_document_lines
+                   (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
+                    primary_account_code,tax_account_code,tax_code,dimensions)
+                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+                  [
+                    context.organizationId,
+                    docId,
+                    lineIndex + 1,
+                    line.originalLineNumber ?? null,
+                    line.description,
+                    line.quantity,
+                    line.unitPriceMinor,
+                    line.netMinor,
+                    line.taxMinor,
+                    line.grossMinor,
+                    line.primaryAccountCode,
+                    line.taxAccountCode ?? null,
+                    line.taxCode ?? null,
+                    line.dimensions ?? {},
+                  ],
+                );
+                for (const [allocationIndex, allocation] of line.allocations.entries()) {
+                  await client.query(
+                    `insert into commercial_document_allocations
+                     (organization_id,document_id,line_number,allocation_number,amount_minor,dimensions)
+                     values ($1,$2,$3,$4,$5,$6)`,
+                    [
+                      context.organizationId,
+                      docId,
+                      lineIndex + 1,
+                      allocationIndex + 1,
+                      allocation.amountMinor,
+                      { ...allocation.dimensions, allocationId: allocation.id },
+                    ],
+                  );
+                }
+              }
+              await client.query(
+                `update external_references set
+                  canonical_url=$4, checksum=$5, version=$6, synced_at=now(), metadata=$7, updated_at=now()
+                 where organization_id=$1 and system=$2 and external_id=$3`,
+                [
+                  context.organizationId,
+                  input.externalReference.system,
+                  input.externalReference.externalId,
+                  input.externalReference.canonicalUrl ?? extRef.canonical_url,
+                  input.externalReference.checksum ?? extRef.checksum,
+                  input.externalReference.version ?? extRef.version,
+                  input.externalReference.metadata ?? extRef.metadata,
+                ],
+              );
+              const auditEventId = randomUUID();
+              const outboxEventId = randomUUID();
+              await client.query(
+                `insert into resource_audit_events
+                 (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)
+                 values ($1,$2,'commercial_document',$3,$4,'update',$5,$6,$7)`,
+                [
+                  context.organizationId,
+                  auditEventId,
+                  docId,
+                  newVersion,
+                  context.actorId,
+                  context.correlationId,
+                  { type: input.type, state: "draft" },
+                ],
+              );
+              await client.query(
+                `insert into outbox_events
+                 (organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+                 values ($1,$2,'commercial_document',$3,$4,1,$5,$6)`,
+                [
+                  context.organizationId,
+                  outboxEventId,
+                  docId,
+                  `${input.type}.updated`,
+                  { documentId: docId, type: input.type, state: "draft" },
+                  context.correlationId,
+                ],
+              );
+              const response = {
+                documentId: docId,
+                type: input.type,
+                state: "draft",
+                resourceVersion: newVersion.toString(),
+                auditEventId,
+                outboxEventId,
+                nextActions: this.nextActions(input.type, "draft"),
+              };
+              await client.query("commit");
+              return { ...response, idempotencyReplayed: true };
+            } else {
+              const response = {
+                documentId: docId,
+                type: doc.type as CommercialDocumentType,
+                state: doc.state,
+                resourceVersion: doc.version.toString(),
+                auditEventId: null,
+                outboxEventId: null,
+                nextActions: this.nextActions(doc.type as CommercialDocumentType, doc.state),
+              };
+              await client.query("commit");
+              return { ...response, idempotencyReplayed: true };
+            }
+          }
+        }
+      }
+
+      // Duplicate checks:
+      const duplicateResult = await client.query<{ id: string }>(
+        `select id from commercial_documents
+         where organization_id=$1 and type=$2 and party_id=$3 and document_number=$4 and document_date=$5 and gross_minor=$6 and currency=$7`,
+        [
+          context.organizationId,
+          input.type,
+          input.partyId,
+          input.documentNumber,
+          input.documentDate,
+          input.grossMinor,
+          input.currency,
+        ],
+      );
+      if (duplicateResult.rows.length > 0) {
+        throw new Error("DUPLICATE_DOCUMENT");
+      }
+
+      if (input.type === "purchase_invoice") {
+        const duplicateExpense = await client.query<{ id: string }>(
+          `select id from expenses
+           where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5`,
+          [
+            context.organizationId,
+            input.partyId,
+            input.documentDate,
+            input.grossMinor,
+            input.currency,
+          ],
+        );
+        if (duplicateExpense.rows.length > 0) {
+          throw new Error("DUPLICATE_DOCUMENT");
+        }
+      }
+
       const id = input.id ?? randomUUID();
       if (input.type === "credit_note")
         await this.assertCreditAllowed(client, context.organizationId, input);
       await client.query(
         `insert into commercial_documents
          (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,
-          currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,created_by)
-         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+          currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,reason,created_by)
+         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
         [
           context.organizationId,
           id,
@@ -122,6 +369,7 @@ export class PgCommercialDocumentStore {
           input.grossMinor,
           input.controlAccountCode,
           input.originalDocumentId ?? null,
+          input.reason ?? null,
           context.actorId,
         ],
       );
@@ -163,6 +411,25 @@ export class PgCommercialDocumentStore {
             ],
           );
       }
+
+      if (input.externalReference) {
+        await client.query(
+          `insert into external_references
+           (organization_id, system, external_id, document_id, canonical_url, checksum, version, metadata)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            context.organizationId,
+            input.externalReference.system,
+            input.externalReference.externalId,
+            id,
+            input.externalReference.canonicalUrl ?? null,
+            input.externalReference.checksum ?? null,
+            input.externalReference.version ?? null,
+            input.externalReference.metadata ?? {},
+          ],
+        );
+      }
+
       const auditEventId = randomUUID();
       const outboxEventId = randomUUID();
       await client.query(
@@ -205,6 +472,277 @@ export class PgCommercialDocumentStore {
         context.organizationId,
         idempotencyKey,
         "commercial-document:create",
+        requestHash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async update(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    merged: CreateCommercialDocumentInput,
+    idempotencyKey: string,
+  ) {
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({ expectedVersion, input: merged }))
+      .digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        requestHash,
+      );
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+
+      const existingResult = await client.query<{ state: string; version: string }>(
+        `select state, version from commercial_documents
+         where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const existing = existingResult.rows[0];
+      if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+      if (existing.state !== "draft") throw new Error("INVALID_STATE_TRANSITION");
+      if (existing.version.toString() !== expectedVersion) throw new Error("VERSION_CONFLICT");
+
+      const extRefRows = await client.query<{
+        system: string;
+        external_id: string;
+      }>(
+        "select system, external_id from external_references where organization_id=$1 and document_id=$2 for update",
+        [context.organizationId, id],
+      );
+      const existingExtRef = extRefRows.rows[0];
+
+      if (merged.externalReference) {
+        const extRefResult = await client.query<{
+          document_id: string | null;
+          expense_id: string | null;
+        }>(
+          "select document_id, expense_id from external_references where organization_id=$1 and system=$2 and external_id=$3 for update",
+          [
+            context.organizationId,
+            merged.externalReference.system,
+            merged.externalReference.externalId,
+          ],
+        );
+        const extRef = extRefResult.rows[0];
+        if (extRef) {
+          if (extRef.expense_id || (extRef.document_id && extRef.document_id !== id)) {
+            throw new Error("DUPLICATE_DOCUMENT");
+          }
+        }
+      }
+
+      const duplicateResult = await client.query<{ id: string }>(
+        `select id from commercial_documents
+         where organization_id=$1 and type=$2 and party_id=$3 and document_number=$4 and document_date=$5 and gross_minor=$6 and currency=$7 and id<>$8`,
+        [
+          context.organizationId,
+          merged.type,
+          merged.partyId,
+          merged.documentNumber,
+          merged.documentDate,
+          merged.grossMinor,
+          merged.currency,
+          id,
+        ],
+      );
+      if (duplicateResult.rows.length > 0) {
+        throw new Error("DUPLICATE_DOCUMENT");
+      }
+
+      if (merged.type === "purchase_invoice") {
+        const duplicateExpense = await client.query<{ id: string }>(
+          `select id from expenses
+           where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5`,
+          [
+            context.organizationId,
+            merged.partyId,
+            merged.documentDate,
+            merged.grossMinor,
+            merged.currency,
+          ],
+        );
+        if (duplicateExpense.rows.length > 0) {
+          throw new Error("DUPLICATE_DOCUMENT");
+        }
+      }
+
+      if (merged.type === "credit_note") {
+        await this.assertCreditAllowed(client, context.organizationId, merged, id);
+      }
+
+      await client.query(
+        "delete from commercial_document_allocations where organization_id=$1 and document_id=$2",
+        [context.organizationId, id],
+      );
+      await client.query(
+        "delete from commercial_document_lines where organization_id=$1 and document_id=$2",
+        [context.organizationId, id],
+      );
+
+      if (merged.externalReference) {
+        if (
+          existingExtRef &&
+          (existingExtRef.system !== merged.externalReference.system ||
+            existingExtRef.external_id !== merged.externalReference.externalId)
+        ) {
+          await client.query(
+            "delete from external_references where organization_id=$1 and system=$2 and external_id=$3",
+            [context.organizationId, existingExtRef.system, existingExtRef.external_id],
+          );
+        }
+        await client.query(
+          `insert into external_references
+           (organization_id, system, external_id, document_id, canonical_url, checksum, version, metadata)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)
+           on conflict (organization_id, system, external_id) do update set
+             document_id=excluded.document_id,
+             canonical_url=excluded.canonical_url,
+             checksum=excluded.checksum,
+             version=excluded.version,
+             metadata=excluded.metadata,
+             synced_at=now(),
+             updated_at=now()`,
+          [
+            context.organizationId,
+            merged.externalReference.system,
+            merged.externalReference.externalId,
+            id,
+            merged.externalReference.canonicalUrl ?? null,
+            merged.externalReference.checksum ?? null,
+            merged.externalReference.version ?? null,
+            merged.externalReference.metadata ?? {},
+          ],
+        );
+      }
+
+      const newVersion = BigInt(existing.version) + 1n;
+      await client.query(
+        `update commercial_documents set
+          document_number=$3, series=$4, fiscal_year=$5, party_id=$6, document_date=$7, due_date=$8,
+          currency=$9, net_minor=$10, tax_minor=$11, gross_minor=$12, control_account_code=$13,
+          original_document_id=$14, reason=$15, version=$16, updated_at=now()
+         where organization_id=$1 and id=$2`,
+        [
+          context.organizationId,
+          id,
+          merged.documentNumber,
+          merged.series ?? null,
+          merged.fiscalYear,
+          merged.partyId,
+          merged.documentDate,
+          merged.dueDate,
+          merged.currency,
+          merged.netMinor,
+          merged.taxMinor,
+          merged.grossMinor,
+          merged.controlAccountCode,
+          merged.originalDocumentId ?? null,
+          merged.reason ?? null,
+          newVersion,
+        ],
+      );
+
+      for (const [lineIndex, line] of merged.lines.entries()) {
+        await client.query(
+          `insert into commercial_document_lines
+           (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
+            primary_account_code,tax_account_code,tax_code,dimensions)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [
+            context.organizationId,
+            id,
+            lineIndex + 1,
+            line.originalLineNumber ?? null,
+            line.description,
+            line.quantity,
+            line.unitPriceMinor,
+            line.netMinor,
+            line.taxMinor,
+            line.grossMinor,
+            line.primaryAccountCode,
+            line.taxAccountCode ?? null,
+            line.taxCode ?? null,
+            line.dimensions ?? {},
+          ],
+        );
+        for (const [allocationIndex, allocation] of line.allocations.entries()) {
+          await client.query(
+            `insert into commercial_document_allocations
+             (organization_id,document_id,line_number,allocation_number,amount_minor,dimensions)
+             values ($1,$2,$3,$4,$5,$6)`,
+            [
+              context.organizationId,
+              id,
+              lineIndex + 1,
+              allocationIndex + 1,
+              allocation.amountMinor,
+              { ...allocation.dimensions, allocationId: allocation.id },
+            ],
+          );
+        }
+      }
+
+      const auditEventId = randomUUID();
+      const outboxEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events
+         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)
+         values ($1,$2,'commercial_document',$3,$4,'update',$5,$6,$7)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          newVersion,
+          context.actorId,
+          context.correlationId,
+          { type: merged.type, state: "draft" },
+        ],
+      );
+      await client.query(
+        `insert into outbox_events
+         (organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+         values ($1,$2,'commercial_document',$3,$4,1,$5,$6)`,
+        [
+          context.organizationId,
+          outboxEventId,
+          id,
+          `${merged.type}.updated`,
+          { documentId: id, type: merged.type, state: "draft" },
+          context.correlationId,
+        ],
+      );
+
+      const response = {
+        documentId: id,
+        type: merged.type,
+        state: "draft",
+        resourceVersion: newVersion.toString(),
+        auditEventId,
+        outboxEventId,
+        nextActions: this.nextActions(merged.type, "draft"),
+      };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        "commercial-document:update",
         requestHash,
         response,
       );
@@ -413,6 +951,7 @@ export class PgCommercialDocumentStore {
     client: PoolClient,
     organizationId: string,
     input: CreateCommercialDocumentInput,
+    excludeDocumentId?: string,
   ) {
     await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
       `${organizationId}:credit:${input.originalDocumentId}`,
@@ -441,8 +980,8 @@ export class PgCommercialDocumentStore {
     const credited = await client.query<{ net: string; tax: string }>(
       `select coalesce(sum(net_minor),0)::text net,coalesce(sum(tax_minor),0)::text tax
       from commercial_documents where organization_id=$1 and type='credit_note' and original_document_id=$2
-        and state not in ('cancelled')`,
-      [organizationId, input.originalDocumentId],
+        and state not in ('cancelled') and ($3::text is null or id<>$3)`,
+      [organizationId, input.originalDocumentId, excludeDocumentId ?? null],
     );
     if (
       BigInt(credited.rows[0]!.net) + BigInt(input.netMinor) > BigInt(row.net_minor) ||
@@ -473,8 +1012,14 @@ export class PgCommercialDocumentStore {
          from commercial_document_lines l join commercial_documents d
            on d.organization_id=l.organization_id and d.id=l.document_id
          where d.organization_id=$1 and d.type='credit_note' and d.original_document_id=$2
-           and d.state<>'cancelled' and l.original_line_number=$3`,
-        [organizationId, input.originalDocumentId, line.originalLineNumber],
+           and d.state<>'cancelled' and l.original_line_number=$3
+           and ($4::text is null or d.id<>$4)`,
+        [
+          organizationId,
+          input.originalDocumentId,
+          line.originalLineNumber,
+          excludeDocumentId ?? null,
+        ],
       );
       if (
         BigInt(prior.rows[0]!.net) + BigInt(line.netMinor) > BigInt(source.net_minor) ||

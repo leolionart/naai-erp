@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1.7
+FROM node:22.21.1-bookworm-slim
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV NODE_ENV=production
+WORKDIR /workspace
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY scripts/setup-hooks.mjs scripts/setup-hooks.mjs
+COPY packages/database/package.json packages/database/package.json
+RUN pnpm install --frozen-lockfile --filter @naai-erp/database...
+COPY packages/database packages/database
+COPY db/migrations db/migrations
+RUN chown -R node:node /workspace
+USER node
+CMD ["pnpm", "--filter", "@naai-erp/database", "db:migrate"]

@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { ModulePage } from "@/components/layout/module-page";
-import { ModuleWorkspace } from "../../module-workspace";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FocusedRecordListWorkspace } from "../../workspaces/focused-record-workspaces";
 
 export default function DocumentsPage() {
   return (
@@ -8,7 +10,9 @@ export default function DocumentsPage() {
       section="Tài chính"
       description="Quản lý hóa đơn đầu ra, đầu vào và credit note với lifecycle được kiểm soát."
     >
-      <ModuleWorkspace moduleKey="documents" />
+      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <FocusedRecordListWorkspace kind="documents" />
+      </Suspense>
     </ModulePage>
   );
 }

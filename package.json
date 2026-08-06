@@ -22,6 +22,7 @@
     "test:docs": "node scripts/verify-docs.mjs",
     "test:security-baseline": "node scripts/verify-security-baseline.mjs",
     "test:fixtures": "node scripts/verify-golden-fixtures.mjs",
+    "test:release": "node scripts/verify-release-workflow.mjs",
     "test:e2e": "pnpm --filter @naai-erp/web test:e2e",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:docs && pnpm test:security-baseline && pnpm test:fixtures && pnpm test && pnpm build",
     "db:generate": "pnpm --filter @naai-erp/database db:generate",

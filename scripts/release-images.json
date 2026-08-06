@@ -1,0 +1,26 @@
+{
+  "registry": "ghcr.io",
+  "namespace": "leolionart",
+  "images": [
+    {
+      "name": "naai-erp-api",
+      "dockerfile": "docker/Dockerfile.api",
+      "context": "."
+    },
+    {
+      "name": "naai-erp-web",
+      "dockerfile": "docker/Dockerfile.web",
+      "context": "."
+    },
+    {
+      "name": "naai-erp-worker",
+      "dockerfile": "docker/Dockerfile.worker",
+      "context": "."
+    },
+    {
+      "name": "naai-erp-migrate",
+      "dockerfile": "docker/Dockerfile.migrate",
+      "context": "."
+    }
+  ]
+}

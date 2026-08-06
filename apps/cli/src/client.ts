@@ -136,6 +136,7 @@ export class NaaiErpClient {
     const isExecutiveMetric = resource === "executive-metrics";
     const isReportSnapshot = resource === "report-snapshots";
     const isAccountantExport = resource === "accountant-exports";
+    const isWorkbookImport = resource === "workbook-imports";
     if (isInboundEvent && !["list", "get"].includes(action))
       throw new Error("Inbound events are read-only admin resources");
     const forecastKey = () => {
@@ -152,7 +153,7 @@ export class NaaiErpClient {
         );
       return { forecastId, componentId };
     };
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isReportSnapshot || isAccountantExport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isOverheadPolicy ? "overhead-allocation-policies" : isOverheadSourcePool ? "overhead-source-pools" : isOverheadRun ? "overhead-allocation-runs" : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isOverheadPolicy ? "overhead-allocation-policies" : isOverheadSourcePool ? "overhead-source-pools" : isOverheadRun ? "overhead-allocation-runs" : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       isForecastComponent && action === "delete"
         ? "DELETE"
@@ -459,22 +460,24 @@ export class NaaiErpClient {
                                                                                           ? `${base}/${key}/${action}`
                                                                                           : isReport
                                                                                             ? `${base}/${action}`
-                                                                                            : isOpeningBalance &&
-                                                                                                action ===
-                                                                                                  "dry-run"
-                                                                                              ? `${base}/dry-run`
-                                                                                              : isPeriodWorkflow
-                                                                                                ? `${base}/${action}`
-                                                                                                : action ===
-                                                                                                    "deactivate"
-                                                                                                  ? `${base}/${key}/deactivate`
+                                                                                            : isWorkbookImport
+                                                                                              ? `${base}/${action}`
+                                                                                              : isOpeningBalance &&
+                                                                                                  action ===
+                                                                                                    "dry-run"
+                                                                                                ? `${base}/dry-run`
+                                                                                                : isPeriodWorkflow
+                                                                                                  ? `${base}/${action}`
                                                                                                   : action ===
-                                                                                                      "import"
-                                                                                                    ? `${base}/import/dry-run`
+                                                                                                      "deactivate"
+                                                                                                    ? `${base}/${key}/deactivate`
                                                                                                     : action ===
-                                                                                                        "export"
-                                                                                                      ? `${base}/export`
-                                                                                                      : base;
+                                                                                                        "import"
+                                                                                                      ? `${base}/import/dry-run`
+                                                                                                      : action ===
+                                                                                                          "export"
+                                                                                                        ? `${base}/export`
+                                                                                                        : base;
     const queryPayload =
       isFinancialStatementDrilldown && payload && typeof payload === "object"
         ? (() => {

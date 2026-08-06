@@ -1,6 +1,7 @@
 export type InboundEnvelope = Readonly<{
   schemaVersion: number;
-  eventType: "sales_invoice.create" | "purchase_invoice.create" | "expense.create";
+  eventType:
+    "sales_invoice.create" | "purchase_invoice.create" | "expense.create" | "credit_note.create";
   externalId: string;
   occurredAt: string;
   data: Readonly<Record<string, unknown>>;
@@ -27,9 +28,12 @@ export function validateInboundEnvelope(value: unknown): InboundEnvelope {
   const input = value as Record<string, unknown>;
   if (input.schemaVersion !== INBOUND_SCHEMA_VERSION) throw new Error("WEBHOOK_SCHEMA_UNSUPPORTED");
   if (
-    !["sales_invoice.create", "purchase_invoice.create", "expense.create"].includes(
-      String(input.eventType),
-    )
+    ![
+      "sales_invoice.create",
+      "purchase_invoice.create",
+      "expense.create",
+      "credit_note.create",
+    ].includes(String(input.eventType))
   )
     throw new Error("WEBHOOK_EVENT_UNMAPPED");
   if (

@@ -158,7 +158,7 @@ test("@desktop keeps AR and AP as separate queues and persists report filters in
     )
     .toBe(true);
 
-  await page.getByRole("link", { name: "Phải trả" }).click();
+  await page.locator("main").getByRole("link", { name: "Phải trả", exact: true }).click();
   await expect(page).toHaveURL(/\/payables/);
   await expect(page.getByRole("link", { name: "Cloud Vendor" }).first()).toBeVisible();
   await expect(page.getByText("supplier_advance")).toBeVisible();

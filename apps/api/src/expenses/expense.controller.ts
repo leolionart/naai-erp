@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { ExpenseService } from "./expense.service.js";
 import type { CreateExpenseInput, ExpenseReviewInput } from "./expense.types.js";
@@ -30,6 +30,23 @@ export class ExpenseController {
     @Headers("x-correlation-id") corr?: string,
   ) {
     return this.service.get(await this.context(org, auth, corr), id);
+  }
+  @Patch(":id") async update(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: Partial<CreateExpenseInput>,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.update(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input,
+      key,
+    );
   }
   @Post() async create(
     @Param("organizationId") org: string,

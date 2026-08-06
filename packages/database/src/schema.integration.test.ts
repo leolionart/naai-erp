@@ -265,6 +265,40 @@ describeDatabase("ERP-100 database tenant constraints", () => {
     ).rejects.toMatchObject({ code: "42501" });
   });
 
+  it("enforces uniqueness on external_references organization, system, and externalId", async () => {
+    await pool!.query(`
+      insert into commercial_documents
+        (organization_id, id, type, state, document_number, fiscal_year, party_id, document_date, due_date, currency, net_minor, tax_minor, gross_minor, control_account_code, created_by)
+      values ('org-a', 'external-ref-doc-a', 'purchase_invoice', 'draft', 'EXT-REF-A', 2026, 'party-client', '2026-08-05', '2026-08-05', 'VND', 100, 0, 100, '111', 'user-a');
+      insert into external_references (organization_id, system, external_id, document_id)
+      values ('org-a', 'paperless', 'ext-1', 'external-ref-doc-a');
+    `);
+
+    await expect(
+      pool!.query(`
+        insert into external_references (organization_id, system, external_id, document_id)
+        values ('org-a', 'paperless', 'ext-1', 'external-ref-doc-a');
+      `),
+    ).rejects.toMatchObject({ code: "23505" });
+
+    await pool!.query(`
+      insert into organizations (id, legal_name, base_currency, timezone)
+      values ('org-c', 'Organization C', 'VND', 'Asia/Ho_Chi_Minh');
+    `);
+
+    await pool!.query(`
+      insert into accounts (organization_id, code, name, root_type)
+      values ('org-c', '111', 'Cash', 'asset');
+      insert into parties (organization_id, id, display_name)
+      values ('org-c', 'party-c', 'Client C');
+      insert into commercial_documents
+        (organization_id, id, type, state, document_number, fiscal_year, party_id, document_date, due_date, currency, net_minor, tax_minor, gross_minor, control_account_code, created_by)
+      values ('org-c', 'doc-c', 'purchase_invoice', 'draft', 'INV-C', 2026, 'party-c', '2026-08-05', '2026-08-05', 'VND', 100, 0, 100, '111', 'user-a');
+      insert into external_references (organization_id, system, external_id, document_id)
+      values ('org-c', 'paperless', 'ext-1', 'doc-c');
+    `);
+  });
+
   it("enforces ERP-400 bank source uniqueness tenant ownership and append-only history", async () => {
     await pool!.query(`
       insert into accounts (organization_id,code,name,root_type)

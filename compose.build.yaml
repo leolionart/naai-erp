@@ -1,0 +1,24 @@
+services:
+  migrate:
+    image: naai-erp-migrate:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.migrate
+
+  api:
+    image: naai-erp-api:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+
+  worker:
+    image: naai-erp-worker:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+
+  web:
+    image: naai-erp-web:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web

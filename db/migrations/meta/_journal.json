@@ -225,6 +225,13 @@
       "when": 1785988562994,
       "tag": "0031_deep_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785995653541,
+      "tag": "0032_ambiguous_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }

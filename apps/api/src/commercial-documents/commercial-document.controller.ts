@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import type {
@@ -20,6 +20,7 @@ export class CommercialDocumentController {
     @Query("type") type?: string,
     @Query("state") state?: string,
     @Query("partyId") partyId?: string,
+    @Query("projectId") projectId?: string,
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
@@ -28,6 +29,7 @@ export class CommercialDocumentController {
       type,
       state,
       partyId,
+      projectId,
     );
   }
   @Get(":id")
@@ -38,6 +40,24 @@ export class CommercialDocumentController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return this.service.get(await this.context(organizationId, authorization, correlationId), id);
+  }
+  @Patch(":id")
+  async update(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: Partial<CreateCommercialDocumentInput>,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.update(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input,
+      idempotencyKey,
+    );
   }
   @Post()
   async create(

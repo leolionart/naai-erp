@@ -25,6 +25,16 @@ export type CommercialDocumentLineInput = Readonly<{
   allocations: readonly DocumentAllocationInput[];
 }>;
 
+export type ExternalReferenceInput = Readonly<{
+  system: string;
+  externalId: string;
+  canonicalUrl?: string;
+  checksum?: string;
+  version?: string;
+  syncedAt?: string;
+  metadata?: Readonly<Record<string, unknown>>;
+}>;
+
 export type CreateCommercialDocumentInput = Readonly<{
   id?: string;
   type: CommercialDocumentType;
@@ -42,6 +52,9 @@ export type CreateCommercialDocumentInput = Readonly<{
   originalDocumentId?: string;
   reason?: string;
   lines: readonly CommercialDocumentLineInput[];
+  externalReference?: ExternalReferenceInput;
 }>;
+
+export type UpdateCommercialDocumentInput = Partial<CreateCommercialDocumentInput>;
 
 export type CommercialDocumentContext = JournalActorContext;

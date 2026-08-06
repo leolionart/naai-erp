@@ -845,7 +845,7 @@ tasks:
   - id: ERP-710
     title: External invoice ingestion and Paperless identity
     phase: P7
-    status: ready
+    status: review
     dependencies: [ERP-700]
     business_rules: [BR-MVP-001, BR-MVP-002]
     tests: [T-MVP-API-001, T-MVP-API-002]
@@ -855,7 +855,7 @@ tasks:
   - id: ERP-720
     title: Focused invoice and expense admin UI
     phase: P7
-    status: blocked
+    status: review
     dependencies: [ERP-710]
     business_rules: [BR-MVP-003]
     tests: [T-MVP-UI-001, T-MVP-UI-002]
@@ -864,7 +864,7 @@ tasks:
   - id: ERP-730
     title: MVP reports and clean-install setup
     phase: P7
-    status: blocked
+    status: review
     dependencies: [ERP-720]
     business_rules: [BR-MVP-004]
     tests: [T-MVP-RPT-001, T-MVP-RPT-002]
@@ -873,7 +873,7 @@ tasks:
   - id: ERP-740
     title: Docker release and real-data import
     phase: P7
-    status: blocked
+    status: review
     dependencies: [ERP-730]
     business_rules: [BR-MVP-005]
     tests: [T-MVP-CMP-001, T-MVP-REL-001, T-MVP-IMPORT-001]

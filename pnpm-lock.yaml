@@ -117,6 +117,9 @@ importers:
       '@naai-erp/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      exceljs:
+        specifier: 4.4.0
+        version: 4.4.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
