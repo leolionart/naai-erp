@@ -23,7 +23,7 @@ pnpm dev:preview
 - API live: http://localhost:3001/health/live
 - API ready: http://localhost:3001/health/ready
 
-The current preview does not require a database. Features that persist data will require a PostgreSQL `DATABASE_URL`, but still run as native development processes; production Docker image builds belong to Gate G8.
+The current preview does not require a database. Features that persist data require a PostgreSQL `DATABASE_URL`, but still run as native development processes. Production Docker images and Compose release proof belong to active MVP task ERP-740.
 
 ## AI-native API and CLI
 
@@ -47,10 +47,9 @@ Supported resource families and operations are documented in [OpenAPI v1](./docs
 ## Documentation
 
 - [Sequential Coding Plan](./docs/planning/NAAI%20ERP%20-%20Sequential%20Coding%20Plan.md)
-- [Product Discovery and Development Plan](./docs/planning/NAAI%20ERP%20-%20Product%20Discovery%20and%20Development%20Plan.md)
 - [Business Rules Catalog](./docs/product/business-rules.md)
 - [Executable Test Specification](./docs/testing/test-specification.md)
 - [Overnight Codex Runbook](./docs/agent/overnight-runbook.md)
 - [Machine-readable Task Ledger](./docs/implementation/task-ledger.yaml)
 
-The sequential coding plan is the implementation source of truth. Historical enterprise scope is deferred unless the owner explicitly reactivates it.
+The sequential coding plan is the implementation source of truth. Scope not registered there is not part of the MVP release.

@@ -81,7 +81,6 @@
     "evidence/review",
     "evidence/download-url",
     "inbound-events/receive",
-    "inbound-events/replay",
     "banking/accounts/create",
     "banking/accounts/deactivate",
     "banking/imports/dry-run",
@@ -563,11 +562,6 @@
     "/api/v1/organizations/{organizationId}/inbound-events/{messageId}": {
       "get": {
         "summary": "Read inbound metadata immutable raw payload hash and append-only attempt history"
-      }
-    },
-    "/api/v1/organizations/{organizationId}/inbound-events/{messageId}/replay": {
-      "post": {
-        "summary": "Replay an authenticated quarantined or dead-letter event with privileged reason and audit"
       }
     },
     "/api/v1/organizations/{organizationId}/banking/accounts": {

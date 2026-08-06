@@ -133,42 +133,8 @@ export class InboundWebhookService {
     if (!item) throw new Error("RESOURCE_NOT_FOUND");
     return this.envelope(context.organizationId, context.correlationId, item);
   }
-  async replay(
-    context: InboundAdminContext,
-    id: string,
-    input: { reason?: string; correctedEnvelope?: Record<string, unknown> },
-    key?: string,
-  ) {
-    if (!context.roles.some((role) => ADMIN.has(role))) throw new Error("FORBIDDEN");
-    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
-    const replay = await this.store.replayPayload(
-      context,
-      id,
-      input.reason,
-      input.correctedEnvelope,
-    );
-    const source = await this.store.sourceById(context.organizationId, replay.sourceId);
-    if (!source) throw new Error("RESOURCE_NOT_FOUND");
-    const envelope = validateInboundEnvelope(replay.payload);
-    const raw = Buffer.from(JSON.stringify(replay.payload));
-    return this.process(
-      {
-        source,
-        envelope,
-        rawPayload: replay.payload,
-        payloadSha256: createHash("sha256").update(raw).digest("hex"),
-        timestamp: Math.floor(Date.now() / 1000),
-        idempotencyKey: `replay:${id}:${key}`,
-        correlationId: context.correlationId,
-      },
-      id,
-    );
-  }
-  private async process(input: VerifiedInbound, existingMessageId?: string) {
-    const received = existingMessageId
-      ? { messageId: existingMessageId, state: "quarantined", idempotencyReplayed: false }
-      : await this.store.receive(input);
+  private async process(input: VerifiedInbound) {
+    const received = await this.store.receive(input);
     if (received.idempotencyReplayed)
       return this.envelope(input.source.organizationId, input.correlationId, received);
     try {

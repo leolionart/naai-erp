@@ -2,18 +2,7 @@ export const NAVIGATION_STATUSES = ["available", "preview", "planned"] as const;
 export type NavigationStatus = (typeof NAVIGATION_STATUSES)[number];
 
 export type NavigationIcon =
-  | "overview"
-  | "folder"
-  | "ledger"
-  | "invoice"
-  | "expense"
-  | "evidence"
-  | "inbox"
-  | "bank"
-  | "project"
-  | "forecast"
-  | "report"
-  | "settings";
+  "overview" | "folder" | "ledger" | "invoice" | "expense" | "bank" | "report";
 
 export type NavigationItem = Readonly<{
   key: string;
@@ -92,9 +81,17 @@ export const adminNavigation = [
       },
       {
         key: "receivables",
-        label: "Công nợ",
+        label: "Phải thu",
         href: "/receivables",
-        description: "Tuổi nợ phải thu, phải trả và đối chiếu tài khoản kiểm soát.",
+        description: "Tuổi nợ khách hàng và đối chiếu tài khoản phải thu.",
+        icon: "report",
+        status: "available",
+      },
+      {
+        key: "payables",
+        label: "Phải trả",
+        href: "/payables",
+        description: "Hạn thanh toán nhà cung cấp và đối chiếu tài khoản phải trả.",
         icon: "report",
         status: "available",
       },
@@ -107,10 +104,10 @@ export const adminNavigation = [
         status: "available",
       },
       {
-        key: "executive-metrics",
-        label: "Chỉ số điều hành",
-        href: "/reports/executive-metrics",
-        description: "Equity consumed, burn, runway, ROS, ROE, ROA và ROI theo mục đích.",
+        key: "performance",
+        label: "Hiệu suất kế hoạch",
+        href: "/reports/performance",
+        description: "Actual vs target, MoM, YoY và forecast variance.",
         icon: "report",
         status: "available",
       },
@@ -119,114 +116,6 @@ export const adminNavigation = [
         label: "Xuất dữ liệu kế toán",
         href: "/reports/accountant-exports",
         description: "Snapshot bất biến và file CSV/XLSX bàn giao cho kế toán.",
-        icon: "report",
-        status: "available",
-      },
-    ],
-  },
-  {
-    key: "operations",
-    label: "Vận hành",
-    items: [
-      {
-        key: "evidence",
-        label: "Chứng từ",
-        href: "/evidence",
-        description: "Phiên bản file, review và signed download.",
-        icon: "evidence",
-        status: "available",
-      },
-      {
-        key: "integrations",
-        label: "Tích hợp",
-        href: "/integrations/inbound",
-        description: "Inbound inbox và outbound delivery controls.",
-        icon: "inbox",
-        status: "available",
-      },
-      {
-        key: "projects",
-        label: "Dự án",
-        href: "/projects",
-        description: "Timesheet, ngân sách và profitability.",
-        icon: "project",
-        status: "planned",
-      },
-      {
-        key: "timesheets",
-        label: "Thời gian",
-        href: "/timesheets",
-        description: "Timesheet, approval và năng lực khả dụng.",
-        icon: "project",
-        status: "available",
-      },
-      {
-        key: "cost-rates",
-        label: "Chi phí nhân sự",
-        href: "/settings/cost-rates",
-        description: "Phiên bản cost rate có hiệu lực và kiểm soát truy cập.",
-        icon: "settings",
-        status: "available",
-      },
-      {
-        key: "project-costs",
-        label: "Chi phí dự án",
-        href: "/project-costs/unallocated",
-        description: "Phân bổ direct cost và drill-down chi phí theo dự án.",
-        icon: "project",
-        status: "available",
-      },
-      {
-        key: "project-revenue",
-        label: "Ngân sách & doanh thu",
-        href: "/revenue-recognition",
-        description: "Budget, scope change, milestone và revenue recognition.",
-        icon: "forecast",
-        status: "available",
-      },
-      {
-        key: "overhead",
-        label: "Phân bổ overhead",
-        href: "/overhead/runs",
-        description: "Policy, source pool và allocation run có kiểm soát.",
-        icon: "report",
-        status: "available",
-      },
-    ],
-  },
-  {
-    key: "planning",
-    label: "Kế hoạch",
-    items: [
-      {
-        key: "forecast",
-        label: "Dự báo",
-        href: "/forecast",
-        description: "Target, scenario và doanh thu dự kiến.",
-        icon: "forecast",
-        status: "available",
-      },
-      {
-        key: "forecast-composition",
-        label: "Dự báo dòng tiền",
-        href: "/forecast/composition",
-        description: "Cấu phần doanh thu, chi phí và projected closing cash.",
-        icon: "forecast",
-        status: "available",
-      },
-      {
-        key: "reports",
-        label: "Lợi nhuận dự án",
-        href: "/reports/project-profitability",
-        description: "Gross, contribution và fully loaded margin theo dự án.",
-        icon: "report",
-        status: "available",
-      },
-      {
-        key: "performance",
-        label: "Hiệu suất kế hoạch",
-        href: "/reports/performance",
-        description: "Actual vs target, MoM, YoY và forecast variance.",
         icon: "report",
         status: "available",
       },

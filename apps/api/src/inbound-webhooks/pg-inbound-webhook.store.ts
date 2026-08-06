@@ -1,11 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
-import type {
-  InboundAdminContext,
-  IntegrationSource,
-  VerifiedInbound,
-} from "./inbound-webhook.types.js";
+import type { IntegrationSource, VerifiedInbound } from "./inbound-webhook.types.js";
 
 @Injectable()
 export class PgInboundWebhookStore {
@@ -38,13 +34,6 @@ export class PgInboundWebhookStore {
       timestampToleranceSeconds: row.timestamp_tolerance_seconds,
       maxAttempts: row.max_attempts,
     } satisfies IntegrationSource;
-  }
-  async sourceById(org: string, id: string) {
-    const result = await this.pool.query<{ public_id: string }>(
-      "select public_id from integration_sources where organization_id=$1 and id=$2",
-      [org, id],
-    );
-    return result.rows[0] ? this.source(result.rows[0].public_id) : undefined;
   }
   async receive(input: VerifiedInbound) {
     const client = await this.pool.connect();
@@ -213,50 +202,5 @@ export class PgInboundWebhookStore {
       [org, id],
     );
     return { ...message.rows[0], attempts: attempts.rows };
-  }
-  async replayPayload(
-    context: InboundAdminContext,
-    id: string,
-    reason: string,
-    corrected?: Record<string, unknown>,
-  ) {
-    const client = await this.pool.connect();
-    try {
-      await client.query("begin");
-      const row = await client.query<{
-        source_id: string;
-        raw_payload: Record<string, unknown>;
-        state: string;
-      }>(
-        "select source_id,raw_payload,state from inbound_messages where organization_id=$1 and id=$2 for update",
-        [context.organizationId, id],
-      );
-      if (!row.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
-      if (!["quarantined", "retry_scheduled", "dead_letter"].includes(row.rows[0].state))
-        throw new Error("WEBHOOK_REPLAY_NOT_ALLOWED");
-      if (corrected)
-        await client.query(
-          "update inbound_messages set corrected_payload=$3,updated_at=now() where organization_id=$1 and id=$2",
-          [context.organizationId, id, corrected],
-        );
-      await client.query(
-        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'inbound_message',$3,1,'replay_requested',$4,$5,$6)`,
-        [
-          context.organizationId,
-          randomUUID(),
-          id,
-          context.actorId,
-          context.correlationId,
-          { reason, corrected: Boolean(corrected) },
-        ],
-      );
-      await client.query("commit");
-      return { sourceId: row.rows[0].source_id, payload: corrected ?? row.rows[0].raw_payload };
-    } catch (e) {
-      await client.query("rollback");
-      throw e;
-    } finally {
-      client.release();
-    }
   }
 }

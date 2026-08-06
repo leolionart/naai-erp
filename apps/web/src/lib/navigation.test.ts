@@ -11,21 +11,35 @@ describe("typed admin navigation", () => {
     expect(new Set(items.map((item) => item.key)).size).toBe(items.length);
   });
 
-  it("finds modules and distinguishes planned destinations", () => {
+  it("exposes only the narrowed MVP destinations", () => {
     expect(findNavigationItem("ledger")?.href).toBe("/accounting/journals");
     expect(isNavigationAvailable(findNavigationItem("ledger")!)).toBe(true);
     expect(findNavigationItem("banking")?.href).toBe("/banking");
     expect(isNavigationAvailable(findNavigationItem("banking")!)).toBe(true);
-    expect(isNavigationAvailable(findNavigationItem("forecast")!)).toBe(true);
-    expect(isNavigationAvailable(findNavigationItem("forecast-composition")!)).toBe(true);
     expect(findNavigationItem("performance")?.href).toBe("/reports/performance");
     expect(isNavigationAvailable(findNavigationItem("performance")!)).toBe(true);
     expect(findNavigationItem("financial-statements")?.href).toBe("/reports/financial-statements");
     expect(isNavigationAvailable(findNavigationItem("financial-statements")!)).toBe(true);
-    expect(findNavigationItem("executive-metrics")?.href).toBe("/reports/executive-metrics");
-    expect(isNavigationAvailable(findNavigationItem("executive-metrics")!)).toBe(true);
+    expect(findNavigationItem("receivables")?.href).toBe("/receivables");
+    expect(findNavigationItem("payables")?.href).toBe("/payables");
     expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
     expect(isNavigationAvailable(findNavigationItem("accountant-exports")!)).toBe(true);
+    for (const hidden of [
+      "evidence",
+      "integrations",
+      "projects",
+      "timesheets",
+      "cost-rates",
+      "project-costs",
+      "project-revenue",
+      "overhead",
+      "forecast",
+      "forecast-composition",
+      "reports",
+      "executive-metrics",
+    ]) {
+      expect(findNavigationItem(hidden)).toBeUndefined();
+    }
     expect(findNavigationItem("missing")).toBeUndefined();
   });
 });

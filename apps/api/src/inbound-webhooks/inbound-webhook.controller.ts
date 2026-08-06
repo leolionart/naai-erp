@@ -41,15 +41,4 @@ export class InboundWebhookController {
     const context = await this.service.authenticate(auth, org, correlationId ?? randomUUID());
     return this.service.get(context, id);
   }
-  @Post("api/v1/organizations/:organizationId/inbound-events/:id/replay") async replay(
-    @Param("organizationId") org: string,
-    @Param("id") id: string,
-    @Body() body: { reason?: string; correctedEnvelope?: Record<string, unknown> },
-    @Headers("authorization") auth?: string,
-    @Headers("idempotency-key") key?: string,
-    @Headers("x-correlation-id") correlationId?: string,
-  ) {
-    const context = await this.service.authenticate(auth, org, correlationId ?? randomUUID());
-    return this.service.replay(context, id, body, key);
-  }
 }

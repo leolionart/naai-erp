@@ -1,5 +1,7 @@
 # Outbound events admin API v1
 
+> Retained compatibility contract for the completed transactional-outbox module. It is not an active invoice-MVP workstream and must not be added to primary MVP navigation unless the owner reactivates it.
+
 ERP-340 exposes operational readback and controlled replay for the transactional outbox. Business services create outbox rows in the same PostgreSQL transaction as their financial mutation. The admin API never publishes an event directly and never edits the immutable event payload.
 
 ## Routes

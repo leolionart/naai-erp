@@ -114,4 +114,4 @@ Produce a concise summary:
 - A task is complete only when Definition of Done is satisfied.
 - A phase is complete only when its gate passes.
 - A product is not complete because code generation stopped.
-- Release readiness requires exact-image tests, Compose deployment, migration/restore and rollback evidence.
+- MVP release readiness requires exact-commit CI, healthy persistent Compose startup, verified `main` and immutable SHA images, and exact workbook-import reconciliation.

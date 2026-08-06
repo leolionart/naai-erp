@@ -6,15 +6,10 @@ import {
   BanknoteIcon,
   BookOpenIcon,
   BoxesIcon,
-  ChartNoAxesCombinedIcon,
-  FileArchiveIcon,
   FileTextIcon,
-  FolderKanbanIcon,
   GaugeIcon,
-  InboxIcon,
   MenuIcon,
   ReceiptTextIcon,
-  SettingsIcon,
   WalletCardsIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -31,13 +26,8 @@ const icons = {
   ledger: BookOpenIcon,
   invoice: FileTextIcon,
   expense: ReceiptTextIcon,
-  evidence: FileArchiveIcon,
-  inbox: InboxIcon,
   bank: BanknoteIcon,
-  project: FolderKanbanIcon,
-  forecast: ChartNoAxesCombinedIcon,
   report: WalletCardsIcon,
-  settings: SettingsIcon,
 } satisfies Record<NavigationIcon, typeof GaugeIcon>;
 
 function NavigationContent({ pathname }: { pathname: string }) {
@@ -74,7 +64,6 @@ function NavigationContent({ pathname }: { pathname: string }) {
                   >
                     <Icon aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    {item.status === "planned" ? <Badge variant="outline">Sắp có</Badge> : null}
                   </span>
                 );
                 return available ? (

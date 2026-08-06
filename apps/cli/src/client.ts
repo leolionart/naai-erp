@@ -136,6 +136,8 @@ export class NaaiErpClient {
     const isExecutiveMetric = resource === "executive-metrics";
     const isReportSnapshot = resource === "report-snapshots";
     const isAccountantExport = resource === "accountant-exports";
+    if (isInboundEvent && !["list", "get"].includes(action))
+      throw new Error("Inbound events are read-only admin resources");
     const forecastKey = () => {
       const [forecastId, componentId, extra] = (key ?? "").split("/");
       if (
@@ -439,44 +441,40 @@ export class NaaiErpClient {
                                                                                           action,
                                                                                         )
                                                                                       ? `${base}/${key}/${action}`
-                                                                                      : isInboundEvent &&
+                                                                                      : isOutboundEvent &&
                                                                                           action ===
                                                                                             "replay"
                                                                                         ? `${base}/${key}/replay`
-                                                                                        : isOutboundEvent &&
-                                                                                            action ===
-                                                                                              "replay"
-                                                                                          ? `${base}/${key}/replay`
-                                                                                          : isExpense &&
-                                                                                              [
-                                                                                                "submit",
-                                                                                                "mark-evidence-pending",
-                                                                                                "review",
-                                                                                                "approve",
-                                                                                                "reject",
-                                                                                                "post",
-                                                                                              ].includes(
-                                                                                                action,
-                                                                                              )
-                                                                                            ? `${base}/${key}/${action}`
-                                                                                            : isReport
-                                                                                              ? `${base}/${action}`
-                                                                                              : isOpeningBalance &&
-                                                                                                  action ===
-                                                                                                    "dry-run"
-                                                                                                ? `${base}/dry-run`
-                                                                                                : isPeriodWorkflow
-                                                                                                  ? `${base}/${action}`
+                                                                                        : isExpense &&
+                                                                                            [
+                                                                                              "submit",
+                                                                                              "mark-evidence-pending",
+                                                                                              "review",
+                                                                                              "approve",
+                                                                                              "reject",
+                                                                                              "post",
+                                                                                            ].includes(
+                                                                                              action,
+                                                                                            )
+                                                                                          ? `${base}/${key}/${action}`
+                                                                                          : isReport
+                                                                                            ? `${base}/${action}`
+                                                                                            : isOpeningBalance &&
+                                                                                                action ===
+                                                                                                  "dry-run"
+                                                                                              ? `${base}/dry-run`
+                                                                                              : isPeriodWorkflow
+                                                                                                ? `${base}/${action}`
+                                                                                                : action ===
+                                                                                                    "deactivate"
+                                                                                                  ? `${base}/${key}/deactivate`
                                                                                                   : action ===
-                                                                                                      "deactivate"
-                                                                                                    ? `${base}/${key}/deactivate`
+                                                                                                      "import"
+                                                                                                    ? `${base}/import/dry-run`
                                                                                                     : action ===
-                                                                                                        "import"
-                                                                                                      ? `${base}/import/dry-run`
-                                                                                                      : action ===
-                                                                                                          "export"
-                                                                                                        ? `${base}/export`
-                                                                                                        : base;
+                                                                                                        "export"
+                                                                                                      ? `${base}/export`
+                                                                                                      : base;
     const queryPayload =
       isFinancialStatementDrilldown && payload && typeof payload === "object"
         ? (() => {

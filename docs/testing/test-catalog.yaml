@@ -279,7 +279,6 @@ tests:
     rules: [BR-PER-001, BR-PER-002, BR-AI-002, BR-AUD-001]
     title: Posting and reversal dates obey period locks while close and reopen are privileged audited idempotent commands
     layer: integration
-    fixture: GF-PERIOD-001
     command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/api test
     blocking_gate: G2
 
@@ -1003,33 +1002,6 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api test -- real-workbook-import.integration
     blocking_gate: G7
 
-  - id: T-COMPOSE-ERP-810-001
-    aliases: [T-CMP-001]
-    task: ERP-810
-    rules: [BR-OPS-003]
-    title: Clean Compose stack migrates and becomes healthy
-    layer: compose
-    command: pnpm test:compose
-    blocking_gate: G8
-
-  - id: T-RELEASE-ERP-830-001
-    aliases: [T-REL-001]
-    task: ERP-830
-    rules: [BR-REL-001]
-    title: Main commit publishes immutable signed scanned SHA images
-    layer: release
-    command: pnpm test:release-manifest
-    blocking_gate: G8
-
-  - id: T-DEPLOY-ERP-850-001
-    aliases: [T-DEP-001]
-    task: ERP-850
-    rules: [BR-DEP-001, BR-DEP-002]
-    title: Deploy by digest and rollback rehearsal succeed
-    layer: deployment
-    command: pnpm test:deploy-rehearsal
-    blocking_gate: G8
-
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
@@ -1044,8 +1016,7 @@ golden_fixtures:
   - GF-EQUITY-001
   - GF-EXPORT-001
   - GF-DASHBOARD-001
-  - GF-FX-001
-  - GF-PERIOD-001
-  - GF-YEAR-END-001
   - GF-VAT-001
-  - GF-MULTIORG-001
+
+not_in_mvp:
+  note: Future semantic release, automated deployment, parallel-run, cutover and hypercare tests require explicit owner reactivation and new catalog entries.

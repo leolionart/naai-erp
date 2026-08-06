@@ -1,7 +1,7 @@
 schema_version: 1
 project: NAAI ERP
 updated_at: 2026-08-06T12:35:00+07:00
-status_values: [blocked, ready, in_progress, review, done, deferred]
+status_values: [blocked, ready, in_progress, review, done]
 
 current_gate: G7
 current_task: ERP-710
@@ -879,105 +879,6 @@ tasks:
     tests: [T-MVP-CMP-001, T-MVP-REL-001, T-MVP-IMPORT-001]
     evidence: docs/implementation/evidence/ERP-740/
 
-  - id: ERP-800
-    title: Production Dockerfiles
-    phase: P8
-    status: deferred
-    dependencies: [G7]
-    business_rules: []
-    tests: [T-DKR-001, T-DKR-002]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-810
-    title: Docker Compose contract
-    phase: P8
-    status: deferred
-    dependencies: [ERP-800]
-    business_rules: [BR-OPS-003]
-    tests: [T-CMP-001, T-CMP-002]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-820
-    title: Pull request CI
-    phase: P8
-    status: deferred
-    dependencies: [ERP-810]
-    business_rules: []
-    tests: [T-CI-003]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-830
-    title: Main image release
-    phase: P8
-    status: deferred
-    dependencies: [ERP-820]
-    business_rules: [BR-REL-001]
-    tests: [T-REL-001, T-REL-002]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-840
-    title: Semantic release images
-    phase: P8
-    status: deferred
-    dependencies: [ERP-830]
-    business_rules: [BR-REL-002]
-    tests: [T-REL-003]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-850
-    title: Deploy and rollback workflow
-    phase: P8
-    status: deferred
-    dependencies: [ERP-830, ERP-840]
-    business_rules: [BR-DEP-001, BR-DEP-002]
-    tests: [T-DEP-001, T-DEP-002]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-900
-    title: Import inventory and templates
-    phase: P9
-    status: deferred
-    dependencies: [G8]
-    business_rules: [BR-MIG-001]
-    tests: [T-MIG-002]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-910
-    title: Dry-run import
-    phase: P9
-    status: deferred
-    dependencies: [ERP-900]
-    business_rules: [BR-MIG-002]
-    tests: [T-MIG-003]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-920
-    title: Parallel run
-    phase: P9
-    status: deferred
-    dependencies: [ERP-910]
-    business_rules: [BR-MIG-003]
-    tests: [T-MIG-004]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-930
-    title: Pilot and cutover
-    phase: P9
-    status: deferred
-    dependencies: [ERP-920]
-    business_rules: [BR-MIG-004]
-    tests: [T-MIG-005]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
-  - id: ERP-940
-    title: Hypercare
-    phase: P9
-    status: deferred
-    dependencies: [ERP-930]
-    business_rules: [BR-OPS-004]
-    tests: [T-OPS-004]
-    notes: Deferred by the focused invoice-and-reporting MVP reset.
-
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -987,8 +888,6 @@ gates:
   G5: [ERP-500, ERP-510, ERP-520, ERP-530, ERP-540]
   G6: [ERP-600, ERP-610, ERP-620, ERP-630, ERP-640, ERP-650]
   G7: [ERP-700, ERP-710, ERP-720, ERP-730, ERP-740]
-  G8: [ERP-800, ERP-810, ERP-820, ERP-830, ERP-840, ERP-850]
-  G9: [ERP-900, ERP-910, ERP-920, ERP-930, ERP-940]
 
 gate_status:
   G0: done
@@ -999,5 +898,6 @@ gate_status:
   G5: done
   G6: done
   G7: in_progress
-  G8: deferred
-  G9: deferred
+
+not_in_mvp:
+  note: Enterprise hardening, semantic releases, automated deployment, parallel run, formal cutover and hypercare require explicit owner reactivation and a new ledger entry.

@@ -32,13 +32,18 @@ The secret is resolved through the integration source's `secret_ref` environment
 }
 ```
 
-Supported create events are `sales_invoice.create`, `purchase_invoice.create` and `expense.create`. The integration actor may create drafts only; approval, posting, tax override and period controls are unchanged.
+Supported create events are `sales_invoice.create`, `purchase_invoice.create`, `credit_note.create` and `expense.create`. Invoice-backed supplier spend is ingested as a purchase invoice; `expense.create` is reserved for non-invoice spend.
+
+Structured data may include an external reference containing the source system, external ID, canonical Paperless URL, checksum/version, sync timestamp and metadata. Within one organization, the same `(system, externalId)` identifies one business resource even when the HTTP idempotency key changes.
+
+The integration actor may create or update drafts only. Approval, posting, tax override and period controls are unchanged. Paperless owns source file bytes and document lifecycle; NAAI ERP stores the external reference only.
 
 ## Result semantics
 
-- Same source/key/raw hash returns the stored inbox/business result.
-- Same source/key with a different hash returns `409 IDEMPOTENCY_CONFLICT`.
-- Same source/event/external ID with changed data returns `409 WEBHOOK_EXTERNAL_ID_CONFLICT`.
+- Same request key and payload returns the prior result.
+- Same request key with another payload returns `409 IDEMPOTENCY_CONFLICT`.
+- A different request key carrying the same external identity returns or updates the same draft business resource rather than creating a duplicate.
+- The same external identity may exist in another organization.
 - Bad source/signature/timestamp returns `401` and creates no inbox or business mutation.
-- Authenticated invalid/unsupported/unmapped payload is retained as `quarantined`, with no business mutation.
-- Authorized replay preserves the original raw payload and appends attempt/audit history. An optional corrected envelope is stored separately.
+- Invalid, unsupported or unmapped payload returns a structured field error and creates no business mutation.
+- n8n owns retry, alerting and extraction-review orchestration. NAAI ERP does not expose a separate quarantine/replay workflow for this MVP.

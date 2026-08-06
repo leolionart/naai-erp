@@ -56,7 +56,7 @@ If an inbound payload is invalid, ERP returns a structured field error. n8n deci
 
 1. Reuse completed accounting/reporting modules; do not rebuild them.
 2. Only the four remaining tasks in the ledger are active scope.
-3. Existing enterprise features may remain in code but are hidden from the primary MVP menu unless required.
+3. Out-of-scope UI routes and workflow commands are removed or unregistered from primary navigation and machine discovery. Underlying completed code may remain only as an explicitly supported, tested compatibility surface.
 4. No generic approval, maker-checker or replay workflow is added for external invoice ingestion.
 5. The same external Paperless identity must never create duplicate business records inside one organization.
 6. Purchase invoice is the canonical supplier-invoice record. Expense is used for non-AP/non-invoice spend; legacy `invoice_backed` expense remains compatible but is not a second ingestion target.
@@ -64,6 +64,7 @@ If an inbound payload is invalid, ERP returns a structured field error. n8n deci
 8. AI/n8n/UI call the same REST application services; no direct database integration.
 9. Antigravity/Gemini may implement mechanical CRUD UI, clients, test boilerplate, Docker and docs from bounded task packets. Codex owns accounting invariants, integration, review and final gates.
 10. One exact-commit CI proof closes each task; avoid redundant CI repair loops when targeted tests already identify the fault.
+11. A route, menu, OpenAPI operation or CLI command is a product commitment. Do not advertise deferred capabilities merely because implementation code still exists.
 
 ## 3. Existing capability retained
 
@@ -160,7 +161,7 @@ Acceptance:
 
 ## 5. Gate
 
-Gate G7/MVP is complete only when ERP-710 through ERP-740 are done with evidence and exact-commit CI. G8/G9 enterprise work is deferred and is not required for this MVP release.
+Gate G7/MVP is complete only when ERP-710 through ERP-740 are done with evidence and exact-commit CI. Enterprise work outside these four tasks is not registered in the active ledger and requires explicit owner reactivation.
 
 ## 6. Cost-control execution
 
