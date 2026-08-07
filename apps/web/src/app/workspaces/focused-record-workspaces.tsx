@@ -357,7 +357,7 @@ export function FocusedRecordListWorkspace({
           <Badge variant="secondary" className="text-xs font-normal">
             {rows.length} bản ghi
           </Badge>
-          <PeriodRangeNavigator />
+          {!initialProjectId && !initialPartyId ? <PeriodRangeNavigator /> : null}
         </div>
         <div className="flex gap-2">
           <FilterPopover

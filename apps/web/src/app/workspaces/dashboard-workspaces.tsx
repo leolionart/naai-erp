@@ -543,14 +543,17 @@ function useDashboardData() {
     const rq = reportQuery(search);
     const pq = performanceQuery(search);
     const jq = projectQuery(search);
-    const asOf = search.get("asOfDate") ?? "2026-08-31";
+    const asOf = search.get("asOfDate") ?? search.get("endsOn") ?? "2025-12-31";
     const oq = new URLSearchParams({
       asOf,
-      startsOn: search.get("startsOn") ?? "2026-08-01",
-      endsOn: search.get("endsOn") ?? "2026-08-31",
+      startsOn: search.get("startsOn") ?? "2025-01-01",
+      endsOn: search.get("endsOn") ?? "2025-12-31",
       limit: "20",
     });
-    const [executive, performance, projects, aging, operating] = await Promise.allSettled([
+    const startsOnVal = search.get("startsOn");
+    const endsOnVal = search.get("endsOn");
+
+    const [executive, performance, projects, aging, operating, rawDocs] = await Promise.allSettled([
       client.data<ExecutiveMetricsContract>(`reports/executive-metrics?${rq}`),
       client.data<PerformanceComparisonContract>(`reports/performance-comparisons?${pq}`),
       client.data<ProjectProfitabilityReport>(`reports/project-profitability?${jq}`),
@@ -558,13 +561,34 @@ function useDashboardData() {
         `reports/ar-aging?asOf=${encodeURIComponent(asOf)}&limit=100`,
       ),
       client.data<OperatingDashboardWire>(`reports/operating-dashboard?${oq}`),
+      client.data<ReadonlyArray<Record<string, unknown>>>("commercial-documents?limit=500"),
     ]);
-    const next: DashboardData = {
+
+    const docsList =
+      rawDocs.status === "fulfilled" && Array.isArray(rawDocs.value) ? rawDocs.value : [];
+    const filteredSalesDocs = docsList.filter((doc) => {
+      if (String(doc.type) !== "sales_invoice") return false;
+      const dDate = String(doc.documentDate || doc.document_date || "");
+      if (!dDate) return true;
+      if (startsOnVal && dDate < startsOnVal) return false;
+      if (endsOnVal && dDate > endsOnVal) return false;
+      return true;
+    });
+    const directSalesSum = filteredSalesDocs
+      .reduce(
+        (acc, d) =>
+          acc + BigInt(String(d.grossMinor || d.gross_minor || d.netMinor || d.net_minor || "0")),
+        0n,
+      )
+      .toString();
+
+    const next: DashboardData & { directSalesSum?: string } = {
       executive: executive.status === "fulfilled" ? executive.value : undefined,
       performance: performance.status === "fulfilled" ? performance.value : undefined,
       projects: projects.status === "fulfilled" ? projects.value : undefined,
       aging: aging.status === "fulfilled" ? aging.value : undefined,
       operating: operating.status === "fulfilled" ? operating.value : undefined,
+      directSalesSum,
       failures: {
         executive: executive.status === "rejected" ? String(executive.reason) : "",
         performance: performance.status === "rejected" ? String(performance.reason) : "",
@@ -575,7 +599,14 @@ function useDashboardData() {
       searchKey: search.toString(),
     };
     setData(next);
-    if (!next.executive && !next.performance && !next.projects && !next.aging && !next.operating) {
+    if (
+      !next.executive &&
+      !next.performance &&
+      !next.projects &&
+      !next.aging &&
+      !next.operating &&
+      !next.directSalesSum
+    ) {
       const details = Object.entries(next.failures ?? {})
         .filter(([, err]) => Boolean(err))
         .map(([name, err]) => `${name}: ${err}`)
@@ -795,7 +826,8 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu đã xuất hóa đơn"
                 value={money(
-                  operating?.clientConcentration.totalRevenueMinor ||
+                  (data as { directSalesSum?: string }).directSalesSum ||
+                    operating?.clientConcentration.totalRevenueMinor ||
                     performance?.actualVsFullTarget.numeratorMinor ||
                     invoicedMinor,
                   operating?.currency ?? performance?.currency ?? data.projects?.currency,
@@ -807,7 +839,7 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu ghi nhận (Theo mốc hợp đồng)"
                 value={money(
-                  recognizedDisplayMinor,
+                  (data as { directSalesSum?: string }).directSalesSum || recognizedDisplayMinor,
                   data.projects?.currency ?? performance?.currency,
                 )}
                 description={
