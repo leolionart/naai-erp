@@ -82,7 +82,7 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
         inventory.packageId,
         inventory.workbookSha256,
         inventory.packageHash,
-        inventory,
+        JSON.stringify(inventory),
         inventory.parsedSheets,
         idempotencyKey,
         context.actorId,
@@ -121,8 +121,8 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
         importId,
         result?.valid ? "dry_run_valid" : "dry_run_invalid",
         dryRunId,
-        result,
-        parsedSheets,
+        JSON.stringify(result),
+        JSON.stringify(parsedSheets),
         idempotencyKey,
       ],
     );
@@ -249,7 +249,7 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
        where organization_id=$1 and id=$2
          and (commit_idempotency_key is null or commit_idempotency_key=$5)
        returning *`,
-      [context.organizationId, importId, result.committed, result, idempotencyKey],
+      [context.organizationId, importId, result.committed, JSON.stringify(result), idempotencyKey],
     );
     if (!updated.rows[0]) throw new Error("IDEMPOTENCY_CONFLICT");
     await this.pool.query(

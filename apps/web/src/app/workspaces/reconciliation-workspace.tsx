@@ -547,7 +547,7 @@ export function ReconciliationWorkspace({ transactionId }: Readonly<{ transactio
   );
 }
 
-function ConnectionCard({
+export function ConnectionCard({
   connection,
   token,
   onConnection,

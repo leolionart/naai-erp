@@ -207,6 +207,11 @@ export class PortableDataImportService {
   ) {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     const parsed = await this.parse(context, upload);
+    const staged = await this.store.saveInventory(
+      context,
+      parsed,
+      `${idempotencyKey}:inventory`,
+    );
     const rows: PortableDryRunRowResultContract[] = [];
     for (const sheet of parsed.parsedSheets)
       for (const row of sheet.rows) {

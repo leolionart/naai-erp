@@ -699,7 +699,7 @@ export class PgReportExportStore {
         ["Result hash", snapshot.resultHash],
       ].map(([k, v]) => ({ field: cell(k), value: cell(v) })),
     };
-    const reportRows: { path: unknown; value: unknown; code?: unknown }[] = [];
+    const reportRows: Record<string, WorkbookCell>[] = [];
 
     if (
       ["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"].includes(
@@ -954,7 +954,7 @@ export class PgReportExportStore {
               const fmt = row[x.key]?.format;
               if (
                 val !== null &&
-                (fmt === "number" || fmt === "integer" || (!isNaN(Number(val)) && val !== ""))
+                (fmt === "money_minor" || fmt === "integer" || (!isNaN(Number(val)) && val !== ""))
               ) {
                 // Convert string numbers to real numbers for Excel to format them properly
                 if (typeof val === "string") val = Number(val);
@@ -970,7 +970,7 @@ export class PgReportExportStore {
           const fmt = cellInfo?.format;
           const excelCell = addedRow.getCell(index + 1);
 
-          if (fmt === "number" || fmt === "integer" || typeof excelCell.value === "number") {
+          if (fmt === "money_minor" || fmt === "integer" || typeof excelCell.value === "number") {
             excelCell.numFmt = "#,##0"; // format with thousands separator
           }
         });
@@ -989,10 +989,10 @@ export class PgReportExportStore {
       ws.views = [{ state: "frozen", ySplit: 1 }];
 
       // Auto-fit column widths based on content
-      ws.columns.forEach((column) => {
+      ws.columns?.forEach((column) => {
         let maxLength = 0;
-        column.eachCell({ includeEmpty: true }, (cell) => {
-          const columnLength = cell.value ? cell.value.toString().length : 10;
+        column.eachCell?.({ includeEmpty: true }, (cellVal) => {
+          const columnLength = cellVal && cellVal.value ? cellVal.value.toString().length : 10;
           if (columnLength > maxLength) {
             maxLength = columnLength;
           }

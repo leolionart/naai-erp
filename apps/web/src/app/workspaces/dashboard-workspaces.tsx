@@ -367,17 +367,7 @@ function money(value: string | null | undefined, currency = "VND") {
   if (value == null) return "N/A";
   return `${new Intl.NumberFormat("vi-VN").format(BigInt(value))} ${currency === "VND" ? "₫" : currency}`;
 }
-/** Return the minor-amount string only when it represents a non-zero value;
- *  otherwise return undefined so that the || fallback chain works correctly
- *  ("0" is truthy in JS which used to block the fallback). */
-function nonZeroMinor(value: string | null | undefined): string | undefined {
-  if (value == null) return undefined;
-  try {
-    return BigInt(value) !== 0n ? value : undefined;
-  } catch {
-    return undefined;
-  }
-}
+
 function ratio(value: number | null | undefined) {
   return value == null
     ? "N/A"
@@ -881,11 +871,18 @@ export function ExecutiveDashboardWorkspace() {
   const sourceMonthly = operating?.sourceControls?.monthly ?? [];
   const startsOnMonth = (search.get("startsOn") ?? "2025-01-01").slice(0, 7);
   const endsOnMonth = (search.get("endsOn") ?? "2025-12-31").slice(0, 7);
-  let filteredMonthly: readonly Record<string, unknown>[] = sourceMonthly.filter(
-    (row) => (row.period as string) >= startsOnMonth && (row.period as string) <= endsOnMonth,
+  type MonthlyRow = {
+    period: string;
+    kind?: string;
+    revenueMinor?: string;
+    expenseMinor?: string;
+    [key: string]: unknown;
+  };
+  let filteredMonthly: readonly MonthlyRow[] = (sourceMonthly as readonly MonthlyRow[]).filter(
+    (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
   );
   if (filteredMonthly.length === 0 && operating?.financials?.monthly) {
-    filteredMonthly = operating.financials.monthly.filter(
+    filteredMonthly = (operating.financials.monthly as readonly MonthlyRow[]).filter(
       (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
     );
   }
@@ -894,19 +891,22 @@ export function ExecutiveDashboardWorkspace() {
   );
   const baseMonthly = profitabilityMonthly.length ? profitabilityMonthly : filteredMonthly;
 
-  const chartPoints = baseMonthly.map((row) => ({
-    label: row.period,
-    valueMinor: row.revenueMinor,
-  }));
-  const comparisonPoints = [
-    { label: "Kỳ trước", valueMinor: performance?.monthOverMonth.denominatorMinor },
-    { label: "Thực tế kỳ này", valueMinor: performance?.actualVsFullTarget.numeratorMinor },
+  const chartPoints: readonly Readonly<{ label: string; valueMinor: string }>[] = baseMonthly.map(
+    (row) => ({
+      label: String(row.period ?? ""),
+      valueMinor: String(row.revenueMinor ?? "0"),
+    }),
+  );
+  const comparisonPoints: readonly Readonly<{ label: string; valueMinor: string }>[] = [
+    { label: "Kỳ trước", valueMinor: performance?.monthOverMonth.denominatorMinor ?? "0" },
+    { label: "Thực tế kỳ này", valueMinor: performance?.actualVsFullTarget.numeratorMinor ?? "0" },
     {
       label: "Dự báo giữ lại",
-      valueMinor: performance?.actualVsRetainedForecast.denominatorMinor,
+      valueMinor: performance?.actualVsRetainedForecast.denominatorMinor ?? "0",
     },
   ].filter((point): point is { label: string; valueMinor: string } => point.valueMinor != null);
-  const displayedChartPoints = chartPoints.length ? chartPoints : comparisonPoints;
+  const displayedChartPoints: readonly Readonly<{ label: string; valueMinor: string }>[] =
+    chartPoints.length ? chartPoints : comparisonPoints;
 
   const categoryData = operating?.sourceControls?.expenseCategories ?? [];
   const periods = new Set<string>();
