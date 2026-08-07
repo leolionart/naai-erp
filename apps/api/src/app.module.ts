@@ -111,6 +111,10 @@ import { OperatingDashboardController } from "./operating-dashboard/operating-da
 import { OperatingDashboardService } from "./operating-dashboard/operating-dashboard.service.js";
 import { OPERATING_DASHBOARD_STORE } from "./operating-dashboard/operating-dashboard.types.js";
 import { PgOperatingDashboardStore } from "./operating-dashboard/pg-operating-dashboard.store.js";
+import { PortableDataPackageController } from "./portable-data-packages/portable-data-package.controller.js";
+import { PortableDataPackageService } from "./portable-data-packages/portable-data-package.service.js";
+import { PORTABLE_DATA_PACKAGE_STORE } from "./portable-data-packages/portable-data-package.types.js";
+import { PgPortableDataPackageStore } from "./portable-data-packages/pg-portable-data-package.store.js";
 
 @Module({
   controllers: [
@@ -148,6 +152,7 @@ import { PgOperatingDashboardStore } from "./operating-dashboard/pg-operating-da
     ReportExportController,
     WorkbookImportController,
     OperatingDashboardController,
+    PortableDataPackageController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -225,6 +230,9 @@ import { PgOperatingDashboardStore } from "./operating-dashboard/pg-operating-da
     OperatingDashboardService,
     PgOperatingDashboardStore,
     { provide: OPERATING_DASHBOARD_STORE, useExisting: PgOperatingDashboardStore },
+    PortableDataPackageService,
+    PgPortableDataPackageStore,
+    { provide: PORTABLE_DATA_PACKAGE_STORE, useExisting: PgPortableDataPackageStore },
   ],
 })
 export class AppModule {}

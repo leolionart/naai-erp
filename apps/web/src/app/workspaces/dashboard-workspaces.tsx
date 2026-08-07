@@ -12,7 +12,7 @@ import type {
   TaxExpenseReviewContract,
   VatReconciliationContract,
 } from "@naai-erp/contracts";
-import { ArrowRight, Filter, Info, ListChecks } from "lucide-react";
+import { ArrowRight, Filter, ListChecks } from "lucide-react";
 import type {
   ProjectProfitabilityReport,
   ProjectProfitabilitySummary,
@@ -881,8 +881,8 @@ export function ExecutiveDashboardWorkspace() {
   const sourceMonthly = operating?.sourceControls?.monthly ?? [];
   const startsOnMonth = (search.get("startsOn") ?? "2025-01-01").slice(0, 7);
   const endsOnMonth = (search.get("endsOn") ?? "2025-12-31").slice(0, 7);
-  let filteredMonthly: readonly any[] = sourceMonthly.filter(
-    (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
+  let filteredMonthly: readonly Record<string, unknown>[] = sourceMonthly.filter(
+    (row) => (row.period as string) >= startsOnMonth && (row.period as string) <= endsOnMonth,
   );
   if (filteredMonthly.length === 0 && operating?.financials?.monthly) {
     filteredMonthly = operating.financials.monthly.filter(

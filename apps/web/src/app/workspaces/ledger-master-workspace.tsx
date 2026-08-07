@@ -34,7 +34,6 @@ import {
 type Section = "journals" | "reports" | "accounts" | "resources";
 type ApiRow = Record<string, unknown>;
 type ApiEnvelope = Readonly<{ data?: unknown; nextActions?: readonly string[] }> & ApiRow;
-type StoredSettings = { version: 1; baseUrl: string; organizationId: string };
 
 import {
   loadApiToken,

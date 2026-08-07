@@ -4897,6 +4897,44 @@ export const workbookImportReviewRows = pgTable(
   ],
 );
 
+export const portableDataPackages = pgTable(
+  "portable_data_packages",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    asOf: date("as_of").notNull(),
+    format: text("format").notNull(),
+    manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull(),
+    content: bytea("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    packageHash: text("package_hash").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "bigint" }).notNull(),
+    mediaType: text("media_type").notNull(),
+    filename: text("filename").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    generatedBy: text("generated_by").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("portable_data_packages_idempotency_unique").on(
+      table.organizationId,
+      table.idempotencyKey,
+    ),
+    index("portable_data_packages_generated_idx").on(table.organizationId, table.generatedAt),
+    check("portable_data_packages_schema_version_positive", sql`${table.schemaVersion} > 0`),
+    check("portable_data_packages_xlsx_only", sql`${table.format} = 'xlsx'`),
+    check("portable_data_packages_content_hash_not_blank", sql`btrim(${table.contentHash}) <> ''`),
+    check("portable_data_packages_package_hash_not_blank", sql`btrim(${table.packageHash}) <> ''`),
+    check("portable_data_packages_size_nonnegative", sql`${table.sizeBytes} >= 0`),
+  ],
+);
+
 export const schema = {
   organizations,
   users,
@@ -5005,4 +5043,5 @@ export const schema = {
   accountantExports,
   externalReferences,
   workbookImportReviewRows,
+  portableDataPackages,
 } as const;

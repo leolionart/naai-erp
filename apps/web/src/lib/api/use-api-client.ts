@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "./client";
 import {
   DEFAULT_API_CONNECTION,
-  LOCAL_DEVELOPMENT_TOKEN,
   loadApiToken,
   loadConnectionSettings,
   type ApiConnectionSettingsV1,

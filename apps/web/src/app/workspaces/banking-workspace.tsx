@@ -39,7 +39,6 @@ import {
   loadConnectionSettings,
   saveApiToken,
   saveConnectionSettings,
-  LOCAL_DEVELOPMENT_TOKEN,
   type ApiConnectionSettingsV1,
 } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";

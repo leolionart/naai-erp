@@ -305,18 +305,21 @@ export class PortableDataPackageService {
   }
 
   async getExport(context: PortableDataPackageContext, packageId: string) {
+    this.assertExportPermission(context);
     const record = await this.store.getExport(context, packageId);
     if (!record) throw new Error("RESOURCE_NOT_FOUND");
     return this.envelope(context, record);
   }
 
   async getInventory(context: PortableDataPackageContext, packageId: string) {
+    this.assertExportPermission(context);
     const record = await this.store.getExport(context, packageId);
     if (!record) throw new Error("RESOURCE_NOT_FOUND");
     return this.envelope(context, record.manifest);
   }
 
   async download(context: PortableDataPackageContext, packageId: string) {
+    this.assertExportPermission(context);
     const file = await this.store.downloadExport(context, packageId);
     if (!file) throw new Error("RESOURCE_NOT_FOUND");
     return file;
