@@ -119,7 +119,7 @@ function TextField({
   );
 }
 
-export const BUSINESS_CATEGORIES = [
+export const INBOUND_CATEGORIES = [
   { code: "MEAL", name: "Chi phí Ăn uống / Tiếp khách", defaultAccount: "6428" },
   { code: "OFFICE_SUPPLIES", name: "Chi phí Văn phòng phẩm / Vật tư", defaultAccount: "6422" },
   { code: "INTERNET_TELECOM", name: "Chi phí Internet / Điện thoại", defaultAccount: "6427" },
@@ -130,14 +130,30 @@ export const BUSINESS_CATEGORIES = [
   { code: "VEHICLE_RENTAL", name: "Chi phí Thuê xe / Thuê pin", defaultAccount: "6427" },
   { code: "DECORATION", name: "Chi phí Trang trí văn phòng", defaultAccount: "6428" },
   { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc", defaultAccount: "6428" },
-  { code: "SALES_SERVICES", name: "Doanh thu Dịch vụ / Phần mềm", defaultAccount: "5113" },
-  { code: "OTHER", name: "Chi phí / Doanh thu khác", defaultAccount: "6428" },
+  { code: "OTHER_EXPENSE", name: "Chi phí mua vào khác", defaultAccount: "6428" },
+] as const;
+
+export const OUTBOUND_CATEGORIES = [
+  { code: "SOFTWARE_DEV", name: "Doanh thu Phát triển phần mềm / App", defaultAccount: "5113" },
+  { code: "CONSULTING", name: "Doanh thu Dịch vụ tư vấn / Giải pháp", defaultAccount: "5113" },
+  { code: "DESIGN_MEDIA", name: "Doanh thu Thiết kế / Truyền thông", defaultAccount: "5113" },
+  {
+    code: "SYSTEM_MAINTENANCE",
+    name: "Doanh thu Bảo trì / Vận hành hệ thống",
+    defaultAccount: "5113",
+  },
+  { code: "PRODUCT_SALES", name: "Doanh thu Bán hàng hóa / Thiết bị", defaultAccount: "5111" },
+  { code: "RETAINER_FEE", name: "Doanh thu Phí Retainer hàng tháng", defaultAccount: "5113" },
+  { code: "OTHER_REVENUE", name: "Doanh thu bán ra khác", defaultAccount: "5113" },
 ] as const;
 
 export function getCategoryName(categoryCode?: string): string {
   if (!categoryCode) return "";
-  const found = BUSINESS_CATEGORIES.find((c) => c.code === categoryCode);
-  return found ? found.name : categoryCode;
+  const inboundMatch = INBOUND_CATEGORIES.find((c) => c.code === categoryCode);
+  if (inboundMatch) return inboundMatch.name;
+  const outboundMatch = OUTBOUND_CATEGORIES.find((c) => c.code === categoryCode);
+  if (outboundMatch) return outboundMatch.name;
+  return categoryCode;
 }
 
 export const CURRENCIES = [
@@ -207,8 +223,13 @@ export function DocumentForm({
     String(field(initial, "controlAccountCode") ?? "131"),
   );
   const [reason, setReason] = useState(String(field(initial, "reason") ?? ""));
+  const isPurchase = type === "purchase_invoice";
+  const activeCategories = isPurchase ? INBOUND_CATEGORIES : OUTBOUND_CATEGORIES;
+
   const [category, setCategory] = useState(
-    String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
+    String(
+      field(initial, "category") ?? initialDims.category ?? (isPurchase ? "MEAL" : "SOFTWARE_DEV"),
+    ),
   );
 
   const [lineDescription, setLineDescription] = useState(
@@ -228,18 +249,37 @@ export function DocumentForm({
     String(field(initialLine, "grossMinor") ?? field(initial, "grossMinor") ?? "0"),
   );
   const [primaryAccountCode, setPrimaryAccountCode] = useState(
-    String(field(initialLine, "primaryAccountCode") ?? "511"),
+    String(field(initialLine, "primaryAccountCode") ?? (isPurchase ? "642" : "511")),
   );
   const [taxAccountCode, setTaxAccountCode] = useState(
-    String(field(initialLine, "taxAccountCode") ?? "3331"),
+    String(field(initialLine, "taxAccountCode") ?? (isPurchase ? "1331" : "3331")),
   );
   const [taxCode, setTaxCode] = useState(String(field(initialLine, "taxCode") ?? "VAT10"));
 
   const isUpdate = Boolean(initial);
 
+  function handleTypeChange(newType: string) {
+    setType(newType);
+    if (!initial) {
+      if (newType === "purchase_invoice") {
+        setCategory("MEAL");
+        setPrimaryAccountCode("6428");
+        setTaxAccountCode("1331");
+        setControlAccountCode("331");
+      } else {
+        setCategory("SOFTWARE_DEV");
+        setPrimaryAccountCode("5113");
+        setTaxAccountCode("3331");
+        setControlAccountCode("131");
+      }
+    }
+  }
+
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
-    const item = BUSINESS_CATEGORIES.find((c) => c.code === catCode);
+    const item = activeCategories.find(
+      (c: { code: string; defaultAccount: string }) => c.code === catCode,
+    );
     if (item && !initial) {
       setPrimaryAccountCode(item.defaultAccount);
     }
@@ -295,7 +335,7 @@ export function DocumentForm({
         />
         <Field>
           <FieldLabel>Loại hóa đơn</FieldLabel>
-          <Select value={type} onValueChange={setType}>
+          <Select value={type} onValueChange={handleTypeChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -316,7 +356,7 @@ export function DocumentForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {BUSINESS_CATEGORIES.map((cat) => (
+                {activeCategories.map((cat) => (
                   <SelectItem key={cat.code} value={cat.code}>
                     {cat.name}
                   </SelectItem>
@@ -344,15 +384,24 @@ export function DocumentForm({
           {parties.length > 0 ? (
             <Select value={partyId} onValueChange={setPartyId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(() => {
+                    const match = parties.find((p) => String(p.id) === partyId);
+                    if (!match) return partyId || "Chọn đối tác";
+                    return String(field(match, "displayName", "name") ?? match.id);
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {parties.map((p) => (
-                    <SelectItem key={String(p.id)} value={String(p.id)}>
-                      {String(p.displayName || p.name || p.id)}
-                    </SelectItem>
-                  ))}
+                  {parties.map((p) => {
+                    const nameStr = String(field(p, "displayName", "name") ?? p.id);
+                    return (
+                      <SelectItem key={String(p.id)} value={String(p.id)}>
+                        {nameStr}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -553,7 +602,7 @@ export function ExpenseForm({
 
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
-    const item = BUSINESS_CATEGORIES.find((c) => c.code === catCode);
+    const item = INBOUND_CATEGORIES.find((c) => c.code === catCode);
     if (item && !initial) {
       setPostingAccountCode(item.defaultAccount);
     }
@@ -623,7 +672,7 @@ export function ExpenseForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {BUSINESS_CATEGORIES.map((cat) => (
+                {INBOUND_CATEGORIES.map((cat) => (
                   <SelectItem key={cat.code} value={cat.code}>
                     {cat.name}
                   </SelectItem>
@@ -637,15 +686,24 @@ export function ExpenseForm({
           {parties.length > 0 ? (
             <Select value={payeePartyId} onValueChange={setPayeePartyId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(() => {
+                    const match = parties.find((p) => String(p.id) === payeePartyId);
+                    if (!match) return payeePartyId || "Chọn đối tác";
+                    return String(field(match, "displayName", "name") ?? match.id);
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {parties.map((p) => (
-                    <SelectItem key={String(p.id)} value={String(p.id)}>
-                      {String(p.displayName || p.name || p.id)}
-                    </SelectItem>
-                  ))}
+                  {parties.map((p) => {
+                    const nameStr = String(field(p, "displayName", "name") ?? p.id);
+                    return (
+                      <SelectItem key={String(p.id)} value={String(p.id)}>
+                        {nameStr}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -658,16 +716,25 @@ export function ExpenseForm({
           {parties.length > 0 ? (
             <Select value={employeePartyId} onValueChange={setEmployeePartyId}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(() => {
+                    const match = parties.find((p) => String(p.id) === employeePartyId);
+                    if (!match) return employeePartyId || "-- Không chọn --";
+                    return String(field(match, "displayName", "name") ?? match.id);
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="">-- Không chọn --</SelectItem>
-                  {parties.map((p) => (
-                    <SelectItem key={String(p.id)} value={String(p.id)}>
-                      {String(p.displayName || p.name || p.id)}
-                    </SelectItem>
-                  ))}
+                  {parties.map((p) => {
+                    const nameStr = String(field(p, "displayName", "name") ?? p.id);
+                    return (
+                      <SelectItem key={String(p.id)} value={String(p.id)}>
+                        {nameStr}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectGroup>
               </SelectContent>
             </Select>

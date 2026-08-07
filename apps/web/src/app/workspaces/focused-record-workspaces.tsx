@@ -45,6 +45,7 @@ import {
   ExpenseForm,
   getCategoryName,
 } from "@/components/forms/document-expense-forms";
+import { BreakdownPieChart, type BreakdownItem } from "@/components/dashboard/breakdown-pie-chart";
 
 type Kind = "documents" | "expenses";
 type Row = Record<string, unknown>;
@@ -206,8 +207,59 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       setQuickBusy(false);
     }
   }
+  const chartItems = useCallback((): readonly BreakdownItem[] => {
+    const map = new Map<string, bigint>();
+    const colors = [
+      "var(--chart-1, #2563eb)",
+      "var(--chart-2, #16a34a)",
+      "var(--chart-3, #d97706)",
+      "var(--chart-4, #dc2626)",
+      "var(--chart-5, #9333ea)",
+      "var(--chart-6, #0891b2)",
+    ];
+    for (const row of rows) {
+      let groupName = "Khác";
+      if (sourceKind === "documents") {
+        const type = text(row, "type");
+        if (type === "sales_invoice") groupName = "Hóa đơn bán ra";
+        else if (type === "purchase_invoice") groupName = "Hóa đơn mua vào";
+        else if (type === "credit_note") groupName = "Hóa đơn giảm trừ";
+      } else {
+        const expenseClass = text(row, "expenseClass");
+        if (expenseClass) groupName = getCategoryName(expenseClass);
+      }
+      const amountStr = text(row, "grossMinor", "totalAmountMinor", "amountMinor", "totalMinor");
+      const amount = BigInt(amountStr || "0");
+      map.set(groupName, (map.get(groupName) ?? 0n) + amount);
+    }
+    return [...map.entries()].map(([name, valueMinor], idx) => ({
+      name,
+      valueMinor,
+      formattedValue: `${new Intl.NumberFormat("vi-VN").format(valueMinor)} ₫`,
+      color: colors[idx % colors.length],
+    }));
+  }, [rows, sourceKind]);
+
+  const items = chartItems();
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      {!loading && rows.length > 0 ? (
+        <BreakdownPieChart
+          title={
+            sourceKind === "documents"
+              ? "Tỷ trọng chứng từ theo loại hóa đơn"
+              : "Tỷ trọng chi phí theo phân loại"
+          }
+          description={
+            sourceKind === "documents"
+              ? "Theo dõi cơ cấu giá trị hóa đơn bán ra, mua vào và giảm trừ"
+              : "Theo dõi cơ cấu chi phí nhà cung cấp, vận hành và dịch vụ mua vào"
+          }
+          items={items}
+        />
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs font-normal">
