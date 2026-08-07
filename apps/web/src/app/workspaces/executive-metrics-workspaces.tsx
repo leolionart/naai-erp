@@ -120,6 +120,14 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
       status: "review",
       source: "Policy EQ-2026.1",
     },
+    {
+      code: "owner_loans",
+      label: "Chi hộ từ chủ sở hữu",
+      value: "30.000.000 ₫",
+      formula: "Chi lương vượt số tiền 90tr rút từ NH công ty",
+      status: "ready",
+      source: "Sổ cái · TK 3388 (Khoản chi hộ)",
+    },
   ],
   liquidity: [
     {

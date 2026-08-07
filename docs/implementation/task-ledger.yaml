@@ -1055,7 +1055,8 @@ tasks:
     phase: P10
     status: in_progress
     dependencies: [ERP-840]
-    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-RPT-004, BR-REV-001, BR-PRJ-001]
+    business_rules:
+      [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-RPT-004, BR-REV-001, BR-PRJ-001, BR-BNK-003]
     tests: [T-INT-ERP-841-001]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root

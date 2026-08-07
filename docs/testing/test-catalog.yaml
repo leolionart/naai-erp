@@ -1077,8 +1077,9 @@ tests:
 
   - id: T-INT-ERP-841-001
     task: ERP-841
-    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-RPT-004, BR-REV-001, BR-PRJ-001]
-    title: Project demo exposes contracts milestones budgets recognition invoices project costs and tied current and overdue debt
+    rules:
+      [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-RPT-004, BR-REV-001, BR-PRJ-001, BR-BNK-003]
+    title: Local demo exposes linked project economics debt and reconciled bank-to-cash internal transfers
     layer: integration
     command: pnpm demo:verify
     blocking_gate: G14

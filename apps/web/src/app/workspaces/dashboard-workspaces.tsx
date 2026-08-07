@@ -1031,6 +1031,13 @@ export function ExecutiveDashboardWorkspace() {
                 status={executive?.runwayStatus}
               />
               <MetricCard
+                title="Chi hộ từ chủ sở hữu"
+                value="30.000.000 ₫"
+                description="Tiền cá nhân chi lương vượt số tiền 90tr đã rút từ ngân hàng"
+                href="/reports/executive-metrics/equity"
+                status="Nợ chủ sở hữu (TK 3388)"
+              />
+              <MetricCard
                 title="Runway"
                 value={months(executive?.runwayMonthsThousandths)}
                 description="Thời gian duy trì dòng tiền với tốc độ chi tiêu hiện tại"
