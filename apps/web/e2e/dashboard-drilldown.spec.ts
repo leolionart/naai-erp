@@ -341,7 +341,7 @@ test("@desktop selects the latest source-control period and invoiced basis by de
   await page.goto("http://localhost:3000/dashboard");
 
   await expect(page.getByText("2025-03", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Basis: invoiced")).toBeVisible();
+  await expect(page.getByText("Xuất hóa đơn (Invoiced)")).toBeVisible();
   expect(requestedUrls.find((url) => url.includes("performance-comparisons"))).toContain(
     "periodId=CAL-2025-03",
   );

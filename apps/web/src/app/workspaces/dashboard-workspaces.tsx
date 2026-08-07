@@ -65,12 +65,12 @@ const ExecutiveTrendChart = dynamic(() => import("@/components/dashboard/executi
 const MonthlyCategoryStackedChart = dynamic(
   () =>
     import("@/components/dashboard/monthly-category-stacked-chart").then(
-      (mod) => mod.MonthlyCategoryStackedChart
+      (mod) => mod.MonthlyCategoryStackedChart,
     ),
   {
     loading: () => <Skeleton className="h-48 w-full" />,
     ssr: false,
-  }
+  },
 );
 
 type DashboardData = Readonly<{
@@ -703,9 +703,17 @@ function useDashboardData() {
 }
 
 export function ExecutiveDashboardWorkspace() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { data, loading, error, search } = useDashboardData();
   const [filters, setFilters] = useState(false);
   const [preview, setPreview] = useState<Preview>();
+  const currentBasis = search.get("actualBasis") ?? "invoiced";
+  const handleBasisChange = (val: string) => {
+    const next = new URLSearchParams(search);
+    next.set("actualBasis", val);
+    router.replace(`${pathname}?${next.toString()}`);
+  };
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
@@ -758,7 +766,9 @@ export function ExecutiveDashboardWorkspace() {
     ? Boolean(projectBurnRows?.length)
     : fallbackProjectRisks.length > 0;
   const flaggedPerformance =
-    performance?.confidenceFlags.filter((f) => f.severity === "critical" || !f.code.startsWith("missing_")).length ?? 0;
+    performance?.confidenceFlags.filter(
+      (f) => (f.severity as string) === "critical" || !f.code.startsWith("missing_"),
+    ).length ?? 0;
   const flagged =
     flaggedPerformance +
     (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
@@ -775,12 +785,15 @@ export function ExecutiveDashboardWorkspace() {
       (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
     );
   }
-  const profitabilityMonthly = filteredMonthly.filter((row) => row.kind === "profitability_control");
+  const profitabilityMonthly = filteredMonthly.filter(
+    (row) => row.kind === "profitability_control",
+  );
   const baseMonthly = profitabilityMonthly.length ? profitabilityMonthly : filteredMonthly;
 
-  const chartPoints = baseMonthly.map(
-    (row) => ({ label: row.period, valueMinor: row.revenueMinor }),
-  );
+  const chartPoints = baseMonthly.map((row) => ({
+    label: row.period,
+    valueMinor: row.revenueMinor,
+  }));
   const comparisonPoints = [
     { label: "Kỳ trước", valueMinor: performance?.monthOverMonth.denominatorMinor },
     { label: "Thực tế kỳ này", valueMinor: performance?.actualVsFullTarget.numeratorMinor },
@@ -803,45 +816,52 @@ export function ExecutiveDashboardWorkspace() {
   }
   const allPeriods = [...periods].sort();
 
-  const expensePoints = allPeriods.map(
-    (period) => {
-      const row = filteredMonthly.find((r) => r.period === period);
-      const rowExpense = BigInt(row?.expenseMinor ?? "0");
-      const categories: Record<string, bigint> = {};
-      let assignedMinor = 0n;
+  const expensePoints = allPeriods.map((period) => {
+    const row = filteredMonthly.find((r) => r.period === period);
+    const rowExpense = BigInt(row?.expenseMinor ?? "0");
+    const categories: Record<string, bigint> = {};
+    let assignedMinor = 0n;
 
-      for (const cat of categoryData) {
-        const amtStr = cat.monthlyAmounts.find((a) => a.period === period)?.amountMinor;
-        if (amtStr) {
-          const amt = BigInt(amtStr);
-          const catName = cat.category || "Khác";
-          categories[catName] = (categories[catName] || 0n) + amt;
-          assignedMinor += amt;
-        }
+    for (const cat of categoryData) {
+      const amtStr = cat.monthlyAmounts.find((a) => a.period === period)?.amountMinor;
+      if (amtStr) {
+        const amt = BigInt(amtStr);
+        const catName = cat.category || "Khác";
+        categories[catName] = (categories[catName] || 0n) + amt;
+        assignedMinor += amt;
       }
+    }
 
-      const totalMinor = rowExpense > assignedMinor ? rowExpense : assignedMinor;
-      if (assignedMinor < totalMinor) {
-        categories["Chưa phân bổ"] = totalMinor - assignedMinor;
-      }
+    const totalMinor = rowExpense > assignedMinor ? rowExpense : assignedMinor;
+    if (assignedMinor < totalMinor) {
+      categories["Chưa phân bổ"] = totalMinor - assignedMinor;
+    }
 
-      return {
-        month: period,
-        categories,
-      };
-    },
-  );
+    return {
+      month: period,
+      categories,
+    };
+  });
   return (
     <ModulePage
       title="Tổng quan điều hành"
-      description="KPI quản trị lấy nguyên giá trị, formula version và source boundary từ report APIs."
+      description="Tổng quan chỉ số doanh thu, công nợ, hiệu suất và sức khỏe tài chính doanh nghiệp."
       section="Điều hành"
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <PeriodRangeNavigator />
-            <Badge variant="outline">Basis: {search.get("actualBasis") ?? "invoiced"}</Badge>
+            <Select value={currentBasis} onValueChange={handleBasisChange}>
+              <SelectTrigger className="w-[195px] h-9">
+                <SelectValue placeholder="Cơ sở doanh thu" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="invoiced">Xuất hóa đơn (Invoiced)</SelectItem>
+                <SelectItem value="recognized">Nghiệm thu (Recognized)</SelectItem>
+                <SelectItem value="collected">Thực thu (Collected)</SelectItem>
+              </SelectContent>
+            </Select>
             {search.get("serviceLineCode") ? (
               <Badge variant="outline">Mảng: {search.get("serviceLineCode")}</Badge>
             ) : null}
@@ -1122,8 +1142,7 @@ export function ExecutiveDashboardWorkspace() {
           <CardHeader>
             <CardTitle>Xu hướng doanh thu</CardTitle>
             <CardDescription>
-              Các điểm actual/comparison/forecast lấy từ Performance Comparison API; chart không
-              tính lại KPI.
+              So sánh doanh thu thực tế, kế hoạch mục tiêu và số liệu dự báo theo kỳ.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1193,7 +1212,7 @@ export function FinanceReviewWorkspace() {
       href: `/receivables?asOf=${data.aging?.asOf}`,
     })) ?? []),
     ...(data.performance?.confidenceFlags
-      .filter((f) => f.severity === "critical" || !f.code.startsWith("missing_"))
+      .filter((f) => (f.severity as string) === "critical" || !f.code.startsWith("missing_"))
       .map((flag) => ({
         id: `performance:${flag.code}`,
         severity: flag.severity,
@@ -1337,7 +1356,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
   return (
     <ModulePage
       title={detail?.title ?? "Dashboard drill-down"}
-      description="Giá trị, formula version và source IDs nguyên bản từ report API."
+      description="Số liệu chi tiết và nguồn chứng từ đối soát dồn tích."
       section="Điều hành"
     >
       <div className="flex max-w-4xl flex-col gap-6">
