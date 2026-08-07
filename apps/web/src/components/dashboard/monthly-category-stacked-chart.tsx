@@ -1,16 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type StackedCategoryPoint = Readonly<{
@@ -109,9 +100,9 @@ export function MonthlyCategoryStackedChart({
         <CardDescription className="text-xs">{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
-        <div className="h-64 w-full">
+        <div className="h-80 w-full relative z-10">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
               <YAxis
@@ -122,14 +113,19 @@ export function MonthlyCategoryStackedChart({
                 tickFormatter={(val) => compactMoney.format(Number(val))}
               />
               <Tooltip
+                cursor={{ fill: "rgba(255, 255, 255, 0.05)" }}
+                wrapperStyle={{ zIndex: 100 }}
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
+                  const activeItems = payload.filter((item) => Number(item.value) > 0);
                   const total = payload.reduce((acc, item) => acc + (Number(item.value) || 0), 0);
                   return (
-                    <div className="rounded-lg border bg-popover p-3 shadow-md text-xs min-w-48">
-                      <div className="font-semibold text-popover-foreground mb-2">{label}</div>
-                      <div className="flex flex-col gap-1.5 border-b pb-2 mb-2">
-                        {payload.map((entry) => {
+                    <div className="rounded-lg border bg-popover/95 backdrop-blur p-3 shadow-xl text-xs min-w-56 z-50">
+                      <div className="font-semibold text-popover-foreground mb-2 pb-1 border-b">
+                        {label}
+                      </div>
+                      <div className="flex flex-col gap-1.5 border-b pb-2 mb-2 max-h-48 overflow-y-auto pr-1">
+                        {(activeItems.length ? activeItems : payload).map((entry) => {
                           const valNum = Number(entry.value) || 0;
                           const pct = total > 0 ? (valNum / total) * 100 : 0;
                           return (
@@ -137,7 +133,7 @@ export function MonthlyCategoryStackedChart({
                               key={entry.name}
                               className="flex items-center justify-between gap-3 text-muted-foreground"
                             >
-                              <div className="flex items-center gap-1.5 truncate">
+                              <div className="flex items-center gap-1.5 truncate max-w-40">
                                 <span
                                   className="size-2 rounded-full shrink-0"
                                   style={{ backgroundColor: entry.color }}
@@ -152,21 +148,15 @@ export function MonthlyCategoryStackedChart({
                           );
                         })}
                       </div>
-                      <div className="flex justify-between items-center font-semibold text-popover-foreground">
+                      <div className="flex justify-between items-center font-semibold text-popover-foreground pt-0.5">
                         <span>Tổng tháng:</span>
-                        <span className="font-mono">
+                        <span className="font-mono text-primary">
                           {new Intl.NumberFormat("vi-VN").format(total)} ₫
                         </span>
                       </div>
                     </div>
                   );
                 }}
-              />
-              <Legend
-                wrapperStyle={{ paddingTop: "12px", fontSize: "12px" }}
-                formatter={(value) => (
-                  <span className="text-xs text-foreground font-medium">{value}</span>
-                )}
               />
               {allCategories.map((cat, idx) => (
                 <Bar
@@ -180,6 +170,18 @@ export function MonthlyCategoryStackedChart({
               ))}
             </BarChart>
           </ResponsiveContainer>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3 text-xs">
+          {allCategories.map((cat, idx) => (
+            <div key={cat} className="flex items-center gap-1.5">
+              <span
+                className="size-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
+              />
+              <span className="font-medium text-muted-foreground">{cat}</span>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

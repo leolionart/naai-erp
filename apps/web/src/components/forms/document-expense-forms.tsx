@@ -93,6 +93,98 @@ function MoneyField({
   );
 }
 
+function ComboboxInput({
+  label: fieldLabel,
+  value,
+  onChange,
+  options,
+  placeholder = "Nhập hoặc chọn...",
+  required,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly Row[];
+  placeholder?: string;
+  required?: boolean;
+  error?: string;
+}) {
+  const generatedId = useId();
+  const [open, setOpen] = useState(false);
+
+  // Resolve display value if current value matches an ID or name in options
+  const currentMatch = options.find(
+    (o) => String(o.id) === value || String(field(o, "displayName", "name")) === value,
+  );
+  const displayVal = currentMatch
+    ? String(field(currentMatch, "displayName", "name") ?? currentMatch.id)
+    : value;
+
+  const [inputVal, setInputVal] = useState(displayVal);
+
+  useEffect(() => {
+    const match = options.find(
+      (o) => String(o.id) === value || String(field(o, "displayName", "name")) === value,
+    );
+    setInputVal(match ? String(field(match, "displayName", "name") ?? match.id) : value);
+  }, [value, options]);
+
+  const filtered = options.filter((o) => {
+    if (!inputVal.trim()) return true;
+    const nameStr = String(field(o, "displayName", "name") ?? o.id).toLowerCase();
+    return nameStr.includes(inputVal.toLowerCase());
+  });
+
+  return (
+    <Field data-invalid={Boolean(error)}>
+      {fieldLabel ? <FieldLabel htmlFor={generatedId}>{fieldLabel}</FieldLabel> : null}
+      <div className="relative">
+        <Input
+          id={generatedId}
+          value={inputVal}
+          placeholder={placeholder}
+          required={required}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            // Delay close to allow item click
+            setTimeout(() => setOpen(false), 200);
+          }}
+          onChange={(e) => {
+            const textVal = e.target.value;
+            setInputVal(textVal);
+            onChange(textVal);
+            setOpen(true);
+          }}
+        />
+        {open && filtered.length > 0 ? (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+            {filtered.map((item) => {
+              const nameStr = String(field(item, "displayName", "name") ?? item.id);
+              const valStr = String(item.id ?? nameStr);
+              return (
+                <div
+                  key={String(item.id)}
+                  className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setInputVal(nameStr);
+                    onChange(valStr);
+                    setOpen(false);
+                  }}
+                >
+                  {nameStr}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+      {error ? <FieldError>{error}</FieldError> : null}
+    </Field>
+  );
+}
+
 function TextField({
   label: fieldLabel,
   onChange,
@@ -383,14 +475,27 @@ export function DocumentForm({
           required
         />
         <Field>
-          <FieldLabel>Đối tác (Khách hàng / Nhà cung cấp)</FieldLabel>
-          {parties.length > 0 ? (
+          <FieldLabel>
+            {isPurchase
+              ? "Tên đối tác / Nhà cung cấp (Gõ để tìm gợi ý hoặc tự do nhập mới)"
+              : "Khách hàng (Bắt buộc chọn từ danh sách)"}
+          </FieldLabel>
+          {isPurchase ? (
+            <ComboboxInput
+              label=""
+              value={partyId}
+              onChange={setPartyId}
+              options={parties}
+              placeholder="Gõ tên để tìm gợi ý hoặc nhập mới..."
+              required
+            />
+          ) : (
             <Select value={partyId} onValueChange={setPartyId}>
               <SelectTrigger>
                 <SelectValue>
                   {(() => {
                     const match = parties.find((p) => String(p.id) === partyId);
-                    if (!match) return partyId || "Chọn đối tác";
+                    if (!match) return partyId || "Chọn khách hàng";
                     return String(field(match, "displayName", "name") ?? match.id);
                   })()}
                 </SelectValue>
@@ -408,8 +513,6 @@ export function DocumentForm({
                 </SelectGroup>
               </SelectContent>
             </Select>
-          ) : (
-            <Input value={partyId} onChange={(e) => setPartyId(e.target.value)} required />
           )}
         </Field>
         <TextField
@@ -684,36 +787,13 @@ export function ExpenseForm({
             </SelectContent>
           </Select>
         </Field>
-        <Field>
-          <FieldLabel>Đối tác thụ hưởng</FieldLabel>
-          {parties.length > 0 ? (
-            <Select value={payeePartyId} onValueChange={setPayeePartyId}>
-              <SelectTrigger>
-                <SelectValue>
-                  {(() => {
-                    const match = parties.find((p) => String(p.id) === payeePartyId);
-                    if (!match) return payeePartyId || "Chọn đối tác";
-                    return String(field(match, "displayName", "name") ?? match.id);
-                  })()}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {parties.map((p) => {
-                    const nameStr = String(field(p, "displayName", "name") ?? p.id);
-                    return (
-                      <SelectItem key={String(p.id)} value={String(p.id)}>
-                        {nameStr}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input value={payeePartyId} onChange={(e) => setPayeePartyId(e.target.value)} />
-          )}
-        </Field>
+        <ComboboxInput
+          label="Đối tác thụ hưởng (Gõ để tìm gợi ý hoặc tự do nhập mới)"
+          value={payeePartyId}
+          onChange={setPayeePartyId}
+          options={parties}
+          placeholder="Gõ tên để tìm gợi ý hoặc nhập mới..."
+        />
         <Field>
           <FieldLabel>Nhân viên thực hiện</FieldLabel>
           {parties.length > 0 ? (
