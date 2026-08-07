@@ -18,6 +18,13 @@ describeIntegration("ERP-300 commercial documents", () => {
       insert into fiscal_years (organization_id,year,starts_on,ends_on) values ('org-doc',2026,'2026-01-01','2026-12-31');
       insert into fiscal_periods (organization_id,fiscal_year,period_number,starts_on,ends_on) values ('org-doc',2026,1,'2026-01-01','2026-01-31'),('org-doc',2026,2,'2026-02-01','2026-02-28');
       insert into parties (organization_id,id,display_name,status) values ('org-doc','CLIENT-A','Client A','active'),('org-doc','SUPPLIER-A','Supplier A','active');
+      insert into users(id,email,display_name) values('integration-user','integration@example.com','Integration User');
+      insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state) values
+        ('org-doc','A','A','Project A','CLIENT-A','integration-user','fixed_fee','VND',60000000,'2026-01-01','active'),
+        ('org-doc','B','B','Project B','CLIENT-A','integration-user','fixed_fee','VND',40000000,'2026-01-01','active');
+      insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency) values
+        ('org-doc','CONTRACT-A','A','CONTRACT-A','2026-01-01',60000000,'VND'),
+        ('org-doc','CONTRACT-B','B','CONTRACT-B','2026-01-01',40000000,'VND');
       insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
        ('org-doc','131-AR','AR','asset',true,false),('org-doc','331-AP','AP','liability',true,false),
        ('org-doc','511-REV','Revenue','revenue',false,true),('org-doc','3331-VAT-OUT','VAT output','liability',true,false),

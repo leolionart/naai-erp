@@ -1182,25 +1182,16 @@ export function ExecutiveDashboardWorkspace() {
               <p className="text-sm text-muted-foreground">Chưa có dữ liệu xu hướng.</p>
             )}
           </CardContent>
-          <CardFooter>
-            {operating?.sourceControls ? (
-              <Badge variant="outline">
-                {operating.sourceControls.rowCount} dòng workbook chưa xác nhận kế toán
-              </Badge>
-            ) : null}
-            <Button
-              variant="outline"
-              onClick={() =>
-                setPreview({
-                  title: "Nguồn xu hướng doanh thu",
-                  description: performance?.formulaVersion ?? "Performance Comparison API",
-                  sourceIds: performance?.sourceIds ?? [],
-                  href: `/dashboard/drilldown/revenue?${q}`,
-                })
-              }
-            >
-              <Info data-icon="inline-start" />
-              Xem nguồn nhanh
+          <CardFooter className="flex flex-wrap gap-2 pt-2">
+            <Button asChild variant="outline">
+              <Link href="/documents?type=sales_invoice">
+                Hóa đơn đầu ra (Doanh thu) <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/documents?type=purchase_invoice">
+                Hóa đơn đầu vào (Chi phí) <ArrowRight data-icon="inline-end" />
+              </Link>
             </Button>
           </CardFooter>
         </Card>

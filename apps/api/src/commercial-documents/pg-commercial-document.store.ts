@@ -818,6 +818,8 @@ export class PgCommercialDocumentStore {
         await this.assertSelfApproval(client, context.organizationId, BigInt(document.gross_minor));
       let journalId: string | undefined;
       if (action === "issue" || action === "post") {
+        if (document.type === "sales_invoice")
+          await this.assertSalesContractCoverage(client, context.organizationId, document);
         await this.assertPostingPeriod(client, context, document.document_date);
         journalId = await this.postDocumentJournal(client, context, document);
       }
@@ -910,6 +912,53 @@ export class PgCommercialDocumentStore {
 
   private nextActions(type: CommercialDocumentType, state: string) {
     return Object.keys(NEXT[type][state] ?? {});
+  }
+  private async assertSalesContractCoverage(
+    client: PoolClient,
+    organizationId: string,
+    document: StoredDocument,
+  ) {
+    const allocations = await client.query<{ project_id: string | null; proposed: string }>(
+      `select a.dimensions->>'projectId' project_id,sum(a.amount_minor)::text proposed
+         from commercial_document_allocations a
+        where a.organization_id=$1 and a.document_id=$2
+        group by a.dimensions->>'projectId'`,
+      [organizationId, document.id],
+    );
+    if (!allocations.rows.length || allocations.rows.some((row) => !row.project_id))
+      throw new Error("SALES_INVOICE_PROJECT_REQUIRED");
+    for (const row of [...allocations.rows].sort((a, b) =>
+      String(a.project_id).localeCompare(String(b.project_id)),
+    )) {
+      const projectId = String(row.project_id);
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `${organizationId}:sales-contract-cap:${projectId}`,
+      ]);
+      const project = await client.query<{ client_party_id: string; currency: string }>(
+        `select client_party_id,currency from projects where organization_id=$1 and id=$2 and state in('planned','active','on_hold')`,
+        [organizationId, projectId],
+      );
+      if (!project.rows[0]) throw new Error("SALES_INVOICE_PROJECT_INVALID");
+      if (project.rows[0].client_party_id !== document.party_id)
+        throw new Error("SALES_INVOICE_PROJECT_CUSTOMER_MISMATCH");
+      if (project.rows[0].currency !== document.currency)
+        throw new Error("SALES_INVOICE_CONTRACT_CURRENCY_MISMATCH");
+      const capacity = await client.query<{ allowed: string; used: string }>(
+        `select
+           (coalesce((select sum(value_minor) from contracts where organization_id=$1 and project_id=$2 and currency=$3),0)
+            + coalesce((select sum(expected_revenue_impact_minor) from scope_changes where organization_id=$1 and project_id=$2 and state='approved'),0))::text allowed,
+           coalesce((select sum(case when d.type='credit_note' then -a.amount_minor else a.amount_minor end)
+             from commercial_document_allocations a join commercial_documents d
+               on d.organization_id=a.organization_id and d.id=a.document_id
+            where a.organization_id=$1 and a.dimensions->>'projectId'=$2 and d.id<>$4
+              and d.state in('issued','posted','partially_paid','paid')),0)::text used`,
+        [organizationId, projectId, document.currency, document.id],
+      );
+      const allowed = BigInt(capacity.rows[0]?.allowed ?? "0");
+      if (allowed <= 0n) throw new Error("SALES_INVOICE_CONTRACT_REQUIRED");
+      if (BigInt(capacity.rows[0]?.used ?? "0") + BigInt(row.proposed) > allowed)
+        throw new Error("SALES_INVOICE_CONTRACT_CAP_EXCEEDED");
+    }
   }
   private async lockReplay(client: PoolClient, organizationId: string, key: string, hash: string) {
     await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
