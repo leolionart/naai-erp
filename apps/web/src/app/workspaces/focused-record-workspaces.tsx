@@ -110,8 +110,8 @@ function human(value: string) {
 function queryFor(kind: Kind, params: URLSearchParams) {
   const query = new URLSearchParams();
   for (const key of kind === "documents"
-    ? ["type", "state", "partyId", "projectId"]
-    : ["state", "class", "payeePartyId"]) {
+    ? ["type", "state", "partyId", "projectId", "startsOn", "endsOn"]
+    : ["state", "class", "payeePartyId", "startsOn", "endsOn"]) {
     const value = params.get(key);
     if (value) query.set(key, value);
   }
@@ -217,7 +217,12 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       const monthKey = dateStr && /^\d{4}-\d{2}/.test(dateStr) ? dateStr.substring(0, 7) : "Khác";
 
       let groupName = "";
-      const categoryCode = text(row, "category", "expenseClass", "categoryCode");
+      const linesArray = Array.isArray(row.lines) ? (row.lines as Record<string, unknown>[]) : [];
+      const lineCategory =
+        linesArray[0]?.category ||
+        (linesArray[0]?.dimensions as Record<string, unknown> | undefined)?.category;
+      const categoryCode =
+        text(row, "category", "expenseClass", "categoryCode") || String(lineCategory || "");
       if (categoryCode) {
         groupName = getCategoryName(categoryCode);
       }
@@ -278,10 +283,19 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <Badge variant="secondary" className="text-xs font-normal">
             {rows.length} bản ghi
           </Badge>
+          <QuickDatePresetButtons
+            label=""
+            onSelectRange={(startsOn, endsOn) => {
+              const query = new URLSearchParams(key);
+              if (startsOn) query.set("startsOn", startsOn);
+              if (endsOn) query.set("endsOn", endsOn);
+              router.replace(`${pathname}?${query.toString()}`);
+            }}
+          />
         </div>
         <div className="flex gap-2">
           <FilterPopover
