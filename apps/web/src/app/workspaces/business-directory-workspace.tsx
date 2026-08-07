@@ -180,6 +180,7 @@ export function BusinessRecordWorkspace({
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
   const [clientParty, setClientParty] = useState<Row>();
+  const [customerProjects, setCustomerProjects] = useState<readonly Row[]>([]);
 
   useEffect(() => {
     if (!hydrated || !hasToken || !id) return;
@@ -190,12 +191,22 @@ export function BusinessRecordWorkspace({
       .then((item) => {
         setRecord(item);
         setError("");
-        const clientId = String(item.client_party_id || "");
-        if (clientId) {
+        if (kind === "customers") {
           client
-            .data<Row>(`master-data/parties/${masterDataKey(clientId)}`)
-            .then(setClientParty)
-            .catch(() => undefined);
+            .data<Page>("master-data/projects?limit=200")
+            .then((res) => {
+              const items = Array.isArray(res) ? res : (res.items ?? []);
+              setCustomerProjects(items.filter((p) => String(p.client_party_id || "") === id));
+            })
+            .catch(() => setCustomerProjects([]));
+        } else {
+          const clientId = String(item.client_party_id || "");
+          if (clientId) {
+            client
+              .data<Row>(`master-data/parties/${masterDataKey(clientId)}`)
+              .then(setClientParty)
+              .catch(() => undefined);
+          }
         }
       })
       .catch((caught) =>
@@ -284,10 +295,67 @@ export function BusinessRecordWorkspace({
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
+              <CardTitle className="text-lg">1. Danh sách Dự án của Khách hàng</CardTitle>
+              <CardDescription className="text-xs">
+                Tất cả các dự án / hợp đồng dịch vụ đã ký kết với khách hàng {projectName}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {customerProjects.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {customerProjects.map((proj) => {
+                    const projId = value(proj, "id");
+                    const rawPName = value(proj, "name");
+                    let pTitle = rawPName;
+                    let pNote = value(proj, "notes") || value(proj, "description");
+                    if (rawPName.includes(" — ")) {
+                      const parts = rawPName.split(" — ");
+                      pTitle = parts[0]!.trim();
+                      if (!pNote) pNote = parts.slice(1).join(" — ").trim();
+                    }
+                    return (
+                      <Card key={projId} className="flex flex-col justify-between">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <CardTitle className="text-base font-semibold">{pTitle}</CardTitle>
+                              <CardDescription className="font-mono text-xs mt-0.5">
+                                {value(proj, "code")}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline">{value(proj, "state")}</Badge>
+                          </div>
+                          {pNote ? (
+                            <p className="mt-1 text-xs text-muted-foreground italic line-clamp-2">
+                              {pNote}
+                            </p>
+                          ) : null}
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                          <Button asChild size="sm" variant="secondary" className="w-full">
+                            <Link href={`/projects/${encodeURIComponent(projId)}`}>
+                              Xem hồ sơ dự án
+                            </Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic py-2">
+                  Chưa có dự án nào được gắn trực tiếp cho khách hàng này.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">
-                    1. Hóa đơn Khách hàng (Đầu ra & Đã liên kết)
+                    2. Hóa đơn Khách hàng (Đầu ra & Đã liên kết)
                   </CardTitle>
                   <CardDescription className="text-xs">
                     Tất cả các hóa đơn bán ra phát sinh cho khách hàng {projectName}.

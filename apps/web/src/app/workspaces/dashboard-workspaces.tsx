@@ -564,8 +564,15 @@ function useDashboardData() {
       client.data<ReadonlyArray<Record<string, unknown>>>("commercial-documents?limit=500"),
     ]);
 
-    const docsList =
-      rawDocs.status === "fulfilled" && Array.isArray(rawDocs.value) ? rawDocs.value : [];
+    const rawVal = rawDocs.status === "fulfilled" ? rawDocs.value : undefined;
+    const docsList: ReadonlyArray<Record<string, unknown>> = Array.isArray(rawVal)
+      ? (rawVal as ReadonlyArray<Record<string, unknown>>)
+      : rawVal &&
+          typeof rawVal === "object" &&
+          "data" in rawVal &&
+          Array.isArray((rawVal as { data: unknown }).data)
+        ? (rawVal as { data: ReadonlyArray<Record<string, unknown>> }).data
+        : [];
     const filteredSalesDocs = docsList.filter((doc) => {
       if (String(doc.type) !== "sales_invoice") return false;
       const dDate = String(doc.documentDate || doc.document_date || "");
