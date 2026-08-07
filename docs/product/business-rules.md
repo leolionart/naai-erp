@@ -86,6 +86,23 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Posted or issued financial history is corrected through cancel, deactivate, reverse or replacement
   workflows rather than relationship rewrites or hard delete.
 
+### BR-AI-006 — Cash-heavy business activity classification
+
+- The default small-business model allows the owner to pay company invoices and expenses from a
+  personal account without treating that personal account as a company financial account.
+- Supplier/payee, project, tax and expense identity remain canonical; the funding side credits a
+  reviewed Owner Payable/current-account liability instead of pretending company cash or bank paid.
+- Reimbursement clears the owner liability and never creates a second expense. Owner funding is
+  financing and never revenue; owner personal spending is not a company expense.
+- Owner withdrawals, owner-paid company costs and owner transfers into the company are tracked as
+  separate movements on a reviewed owner current-account/clearing policy. A withdrawal is not an
+  expense; a transfer into the company is not revenue; paying a supplier from the company account
+  after owner funding does not create a second funding or expense effect.
+- Customer money received into the owner's account requires an approved owner-custody/clearing
+  treatment and must not recognize revenue twice.
+- When no canonical API exists for a classified movement, AI stops and reports the missing workflow;
+  it does not fall back to direct SQL or an unreviewed manual journal.
+
 ## Rule format
 
 Every rule contains a stable ID, invariant/behavior, validation, state transition or posting effect, edge cases and required test coverage. A rule may not be silently changed from code; update this file and its mapped tests first.

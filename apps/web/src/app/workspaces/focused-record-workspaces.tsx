@@ -169,18 +169,16 @@ export function FocusedRecordListWorkspace({
       if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
         sourceParams.set("class", "non_documented");
       }
-      
+
       let rawItems: Row[] = [];
       let partiesRes;
-      
+
       if (kind === "documents" && invoiceStatus === "all") {
         const [docsRes, expsRes, partiesRaw] = await Promise.all([
           client.data<{ items?: Row[] } | Row[]>(
             `${current.endpoint}?${queryFor("documents", sourceParams)}`,
           ),
-          client.data<{ items?: Row[] } | Row[]>(
-            `expenses?${queryFor("expenses", sourceParams)}`,
-          ),
+          client.data<{ items?: Row[] } | Row[]>(`expenses?${queryFor("expenses", sourceParams)}`),
           client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
         ]);
         rawItems = [
@@ -204,13 +202,7 @@ export function FocusedRecordListWorkspace({
       // Do not filter out raw records by time when explicitly looking at a specific Project or Customer profile
       if ((startsOn || endsOn) && !initialProjectId && !initialPartyId) {
         rawItems = rawItems.filter((row) => {
-          const dateVal = text(
-            row,
-            "documentDate",
-            "expenseDate",
-            "issueDate",
-            "createdAt",
-          );
+          const dateVal = text(row, "documentDate", "expenseDate", "issueDate", "createdAt");
           if (!dateVal) return true;
           if (startsOn && dateVal < startsOn) return false;
           if (endsOn && dateVal > endsOn) return false;

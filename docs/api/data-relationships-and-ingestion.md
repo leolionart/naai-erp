@@ -4,6 +4,9 @@ This is the canonical playbook for an AI or integration that reads and writes NA
 it together with [`data-relationship-manifest-v1.json`](./data-relationship-manifest-v1.json), the
 [OpenAPI contract](./openapi-v1.json), and the [AI-native interface contract](./ai-native-interface-contract.md).
 
+For businesses using cash or personal custody heavily, also read
+[`cash-heavy-business-ingestion.md`](./cash-heavy-business-ingestion.md).
+
 ## 1. Non-negotiable rules
 
 1. Use REST or the first-party CLI. Never write PostgreSQL directly.
@@ -122,25 +125,26 @@ Never choose the nearest party/project/account by name similarity alone.
 
 ## 7. Core field-to-resource map
 
-| Request field                                                    | Target                                 | Required behavior                                                        |
-| ---------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
-| `party_id`                                                       | Generic party master ID                | Used by party roles                                                      |
-| `client_party_id`                                                | Party with client role                 | Used by projects                                                         |
-| `project_id`                                                     | Project ID                             | Used by contracts and master-data milestones indirectly                  |
-| `contract_id`                                                    | Contract ID                            | Used by milestones                                                       |
-| `partyId`                                                        | Party ID                               | Commercial-document counterparty                                         |
-| `payeePartyId`                                                   | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
-| `employeePartyId`                                                | Party ID                               | Required for employee reimbursement                                      |
-| `primaryAccountCode`, `postingAccountCode`, `counterAccountCode` | Account `code`                         | Must exist and be allowed by posting rules                               |
-| `taxAccountCode`, `vatAccountCode`                               | Account `code`                         | Optional only when tax treatment permits                                 |
-| `taxCode`                                                        | Effective tax-code version             | Resolve using document/expense date                                      |
-| `dimensions`                                                     | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values |
-| `originalDocumentId`                                             | Existing commercial-document ID        | Required for credit/correction relationship                              |
-| `ledgerAccountCode`                                              | Account `code`                         | Links financial account to ledger control account                        |
-| `financialAccountId`                                             | Financial-account response `accountId` | Required by bank import                                                  |
-| `allocations[].targetId`                                         | `documentId` or `expenseId`            | Must match `targetType` exactly                                          |
-| `reversalOfId`                                                   | Posted journal ID                      | Application creates linked reversal history                              |
-| `resourceType + resourceId`                                      | Canonical resource                     | Evidence generic link; application validates ownership/type              |
+| Request field                                                       | Target                                 | Required behavior                                                        |
+| ------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| `party_id`                                                          | Generic party master ID                | Used by party roles                                                      |
+| `client_party_id`                                                   | Party with client role                 | Used by projects                                                         |
+| `project_id`                                                        | Project ID                             | Used by contracts and master-data milestones indirectly                  |
+| `contract_id`                                                       | Contract ID                            | Used by milestones                                                       |
+| `partyId`                                                           | Party ID                               | Commercial-document counterparty                                         |
+| `lines[].dimensions.projectId` or allocation `dimensions.projectId` | Project stable `id`                    | Project attribution; resolve project code to its stable ID first         |
+| `payeePartyId`                                                      | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
+| `employeePartyId`                                                   | Party ID                               | Required for employee reimbursement                                      |
+| `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`    | Account `code`                         | Must exist and be allowed by posting rules                               |
+| `taxAccountCode`, `vatAccountCode`                                  | Account `code`                         | Optional only when tax treatment permits                                 |
+| `taxCode`                                                           | Effective tax-code version             | Resolve using document/expense date                                      |
+| `dimensions`                                                        | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values |
+| `originalDocumentId`                                                | Existing commercial-document ID        | Required for credit/correction relationship                              |
+| `ledgerAccountCode`                                                 | Account `code`                         | Links financial account to ledger control account                        |
+| `financialAccountId`                                                | Financial-account response `accountId` | Required by bank import                                                  |
+| `allocations[].targetId`                                            | `documentId` or `expenseId`            | Must match `targetType` exactly                                          |
+| `reversalOfId`                                                      | Posted journal ID                      | Application creates linked reversal history                              |
+| `resourceType + resourceId`                                         | Canonical resource                     | Evidence generic link; application validates ownership/type              |
 
 ## 8. Canonical recipes
 
@@ -155,7 +159,39 @@ Never choose the nearest party/project/account by name similarity alone.
 Generic resource updates use an encoded composite key where required. Obtain keys from list/get
 responses rather than constructing them from assumptions.
 
-### 8.2 Sales invoice → posting → receipt
+### 8.2 Customer – project – invoice relationship
+
+The three links have different meanings and must be validated together:
+
+```text
+party.id ──< project.client_party_id
+party.id ──< commercial_document.partyId
+project.id ──< line/allocation dimensions.projectId
+```
+
+- For a `sales_invoice`, `partyId` is the customer being invoiced. Every allocated `projectId` must
+  resolve to a project whose `client_party_id` equals the same `partyId`.
+- For a `purchase_invoice`, `partyId` is the supplier while `dimensions.projectId` is the project
+  receiving the cost. The project's customer is normally different from the supplier.
+- For a `credit_note`, `partyId` must match the original document and project allocations must remain
+  inside the original eligible allocation scope.
+
+Safe sales-invoice resolution:
+
+1. Resolve the customer and retain `party.id`.
+2. Resolve the project by stable ID or unique code.
+3. Verify `project.client_party_id === party.id` inside the same organization.
+4. Put `party.id` in document `partyId`.
+5. Put `project.id` in `lines[].dimensions.projectId` or allocation `dimensions.projectId`.
+6. For multiple projects, verify every project belongs to that customer and allocations total the
+   line amount.
+7. On mismatch, stop; never silently replace the customer or move the project.
+
+The create API has no top-level `projectId`. Project attribution uses the exact camelCase key
+`projectId` inside line/allocation dimensions. The list endpoint's `?projectId=` filter searches
+those values.
+
+### 8.3 Sales invoice → posting → receipt
 
 Prerequisites: client party, accounts, applicable tax version, dimensions, and optional project,
 contract or milestone.
@@ -164,7 +200,6 @@ Create body shape:
 
 ```json
 {
-  "schemaVersion": 1,
   "type": "sales_invoice",
   "partyId": "party-client-1",
   "documentNumber": "INV-2026-001",
@@ -173,6 +208,10 @@ Create body shape:
   "documentDate": "2026-08-07",
   "dueDate": "2026-08-21",
   "currency": "VND",
+  "netMinor": "10000000",
+  "taxMinor": "1000000",
+  "grossMinor": "11000000",
+  "controlAccountCode": "131",
   "externalReference": {
     "system": "paperless",
     "externalId": "document-123",
@@ -180,16 +219,26 @@ Create body shape:
   },
   "lines": [
     {
-      "id": "line-1",
       "description": "Dịch vụ thiết kế",
-      "amountMinor": "10000000",
+      "quantity": "1",
+      "unitPriceMinor": "10000000",
+      "netMinor": "10000000",
+      "taxMinor": "1000000",
+      "grossMinor": "11000000",
       "primaryAccountCode": "511",
       "taxCode": "VAT10",
       "taxAccountCode": "3331",
       "dimensions": {
-        "project": "PRJ-001",
+        "projectId": "project-stable-id-001",
         "service_line": "DESIGN"
-      }
+      },
+      "allocations": [
+        {
+          "id": "allocation-1",
+          "amountMinor": "10000000",
+          "dimensions": { "projectId": "project-stable-id-001" }
+        }
+      ]
     }
   ]
 }
@@ -197,48 +246,36 @@ Create body shape:
 
 Then:
 
-1. Retain `data.documentId` and `resourceVersion`.
-2. Follow only actions returned in `nextActions`, normally validate/issue/post according to type.
-3. Retain `journalId` returned by posting.
-4. Import the receipt under a resolved financial account.
-5. Match with allocation `{ "targetType": "commercial_document", "targetId": "<documentId>" }`.
-6. Reconcile and read back invoice outstanding plus journal/payment links.
+1. Verify `project-stable-id-001.client_party_id === party-client-1`.
+2. Retain `data.documentId` and `resourceVersion`.
+3. Follow only actions returned in `nextActions`, normally validate/issue/post according to type.
+4. Retain `journalId` returned by posting.
+5. Import the receipt under a resolved financial account.
+6. Match with allocation `{ "targetType": "commercial_document", "targetId": "<documentId>" }`.
+7. Reconcile and read back invoice outstanding plus journal/payment links.
 
-### 8.3 Purchase invoice
+### 8.4 Purchase invoice
 
 Use a party with supplier role. The source remains a `purchase_invoice`; do not create an additional
 invoice-backed expense. Typical lifecycle is capture → verify → approve → post. Payment allocation
 targets the returned `documentId`.
 
-### 8.4 Non-invoice expense
+For project-attributed supplier cost, keep the supplier in `partyId` and place the receiving
+project's stable ID in `dimensions.projectId`. Do not require the project client to equal the
+supplier.
+
+### 8.5 Non-invoice expense
 
 Create an expense only after confirming it is not a supplier invoice already represented as a
 purchase invoice.
 
-```json
-{
-  "schemaVersion": 1,
-  "expenseClass": "non_documented",
-  "payeePartyId": "party-payee-1",
-  "expenseDate": "2026-08-07",
-  "currency": "VND",
-  "counterAccountCode": "111",
-  "businessPurpose": "Chi phí vận hành",
-  "lines": [
-    {
-      "id": "expense-line-1",
-      "amountMinor": "500000",
-      "postingAccountCode": "642",
-      "dimensions": { "cost_center": "OPS" }
-    }
-  ]
-}
-```
+Use the validated request shape in
+[`cash-heavy-business-ingestion.md#non-invoice-cash-expense`](./cash-heavy-business-ingestion.md#non-invoice-cash-expense).
 
 Retain `data.expenseId`, then submit/review/approve/post. If paid through an imported bank
 transaction, reconciliation uses `targetType=expense` and `targetId=<expenseId>`.
 
-### 8.5 Bank import and reconciliation
+### 8.6 Bank import and reconciliation
 
 1. Resolve account code, then create/read the financial account and retain `accountId`.
 2. Dry-run the import.
@@ -265,7 +302,7 @@ transaction, reconciliation uses `targetType=expense` and `targetId=<expenseId>`
 Allocation totals may not exceed the transaction or target outstanding amount. A reconciled
 transaction is corrected by authorized unreconcile with reason, then rematch.
 
-### 8.6 Credit, reversal and replacement
+### 8.7 Credit, reversal and replacement
 
 - Draft resource: PATCH with the latest version.
 - Unissued document: use cancel when permitted.
@@ -276,7 +313,7 @@ transaction is corrected by authorized unreconcile with reason, then rematch.
 
 Never change a posted source's party, project, lines, amount or journal relationship in place.
 
-### 8.7 Workbook review row → canonical resource
+### 8.8 Workbook review row → canonical resource
 
 The review row is staging evidence, not a report source.
 

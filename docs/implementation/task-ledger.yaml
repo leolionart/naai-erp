@@ -1,14 +1,14 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-07T21:12:00+07:00
+updated_at: 2026-08-07T21:50:53+07:00
 status_values: [blocked, ready, in_progress, review, done]
-development_status: done
+development_status: in_progress
 development_completed_at: 2026-08-07T20:49:00+07:00
-project_status: done
-project_completed_at: 2026-08-07T21:12:00+07:00
+project_status: in_progress
+project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: null
-current_task: null
+current_gate: G14
+current_task: ERP-841
 
 tasks:
   - id: ERP-000
@@ -967,6 +967,107 @@ tasks:
       - scripts/verify-docs.mjs
       - docs/implementation/evidence/ERP-810/
 
+  - id: ERP-820
+    title: Owner-paid small business ingestion coverage
+    phase: P10
+    status: done
+    dependencies: [G9]
+    business_rules:
+      [BR-AI-005, BR-AI-006, BR-BNK-003, BR-EXP-003, BR-EXP-004, BR-AR-003, BR-AP-003, BR-RPT-004]
+    tests: [T-DOC-ERP-820-001]
+    evidence: docs/implementation/evidence/ERP-820/
+    agent: codex-root
+    started_at: 2026-08-07T21:28:00+07:00
+    completed_at: 2026-08-07T21:39:00+07:00
+    completion_basis: documentation_acceptance
+    planned_files:
+      - docs/api/cash-heavy-business-ingestion.md
+      - docs/api/data-relationships-and-ingestion.md
+      - docs/api/data-relationship-manifest-v1.json
+      - docs/api/README.md
+      - docs/product/business-rules.md
+      - scripts/verify-docs.mjs
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-820/
+
+  - id: ERP-821
+    title: Owner current-account operating cycle
+    phase: P10
+    status: done
+    dependencies: [ERP-820]
+    business_rules: [BR-AI-005, BR-AI-006, BR-RPT-004, BR-KPI-005]
+    tests: [T-DOC-ERP-821-001]
+    evidence: docs/implementation/evidence/ERP-821/
+    agent: codex-root
+    started_at: 2026-08-07T21:20:00+07:00
+    completed_at: 2026-08-07T21:23:19+07:00
+    completion_basis: documentation_acceptance
+    planned_files:
+      - docs/api/cash-heavy-business-ingestion.md
+      - docs/api/data-relationship-manifest-v1.json
+      - docs/product/business-rules.md
+      - scripts/verify-docs.mjs
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-821/
+
+  - id: ERP-830
+    title: Project-local NAAI ERP management skill
+    phase: P10
+    status: done
+    dependencies: [ERP-821]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005, BR-AI-006]
+    tests: [T-SKILL-ERP-830-001]
+    evidence: docs/implementation/evidence/ERP-830/
+    agent: codex-root
+    started_at: 2026-08-07T21:24:00+07:00
+    completed_at: 2026-08-07T21:29:24+07:00
+    completion_basis: skill_validation_and_documentation_acceptance
+    planned_files:
+      - .agent/skills/manage-naai-erp/SKILL.md
+      - .agent/skills/manage-naai-erp/agents/openai.yaml
+      - .agent/skills/manage-naai-erp/references/operations.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-830/
+
+  - id: ERP-840
+    title: Comprehensive local NAAI demo scenario
+    phase: P10
+    status: done
+    dependencies: [ERP-830]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005, BR-AI-006, BR-RPT-004]
+    tests: [T-INT-ERP-840-001]
+    evidence: docs/implementation/evidence/ERP-840/
+    agent: codex-root
+    started_at: 2026-08-07T21:35:00+07:00
+    completed_at: 2026-08-07T21:50:53+07:00
+    completion_basis: live_local_seed_and_report_readback
+    planned_files:
+      - scripts/seed-local-demo.mjs
+      - package.json
+      - docs/runbooks/native-development.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-840/
+
+  - id: ERP-841
+    title: Complete contract revenue debt and fully-loaded demo coverage
+    phase: P10
+    status: in_progress
+    dependencies: [ERP-840]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-RPT-004, BR-REV-001, BR-PRJ-001]
+    tests: [T-INT-ERP-841-001]
+    evidence: docs/implementation/evidence/ERP-841/
+    agent: codex-root
+    started_at: 2026-08-07T22:08:42+07:00
+    planned_files:
+      - scripts/seed-local-demo.mjs
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - docs/runbooks/native-development.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-841/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -978,6 +1079,11 @@ gates:
   G7: [ERP-700, ERP-710, ERP-720, ERP-730, ERP-740]
   G8: [ERP-800]
   G9: [ERP-810]
+  G10: [ERP-820]
+  G11: [ERP-821]
+  G12: [ERP-830]
+  G13: [ERP-840]
+  G14: [ERP-841]
 
 gate_status:
   G0: done
@@ -990,3 +1096,8 @@ gate_status:
   G7: done
   G8: done
   G9: done
+  G10: done
+  G11: done
+  G12: done
+  G13: done
+  G14: in_progress

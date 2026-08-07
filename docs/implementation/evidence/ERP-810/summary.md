@@ -14,5 +14,8 @@ Added the canonical AI data relationship and ingestion contract for NAAI ERP.
 - Documentation validation for duplicate resources, unknown stages/targets, reversed dependencies,
   incomplete references, safety policy and required guide sections.
 - Current inbound retry wording aligned with the Paperless/n8n boundary.
+- Explicit customer–project–invoice relationship rules, including the different semantics for sales
+  invoices, supplier purchase invoices and credit notes, plus the exact `dimensions.projectId`
+  linkage used by the transactional API.
 
 No database schema or financial behavior was changed.

@@ -305,7 +305,6 @@ export function BankingWorkspace() {
 
   return (
     <div className="flex flex-col gap-4">
-
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>Không thể hoàn tất thao tác</AlertTitle>

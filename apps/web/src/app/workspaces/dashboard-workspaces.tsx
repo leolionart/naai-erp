@@ -402,33 +402,47 @@ function MetricCard({
   provisional?: boolean;
   onQuick?: () => void;
 }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+  const cardElement = (
+    <Card className="group relative flex h-full flex-col justify-between transition-all hover:border-primary/50 hover:bg-accent/30 active:scale-[0.99] cursor-pointer">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="transition-colors group-hover:text-primary">{title}</CardTitle>
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-50 transition-all group-hover:translate-x-0.5 group-hover:text-primary group-hover:opacity-100" />
+        </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {provisional ? <Badge variant="secondary">Tạm tính</Badge> : null}
-          {status ? <Badge variant="outline">{status}</Badge> : null}
-        </div>
+        {provisional || status ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {provisional ? <Badge variant="secondary">Tạm tính</Badge> : null}
+            {status ? <Badge variant="outline">{status}</Badge> : null}
+          </div>
+        ) : null}
       </CardContent>
-      <CardFooter>
-        {onQuick ? (
-          <Button variant="outline" className="w-full" onClick={onQuick}>
-            Xem nhanh
-          </Button>
-        ) : (
-          <Button asChild variant="outline" className="w-full">
-            <Link href={href}>
-              Mở drill-down <ArrowRight data-icon="inline-end" />
-            </Link>
-          </Button>
-        )}
-      </CardFooter>
     </Card>
+  );
+
+  if (onQuick) {
+    return (
+      <div
+        onClick={onQuick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onQuick();
+        }}
+        className="h-full"
+      >
+        {cardElement}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={href} className="block h-full no-underline">
+      {cardElement}
+    </Link>
   );
 }
 
@@ -992,8 +1006,8 @@ export function ExecutiveDashboardWorkspace() {
                 )}
                 description={
                   executive
-                    ? `Burn: ${money(executive.netBurnMinor, executive.currency)}`
-                    : "Số dư posted ledger theo mapping unrestricted_cash"
+                    ? `Burn: ${money(executive.netBurnMinor, executive.currency)}/tháng`
+                    : "Tổng số dư tiền mặt và tiền gửi khả dụng"
                 }
                 href={`/dashboard/drilldown/runway?${q}`}
                 status={executive?.runwayStatus}
@@ -1001,7 +1015,7 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Runway"
                 value={months(executive?.runwayMonthsThousandths)}
-                description={executive?.runwayFormulaVersion ?? "Report API unavailable"}
+                description="Thời gian duy trì dòng tiền với tốc độ chi tiêu hiện tại"
                 href={`/dashboard/drilldown/runway?${q}`}
                 status={executive?.runwayStatus}
               />
@@ -1011,7 +1025,7 @@ export function ExecutiveDashboardWorkspace() {
                 description={
                   operating
                     ? `${operating.backlog.projectCount} dự án có hợp đồng`
-                    : "Budget revenue chưa ghi nhận"
+                    : "Doanh thu hợp đồng chưa ghi nhận"
                 }
                 href={`/reports/project-profitability?${q}`}
                 provisional={usingOperatingFallback}
@@ -1026,8 +1040,8 @@ export function ExecutiveDashboardWorkspace() {
                 description={
                   operating?.financials.approvedBudgetCount &&
                   operating.financials.postedOverheadRunCount
-                    ? "Project profitability report API"
-                    : "Lợi nhuận ledger; chưa đủ budget/overhead để fully loaded"
+                    ? "Lợi nhuận ròng đã phân bổ đầy đủ chi phí"
+                    : "Lợi nhuận sổ sách kế toán"
                 }
                 href={`/reports/project-profitability?${q}`}
                 status={`${projects.length} dự án`}
@@ -1035,16 +1049,11 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="ROS"
                 value={ratio(executive?.ros.valueBps ?? operating?.financials.rosBps)}
-                description={
-                  executive?.ros.formulaVersion ??
-                  (operating?.financials.rosBps == null
-                    ? "Không có mẫu số doanh thu"
-                    : "Posted ledger revenue và expense")
-                }
+                description="Tỷ suất lợi nhuận trên doanh thu (Return on Sales)"
                 href={`/dashboard/drilldown/ros?${q}`}
                 status={
                   executive?.ros.status ??
-                  (operating?.financials.rosBps == null ? undefined : "Ledger fallback")
+                  (operating?.financials.rosBps == null ? undefined : "Dồn tích")
                 }
               />
             </div>

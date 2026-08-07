@@ -354,7 +354,6 @@ export function ReconciliationWorkspace({ transactionId }: Readonly<{ transactio
         </Button>
       </div>
 
-
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>Không thể hoàn tất đối soát</AlertTitle>

@@ -421,16 +421,25 @@ export function AccountantExportCreateDialog({
         <DialogHeader>
           <DialogTitle>Cấu hình gói xuất</DialogTitle>
           <DialogDescription>
-            Chọn một snapshot đã capture và định dạng bàn giao; file luôn gắn với đúng version của snapshot được chọn.
+            Chọn một snapshot đã capture và định dạng bàn giao; file luôn gắn với đúng version của
+            snapshot được chọn.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <FieldGroup>
             <Field>
               <FieldLabel>Snapshot</FieldLabel>
-              <Select value={snapshotId} onValueChange={setSnapshotId} disabled={snapshots.length === 0}>
+              <Select
+                value={snapshotId}
+                onValueChange={setSnapshotId}
+                disabled={snapshots.length === 0}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={snapshots.length === 0 ? "Chưa có snapshot nào" : "Chọn snapshot..."} />
+                  <SelectValue
+                    placeholder={
+                      snapshots.length === 0 ? "Chưa có snapshot nào" : "Chọn snapshot..."
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -461,9 +470,7 @@ export function AccountantExportCreateDialog({
           {selected?.readiness === "review_required" ? (
             <Alert variant="destructive">
               <AlertTitle>Snapshot chưa final</AlertTitle>
-              <AlertDescription>
-                File tạo từ snapshot này chỉ dùng để rà soát.
-              </AlertDescription>
+              <AlertDescription>File tạo từ snapshot này chỉ dùng để rà soát.</AlertDescription>
             </Alert>
           ) : null}
           {error ? (
@@ -485,8 +492,6 @@ export function AccountantExportCreateDialog({
     </Dialog>
   );
 }
-
-
 
 export function AccountantExportDetailWorkspace({
   exportId,

@@ -36,7 +36,12 @@ type ApiRow = Record<string, unknown>;
 type ApiEnvelope = Readonly<{ data?: unknown; nextActions?: readonly string[] }> & ApiRow;
 type StoredSettings = { version: 1; baseUrl: string; organizationId: string };
 
-import { loadApiToken, loadConnectionSettings, saveApiToken, saveConnectionSettings } from "@/lib/api/connection";
+import {
+  loadApiToken,
+  loadConnectionSettings,
+  saveApiToken,
+  saveConnectionSettings,
+} from "@/lib/api/connection";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -298,8 +303,6 @@ export function LedgerMasterWorkspace({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-
-
         <div
           className="flex flex-wrap items-center gap-2"
           role="tablist"

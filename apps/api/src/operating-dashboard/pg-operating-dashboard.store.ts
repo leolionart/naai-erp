@@ -232,7 +232,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     };
   }
 
-  private async sourceControls(org: string, q: OperatingDashboardQuery): Promise<WorkbookSourceControls> {
+  private async sourceControls(
+    org: string,
+    q: OperatingDashboardQuery,
+  ): Promise<WorkbookSourceControls> {
     type SourceRow = {
       id: string;
       kind: WorkbookSourceControlKind;

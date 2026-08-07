@@ -377,7 +377,7 @@ export async function runSetup(env = process.env, overrides = {}) {
     try {
       await client.query(
         "INSERT INTO organizations (id, legal_name, base_currency, timezone) VALUES ($1, $2, 'VND', 'Asia/Ho_Chi_Minh') ON CONFLICT (id) DO NOTHING",
-        [config.orgId, legalName]
+        [config.orgId, legalName],
       );
 
       console.log("Idempotently ensuring actor user and organization membership exist...");

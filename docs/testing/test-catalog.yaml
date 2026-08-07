@@ -1042,6 +1042,39 @@ tests:
     command: pnpm test:docs
     blocking_gate: G9
 
+  - id: T-DOC-ERP-820-001
+    task: ERP-820
+    rules:
+      [BR-AI-005, BR-AI-006, BR-BNK-003, BR-EXP-003, BR-EXP-004, BR-AR-003, BR-AP-003, BR-RPT-004]
+    title: Cash-heavy business guide classifies invoices cash transfers owner movements advances reimbursements and unsupported workflows safely
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G10
+
+  - id: T-DOC-ERP-821-001
+    task: ERP-821
+    rules: [BR-AI-005, BR-AI-006, BR-RPT-004, BR-KPI-005]
+    title: Owner current-account cycle separates withdrawals direct owner-paid costs company funding and large invoice settlement
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G11
+
+  - id: T-SKILL-ERP-830-001
+    task: ERP-830
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005, BR-AI-006]
+    title: Project skill manages NAAI ERP through official CLI and API with relationship accounting and readback safeguards
+    layer: documentation
+    command: python3 /Users/admin/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agent/skills/manage-naai-erp
+    blocking_gate: G12
+
+  - id: T-INT-ERP-840-001
+    task: ERP-840
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005, BR-AI-006, BR-RPT-004]
+    title: Idempotent local demo scenario creates canonical data and verifies reports snapshots and exports through API
+    layer: integration
+    command: node scripts/seed-local-demo.mjs --verify
+    blocking_gate: G13
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

@@ -4,6 +4,8 @@
 - [x] A machine-readable manifest defines dependencies, reference fields, identities and stages.
 - [x] Party, project, contract, milestone, document, expense, account, journal, bank and
       reconciliation ID propagation is documented.
+- [x] Customer–project–invoice consistency is explicit for sales invoices, purchase invoices and
+      credit notes, including the exact `dimensions.projectId` API field.
 - [x] Sales, purchase, non-invoice expense, banking, correction and workbook promotion recipes are
       documented.
 - [x] Organization scope, exact money, idempotency, correlation and optimistic concurrency rules are

@@ -278,9 +278,23 @@
           "onMissing": "reject"
         },
         {
+          "field": "lines[].dimensions.projectId|lines[].allocations[].dimensions.projectId",
+          "target": "project",
+          "targetKey": "id",
+          "required": false,
+          "onMissing": "reject"
+        },
+        {
           "field": "originalDocumentId",
           "target": "commercial_document",
           "targetKey": "documentId",
+          "required": false,
+          "onMissing": "reject"
+        },
+        {
+          "field": "lines[].dimensions.projectId|lines[].allocations[].dimensions.projectId",
+          "target": "project",
+          "targetKey": "id",
           "required": false,
           "onMissing": "reject"
         }
@@ -298,6 +312,11 @@
         "cancelled"
       ],
       "responseIds": ["data.documentId", "data.journalId"],
+      "relationshipRules": [
+        "sales_invoice: partyId must equal every allocated project's client_party_id",
+        "purchase_invoice: partyId is the supplier; allocated project.client_party_id is the end client and is not expected to equal the supplier",
+        "credit_note: partyId must equal originalDocumentId.partyId and project allocations must remain within the eligible original allocation scope"
+      ],
       "correction": "PATCH draft; cancel before issue; credit or reverse/replace after issue/post"
     },
     {
@@ -418,7 +437,7 @@
       "endpoint": "/banking/transactions",
       "cli": "bank-transactions",
       "identifiers": ["transactionId"],
-      "businessKeys": ["financialAccountId", "provider", "providerTransactionId"],
+      "businessKeys": ["financialAccountId", "providerTransactionId|fingerprint"],
       "dependsOn": ["financial_account", "bank_import"],
       "lifecycle": ["imported", "suggested", "matched", "reconciled", "ignored", "needs_review"],
       "correction": "authorized_unreconcile_with_reason"
@@ -447,6 +466,37 @@
         }
       ],
       "correction": "unreconcile_then_rematch"
+    },
+    {
+      "id": "internal_transfer",
+      "stage": "banking_reconciliation",
+      "endpoint": "/banking/internal-transfers",
+      "cli": "internal-transfers",
+      "identifiers": ["data.transfer.id"],
+      "dependsOn": ["bank_transaction", "account"],
+      "references": [
+        {
+          "field": "sourceTransactionId|destinationTransactionId|counterpartTransactionId|fee.transactionId",
+          "target": "bank_transaction",
+          "targetKey": "transactionId",
+          "required": false,
+          "onMissing": "pending_counterpart_or_reject"
+        },
+        {
+          "field": "transitAccountId|fee.expenseAccountId",
+          "target": "account",
+          "targetKey": "id_or_contract_account_identifier",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["pending_counterpart", "matched", "reconciled", "unmatched", "needs_review"],
+      "responseIds": [
+        "data.transfer.id",
+        "data.transfer.resourceVersion",
+        "data.transfer.attempts[].journalIds"
+      ],
+      "correction": "unmatch with expectedResourceVersion and reason; principal never affects P&L"
     },
     {
       "id": "timesheet",
@@ -533,7 +583,7 @@
       "id": "sales_invoice_to_receipt",
       "steps": [
         "resolve party(client role)",
-        "resolve project/contract/milestone if allocated",
+        "resolve project/contract/milestone if allocated and verify project.client_party_id equals invoice partyId",
         "resolve accounts/tax/dimensions",
         "create commercial_document and retain data.documentId",
         "validate/issue/post and retain journalId",
@@ -565,6 +615,18 @@
       ]
     },
     {
+      "id": "owner_current_account_cycle",
+      "steps": [
+        "classify each owner-company movement independently",
+        "resolve the reviewed Owner Current Account owner loan equity or withdrawal policy without guessing account codes",
+        "for owner funding debit company bank and credit the reviewed owner balance never revenue",
+        "for owner-paid company costs retain supplier payee project tax and expense identity and credit Owner Payable/current account",
+        "for company payment of a posted supplier invoice debit accounts payable and credit company bank without duplicating expense or funding",
+        "for company withdrawal to owner debit the reviewed owner balance and credit company bank or cash never operating expense",
+        "for reimbursement clear Owner Payable/current account without creating a second expense"
+      ]
+    },
+    {
       "id": "posted_correction",
       "steps": [
         "read canonical source and resourceVersion",
@@ -589,6 +651,83 @@
   "knownUnavailableOperations": [
     "PATCH /banking/accounts/{accountId}",
     "CLI aging party/item drilldown",
-    "worker deactivate REST operation"
+    "worker deactivate REST operation",
+    "direct cash receipt/payment transaction create",
+    "accountable advance issue/return/settlement",
+    "owner contribution/withdrawal/loan lifecycle",
+    "employee reimbursement payment settlement action",
+    "cash physical count/imprest/variance workflow"
+  ],
+  "businessActivityCoverage": [
+    {
+      "activity": "sales_invoice_and_receipt",
+      "status": "supported",
+      "resources": ["commercial_document", "bank_transaction", "reconciliation"]
+    },
+    {
+      "activity": "purchase_invoice_and_payment",
+      "status": "supported",
+      "resources": ["commercial_document", "bank_transaction", "reconciliation"]
+    },
+    {
+      "activity": "non_invoice_cash_expense",
+      "status": "supported",
+      "resources": ["expense", "financial_account"]
+    },
+    {
+      "activity": "bank_to_cash_or_cash_to_bank",
+      "status": "supported_when_both_transaction_legs_exist",
+      "resources": ["financial_account", "bank_transaction", "internal_transfer"]
+    },
+    {
+      "activity": "customer_or_supplier_advance",
+      "status": "partial",
+      "resources": ["bank_transaction", "reconciliation", "report"]
+    },
+    {
+      "activity": "owner_or_employee_paid_company_expense",
+      "status": "expense_booking_supported_owner_payable_settlement_missing",
+      "resources": ["party", "expense", "account", "journal"]
+    },
+    {
+      "activity": "owner_direct_business_payment",
+      "status": "document_or_expense_booking_supported_owner_balance_settlement_missing",
+      "resources": ["party", "commercial_document", "expense", "project", "account", "journal"]
+    },
+    {
+      "activity": "owner_funding_company_account",
+      "status": "manual_only_reviewed_owner_balance_classification_required",
+      "resources": ["party", "financial_account", "account", "journal"]
+    },
+    {
+      "activity": "company_large_invoice_payment_after_owner_funding",
+      "status": "invoice_payment_supported_funding_recorded_separately",
+      "resources": [
+        "commercial_document",
+        "financial_account",
+        "bank_transaction",
+        "reconciliation"
+      ]
+    },
+    {
+      "activity": "customer_receipt_into_owner_personal_account",
+      "status": "missing_owner_custody_clearing_workflow",
+      "resources": ["party", "commercial_document", "account"]
+    },
+    {
+      "activity": "owner_capital_withdrawal_or_loan",
+      "status": "manual_only_no_canonical_resource",
+      "resources": ["journal", "report"]
+    },
+    {
+      "activity": "owner_withdrawal_from_company",
+      "status": "manual_only_reviewed_owner_balance_classification_required",
+      "resources": ["party", "financial_account", "account", "journal", "report"]
+    },
+    {
+      "activity": "owner_reimbursement",
+      "status": "manual_only_no_dedicated_api",
+      "resources": ["account", "journal", "financial_account"]
+    }
   ]
 }

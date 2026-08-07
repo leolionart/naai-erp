@@ -59,6 +59,10 @@ const relationshipGuidePath = new URL(
 );
 const relationshipManifest = JSON.parse(await readFile(relationshipManifestPath, "utf8"));
 const relationshipGuide = await readFile(relationshipGuidePath, "utf8");
+const cashHeavyGuide = await readFile(
+  new URL("../docs/api/cash-heavy-business-ingestion.md", import.meta.url),
+  "utf8",
+);
 
 if (relationshipManifest.schemaVersion !== 1 || relationshipManifest.apiVersion !== "v1") {
   throw new Error("Relationship manifest must declare schemaVersion 1 and API v1");
@@ -111,6 +115,7 @@ const requiredGuideSections = [
   "## 6. Relationship lookup algorithm",
   "## 7. Core field-to-resource map",
   "## 8. Canonical recipes",
+  "### 8.2 Customer – project – invoice relationship",
   "## 10. Error and retry behavior",
   "## 11. Final AI checklist",
 ];
@@ -120,6 +125,58 @@ for (const heading of requiredGuideSections) {
   }
 }
 if (!relationshipManifest.recipes?.length) throw new Error("Relationship manifest needs recipes");
+const commercialDocumentRelationship = resources.get("commercial_document");
+if (
+  !commercialDocumentRelationship?.relationshipRules?.some((rule) =>
+    rule.includes("sales_invoice"),
+  ) ||
+  !commercialDocumentRelationship.references?.some((reference) =>
+    reference.field.includes("dimensions.projectId"),
+  )
+) {
+  throw new Error("Commercial document must define customer-project-invoice relationship rules");
+}
+if (!resources.has("internal_transfer")) {
+  throw new Error("Relationship manifest must include internal transfers");
+}
+const requiredCashActivities = [
+  "sales_invoice_and_receipt",
+  "purchase_invoice_and_payment",
+  "non_invoice_cash_expense",
+  "owner_or_employee_paid_company_expense",
+  "owner_direct_business_payment",
+  "owner_funding_company_account",
+  "company_large_invoice_payment_after_owner_funding",
+  "customer_receipt_into_owner_personal_account",
+  "owner_reimbursement",
+  "owner_capital_withdrawal_or_loan",
+  "owner_withdrawal_from_company",
+];
+const activityIds = new Set(
+  relationshipManifest.businessActivityCoverage?.map((entry) => entry.activity) ?? [],
+);
+for (const activity of requiredCashActivities) {
+  if (!activityIds.has(activity)) throw new Error(`Missing cash activity coverage: ${activity}`);
+}
+for (const heading of [
+  "## Default model",
+  "## Decision table",
+  "## Owner current-account operating cycle",
+  "## Output invoice",
+  "## Input invoice paid by owner",
+  "## Non-invoice expense paid by owner",
+  "## Reimbursing the owner",
+  "## Customer money received in the owner's account",
+  "## Minimal AI workflow",
+  "## Stop conditions",
+]) {
+  if (!cashHeavyGuide.includes(heading)) {
+    throw new Error(`Cash-heavy business guide is missing: ${heading}`);
+  }
+}
+if (!relationshipManifest.recipes?.some((recipe) => recipe.id === "owner_current_account_cycle")) {
+  throw new Error("Relationship manifest is missing owner_current_account_cycle recipe");
+}
 
 process.stdout.write(
   `Verified ${requiredAdrs.length} accepted ADRs, ${requiredRuleReferences.length} rule references, and ${resources.size} AI relationship resources.\n`,

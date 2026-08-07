@@ -124,3 +124,30 @@ DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm dev
 # Or start only the Web and API services
 DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm dev:preview
 ```
+
+## Local comprehensive demo data
+
+With the API running and `apps/web/.env.local` configured for organization `naai`, create or refresh
+the idempotent synthetic demo scenario:
+
+```bash
+node scripts/seed-local-demo.mjs --bootstrap-checker
+```
+
+`--bootstrap-checker` creates only the independent local checker identity and credential directly in
+the authentication tables because no user/credential administration API exists. The token is random,
+used only in that process and is never written to a file. Every business resource is created through
+the versioned REST API with stable idempotency keys.
+
+The scenario includes fiscal setup, TT133 accounts and mappings, customers, supplier, owner, two
+projects, owner capital/funding/withdrawal, sales and purchase invoices, an owner-paid expense, bank
+import and reconciliation, VAT, AR/AP aging, planning target/forecast, executive metrics, a final P&L
+snapshot and CSV/XLSX accountant exports.
+
+Verify all supported demo report families without mutation:
+
+```bash
+node scripts/seed-local-demo.mjs --verify
+```
+
+The script is for local synthetic data only. Do not run it against staging or production.

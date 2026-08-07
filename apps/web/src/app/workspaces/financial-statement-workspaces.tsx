@@ -826,7 +826,7 @@ export function FinancialStatementWorkspace({
     },
     [pathname, router],
   );
-  
+
   async function captureSnapshot() {
     if (!report || capturing) return;
     setCapturing(true);
@@ -836,7 +836,8 @@ export function FinancialStatementWorkspace({
         period: {
           startsOn: query.get("startsOn") ?? report.range.startsOn,
           endsOn: query.get("endsOn") ?? report.range.endsOn,
-          asOfDate: query.get("endsOn") ?? report.range.endsOn ?? new Date().toISOString().split("T")[0],
+          asOfDate:
+            query.get("endsOn") ?? report.range.endsOn ?? new Date().toISOString().split("T")[0],
         },
         accountingBasis: report.basis,
         framework: report.framework,

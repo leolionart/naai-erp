@@ -206,8 +206,8 @@ export const adminNavigation = [
             href: "/accounting/journals",
             description: "Danh sách toàn bộ bút toán kế toán đã ghi nhận.",
             status: "available",
-          }
-        ]
+          },
+        ],
       },
     ],
   },
@@ -215,7 +215,6 @@ export const adminNavigation = [
     key: "data_and_system",
     label: "Dữ liệu & Cấu hình",
     items: [
-
       {
         key: "master-data",
         label: "Danh mục hệ thống",
