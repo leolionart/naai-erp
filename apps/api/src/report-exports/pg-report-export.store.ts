@@ -699,7 +699,7 @@ export class PgReportExportStore {
         ["Result hash", snapshot.resultHash],
       ].map(([k, v]) => ({ field: cell(k), value: cell(v) })),
     };
-    const reportRows: { path: any; value: any; code?: any }[] = [];
+    const reportRows: { path: unknown; value: unknown; code?: unknown }[] = [];
 
     if (
       ["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"].includes(
@@ -708,11 +708,11 @@ export class PgReportExportStore {
     ) {
       const lines = Array.isArray(result.lines) ? result.lines : [];
       reportRows.push({ path: cell("Chỉ tiêu"), value: cell("Số tiền"), code: cell("Mã") });
-      for (const line of lines as any[]) {
+      for (const line of lines as Record<string, unknown>[]) {
         reportRows.push({
-          path: cell(line.label ?? ""),
-          value: cell(line.amountMinor ?? ""),
-          code: cell(line.lineCode ?? ""),
+          path: cell((line.label as string) ?? ""),
+          value: cell((line.amountMinor as string) ?? ""),
+          code: cell((line.lineCode as string) ?? ""),
         });
       }
 
@@ -727,7 +727,7 @@ export class PgReportExportStore {
       }
 
       if (result.equation) {
-        const eq = result.equation as any;
+        const eq = result.equation as Record<string, string | number | boolean>;
         reportRows.push({
           path: cell("Tổng Tài sản"),
           value: cell(eq.assetsMinor),
@@ -748,33 +748,38 @@ export class PgReportExportStore {
           value: cell(eq.differenceMinor),
           code: cell("EQ.DIFF"),
         });
+        reportRows.push({
+          path: cell("Cân bằng"),
+          value: cell(eq.balanced ? "TRUE" : "FALSE"),
+          code: cell("EQ.BALANCED"),
+        });
       }
 
-      if (result.openingCashMinor !== undefined) {
+      if (result.operatingCashFlowMinor !== undefined) {
         reportRows.push({
-          path: cell("Tiền đầu kỳ"),
-          value: cell(result.openingCashMinor as string),
-          code: cell("CASH.OPEN"),
-        });
-        reportRows.push({
-          path: cell("Lưu chuyển HĐ Kinh doanh"),
+          path: cell("Dòng tiền kinh doanh"),
           value: cell(result.operatingCashFlowMinor as string),
           code: cell("CASH.OP"),
         });
         reportRows.push({
-          path: cell("Lưu chuyển HĐ Đầu tư"),
+          path: cell("Dòng tiền đầu tư"),
           value: cell(result.investingCashFlowMinor as string),
           code: cell("CASH.INV"),
         });
         reportRows.push({
-          path: cell("Lưu chuyển HĐ Tài chính"),
+          path: cell("Dòng tiền tài chính"),
           value: cell(result.financingCashFlowMinor as string),
           code: cell("CASH.FIN"),
         });
         reportRows.push({
-          path: cell("Lưu chuyển thuần"),
+          path: cell("Thay đổi tiền thuần"),
           value: cell(result.netCashMovementMinor as string),
           code: cell("CASH.NET"),
+        });
+        reportRows.push({
+          path: cell("Tiền đầu kỳ"),
+          value: cell(result.openingCashMinor as string),
+          code: cell("CASH.OPEN"),
         });
         reportRows.push({
           path: cell("Tiền cuối kỳ"),
@@ -784,7 +789,7 @@ export class PgReportExportStore {
       }
 
       if (result.totals) {
-        const t = result.totals as any;
+        const t = result.totals as Record<string, unknown>;
         for (const [k, v] of Object.entries(t)) {
           reportRows.push({
             path: cell(`Tổng: ${k}`),
@@ -794,7 +799,7 @@ export class PgReportExportStore {
         }
       }
       if (result.controls) {
-        const c = result.controls as any;
+        const c = result.controls as Record<string, unknown>;
         for (const [k, v] of Object.entries(c)) {
           reportRows.push({
             path: cell(`Kiểm soát: ${k}`),

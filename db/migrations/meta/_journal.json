@@ -239,6 +239,13 @@
       "when": 1786016659355,
       "tag": "0033_dizzy_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786122348968,
+      "tag": "0034_true_titanium_man",
+      "breakpoints": true
     }
   ]
 }

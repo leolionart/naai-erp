@@ -50,7 +50,9 @@ export async function createApp(
     },
   );
   const origin = webOrigin(environment);
-  await app.register(multipart, { limits: { fileSize: apiBodyLimit(environment), files: 1 } });
+  await app.register(multipart as never, {
+    limits: { fileSize: apiBodyLimit(environment), files: 1 },
+  });
   if (origin) {
     app.enableCors({
       origin,

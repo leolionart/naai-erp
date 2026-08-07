@@ -253,7 +253,6 @@ export function LedgerMasterWorkspace({
 
   useEffect(() => {
     if (token) void loadCurrent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, resourceName, token]);
 
   async function journalAction(action: "approve" | "post" | "reverse") {

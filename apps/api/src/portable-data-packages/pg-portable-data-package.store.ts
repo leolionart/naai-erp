@@ -34,7 +34,7 @@ const SECRET_COLUMN =
   /(^|_)(secret|password|token_hash|access_token|refresh_token|private_key|signed_url)($|_)/i;
 const BINARY_TYPES = new Set(["bytea"]);
 const DATE_COLUMNS = ["created_at", "occurred_at", "generated_at", "captured_at", "received_at"];
-const MASTER_RESOURCE_BY_TABLE = new Map(
+const MASTER_RESOURCE_BY_TABLE = new Map<string, string>(
   Object.entries(MASTER_DATA_RESOURCES).map(([resource, definition]) => [
     definition.table,
     resource,

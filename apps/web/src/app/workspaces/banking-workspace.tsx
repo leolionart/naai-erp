@@ -167,7 +167,6 @@ export function BankingWorkspace() {
 
   useEffect(() => {
     if (token) void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {

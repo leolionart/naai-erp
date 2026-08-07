@@ -3,7 +3,11 @@ import { Inject, Injectable } from "@nestjs/common";
 import pg from "pg";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { MASTER_DATA_RESOURCES, encodeResourceKey } from "../master-data/resource-registry.js";
-import type { PortableRowEnvelopeContract, PortableRowIssueContract } from "@naai-erp/contracts";
+import type {
+  PortableDryRunResultContract,
+  PortableRowEnvelopeContract,
+  PortableRowIssueContract,
+} from "@naai-erp/contracts";
 import type { PortableDataPackageContext } from "./portable-data-package.types.js";
 import type {
   ParsedPortableSheet,
@@ -48,7 +52,9 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
       workbookSha256: String(row.workbook_sha256),
       packageHash: String(row.package_hash),
       ...(row.dry_run_id ? { dryRunId: String(row.dry_run_id) } : {}),
-      ...(row.dry_run ? { dryRun: row.dry_run as PortableImportRecord["dryRun"] } : {}),
+      ...(row.dry_run
+        ? { dryRun: row.dry_run as NonNullable<PortableImportRecord["dryRun"]> }
+        : {}),
       ...(row.commit_result
         ? { commitResult: row.commit_result as PortableImportCommitResult }
         : {}),
@@ -100,7 +106,7 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
     context: PortableDataPackageContext,
     importId: string,
     dryRunId: string,
-    result: PortableImportRecord["dryRun"],
+    result: PortableDryRunResultContract,
     parsedSheets: readonly ParsedPortableSheet[],
     idempotencyKey: string,
   ) {
@@ -158,12 +164,12 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
           ),
         ],
       };
-    if (row.operation === "deactivate" && !definition.deactivate)
+    if (row.operation === "deactivate" && !("deactivate" in definition))
       return {
         disposition: "invalid",
         issues: [errorIssue("DEACTIVATION_UNSUPPORTED", `${resourceType} cannot be deactivated`)],
       };
-    const dryRun = this.masterData.dryRunImport(resourceType, context, [this.payload(row)]).data;
+    const dryRun = this.masterData.dryRunImport(resourceType, context, [this.payload(row)]).data!;
     const errors = dryRun.rows[0]?.errors ?? [];
     return errors.length
       ? {
@@ -216,8 +222,9 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
         },
         idempotencyKey,
       );
-      const resource = response.data.resource;
-      return { applied: true, stableId: String(resource.id ?? row.stableId ?? "") || undefined };
+      const resource = response.data!.resource;
+      const stableId = String(resource.id ?? row.stableId ?? "");
+      return stableId ? { applied: true, stableId } : { applied: true };
     } catch (error) {
       return {
         applied: false,

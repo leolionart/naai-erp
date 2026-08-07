@@ -22,7 +22,7 @@ const EXPORT_ROLES = new Set(["owner", "finance_admin", "accountant"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const FORBIDDEN_COLUMN =
-  /(^|_)(secret|password|token_hash|access_token|refresh_token|private_key|content|payload_bytes|raw_bytes|file_bytes|blob)($|_)/i;
+  /(^|_)(secret|password|token_hash|access_token|refresh_token|private_key|payload_bytes|raw_bytes|file_bytes|content_bytes|blob)($|_)/i;
 
 const jsonValue = (value: unknown): unknown => {
   if (value == null) return null;
