@@ -297,9 +297,22 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
 
 ### BR-REV-001 — Revenue axes
 
-- Recognized revenue, invoiced revenue and cash collected remain separate.
+- Contract value, invoiced revenue, recognized revenue, cash collected and remaining contract value
+  are five separate project-revenue axes. None may be presented as a substitute for another.
+- Contract value is the reviewed commercial ceiling from project contracts, adjusted only by
+  approved revenue-impacting scope changes included at the reporting cutoff.
+- Invoiced revenue is the net eligible sales-invoice amount less effective credit notes. Recognized
+  revenue comes only from posted recognition events. Collected revenue comes only from completed
+  payment/reconciliation allocations to eligible sales invoices.
+- Remaining contract value is `contract value - invoiced revenue`. It is commercial work not yet
+  invoiced, not accounts receivable, deferred revenue, forecast revenue or available cash.
+- Every five-axis read uses one explicit `asOf` cutoff. Contract/scope, invoice/credit, recognition
+  and collection facts dated after that cutoff are excluded rather than mixed into the result.
 - Cash receipt does not automatically create revenue.
 - Invoice before delivery may create deferred revenue/contract liability.
+- The current accepted gate is a project-level aggregate. Commercial-document allocations retain
+  project attribution, but do not yet persist canonical `contractId` or `milestoneId`; therefore the
+  system must not claim contract-level or milestone-level invoice-cap enforcement or drill-down.
 
 ### BR-REV-002 — Milestone recognition
 

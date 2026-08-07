@@ -191,7 +191,44 @@ The create API has no top-level `projectId`. Project attribution uses the exact 
 `projectId` inside line/allocation dimensions. The list endpoint's `?projectId=` filter searches
 those values.
 
-### 8.3 Sales invoice → posting → receipt
+### 8.3 Project revenue position: five independent axes
+
+For a project-revenue read, retain and label these five values independently:
+
+| Axis               | Canonical meaning                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Contract value     | Reviewed value of the project's contracts, plus or minus approved revenue-impacting scope changes included at the cutoff |
+| Invoiced           | Net eligible sales-invoice allocations less effective credit-note allocations                                            |
+| Recognized         | Posted revenue-recognition events only                                                                                   |
+| Collected          | Completed reconciliation/payment allocations to eligible sales invoices only                                             |
+| Remaining contract | `contract value - invoiced`; commercial value not yet invoiced                                                           |
+
+All five values use the same explicit `asOf` date. Resolve the organization timezone first and apply
+the cutoff to each source by its canonical business date: contract/scope-change eligibility,
+invoice or credit document date, recognition `effectiveOn`, and collection/reconciliation date.
+Never combine an all-time value from one axis with a cutoff value from another. A missing `asOf`
+must be treated according to the exact API contract; an AI should send it explicitly rather than
+assuming today's date.
+
+These axes answer different questions:
+
+- `remaining contract` is not invoice outstanding; invoice outstanding is invoiced less allocated
+  collections and credits under the AR rules;
+- `invoiced - recognized` may indicate billing ahead of recognition, but is not automatically
+  deferred revenue without the configured posting policy;
+- `recognized - invoiced` may indicate unbilled recognized work, but must not be turned into an
+  invoice automatically;
+- collected cash never creates recognized or invoiced revenue by itself.
+
+Current implementation boundary: the accepted gate exposes this as a project-level aggregate.
+Invoice line/allocation data currently stores project attribution through `dimensions.projectId`;
+it does not persist canonical `contractId` or `milestoneId`. Contracts and milestones may be read as
+project master data, but an AI must not infer which contract or milestone an invoice allocation
+belongs to, must not claim contract-level remaining value, and must not enforce a contract or
+milestone invoice cap from name/date similarity. Such linkage requires a later versioned schema and
+API contract.
+
+### 8.4 Sales invoice → posting → receipt
 
 Prerequisites: client party, accounts, applicable tax version, dimensions, and optional project,
 contract or milestone.
@@ -254,7 +291,7 @@ Then:
 6. Match with allocation `{ "targetType": "commercial_document", "targetId": "<documentId>" }`.
 7. Reconcile and read back invoice outstanding plus journal/payment links.
 
-### 8.4 Purchase invoice
+### 8.5 Purchase invoice
 
 Use a party with supplier role. The source remains a `purchase_invoice`; do not create an additional
 invoice-backed expense. Typical lifecycle is capture → verify → approve → post. Payment allocation
@@ -264,7 +301,7 @@ For project-attributed supplier cost, keep the supplier in `partyId` and place t
 project's stable ID in `dimensions.projectId`. Do not require the project client to equal the
 supplier.
 
-### 8.5 Non-invoice expense
+### 8.6 Non-invoice expense
 
 Create an expense only after confirming it is not a supplier invoice already represented as a
 purchase invoice.
@@ -275,7 +312,7 @@ Use the validated request shape in
 Retain `data.expenseId`, then submit/review/approve/post. If paid through an imported bank
 transaction, reconciliation uses `targetType=expense` and `targetId=<expenseId>`.
 
-### 8.6 Bank import and reconciliation
+### 8.7 Bank import and reconciliation
 
 1. Resolve account code, then create/read the financial account and retain `accountId`.
 2. Dry-run the import.
@@ -302,7 +339,7 @@ transaction, reconciliation uses `targetType=expense` and `targetId=<expenseId>`
 Allocation totals may not exceed the transaction or target outstanding amount. A reconciled
 transaction is corrected by authorized unreconcile with reason, then rematch.
 
-### 8.7 Credit, reversal and replacement
+### 8.8 Credit, reversal and replacement
 
 - Draft resource: PATCH with the latest version.
 - Unissued document: use cancel when permitted.
@@ -313,7 +350,7 @@ transaction is corrected by authorized unreconcile with reason, then rematch.
 
 Never change a posted source's party, project, lines, amount or journal relationship in place.
 
-### 8.8 Workbook review row → canonical resource
+### 8.9 Workbook review row → canonical resource
 
 The review row is staging evidence, not a report source.
 

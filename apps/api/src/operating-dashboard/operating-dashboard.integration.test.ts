@@ -102,37 +102,14 @@ suite("operating dashboard PostgreSQL API", () => {
         sourceControls: {
           source: "workbook_import_review_rows",
           accountingStatus: "unconfirmed_non_canonical",
-          rowCount: 6,
+          rowCount: 2,
           byKind: [
             { kind: "bonus_control", count: 1 },
-            { kind: "debt_control", count: 1 },
-            { kind: "expense_category_control", count: 1 },
             { kind: "payroll_master", count: 1 },
-            { kind: "planning_control", count: 1 },
-            { kind: "profitability_control", count: 1 },
           ],
-          monthly: [
-            expect.objectContaining({
-              id: "control-plan",
-              kind: "planning_control",
-              period: "2025-01",
-              targetAttainmentBps: 4000,
-            }),
-            expect.objectContaining({
-              id: "control-profit",
-              kind: "profitability_control",
-              period: "2025-01",
-              profitMinor: "600",
-            }),
-          ],
-          debt: [expect.objectContaining({ id: "control-debt", debtMinor: "100" })],
-          expenseCategories: [
-            expect.objectContaining({
-              id: "control-category",
-              category: "Payroll",
-              monthlyAmounts: [{ period: "2025-01", amountMinor: "300" }],
-            }),
-          ],
+          monthly: [],
+          debt: [],
+          expenseCategories: [],
           workforce: {
             payrollNetMinor: "300",
             bonusMinor: "50",

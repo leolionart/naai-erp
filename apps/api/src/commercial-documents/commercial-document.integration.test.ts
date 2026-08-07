@@ -8,36 +8,40 @@ const describeIntegration = enabled ? describe : describe.skip;
 
 describeIntegration("ERP-300 commercial documents", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const org = `org-doc-${process.pid}`;
+  const integrationUser = `${org}-integration-user`;
   let app: Awaited<ReturnType<typeof createApp>>;
   const integrationToken = "erp300-integration";
   const financeToken = "erp300-finance";
   const approverToken = "erp300-approver";
   beforeAll(async () => {
     await pool.query(`
-      insert into organizations (id,legal_name,base_currency,timezone) values ('org-doc','Document Org','VND','Asia/Ho_Chi_Minh');
-      insert into fiscal_years (organization_id,year,starts_on,ends_on) values ('org-doc',2026,'2026-01-01','2026-12-31');
-      insert into fiscal_periods (organization_id,fiscal_year,period_number,starts_on,ends_on) values ('org-doc',2026,1,'2026-01-01','2026-01-31'),('org-doc',2026,2,'2026-02-01','2026-02-28');
-      insert into parties (organization_id,id,display_name,status) values ('org-doc','CLIENT-A','Client A','active'),('org-doc','SUPPLIER-A','Supplier A','active');
-      insert into users(id,email,display_name) values('integration-user','integration@example.com','Integration User');
+      insert into organizations (id,legal_name,base_currency,timezone) values ('${org}','Document Org','VND','Asia/Ho_Chi_Minh');
+      insert into fiscal_years (organization_id,year,starts_on,ends_on) values ('${org}',2026,'2026-01-01','2026-12-31');
+      insert into fiscal_periods (organization_id,fiscal_year,period_number,starts_on,ends_on) values ('${org}',2026,1,'2026-01-01','2026-01-31'),('${org}',2026,2,'2026-02-01','2026-02-28');
+      insert into parties (organization_id,id,display_name,status) values ('${org}','CLIENT-A','Client A','active'),('${org}','SUPPLIER-A','Supplier A','active');
+      insert into users(id,email,display_name) values('${integrationUser}','${process.pid}@integration.example.com','Integration User');
+      insert into organization_memberships(organization_id,user_id) values('${org}','${integrationUser}');
+      insert into membership_roles(organization_id,user_id,role) values('${org}','${integrationUser}','owner');
       insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state) values
-        ('org-doc','A','A','Project A','CLIENT-A','integration-user','fixed_fee','VND',60000000,'2026-01-01','active'),
-        ('org-doc','B','B','Project B','CLIENT-A','integration-user','fixed_fee','VND',40000000,'2026-01-01','active');
+        ('${org}','A','A','Project A','CLIENT-A','${integrationUser}','fixed_fee','VND',60000000,'2026-01-01','active'),
+        ('${org}','B','B','Project B','CLIENT-A','${integrationUser}','fixed_fee','VND',40000000,'2026-01-01','active');
       insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency) values
-        ('org-doc','CONTRACT-A','A','CONTRACT-A','2026-01-01',60000000,'VND'),
-        ('org-doc','CONTRACT-B','B','CONTRACT-B','2026-01-01',40000000,'VND');
+        ('${org}','CONTRACT-A','A','CONTRACT-A','2026-01-01',60000000,'VND'),
+        ('${org}','CONTRACT-B','B','CONTRACT-B','2026-01-01',40000000,'VND');
       insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
-       ('org-doc','131-AR','AR','asset',true,false),('org-doc','331-AP','AP','liability',true,false),
-       ('org-doc','511-REV','Revenue','revenue',false,true),('org-doc','3331-VAT-OUT','VAT output','liability',true,false),
-       ('org-doc','632-COST','Direct cost','expense',false,true),('org-doc','1331-VAT-IN','VAT input','asset',true,false);
+       ('${org}','131-AR','AR','asset',true,false),('${org}','331-AP','AP','liability',true,false),
+       ('${org}','511-REV','Revenue','revenue',false,true),('${org}','3331-VAT-OUT','VAT output','liability',true,false),
+       ('${org}','632-COST','Direct cost','expense',false,true),('${org}','1331-VAT-IN','VAT input','asset',true,false);
     `);
     const values = [integrationToken, financeToken, approverToken].map((token) =>
       createHash("sha256").update(token).digest("hex"),
     );
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles) values
-      ('org-doc','doc-integration','integration-user',$1,'["integration"]'),
-      ('org-doc','doc-finance','finance-user',$2,'["finance_admin"]'),
-      ('org-doc','doc-approver','approver-user',$3,'["approver","accountant"]')`,
+      ('${org}','doc-integration','${integrationUser}',$1,'["integration"]'),
+      ('${org}','doc-finance','finance-user',$2,'["finance_admin"]'),
+      ('${org}','doc-approver','approver-user',$3,'["approver","accountant"]')`,
       values,
     );
     app = await createApp();
@@ -55,7 +59,7 @@ describeIntegration("ERP-300 commercial documents", () => {
   const command = (id: string, action: string, token: string, key: string) =>
     app.inject({
       method: "POST",
-      url: `/api/v1/organizations/org-doc/commercial-documents/${id}/${action}`,
+      url: `/api/v1/organizations/${org}/commercial-documents/${id}/${action}`,
       headers: headers(token, key),
       payload: { reason: `${action} reviewed` },
     });
@@ -96,7 +100,7 @@ describeIntegration("ERP-300 commercial documents", () => {
   it("issues sales and posts purchase documents into exact balanced linked journals", async () => {
     const create = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-doc/commercial-documents",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
       headers: headers(integrationToken, "sales-create"),
       payload: sales,
     });
@@ -105,7 +109,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       (
         await app.inject({
           method: "POST",
-          url: "/api/v1/organizations/org-doc/commercial-documents",
+          url: `/api/v1/organizations/${org}/commercial-documents`,
           headers: headers(integrationToken, "sales-create"),
           payload: sales,
         })
@@ -118,7 +122,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(issued.statusCode).toBe(201);
     const salesJournal = issued.json().data.journalId as string;
     const salesTotals = await pool.query<{ debit: string; credit: string }>(
-      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='org-doc' and journal_id=$1`,
+      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='${org}' and journal_id=$1`,
       [salesJournal],
     );
     expect(salesTotals.rows[0]).toEqual({ debit: "110000000", credit: "110000000" });
@@ -147,7 +151,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       (
         await app.inject({
           method: "POST",
-          url: "/api/v1/organizations/org-doc/commercial-documents",
+          url: `/api/v1/organizations/${org}/commercial-documents`,
           headers: headers(integrationToken, "sales-over-cap-create"),
           payload: overCap,
         })
@@ -168,7 +172,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(
       (
         await pool.query<{ n: number }>(
-          `select count(*)::int n from journal_entries where organization_id='org-doc' and description like '%sales-over-cap%'`,
+          `select count(*)::int n from journal_entries where organization_id='${org}' and description like '%sales-over-cap%'`,
         )
       ).rows[0]?.n,
     ).toBe(0);
@@ -216,7 +220,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       (
         await app.inject({
           method: "POST",
-          url: "/api/v1/organizations/org-doc/commercial-documents",
+          url: `/api/v1/organizations/${org}/commercial-documents`,
           headers: headers(integrationToken, "purchase-create"),
           payload: purchase,
         })
@@ -234,13 +238,13 @@ describeIntegration("ERP-300 commercial documents", () => {
     const posted = await command("purchase-001", "post", financeToken, "purchase-post");
     expect(posted.statusCode).toBe(201);
     const purchaseTotals = await pool.query<{ debit: string; credit: string }>(
-      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='org-doc' and journal_id=$1`,
+      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='${org}' and journal_id=$1`,
       [posted.json().data.journalId],
     );
     expect(purchaseTotals.rows[0]).toEqual({ debit: "55000000", credit: "55000000" });
     const purchaseAccounts = await pool.query<{ account_code: string; debit: string }>(
       `select account_code,coalesce(sum(debit_minor),0)::text debit
-       from journal_lines where organization_id='org-doc' and journal_id=$1 and debit_minor is not null
+       from journal_lines where organization_id='${org}' and journal_id=$1 and debit_minor is not null
        group by account_code order by account_code`,
       [posted.json().data.journalId],
     );
@@ -253,7 +257,7 @@ describeIntegration("ERP-300 commercial documents", () => {
   it("filters documents by project allocation without leaking sibling projects", async () => {
     const projectA = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-doc/commercial-documents?projectId=A",
+      url: `/api/v1/organizations/${org}/commercial-documents?projectId=A`,
       headers: { authorization: `Bearer ${financeToken}` },
     });
     expect(projectA.statusCode, projectA.body).toBe(200);
@@ -262,7 +266,7 @@ describeIntegration("ERP-300 commercial documents", () => {
         .json()
         .data.items.map((item: { id: string }) => item.id)
         .sort(),
-    ).toEqual(["purchase-001", "sales-001"]);
+    ).toEqual(["purchase-001", "sales-001", "sales-over-cap"]);
     expect(
       projectA
         .json()
@@ -280,7 +284,7 @@ describeIntegration("ERP-300 commercial documents", () => {
 
     const party = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-doc/commercial-documents?partyId=CLIENT-A",
+      url: `/api/v1/organizations/${org}/commercial-documents?partyId=CLIENT-A`,
       headers: { authorization: `Bearer ${financeToken}` },
     });
     expect(party.statusCode, party.body).toBe(200);
@@ -296,7 +300,7 @@ describeIntegration("ERP-300 commercial documents", () => {
 
     const detail = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-doc/commercial-documents/sales-001",
+      url: `/api/v1/organizations/${org}/commercial-documents/sales-001`,
       headers: { authorization: `Bearer ${financeToken}` },
     });
     expect(detail.statusCode, detail.body).toBe(200);
@@ -309,7 +313,7 @@ describeIntegration("ERP-300 commercial documents", () => {
 
     const unrelated = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-doc/commercial-documents?projectId=UNRELATED",
+      url: `/api/v1/organizations/${org}/commercial-documents?projectId=UNRELATED`,
       headers: { authorization: `Bearer ${financeToken}` },
     });
     expect(unrelated.statusCode, unrelated.body).toBe(200);
@@ -322,8 +326,8 @@ describeIntegration("ERP-300 commercial documents", () => {
         (organization_id,id,expense_class,payee_party_id,expense_date,business_purpose,currency,
          net_minor,vat_minor,gross_minor,counter_account_code,state,created_by)
       values
-        ('org-doc','legacy-expense-1','invoice_backed','SUPPLIER-A','2026-01-27','Legacy invoice',
-         'VND',900,100,1000,'632-COST','posted','integration-user')
+        ('${org}','legacy-expense-1','invoice_backed','SUPPLIER-A','2026-01-27','Legacy invoice',
+         'VND',900,100,1000,'632-COST','posted','${integrationUser}')
     `);
     const payload = {
       type: "purchase_invoice",
@@ -366,14 +370,14 @@ describeIntegration("ERP-300 commercial documents", () => {
     };
     const created = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-doc/commercial-documents",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
       headers: headers(integrationToken, "migration-exact-create"),
       payload,
     });
     expect(created.statusCode, created.body).toBe(201);
     const audit = await pool.query<{ after_state: Record<string, unknown> }>(
       `select after_state from resource_audit_events
-       where organization_id='org-doc' and resource_type='commercial_document'
+       where organization_id='${org}' and resource_type='commercial_document'
          and resource_key=$1 and action='create'`,
       [created.json().data.documentId],
     );
@@ -384,11 +388,12 @@ describeIntegration("ERP-300 commercial documents", () => {
 
     const mismatch = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-doc/commercial-documents",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
       headers: headers(integrationToken, "migration-mismatch-create"),
       payload: {
         ...payload,
         documentNumber: "WB-CP-2",
+        taxMinor: "101",
         grossMinor: "1001",
         lines: [
           {
@@ -440,7 +445,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       (
         await app.inject({
           method: "POST",
-          url: "/api/v1/organizations/org-doc/commercial-documents",
+          url: `/api/v1/organizations/${org}/commercial-documents`,
           headers: headers(integrationToken, "credit-create"),
           payload: credit,
         })
@@ -452,7 +457,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     const issued = await command("credit-001", "issue", financeToken, "credit-issue");
     expect(issued.statusCode).toBe(201);
     const totals = await pool.query<{ debit: string; credit: string }>(
-      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='org-doc' and journal_id=$1`,
+      `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='${org}' and journal_id=$1`,
       [issued.json().data.journalId],
     );
     expect(totals.rows[0]).toEqual({ debit: "44000000", credit: "44000000" });
@@ -476,7 +481,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     };
     const rejected = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-doc/commercial-documents",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
       headers: headers(integrationToken, "credit-over"),
       payload: overflow,
     });
@@ -490,7 +495,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     ).toBe(409);
     const mismatch = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-doc/commercial-documents",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
       headers: headers(integrationToken, "bad-allocation"),
       payload: {
         ...sales,
@@ -507,7 +512,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(mismatch.statusCode).toBe(422);
     await expect(
       pool.query(
-        "update commercial_documents set gross_minor=1 where organization_id='org-doc' and id='sales-001'",
+        `update commercial_documents set gross_minor=1 where organization_id='${org}' and id='sales-001'`,
       ),
     ).rejects.toThrow();
   });

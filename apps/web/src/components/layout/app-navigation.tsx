@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -124,7 +125,22 @@ export function AppNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function matchesPath(href: string) {
+  const allNavigationHrefs = useMemo(() => {
+    const list: string[] = [];
+    for (const group of adminNavigation) {
+      for (const item of group.items) {
+        if ("href" in item && item.href) list.push(item.href);
+        if ("children" in item && item.children) {
+          for (const child of item.children) {
+            if (child.href) list.push(child.href);
+          }
+        }
+      }
+    }
+    return list;
+  }, []);
+
+  function isEligible(href: string) {
     const target = new URL(href, "http://naai.local");
     const pathMatches = pathname === target.pathname || pathname.startsWith(`${target.pathname}/`);
     if (!pathMatches) return false;
@@ -132,6 +148,19 @@ export function AppNavigation() {
       const targetParams = new URLSearchParams(target.search);
       for (const [key, value] of targetParams.entries()) {
         if (searchParams.get(key) !== value) return false;
+      }
+    }
+    return true;
+  }
+
+  function matchesPath(href: string) {
+    if (!isEligible(href)) return false;
+    const target = new URL(href, "http://naai.local");
+    for (const otherHref of allNavigationHrefs) {
+      if (otherHref === href) continue;
+      const otherTarget = new URL(otherHref, "http://naai.local");
+      if (otherTarget.pathname.length > target.pathname.length && isEligible(otherHref)) {
+        return false;
       }
     }
     return true;
