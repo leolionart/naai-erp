@@ -268,7 +268,32 @@ export function BusinessRecordWorkspace({
         </CardContent>
       </Card>
 
-      {!customer ? (
+      {customer ? (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">
+                    1. Hóa đơn Khách hàng (Đầu ra & Đã liên kết)
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Tất cả các hóa đơn bán ra phát sinh cho khách hàng {projectName}.
+                  </CardDescription>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/receivables/customers/${encodeURIComponent(id)}`}>
+                    Xem sổ chi tiết công nợ
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <FocusedRecordListWorkspace kind="documents" initialPartyId={id} />
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
@@ -307,7 +332,7 @@ export function BusinessRecordWorkspace({
             </CardContent>
           </Card>
         </div>
-      ) : null}
+      )}
 
       <DirectoryEditor
         kind={kind}

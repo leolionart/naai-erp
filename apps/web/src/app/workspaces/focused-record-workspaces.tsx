@@ -122,9 +122,11 @@ function queryFor(kind: Kind, params: URLSearchParams) {
 export function FocusedRecordListWorkspace({
   kind,
   initialProjectId,
+  initialPartyId,
 }: {
   kind: Kind;
   initialProjectId?: string;
+  initialPartyId?: string;
 }) {
   const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const params = useSearchParams();
@@ -157,6 +159,9 @@ export function FocusedRecordListWorkspace({
       if (initialProjectId && !sourceParams.has("projectId")) {
         sourceParams.set("projectId", initialProjectId);
       }
+      if (initialPartyId && !sourceParams.has("partyId")) {
+        sourceParams.set("partyId", initialPartyId);
+      }
       if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
         sourceParams.set("class", "non_documented");
       }
@@ -166,14 +171,46 @@ export function FocusedRecordListWorkspace({
         ),
         client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
       ]);
-      setRows(Array.isArray(result) ? result : (result.items ?? []));
+      let rawItems = Array.isArray(result) ? result : (result.items ?? []);
+      if (initialProjectId) {
+        rawItems = rawItems.filter(
+          (row) =>
+            String(row.projectId || row.project_id || "") === initialProjectId ||
+            (Array.isArray(row.lines) &&
+              (row.lines as Row[]).some((l) => {
+                const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
+                return (
+                  String(l.projectId || l.project_id || dims.projectId || dims.project_id || "") ===
+                  initialProjectId
+                );
+              })),
+        );
+      }
+      if (initialPartyId) {
+        rawItems = rawItems.filter(
+          (row) =>
+            String(row.partyId || row.party_id || row.payeePartyId || row.payee_party_id || "") ===
+            initialPartyId,
+        );
+      }
+      setRows(rawItems);
       setParties(Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
       setLoading(false);
     }
-  }, [client, current, hasToken, hydrated, initialProjectId, key, kind, sourceKind]);
+  }, [
+    client,
+    current,
+    hasToken,
+    hydrated,
+    initialPartyId,
+    initialProjectId,
+    key,
+    kind,
+    sourceKind,
+  ]);
   useEffect(() => void load(), [load]);
   function apply(form: FormData) {
     const query = new URLSearchParams();

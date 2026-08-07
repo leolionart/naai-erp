@@ -330,7 +330,7 @@ export function DocumentForm({
     ),
   );
 
-  const [lineDescription, setLineDescription] = useState(
+  const [lineDescription] = useState(
     String(field(initialLine, "description") ?? "Chi tiết hóa đơn"),
   );
   const [quantity, setQuantity] = useState(String(field(initialLine, "quantity") ?? "1"));
@@ -575,13 +575,6 @@ export function DocumentForm({
         <FieldLegend className="col-span-full font-semibold">
           Chi tiết hóa đơn & Tiền tệ
         </FieldLegend>
-        <TextField
-          label="Diễn giải dòng"
-          value={lineDescription}
-          onChange={setLineDescription}
-          required
-          className="col-span-full"
-        />
         <TextField label="Số lượng" value={quantity} onChange={setQuantity} required />
         <MoneyField
           label="Đơn giá (VNĐ)"
