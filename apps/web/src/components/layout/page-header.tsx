@@ -49,25 +49,29 @@ export function PageHeader({
     >
       <div className="flex h-14 shrink-0 items-center gap-2 px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
         <SidebarTrigger className="-ml-1" aria-label="Mở menu chính" />
-        <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            {trail.map((item, index) => (
-              <Fragment key={`${item.label}-${index}`}>
-                <BreadcrumbListItem>
-                  {item.href ? (
-                    <BreadcrumbLink asChild>
-                      <Link href={item.href}>{item.label}</Link>
-                    </BreadcrumbLink>
-                  ) : (
-                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                  )}
-                </BreadcrumbListItem>
-                {index < trail.length - 1 ? <BreadcrumbSeparator /> : null}
-              </Fragment>
-            ))}
-          </BreadcrumbList>
-        </Breadcrumb>
+        {trail.length > 0 ? (
+          <>
+            <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                {trail.map((item, index) => (
+                  <Fragment key={`${item.label}-${index}`}>
+                    <BreadcrumbListItem>
+                      {item.href ? (
+                        <BreadcrumbLink asChild>
+                          <Link href={item.href}>{item.label}</Link>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbListItem>
+                    {index < trail.length - 1 ? <BreadcrumbSeparator /> : null}
+                  </Fragment>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </>
+        ) : null}
         {status || actions ? (
           <div className="ml-auto flex items-center gap-2">
             {status}

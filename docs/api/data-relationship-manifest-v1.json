@@ -314,6 +314,9 @@
       "responseIds": ["data.documentId", "data.journalId"],
       "relationshipRules": [
         "sales_invoice: partyId must equal every allocated project's client_party_id",
+        "sales_invoice: every allocation must include dimensions.projectId before issue",
+        "sales_invoice: issue is rejected when the project has no signed contract capacity as of documentDate or when cumulative issued net allocations exceed signed contract plus approved scope-change capacity",
+        "sales_invoice: current enforcement is aggregate by project; allocation-level contractId and milestoneId are not persisted and must not be inferred",
         "purchase_invoice: partyId is the supplier; allocated project.client_party_id is the end client and is not expected to equal the supplier",
         "credit_note: partyId must equal originalDocumentId.partyId and project allocations must remain within the eligible original allocation scope"
       ],
@@ -583,7 +586,8 @@
       "id": "sales_invoice_to_receipt",
       "steps": [
         "resolve party(client role)",
-        "resolve project/contract/milestone if allocated and verify project.client_party_id equals invoice partyId",
+        "resolve the customer-owned project and verify project.client_party_id equals invoice partyId",
+        "verify project aggregate capacity from contracts signed by documentDate plus scope changes approved by documentDate; do not claim a specific contract/milestone link",
         "resolve accounts/tax/dimensions",
         "create commercial_document and retain data.documentId",
         "validate/issue/post and retain journalId",

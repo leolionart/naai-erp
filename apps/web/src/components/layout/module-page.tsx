@@ -7,6 +7,7 @@ export function ModulePage({
   section,
   sectionHref,
   toolbar,
+  hideBreadcrumb,
   children,
 }: Readonly<{
   title: string;
@@ -14,18 +15,24 @@ export function ModulePage({
   section?: string;
   sectionHref?: string;
   toolbar?: ReactNode;
+  hideBreadcrumb?: boolean;
   children: ReactNode;
 }>) {
+  const isDashboard = hideBreadcrumb || title === "Tổng quan điều hành" || title === "Tổng quan";
+  const breadcrumbs = isDashboard
+    ? []
+    : [
+        { label: "Trang chủ", href: "/dashboard" },
+        ...(section ? [{ label: section, href: sectionHref }] : []),
+        { label: title },
+      ];
+
   return (
     <div className="flex min-h-svh flex-col">
       <PageHeader
         title={title}
         description={description}
-        breadcrumbs={[
-          { label: "Trang chủ", href: "/dashboard" },
-          ...(section ? [{ label: section, href: sectionHref }] : []),
-          { label: title },
-        ]}
+        breadcrumbs={breadcrumbs}
         toolbar={toolbar}
       />
       <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
