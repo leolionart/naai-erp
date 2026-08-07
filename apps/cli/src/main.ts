@@ -67,6 +67,8 @@ const { values, positionals } = parseArgs({
     "project-workbook": { type: "string" },
     "finance-workbook": { type: "string" },
     commit: { type: "boolean", default: false },
+    "dry-run-id": { type: "string" },
+    "workbook-sha256": { type: "string" },
   },
 });
 
@@ -89,7 +91,82 @@ if (!resource || (!discovery && (!organizationId || !token))) {
     ...(token ? { token } : {}),
   });
   try {
-    if (resource === "workbook-import") {
+    if (resource === "portable-data-export") {
+      if (action === "download") {
+        if (!values.key || !values.output)
+          throw new Error("portable-data-export download requires --key and explicit --output");
+        const file = await client.downloadPortableDataPackage(values.key);
+        await writeFile(values.output, file.content);
+        process.stdout.write(
+          JSON.stringify({
+            output: values.output,
+            bytes: file.content.byteLength,
+            contentType: file.contentType,
+            ...(file.filename ? { filename: file.filename } : {}),
+            ...(file.sha256 ? { sha256: file.sha256 } : {}),
+          }) + "\n",
+        );
+      } else {
+        const path =
+          action === "export"
+            ? "exports"
+            : action === "status"
+              ? `exports/${encodeURIComponent(values.key ?? "")}`
+              : action === "inventory"
+                ? `exports/${encodeURIComponent(values.key ?? "")}/inventory`
+                : "";
+        if (!path) throw new Error(`Unsupported portable-data-export action: ${action}`);
+        if (action !== "export" && !values.key)
+          throw new Error(`portable-data-export ${action} requires --key`);
+        const result = await client.portableDataRequest(
+          path,
+          action === "export" ? "POST" : "GET",
+          action === "export"
+            ? values.data
+              ? JSON.parse(values.data)
+              : { ...(values["as-of"] ? { asOf: values["as-of"] } : {}) }
+            : undefined,
+          values["idempotency-key"],
+        );
+        process.stdout.write(
+          values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+        );
+      }
+    } else if (resource === "portable-data-import") {
+      if (action === "inventory" || action === "dry-run") {
+        if (!values.file) throw new Error(`portable-data-import ${action} requires --file`);
+        const result = await client.uploadPortableWorkbook(
+          action,
+          basename(values.file),
+          new Uint8Array(await readFile(values.file)),
+          values["idempotency-key"],
+        );
+        process.stdout.write(
+          values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+        );
+      } else if (action === "status") {
+        if (!values.key) throw new Error("portable-data-import status requires --key");
+        const result = await client.portableDataRequest(
+          `imports/${encodeURIComponent(values.key)}`,
+          "GET",
+        );
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+      } else if (action === "commit") {
+        if (!values.key || !values["dry-run-id"] || !values["workbook-sha256"])
+          throw new Error(
+            "portable-data-import commit requires --key, --dry-run-id, and --workbook-sha256",
+          );
+        const result = await client.portableDataRequest(
+          `imports/${encodeURIComponent(values.key)}/commit`,
+          "POST",
+          { dryRunId: values["dry-run-id"], workbookSha256: values["workbook-sha256"] },
+          values["idempotency-key"],
+        );
+        process.stdout.write(
+          values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+        );
+      } else throw new Error(`Unsupported portable-data-import action: ${action}`);
+    } else if (resource === "workbook-import") {
       const result = await runWorkbookImport(
         client,
         values["project-workbook"],

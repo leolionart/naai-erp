@@ -1084,6 +1084,46 @@ tests:
     command: pnpm demo:verify
     blocking_gate: G14
 
+  - id: T-E2E-ERP-841-002
+    task: ERP-841
+    rules: [BR-KPI-005, BR-UI-001, BR-RPT-003, BR-TAX-003, BR-TAX-004]
+    title: Dashboard shows ledger-derived bank cash owner payable net cash and accounting profit without hardcoded amounts
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank cash owner payable and accounting profit"
+    blocking_gate: G14
+
+  - id: T-CONTRACT-ERP-850-001
+    task: ERP-850
+    rules: [BR-EXPOR-002, BR-AI-003, BR-AI-004, BR-AI-005]
+    title: Portable package contract preserves exact values identities relationships versions operations and complete inventory
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts test -- portable-data-package
+    blocking_gate: G15
+
+  - id: T-API-ERP-850-002
+    task: ERP-850
+    rules: [BR-EXPOR-002, BR-AI-001, BR-AI-002, BR-ORG-001, BR-AUD-001]
+    title: Organization-scoped export and import endpoints enforce authorization audit idempotency and structured errors
+    layer: api
+    command: pnpm --filter @naai-erp/api test -- portable-data-packages
+    blocking_gate: G15
+
+  - id: T-INT-ERP-850-003
+    task: ERP-850
+    rules: [BR-EXPOR-002, BR-LED-003, BR-PER-001]
+    title: Export unchanged import is a no-op while edited rows dry-run and commit through dependency-safe lifecycle services
+    layer: integration
+    command: pnpm --filter @naai-erp/api test:integration -- portable-data-packages
+    blocking_gate: G15
+
+  - id: T-E2E-ERP-850-004
+    task: ERP-850
+    rules: [BR-EXPOR-002, BR-AI-004]
+    title: User downloads complete workbook reviews row diffs and commits a valid edited workbook
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/portable-data-package.spec.ts --project=desktop-chromium
+    blocking_gate: G15
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

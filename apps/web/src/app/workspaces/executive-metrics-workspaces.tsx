@@ -99,7 +99,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "accumulated_loss",
       label: "Lỗ lũy kế",
-      value: "420.000.000 ₫",
+      value: "Chưa có dữ liệu",
       formula: "max(0, -retained earnings)",
       status: "ready",
       source: "Bảng cân đối · 421",
@@ -107,7 +107,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "contributed_capital",
       label: "Vốn góp",
-      value: "1.000.000.000 ₫",
+      value: "Chưa có dữ liệu",
       formula: "Approved contributed-capital mapping",
       status: "ready",
       source: "Bảng cân đối · 411",
@@ -115,7 +115,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "equity_consumed",
       label: "Equity Consumed",
-      value: "42,00%",
+      value: "Chưa có dữ liệu",
       formula: "Accumulated loss / contributed capital",
       status: "review",
       source: "Policy EQ-2026.1",
@@ -123,8 +123,8 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "owner_loans",
       label: "Chi hộ từ chủ sở hữu",
-      value: "30.000.000 ₫",
-      formula: "Chi lương vượt số tiền 90tr rút từ NH công ty",
+      value: "Chưa có dữ liệu",
+      formula: "Lấy từ API chỉ số điều hành",
       status: "ready",
       source: "Sổ cái · TK 3388 (Khoản chi hộ)",
     },
@@ -133,7 +133,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "unrestricted_cash",
       label: "Tiền khả dụng",
-      value: "620.000.000 ₫",
+      value: "Chưa có dữ liệu",
       formula: "Cash less restricted balances",
       status: "ready",
       source: "Ledger cash mapping",
@@ -141,7 +141,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "average_burn",
       label: "Net operating burn bình quân",
-      value: "155.000.000 ₫",
+      value: "Chưa có dữ liệu",
       formula: "Reviewed operating cash outflow / 3 months",
       status: "ready",
       source: "Direct cash flow",
@@ -149,7 +149,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "runway",
       label: "Runway",
-      value: "4,00 tháng",
+      value: "Chưa có dữ liệu",
       formula: "Unrestricted cash / average burn",
       status: "review",
       source: "Policy LIQ-2026.1",
@@ -159,7 +159,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "gross_margin",
       label: "Gross margin",
-      value: "58,40%",
+      value: "Chưa có dữ liệu",
       formula: "Gross profit / net accrual revenue",
       status: "ready",
       source: "P&L",
@@ -167,7 +167,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "operating_margin",
       label: "Operating margin",
-      value: "18,60%",
+      value: "Chưa có dữ liệu",
       formula: "Operating profit / net accrual revenue",
       status: "ready",
       source: "P&L",
@@ -175,7 +175,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "ros",
       label: "ROS",
-      value: "14,20%",
+      value: "Chưa có dữ liệu",
       formula: "Net profit / net accrual revenue",
       status: "ready",
       source: "P&L",
@@ -185,7 +185,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "roe",
       label: "ROE",
-      value: "16,80%",
+      value: "Chưa có dữ liệu",
       formula: "Net profit / average opening-closing equity",
       status: "ready",
       source: "P&L + Balance Sheet",
@@ -193,7 +193,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "roa",
       label: "ROA",
-      value: "9,40%",
+      value: "Chưa có dữ liệu",
       formula: "Net profit / average opening-closing assets",
       status: "ready",
       source: "P&L + Balance Sheet",
@@ -203,7 +203,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "project_roi",
       label: "ROI dự án Web App A",
-      value: "36,50%",
+      value: "Chưa có dữ liệu",
       formula: "Project return / reviewed project investment",
       status: "ready",
       source: "ROI definition PROJECT-01",
@@ -211,7 +211,7 @@ const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
     {
       code: "marketing_roi",
       label: "ROI chiến dịch Q3",
-      value: "22,80%",
+      value: "Chưa có dữ liệu",
       formula: "Incremental marketing return / campaign spend",
       status: "review",
       source: "ROI definition MKT-02",
@@ -255,7 +255,8 @@ function cleanFormula(formula: string): string {
     "Approved contributed-capital mapping": "Vốn góp theo đăng ký kinh doanh & thực góp",
     "accumulated-loss-over-contributed-capital-v1": "Tỷ lệ lỗ lũy kế trên vốn góp",
     "equity-roll-forward-control-v1": "Kiểm soát biến động vốn chủ sở hữu",
-    "Liability; excluded from contributed capital": "Nợ phải trả chủ sở hữu (Không tính vào vốn góp)",
+    "Liability; excluded from contributed capital":
+      "Nợ phải trả chủ sở hữu (Không tính vào vốn góp)",
     "Approved unrestricted-cash mapping": "Số dư tiền mặt & tiền gửi khả dụng",
     "reviewed-operating-net-burn-v1": "Tốc độ chi tiêu vận hành bình quân",
     "unrestricted-cash-over-reviewed-net-burn-v1": "Thời gian duy trì dòng tiền khả dụng",
@@ -376,7 +377,8 @@ export function ExecutiveMetricsLanding() {
           <Info />
           <AlertTitle>Số liệu quản trị dồn tích</AlertTitle>
           <AlertDescription>
-            Tự động tổng hợp dữ liệu vốn, thanh khoản, biên lợi nhuận và hiệu quả sử dụng vốn theo kỳ.
+            Tự động tổng hợp dữ liệu vốn, thanh khoản, biên lợi nhuận và hiệu quả sử dụng vốn theo
+            kỳ.
           </AlertDescription>
         </Alert>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -385,9 +387,13 @@ export function ExecutiveMetricsLanding() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-lg font-semibold">{page.title}</CardTitle>
-                  <Badge variant="outline" className="shrink-0">{page.badge}</Badge>
+                  <Badge variant="outline" className="shrink-0">
+                    {page.badge}
+                  </Badge>
                 </div>
-                <CardDescription className="line-clamp-2 mt-1.5">{page.description}</CardDescription>
+                <CardDescription className="line-clamp-2 mt-1.5">
+                  {page.description}
+                </CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground pt-0">
                 Theo dõi chi tiết số liệu dồn tích & nguồn chứng từ

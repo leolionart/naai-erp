@@ -12,6 +12,90 @@ export class NaaiErpClient {
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
+  private portableDataBase() {
+    if (!this.options.organizationId || !this.options.token) {
+      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    }
+    return `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/portable-data-packages`;
+  }
+
+  private portableDataHeaders(idempotencyKey?: string) {
+    if (!this.options.token) throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    return {
+      authorization: `Bearer ${this.options.token}`,
+      accept: "application/json",
+      "x-correlation-id": randomUUID(),
+      ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
+    };
+  }
+
+  async portableDataRequest(
+    path: string,
+    method: "GET" | "POST",
+    payload?: unknown,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    const response = await this.fetchFn(`${this.portableDataBase()}/${path}`, {
+      method,
+      headers: {
+        ...this.portableDataHeaders(
+          method === "POST" ? (idempotencyKey ?? randomUUID()) : undefined,
+        ),
+        ...(method === "POST" ? { "content-type": "application/json" } : {}),
+      },
+      ...(method === "POST" ? { body: JSON.stringify(payload ?? {}) } : {}),
+    });
+    const body: unknown = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(body));
+    return body;
+  }
+
+  async uploadPortableWorkbook(
+    action: "inventory" | "dry-run",
+    filename: string,
+    content: Uint8Array,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    const form = new FormData();
+    form.set(
+      "workbook",
+      new Blob([content], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      filename,
+    );
+    const response = await this.fetchFn(`${this.portableDataBase()}/imports/${action}`, {
+      method: "POST",
+      headers: this.portableDataHeaders(idempotencyKey ?? randomUUID()),
+      body: form,
+    });
+    const body: unknown = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(body));
+    return body;
+  }
+
+  async downloadPortableDataPackage(packageId: string): Promise<{
+    content: Uint8Array;
+    contentType: string;
+    filename?: string;
+    sha256?: string;
+  }> {
+    const response = await this.fetchFn(
+      `${this.portableDataBase()}/exports/${encodeURIComponent(packageId)}/download`,
+      { method: "GET", headers: this.portableDataHeaders() },
+    );
+    if (!response.ok) throw new Error(await response.text());
+    const disposition = response.headers.get("content-disposition");
+    const filename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
+    const sha256 = response.headers.get("x-content-sha256") ?? undefined;
+    return {
+      content: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      ...(filename ? { filename } : {}),
+      ...(sha256 ? { sha256 } : {}),
+    };
+  }
+
   async downloadAccountantExport(
     id: string,
     version: string,

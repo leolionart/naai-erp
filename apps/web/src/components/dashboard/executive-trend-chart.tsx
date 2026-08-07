@@ -47,7 +47,11 @@ export default function ExecutiveTrendChart({
     <div className="flex flex-col gap-4">
       <div role="img" aria-label="Xu hướng doanh thu tương tác">
         <ChartContainer config={chartConfig} className="h-72 w-full aspect-auto">
-          <AreaChart accessibilityLayer data={data} margin={{ top: 20, right: 16, left: 4, bottom: 0 }}>
+          <AreaChart
+            accessibilityLayer
+            data={data}
+            margin={{ top: 20, right: 16, left: 4, bottom: 0 }}
+          >
             <defs>
               <linearGradient id="revenue-gradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.45} />

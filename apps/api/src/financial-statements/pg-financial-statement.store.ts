@@ -681,14 +681,28 @@ export class PgFinancialStatementStore {
   }
   async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, _state?: string) {
     const result = await this.pool.query(
-      `select e.id expense_id,e.expense_date::text,e.expense_class,e.state expense_state,e.currency,e.payee_party_id,e.journal_id,
+      `select e.id expense_id,e.expense_date::text,e.expense_class::text,e.state::text expense_state,e.currency,e.payee_party_id,e.journal_id,
         l.line_number,l.description,l.net_minor::text booked_net_minor,l.vat_minor::text booked_vat_minor,l.gross_minor::text booked_gross_minor,
-        l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state,l.cit_state,l.vat_state,
+        l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
         l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-       where e.organization_id=$1 and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz
-         and (l.cit_state='unreviewed' or l.vat_state='unreviewed')
-       order by e.expense_date,e.id,l.line_number`,
+       join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
+       where e.organization_id=$1 and e.state='posted'
+         and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz
+         and j.state in ('posted','reversed') and j.posted_at <= $4::timestamptz
+       union all
+       select d.id,d.document_date::text,'invoice_backed',d.state::text,d.currency,d.party_id,d.journal_id,
+        l.line_number,l.description,l.net_minor::text,l.tax_minor::text,l.gross_minor::text,
+        '0','0','approved','unreviewed','unreviewed',
+        null,null,null,null,l.primary_account_code,null,l.dimensions
+       from commercial_documents d
+       join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
+       join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id
+       where d.organization_id=$1 and d.type='purchase_invoice'
+         and d.state in ('posted','partially_paid','paid')
+         and d.document_date between $2::date and $3::date and d.created_at <= $4::timestamptz
+         and j.state in ('posted','reversed') and j.posted_at <= $4::timestamptz
+       order by expense_date,expense_id,line_number`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
     );
     const items = result.rows.map((row) => ({
@@ -706,8 +720,8 @@ export class PgFinancialStatementStore {
     const reviewItems = items.map((row) => ({
       id: `${row.expense_id}:${row.line_number}`,
       sourceId: row.expense_id,
-      accountingBookedMinor: BigInt(row.booked_gross_minor),
-      citBasisMinor: BigInt(row.booked_gross_minor),
+      accountingBookedMinor: BigInt(row.booked_net_minor),
+      citBasisMinor: BigInt(row.booked_net_minor),
       citReviewState: row.cit_state,
       ...(row.cit_state !== "unreviewed"
         ? { citEligibleMinor: BigInt(row.cit_eligible_minor) }

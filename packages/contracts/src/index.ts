@@ -1,5 +1,21 @@
 export const API_VERSION = "v1" as const;
 export {
+  PORTABLE_DATA_PACKAGE_HASH_ALGORITHM,
+  PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
+  type PortableCellTypeContract,
+  type PortableDataPackageManifestContract,
+  type PortableDryRunResultContract,
+  type PortableDryRunRowResultContract,
+  type PortableRowEnvelopeContract,
+  type PortableRowIssueContract,
+  type PortableRowOperationContract,
+  type PortableExternalReferenceContract,
+  type PortableResourceMutabilityContract,
+  type PortableSheetColumnContract,
+  type PortableSheetInventoryContract,
+  type PortableSheetSchemaContract,
+} from "./portable-data-packages.js";
+export {
   OVERHEAD_ALLOCATION_CONTRACT_VERSION,
   type CreateOverheadAllocationPolicyRequest,
   type OverheadAllocationMethod,

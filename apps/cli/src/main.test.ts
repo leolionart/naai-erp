@@ -191,6 +191,67 @@ describe("ERP-800 operating dashboard CLI executable", () => {
   });
 });
 
+describe("ERP-850 portable organization data package CLI", () => {
+  it("routes export, status, and inventory through the portable package REST API", async () => {
+    expect(
+      (
+        await invoke([
+          "portable-data-export",
+          "export",
+          "--as-of",
+          "2026-08-07",
+          "--idempotency-key",
+          "export-once",
+        ])
+      ).requestedUrl,
+    ).toBe("/api/v1/organizations/org-a/portable-data-packages/exports");
+    expect(
+      (await invoke(["portable-data-export", "status", "--key", "package-1"])).requestedUrl,
+    ).toBe("/api/v1/organizations/org-a/portable-data-packages/exports/package-1");
+    expect(
+      (await invoke(["portable-data-export", "inventory", "--key", "package-1"])).requestedUrl,
+    ).toBe("/api/v1/organizations/org-a/portable-data-packages/exports/package-1/inventory");
+  });
+
+  it("uploads workbook inventory and dry-run requests as multipart", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "naai-erp-portable-"));
+    const workbook = join(directory, "package.xlsx");
+    await new ExcelJS.Workbook().xlsx.writeFile(workbook);
+    try {
+      expect(
+        (await invoke(["portable-data-import", "inventory", "--file", workbook])).requestedUrl,
+      ).toBe("/api/v1/organizations/org-a/portable-data-packages/imports/inventory");
+      expect(
+        (await invoke(["portable-data-import", "dry-run", "--file", workbook])).requestedUrl,
+      ).toBe("/api/v1/organizations/org-a/portable-data-packages/imports/dry-run");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("routes import status and explicit commit controls", async () => {
+    expect(
+      (await invoke(["portable-data-import", "status", "--key", "import-1"])).requestedUrl,
+    ).toBe("/api/v1/organizations/org-a/portable-data-packages/imports/import-1");
+    expect(
+      (
+        await invoke([
+          "portable-data-import",
+          "commit",
+          "--key",
+          "import-1",
+          "--dry-run-id",
+          "dry-run-1",
+          "--workbook-sha256",
+          "abc123",
+          "--idempotency-key",
+          "commit-once",
+        ])
+      ).requestedUrl,
+    ).toBe("/api/v1/organizations/org-a/portable-data-packages/imports/import-1/commit");
+  });
+});
+
 describe("ERP-740 workbook-import CLI executable", () => {
   async function financeFixture() {
     const directory = await mkdtemp(join(tmpdir(), "naai-workbook-import-"));

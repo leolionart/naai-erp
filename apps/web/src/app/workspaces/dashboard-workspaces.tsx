@@ -8,6 +8,9 @@ import type {
   AgingReportContract,
   ExecutiveMetricsContract,
   PerformanceComparisonContract,
+  ProfitAndLossContract,
+  TaxExpenseReviewContract,
+  VatReconciliationContract,
 } from "@naai-erp/contracts";
 import { ArrowRight, Filter, Info, ListChecks } from "lucide-react";
 import type {
@@ -78,11 +81,22 @@ type DashboardData = Readonly<{
   performance?: PerformanceComparisonContract;
   projects?: ProjectProfitabilityReport;
   aging?: AgingReportContract;
+  profitAndLoss?: ProfitAndLossContract;
+  taxExpenses?: TaxExpenseReviewContract;
+  vat?: VatReconciliationContract;
   operating?: OperatingDashboardWire;
   actualSummary?: ActualFactSummaryWire;
   failures?: Readonly<
     Record<
-      "executive" | "performance" | "projects" | "aging" | "operating" | "actualSummary",
+      | "executive"
+      | "performance"
+      | "projects"
+      | "aging"
+      | "profitAndLoss"
+      | "taxExpenses"
+      | "vat"
+      | "operating"
+      | "actualSummary",
       string
     >
   >;
@@ -156,6 +170,12 @@ type OperatingDashboardWire = Readonly<{
     expenseMinor: string;
     netProfitMinor: string;
     unrestrictedCashMinor: string | null;
+    bankAvailableMinor: string;
+    cashOnHandMinor: string;
+    cashAndBankMinor: string;
+    ownerPayableMinor: string;
+    netAvailableCashMinor: string;
+    corporateIncomeTaxRateBps: number | null;
     rosBps: number | null;
     recognitionEventCount: number;
     approvedBudgetCount: number;
@@ -696,23 +716,38 @@ function useDashboardData() {
       limit: "20",
     });
 
-    const [executive, performance, projects, aging, operating, actualSummary] =
-      await Promise.allSettled([
-        client.data<ExecutiveMetricsContract>(`reports/executive-metrics?${rq}`),
-        client.data<PerformanceComparisonContract>(`reports/performance-comparisons?${pq}`),
-        client.data<ProjectProfitabilityReport>(`reports/project-profitability?${jq}`),
-        client.data<AgingReportContract>(
-          `reports/ar-aging?asOf=${encodeURIComponent(asOf)}&limit=100`,
-        ),
-        client.data<OperatingDashboardWire>(`reports/operating-dashboard?${oq}`),
-        client.data<ActualFactSummaryWire>(`planning-actual-facts/summary?${aq}`),
-      ]);
+    const [
+      executive,
+      performance,
+      projects,
+      aging,
+      profitAndLoss,
+      taxExpenses,
+      vat,
+      operating,
+      actualSummary,
+    ] = await Promise.allSettled([
+      client.data<ExecutiveMetricsContract>(`reports/executive-metrics?${rq}`),
+      client.data<PerformanceComparisonContract>(`reports/performance-comparisons?${pq}`),
+      client.data<ProjectProfitabilityReport>(`reports/project-profitability?${jq}`),
+      client.data<AgingReportContract>(
+        `reports/ar-aging?asOf=${encodeURIComponent(asOf)}&limit=100`,
+      ),
+      client.data<ProfitAndLossContract>(`reports/financial-statements/profit-and-loss?${rq}`),
+      client.data<TaxExpenseReviewContract>(`reports/tax/expense-exceptions?${rq}`),
+      client.data<VatReconciliationContract>(`reports/tax/vat-reconciliation?${rq}`),
+      client.data<OperatingDashboardWire>(`reports/operating-dashboard?${oq}`),
+      client.data<ActualFactSummaryWire>(`planning-actual-facts/summary?${aq}`),
+    ]);
 
     const next: DashboardData = {
       executive: executive.status === "fulfilled" ? executive.value : undefined,
       performance: performance.status === "fulfilled" ? performance.value : undefined,
       projects: projects.status === "fulfilled" ? projects.value : undefined,
       aging: aging.status === "fulfilled" ? aging.value : undefined,
+      profitAndLoss: profitAndLoss.status === "fulfilled" ? profitAndLoss.value : undefined,
+      taxExpenses: taxExpenses.status === "fulfilled" ? taxExpenses.value : undefined,
+      vat: vat.status === "fulfilled" ? vat.value : undefined,
       operating: operating.status === "fulfilled" ? operating.value : undefined,
       actualSummary: actualSummary.status === "fulfilled" ? actualSummary.value : undefined,
       failures: {
@@ -720,6 +755,9 @@ function useDashboardData() {
         performance: performance.status === "rejected" ? String(performance.reason) : "",
         projects: projects.status === "rejected" ? String(projects.reason) : "",
         aging: aging.status === "rejected" ? String(aging.reason) : "",
+        profitAndLoss: profitAndLoss.status === "rejected" ? String(profitAndLoss.reason) : "",
+        taxExpenses: taxExpenses.status === "rejected" ? String(taxExpenses.reason) : "",
+        vat: vat.status === "rejected" ? String(vat.reason) : "",
         operating: operating.status === "rejected" ? String(operating.reason) : "",
         actualSummary: actualSummary.status === "rejected" ? String(actualSummary.reason) : "",
       },
@@ -731,6 +769,9 @@ function useDashboardData() {
       !next.performance &&
       !next.projects &&
       !next.aging &&
+      !next.profitAndLoss &&
+      !next.taxExpenses &&
+      !next.vat &&
       !next.operating &&
       !next.actualSummary
     ) {
@@ -770,13 +811,12 @@ export function ExecutiveDashboardWorkspace() {
   const executive = data.executive;
   const performance = data.performance;
   const operating = data.operating;
+  const profitAndLoss = data.profitAndLoss;
+  const taxExpenses = data.taxExpenses;
+  const vat = data.vat;
   const usingOperatingFallback = !operating;
   const projects = data.projects?.items ?? [];
   const recognizedMinor = sumMinor(projects.map((item) => item.recognizedRevenueMinor));
-  const invoicedMinor = sumMinor(projects.map((item) => item.invoicedRevenueMinor));
-  const recognizedDisplayMinor = projects.some((item) => item.recognizedRevenueMinor != null)
-    ? recognizedMinor
-    : performance?.actualVsFullTarget.numeratorMinor;
   const fallbackOverdueMinor = sumMinor(
     (data.aging?.items ?? [])
       .filter((item) => (item.daysOverdue ?? 0) > 0)
@@ -790,13 +830,6 @@ export function ExecutiveDashboardWorkspace() {
     BigInt(recognizedMinor) > 0n
       ? `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(Number((BigInt(data.aging?.baseOutstandingTotalMinor ?? "0") * BigInt(periodDays * 10)) / BigInt(recognizedMinor)) / 10)} ngày`
       : "N/A";
-  const fallbackBacklogMinor = sumMinor(
-    projects.map((item) => {
-      const budget = BigInt(item.budgetRevenueMinor ?? "0");
-      const invoiced = BigInt(item.invoicedRevenueMinor ?? "0");
-      return budget > invoiced ? (budget - invoiced).toString() : "0";
-    }),
-  );
   const overdueMinor = operating?.collections.overdueMinor ?? fallbackOverdueMinor;
   const overdueCount = (data.aging?.items ?? []).filter(
     (item) => (item.daysOverdue ?? 0) > 0,
@@ -806,7 +839,26 @@ export function ExecutiveDashboardWorkspace() {
       ? "N/A"
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
     : fallbackDso;
-  const backlogMinor = operating?.backlog.remainingMinor ?? fallbackBacklogMinor;
+  const ownerPayableMinor = operating?.financials.ownerPayableMinor ?? "0";
+  const netAvailableCashMinor =
+    operating?.financials.netAvailableCashMinor ??
+    executive?.unrestrictedCashMinor ??
+    operating?.financials.unrestrictedCashMinor ??
+    "0";
+  const taxableProfitMinor =
+    profitAndLoss == null || taxExpenses == null
+      ? undefined
+      : (
+          BigInt(profitAndLoss.profitBeforeTaxMinor) + BigInt(taxExpenses.citIneligibleMinor)
+        ).toString();
+  const corporateIncomeTaxMinor =
+    taxableProfitMinor == null || operating?.financials.corporateIncomeTaxRateBps == null
+      ? undefined
+      : (
+          ((BigInt(taxableProfitMinor) > 0n ? BigInt(taxableProfitMinor) : 0n) *
+            BigInt(operating.financials.corporateIncomeTaxRateBps)) /
+          10_000n
+        ).toString();
   const fallbackProjectRisks = [...projects]
     .filter((item) => BigInt(item.overrunAmountMinor ?? "0") > 0n || item.confidenceCodes.length)
     .sort((a, b) =>
@@ -959,101 +1011,82 @@ export function ExecutiveDashboardWorkspace() {
           <>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <MetricCard
-                title="Giá trị đã xuất hóa đơn"
-                value={money(
-                  nonZeroMinor(data.actualSummary?.amountMinor) ??
-                    nonZeroMinor(operating?.clientConcentration.totalRevenueMinor) ??
-                    nonZeroMinor(performance?.actualVsFullTarget.numeratorMinor) ??
-                    invoicedMinor,
-                  data.actualSummary?.currency ??
-                    operating?.currency ??
-                    performance?.currency ??
-                    data.projects?.currency,
-                )}
-                description="Giá trị hóa đơn bán ra đã phát hành; không đồng nghĩa đã thu tiền"
-                href="/documents?type=sales_invoice"
-                provisional={usingOperatingFallback}
+                title="Lợi nhuận tính thuế TNDN tạm tính"
+                value={money(taxableProfitMinor, profitAndLoss?.currency)}
+                description={`Lợi nhuận kế toán ${money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency)} + chi phí CIT không được trừ ${money(taxExpenses?.citIneligibleMinor, taxExpenses?.currency)}. Chi phí CIT chưa review: ${money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}.`}
+                href="/reports/tax/expense-exceptions"
+                status={taxExpenses?.status}
+                provisional={taxExpenses?.status !== "ready"}
               />
               <MetricCard
-                title="Doanh thu đã ghi nhận"
-                value={money(
-                  search.get("actualBasis") === "recognized"
-                    ? (nonZeroMinor(data.actualSummary?.amountMinor) ?? recognizedDisplayMinor)
-                    : recognizedDisplayMinor,
-                  data.actualSummary?.currency ?? data.projects?.currency ?? performance?.currency,
-                )}
-                description={
-                  operating?.financials.recognitionEventCount
-                    ? "Phần giá trị hợp đồng đã đủ điều kiện ghi nhận doanh thu"
-                    : "Chưa có mốc ghi nhận doanh thu đã post"
-                }
-                href="/documents?type=sales_invoice"
+                title="Thuế TNDN tạm tính"
+                value={money(corporateIncomeTaxMinor, profitAndLoss?.currency)}
+                description={`Lợi nhuận tính thuế tạm tính ${money(taxableProfitMinor, profitAndLoss?.currency)} × thuế suất đã duyệt ${
+                  operating?.financials.corporateIncomeTaxRateBps == null
+                    ? "N/A"
+                    : `${operating.financials.corporateIncomeTaxRateBps / 100}%`
+                }`}
+                href="/reports/tax/expense-exceptions"
                 status={
-                  operating?.financials.recognitionEventCount
-                    ? performance?.actualVsFullTarget.status
-                    : "Chưa có dữ liệu"
+                  operating?.financials.corporateIncomeTaxRateBps == null
+                    ? "Thiếu chính sách thuế TNDN"
+                    : taxExpenses?.status
                 }
+                provisional={taxExpenses?.status !== "ready"}
               />
               <MetricCard
-                title="Cảnh báo Thuế TNDN (Tạm tính 20%)"
-                value={`~${money(
-                  (BigInt(operating?.financials.netProfitMinor ?? "0") > 0n
-                    ? (BigInt(operating?.financials.netProfitMinor ?? "0") * 20n) / 100n
-                    : 0n
-                  ).toString(),
-                  operating?.currency ?? data.projects?.currency,
-                )}`}
-                description={`Chi phí hợp lệ: ${money(operating?.financials.expenseMinor ?? "0", operating?.currency)}`}
+                title="VAT phải nộp"
+                value={money(vat?.netVatPayableMinor, vat?.currency)}
+                description={`VAT đầu ra ${money(vat?.outputVatMinor, vat?.currency)} − VAT đầu vào đủ điều kiện ${money(vat?.eligibleInputVatMinor, vat?.currency)}. VAT đầu vào chưa review: ${money(vat?.unreviewedInputVatMinor, vat?.currency)}.`}
+                href={`/reports/tax/vat-reconciliation/current?${q}`}
+                status={vat?.status}
+                provisional={vat?.status !== "ready"}
+              />
+              <MetricCard
+                title="VAT đầu vào chờ review"
+                value={money(vat?.unreviewedInputVatMinor, vat?.currency)}
+                description="Khoản VAT đầu vào chưa được khấu trừ; hoàn tất kiểm tra hóa đơn và hồ sơ để xác định số VAT được giảm"
+                href={`/reports/tax/vat-reconciliation/current?${q}`}
+                status={
+                  vat?.unreviewedItemIds.length
+                    ? `${vat.unreviewedItemIds.length} khoản`
+                    : "Đã review hết"
+                }
+                provisional={Boolean(vat?.unreviewedItemIds.length)}
+              />
+              <MetricCard
+                title="Chi phí CIT chờ review"
+                value={money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}
+                description="Chi phí chưa xác định được trừ khi tính thuế TNDN; cần bổ sung hóa đơn, chứng từ hoặc kết luận kế toán"
                 href="/reports/tax/expense-exceptions"
-                status="Cần rà soát"
-                provisional
+                status={
+                  taxExpenses?.unreviewedItemIds.length
+                    ? `${taxExpenses.unreviewedItemIds.length} khoản`
+                    : "Đã review hết"
+                }
+                provisional={Boolean(taxExpenses?.unreviewedItemIds.length)}
               />
               <MetricCard
-                title="Tổng chi có hóa đơn"
-                value={money(
-                  operating?.financials.expenseMinor ?? "45000000",
-                  operating?.currency ?? "VND",
-                )}
-                description="Chi phí mua vào có hóa đơn GTGT hợp lệ (Hóa đơn đầu vào)"
-                href="/documents?type=purchase_invoice"
-                status="Hóa đơn mua vào"
-              />
-              <MetricCard
-                title="Tổng chi chưa/không hóa đơn"
-                value="25.000.000 ₫"
-                description="Các khoản chi thực tế chưa có hóa đơn GTGT (Cần rà soát Thuế CIT)"
-                href="/reports/tax/expense-exceptions"
-                status="Chi phí rà soát Thuế (CIT)"
-                provisional
-              />
-              <MetricCard
-                title="Công nợ quá hạn"
-                value={money(overdueMinor, data.aging?.baseCurrency)}
-                description={`DSO: ${dso}`}
+                title="Công nợ cần thu"
+                value={money(data.aging?.baseOutstandingTotalMinor, data.aging?.baseCurrency)}
+                description={`Đã quá hạn ${money(overdueMinor, data.aging?.baseCurrency)} · DSO: ${dso}`}
                 href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
                 status={overdueCount ? `${overdueCount} khoản quá hạn` : data.aging?.tieStatus}
                 provisional={usingOperatingFallback}
               />
               <MetricCard
-                title="Tiền mặt khả dụng"
-                value={money(
-                  executive?.unrestrictedCashMinor ?? operating?.financials.unrestrictedCashMinor,
-                  executive?.currency ?? operating?.currency,
-                )}
-                description={
-                  executive
-                    ? `Burn: ${money(executive.netBurnMinor, executive.currency)}/tháng`
-                    : "Tổng số dư tiền mặt và tiền gửi khả dụng"
-                }
+                title="Số dư ngân hàng khả dụng"
+                value={money(operating?.financials.bankAvailableMinor, operating?.currency)}
+                description="Số dư tài khoản ngân hàng công ty sau mọi khoản thu, chi và rút tiền"
                 href={`/reports/financial-statements/cash-flow/current?${q}`}
-                status={executive?.runwayStatus}
+                status={`Quỹ tiền mặt: ${money(operating?.financials.cashOnHandMinor, operating?.currency)}`}
               />
               <MetricCard
-                title="Chi hộ từ chủ sở hữu"
-                value="30.000.000 ₫"
-                description="Tiền cá nhân chi lương vượt số tiền 90tr đã rút từ ngân hàng"
-                href="/reports/executive-metrics/equity"
-                status="Nợ chủ sở hữu (TK 3388)"
+                title="Tiền ròng sau khoản phải trả chủ sở hữu"
+                value={money(netAvailableCashMinor, operating?.currency ?? executive?.currency)}
+                description={`Tiền ngân hàng và quỹ sau khi trừ nghĩa vụ với chủ doanh nghiệp`}
+                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                status={`Phải trả chủ sở hữu: ${money(ownerPayableMinor, operating?.currency ?? executive?.currency)}`}
               />
               <MetricCard
                 title="Runway"
@@ -1061,43 +1094,6 @@ export function ExecutiveDashboardWorkspace() {
                 description="Thời gian duy trì dòng tiền với tốc độ chi tiêu hiện tại"
                 href={`/reports/financial-statements/cash-flow/current?${q}`}
                 status={executive?.runwayStatus}
-              />
-              <MetricCard
-                title="Giá trị hợp đồng chưa xuất hóa đơn"
-                value={money(backlogMinor, data.projects?.currency)}
-                description={
-                  operating
-                    ? `Tổng hợp từ ${operating.backlog.projectCount} dự án có hợp đồng`
-                    : "Phần giá trị hợp đồng còn lại chưa được lập hóa đơn"
-                }
-                href="/projects"
-                provisional={usingOperatingFallback}
-              />
-              <MetricCard
-                title="Lợi nhuận fully loaded"
-                value={money(
-                  nonZeroMinor(data.projects?.totals.fullyLoadedProfitMinor) ??
-                    operating?.financials.netProfitMinor,
-                  data.projects?.currency ?? operating?.currency,
-                )}
-                description={
-                  operating?.financials.approvedBudgetCount &&
-                  operating.financials.postedOverheadRunCount
-                    ? "Lợi nhuận ròng đã phân bổ đầy đủ chi phí"
-                    : "Lợi nhuận sổ sách kế toán"
-                }
-                href={`/reports/financial-statements/profit-and-loss/current?${q}`}
-                status={`${projects.length} dự án`}
-              />
-              <MetricCard
-                title="ROS"
-                value={ratio(executive?.ros.valueBps ?? operating?.financials.rosBps)}
-                description="Tỷ suất lợi nhuận trên doanh thu (Return on Sales)"
-                href={`/reports/financial-statements/profit-and-loss/current?${q}`}
-                status={
-                  executive?.ros.status ??
-                  (operating?.financials.rosBps == null ? undefined : "Dồn tích")
-                }
               />
             </div>
             <Card>
@@ -1163,9 +1159,7 @@ export function ExecutiveDashboardWorkspace() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <Button asChild size="sm" variant="outline">
-                                  <Link
-                                    href={`/projects/${encodeURIComponent(projectId)}`}
-                                  >
+                                  <Link href={`/projects/${encodeURIComponent(projectId)}`}>
                                     Mở dự án
                                   </Link>
                                 </Button>

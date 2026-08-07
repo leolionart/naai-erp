@@ -373,6 +373,19 @@ Override requires reviewer, reason, timestamp and reference/evidence.
 - VAT output, input, eligible input and ineligible input are distinct.
 - Report differences, missing evidence and unreconciled documents.
 - VAT report is not final while review thresholds are exceeded.
+- VAT payable is `output VAT - eligible input VAT`. Ineligible and unreviewed input VAT are shown
+  separately and are not silently deducted.
+
+### BR-TAX-004 — Provisional corporate income tax
+
+- Provisional taxable profit starts from posted-ledger accounting profit before tax and adds reviewed
+  CIT-ineligible expense adjustments. CIT-unreviewed expense remains visible and keeps the result in
+  review-required state.
+- Provisional CIT equals positive provisional taxable profit multiplied by the effective,
+  accountant-approved organization CIT tax-code rate. The UI reads the rate from the policy record;
+  it never embeds a tax rate or a demo tax amount.
+- Taxable profit and accounting profit are distinct. Purchase invoices without CIT review remain
+  unreviewed rather than being assumed deductible merely because an invoice exists.
 
 ### BR-EVD-001 — Evidence integrity
 
@@ -552,6 +565,10 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Equity consumed uses accumulated losses versus contributed capital.
 - Net burn excludes owner funding from operating inflow.
 - Runway = unrestricted cash / average positive net burn; if net burn ≤ 0, show cash-generating/N/A.
+- Dashboard must keep unrestricted cash separate from owner-adjusted net cash. Owner-adjusted net cash
+  equals mapped company cash and bank balances less the positive closing Owner Payable/current-account
+  liability. A debit owner-current balance does not increase available cash. The result may be negative
+  when the company owes the owner more than its mapped cash and bank balances.
 
 ## 9. Reports and exports
 
@@ -559,6 +576,11 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 
 - Every dashboard/report amount drills down to read-model rows, journal lines, source documents and authorized evidence.
 - A UI aggregate may not use a different formula from the report/API source.
+- Financial cards must not fall back to embedded demo amounts. When a canonical API value is
+  unavailable, the UI displays an explicit missing-data or review-required state.
+- The executive dashboard prioritizes owner-actionable controls: collectible receivables, bank and
+  cash position, owner-adjusted net cash, runway, VAT payable and provisional CIT. Detailed contract,
+  invoice, project-margin and profitability ratios remain on their dedicated workspaces.
 
 ### BR-UI-002 — Review and replay UX
 
@@ -606,6 +628,29 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 
 - Export is reproducible, versioned and audited.
 - Include mapping status and unresolved items; do not label final when confidence thresholds fail.
+
+### BR-EXPOR-002 — Portable organization data package
+
+- A portable organization export is a versioned XLSX workbook plus a machine-readable manifest. It
+  inventories every canonical organization-scoped business resource as an included sheet or an
+  explicit excluded entry with a reviewed reason; silent omission is invalid.
+- The manifest records package/export ID, schema version, organization, cutoff, workbook checksum,
+  per-resource sheet name, row count, checksum, dependency order and mutability. Exact money values
+  remain minor-unit strings and stable IDs, external references, resource versions, relationships
+  and lifecycle states survive the round trip.
+- Editable rows declare one operation: `no_change`, `create`, `update`, `deactivate`, `cancel` or
+  `reverse_replace`. Issued/posted history is never overwritten; journal history is read-only and
+  financial corrections use the canonical cancellation, reversal and replacement services.
+- Import first performs inventory/completeness validation and a deterministic zero-mutation dry-run,
+  then resolves dependencies and returns row-level diffs, warnings and structured field errors.
+  Commit is explicit, organization-scoped, authorized, audited, version-checked and idempotent.
+- An unchanged export imported into the same compatible organization is a no-op. Missing or unknown
+  required sheets, cross-organization references, stale versions, closed-period effects, edited
+  posted history and unresolved relationships reject commit without partial accounting effects.
+- Secrets, token hashes, signed URLs and binary evidence are never exported. Paperless remains the
+  source of document bytes; the package carries only durable external references and checksums.
+- Post-import controls reconcile resource counts and canonical Trial Balance, P&L, Balance Sheet,
+  cash, AR/AP, tax and project reporting at the package cutoff.
 
 ### BR-SNP-001 — Report snapshot
 

@@ -25,7 +25,9 @@ describe("typed admin navigation", () => {
     expect(findNavigationItem("receivables")?.href).toBe("/receivables");
     expect(findNavigationItem("payables")?.href).toBe("/payables");
     expect(findNavigationItem("debt")?.href).toBeUndefined();
-    expect(findNavigationItem("accountant-exports")).toBeUndefined();
+    expect(findNavigationItem("master-data")?.href).toBe("/settings/master-data");
+    expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
+    expect(findNavigationItem("executive-metrics")?.href).toBe("/reports/executive-metrics");
     expect(findNavigationItem("customers")?.href).toBe("/customers");
     expect(findNavigationItem("projects")?.href).toBe("/projects");
     for (const hidden of [
@@ -33,9 +35,6 @@ describe("typed admin navigation", () => {
       "performance",
       "evidence",
       "integrations",
-      "master-data",
-      "ledger",
-      "banking",
       "timesheets",
       "cost-rates",
       "project-costs",
@@ -44,7 +43,6 @@ describe("typed admin navigation", () => {
       "forecast",
       "forecast-composition",
       "reports",
-      "executive-metrics",
     ]) {
       expect(findNavigationItem(hidden)).toBeUndefined();
     }

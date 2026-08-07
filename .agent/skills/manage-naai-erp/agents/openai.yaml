@@ -1,0 +1,4 @@
+interface:
+  display_name: "NAAI ERP Manager"
+  short_description: "Quản trị NAAI ERP an toàn qua CLI và API"
+  default_prompt: "Use $manage-naai-erp to inspect or manage NAAI ERP through its official CLI and API."

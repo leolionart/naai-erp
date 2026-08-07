@@ -7,8 +7,8 @@ development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G14
-current_task: ERP-841
+current_gate: G15
+current_task: ERP-850
 
 tasks:
   - id: ERP-000
@@ -1056,8 +1056,20 @@ tasks:
     status: in_progress
     dependencies: [ERP-840]
     business_rules:
-      [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-RPT-004, BR-REV-001, BR-PRJ-001, BR-BNK-003]
-    tests: [T-INT-ERP-841-001]
+      [
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AI-005,
+        BR-RPT-004,
+        BR-REV-001,
+        BR-PRJ-001,
+        BR-BNK-003,
+        BR-TAX-003,
+        BR-TAX-004,
+        BR-UI-001,
+      ]
+    tests: [T-INT-ERP-841-001, T-E2E-ERP-841-002]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
     started_at: 2026-08-07T22:08:42+07:00
@@ -1072,6 +1084,42 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-841/
+
+  - id: ERP-850
+    title: Portable organization workbook round-trip
+    phase: P11
+    status: in_progress
+    dependencies: [ERP-840]
+    business_rules:
+      [
+        BR-EXPOR-002,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AI-004,
+        BR-AI-005,
+        BR-ORG-001,
+        BR-AUD-001,
+        BR-LED-003,
+        BR-PER-001,
+      ]
+    tests: [T-CONTRACT-ERP-850-001, T-API-ERP-850-002, T-INT-ERP-850-003, T-E2E-ERP-850-004]
+    evidence: docs/implementation/evidence/ERP-850/
+    agent: codex-root
+    started_at: 2026-08-07T23:00:00+07:00
+    notes: Scope switched from the independently unfinished ERP-841 to the owner-requested complete Excel-editable export and safe re-import package.
+    planned_files:
+      - packages/contracts/src/
+      - packages/domain/src/
+      - apps/api/src/portable-data-packages/
+      - apps/cli/src/
+      - apps/web/src/app/workspaces/
+      - docs/architecture/ADR-012-portable-organization-data-package.md
+      - docs/api/portable-organization-data-package.md
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-850/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -1089,6 +1137,7 @@ gates:
   G12: [ERP-830]
   G13: [ERP-840]
   G14: [ERP-841]
+  G15: [ERP-850]
 
 gate_status:
   G0: done
@@ -1106,3 +1155,4 @@ gate_status:
   G12: done
   G13: done
   G14: in_progress
+  G15: in_progress

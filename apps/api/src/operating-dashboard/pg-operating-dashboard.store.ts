@@ -102,9 +102,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
   }
 
   private async financials(org: string, q: OperatingDashboardQuery) {
-    const [monthlyResult, cash, readiness] = await Promise.all([
-      this.pool.query<{ period: string; revenue: string; expense: string }>(
-        `select
+    const [monthlyResult, cash, cashAndBank, ownerCurrent, taxPolicy, readiness] =
+      await Promise.all([
+        this.pool.query<{ period: string; revenue: string; expense: string }>(
+          `select
            to_char(j.journal_date, 'YYYY-MM') period,
            coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)) filter (where a.root_type='revenue'),0)::text revenue,
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where a.root_type='expense'),0)::text expense
@@ -115,10 +116,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           and j.journal_date between $2::date and $3::date
         group by to_char(j.journal_date, 'YYYY-MM')
         order by to_char(j.journal_date, 'YYYY-MM')`,
-        [org, q.startsOn, q.endsOn],
-      ),
-      this.pool.query<{ amount: string | null }>(
-        `select sum(
+          [org, q.startsOn, q.endsOn],
+        ),
+        this.pool.query<{ amount: string | null }>(
+          `select sum(
            (case when a.root_type in ('liability','equity','revenue')
              then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)
              else coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) end) * m.sign
@@ -132,20 +133,65 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         where p.organization_id=$1 and p.state='approved' and m.semantic='unrestricted_cash'
           and p.effective_from<=$2::date and (p.effective_to is null or p.effective_to>=$2::date)
           and j.state in ('posted','reversed') and j.journal_date<=$2::date`,
-        [org, q.asOf],
-      ),
-      this.pool.query<{
-        recognition_count: number;
-        budget_count: number;
-        overhead_count: number;
-      }>(
-        `select
+          [org, q.asOf],
+        ),
+        this.pool.query<{ bank_amount: string; cash_amount: string; amount: string }>(
+          `with cash_accounts as (
+           select distinct ledger_account_code account_code,kind
+           from financial_accounts
+           where organization_id=$1 and status='active' and kind in ('bank','cash')
+         )
+         select
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='bank'),0)::text bank_amount,
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='cash'),0)::text cash_amount,
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)),0)::text amount
+         from cash_accounts ca
+         join journal_lines l on l.organization_id=$1 and l.account_code=ca.account_code
+         join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
+         where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
+          [org, q.asOf],
+        ),
+        this.pool.query<{ amount: string }>(
+          `with selected_mapping as (
+           select id,version
+           from financial_statement_mapping_versions
+           where organization_id=$1 and framework='TT133' and state='approved'
+             and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
+           order by effective_from desc,version desc limit 1
+         ), owner_accounts as (
+           select distinct ml.account_code
+           from selected_mapping sm
+           join financial_statement_mapping_lines ml
+             on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+           where ml.statement='balance_sheet' and ml.line_code='owner_current'
+         )
+         select coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)),0)::text amount
+         from owner_accounts oa
+         join journal_lines l on l.organization_id=$1 and l.account_code=oa.account_code
+         join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
+         where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
+          [org, q.asOf],
+        ),
+        this.pool.query<{ rate_bps: number | null }>(
+          `select round(rate*10000)::int rate_bps
+         from tax_code_versions
+         where organization_id=$1 and kind='cit' and review_state='accountant_approved'
+           and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
+         order by effective_from desc,code limit 1`,
+          [org, q.asOf],
+        ),
+        this.pool.query<{
+          recognition_count: number;
+          budget_count: number;
+          overhead_count: number;
+        }>(
+          `select
           (select count(*)::int from revenue_recognition_events where organization_id=$1 and state='posted' and effective_on between $2::date and $3::date) recognition_count,
           (select count(*)::int from project_budget_versions where organization_id=$1 and state='approved') budget_count,
           (select count(*)::int from overhead_allocation_runs where organization_id=$1 and state='posted' and period_end>=$2::date and period_start<=$3::date) overhead_count`,
-        [org, q.startsOn, q.endsOn],
-      ),
-    ]);
+          [org, q.startsOn, q.endsOn],
+        ),
+      ]);
     const monthly = monthlyResult.rows.map((row) => ({
       period: row.period,
       revenueMinor: amount(row.revenue).toString(),
@@ -154,11 +200,22 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const revenue = monthlyResult.rows.reduce((sum, row) => sum + amount(row.revenue), 0n);
     const expense = monthlyResult.rows.reduce((sum, row) => sum + amount(row.expense), 0n);
     const netProfit = revenue - expense;
+    const cashAndBankMinor = amount(cashAndBank.rows[0]?.amount);
+    const bankAvailableMinor = amount(cashAndBank.rows[0]?.bank_amount);
+    const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
+    const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
+    const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
     return {
       revenueMinor: revenue.toString(),
       expenseMinor: expense.toString(),
       netProfitMinor: netProfit.toString(),
       unrestrictedCashMinor: cash.rows[0]?.amount ?? null,
+      bankAvailableMinor: bankAvailableMinor.toString(),
+      cashOnHandMinor: cashOnHandMinor.toString(),
+      cashAndBankMinor: cashAndBankMinor.toString(),
+      ownerPayableMinor: ownerPayableMinor.toString(),
+      netAvailableCashMinor: (cashAndBankMinor - ownerPayableMinor).toString(),
+      corporateIncomeTaxRateBps: taxPolicy.rows[0]?.rate_bps ?? null,
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
       approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,

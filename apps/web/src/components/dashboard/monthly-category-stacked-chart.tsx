@@ -85,7 +85,9 @@ export function MonthlyCategoryStackedChart({
           <div className="flex items-center justify-between">
             {href ? (
               <Link href={href} className="group/link flex items-center gap-1.5 transition-colors">
-                <CardTitle className="text-base font-semibold group-hover/link:text-primary transition-colors">{title}</CardTitle>
+                <CardTitle className="text-base font-semibold group-hover/link:text-primary transition-colors">
+                  {title}
+                </CardTitle>
                 <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary group-hover/link:opacity-100" />
               </Link>
             ) : (
@@ -107,7 +109,9 @@ export function MonthlyCategoryStackedChart({
         <div className="flex items-center justify-between">
           {href ? (
             <Link href={href} className="group/link flex items-center gap-1.5 transition-colors">
-              <CardTitle className="text-base font-semibold group-hover/link:text-primary transition-colors">{title}</CardTitle>
+              <CardTitle className="text-base font-semibold group-hover/link:text-primary transition-colors">
+                {title}
+              </CardTitle>
               <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary group-hover/link:opacity-100" />
             </Link>
           ) : (

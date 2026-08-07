@@ -19,6 +19,170 @@ async function install(page: Page, requestedUrls: string[] = []) {
       }),
   );
   await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/tax/expense-exceptions**",
+    (route) =>
+      reply(route, {
+        schemaVersion: 1,
+        organizationId: "naai",
+        currency: "VND",
+        startsOn: "2026-01-01",
+        endsOn: "2026-08-31",
+        formulaVersion: "tax-expense-review-v1",
+        status: "review_required",
+        accountingBookedMinor: "30000000",
+        citBasisMinor: "30000000",
+        citEligibleMinor: "0",
+        citIneligibleMinor: "5000000",
+        citUnreviewedMinor: "25000000",
+        vatBasisMinor: "0",
+        vatEligibleMinor: "0",
+        vatIneligibleMinor: "0",
+        vatUnreviewedMinor: "0",
+        missingEvidenceItemIds: [],
+        unreviewedItemIds: ["expense-700"],
+        sourceIds: ["expense-700"],
+        confidenceFlags: [
+          {
+            code: "tax_expense_unreviewed",
+            severity: "warning",
+            itemIds: ["expense-700"],
+          },
+        ],
+      }),
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/tax/vat-reconciliation**",
+    (route) =>
+      reply(route, {
+        schemaVersion: 1,
+        organizationId: "naai",
+        currency: "VND",
+        startsOn: "2026-01-01",
+        endsOn: "2026-08-31",
+        formulaVersion: "vat-reconciliation-v1",
+        policyId: "vat-policy-700",
+        policyVersion: 1,
+        status: "ready",
+        outputVatMinor: "21000000",
+        inputVatMinor: "6000000",
+        eligibleInputVatMinor: "6000000",
+        ineligibleInputVatMinor: "0",
+        unreviewedInputVatMinor: "0",
+        netVatPayableMinor: "15000000",
+        outputVatLedgerMinor: "21000000",
+        inputVatLedgerMinor: "6000000",
+        outputDifferenceMinor: "0",
+        inputDifferenceMinor: "0",
+        missingEvidenceItemIds: [],
+        unreconciledItemIds: [],
+        invalidTaxCodeItemIds: [],
+        unreviewedItemIds: [],
+        sourceIds: ["sale-700", "purchase-700"],
+        journalIds: ["sale-journal-700", "purchase-journal-700"],
+        confidenceFlags: [],
+      }),
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/profit-and-loss**",
+    (route) =>
+      reply(route, {
+        schemaVersion: 1,
+        organizationId: "naai",
+        currency: "VND",
+        startsOn: "2026-01-01",
+        endsOn: "2026-08-31",
+        accountingBasis: "accrual_management",
+        formulaVersion: "profit-and-loss-v1",
+        ledgerCutoff: {
+          throughDate: "2026-08-31",
+          maxPostedAt: "2026-08-31T16:59:59.999Z",
+          journalCount: 3,
+          lineCount: 6,
+          sourceFingerprint: "pnl-erp841",
+        },
+        revenueMinor: "290000000",
+        directCostMinor: "60000000",
+        grossProfitMinor: "230000000",
+        operatingExpenseMinor: "120000000",
+        operatingProfitMinor: "110000000",
+        otherIncomeMinor: "0",
+        otherExpenseMinor: "0",
+        profitBeforeTaxMinor: "110000000",
+        incomeTaxMinor: "0",
+        sectionFormulaNetProfitMinor: "110000000",
+        netProfitMinor: "110000000",
+        unclassifiedNetMinor: "0",
+        rows: [],
+        unclassifiedRows: [],
+        control: {
+          controlVersion: "ledger-control-v1",
+          ledgerMinor: "110000000",
+          reportMinor: "110000000",
+          differenceMinor: "0",
+          status: "tied_out",
+        },
+        confidenceFlags: [],
+      }),
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/balance-sheet**",
+    (route) =>
+      reply(route, {
+        schemaVersion: 1,
+        organizationId: "naai",
+        currency: "VND",
+        asOfDate: "2026-08-31",
+        formulaVersion: "balance-sheet-v1",
+        ledgerCutoff: {
+          throughDate: "2026-08-31",
+          maxPostedAt: "2026-08-31T16:59:59.999Z",
+          journalCount: 3,
+          lineCount: 6,
+          sourceFingerprint: "balance-sheet-erp841",
+        },
+        assetsMinor: "620000000",
+        liabilitiesMinor: "30000000",
+        ledgerEquityMinor: "590000000",
+        unclosedEarningsMinor: "0",
+        totalEquityMinor: "590000000",
+        liabilitiesAndEquityMinor: "620000000",
+        equationDifferenceMinor: "0",
+        assetRows: [
+          {
+            key: "cash",
+            label: "Tiền mặt và tiền gửi",
+            amountMinor: "620000000",
+            accountIds: ["111-CASH", "112-BANK"],
+            journalIds: ["cash-ledger-700"],
+            journalLineIds: ["cash-ledger-700:1"],
+            sourceIds: ["cash-ledger-700"],
+            mappingVersionIds: ["tt133:1"],
+          },
+        ],
+        liabilityRows: [
+          {
+            key: "owner_current",
+            label: "Vãng lai chủ doanh nghiệp",
+            amountMinor: "30000000",
+            accountIds: ["3388-OWNER"],
+            journalIds: ["owner-payroll-700"],
+            journalLineIds: ["owner-payroll-700:2"],
+            sourceIds: ["owner-payroll-700"],
+            mappingVersionIds: ["tt133:1"],
+          },
+        ],
+        equityRows: [],
+        earningsRows: [],
+        control: {
+          controlVersion: "ledger-control-v1",
+          ledgerMinor: "0",
+          reportMinor: "0",
+          differenceMinor: "0",
+          status: "tied_out",
+        },
+      }),
+  );
+  await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
     (route) => {
       requestedUrls.push(route.request().url());
@@ -191,6 +355,12 @@ async function installOperatingDashboard(page: Page) {
           expenseMinor: "80000000",
           netProfitMinor: "100000000",
           unrestrictedCashMinor: "75000000",
+          bankAvailableMinor: "613000000",
+          cashOnHandMinor: "7000000",
+          cashAndBankMinor: "620000000",
+          ownerPayableMinor: "30000000",
+          netAvailableCashMinor: "590000000",
+          corporateIncomeTaxRateBps: 2000,
           rosBps: 5556,
           recognitionEventCount: 0,
           approvedBudgetCount: 0,
@@ -330,6 +500,42 @@ test("@desktop uses operating dashboard read model instead of provisional fallba
   await expect(page.getByText("2024-12", { exact: true })).toHaveCount(0);
   await expect(page.getByText("2025-03", { exact: true })).toBeVisible();
   await expect(page.getByText("2 dòng workbook chưa xác nhận kế toán")).toBeVisible();
+});
+
+test("@desktop shows ledger-derived bank cash owner payable and accounting profit", async ({
+  page,
+}) => {
+  await install(page);
+  await installOperatingDashboard(page);
+  await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
+
+  const netCashCard = page.getByRole("link", {
+    name: /Tiền ròng sau khoản phải trả chủ sở hữu/,
+  });
+  await expect(netCashCard).toContainText("590.000.000 ₫");
+  await expect(netCashCard).toContainText("Phải trả chủ sở hữu: 30.000.000 ₫");
+  const bankCard = page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ });
+  await expect(bankCard).toContainText("613.000.000 ₫");
+  await expect(bankCard).toContainText("Quỹ tiền mặt: 7.000.000 ₫");
+  const taxableProfitCard = page.getByRole("link", {
+    name: /Lợi nhuận tính thuế TNDN tạm tính/,
+  });
+  await expect(taxableProfitCard).toContainText("115.000.000 ₫");
+  await expect(taxableProfitCard).toContainText(
+    "Lợi nhuận kế toán 110.000.000 ₫ + chi phí CIT không được trừ 5.000.000 ₫",
+  );
+  const citCard = page.getByRole("link", { name: /Thuế TNDN tạm tính/ });
+  await expect(citCard).toContainText("23.000.000 ₫");
+  await expect(citCard).toContainText("thuế suất đã duyệt 20%");
+  const vatCard = page.getByRole("link", { name: /VAT phải nộp/ });
+  await expect(vatCard).toContainText("15.000.000 ₫");
+  await expect(vatCard).toContainText(
+    "VAT đầu ra 21.000.000 ₫ − VAT đầu vào đủ điều kiện 6.000.000 ₫",
+  );
+  await expect(page.getByRole("link", { name: /VAT đầu vào chờ review/ })).toContainText("0 ₫");
+  await expect(page.getByRole("link", { name: /Chi phí CIT chờ review/ })).toContainText(
+    "25.000.000 ₫",
+  );
 });
 
 test("@desktop selects the latest source-control period and invoiced basis by default", async ({

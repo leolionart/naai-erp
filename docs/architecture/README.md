@@ -11,3 +11,4 @@
 9. [ADR-009: AI-native Interfaces](./ADR-009-ai-native-interfaces.md)
 10. [ADR-010: In-place Quick View Workspace Editing and Financial Controls](./ADR-010-quick-view-editing-and-financial-controls.md)
 11. [ADR-011: AI Data Relationships and Ingestion Contract](./ADR-011-ai-data-relationships-and-ingestion.md)
+12. [ADR-012: Portable Organization Data Package](./ADR-012-portable-organization-data-package.md)

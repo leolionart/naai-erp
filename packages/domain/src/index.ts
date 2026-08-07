@@ -1,4 +1,15 @@
 export const DOMAIN_PACKAGE = "@naai-erp/domain" as const;
+export {
+  PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
+  assertPortableRowOperation,
+  assertPortableInventoryComplete,
+  createPortableDataPackageManifest,
+  hashPortableRows,
+  packageHashForInventory,
+  type PortableDataPackageManifest,
+  type PortableRowOperation,
+  type PortableSheetInventory,
+} from "./portable-data-package.js";
 
 export type OrganizationScoped = Readonly<{
   organizationId: string;

@@ -6,10 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Camera,
-  CheckCircle2,
   ChevronRight,
   Filter,
-  MoreHorizontal,
   Search,
 } from "lucide-react";
 import {
@@ -876,6 +874,7 @@ export function FinancialStatementWorkspace({
       {
         id: "sources",
         header: "Nguồn",
+        align: "right",
         cell: (line) => (
           <Button size="sm" variant="outline" onClick={() => setSelectedLine(line)}>
             <Search data-icon="inline-start" />
@@ -1090,7 +1089,7 @@ export function TaxExpenseExceptionsWorkspace() {
         header: "CIT deductible",
         align: "right",
         cell: (row) => (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col items-end gap-1">
             <MoneyCell minor={row.citEligibleMinor} />
             <StatusBadge status={row.citState} />
           </div>
@@ -1101,7 +1100,7 @@ export function TaxExpenseExceptionsWorkspace() {
         header: "VAT eligible",
         align: "right",
         cell: (row) => (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col items-end gap-1">
             <MoneyCell minor={row.vatEligibleMinor} />
             <StatusBadge status={row.vatState} />
           </div>
@@ -1111,15 +1110,24 @@ export function TaxExpenseExceptionsWorkspace() {
         id: "action",
         header: "",
         align: "right",
-        cell: (row) => (
-          <Button variant="ghost" size="sm" asChild>
-            <Link
-              href={row.expenseId ? `/expenses/${encodeURIComponent(row.expenseId)}` : `/expenses`}
-            >
-              Xem chi tiết <ChevronRight className="size-3.5 ml-0.5" />
-            </Link>
-          </Button>
-        ),
+        cell: (row) => {
+          const isDoc =
+            row.expenseId.startsWith("demo-purchase") ||
+            row.expenseId.startsWith("SUP-") ||
+            row.expenseId.startsWith("doc-");
+          const targetHref = isDoc
+            ? `/documents/${encodeURIComponent(row.expenseId)}`
+            : row.expenseId
+              ? `/expenses/${encodeURIComponent(row.expenseId)}`
+              : `/expenses`;
+          return (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={targetHref}>
+                Xem chi tiết <ChevronRight className="size-3.5 ml-0.5" />
+              </Link>
+            </Button>
+          );
+        },
       },
     ],
     [],
