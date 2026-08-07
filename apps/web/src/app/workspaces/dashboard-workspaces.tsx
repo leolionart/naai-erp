@@ -9,7 +9,7 @@ import type {
   ExecutiveMetricsContract,
   PerformanceComparisonContract,
 } from "@naai-erp/contracts";
-import { ArrowRight, ChevronLeft, ChevronRight, Filter, Info, ListChecks } from "lucide-react";
+import { ArrowRight, Filter, Info, ListChecks } from "lucide-react";
 import type {
   ProjectProfitabilityReport,
   ProjectProfitabilitySummary,
@@ -37,9 +37,16 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import {
   Table,
   TableBody,
@@ -168,13 +175,6 @@ function periodRange(anchorMonth: string, kind: PeriodKind) {
     };
   }
   return { label: anchorMonth, startsOn: `${anchorMonth}-01`, endsOn: monthEnd(anchorMonth) };
-}
-
-function shiftedMonth(anchorMonth: string, kind: PeriodKind, delta: number) {
-  const [year, month] = anchorMonth.split("-").map(Number);
-  const step = kind === "year" ? 12 : kind === "quarter" ? 3 : 1;
-  const shifted = new Date(Date.UTC(year, month - 1 + delta * step, 1));
-  return shifted.toISOString().slice(0, 7);
 }
 
 function resolvedDashboardSearch(
@@ -323,6 +323,8 @@ function MetricCard({
   );
 }
 
+type DimensionValue = Readonly<{ kind: string; code: string; name: string; is_active: boolean }>;
+
 function DashboardFilters({
   open,
   onOpenChange,
@@ -334,22 +336,41 @@ function DashboardFilters({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  function apply(data: FormData) {
+  const { client, hydrated } = useAuthenticatedApiClient();
+  const [serviceLines, setServiceLines] = useState<readonly DimensionValue[]>([]);
+  const [selectedServiceLine, setSelectedServiceLine] = useState(
+    search.get("serviceLineCode") ?? "",
+  );
+
+  useEffect(() => {
+    if (!hydrated) return;
+    client
+      .data<{ items: DimensionValue[] }>("master-data/dimensions?limit=100")
+      .then((res) => {
+        const items = Array.isArray(res)
+          ? res
+          : ((res as { items?: DimensionValue[] }).items ?? []);
+        setServiceLines(items.filter((d) => d.kind === "service_line" && d.is_active));
+      })
+      .catch(() => setServiceLines([]));
+  }, [client, hydrated]);
+
+  // Sync when search changes (e.g. external URL update)
+  useEffect(() => {
+    setSelectedServiceLine(search.get("serviceLineCode") ?? "");
+  }, [search]);
+
+  function apply(formData: FormData) {
     const q = new URLSearchParams();
-    for (const key of [
-      "periodId",
-      "actualBasis",
-      "startsOn",
-      "endsOn",
-      "asOfDate",
-      "serviceLineCode",
-    ]) {
-      const value = String(data.get(key) ?? "").trim();
+    for (const key of ["periodId", "actualBasis", "startsOn", "endsOn", "asOfDate"]) {
+      const value = String(formData.get(key) ?? "").trim();
       if (value) q.set(key, value);
     }
+    if (selectedServiceLine) q.set("serviceLineCode", selectedServiceLine);
     router.replace(`${pathname}?${q}`);
     onOpenChange(false);
   }
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -365,9 +386,7 @@ function DashboardFilters({
         <form action={apply} className="flex flex-col">
           <div className="border-b p-4">
             <h3 className="font-medium">Bộ lọc dashboard</h3>
-            <p className="text-sm text-muted-foreground">
-              Basis và dimensions nâng cao được giữ trên URL.
-            </p>
+            <p className="text-sm text-muted-foreground">Chọn khoảng thời gian và mảng dịch vụ.</p>
           </div>
           <FieldGroup className="p-4">
             <Field>
@@ -389,13 +408,20 @@ function DashboardFilters({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="dash-service">Mảng dịch vụ (Service line)</FieldLabel>
-              <Input
-                id="dash-service"
-                name="serviceLineCode"
-                placeholder="Tất cả mảng"
-                defaultValue={search.get("serviceLineCode") ?? ""}
-              />
+              <FieldLabel htmlFor="dash-service">Mảng dịch vụ</FieldLabel>
+              <Select value={selectedServiceLine} onValueChange={setSelectedServiceLine}>
+                <SelectTrigger id="dash-service" className="w-full">
+                  <SelectValue placeholder="Tất cả mảng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Tất cả mảng</SelectItem>
+                  {serviceLines.map((sl) => (
+                    <SelectItem key={sl.code} value={sl.code}>
+                      {sl.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </FieldGroup>
           <div className="flex justify-end border-t bg-muted/50 p-4">
@@ -595,36 +621,6 @@ export function ExecutiveDashboardWorkspace() {
   const { data, loading, error, search } = useDashboardData();
   const [filters, setFilters] = useState(false);
   const [preview, setPreview] = useState<Preview>();
-  const router = useRouter();
-  const pathname = usePathname();
-  const periodKind = (search.get("periodKind") as PeriodKind | null) ?? "year";
-  const requestedAnchor = (search.get("periodId") ?? `CAL-${currentMonth()}`).replace(/^CAL-/, "");
-  const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor)
-    ? requestedAnchor
-    : currentMonth();
-  const selectedPeriod = periodRange(anchorMonth, periodKind);
-  function setPeriod(kind: PeriodKind, delta = 0) {
-    const nextAnchor = shiftedMonth(anchorMonth, kind, delta);
-    const range = periodRange(nextAnchor, kind);
-    const next = new URLSearchParams(search);
-    next.set("periodKind", kind);
-    next.set("period", range.label);
-    next.set("periodId", `CAL-${nextAnchor}`);
-    next.set("startsOn", range.startsOn);
-    next.set("endsOn", range.endsOn);
-    next.set("asOfDate", range.endsOn);
-    router.replace(`${pathname}?${next}`);
-  }
-
-  const now = new Date();
-  const currentYearVal = now.getFullYear();
-  const currentMonthVal = now.getMonth() + 1;
-  const nextAnchor = shiftedMonth(anchorMonth, periodKind, 1);
-  const [nextYear, nextMonth] = nextAnchor.split("-").map(Number);
-  const isFuture =
-    periodKind === "year"
-      ? nextYear > currentYearVal
-      : nextYear > currentYearVal || (nextYear === currentYearVal && nextMonth > currentMonthVal);
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
@@ -701,42 +697,9 @@ export function ExecutiveDashboardWorkspace() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <ToggleGroup
-              type="single"
-              value={periodKind}
-              onValueChange={(value: string) => value && setPeriod(value as PeriodKind)}
-              variant="outline"
-              size="sm"
-              aria-label="Chọn cấp kỳ"
-            >
-              <ToggleGroupItem value="year">Năm</ToggleGroupItem>
-              <ToggleGroupItem value="quarter">Quý</ToggleGroupItem>
-              <ToggleGroupItem value="month">Tháng</ToggleGroupItem>
-            </ToggleGroup>
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon-sm"
-                variant="outline"
-                aria-label="Kỳ trước"
-                onClick={() => setPeriod(periodKind, -1)}
-              >
-                <ChevronLeft />
-              </Button>
-              <Badge variant="outline" className="min-w-24 justify-center">
-                {selectedPeriod.label}
-              </Badge>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                aria-label="Kỳ sau"
-                onClick={() => setPeriod(periodKind, 1)}
-                disabled={isFuture}
-              >
-                <ChevronRight />
-              </Button>
-            </div>
+            <PeriodRangeNavigator />
             {search.get("serviceLineCode") ? (
-              <Badge variant="outline">Service line: {search.get("serviceLineCode")}</Badge>
+              <Badge variant="outline">Mảng: {search.get("serviceLineCode")}</Badge>
             ) : null}
           </div>
           <div className="flex gap-2">
