@@ -152,7 +152,7 @@ type Preview = Readonly<{
   facts?: readonly Readonly<{ label: string; value: string }>[];
 }>;
 
-const currentMonth = () => "2025-01";
+const currentMonth = () => new Date().toISOString().slice(0, 7);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const monthEnd = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);
@@ -193,12 +193,35 @@ function resolvedDashboardSearch(
   const kind = (search.get("periodKind") as PeriodKind | null) ?? "year";
   if (!search.has("periodKind")) search.set("periodKind", kind);
 
-  const range = periodRange(period, kind);
-  const startsOn = range.startsOn;
-  const endsOn = range.endsOn;
+  // Use startsOn/endsOn from URL (set by PeriodRangeNavigator) when present,
+  // otherwise compute from period + kind.
+  const existingStartsOn = search.get("startsOn");
+  const existingEndsOn = search.get("endsOn");
+  const hasExplicitRange =
+    existingStartsOn &&
+    existingEndsOn &&
+    ISO_DATE.test(existingStartsOn) &&
+    ISO_DATE.test(existingEndsOn);
 
-  let asOfDate = search.get("asOfDate") ?? endsOn;
+  let startsOn: string;
+  let endsOn: string;
+  if (hasExplicitRange) {
+    startsOn = existingStartsOn;
+    endsOn = existingEndsOn;
+  } else {
+    const range = periodRange(period, kind);
+    startsOn = range.startsOn;
+    endsOn = range.endsOn;
+  }
+
+  // Resolve asOfDate: check asOfDate, then asOfInstant (set by PeriodRangeNavigator),
+  // fallback to endsOn. Ensure asOf >= endsOn so the backend doesn't reject the request.
+  const rawAsOfInstant = search.get("asOfInstant");
+  const asOfFromInstant = rawAsOfInstant ? rawAsOfInstant.slice(0, 10) : undefined;
+  let asOfDate = search.get("asOfDate") ?? asOfFromInstant ?? endsOn;
   if (!ISO_DATE.test(asOfDate) || asOfDate < endsOn) asOfDate = endsOn;
+  const today = new Date().toISOString().slice(0, 10);
+  if (asOfDate > today) asOfDate = today > endsOn ? today : endsOn;
   search.set("startsOn", startsOn);
   search.set("endsOn", endsOn);
   search.set("asOfDate", asOfDate);

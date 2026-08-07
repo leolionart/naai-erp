@@ -21,6 +21,21 @@ describe("operating dashboard service", () => {
     );
   });
 
+  it("clamps endsOn to asOf when period extends into the future", () => {
+    // Year view: endsOn is 2026-12-31 but asOf is 2026-08-06
+    const result = service.parseQuery({
+      asOf: "2026-08-06",
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+    });
+    expect(result).toEqual({
+      asOf: "2026-08-06",
+      startsOn: "2026-01-01",
+      endsOn: "2026-08-06", // clamped to asOf
+      limit: 10,
+    });
+  });
+
   it("returns the standard API envelope without browser-side recalculation", async () => {
     const data = { schemaVersion: 1, asOf: "2026-08-06" };
     store.read.mockResolvedValueOnce(data);
