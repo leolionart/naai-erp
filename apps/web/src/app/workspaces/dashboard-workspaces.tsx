@@ -153,7 +153,7 @@ type Preview = Readonly<{
   facts?: readonly Readonly<{ label: string; value: string }>[];
 }>;
 
-const currentMonth = () => new Date().toISOString().slice(0, 7);
+const currentMonth = () => "2025-01";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const monthEnd = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);
