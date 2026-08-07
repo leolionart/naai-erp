@@ -3,13 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  AlertCircle,
-  Camera,
-  ChevronRight,
-  Filter,
-  Search,
-} from "lucide-react";
+import { AlertCircle, Camera, ChevronRight, Filter, Search } from "lucide-react";
 import {
   FinancialDataTable,
   type FinancialColumn,

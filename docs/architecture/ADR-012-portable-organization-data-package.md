@@ -10,7 +10,7 @@ an Excel-edited package to be safely replayed into NAAI ERP.
 
 ## Decision
 
-Introduce `ERP Data Package v1` as a separate application module. An export contains an XLSX workbook
+Implement `BR-EXPOR-002` by introducing `ERP Data Package v1` as a separate application module. An export contains an XLSX workbook
 and JSON manifest. The manifest is the completeness contract: every exportable resource is included
 or explicitly excluded with a reason, and every included sheet has a row count, checksum, dependency
 order and mutability classification.
