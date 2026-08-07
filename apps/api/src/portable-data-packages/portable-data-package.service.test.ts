@@ -152,7 +152,7 @@ describe("PortableDataPackageService", () => {
         expect.objectContaining({ resourceType: "evidence_binary", excluded: true, rowCount: 0 }),
       ]),
     );
-    const { workbookSha256: _workbookSha256, packageHash, ...manifestBase } = result.data.manifest;
+    const { packageHash, ...manifestBase } = result.data.manifest;
     expect(packageHash).toBe(
       createHash("sha256")
         .update(canonicalJson({ ...manifestBase, schemas: store.lastInput!.schemas } as never))
