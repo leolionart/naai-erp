@@ -156,6 +156,10 @@ export function FocusedRecordListWorkspace({
     }
     try {
       const sourceParams = new URLSearchParams(key);
+      if (initialProjectId || initialPartyId) {
+        sourceParams.delete("startsOn");
+        sourceParams.delete("endsOn");
+      }
       if (initialProjectId && !sourceParams.has("projectId")) {
         sourceParams.set("projectId", initialProjectId);
       }
@@ -174,7 +178,8 @@ export function FocusedRecordListWorkspace({
       let rawItems = Array.isArray(result) ? result : (result.items ?? []);
       const startsOn = sourceParams.get("startsOn");
       const endsOn = sourceParams.get("endsOn");
-      if (startsOn || endsOn) {
+      // Do not filter out raw records by time when explicitly looking at a specific Project or Customer profile
+      if ((startsOn || endsOn) && !initialProjectId && !initialPartyId) {
         rawItems = rawItems.filter((row) => {
           const dateVal = text(
             row,
