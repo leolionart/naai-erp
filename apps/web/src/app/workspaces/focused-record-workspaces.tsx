@@ -194,18 +194,44 @@ export function FocusedRecordListWorkspace({
         });
       }
       if (initialProjectId) {
-        rawItems = rawItems.filter(
-          (row) =>
-            String(row.projectId || row.project_id || "") === initialProjectId ||
-            (Array.isArray(row.lines) &&
-              (row.lines as Row[]).some((l) => {
-                const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
-                return (
-                  String(l.projectId || l.project_id || dims.projectId || dims.project_id || "") ===
-                  initialProjectId
-                );
-              })),
-        );
+        const normTarget = initialProjectId.toLowerCase().trim();
+        rawItems = rawItems.filter((row) => {
+          const rowProj = String(row.projectId || row.project_id || "").toLowerCase();
+          if (
+            rowProj &&
+            (rowProj === normTarget || normTarget.includes(rowProj) || rowProj.includes(normTarget))
+          ) {
+            return true;
+          }
+          const reasonText = String(
+            row.reason || row.businessPurpose || row.description || "",
+          ).toLowerCase();
+          const docNumberText = String(row.documentNumber || "").toLowerCase();
+          if (
+            reasonText.includes(normTarget) ||
+            normTarget.includes(reasonText) ||
+            docNumberText.includes(normTarget)
+          ) {
+            return true;
+          }
+          if (Array.isArray(row.lines)) {
+            return (row.lines as Row[]).some((l) => {
+              const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
+              const lineProj = String(
+                l.projectId || l.project_id || dims.projectId || dims.project_id || "",
+              ).toLowerCase();
+              const lineDesc = String(l.description || "").toLowerCase();
+              return (
+                (lineProj &&
+                  (lineProj === normTarget ||
+                    normTarget.includes(lineProj) ||
+                    lineProj.includes(normTarget))) ||
+                (lineDesc && (lineDesc.includes(normTarget) || normTarget.includes(lineDesc)))
+              );
+            });
+          }
+          return false;
+        });
       }
       if (initialPartyId) {
         rawItems = rawItems.filter(

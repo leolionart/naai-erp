@@ -10,10 +10,6 @@ import { cn } from "@/lib/utils";
 
 export type PeriodKind = "year" | "quarter" | "month";
 
-function currentMonthStr(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -78,12 +74,12 @@ export function PeriodRangeNavigator({
   const requestedAnchor = (
     searchParams.get("periodId") ??
     searchParams.get("startsOn") ??
-    currentMonthStr()
+    "2025-01"
   ).replace(/^CAL-/, "");
 
   const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor.slice(0, 7))
     ? requestedAnchor.slice(0, 7)
-    : currentMonthStr();
+    : "2025-01";
 
   const periodDetails = useMemo(
     () => getPeriodRangeDetails(anchorMonth, periodKind),
