@@ -971,7 +971,7 @@ export function ExecutiveDashboardWorkspace() {
                     data.projects?.currency,
                 )}
                 description="Giá trị hóa đơn bán ra đã phát hành; không đồng nghĩa đã thu tiền"
-                href={`/reports/project-profitability?${q}`}
+                href="/documents?type=sales_invoice"
                 provisional={usingOperatingFallback}
               />
               <MetricCard
@@ -987,7 +987,7 @@ export function ExecutiveDashboardWorkspace() {
                     ? "Phần giá trị hợp đồng đã đủ điều kiện ghi nhận doanh thu"
                     : "Chưa có mốc ghi nhận doanh thu đã post"
                 }
-                href={`/reports/project-profitability?${q}`}
+                href="/documents?type=sales_invoice"
                 status={
                   operating?.financials.recognitionEventCount
                     ? performance?.actualVsFullTarget.status
@@ -1045,7 +1045,7 @@ export function ExecutiveDashboardWorkspace() {
                     ? `Tổng hợp từ ${operating.backlog.projectCount} dự án có hợp đồng`
                     : "Phần giá trị hợp đồng còn lại chưa được lập hóa đơn"
                 }
-                href={`/reports/project-profitability?${q}`}
+                href="/projects"
                 provisional={usingOperatingFallback}
               />
               <MetricCard
@@ -1061,7 +1061,7 @@ export function ExecutiveDashboardWorkspace() {
                     ? "Lợi nhuận ròng đã phân bổ đầy đủ chi phí"
                     : "Lợi nhuận sổ sách kế toán"
                 }
-                href={`/reports/project-profitability?${q}`}
+                href={`/reports/financial-statements/profit-and-loss/current?${q}`}
                 status={`${projects.length} dự án`}
               />
               <MetricCard
@@ -1139,7 +1139,7 @@ export function ExecutiveDashboardWorkspace() {
                               <TableCell className="text-right">
                                 <Button asChild size="sm" variant="outline">
                                   <Link
-                                    href={`/reports/project-profitability/projects/${encodeURIComponent(projectId)}?${q}`}
+                                    href={`/projects/${encodeURIComponent(projectId)}`}
                                   >
                                     Mở dự án
                                   </Link>
@@ -1217,7 +1217,7 @@ export function FinanceReviewWorkspace() {
         module: "Lợi nhuận dự án",
         issue: flag.code,
         source: flag.sourceIds.join(", "),
-        href: `/reports/project-profitability/projects/${encodeURIComponent(project.projectId)}?${q}`,
+        href: `/projects/${encodeURIComponent(project.projectId)}`,
       })),
     ) ?? []),
     ...(data.aging?.exceptions.map((item, index) => ({

@@ -9,9 +9,10 @@ export default async function Page({
   const { projectId } = await params;
   return (
     <ModulePage
-      title="Profitability drill-down"
-      section="Project profitability"
-      description="Nguồn revenue, direct cost, overhead allocation và kiểm soát độ tin cậy."
+      title="Phân tích lợi nhuận dự án"
+      section="Báo cáo lợi nhuận"
+      sectionHref="/reports/project-profitability"
+      description="Chi tiết doanh thu, chi phí trực tiếp và phân bổ chi phí gián tiếp theo dự án."
     >
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <ProjectProfitabilityDetailWorkspace projectId={projectId} />

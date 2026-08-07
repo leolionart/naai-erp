@@ -512,31 +512,31 @@ export function ProjectProfitabilityDetailWorkspace({
           </p>
         </div>
         <Button variant="outline" asChild>
-          <Link href={`/reports/project-profitability?${query}`}>Quay lại report</Link>
+          <Link href={`/reports/project-profitability?${query}`}>Quay lại báo cáo</Link>
         </Button>
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          title="Gross margin"
-          period="Revenue − direct cost"
+          title="Lợi nhuận gộp"
+          period="Doanh thu − chi phí trực tiếp"
           value={<MoneyCell minor={detail.grossMarginMinor} />}
           comparison={percentage(detail.grossMarginBps)}
         />
         <KpiCard
-          title="Contribution margin"
-          period="Gross − variable overhead"
+          title="Lợi nhuận đóng góp"
+          period="Lợi nhuận gộp − biến phí phân bổ"
           value={<MoneyCell minor={detail.contributionMarginMinor} />}
           comparison={percentage(detail.contributionMarginBps)}
         />
         <KpiCard
-          title="Fully loaded profit"
-          period="Contribution − fixed overhead"
+          title="Lợi nhuận ròng"
+          period="Lợi nhuận đóng góp − định phí phân bổ"
           value={<MoneyCell minor={detail.fullyLoadedProfitMinor} />}
           comparison={percentage(detail.fullyLoadedMarginBps)}
         />
         <KpiCard
-          title="Realized hourly rate"
-          period={`${formatExactInteger(detail.billableHours)} billable hours · ${percentage(detail.utilizationBps)} utilization`}
+          title="Đơn giá giờ làm thực tế"
+          period={`${formatExactInteger(detail.billableHours)} giờ tính phí · hiệu suất ${percentage(detail.utilizationBps)}`}
           value={
             detail.realizedHourlyRateMinor === null ? (
               "—"
