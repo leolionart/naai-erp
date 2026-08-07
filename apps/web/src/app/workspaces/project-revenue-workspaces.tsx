@@ -162,7 +162,24 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
         client
           .data<{ items: readonly BudgetVersion[] }>(projectRevenueApi.budgets(projectId))
           .catch(() => ({ items: [] })),
-        client.data<RevenueAxes>(projectRevenueApi.axes(projectId, asOf)).catch(() => undefined),
+        client
+          .data<Record<string, string | boolean>>(projectRevenueApi.axes(projectId, asOf))
+          .then((wire) => {
+            const recognized = BigInt(String(wire.recognizedRevenueMinor ?? "0"));
+            const invoiced = BigInt(String(wire.invoicedRevenueMinor ?? "0"));
+            const collected = String(wire.collectedCashMinor ?? "0");
+            return {
+              startsOn: "—",
+              endsOn: String(wire.asOf ?? asOf),
+              recognizedNetMinor: recognized.toString(),
+              invoicedNetMinor: invoiced.toString(),
+              collectedGrossMinor: collected,
+              collectedNetMinor: collected,
+              deferredRevenueMinor: (invoiced > recognized ? invoiced - recognized : 0n).toString(),
+              contractAssetMinor: (recognized > invoiced ? recognized - invoiced : 0n).toString(),
+            } as RevenueAxes;
+          })
+          .catch(() => undefined),
       ]);
       setRows([...(b?.items ?? [])]);
       if (a) setAxes(a);
@@ -178,13 +195,17 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
       method: "POST",
       body: {
         schemaVersion: 1,
-        name: f.get("name"),
+        projectId,
+        versionNumber: rows.length + 1,
+        kind: rows.length ? "revision" : "baseline",
         currency: f.get("currency"),
-        revenueBudgetMinor: f.get("revenue"),
-        laborBudgetMinor: f.get("labor"),
-        directCostBudgetMinor: f.get("directCost"),
-        overheadBudgetMinor: f.get("overhead"),
-        effectiveFrom: f.get("effectiveFrom"),
+        effectiveOn: f.get("effectiveFrom"),
+        lines: [
+          { id: `revenue-${Date.now()}`, category: "revenue", amountMinor: f.get("revenue") },
+          { id: `labor-${Date.now()}`, category: "labor", amountMinor: f.get("labor") },
+          { id: `direct-${Date.now()}`, category: "vendor", amountMinor: f.get("directCost") },
+          { id: `overhead-${Date.now()}`, category: "overhead", amountMinor: f.get("overhead") },
+        ],
         reason: f.get("reason"),
       },
     });

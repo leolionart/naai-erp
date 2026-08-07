@@ -933,7 +933,7 @@ export function ExecutiveDashboardWorkspace() {
                     data.projects?.currency,
                 )}
                 description="Tổng tiền hóa đơn GTGT đã xuất trong kỳ"
-                href={`/dashboard/drilldown/revenue?${q}`}
+                href={`/reports/project-profitability?${q}`}
                 provisional={usingOperatingFallback}
               />
               <MetricCard
@@ -946,11 +946,10 @@ export function ExecutiveDashboardWorkspace() {
                 )}
                 description={
                   operating?.financials.recognitionEventCount
-                    ? (performance?.actualVsFullTarget.formulaVersion ??
-                      "Giá trị nghiệm thực tế theo dự án")
+                    ? "Giá trị nghiệm thu dồn tích theo mốc dự án"
                     : "Chưa có mốc ghi nhận doanh thu đã post"
                 }
-                href={`/dashboard/drilldown/revenue?${q}`}
+                href={`/reports/project-profitability?${q}`}
                 status={
                   operating?.financials.recognitionEventCount
                     ? performance?.actualVsFullTarget.status
@@ -966,7 +965,7 @@ export function ExecutiveDashboardWorkspace() {
                   ).toString(),
                   operating?.currency ?? data.projects?.currency,
                 )}`}
-                description={`Chi phí đã post: ${money(operating?.financials.expenseMinor ?? "0", operating?.currency)}`}
+                description={`Chi phí hợp lệ: ${money(operating?.financials.expenseMinor ?? "0", operating?.currency)}`}
                 href="/reports/tax/expense-exceptions"
                 status="Cần rà soát"
                 provisional
@@ -978,25 +977,6 @@ export function ExecutiveDashboardWorkspace() {
                 href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
                 status={overdueCount ? `${overdueCount} khoản quá hạn` : data.aging?.tieStatus}
                 provisional={usingOperatingFallback}
-                onQuick={() =>
-                  setPreview({
-                    title: "Công nợ quá hạn & DSO",
-                    description:
-                      "Thông tin quản trị nhanh từ AR aging và doanh thu ghi nhận trong kỳ.",
-                    sourceIds:
-                      data.aging?.items
-                        .filter((item) => (item.daysOverdue ?? 0) > 0)
-                        .map((item) => item.id) ?? [],
-                    href: `/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`,
-                    facts: [
-                      {
-                        label: "Công nợ quá hạn",
-                        value: money(overdueMinor, data.aging?.baseCurrency),
-                      },
-                      { label: usingOperatingFallback ? "DSO fallback" : "DSO", value: dso },
-                    ],
-                  })
-                }
               />
               <MetricCard
                 title="Tiền mặt khả dụng"
@@ -1009,14 +989,14 @@ export function ExecutiveDashboardWorkspace() {
                     ? `Burn: ${money(executive.netBurnMinor, executive.currency)}/tháng`
                     : "Tổng số dư tiền mặt và tiền gửi khả dụng"
                 }
-                href={`/dashboard/drilldown/runway?${q}`}
+                href={`/reports/financial-statements/cash-flow?${q}`}
                 status={executive?.runwayStatus}
               />
               <MetricCard
                 title="Runway"
                 value={months(executive?.runwayMonthsThousandths)}
                 description="Thời gian duy trì dòng tiền với tốc độ chi tiêu hiện tại"
-                href={`/dashboard/drilldown/runway?${q}`}
+                href={`/reports/financial-statements/cash-flow?${q}`}
                 status={executive?.runwayStatus}
               />
               <MetricCard
@@ -1050,7 +1030,7 @@ export function ExecutiveDashboardWorkspace() {
                 title="ROS"
                 value={ratio(executive?.ros.valueBps ?? operating?.financials.rosBps)}
                 description="Tỷ suất lợi nhuận trên doanh thu (Return on Sales)"
-                href={`/dashboard/drilldown/ros?${q}`}
+                href={`/reports/financial-statements/profit-and-loss?${q}`}
                 status={
                   executive?.ros.status ??
                   (operating?.financials.rosBps == null ? undefined : "Dồn tích")
@@ -1299,6 +1279,7 @@ export function FinanceReviewWorkspace() {
 }
 
 export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: string }) {
+  const router = useRouter();
   const { data, loading, error, search } = useDashboardData();
   const q = search.toString();
   const executive = data.executive;
@@ -1362,6 +1343,11 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
     },
   };
   const detail = details[metricKey];
+  useEffect(() => {
+    if (detail?.canonicalHref) {
+      router.replace(detail.canonicalHref);
+    }
+  }, [detail?.canonicalHref, router]);
   return (
     <ModulePage
       title={detail?.title ?? "Dashboard drill-down"}

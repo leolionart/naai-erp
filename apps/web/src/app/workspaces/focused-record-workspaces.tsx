@@ -209,7 +209,9 @@ export function FocusedRecordListWorkspace({
           return true;
         });
       }
-      if (initialProjectId) {
+      // Commercial documents are already filtered canonically by the API, including
+      // project links stored on allocations that are intentionally omitted from list rows.
+      if (initialProjectId && sourceKind !== "documents") {
         rawItems = rawItems.filter(
           (row) =>
             String(row.projectId ?? row.project_id ?? "").trim() === initialProjectId.trim() ||

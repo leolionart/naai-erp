@@ -205,14 +205,18 @@ export class PgProjectRecognitionStore {
       [c.organizationId, projectId, asOf],
     );
     const invoiced = await this.pool.query<{ n: string }>(
-      `select coalesce(sum(case when d.type='sales_invoice' then l.net_minor when d.type='credit_note' then -l.net_minor else 0 end),0)::text n from commercial_document_lines l join commercial_documents d on d.organization_id=l.organization_id and d.id=l.document_id where l.organization_id=$1 and l.dimensions->>'projectId'=$2 and d.document_date<=$3 and d.state in('issued','posted','partially_paid','paid')`,
+      `select coalesce(sum(case when d.type='sales_invoice' then a.amount_minor when d.type='credit_note' then -a.amount_minor else 0 end),0)::text n
+       from commercial_document_allocations a
+       join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id
+       where a.organization_id=$1 and a.dimensions->>'projectId'=$2 and d.document_date<=$3
+         and d.state in('issued','posted','partially_paid','paid')`,
       [c.organizationId, projectId, asOf],
     );
     const collected = await this.pool.query<{ n: string }>(
       `select coalesce(sum(a.target_amount_minor * x.project_net_minor / nullif(d.net_minor,0)),0)::text n
        from reconciliation_allocations a
        join commercial_documents d on d.organization_id=a.organization_id and d.id=a.commercial_document_id
-       join lateral (select sum(l.net_minor) project_net_minor from commercial_document_lines l where l.organization_id=d.organization_id and l.document_id=d.id and l.dimensions->>'projectId'=$2) x on x.project_net_minor is not null
+       join lateral (select sum(a2.amount_minor) project_net_minor from commercial_document_allocations a2 where a2.organization_id=d.organization_id and a2.document_id=d.id and a2.dimensions->>'projectId'=$2) x on x.project_net_minor is not null
        where a.organization_id=$1 and d.type='sales_invoice'`,
       [c.organizationId, projectId],
     );

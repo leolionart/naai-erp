@@ -34,6 +34,7 @@ const money = (amount: string, currency = "VND") => {
     return amount || "—";
   }
 };
+const dateOnly = (input: string) => (input ? input.slice(0, 10) : "—");
 const masterDataKey = (id: string) =>
   btoa(JSON.stringify({ id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 
@@ -181,6 +182,8 @@ export function BusinessRecordWorkspace({
   const [editor, setEditor] = useState(false);
   const [clientParty, setClientParty] = useState<Row>();
   const [customerProjects, setCustomerProjects] = useState<readonly Row[]>([]);
+  const [projectContracts, setProjectContracts] = useState<readonly Row[]>([]);
+  const [projectMilestones, setProjectMilestones] = useState<readonly Row[]>([]);
 
   useEffect(() => {
     if (!hydrated || !hasToken || !id) return;
@@ -207,6 +210,26 @@ export function BusinessRecordWorkspace({
               .then(setClientParty)
               .catch(() => undefined);
           }
+          void Promise.all([
+            client.data<Page>("master-data/contracts?limit=200"),
+            client.data<Page>("master-data/milestones?limit=500"),
+          ])
+            .then(([contractsPage, milestonesPage]) => {
+              const contracts = contractsPage.items.filter(
+                (contract) => value(contract, "project_id") === id,
+              );
+              const contractIds = new Set(contracts.map((contract) => value(contract, "id")));
+              setProjectContracts(contracts);
+              setProjectMilestones(
+                milestonesPage.items.filter((milestone) =>
+                  contractIds.has(value(milestone, "contract_id")),
+                ),
+              );
+            })
+            .catch(() => {
+              setProjectContracts([]);
+              setProjectMilestones([]);
+            });
         }
       })
       .catch((caught) =>
@@ -276,8 +299,11 @@ export function BusinessRecordWorkspace({
                 label="Ngân sách phê duyệt"
                 value={money(value(record, "budget_minor"), value(record, "currency"))}
               />
-              <Fact label="Ngày bắt đầu" value={value(record, "starts_on")} />
-              <Fact label="Ngày kết thúc" value={value(record, "ends_on") || "Chưa xác định"} />
+              <Fact label="Ngày bắt đầu" value={dateOnly(value(record, "starts_on"))} />
+              <Fact
+                label="Ngày kết thúc"
+                value={value(record, "ends_on") ? dateOnly(value(record, "ends_on")) : "Chưa xác định"}
+              />
               {projectNote ? (
                 <div className="col-span-full rounded-lg border p-3 bg-muted/20">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -375,6 +401,46 @@ export function BusinessRecordWorkspace({
         </div>
       ) : (
         <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Hợp đồng & Mốc thực hiện</CardTitle>
+              <CardDescription className="text-xs">
+                Giá trị hợp đồng và các mốc bàn giao dùng cho backlog, nghiệm thu và ghi nhận doanh thu.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {projectContracts.length ? (
+                projectContracts.map((contract) => (
+                  <div key={value(contract, "id")} className="rounded-lg border p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{value(contract, "reference")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Ký ngày {dateOnly(value(contract, "signed_on"))}
+                        </p>
+                      </div>
+                      <strong>{money(value(contract, "value_minor"), value(contract, "currency"))}</strong>
+                    </div>
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      {projectMilestones
+                        .filter((milestone) => value(milestone, "contract_id") === value(contract, "id"))
+                        .map((milestone) => (
+                          <div key={value(milestone, "id")} className="rounded-md bg-muted/30 p-3 text-sm">
+                            <p className="font-medium">{value(milestone, "name")}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Hạn {dateOnly(value(milestone, "due_on"))} · {money(value(milestone, "amount_minor"), value(contract, "currency"))}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">Chưa có hợp đồng liên kết.</p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">1. Hóa đơn Dự án (Bán ra & Mua vào)</CardTitle>

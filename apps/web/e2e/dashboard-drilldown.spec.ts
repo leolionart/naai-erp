@@ -272,8 +272,8 @@ test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", 
   await page.getByRole("option", { name: "Web app" }).click();
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
-  await page.getByRole("link", { name: "Mở drill-down" }).first().click();
-  await expect(page).toHaveURL(/dashboard\/drilldown\/revenue.*serviceLineCode=web-app/);
+  await page.getByRole("link", { name: "Doanh thu đã xuất hóa đơn" }).first().click();
+  await expect(page).toHaveURL(/reports\/project-profitability.*serviceLineCode=web-app/);
 });
 
 test("@desktop T-E2E-ERP-700-002 drills from KPI to sources and canonical report", async ({

@@ -1062,6 +1062,10 @@ tasks:
     started_at: 2026-08-07T22:08:42+07:00
     planned_files:
       - scripts/seed-local-demo.mjs
+      - apps/api/src/project-costs/
+      - apps/api/src/overhead-allocations/
+      - apps/web/src/app/workspaces/business-directory-workspace.tsx
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
       - docs/runbooks/native-development.md
       - docs/testing/test-catalog.yaml
