@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import {
@@ -9,17 +9,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 type ChartPoint = Readonly<{ label: string; valueMinor: string }>;
-type TimeRange = "all" | "6" | "3";
 
 const chartConfig = {
   revenue: {
@@ -40,39 +31,20 @@ export default function ExecutiveTrendChart({
   points: readonly ChartPoint[];
   currency: string;
 }) {
-  const [timeRange, setTimeRange] = useState<TimeRange>("all");
-  const visiblePoints = useMemo(() => {
-    if (timeRange === "all") return points;
-    return points.slice(-Number(timeRange));
-  }, [points, timeRange]);
   const data = useMemo(
     () =>
-      visiblePoints.map((point) => ({
+      points.map((point) => ({
         period: point.label,
         revenue: Number(BigInt(point.valueMinor)),
         valueMinor: point.valueMinor,
       })),
-    [visiblePoints],
+    [points],
   );
   const formatExact = (valueMinor: string) =>
     `${new Intl.NumberFormat("vi-VN").format(BigInt(valueMinor))} ${currency === "VND" ? "₫" : currency}`;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRange)}>
-          <SelectTrigger aria-label="Khoảng thời gian" className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">Toàn bộ dữ liệu</SelectItem>
-              <SelectItem value="6">6 tháng gần nhất</SelectItem>
-              <SelectItem value="3">3 tháng gần nhất</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
       <div role="img" aria-label="Xu hướng doanh thu tương tác">
         <ChartContainer config={chartConfig} className="h-72 w-full aspect-auto">
           <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 12 }}>
@@ -125,7 +97,7 @@ export default function ExecutiveTrendChart({
         </ChartContainer>
       </div>
       <ul className="sr-only" aria-label="Giá trị doanh thu đang hiển thị">
-        {visiblePoints.map((point) => (
+        {points.map((point) => (
           <li key={`${point.label}:${point.valueMinor}`}>
             {point.label}: {formatExact(point.valueMinor)}
           </li>
