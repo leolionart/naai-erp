@@ -354,12 +354,6 @@ export function ReconciliationWorkspace({ transactionId }: Readonly<{ transactio
         </Button>
       </div>
 
-      <ConnectionCard
-        connection={connection}
-        token={token}
-        onConnection={setConnection}
-        onToken={setToken}
-      />
 
       {error ? (
         <Alert variant="destructive">

@@ -62,16 +62,40 @@ const ExecutiveTrendChart = dynamic(() => import("@/components/dashboard/executi
   ssr: false,
 });
 
+const MonthlyCategoryStackedChart = dynamic(
+  () =>
+    import("@/components/dashboard/monthly-category-stacked-chart").then(
+      (mod) => mod.MonthlyCategoryStackedChart
+    ),
+  {
+    loading: () => <Skeleton className="h-48 w-full" />,
+    ssr: false,
+  }
+);
+
 type DashboardData = Readonly<{
   executive?: ExecutiveMetricsContract;
   performance?: PerformanceComparisonContract;
   projects?: ProjectProfitabilityReport;
   aging?: AgingReportContract;
   operating?: OperatingDashboardWire;
+  actualSummary?: ActualFactSummaryWire;
   failures?: Readonly<
-    Record<"executive" | "performance" | "projects" | "aging" | "operating", string>
+    Record<
+      "executive" | "performance" | "projects" | "aging" | "operating" | "actualSummary",
+      string
+    >
   >;
   searchKey?: string;
+}>;
+type ActualFactSummaryWire = Readonly<{
+  actualBasis: "recognized" | "invoiced" | "collected";
+  from: string;
+  to: string;
+  currency: string;
+  amountMinor: string;
+  factCount: number;
+  sourceIds: readonly string[];
 }>;
 type SourceControlMonthlyWire = Readonly<{
   id: string;
@@ -127,6 +151,22 @@ type OperatingDashboardWire = Readonly<{
     topThreeShareBps: number | null;
     clients: readonly OperatingClientWire[];
   }>;
+  financials: Readonly<{
+    revenueMinor: string;
+    expenseMinor: string;
+    netProfitMinor: string;
+    unrestrictedCashMinor: string | null;
+    rosBps: number | null;
+    recognitionEventCount: number;
+    approvedBudgetCount: number;
+    postedOverheadRunCount: number;
+    source: "posted_ledger";
+    monthly?: readonly Readonly<{
+      period: string;
+      revenueMinor: string;
+      expenseMinor: string;
+    }>[];
+  }>;
   dataQuality: Readonly<{
     pendingCount: number;
     byFlag: readonly Readonly<{ flag: string; count: number }>[];
@@ -137,6 +177,11 @@ type OperatingDashboardWire = Readonly<{
     rowCount: number;
     byKind: readonly Readonly<{ kind: string; count: number }>[];
     monthly: readonly SourceControlMonthlyWire[];
+    expenseCategories?: readonly Readonly<{
+      id: string;
+      category: string;
+      monthlyAmounts: readonly Readonly<{ period: string; amountMinor: string }>[];
+    }>[];
   }>;
 }>;
 function isOperatingProject(
@@ -179,14 +224,21 @@ function periodRange(anchorMonth: string, kind: PeriodKind) {
 
 function resolvedDashboardSearch(
   input: URLSearchParams,
-  _sourceControls?: OperatingDashboardWire["sourceControls"],
+  sourceControls?: OperatingDashboardWire["sourceControls"],
 ) {
   const search = new URLSearchParams(input);
   const requestedPeriod = search.get("periodId");
   const periodMatch = /^(?:CAL-)?(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(
     requestedPeriod ?? currentMonth(),
   );
-  const period = periodMatch?.[1] ?? currentMonth();
+  const latestSourcePeriod = sourceControls?.monthly
+    .map((row) => row.period)
+    .filter((value) => /^\d{4}-(?:0[1-9]|1[0-2])$/.test(value))
+    .sort()
+    .at(-1);
+  const period = requestedPeriod
+    ? (periodMatch?.[1] ?? currentMonth())
+    : (latestSourcePeriod ?? currentMonth());
   if (!periodMatch || !requestedPeriod) search.set("periodId", `CAL-${period}`);
   if (!search.has("actualBasis")) search.set("actualBasis", "invoiced");
 
@@ -201,7 +253,8 @@ function resolvedDashboardSearch(
     existingStartsOn &&
     existingEndsOn &&
     ISO_DATE.test(existingStartsOn) &&
-    ISO_DATE.test(existingEndsOn);
+    ISO_DATE.test(existingEndsOn) &&
+    existingStartsOn <= existingEndsOn;
 
   let startsOn: string;
   let endsOn: string;
@@ -234,7 +287,7 @@ function resolvedDashboardSearch(
 function reportQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
   const startsOn = search.get("startsOn") ?? "2025-01-01";
-  const endsOn = search.get("endsOn") ?? "2025-12-31";
+  const endsOn = effectiveEndsOn(search);
   query.set("startsOn", startsOn);
   query.set("endsOn", endsOn);
   query.set("asOfInstant", `${search.get("asOfDate") ?? endsOn}T16:59:59.999Z`);
@@ -244,6 +297,12 @@ function reportQuery(search: URLSearchParams) {
     if (value) query.set(key, value);
   }
   return query;
+}
+
+function effectiveEndsOn(search: URLSearchParams) {
+  const endsOn = search.get("endsOn") ?? "2025-12-31";
+  const asOfDate = search.get("asOfDate") ?? endsOn;
+  return endsOn > asOfDate ? asOfDate : endsOn;
 }
 
 function performanceQuery(search: URLSearchParams) {
@@ -260,10 +319,23 @@ function performanceQuery(search: URLSearchParams) {
   return query;
 }
 
+function actualSummaryQuery(search: URLSearchParams) {
+  const query = new URLSearchParams({
+    actualBasis: search.get("actualBasis") ?? "invoiced",
+    from: search.get("startsOn") ?? "2025-01-01",
+    to: effectiveEndsOn(search),
+  });
+  for (const key of ["serviceLineCode", "teamId", "ownerId"]) {
+    const value = search.get(key);
+    if (value) query.set(key, value);
+  }
+  return query;
+}
+
 function projectQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
   const startsOn = search.get("startsOn") ?? "2025-01-01";
-  const endsOn = search.get("endsOn") ?? "2025-12-31";
+  const endsOn = effectiveEndsOn(search);
   query.set("periodStart", startsOn);
   query.set("periodEnd", endsOn);
   query.set("asOf", search.get("asOfDate") ?? endsOn);
@@ -562,66 +634,42 @@ function useDashboardData() {
     const search = resolvedDashboardSearch(requestedSearch, discoveredOperating?.sourceControls);
     const rq = reportQuery(search);
     const pq = performanceQuery(search);
+    const aq = actualSummaryQuery(search);
     const jq = projectQuery(search);
     const asOf = search.get("asOfDate") ?? search.get("endsOn") ?? "2025-12-31";
     const oq = new URLSearchParams({
       asOf,
       startsOn: search.get("startsOn") ?? "2025-01-01",
-      endsOn: search.get("endsOn") ?? "2025-12-31",
+      endsOn: effectiveEndsOn(search),
       limit: "20",
     });
-    const startsOnVal = search.get("startsOn");
-    const endsOnVal = search.get("endsOn");
 
-    const [executive, performance, projects, aging, operating, rawDocs] = await Promise.allSettled([
-      client.data<ExecutiveMetricsContract>(`reports/executive-metrics?${rq}`),
-      client.data<PerformanceComparisonContract>(`reports/performance-comparisons?${pq}`),
-      client.data<ProjectProfitabilityReport>(`reports/project-profitability?${jq}`),
-      client.data<AgingReportContract>(
-        `reports/ar-aging?asOf=${encodeURIComponent(asOf)}&limit=100`,
-      ),
-      client.data<OperatingDashboardWire>(`reports/operating-dashboard?${oq}`),
-      client.data<ReadonlyArray<Record<string, unknown>>>("commercial-documents?limit=500"),
-    ]);
+    const [executive, performance, projects, aging, operating, actualSummary] =
+      await Promise.allSettled([
+        client.data<ExecutiveMetricsContract>(`reports/executive-metrics?${rq}`),
+        client.data<PerformanceComparisonContract>(`reports/performance-comparisons?${pq}`),
+        client.data<ProjectProfitabilityReport>(`reports/project-profitability?${jq}`),
+        client.data<AgingReportContract>(
+          `reports/ar-aging?asOf=${encodeURIComponent(asOf)}&limit=100`,
+        ),
+        client.data<OperatingDashboardWire>(`reports/operating-dashboard?${oq}`),
+        client.data<ActualFactSummaryWire>(`planning-actual-facts/summary?${aq}`),
+      ]);
 
-    const rawVal = rawDocs.status === "fulfilled" ? rawDocs.value : undefined;
-    const docsList: ReadonlyArray<Record<string, unknown>> = Array.isArray(rawVal)
-      ? (rawVal as ReadonlyArray<Record<string, unknown>>)
-      : rawVal &&
-          typeof rawVal === "object" &&
-          "data" in rawVal &&
-          Array.isArray((rawVal as { data: unknown }).data)
-        ? (rawVal as { data: ReadonlyArray<Record<string, unknown>> }).data
-        : [];
-    const filteredSalesDocs = docsList.filter((doc) => {
-      if (String(doc.type) !== "sales_invoice") return false;
-      const dDate = String(doc.documentDate || doc.document_date || "");
-      if (!dDate) return true;
-      if (startsOnVal && dDate < startsOnVal) return false;
-      if (endsOnVal && dDate > endsOnVal) return false;
-      return true;
-    });
-    const directSalesSum = filteredSalesDocs
-      .reduce(
-        (acc, d) =>
-          acc + BigInt(String(d.grossMinor || d.gross_minor || d.netMinor || d.net_minor || "0")),
-        0n,
-      )
-      .toString();
-
-    const next: DashboardData & { directSalesSum?: string } = {
+    const next: DashboardData = {
       executive: executive.status === "fulfilled" ? executive.value : undefined,
       performance: performance.status === "fulfilled" ? performance.value : undefined,
       projects: projects.status === "fulfilled" ? projects.value : undefined,
       aging: aging.status === "fulfilled" ? aging.value : undefined,
       operating: operating.status === "fulfilled" ? operating.value : undefined,
-      directSalesSum,
+      actualSummary: actualSummary.status === "fulfilled" ? actualSummary.value : undefined,
       failures: {
         executive: executive.status === "rejected" ? String(executive.reason) : "",
         performance: performance.status === "rejected" ? String(performance.reason) : "",
         projects: projects.status === "rejected" ? String(projects.reason) : "",
         aging: aging.status === "rejected" ? String(aging.reason) : "",
         operating: operating.status === "rejected" ? String(operating.reason) : "",
+        actualSummary: actualSummary.status === "rejected" ? String(actualSummary.reason) : "",
       },
       searchKey: search.toString(),
     };
@@ -632,7 +680,7 @@ function useDashboardData() {
       !next.projects &&
       !next.aging &&
       !next.operating &&
-      !next.directSalesSum
+      !next.actualSummary
     ) {
       const details = Object.entries(next.failures ?? {})
         .filter(([, err]) => Boolean(err))
@@ -690,6 +738,9 @@ export function ExecutiveDashboardWorkspace() {
     }),
   );
   const overdueMinor = operating?.collections.overdueMinor ?? fallbackOverdueMinor;
+  const overdueCount = (data.aging?.items ?? []).filter(
+    (item) => (item.daysOverdue ?? 0) > 0,
+  ).length;
   const dso = operating
     ? operating.collections.dsoDays == null
       ? "N/A"
@@ -706,14 +757,28 @@ export function ExecutiveDashboardWorkspace() {
   const hasProjectBurnRows = operating
     ? Boolean(projectBurnRows?.length)
     : fallbackProjectRisks.length > 0;
+  const flaggedPerformance =
+    performance?.confidenceFlags.filter((f) => f.severity === "critical" || !f.code.startsWith("missing_")).length ?? 0;
   const flagged =
-    (performance?.confidenceFlags.length ?? 0) +
+    flaggedPerformance +
     (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
     (data.aging?.exceptions.length ?? 0) +
     (operating?.dataQuality.pendingCount ?? 0);
   const sourceMonthly = operating?.sourceControls?.monthly ?? [];
-  const profitabilityMonthly = sourceMonthly.filter((row) => row.kind === "profitability_control");
-  const chartPoints = (profitabilityMonthly.length ? profitabilityMonthly : sourceMonthly).map(
+  const startsOnMonth = (search.get("startsOn") ?? "2025-01-01").slice(0, 7);
+  const endsOnMonth = (search.get("endsOn") ?? "2025-12-31").slice(0, 7);
+  let filteredMonthly: readonly any[] = sourceMonthly.filter(
+    (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
+  );
+  if (filteredMonthly.length === 0 && operating?.financials?.monthly) {
+    filteredMonthly = operating.financials.monthly.filter(
+      (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
+    );
+  }
+  const profitabilityMonthly = filteredMonthly.filter((row) => row.kind === "profitability_control");
+  const baseMonthly = profitabilityMonthly.length ? profitabilityMonthly : filteredMonthly;
+
+  const chartPoints = baseMonthly.map(
     (row) => ({ label: row.period, valueMinor: row.revenueMinor }),
   );
   const comparisonPoints = [
@@ -725,6 +790,47 @@ export function ExecutiveDashboardWorkspace() {
     },
   ].filter((point): point is { label: string; valueMinor: string } => point.valueMinor != null);
   const displayedChartPoints = chartPoints.length ? chartPoints : comparisonPoints;
+
+  const categoryData = operating?.sourceControls?.expenseCategories ?? [];
+  const periods = new Set<string>();
+  for (const row of filteredMonthly) periods.add(row.period);
+  for (const cat of categoryData) {
+    for (const amt of cat.monthlyAmounts) {
+      if (amt.period >= startsOnMonth && amt.period <= endsOnMonth) {
+        periods.add(amt.period);
+      }
+    }
+  }
+  const allPeriods = [...periods].sort();
+
+  const expensePoints = allPeriods.map(
+    (period) => {
+      const row = filteredMonthly.find((r) => r.period === period);
+      const rowExpense = BigInt(row?.expenseMinor ?? "0");
+      const categories: Record<string, bigint> = {};
+      let assignedMinor = 0n;
+
+      for (const cat of categoryData) {
+        const amtStr = cat.monthlyAmounts.find((a) => a.period === period)?.amountMinor;
+        if (amtStr) {
+          const amt = BigInt(amtStr);
+          const catName = cat.category || "Khác";
+          categories[catName] = (categories[catName] || 0n) + amt;
+          assignedMinor += amt;
+        }
+      }
+
+      const totalMinor = rowExpense > assignedMinor ? rowExpense : assignedMinor;
+      if (assignedMinor < totalMinor) {
+        categories["Chưa phân bổ"] = totalMinor - assignedMinor;
+      }
+
+      return {
+        month: period,
+        categories,
+      };
+    },
+  );
   return (
     <ModulePage
       title="Tổng quan điều hành"
@@ -735,6 +841,7 @@ export function ExecutiveDashboardWorkspace() {
         <div className="flex flex-wrap justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <PeriodRangeNavigator />
+            <Badge variant="outline">Basis: {search.get("actualBasis") ?? "invoiced"}</Badge>
             {search.get("serviceLineCode") ? (
               <Badge variant="outline">Mảng: {search.get("serviceLineCode")}</Badge>
             ) : null}
@@ -753,6 +860,14 @@ export function ExecutiveDashboardWorkspace() {
           <Alert variant="destructive">
             <AlertTitle>Dashboard chưa sẵn sàng</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {!loading && flagged > 0 ? (
+          <Alert>
+            <AlertTitle>{flagged} tín hiệu cần rà soát</AlertTitle>
+            <AlertDescription>
+              Mở Finance review để xem các ngoại lệ từ báo cáo nguồn và dữ liệu import.
+            </AlertDescription>
           </Alert>
         ) : null}
         {loading ? (
@@ -774,11 +889,14 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu đã xuất hóa đơn"
                 value={money(
-                  nonZeroMinor((data as { directSalesSum?: string }).directSalesSum) ??
+                  nonZeroMinor(data.actualSummary?.amountMinor) ??
                     nonZeroMinor(operating?.clientConcentration.totalRevenueMinor) ??
                     nonZeroMinor(performance?.actualVsFullTarget.numeratorMinor) ??
                     invoicedMinor,
-                  operating?.currency ?? performance?.currency ?? data.projects?.currency,
+                  data.actualSummary?.currency ??
+                    operating?.currency ??
+                    performance?.currency ??
+                    data.projects?.currency,
                 )}
                 description="Tổng tiền hóa đơn GTGT đã xuất trong kỳ"
                 href={`/dashboard/drilldown/revenue?${q}`}
@@ -787,31 +905,34 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu ghi nhận (Theo mốc hợp đồng)"
                 value={money(
-                  nonZeroMinor((data as { directSalesSum?: string }).directSalesSum) ??
-                    recognizedDisplayMinor,
-                  data.projects?.currency ?? performance?.currency,
+                  search.get("actualBasis") === "recognized"
+                    ? (nonZeroMinor(data.actualSummary?.amountMinor) ?? recognizedDisplayMinor)
+                    : recognizedDisplayMinor,
+                  data.actualSummary?.currency ?? data.projects?.currency ?? performance?.currency,
                 )}
                 description={
-                  performance?.actualVsFullTarget.formulaVersion ??
-                  "Giá trị nghiệm thực tế theo dự án"
+                  operating?.financials.recognitionEventCount
+                    ? (performance?.actualVsFullTarget.formulaVersion ??
+                      "Giá trị nghiệm thực tế theo dự án")
+                    : "Chưa có mốc ghi nhận doanh thu đã post"
                 }
                 href={`/dashboard/drilldown/revenue?${q}`}
-                status={performance?.actualVsFullTarget.status}
+                status={
+                  operating?.financials.recognitionEventCount
+                    ? performance?.actualVsFullTarget.status
+                    : "Chưa có dữ liệu"
+                }
               />
               <MetricCard
                 title="Cảnh báo Thuế TNDN (Tạm tính 20%)"
                 value={`~${money(
-                  (BigInt(operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor) >
-                  BigInt(data.projects?.totals.directCostMinor ?? "0")
-                    ? ((BigInt(operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor) -
-                        BigInt(data.projects?.totals.directCostMinor ?? "0")) *
-                        20n) /
-                      100n
+                  (BigInt(operating?.financials.netProfitMinor ?? "0") > 0n
+                    ? (BigInt(operating?.financials.netProfitMinor ?? "0") * 20n) / 100n
                     : 0n
                   ).toString(),
                   operating?.currency ?? data.projects?.currency,
                 )}`}
-                description={`Chi phí có HĐ: ${money(data.projects?.totals.directCostMinor ?? "0", data.projects?.currency)}`}
+                description={`Chi phí đã post: ${money(operating?.financials.expenseMinor ?? "0", operating?.currency)}`}
                 href="/reports/tax/expense-exceptions"
                 status="Cần rà soát"
                 provisional
@@ -821,7 +942,7 @@ export function ExecutiveDashboardWorkspace() {
                 value={money(overdueMinor, data.aging?.baseCurrency)}
                 description={`DSO: ${dso}`}
                 href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
-                status={flagged ? `${flagged} khoản cần thu` : data.aging?.tieStatus}
+                status={overdueCount ? `${overdueCount} khoản quá hạn` : data.aging?.tieStatus}
                 provisional={usingOperatingFallback}
                 onQuick={() =>
                   setPreview({
@@ -845,8 +966,15 @@ export function ExecutiveDashboardWorkspace() {
               />
               <MetricCard
                 title="Tiền mặt khả dụng"
-                value={money(executive?.unrestrictedCashMinor, executive?.currency)}
-                description={`Burn: ${money(executive?.netBurnMinor, executive?.currency)}`}
+                value={money(
+                  executive?.unrestrictedCashMinor ?? operating?.financials.unrestrictedCashMinor,
+                  executive?.currency ?? operating?.currency,
+                )}
+                description={
+                  executive
+                    ? `Burn: ${money(executive.netBurnMinor, executive.currency)}`
+                    : "Số dư posted ledger theo mapping unrestricted_cash"
+                }
                 href={`/dashboard/drilldown/runway?${q}`}
                 status={executive?.runwayStatus}
               />
@@ -870,17 +998,34 @@ export function ExecutiveDashboardWorkspace() {
               />
               <MetricCard
                 title="Lợi nhuận fully loaded"
-                value={money(data.projects?.totals.fullyLoadedProfitMinor, data.projects?.currency)}
-                description="Project profitability report API"
+                value={money(
+                  nonZeroMinor(data.projects?.totals.fullyLoadedProfitMinor) ??
+                    operating?.financials.netProfitMinor,
+                  data.projects?.currency ?? operating?.currency,
+                )}
+                description={
+                  operating?.financials.approvedBudgetCount &&
+                  operating.financials.postedOverheadRunCount
+                    ? "Project profitability report API"
+                    : "Lợi nhuận ledger; chưa đủ budget/overhead để fully loaded"
+                }
                 href={`/reports/project-profitability?${q}`}
                 status={`${projects.length} dự án`}
               />
               <MetricCard
                 title="ROS"
-                value={ratio(executive?.ros.valueBps)}
-                description={executive?.ros.formulaVersion ?? "Report API unavailable"}
+                value={ratio(executive?.ros.valueBps ?? operating?.financials.rosBps)}
+                description={
+                  executive?.ros.formulaVersion ??
+                  (operating?.financials.rosBps == null
+                    ? "Không có mẫu số doanh thu"
+                    : "Posted ledger revenue và expense")
+                }
                 href={`/dashboard/drilldown/ros?${q}`}
-                status={executive?.ros.status}
+                status={
+                  executive?.ros.status ??
+                  (operating?.financials.rosBps == null ? undefined : "Ledger fallback")
+                }
               />
             </div>
             <Card>
@@ -1013,6 +1158,12 @@ export function ExecutiveDashboardWorkspace() {
             </Button>
           </CardFooter>
         </Card>
+        <MonthlyCategoryStackedChart
+          title="Thống kê chi phí"
+          description="Dữ liệu chi phí phân bổ theo tháng từ nguồn Operating Dashboard."
+          points={expensePoints}
+          currency={operating?.currency ?? data.projects?.currency ?? "VND"}
+        />
       </div>
       <PreviewDialog preview={preview} onClose={() => setPreview(undefined)} />
     </ModulePage>
@@ -1041,22 +1192,16 @@ export function FinanceReviewWorkspace() {
       source: item.itemId ?? item.controlAccountCode ?? "AR aging",
       href: `/receivables?asOf=${data.aging?.asOf}`,
     })) ?? []),
-    ...(data.performance?.confidenceFlags.map((flag) => ({
-      id: `performance:${flag.code}`,
-      severity: flag.severity,
-      module: "Hiệu suất kế hoạch",
-      issue: flag.reason,
-      source: flag.sourceIds.join(", "),
-      href: `/reports/performance/${encodeURIComponent(data.performance!.period.id)}?${q}`,
-    })) ?? []),
-    ...(data.operating?.dataQuality.byFlag.map((flag) => ({
-      id: `data-quality:${flag.flag}`,
-      severity: "warning",
-      module: "Dữ liệu import",
-      issue: `${flag.flag}: ${flag.count} bản ghi chờ bổ sung`,
-      source: "Operating Dashboard API",
-      href: "/imports/review",
-    })) ?? []),
+    ...(data.performance?.confidenceFlags
+      .filter((f) => f.severity === "critical" || !f.code.startsWith("missing_"))
+      .map((flag) => ({
+        id: `performance:${flag.code}`,
+        severity: flag.severity,
+        module: "Hiệu suất kế hoạch",
+        issue: flag.reason,
+        source: flag.sourceIds.join(", "),
+        href: `/reports/performance/${encodeURIComponent(data.performance!.period.id)}?${q}`,
+      })) ?? []),
   ];
   return (
     <ModulePage

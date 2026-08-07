@@ -72,6 +72,20 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Bulk operations support dry-run, row-level validation and explicit partial-failure results.
 - Direct database access is not an integration contract.
 
+### BR-AI-005 — Relationship-aware data ingestion
+
+- Every writable business resource documents its organization scope, stable identity, prerequisite
+  resources, relationship fields, lifecycle prerequisites and permitted correction path.
+- AI and integration clients resolve referenced resources through API/CLI reads or external identity;
+  they never invent database IDs or use direct PostgreSQL access.
+- Create and update guidance defines which response IDs must be retained and reused by downstream
+  resources, including party, project, account, document, expense, journal, bank and reconciliation
+  links.
+- Relationship writes are ordered, idempotent and validated before financial mutations. Missing or
+  ambiguous parents produce structured errors or a review state, never a guessed association.
+- Posted or issued financial history is corrected through cancel, deactivate, reverse or replacement
+  workflows rather than relationship rewrites or hard delete.
+
 ## Rule format
 
 Every rule contains a stable ID, invariant/behavior, validation, state transition or posting effect, edge cases and required test coverage. A rule may not be silently changed from code; update this file and its mapped tests first.
@@ -197,7 +211,7 @@ Cr Bank/AP                      1,100,000
 ### BR-WFL-001 — Maker/checker
 
 - Submitter cannot approve above configured threshold.
-- Small-team self-approval may be configured but is clearly audited.
+- Small-team and Solopreneur (doanh nghiệp một người) self-approval may be configured but is clearly audited. Người dùng duy nhất có quyền quản trị được phép tự khai báo và tự duyệt mọi chứng từ.
 
 ### BR-WFL-002 — State transition integrity
 
@@ -520,6 +534,11 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 
 - Review queues show validation reason, source payload, mapping gaps and safe remediation actions.
 - Replay is explicit, authorized, idempotent and audited; UI never silently drops failed events.
+
+### BR-UI-004 — Dashboard Data Sources and Fallback
+
+- The Operating Dashboard prioritizes reading trend and expense breakdown charts from aggregated workbook controls (`profitability_control`, `planning_control`, `expense_category_control`).
+- If control workbooks are missing or lack data for the selected period, dashboard charts automatically fall back to reading aggregated monthly totals directly from the posted ledger (`journal_entries`), grouping expenses into "Chưa phân bổ" if categorization is unavailable.
 
 ### BR-UI-003 — Operational UI parity
 

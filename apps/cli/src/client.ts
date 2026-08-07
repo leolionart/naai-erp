@@ -119,6 +119,7 @@ export class NaaiErpClient {
     const isOverheadSourcePool = resource === "overhead-source-pools";
     const isOverheadRun = resource === "overhead-runs";
     const isProjectProfitability = resource === "project-profitability";
+    const isOperatingDashboard = resource === "operating-dashboard";
     const isPlanning = resource === "revenue-targets" || resource === "forecast-versions";
     const isForecastComponent = resource === "forecast-components";
     const isForecastComposition = resource === "forecast-composition";
@@ -154,7 +155,7 @@ export class NaaiErpClient {
         );
       return { forecastId, componentId };
     };
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isWorkbookReviewRow ? "workbook-imports/review-rows" : isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isOverheadPolicy ? "overhead-allocation-policies" : isOverheadSourcePool ? "overhead-source-pools" : isOverheadRun ? "overhead-allocation-runs" : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isWorkbookReviewRow ? "workbook-imports/review-rows" : isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isOperatingDashboard ? "reports/operating-dashboard" : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isOverheadPolicy ? "overhead-allocation-policies" : isOverheadSourcePool ? "overhead-source-pools" : isOverheadRun ? "overhead-allocation-runs" : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       isForecastComponent && action === "delete"
         ? "DELETE"
@@ -165,6 +166,7 @@ export class NaaiErpClient {
             (isBankTransaction && action === "transfer-candidates") ||
             isReport ||
             isPerformanceComparison ||
+            isOperatingDashboard ||
             isFinancialStatement ||
             isFinancialStatementDrilldown ||
             isFinancialSourceResolver ||
@@ -267,7 +269,7 @@ export class NaaiErpClient {
                                     : ["review", "exclude"].includes(action)
                                       ? `${base}/components/${encodeURIComponent(forecastKey().componentId ?? "")}/${action}`
                                       : `${base}/components/${encodeURIComponent(forecastKey().componentId ?? "")}`
-                                : action === "list"
+                                : action === "list" || isOperatingDashboard
                                   ? base
                                   : action === "get" || action === "update"
                                     ? isProjectProfitability
@@ -513,6 +515,7 @@ export class NaaiErpClient {
         isRecognitionEvent ||
         isProjectRevenueAxes ||
         isProjectProfitability ||
+        isOperatingDashboard ||
         isPlanning ||
         isForecastComponent ||
         isForecastComposition ||

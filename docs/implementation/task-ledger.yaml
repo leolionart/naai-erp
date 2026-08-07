@@ -1,10 +1,14 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-06T22:27:00+07:00
+updated_at: 2026-08-07T21:12:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
+development_status: done
+development_completed_at: 2026-08-07T20:49:00+07:00
+project_status: done
+project_completed_at: 2026-08-07T21:12:00+07:00
 
-current_gate: G8
-current_task: ERP-800
+current_gate: null
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -903,10 +907,10 @@ tasks:
   - id: ERP-800
     title: Import staging and UI-correctable source data
     phase: P8
-    status: review
+    status: done
     dependencies: [G7]
-    business_rules: [BR-MIG-001, BR-MIG-002, BR-MIG-003]
-    tests: [T-INT-ERP-800-001, T-INT-ERP-800-002, T-E2E-ERP-800-001]
+    business_rules: [BR-MIG-001, BR-MIG-002, BR-MIG-003, BR-MVP-006]
+    tests: [T-INT-ERP-800-001, T-INT-ERP-800-002, T-E2E-ERP-800-001, T-API-ERP-800-003]
     evidence: docs/implementation/evidence/ERP-800/
     started_at: 2026-08-06T18:48:00+07:00
     resumed_at: 2026-08-06T20:25:00+07:00
@@ -915,6 +919,7 @@ tasks:
     review_ready_at: 2026-08-06T22:54:00+07:00
     validation_hardening_review_at: 2026-08-06T23:11:00+07:00
     listing_first_ui_review_at: 2026-08-06T23:48:00+07:00
+    resumed_for_range_query_at: 2026-08-07T15:46:17+07:00
     agent: codex-root
     planned_files:
       - apps/api/src/workbook-imports/
@@ -936,7 +941,31 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-800/
       - pnpm-lock.yaml
-    notes: Persist every workbook business row into an organization-scoped review queue so unresolved source data can be corrected through UI without guessing or rewriting posted accounting history. Reopened after live-data audit showed that review edits are not promotable through canonical application services and legacy import-posted rows need controlled linkage/correction evidence before G8 can close. Resumed with the owner-provided Downloads workbooks after cross-checking showed that they are byte-identical to the staged sources but contain omitted cash, receipt, invoice evidence, debt, target, payroll and owner-capital controls that can improve deterministic classification and coverage.
+    development_completed_at: 2026-08-07T20:49:00+07:00
+    completed_at: 2026-08-07T20:52:00+07:00
+    completion_basis: owner_declaration
+    notes: Development and gate completion were closed by explicit owner declaration on 2026-08-07. Persist every workbook business row into an organization-scoped review queue so unresolved source data can be corrected through UI without guessing or rewriting posted accounting history. Reopened after live-data audit showed that review edits are not promotable through canonical application services and legacy import-posted rows need controlled linkage/correction evidence before G8 can close. Resumed with the owner-provided Downloads workbooks after cross-checking showed that they are byte-identical to the staged sources but contain omitted cash, receipt, invoice evidence, debt, target, payroll and owner-capital controls that can improve deterministic classification and coverage.
+
+  - id: ERP-810
+    title: AI data relationship and ingestion contract
+    phase: P9
+    status: done
+    dependencies: [G8]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005]
+    tests: [T-DOC-ERP-810-001]
+    evidence: docs/implementation/evidence/ERP-810/
+    agent: codex-root
+    started_at: 2026-08-07T21:02:00+07:00
+    completed_at: 2026-08-07T21:12:00+07:00
+    completion_basis: documentation_acceptance
+    planned_files:
+      - docs/architecture/ADR-011-ai-data-relationships-and-ingestion.md
+      - docs/api/data-relationships-and-ingestion.md
+      - docs/api/README.md
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - scripts/verify-docs.mjs
+      - docs/implementation/evidence/ERP-810/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -948,6 +977,7 @@ gates:
   G6: [ERP-600, ERP-610, ERP-620, ERP-630, ERP-640, ERP-650]
   G7: [ERP-700, ERP-710, ERP-720, ERP-730, ERP-740]
   G8: [ERP-800]
+  G9: [ERP-810]
 
 gate_status:
   G0: done
@@ -958,7 +988,5 @@ gate_status:
   G5: done
   G6: done
   G7: done
-  G8: review
-
-not_in_mvp:
-  note: Enterprise hardening, semantic releases, automated deployment, formal cutover and hypercare require explicit owner reactivation and a new ledger entry.
+  G8: done
+  G9: done

@@ -4,6 +4,7 @@ import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   PERFORMANCE_STORE,
   type ActualFactQuery,
+  type ActualFactSummaryQuery,
   type PerformanceContext,
   type PerformanceQuery,
   type PerformanceStore,
@@ -83,11 +84,39 @@ export class PerformanceComparisonService {
       limit: Math.min(100, Math.max(1, Number(input.limit ?? 50) || 50)),
     };
   }
+  parseFactSummary(input: Record<string, string | undefined>): ActualFactSummaryQuery {
+    const actualBasis = input.actualBasis ?? input.basis;
+    if (
+      !actualBasis ||
+      !BASIS.has(actualBasis) ||
+      !input.from ||
+      !isIsoDate(input.from) ||
+      !input.to ||
+      !isIsoDate(input.to) ||
+      input.from > input.to
+    )
+      throw new Error("VALIDATION_FAILED");
+    return {
+      actualBasis: actualBasis as ActualFactSummaryQuery["actualBasis"],
+      from: input.from,
+      to: input.to,
+      dimensions: Object.fromEntries(
+        Object.entries({
+          teamId: input.teamId,
+          serviceLineCode: input.serviceLineCode,
+          ownerId: input.ownerId,
+        }).filter((entry): entry is [string, string] => Boolean(entry[1])),
+      ),
+    };
+  }
   report(c: PerformanceContext, q: PerformanceQuery) {
     return this.store.report(c, q).then((data) => this.envelope(c, data));
   }
   listFacts(c: PerformanceContext, q: ActualFactQuery) {
     return this.store.listFacts(c, q).then((data) => this.envelope(c, data));
+  }
+  summarizeFacts(c: PerformanceContext, q: ActualFactSummaryQuery) {
+    return this.store.summarizeFacts(c, q).then((data) => this.envelope(c, data));
   }
   async backfill(c: PerformanceContext, input: Record<string, unknown>, key?: string) {
     if (!c.roles.some((r) => WRITE.has(r))) throw new Error("FORBIDDEN");

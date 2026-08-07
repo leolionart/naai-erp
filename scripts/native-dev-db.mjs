@@ -367,23 +367,18 @@ export async function runSetup(env = process.env, overrides = {}) {
     return { success: false, error: msg };
   }
 
-  // 5. Seed TT133 for 2025 and 2026
-  console.log("Seeding TT133 for 2025 and 2026...");
+  // 5. Create Organization and Actor
+  console.log("Idempotently ensuring organization, actor user, and membership exist...");
   const pool = new pgLib.Pool({ connectionString: connStr });
   try {
-    const { seedTt133Mvp } = overrides.seedTt133Mvp
-      ? { seedTt133Mvp: overrides.seedTt133Mvp }
-      : await import("../db/seed/tt133-mvp.mjs");
-
     const legalName = env.MVP_SEED_LEGAL_NAME ?? "NAAI ERP Synthetic Demo";
 
     const client = await pool.connect();
     try {
-      await seedTt133Mvp(client, { organizationId: config.orgId, legalName, fiscalYear: 2025 });
-      console.log("Seeded TT133 for fiscal year 2025.");
-
-      await seedTt133Mvp(client, { organizationId: config.orgId, legalName, fiscalYear: 2026 });
-      console.log("Seeded TT133 for fiscal year 2026.");
+      await client.query(
+        "INSERT INTO organizations (id, legal_name, base_currency, timezone) VALUES ($1, $2, 'VND', 'Asia/Ho_Chi_Minh') ON CONFLICT (id) DO NOTHING",
+        [config.orgId, legalName]
+      );
 
       console.log("Idempotently ensuring actor user and organization membership exist...");
       const actorEmail = env.NAAI_ACTOR_EMAIL || `${config.actorId}@example.com`;

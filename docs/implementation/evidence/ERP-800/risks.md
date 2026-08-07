@@ -22,3 +22,18 @@
 - Dry-run now rejects structurally invalid purchase-invoice candidates before mutation. Rows that
   pass preflight can still require business review (supplier identity, tax eligibility and payment
   allocation); preflight is contract validation, not accountant approval.
+- OpenAPI and CLI currently advertise bank-account PATCH, but the banking controller does not
+  implement it. This is outside ERP-800 planned files and requires a new ledger task or an explicit
+  contract decision before clients may rely on it.
+- Aging party/item drill-down and worker deactivation still lack REST/CLI parity. They are recorded
+  in `docs/api/resource-coverage.md` and were not expanded inside ERP-800.
+
+# 2026-08-07 range-query follow-up
+
+- The posted-ledger profit fallback is not a fully-loaded project-profitability measure. The UI keeps
+  this distinction visible until approved project budgets and posted overhead allocation runs exist.
+- Provisional CIT is a simple 20% indicator over positive posted-ledger profit; it is not a filed tax
+  return and does not replace tax-eligibility or adjustment review.
+- The repository production-build gate is independently blocked by existing Next.js 16 Suspense
+  requirements on `/reports/accountant-exports` and `/accounting/journals`. These routes are outside
+  the dashboard range-query change and were not modified here.

@@ -169,13 +169,36 @@ export function FocusedRecordListWorkspace({
       if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
         sourceParams.set("class", "non_documented");
       }
-      const [result, partiesRes] = await Promise.all([
-        client.data<{ items?: Row[] } | Row[]>(
-          `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
-        ),
-        client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
-      ]);
-      let rawItems = Array.isArray(result) ? result : (result.items ?? []);
+      
+      let rawItems: Row[] = [];
+      let partiesRes;
+      
+      if (kind === "documents" && invoiceStatus === "all") {
+        const [docsRes, expsRes, partiesRaw] = await Promise.all([
+          client.data<{ items?: Row[] } | Row[]>(
+            `${current.endpoint}?${queryFor("documents", sourceParams)}`,
+          ),
+          client.data<{ items?: Row[] } | Row[]>(
+            `expenses?${queryFor("expenses", sourceParams)}`,
+          ),
+          client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
+        ]);
+        rawItems = [
+          ...(Array.isArray(docsRes) ? docsRes : (docsRes.items ?? [])),
+          ...(Array.isArray(expsRes) ? expsRes : (expsRes.items ?? [])),
+        ];
+        partiesRes = partiesRaw;
+      } else {
+        const [result, partiesRaw] = await Promise.all([
+          client.data<{ items?: Row[] } | Row[]>(
+            `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
+          ),
+          client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
+        ]);
+        rawItems = Array.isArray(result) ? result : (result.items ?? []);
+        partiesRes = partiesRaw;
+      }
+
       const startsOn = sourceParams.get("startsOn");
       const endsOn = sourceParams.get("endsOn");
       // Do not filter out raw records by time when explicitly looking at a specific Project or Customer profile
@@ -183,7 +206,8 @@ export function FocusedRecordListWorkspace({
         rawItems = rawItems.filter((row) => {
           const dateVal = text(
             row,
-            sourceKind === "documents" ? "documentDate" : "expenseDate",
+            "documentDate",
+            "expenseDate",
             "issueDate",
             "createdAt",
           );
@@ -230,6 +254,7 @@ export function FocusedRecordListWorkspace({
     hydrated,
     initialPartyId,
     initialProjectId,
+    invoiceStatus,
     key,
     kind,
     sourceKind,
@@ -237,7 +262,7 @@ export function FocusedRecordListWorkspace({
   useEffect(() => void load(), [load]);
   function apply(form: FormData) {
     const query = new URLSearchParams();
-    const selectedInvoiceStatus = String(form.get("invoiceStatus") ?? "present");
+    const selectedInvoiceStatus = String(form.get("invoiceStatus") ?? "all");
     for (const name of kind === "documents" && selectedInvoiceStatus !== "missing"
       ? ["invoiceStatus", "type", "state", "partyId", "projectId"]
       : kind === "documents"
@@ -669,13 +694,14 @@ function FilterPopover({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
+                        <SelectItem value="all">Tất cả</SelectItem>
                         <SelectItem value="present">Có hóa đơn</SelectItem>
                         <SelectItem value="missing">Chưa có hóa đơn</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
                 </Field>
-                {invoiceStatus === "present" ? (
+                {invoiceStatus !== "missing" ? (
                   <>
                     <Field>
                       <FieldLabel>Loại</FieldLabel>

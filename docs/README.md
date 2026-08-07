@@ -8,6 +8,8 @@ This directory contains the authoritative specification, architecture, contracts
 - `testing/test-specification.md`: test layers, golden fixtures, oracles and gate requirements.
 - `testing/test-catalog.yaml`: machine-readable test registry.
 - `implementation/task-ledger.yaml`: machine-readable task, gate and completion history ledger.
+- `api/data-relationships-and-ingestion.md`: canonical AI lookup, dependency, ID propagation and ingestion playbook.
+- `api/data-relationship-manifest-v1.json`: machine-readable application relationship graph and recipes.
 
 ## Subdirectories
 

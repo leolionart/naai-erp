@@ -1,0 +1,594 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": "v1",
+  "scope": "organization",
+  "authorityOrder": [
+    "business-rules",
+    "accepted-adrs",
+    "openapi-runtime",
+    "relationship-manifest",
+    "examples-evidence"
+  ],
+  "universalMutationPolicy": {
+    "transport": "REST application services or first-party CLI only",
+    "requiredHeaders": ["Authorization", "Idempotency-Key", "X-Correlation-Id"],
+    "versionHeader": "If-Match for versioned updates",
+    "moneyEncoding": "integer minor units encoded as decimal strings",
+    "directDatabaseAccess": false,
+    "onMissingReference": "reject_or_review_never_guess"
+  },
+  "stages": [
+    { "rank": 10, "id": "tenant_access" },
+    { "rank": 20, "id": "fiscal_currency" },
+    { "rank": 30, "id": "accounting_master" },
+    { "rank": 40, "id": "parties_projects" },
+    { "rank": 50, "id": "financial_accounts" },
+    { "rank": 60, "id": "business_sources" },
+    { "rank": 70, "id": "approval_posting" },
+    { "rank": 80, "id": "banking_reconciliation" },
+    { "rank": 90, "id": "project_cost_recognition" },
+    { "rank": 100, "id": "planning_reporting" }
+  ],
+  "resources": [
+    {
+      "id": "organization",
+      "stage": "tenant_access",
+      "endpoint": "/master-data/organizations",
+      "cli": "organizations",
+      "identifiers": ["id"],
+      "businessKeys": ["slug"],
+      "dependsOn": [],
+      "lifecycle": ["active", "inactive"],
+      "correction": "deactivate"
+    },
+    {
+      "id": "fiscal_year",
+      "stage": "fiscal_currency",
+      "endpoint": "/master-data/fiscal-years",
+      "cli": "fiscal-years",
+      "identifiers": ["organization_id", "id"],
+      "businessKeys": ["label"],
+      "dependsOn": ["organization"],
+      "references": [
+        {
+          "field": "organization_id",
+          "target": "organization",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "version_or_update_before_lock"
+    },
+    {
+      "id": "fiscal_period",
+      "stage": "fiscal_currency",
+      "endpoint": "/master-data/fiscal-periods",
+      "cli": "fiscal-periods",
+      "identifiers": ["organization_id", "id"],
+      "dependsOn": ["fiscal_year"],
+      "references": [
+        {
+          "field": "fiscal_year_id",
+          "target": "fiscal_year",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["open", "soft_locked", "hard_locked"],
+      "correction": "reopen_with_reason"
+    },
+    {
+      "id": "account",
+      "stage": "accounting_master",
+      "endpoint": "/master-data/accounts",
+      "cli": "accounts",
+      "identifiers": ["organization_id", "code"],
+      "businessKeys": ["code"],
+      "dependsOn": ["organization"],
+      "lifecycle": ["active", "inactive"],
+      "correction": "deactivate_never_delete_with_history"
+    },
+    {
+      "id": "tax_code_version",
+      "stage": "accounting_master",
+      "endpoint": "/master-data/tax-code-versions",
+      "cli": "tax-code-versions",
+      "identifiers": ["organization_id", "code", "effective_from"],
+      "dependsOn": ["organization"],
+      "correction": "new_effective_version"
+    },
+    {
+      "id": "dimension_value",
+      "stage": "accounting_master",
+      "endpoint": "/master-data/dimensions",
+      "cli": "dimensions",
+      "identifiers": ["organization_id", "kind", "code"],
+      "dependsOn": ["organization"],
+      "correction": "deactivate",
+      "notes": "Transactional dimensions are a kind-to-code map validated by the application."
+    },
+    {
+      "id": "default_mapping",
+      "stage": "accounting_master",
+      "endpoint": "/master-data/default-mappings",
+      "cli": "default-mappings",
+      "identifiers": ["organization_id", "document_type", "effective_from"],
+      "dependsOn": ["account", "tax_code_version", "dimension_value"],
+      "references": [
+        {
+          "field": "account_code",
+          "target": "account",
+          "targetKey": "code",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "tax_code+tax_effective_from",
+          "target": "tax_code_version",
+          "targetKey": "code+effective_from",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "new_effective_version"
+    },
+    {
+      "id": "party",
+      "stage": "parties_projects",
+      "endpoint": "/master-data/parties",
+      "cli": "parties",
+      "identifiers": ["id"],
+      "businessKeys": ["normalized_tax_id", "display_name"],
+      "externalIdentity": "organization+external_system+external_id where supplied",
+      "dependsOn": ["organization"],
+      "lifecycle": ["active", "inactive", "merged"],
+      "correction": "update_draft_or_merge_preserving_history"
+    },
+    {
+      "id": "party_role",
+      "stage": "parties_projects",
+      "endpoint": "/master-data/party-roles",
+      "cli": "party-roles",
+      "identifiers": ["party_id", "role"],
+      "dependsOn": ["party"],
+      "references": [
+        {
+          "field": "party_id",
+          "target": "party",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "deactivate"
+    },
+    {
+      "id": "project",
+      "stage": "parties_projects",
+      "endpoint": "/master-data/projects",
+      "cli": "projects",
+      "identifiers": ["id"],
+      "businessKeys": ["code"],
+      "dependsOn": ["party", "party_role"],
+      "references": [
+        {
+          "field": "client_party_id",
+          "target": "party",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["planned", "active", "on_hold", "completed", "closed"],
+      "correction": "update_before_close_or_approved_reopen"
+    },
+    {
+      "id": "contract",
+      "stage": "parties_projects",
+      "endpoint": "/master-data/contracts",
+      "cli": "contracts",
+      "identifiers": ["id"],
+      "dependsOn": ["project"],
+      "references": [
+        {
+          "field": "project_id",
+          "target": "project",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "update_versioned_terms"
+    },
+    {
+      "id": "milestone",
+      "stage": "parties_projects",
+      "endpoint": "/master-data/milestones",
+      "cli": "milestones",
+      "identifiers": ["id"],
+      "dependsOn": ["contract"],
+      "references": [
+        {
+          "field": "contract_id",
+          "target": "contract",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "update_before_acceptance"
+    },
+    {
+      "id": "financial_account",
+      "stage": "financial_accounts",
+      "endpoint": "/banking/accounts",
+      "cli": "bank-accounts",
+      "identifiers": ["accountId"],
+      "businessKeys": ["code"],
+      "dependsOn": ["account"],
+      "references": [
+        {
+          "field": "ledgerAccountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "deactivate; PATCH is a known unavailable runtime gap"
+    },
+    {
+      "id": "commercial_document",
+      "stage": "business_sources",
+      "endpoint": "/commercial-documents",
+      "cli": "commercial-documents",
+      "identifiers": ["documentId"],
+      "businessKeys": ["type", "series", "fiscalYear", "documentNumber"],
+      "externalIdentity": "externalReference.system+externalReference.externalId",
+      "dependsOn": ["party", "account", "tax_code_version", "dimension_value"],
+      "references": [
+        {
+          "field": "partyId",
+          "target": "party",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "lines[].primaryAccountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "lines[].taxAccountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": false,
+          "onMissing": "reject"
+        },
+        {
+          "field": "lines[].dimensions[kind]",
+          "target": "dimension_value",
+          "targetKey": "kind+code",
+          "required": false,
+          "onMissing": "reject"
+        },
+        {
+          "field": "originalDocumentId",
+          "target": "commercial_document",
+          "targetKey": "documentId",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": [
+        "draft",
+        "captured",
+        "verified",
+        "approved",
+        "validated",
+        "issued",
+        "posted",
+        "partially_paid",
+        "paid",
+        "cancelled"
+      ],
+      "responseIds": ["data.documentId", "data.journalId"],
+      "correction": "PATCH draft; cancel before issue; credit or reverse/replace after issue/post"
+    },
+    {
+      "id": "expense",
+      "stage": "business_sources",
+      "endpoint": "/expenses",
+      "cli": "expenses",
+      "identifiers": ["expenseId"],
+      "externalIdentity": "externalReference.system+externalReference.externalId",
+      "dependsOn": ["party", "account", "tax_code_version", "dimension_value"],
+      "references": [
+        {
+          "field": "payeePartyId",
+          "target": "party",
+          "targetKey": "id",
+          "required": false,
+          "onMissing": "review"
+        },
+        {
+          "field": "employeePartyId",
+          "target": "party",
+          "targetKey": "id",
+          "required": false,
+          "onMissing": "reject_for_employee_reimbursement"
+        },
+        {
+          "field": "counterAccountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "lines[].postingAccountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "lines[].dimensions[kind]",
+          "target": "dimension_value",
+          "targetKey": "kind+code",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["draft", "submitted", "evidence_pending", "approved", "rejected", "posted"],
+      "responseIds": ["data.expenseId", "data.journalId"],
+      "correction": "PATCH draft; reverse/replace posted; invoice-backed spend must use purchase invoice"
+    },
+    {
+      "id": "evidence",
+      "stage": "business_sources",
+      "endpoint": "/evidence",
+      "cli": "evidence",
+      "identifiers": ["evidenceId"],
+      "dependsOn": ["commercial_document", "expense"],
+      "references": [
+        {
+          "field": "resourceType+resourceId",
+          "target": "commercial_document|expense|journal",
+          "targetKey": "resource ID",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "supersede_version_never_erase"
+    },
+    {
+      "id": "journal",
+      "stage": "approval_posting",
+      "endpoint": "/journals",
+      "cli": "journals",
+      "identifiers": ["journalId"],
+      "dependsOn": ["account", "fiscal_period"],
+      "references": [
+        {
+          "field": "lines[].accountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "reversalOfId",
+          "target": "journal",
+          "targetKey": "journalId",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["draft", "approved", "posted", "reversed"],
+      "correction": "reverse_and_optional_replacement; normal invoice/expense flows must not create journal first"
+    },
+    {
+      "id": "bank_import",
+      "stage": "banking_reconciliation",
+      "endpoint": "/banking/imports",
+      "cli": "bank-imports",
+      "identifiers": ["importId"],
+      "dependsOn": ["financial_account"],
+      "references": [
+        {
+          "field": "financialAccountId",
+          "target": "financial_account",
+          "targetKey": "accountId",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "responseIds": ["data.importId", "transaction IDs from import readback"],
+      "correction": "reimport_same_identity_idempotently"
+    },
+    {
+      "id": "bank_transaction",
+      "stage": "banking_reconciliation",
+      "endpoint": "/banking/transactions",
+      "cli": "bank-transactions",
+      "identifiers": ["transactionId"],
+      "businessKeys": ["financialAccountId", "provider", "providerTransactionId"],
+      "dependsOn": ["financial_account", "bank_import"],
+      "lifecycle": ["imported", "suggested", "matched", "reconciled", "ignored", "needs_review"],
+      "correction": "authorized_unreconcile_with_reason"
+    },
+    {
+      "id": "reconciliation",
+      "stage": "banking_reconciliation",
+      "endpoint": "/banking/transactions/{transactionId}/match",
+      "cli": "bank-transactions match",
+      "identifiers": ["reconciliation.id"],
+      "dependsOn": ["bank_transaction", "commercial_document", "expense"],
+      "references": [
+        {
+          "field": "allocations[].targetId",
+          "target": "commercial_document|expense",
+          "targetKey": "documentId|expenseId",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "adjustments[].accountCode",
+          "target": "account",
+          "targetKey": "code",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "correction": "unreconcile_then_rematch"
+    },
+    {
+      "id": "timesheet",
+      "stage": "project_cost_recognition",
+      "endpoint": "/time/timesheets",
+      "cli": "timesheets",
+      "identifiers": ["timesheetId"],
+      "dependsOn": ["party", "project"],
+      "references": [
+        {
+          "field": "entries[].projectId",
+          "target": "project",
+          "targetKey": "id",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["draft", "submitted", "approved", "locked", "billed"],
+      "correction": "adjustment_after_approval"
+    },
+    {
+      "id": "project_budget",
+      "stage": "project_cost_recognition",
+      "endpoint": "/project-budgets",
+      "cli": "project-budgets",
+      "identifiers": ["id"],
+      "dependsOn": ["project", "milestone"],
+      "references": [
+        {
+          "field": "projectId",
+          "target": "project",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["draft", "submitted", "approved", "rejected"],
+      "correction": "new_budget_version"
+    },
+    {
+      "id": "recognition_event",
+      "stage": "project_cost_recognition",
+      "endpoint": "/revenue-recognition-events",
+      "cli": "revenue-recognition-events",
+      "identifiers": ["id"],
+      "dependsOn": ["project", "milestone", "commercial_document", "account"],
+      "lifecycle": ["draft", "submitted", "approved", "posted", "reversed"],
+      "responseIds": ["journalId"],
+      "correction": "reverse"
+    },
+    {
+      "id": "forecast_version",
+      "stage": "planning_reporting",
+      "endpoint": "/forecast-versions",
+      "cli": "forecast-versions",
+      "identifiers": ["id"],
+      "dependsOn": ["project", "organization"],
+      "lifecycle": ["draft", "published", "superseded"],
+      "correction": "supersede"
+    },
+    {
+      "id": "report",
+      "stage": "planning_reporting",
+      "endpoint": "/reports/*",
+      "cli": "reports and named report resources",
+      "identifiers": [],
+      "dependsOn": ["journal"],
+      "readOnly": true,
+      "correction": "correct canonical source and regenerate; never write report totals"
+    },
+    {
+      "id": "workbook_review_row",
+      "stage": "business_sources",
+      "endpoint": "/workbook-imports/review-rows",
+      "cli": "workbook-review-rows",
+      "identifiers": ["id", "sourceIdentity"],
+      "dependsOn": ["organization"],
+      "readOnlyForReports": true,
+      "correction": "PATCH staging then promote through canonical API; proposedResourceId is not a trusted FK"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "sales_invoice_to_receipt",
+      "steps": [
+        "resolve party(client role)",
+        "resolve project/contract/milestone if allocated",
+        "resolve accounts/tax/dimensions",
+        "create commercial_document and retain data.documentId",
+        "validate/issue/post and retain journalId",
+        "import bank transaction",
+        "match allocation targetType=commercial_document targetId=documentId",
+        "reconcile"
+      ]
+    },
+    {
+      "id": "purchase_invoice_to_payment",
+      "steps": [
+        "resolve party(supplier role)",
+        "resolve accounts/tax/dimensions",
+        "create purchase commercial_document and retain data.documentId",
+        "capture/verify/approve/post",
+        "import bank payment",
+        "match allocation targetType=commercial_document targetId=documentId",
+        "reconcile"
+      ]
+    },
+    {
+      "id": "non_invoice_expense",
+      "steps": [
+        "confirm source is not invoice-backed",
+        "resolve payee/employee and accounts/dimensions",
+        "create expense and retain data.expenseId",
+        "submit/review/approve/post",
+        "match bank allocation targetType=expense targetId=expenseId when paid"
+      ]
+    },
+    {
+      "id": "posted_correction",
+      "steps": [
+        "read canonical source and resourceVersion",
+        "select cancel, credit, reverse, replacement, retire or deactivate according to lifecycle",
+        "reuse original source ID in correction link",
+        "post correction in an open period",
+        "verify net ledger and audit chain"
+      ]
+    },
+    {
+      "id": "workbook_to_canonical",
+      "steps": [
+        "dry-run workbook import",
+        "review stable sourceIdentity",
+        "resolve every parent without guessing",
+        "create canonical document/expense/bank/project resource through its API",
+        "store returned canonical ID in audited review linkage",
+        "only posted canonical resources feed reports"
+      ]
+    }
+  ],
+  "knownUnavailableOperations": [
+    "PATCH /banking/accounts/{accountId}",
+    "CLI aging party/item drilldown",
+    "worker deactivate REST operation"
+  ]
+}

@@ -180,4 +180,19 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       varianceBps: null,
     });
   });
+
+  it("T-API-ERP-800-003 aggregates actual facts across an explicit multi-month range", async () => {
+    const summary = await get(
+      `/planning-actual-facts/summary?actualBasis=recognized&from=2024-01-01&to=2024-02-29&teamId=calendar`,
+    );
+    expect(summary.statusCode, summary.body).toBe(200);
+    expect(summary.json().data).toMatchObject({
+      actualBasis: "recognized",
+      from: "2024-01-01",
+      to: "2024-02-29",
+      currency: "VND",
+      amountMinor: "220000000",
+      factCount: 2,
+    });
+  });
 });

@@ -1026,6 +1026,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/import-review.spec.ts e2e/dashboard-drilldown.spec.ts e2e/financial-statements.spec.ts
     blocking_gate: G8
 
+  - id: T-API-ERP-800-003
+    task: ERP-800
+    rules: [BR-MVP-006]
+    title: Dashboard actual facts aggregate across explicit month quarter year and custom date ranges
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/performance-comparison/performance-comparison.integration.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/main.test.ts && pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts
+    blocking_gate: G8
+
+  - id: T-DOC-ERP-810-001
+    task: ERP-810
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005]
+    title: AI relationship contract documents parent child links ingestion order identity reuse lifecycle and correction rules
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G9
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

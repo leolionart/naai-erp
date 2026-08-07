@@ -11,14 +11,14 @@ export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export const DEFAULT_API_CONNECTION: ApiConnectionSettingsV1 = Object.freeze({
   version: 1,
-  baseUrl: process.env.NEXT_PUBLIC_NAAI_ERP_API_URL ?? "http://localhost:3001",
-  organizationId: process.env.NEXT_PUBLIC_NAAI_ERP_ORGANIZATION ?? "naai",
+  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
+  organizationId: process.env.NEXT_PUBLIC_ORGANIZATION_ID ?? "naai",
 });
 
 export const LOCAL_DEVELOPMENT_TOKEN =
   process.env.NODE_ENV === "development"
-    ? (process.env.NEXT_PUBLIC_NAAI_ERP_DEV_TOKEN?.trim() ?? "")
-    : "";
+    ? process.env.NEXT_PUBLIC_API_TOKEN?.trim() || "dev-token"
+    : process.env.NEXT_PUBLIC_API_TOKEN?.trim() || "";
 
 export function normalizeConnectionSettings(input: {
   baseUrl: string;
@@ -68,7 +68,11 @@ export function saveConnectionSettings(storage: StorageLike, settings: ApiConnec
 }
 
 export function loadApiToken(storage: StorageLike): string {
-  return storage.getItem(API_TOKEN_KEY)?.trim() ?? "";
+  const token = storage.getItem(API_TOKEN_KEY)?.trim() ?? "";
+  if (!token) {
+    return LOCAL_DEVELOPMENT_TOKEN;
+  }
+  return token;
 }
 
 export function saveApiToken(storage: StorageLike, token: string): string {

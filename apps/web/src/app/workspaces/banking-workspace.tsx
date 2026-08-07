@@ -39,6 +39,7 @@ import {
   loadConnectionSettings,
   saveApiToken,
   saveConnectionSettings,
+  LOCAL_DEVELOPMENT_TOKEN,
   type ApiConnectionSettingsV1,
 } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";
@@ -82,9 +83,9 @@ function textField(row: BankingRow, ...names: string[]): string {
 function signedAmount(row: BankingRow): string {
   const direct = textField(row, "amountMinor", "signedAmountMinor");
   if (direct) return direct;
-  const inflow = textField(row, "inflowMinor", "creditMinor");
+  const inflow = textField(row, "inflowMinor", "debitMinor");
   if (inflow) return inflow;
-  const outflow = textField(row, "outflowMinor", "debitMinor");
+  const outflow = textField(row, "outflowMinor", "creditMinor");
   return outflow ? `-${outflow.replace(/^-/, "")}` : "0";
 }
 
@@ -164,6 +165,11 @@ export function BankingWorkspace() {
       setNotice(`Đã tải ${nextAccounts.length} tài khoản và ${nextTransactions.length} giao dịch.`);
     });
   }
+
+  useEffect(() => {
+    if (token) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -299,45 +305,6 @@ export function BankingWorkspace() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>Kết nối API</CardTitle>
-          <CardDescription>
-            Organization và token được dùng chung với các module admin khác.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="banking-api-url">API URL</FieldLabel>
-              <Input
-                id="banking-api-url"
-                value={connection.baseUrl}
-                onChange={(event) => setConnection({ ...connection, baseUrl: event.target.value })}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="banking-organization">Organization ID</FieldLabel>
-              <Input
-                id="banking-organization"
-                value={connection.organizationId}
-                onChange={(event) =>
-                  setConnection({ ...connection, organizationId: event.target.value })
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="banking-token">Access token</FieldLabel>
-              <Input
-                id="banking-token"
-                type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-        </CardContent>
-      </Card>
 
       {error ? (
         <Alert variant="destructive">

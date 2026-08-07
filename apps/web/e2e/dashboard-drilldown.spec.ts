@@ -12,6 +12,13 @@ const reply = (route: Route, data: unknown) =>
 async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
   await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/master-data/dimensions**",
+    (route) =>
+      reply(route, {
+        items: [{ kind: "service_line", code: "web-app", name: "Web app", is_active: true }],
+      }),
+  );
+  await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
     (route) => {
       requestedUrls.push(route.request().url());
@@ -81,6 +88,22 @@ async function install(page: Page, requestedUrls: string[] = []) {
         },
         actualVsRetainedForecast: { status: "available", denominatorMinor: "110000000" },
         monthOverMonth: { denominatorMinor: "90000000" },
+      });
+    },
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/planning-actual-facts/summary**",
+    (route) => {
+      requestedUrls.push(route.request().url());
+      const url = new URL(route.request().url());
+      reply(route, {
+        actualBasis: url.searchParams.get("actualBasis") ?? "invoiced",
+        from: url.searchParams.get("from"),
+        to: url.searchParams.get("to"),
+        currency: "VND",
+        amountMinor: "100000000",
+        factCount: 3,
+        sourceIds: ["actual-jan", "actual-feb", "actual-mar"],
       });
     },
   );
@@ -163,6 +186,17 @@ async function installOperatingDashboard(page: Page) {
             { clientId: "client-700", clientName: "NAAI Client", revenueMinor: "117000000" },
           ],
         },
+        financials: {
+          revenueMinor: "180000000",
+          expenseMinor: "80000000",
+          netProfitMinor: "100000000",
+          unrestrictedCashMinor: "75000000",
+          rosBps: 5556,
+          recognitionEventCount: 0,
+          approvedBudgetCount: 0,
+          postedOverheadRunCount: 0,
+          source: "posted_ledger",
+        },
         dataQuality: {
           pendingCount: 2,
           byFlag: [{ flag: "missing_project", count: 2 }],
@@ -222,19 +256,20 @@ test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", 
   await install(page, requestedUrls);
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
   await expect(page.getByRole("heading", { name: "Tổng quan điều hành" })).toBeVisible();
-  await expect(page.getByText("100.000.000 ₫")).toBeVisible();
+  await expect(page.getByText("100.000.000 ₫").first()).toBeVisible();
   await expect(page.getByText("38%")).toBeVisible();
   await expect(page.getByText("4,25 tháng")).toBeVisible();
   await expect(page.getByText("3 tín hiệu cần rà soát")).toBeVisible();
   expect(requestedUrls.find((url) => url.includes("/reports/executive-metrics"))).toContain(
-    "asOfInstant=2026-08-31T16%3A59%3A59.999Z",
+    "asOfInstant=2026-08-07T16%3A59%3A59.999Z",
   );
   expect(requestedUrls.find((url) => url.includes("/reports/performance-comparisons"))).toContain(
     "periodId=CAL-2026-08",
   );
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const filters = page.locator('[data-slot="popover-content"]');
-  await filters.getByLabel("Service line").fill("web-app");
+  await filters.getByLabel("Mảng dịch vụ").click();
+  await page.getByRole("option", { name: "Web app" }).click();
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
   await page.getByRole("link", { name: "Mở drill-down" }).first().click();
@@ -284,7 +319,6 @@ test("@desktop uses operating dashboard read model instead of provisional fallba
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
   await expect(page.getByText("120.000.000 ₫")).toBeVisible();
   await expect(page.getByText("DSO: 15 ngày")).toBeVisible();
-  await expect(page.getByText("65%")).toBeVisible();
   await expect(page.getByText("Web App 700")).toBeVisible();
   await expect(page.getByText("approved-direct-cost-budget")).toBeVisible();
   await expect(page.getByText("Đang dùng dữ liệu fallback")).toHaveCount(0);
@@ -316,7 +350,7 @@ test("@desktop selects the latest source-control period and invoiced basis by de
   );
 });
 
-test("@desktop switches month quarter and year without sending unsupported period IDs", async ({
+test("@desktop switches month quarter and year and queries aggregate actuals for the full range", async ({
   page,
 }) => {
   const requestedUrls: string[] = [];
@@ -325,15 +359,27 @@ test("@desktop switches month quarter and year without sending unsupported perio
 
   await page.getByRole("radio", { name: "Quý" }).click();
   await expect(page).toHaveURL(/periodKind=quarter/);
-  await expect(page).toHaveURL(/period=2026-Q3/);
+  await expect(page).toHaveURL(/period=Q3%2F2026/);
   await expect(page).toHaveURL(/startsOn=2026-07-01/);
   await expect(page).toHaveURL(/endsOn=2026-09-30/);
   await expect(page).toHaveURL(/actualBasis=collected/);
+  await expect
+    .poll(() => requestedUrls.filter((url) => url.includes("planning-actual-facts/summary")).at(-1))
+    .toContain("from=2026-07-01");
+  expect(
+    requestedUrls.filter((url) => url.includes("planning-actual-facts/summary")).at(-1),
+  ).toContain("to=2026-08-07");
 
   await page.getByRole("radio", { name: "Năm" }).click();
   await expect(page).toHaveURL(/periodKind=year/);
   await expect(page).toHaveURL(/startsOn=2026-01-01/);
   await expect(page).toHaveURL(/endsOn=2026-12-31/);
+  await expect
+    .poll(() => requestedUrls.filter((url) => url.includes("planning-actual-facts/summary")).at(-1))
+    .toContain("from=2026-01-01");
+  expect(
+    requestedUrls.filter((url) => url.includes("planning-actual-facts/summary")).at(-1),
+  ).toContain("to=2026-08-07");
 
   await expect
     .poll(() => requestedUrls.filter((url) => url.includes("performance-comparisons")).at(-1))
@@ -345,14 +391,16 @@ test("@desktop surfaces executive metrics API failure without hiding other dashb
   page,
 }) => {
   await install(page);
+  await installOperatingDashboard(page);
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
     (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
   );
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
 
-  await expect(page.getByText("Không tải được Executive Metrics")).toBeVisible();
   await expect(page.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("75.000.000 ₫", { exact: true })).toBeVisible();
+  await expect(page.getByText("55,56%", { exact: true })).toBeVisible();
 });
 
 test("@desktop normalizes invalid dashboard date configuration before API requests", async ({

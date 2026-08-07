@@ -16,8 +16,11 @@ Webhook retries and process crashes must not duplicate invoices, journals or eve
 - Inbound create operations use source identity, external ID, idempotency key and payload hash.
 - Same key/same payload returns the prior result; same key/different payload is conflict.
 - Raw inbound payload and attempts are retained in an inbox record.
-- Failed/unmapped inputs are quarantined; outbound exhaustion enters dead-letter state.
-- Retry uses exponential backoff and auditable manual replay.
+- Current structured invoice/expense ingestion rejects invalid payloads with field errors and zero
+  business mutation; n8n owns correction and retry. Historical generic inbox/quarantine records are
+  not a separate ERP review or replay workflow.
+- Outbound delivery exhaustion enters dead-letter state; outbound retry uses exponential backoff and
+  authorized auditable replay.
 
 ## Consequences
 

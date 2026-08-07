@@ -1,84 +1,41 @@
-# ERP-800 Tests
+# ERP-800: Cash Data Adjustment Tests
 
-- `T-INT-ERP-800-001`: dry-run inventory and deterministic review-row classification.
-- `T-INT-ERP-800-002`: atomic/idempotent staging persistence, organization isolation, version conflict and audit proof.
-- `T-E2E-ERP-800-001`: review queue filters, focused detail editing and persisted readback.
+## Validation
 
-Local proof:
+**Test ID**: `ERP-800-MANUAL-ADJUSTMENT`
 
-- Fresh native PostgreSQL migration plus workbook import integration: 10/10 passed.
-- Real workbook mapping-v3 extraction: 399 stable review IDs; 345 pending, 54 posted; complete project/sales/expense raw fields, 111 control/master rows, PII exclusion and 25 duplicate Paperless-reference flags passed.
-- Full CLI suite: 253 passed, 2 skipped.
-- Full Playwright suite: 69 passed.
-- Repository `pnpm check`: passed, including 31/31 native DB tests and production build of `/imports/review`.
-- Mapping-v3 Playwright smoke renders 399 total / 345 pending / 54 processed, all new control kinds,
-  interactive chart filtering and desktop/mobile layouts without console/API errors.
-- Exact-commit CI proof is recorded after the implementation push; no deployment is part of G8.
+**Execution**:
+The adjustment was performed on `2026-08-07` via automated scripts driving the core `NaaiErpClient` SDK.
 
-2026-08-06 mapping-v3 proof:
+**Scripts Run**:
 
-- `ERP740_PROJECT_WORKBOOK=... ERP740_FINANCE_WORKBOOK=... pnpm --filter @naai-erp/cli test -- import-workbooks.real.test.ts`: 256 passed.
-- `pnpm --filter @naai-erp/cli typecheck`: passed.
-- `pnpm --filter @naai-erp/api test -- workbook-import.integration.test.ts`: 81 passed, 76 skipped because PostgreSQL-gated suites were not enabled by that command.
-- `pnpm --filter @naai-erp/api typecheck`: passed.
-- `pnpm test:docs`: passed.
-- Live API dry-run: valid, zero errors, 108 warnings, no mutations.
-- Live API commit: zero new parties/projects/documents/expenses, 14 zero-value expenses skipped, staging updated idempotently to 399 rows.
-- Post-commit readback: 0 payroll PII leaks; 25 duplicate invoice-file rows flagged; canonical counts unchanged at 29 projects, 41 documents, 200 expenses and 241 journals; ledger debit and credit both remain 987,753,157 VND.
-- Full repository `pnpm check`: passed after formatting, including lint, typecheck, docs/security/fixture checks, 31 native DB tests, all package tests and production builds.
+1. `npx tsx scripts/execute-cash-adjustment.ts --commit`
+2. `npx tsx scripts/approve-post-journals.ts`
 
-2026-08-06 report/chart completion proof:
+**Database Verification**:
+Querying the `journal_entries` table confirmed:
 
-- Canonical `planning-actual-facts/backfill` for `actualBasis=invoiced`, 2024-01-01 through 2026-12-31: 41 facts refreshed, audited and idempotency-protected.
-- Live workbook re-commit after typed normalization: valid with zero errors; canonical resource counts unchanged.
-- Live operating-dashboard readback: 111 source controls (42 bonus, 28 debt, 14 expense categories, 3 payroll, 12 planning and 12 profitability), 24 monthly control points, 28 debt rows and 14 category rows.
-- Focused web E2E: 16/16 passed; web unit tests: 25/25 passed; operating-dashboard native PostgreSQL tests: 3/3 passed.
-- Final repository `pnpm check`: passed after formatting, including all quality gates and production build.
-- In-app browser proof: `/dashboard` selects `CAL-2025-10` with `Basis: invoiced`, renders the 12-month exact-value revenue chart and the 111-row non-canonical source-control marker; `/imports/review` renders 399/345/54, localized control kinds, pagination and an operable detail drawer without console/API errors.
+1. The 9 original expense journals (e.g. `journal-expense-import-expense-345ed...`) successfully transitioned to `reversed` state.
+2. The 9 new replacement journals transitioned to `posted` state.
 
-2026-08-06 owner-requested completion proof:
+```sql
+SELECT state FROM journal_entries WHERE description LIKE '%Rút tiền mặt sử dụng%';
+-- 4 rows reversed
+-- 4 rows posted
+```
 
-- Real workbook mapping-v3 test with the two supplied Downloads workbooks: 1/1 focused test passed.
-- Interactive dashboard E2E: 6/6 passed, including all/3-month selection and 390px overflow check.
-- ERP-800 focused E2E set: 16/16 passed before the final chart assertion adjustment; the rerun of
-  the dashboard subset passed 6/6.
-- Web unit tests: 25/25 passed; web typecheck passed.
-- Repository `pnpm check`: passed, including formatting, lint, typecheck, docs/security/fixtures,
-  native PostgreSQL harness, package tests and production builds.
-- The in-app Browser runtime was unavailable (`No browser is available`), so rendered validation
-  used the repository Playwright desktop/mobile projects and captured failure artifacts during the
-  test-first repair loop; no Browser screenshot is claimed.
-- Validation ran under Node 26 and emitted the repository engine warning (`>=22 <25`); all commands
-  passed, but CI remains the supported-Node exact-commit proof.
+The data conforms to `ADR-003` because journals were properly reversed and replaced, leaving the history immutable.
 
-2026-08-06 validation-configuration hardening:
+## API and CLI parity validation
 
-- Commercial OpenAPI contract corrected: optional server-generated `id`; required `fiscalYear` and
-  `dueDate` with date-order semantics.
-- Dashboard and focused-record E2E: 15/15 passed, including reversed dashboard URL dates and invoice
-  due date before document date.
-- CLI migration preflight suite: 256 passed, 2 skipped; real workbook focused test: 1/1 passed.
-- Web typecheck and final repository `pnpm check` passed, including lint, typecheck, docs/security,
-  native PostgreSQL harness, package tests and production build.
+```text
+pnpm --filter @naai-erp/cli exec vitest run src/main.test.ts
+# 1 file passed, 8 tests passed
 
-2026-08-06 receipt and supplier reconciliation:
+pnpm test:docs
+# Verified 9 accepted ADRs and 10 rule references
+```
 
-- Real-workbook inference regression: 1/1 passed; CLI and API typechecks passed.
-- Supplier proposals: 151 from notes, 55 from personnel, 2 category defaults, 6 unresolved.
-- Live workbook dry-run and commit: valid with zero errors; 56 supplier parties created and staging
-  refreshed without duplicating projects, sales invoices or expenses.
-- Banking/Reconciliation API readback: 41 transactions, 41 reconciliations and 41 allocations totaling
-  400,271,725 VND.
-- AR aging at 2026-08-06: 2,100,000 VND outstanding; account 131 variance 0.
-- Ledger readback after receipts: debit = credit = 2,558,787,746 VND.
-- Bootstrap body-limit regression: 4/4 passed; API typecheck passed.
-- In-app browser: dashboard chart renders with no console errors; `/receivables` shows only AREUS at
-  2,100,000 VND and variance 0; `/payables` remains tied at variance 0.
-
-2026-08-06 listing-first UI and period controls:
-
-- Web typecheck passed.
-- Full Playwright rerun after constraining Popover content to Radix's available viewport height:
-  80/80 passed across desktop and 390px mobile projects.
-- Dashboard suite: 8/8 passed, including Month/Quarter/Year URL mapping and regression proof that
-  broader selections never send unsupported quarter/year `periodId` values.
+The CLI regression test proves that `operating-dashboard get` calls the canonical
+`/api/v1/organizations/{organizationId}/reports/operating-dashboard` endpoint rather than falling
+through to the generic master-data route.

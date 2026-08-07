@@ -10,3 +10,4 @@
 8. [ADR-008: Database Access and Migration Tooling](./ADR-008-database-access-and-migrations.md)
 9. [ADR-009: AI-native Interfaces](./ADR-009-ai-native-interfaces.md)
 10. [ADR-010: In-place Quick View Workspace Editing and Financial Controls](./ADR-010-quick-view-editing-and-financial-controls.md)
+11. [ADR-011: AI Data Relationships and Ingestion Contract](./ADR-011-ai-data-relationships-and-ingestion.md)

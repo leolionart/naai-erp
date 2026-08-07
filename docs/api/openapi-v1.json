@@ -54,7 +54,9 @@
     "forecast-composition/read",
     "planning-actual-facts/backfill",
     "planning-actual-facts/list",
+    "planning-actual-facts/summary",
     "performance-comparisons/read",
+    "operating-dashboard/read",
     "financial-statement-mappings/create",
     "financial-statement-mappings/approve",
     "financial-statements/profit-and-loss",
@@ -2367,6 +2369,42 @@
         "responses": { "201": { "description": "Audited actual-fact backfill result" } }
       }
     },
+    "/api/v1/organizations/{organizationId}/planning-actual-facts/summary": {
+      "get": {
+        "operationId": "summarizePlanningActualFacts",
+        "tags": ["planning", "performance-comparisons"],
+        "summary": "Aggregate canonical actual facts across an explicit date range",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "actualBasis",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["recognized", "invoiced", "collected"] }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          { "name": "teamId", "in": "query", "schema": { "type": "string" } },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "ownerId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact range total, fact count, currency, dimensions and source IDs"
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/executive-metric-policies": {
       "get": {
         "operationId": "listExecutiveMetricPolicies",
@@ -2821,6 +2859,44 @@
                 "schema": { "$ref": "#/components/schemas/AccountantExportEnvelope" }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/operating-dashboard": {
+      "get": {
+        "operationId": "getOperatingDashboard",
+        "tags": ["reports", "operating-dashboard"],
+        "summary": "Read the operating dashboard from posted-ledger facts and explicit non-canonical workbook source controls",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "asOf",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operating dashboard read model with ledger-backed financials, drill-down sources, data-quality flags, and workbook controls"
           }
         }
       }

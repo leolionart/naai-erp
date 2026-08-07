@@ -35,3 +35,14 @@
   routes; filters use anchored Popovers and remain URL-backed.
 - Dashboard switches Month/Quarter/Year with deterministic date ranges, while the monthly-only
   performance API continues to receive a valid `CAL-YYYY-MM` identifier.
+- Dashboard KPI actuals use the canonical planning-actual-facts summary query for the complete
+  selected date range, so quarter/year/custom ranges no longer depend on stepping through months.
+- Dashboard financial fallbacks are aggregated server-side from posted ledger data and approved
+  semantic mappings; the browser no longer downloads the complete commercial-document list.
+- Missing recognition events, project budgets and overhead runs remain visibly distinguished from
+  invoiced revenue and posted-ledger profit rather than being presented as recognized or fully-loaded
+  results.
+- OpenAPI capability discovery and the first-party CLI now expose the operating-dashboard read
+  endpoint with explicit as-of/date-range parameters.
+- The repository contains a reviewed CRUD/lifecycle coverage matrix that distinguishes intentional
+  deactivate/cancel/reverse behavior from unimplemented API/CLI parity gaps.

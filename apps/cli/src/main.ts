@@ -4,31 +4,6 @@ import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
 import { runWorkbookImport } from "./import-workbooks.js";
 
-const MVP_CLI_RESOURCES = new Set([
-  "discovery",
-  "commercial-documents",
-  "expenses",
-  "inbound-events",
-  "parties",
-  "party-roles",
-  "projects",
-  "ar-aging",
-  "ap-aging",
-  "reports",
-  "financial-statements",
-  "financial-statement-drilldown",
-  "financial-source-resolver",
-  "vat-reconciliation",
-  "expense-exceptions",
-  "performance-comparisons",
-  "project-profitability",
-  "executive-metrics",
-  "report-snapshots",
-  "accountant-exports",
-  "workbook-import",
-  "workbook-review-rows",
-]);
-
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
@@ -99,14 +74,7 @@ const [resource, action = "list"] = positionals;
 const organizationId = values.organization ?? process.env.NAAI_ERP_ORGANIZATION;
 const token = process.env.NAAI_ERP_TOKEN;
 const discovery = resource === "discovery" && ["openapi", "capabilities"].includes(action);
-if (resource && !MVP_CLI_RESOURCES.has(resource)) {
-  process.stderr.write(
-    JSON.stringify({
-      error: `Resource "${resource}" is unsupported in the invoice MVP CLI`,
-    }) + "\n",
-  );
-  process.exitCode = 2;
-} else if (!resource || (!discovery && (!organizationId || !token))) {
+if (!resource || (!discovery && (!organizationId || !token))) {
   process.stderr.write(
     JSON.stringify({
       error:
@@ -438,6 +406,15 @@ if (resource && !MVP_CLI_RESOURCES.has(resource)) {
                                                   ...(values.to ? { to: values.to } : {}),
                                                 }
                                               : undefined;
+      const requestPayload =
+        resource === "operating-dashboard"
+          ? {
+              ...(values["as-of"] ? { asOf: values["as-of"] } : {}),
+              ...(values.from ? { startsOn: values.from } : {}),
+              ...(values.to ? { endsOn: values.to } : {}),
+              ...(values.limit ? { limit: values.limit } : {}),
+            }
+          : payload;
       if (resource === "accountant-exports" && action === "download") {
         if (!values.key || !values["snapshot-version"] || !values.output) {
           throw new Error(
@@ -454,7 +431,7 @@ if (resource && !MVP_CLI_RESOURCES.has(resource)) {
         const result = await client.request(
           resource,
           action,
-          payload,
+          requestPayload,
           values.key,
           values["snapshot-version"] ?? values.version,
           values["idempotency-key"],

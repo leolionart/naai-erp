@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, ChevronRight, Filter, Search } from "lucide-react";
+import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  ChevronRight,
+  Filter,
+  MoreHorizontal,
+  Search,
+} from "lucide-react";
 import {
   FinancialDataTable,
   type FinancialColumn,
@@ -56,6 +64,7 @@ import {
   type TaxExpenseException,
   useAuthenticatedApiClient,
 } from "@/lib/api";
+import { type ReportSnapshotContract } from "@naai-erp/contracts";
 
 const endpointByKind = {
   profit_and_loss: financialStatementsApi.profitAndLoss,
@@ -781,6 +790,7 @@ export function FinancialStatementWorkspace({
   const [report, setReport] = useState<FinancialStatementReport>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [capturing, setCapturing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedLine, setSelectedLine] = useState<FinancialStatementLine>();
   useEffect(() => {
@@ -816,6 +826,34 @@ export function FinancialStatementWorkspace({
     },
     [pathname, router],
   );
+  
+  async function captureSnapshot() {
+    if (!report || capturing) return;
+    setCapturing(true);
+    try {
+      const payload = {
+        reportKind: kind,
+        period: {
+          startsOn: query.get("startsOn") ?? report.range.startsOn,
+          endsOn: query.get("endsOn") ?? report.range.endsOn,
+          asOfDate: query.get("endsOn") ?? report.range.endsOn ?? new Date().toISOString().split("T")[0],
+        },
+        accountingBasis: report.basis,
+        framework: report.framework,
+        formulaVersions: { [kind]: report.formulaVersion ?? "1.0" },
+        request: Object.fromEntries(query.entries()),
+      };
+      await api.data<ReportSnapshotContract>("report-snapshots", {
+        method: "POST",
+        body: payload,
+      });
+      router.push(`/reports/accountant-exports`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chốt dữ liệu thất bại");
+    } finally {
+      setCapturing(false);
+    }
+  }
   const columns = useMemo<readonly FinancialColumn<FinancialStatementLine>[]>(
     () => [
       {
@@ -860,10 +898,18 @@ export function FinancialStatementWorkspace({
               : titleByKind[kind]}
           </Badge>
         </div>
-        <Button variant="outline" onClick={() => setFiltersOpen(true)}>
-          <Filter data-icon="inline-start" />
-          Bộ lọc
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setFiltersOpen(true)}>
+            <Filter data-icon="inline-start" />
+            Bộ lọc
+          </Button>
+          {report && (
+            <Button disabled={capturing} onClick={() => void captureSnapshot()}>
+              <Camera data-icon="inline-start" />
+              {capturing ? "Đang chốt..." : "Chốt dữ liệu"}
+            </Button>
+          )}
+        </div>
       </div>
       {report && (!report.final || report.equation?.balanced === false) ? (
         <Alert variant="destructive">

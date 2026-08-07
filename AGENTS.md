@@ -21,15 +21,14 @@ Do not start implementation if any mandatory file is missing, unreadable, or con
 - Do not bypass an acceptance gate.
 - One agent owns one task scope at a time unless the task explicitly permits parallel file ownership.
 - If no task is ready, stop and report the exact missing dependency or decision.
-- Tasks marked `deferred` are explicitly outside the active MVP and must not be implemented unless the owner reactivates them.
+- Tasks marked `deferred` can now be implemented as the MVP phase is complete.
 
-## Active MVP boundary
+## Post-MVP Phase
 
+- The active MVP boundary has been lifted. All business resources must now be fully supported via CLI and API.
 - NAAI ERP receives structured invoice/expense data. Paperless-ngx owns source files and search; n8n/OCR owns extraction, normalization and retry orchestration.
 - Do not implement OCR, document archiving, an OCR review inbox, onboarding wizard, replay/dead-letter orchestration or broad enterprise workflows.
 - Invalid inbound payloads return structured field errors. n8n handles retry; users edit ERP drafts directly. Do not add a separate review/approval lifecycle for ingestion.
-- ERP-710 through ERP-740 are the completed invoice MVP spine. ERP-800 is an owner-reactivated,
-  ledger-controlled extension for import staging, correction evidence and source-data reporting.
 - Prefer Antigravity/Gemini for bounded mechanical CRUD, client, test-boilerplate, Docker and documentation work when available; Codex integrates and verifies accounting/API gates.
 
 ## Required execution loop
@@ -42,7 +41,7 @@ For each task:
 4. Implement only the stated deliverables.
 5. Run the task test set, then the affected module suite, then repository quality gates.
 6. Save evidence under `docs/implementation/evidence/<task-id>/`.
-7. Update APIs, schemas, ADRs, migrations and runbooks affected by the change.
+7. Update documentation concurrently with code changes ("code tới đâu update docs tới đó"). This includes updating `docs/product/business-rules.md`, APIs, schemas, ADRs, migrations and runbooks affected by the change.
 8. Mark `review` only when acceptance evidence is complete.
 9. Mark `done` only after review/gate requirements pass.
 

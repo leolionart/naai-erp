@@ -31,7 +31,6 @@
     "db:check": "pnpm --filter @naai-erp/database db:check",
     "db:native-setup": "node scripts/native-dev-db.mjs setup",
     "db:native-status": "node scripts/native-dev-db.mjs status",
-    "seed:dev": "node scripts/seed-development.mjs",
     "prepare": "node scripts/setup-hooks.mjs",
     "clean": "turbo run clean && rm -rf .turbo node_modules"
   },

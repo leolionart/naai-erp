@@ -37,12 +37,13 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       [org],
     );
     if (!organization.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
-    const [projects, clients, quality, sourceControls, aging] = await Promise.all([
+    const [projects, clients, quality, sourceControls, aging, financials] = await Promise.all([
       this.projects(org, q),
       this.clients(org, q),
       this.quality(org, q.limit),
-      this.sourceControls(org, q.limit),
+      this.sourceControls(org, q),
       this.aging.report(org, "ar", { asOf: q.asOf, limit: 100, includeSettled: false }),
+      this.financials(org, q),
     ]);
     const contracted = projects.reduce((sum, row) => sum + amount(row.contractedMinor), 0n);
     const invoiced = projects.reduce((sum, row) => sum + amount(row.invoicedMinor), 0n);
@@ -94,8 +95,76 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         ),
         clients: clients.slice(0, q.limit),
       },
+      financials,
       dataQuality: quality,
       sourceControls,
+    };
+  }
+
+  private async financials(org: string, q: OperatingDashboardQuery) {
+    const [monthlyResult, cash, readiness] = await Promise.all([
+      this.pool.query<{ period: string; revenue: string; expense: string }>(
+        `select
+           to_char(j.journal_date, 'YYYY-MM') period,
+           coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)) filter (where a.root_type='revenue'),0)::text revenue,
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where a.root_type='expense'),0)::text expense
+         from journal_entries j
+         join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+         join accounts a on a.organization_id=l.organization_id and a.code=l.account_code
+        where j.organization_id=$1 and j.state in ('posted','reversed')
+          and j.journal_date between $2::date and $3::date
+        group by to_char(j.journal_date, 'YYYY-MM')
+        order by to_char(j.journal_date, 'YYYY-MM')`,
+        [org, q.startsOn, q.endsOn],
+      ),
+      this.pool.query<{ amount: string | null }>(
+        `select sum(
+           (case when a.root_type in ('liability','equity','revenue')
+             then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)
+             else coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) end) * m.sign
+         )::text amount
+         from executive_metric_policy_versions p
+         join executive_metric_semantic_mappings m
+           on m.organization_id=p.organization_id and m.policy_id=p.id and m.policy_version=p.version
+         join accounts a on a.organization_id=m.organization_id and a.code=m.account_code
+         join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code
+         join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
+        where p.organization_id=$1 and p.state='approved' and m.semantic='unrestricted_cash'
+          and p.effective_from<=$2::date and (p.effective_to is null or p.effective_to>=$2::date)
+          and j.state in ('posted','reversed') and j.journal_date<=$2::date`,
+        [org, q.asOf],
+      ),
+      this.pool.query<{
+        recognition_count: number;
+        budget_count: number;
+        overhead_count: number;
+      }>(
+        `select
+          (select count(*)::int from revenue_recognition_events where organization_id=$1 and state='posted' and effective_on between $2::date and $3::date) recognition_count,
+          (select count(*)::int from project_budget_versions where organization_id=$1 and state='approved') budget_count,
+          (select count(*)::int from overhead_allocation_runs where organization_id=$1 and state='posted' and period_end>=$2::date and period_start<=$3::date) overhead_count`,
+        [org, q.startsOn, q.endsOn],
+      ),
+    ]);
+    const monthly = monthlyResult.rows.map((row) => ({
+      period: row.period,
+      revenueMinor: amount(row.revenue).toString(),
+      expenseMinor: amount(row.expense).toString(),
+    }));
+    const revenue = monthlyResult.rows.reduce((sum, row) => sum + amount(row.revenue), 0n);
+    const expense = monthlyResult.rows.reduce((sum, row) => sum + amount(row.expense), 0n);
+    const netProfit = revenue - expense;
+    return {
+      revenueMinor: revenue.toString(),
+      expenseMinor: expense.toString(),
+      netProfitMinor: netProfit.toString(),
+      unrestrictedCashMinor: cash.rows[0]?.amount ?? null,
+      rosBps: ratioBps(netProfit, revenue),
+      recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
+      approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,
+      postedOverheadRunCount: readiness.rows[0]?.overhead_count ?? 0,
+      source: "posted_ledger" as const,
+      monthly,
     };
   }
 
@@ -163,7 +232,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     };
   }
 
-  private async sourceControls(org: string, limit: number): Promise<WorkbookSourceControls> {
+  private async sourceControls(org: string, q: OperatingDashboardQuery): Promise<WorkbookSourceControls> {
     type SourceRow = {
       id: string;
       kind: WorkbookSourceControlKind;
@@ -179,8 +248,16 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
               review_flags "reviewFlags",mapped_data "mappedData"
          from workbook_import_review_rows
         where organization_id=$1 and kind=any($2::text[]) and status<>'ignored'
+          and (
+            (mapped_data->>'period' is not null and mapped_data->>'period' >= substring($3::text from 1 for 7) and mapped_data->>'period' <= substring($4::text from 1 for 7))
+            or (kind = 'expense_category_control' and exists (
+               select 1 from jsonb_array_elements(mapped_data->'monthlyAmounts') as a
+               where a->>'period' >= substring($3::text from 1 for 7) and a->>'period' <= substring($4::text from 1 for 7)
+            ))
+            or kind in ('payroll_master', 'bonus_control')
+          )
         order by kind,coalesce(mapped_data->>'period',''),source_row,id`,
-      [org, controlKinds],
+      [org, controlKinds, q.startsOn, q.endsOn],
     );
     const byKind = controlKinds
       .map((kind) => ({ kind, count: result.rows.filter((row) => row.kind === kind).length }))
@@ -277,7 +354,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         payrollRowCount: payrollRows.length,
         bonusRowCount: bonusRows.length,
       },
-      rows: result.rows.slice(0, limit),
+      rows: result.rows.slice(0, q.limit),
     };
   }
 }

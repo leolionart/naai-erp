@@ -32,6 +32,17 @@ export class PerformanceComparisonController {
       this.service.parseFacts(query),
     );
   }
+  @Get("planning-actual-facts/summary") async factSummary(
+    @Param("organizationId") org: string,
+    @Query() query: Record<string, string | undefined>,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") correlation?: string,
+  ) {
+    return this.service.summarizeFacts(
+      await this.context(org, auth, correlation),
+      this.service.parseFactSummary(query),
+    );
+  }
   @Post("planning-actual-facts/backfill") async backfill(
     @Param("organizationId") org: string,
     @Body() input: Record<string, unknown>,

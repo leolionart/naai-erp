@@ -18,7 +18,7 @@ export function useAuthenticatedApiClient() {
   useEffect(() => {
     setConnection(loadConnectionSettings(window.localStorage));
     const storedToken = loadApiToken(window.sessionStorage);
-    setToken(storedToken || (window.navigator.webdriver ? "" : LOCAL_DEVELOPMENT_TOKEN));
+    setToken(storedToken);
     setHydrated(true);
   }, []);
 

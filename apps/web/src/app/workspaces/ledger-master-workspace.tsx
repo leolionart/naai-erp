@@ -36,8 +36,8 @@ type ApiRow = Record<string, unknown>;
 type ApiEnvelope = Readonly<{ data?: unknown; nextActions?: readonly string[] }> & ApiRow;
 type StoredSettings = { version: 1; baseUrl: string; organizationId: string };
 
-const SETTINGS_KEY = "naai-erp-admin-settings-v2";
-const TOKEN_KEY = "naai-erp-admin-token";
+import { loadApiToken, loadConnectionSettings, saveApiToken, saveConnectionSettings } from "@/lib/api/connection";
+
 const TODAY = new Date().toISOString().slice(0, 10);
 
 function rowsFrom(payload: ApiEnvelope): ApiRow[] {
@@ -87,13 +87,23 @@ function LabeledField({ label, children }: Readonly<{ label: string; children: R
 
 export function LedgerMasterWorkspace({
   initialSection = "journals",
+  allowedSections = ["journals", "reports", "accounts", "resources"],
+  title = "Sổ kế toán & dữ liệu nền",
+  description = "Thao tác thân thiện qua REST v1; quyền, maker-checker, audit và idempotency do server thực thi.",
 }: {
   initialSection?: Section;
+  allowedSections?: readonly Section[];
+  title?: string;
+  description?: string;
 }) {
   const [section, setSection] = useState<Section>(initialSection);
   const [baseUrl, setBaseUrl] = useState("http://localhost:3001");
   const [organizationId, setOrganizationId] = useState("naai");
   const [token, setToken] = useState("");
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("Kết nối API rồi chọn Tải dữ liệu.");
   const [journals, setJournals] = useState<ApiRow[]>([]);
@@ -113,19 +123,10 @@ export function LedgerMasterWorkspace({
   const idempotencyKeys = useRef(new Map<string, string>());
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      try {
-        const saved = JSON.parse(raw) as StoredSettings;
-        if (saved.version === 1) {
-          setBaseUrl(saved.baseUrl);
-          setOrganizationId(saved.organizationId);
-        }
-      } catch {
-        window.localStorage.removeItem(SETTINGS_KEY);
-      }
-    }
-    setToken(window.sessionStorage.getItem(TOKEN_KEY) ?? "");
+    const settings = loadConnectionSettings(window.localStorage);
+    setBaseUrl(settings.baseUrl);
+    setOrganizationId(settings.organizationId);
+    setToken(loadApiToken(window.sessionStorage));
   }, []);
 
   const apiRoot = useMemo(
@@ -135,11 +136,8 @@ export function LedgerMasterWorkspace({
   );
 
   function persistSettings() {
-    window.localStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({ version: 1, baseUrl, organizationId } satisfies StoredSettings),
-    );
-    window.sessionStorage.setItem(TOKEN_KEY, token);
+    saveConnectionSettings(window.localStorage, { version: 1, baseUrl, organizationId });
+    saveApiToken(window.sessionStorage, token);
   }
 
   async function request(
@@ -249,6 +247,11 @@ export function LedgerMasterWorkspace({
     });
   }
 
+  useEffect(() => {
+    if (token) void loadCurrent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, resourceName, token]);
+
   async function journalAction(action: "approve" | "post" | "reverse") {
     const id = String(selectedJournal?.id ?? "");
     if (!id) return;
@@ -286,11 +289,8 @@ export function LedgerMasterWorkspace({
   return (
     <Card aria-label="Ledger and master data workspace">
       <CardHeader>
-        <CardTitle>Sổ kế toán & dữ liệu nền</CardTitle>
-        <CardDescription>
-          Thao tác thân thiện qua REST v1; quyền, maker-checker, audit và idempotency do server thực
-          thi.
-        </CardDescription>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
         <CardAction>
           <Button variant="outline" type="button" onClick={loadCurrent} disabled={busy}>
             {busy ? "Đang tải…" : "Tải dữ liệu"}
@@ -298,34 +298,14 @@ export function LedgerMasterWorkspace({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <details>
-          <summary>Kết nối API local</summary>
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <LabeledField label="API URL">
-              <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-            </LabeledField>
-            <LabeledField label="Organization ID">
-              <Input
-                value={organizationId}
-                onChange={(event) => setOrganizationId(event.target.value)}
-              />
-            </LabeledField>
-            <LabeledField label="Access token">
-              <Input
-                type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-            </LabeledField>
-          </FieldGroup>
-        </details>
+
 
         <div
           className="flex flex-wrap items-center gap-2"
           role="tablist"
           aria-label="Phân hệ kế toán"
         >
-          {(["journals", "reports", "accounts", "resources"] as const).map((item) => (
+          {allowedSections.map((item) => (
             <Button
               key={item}
               type="button"

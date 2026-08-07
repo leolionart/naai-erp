@@ -35,3 +35,15 @@ naai-erp export <resource|report> --format json|csv|xlsx
 ```
 
 Default output is JSON for AI consumption; `--human` enables formatted tables.
+
+## Relationship and ingestion contract
+
+Before chaining mutations, clients must read:
+
+- [`data-relationships-and-ingestion.md`](./data-relationships-and-ingestion.md) for lookup order,
+  identity propagation, lifecycle and correction recipes;
+- [`data-relationship-manifest-v1.json`](./data-relationship-manifest-v1.json) for the machine-readable
+  resource dependency graph and reference-field targets.
+
+The relationship contract is application-level. It does not authorize direct database access or
+make a known API/CLI parity gap callable.

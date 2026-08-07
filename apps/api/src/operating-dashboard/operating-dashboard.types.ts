@@ -97,6 +97,22 @@ export type OperatingDashboardReadModel = Readonly<{
     topThreeShareBps: number | null;
     clients: readonly Record<string, unknown>[];
   }>;
+  financials: Readonly<{
+    revenueMinor: string;
+    expenseMinor: string;
+    netProfitMinor: string;
+    unrestrictedCashMinor: string | null;
+    rosBps: number | null;
+    recognitionEventCount: number;
+    approvedBudgetCount: number;
+    postedOverheadRunCount: number;
+    source: "posted_ledger";
+    monthly: readonly Readonly<{
+      period: string;
+      revenueMinor: string;
+      expenseMinor: string;
+    }>[];
+  }>;
   dataQuality: Readonly<{
     pendingCount: number;
     byFlag: readonly Readonly<{ flag: string; count: number }>[];

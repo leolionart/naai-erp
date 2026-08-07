@@ -5,6 +5,7 @@ import { buildPerformanceComparison, type PerformanceAmount } from "@naai-erp/do
 import pg, { type PoolClient } from "pg";
 import type {
   ActualFactQuery,
+  ActualFactSummaryQuery,
   PerformanceContext,
   PerformanceQuery,
 } from "./performance-comparison.types.js";
@@ -46,6 +47,35 @@ export class PgPerformanceComparisonStore {
     return {
       items: rows.slice(0, q.limit),
       ...(rows.length > q.limit ? { nextCursor: rows[q.limit - 1]?.id } : {}),
+    };
+  }
+
+  async summarizeFacts(c: PerformanceContext, q: ActualFactSummaryQuery) {
+    const organization = (
+      await this.pool.query<{ base_currency: string }>(
+        "select base_currency from organizations where id=$1",
+        [c.organizationId],
+      )
+    ).rows[0];
+    if (!organization) throw new Error("RESOURCE_NOT_FOUND");
+    const result = await this.actual(
+      c.organizationId,
+      q.actualBasis,
+      q.from,
+      q.to,
+      organization.base_currency,
+      q.dimensions,
+    );
+    return {
+      schemaVersion: 1,
+      actualBasis: q.actualBasis,
+      from: q.from,
+      to: q.to,
+      currency: organization.base_currency,
+      amountMinor: result.amount.toString(),
+      factCount: result.ids.length,
+      sourceIds: result.ids,
+      dimensions: q.dimensions,
     };
   }
 

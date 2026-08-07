@@ -84,6 +84,17 @@ suite("operating dashboard PostgreSQL API", () => {
         backlog: { contractedMinor: "2000", invoicedMinor: "1000", remainingMinor: "1000" },
         collections: { receivablesMinor: "1000", overdueMinor: "1000" },
         clientConcentration: { totalRevenueMinor: "1000", topClientShareBps: 10000 },
+        financials: {
+          revenueMinor: "1000",
+          expenseMinor: "0",
+          netProfitMinor: "1000",
+          unrestrictedCashMinor: null,
+          rosBps: 10000,
+          recognitionEventCount: 0,
+          approvedBudgetCount: 0,
+          postedOverheadRunCount: 0,
+          source: "posted_ledger",
+        },
         dataQuality: { pendingCount: 7 },
         sourceControls: {
           source: "workbook_import_review_rows",

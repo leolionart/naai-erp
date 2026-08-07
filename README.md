@@ -6,7 +6,7 @@ Canonical repository: https://github.com/leolionart/naai-erp
 
 ## Current status
 
-The accounting/reporting foundation through ERP-700 is complete. The active narrow MVP has four remaining tasks: Paperless-linked ingestion, focused invoice/expense UI, clean-install report setup, and Docker release with real-data import.
+The accounting/reporting foundation through ERP-700 is complete. We have also implemented and integrated the core Operating Dashboard (including trend charts and expense allocations). The system now heavily relies on the PostgreSQL database for financial aggregates and reporting.
 
 ## Local development preview (no Docker build)
 
@@ -23,7 +23,7 @@ pnpm dev:preview
 - API live: http://localhost:3001/health/live
 - API ready: http://localhost:3001/health/ready
 
-The current preview does not require a database. Features that persist data require a PostgreSQL `DATABASE_URL`, but still run as native development processes. Production Docker images and Compose release proof belong to active MVP task ERP-740.
+A PostgreSQL database is required for the preview to function properly (especially for the dashboard and financial aggregates). Ensure `DATABASE_URL` is configured in your `.env` file. Production Docker images and Compose release proof belong to active MVP task ERP-740.
 
 ## AI-native API and CLI
 

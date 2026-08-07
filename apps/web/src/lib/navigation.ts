@@ -67,6 +67,14 @@ export const adminNavigation = [
         icon: "customer",
         status: "available",
       },
+      {
+        key: "executive-metrics",
+        label: "Chỉ số điều hành (BETA)",
+        href: "/reports/executive-metrics",
+        description: "Báo cáo dòng tiền, ROI, khả năng sinh lời và chỉ số sức khỏe doanh nghiệp.",
+        icon: "overview",
+        status: "available",
+      },
     ],
   },
   {
@@ -148,6 +156,81 @@ export const adminNavigation = [
             status: "available",
           },
         ],
+      },
+    ],
+  },
+  {
+    key: "banking_and_ledger",
+    label: "Ngân hàng & Sổ cái",
+    items: [
+      {
+        key: "banking",
+        label: "Tiền mặt & Ngân hàng",
+        description: "Quản lý dòng tiền, giao dịch và đối soát tài khoản.",
+        icon: "bank",
+        status: "available",
+        children: [
+          {
+            key: "bank-accounts",
+            label: "Tài khoản & Giao dịch",
+            href: "/banking",
+            description: "Số dư tài khoản và lịch sử giao dịch ngân hàng.",
+            status: "available",
+          },
+          {
+            key: "statements",
+            label: "Kiểm soát sao kê",
+            href: "/banking/statements",
+            description: "Kiểm soát số dư, import báo cáo và ngoại lệ trước khi đóng kỳ.",
+            status: "available",
+          },
+          {
+            key: "internal-transfers",
+            label: "Chuyển tiền nội bộ",
+            href: "/banking/internal-transfers",
+            description: "Chuyển tiền giữa các tài khoản ngân hàng và quỹ tiền mặt.",
+            status: "available",
+          },
+        ],
+      },
+      {
+        key: "ledger",
+        label: "Sổ cái kế toán",
+        description: "Lịch sử bút toán và hạch toán kế toán chi tiết.",
+        icon: "ledger",
+        status: "available",
+        children: [
+          {
+            key: "journals",
+            label: "Bút toán & Sổ nhật ký",
+            href: "/accounting/journals",
+            description: "Danh sách toàn bộ bút toán kế toán đã ghi nhận.",
+            status: "available",
+          }
+        ]
+      },
+    ],
+  },
+  {
+    key: "data_and_system",
+    label: "Dữ liệu & Cấu hình",
+    items: [
+
+      {
+        key: "master-data",
+        label: "Danh mục hệ thống",
+        href: "/settings/master-data",
+        description: "Cấu hình tài khoản, mã thuế, phòng ban, và danh mục chuẩn.",
+        icon: "folder",
+        status: "available",
+      },
+      {
+        key: "accountant-exports",
+        label: "Xuất dữ liệu kế toán",
+        href: "/reports/accountant-exports",
+        description: "Xuất khẩu file Excel chứng từ để gửi dịch vụ kế toán thuế.",
+        icon: "report",
+        status: "available",
       },
     ],
   },

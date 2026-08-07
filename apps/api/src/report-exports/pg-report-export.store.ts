@@ -699,24 +699,79 @@ export class PgReportExportStore {
         ["Result hash", snapshot.resultHash],
       ].map(([k, v]) => ({ field: cell(k), value: cell(v) })),
     };
-    const flat: Record<string, unknown>[] = [];
-    const walk = (v: unknown, path: string) => {
-      if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`));
-      else if (v && typeof v === "object")
-        Object.entries(v)
-          .sort()
-          .forEach(([k, x]) => walk(x, path ? `${path}.${k}` : k));
-      else flat.push({ path, value: v });
-    };
-    walk(result, "");
+    const reportRows: { path: any; value: any; code?: any }[] = [];
+    
+    if (["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"].includes(snapshot.reportKind)) {
+      const lines = Array.isArray(result.lines) ? result.lines : [];
+      reportRows.push({ path: cell("Chỉ tiêu"), value: cell("Số tiền"), code: cell("Mã") });
+      for (const line of lines as any[]) {
+        reportRows.push({
+          path: cell(line.label ?? ""),
+          value: cell(line.amountMinor ?? ""),
+          code: cell(line.lineCode ?? ""),
+        });
+      }
+      
+      reportRows.push({ path: cell("---"), value: cell("---"), code: cell("---") });
+
+      if (result.totalMinor !== undefined) {
+        reportRows.push({ path: cell("Tổng cộng"), value: cell(result.totalMinor as string), code: cell("TOTAL") });
+      }
+
+      if (result.equation) {
+        const eq = result.equation as any;
+        reportRows.push({ path: cell("Tổng Tài sản"), value: cell(eq.assetsMinor), code: cell("EQ.ASSETS") });
+        reportRows.push({ path: cell("Tổng Nợ"), value: cell(eq.liabilitiesMinor), code: cell("EQ.LIABILITIES") });
+        reportRows.push({ path: cell("Tổng Vốn chủ sở hữu"), value: cell(eq.equityMinor), code: cell("EQ.EQUITY") });
+        reportRows.push({ path: cell("Chênh lệch"), value: cell(eq.differenceMinor), code: cell("EQ.DIFF") });
+      }
+
+      if (result.openingCashMinor !== undefined) {
+        reportRows.push({ path: cell("Tiền đầu kỳ"), value: cell(result.openingCashMinor as string), code: cell("CASH.OPEN") });
+        reportRows.push({ path: cell("Lưu chuyển HĐ Kinh doanh"), value: cell(result.operatingCashFlowMinor as string), code: cell("CASH.OP") });
+        reportRows.push({ path: cell("Lưu chuyển HĐ Đầu tư"), value: cell(result.investingCashFlowMinor as string), code: cell("CASH.INV") });
+        reportRows.push({ path: cell("Lưu chuyển HĐ Tài chính"), value: cell(result.financingCashFlowMinor as string), code: cell("CASH.FIN") });
+        reportRows.push({ path: cell("Lưu chuyển thuần"), value: cell(result.netCashMovementMinor as string), code: cell("CASH.NET") });
+        reportRows.push({ path: cell("Tiền cuối kỳ"), value: cell(result.closingCashMinor as string), code: cell("CASH.CLOSE") });
+      }
+
+      if (result.totals) {
+        const t = result.totals as any;
+        for (const [k, v] of Object.entries(t)) {
+          reportRows.push({ path: cell(`Tổng: ${k}`), value: cell(v as string), code: cell(`TOTAL.${k}`) });
+        }
+      }
+      if (result.controls) {
+        const c = result.controls as any;
+        for (const [k, v] of Object.entries(c)) {
+          reportRows.push({ path: cell(`Kiểm soát: ${k}`), value: cell(v as string), code: cell(`CTRL.${k}`) });
+        }
+      }
+
+    } else {
+      // Fallback for unknown reports
+      const flat: Record<string, unknown>[] = [];
+      const walk = (v: unknown, path: string) => {
+        if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`));
+        else if (v && typeof v === "object")
+          Object.entries(v)
+            .sort()
+            .forEach(([k, x]) => walk(x, path ? `${path}.${k}` : k));
+        else flat.push({ path, value: v });
+      };
+      walk(result, "");
+      reportRows.push(...flat.map((x) => ({ path: cell(x.path), value: cell(x.value) })));
+    }
+
     const report: WorkbookSheet = {
       key: "report",
       name: "Report",
       columns: [
-        { key: "path", label: "Path" },
-        { key: "value", label: "Value" },
+        { key: "code", label: "Mã" },
+        { key: "path", label: "Chỉ tiêu" },
+        { key: "value", label: "Số tiền" },
       ],
-      rows: flat.map((x) => ({ path: cell(x.path), value: cell(x.value) })),
+      rows: reportRows,
     };
     const mapping: WorkbookSheet = {
       key: "mapping",
@@ -823,16 +878,60 @@ export class PgReportExportStore {
     book.modified = book.created;
     book.calcProperties.fullCalcOnLoad = false;
     for (const sheet of workbook.sheets) {
-      const ws = book.addWorksheet(sheet.name, { properties: { defaultRowHeight: 18 } });
+      const ws = book.addWorksheet(sheet.name, { properties: { defaultRowHeight: 20 } });
       ws.columns = sheet.columns.map((x) => ({
         header: x.label,
         key: x.key,
-        width: Math.max(14, x.label.length + 2),
+        width: Math.max(16, x.label.length + 4),
       }));
-      for (const row of sheet.rows)
-        ws.addRow(Object.fromEntries(sheet.columns.map((x) => [x.key, row[x.key]?.value ?? null])));
-      ws.getRow(1).font = { bold: true };
+
+      // Add rows and format numbers
+      for (const row of sheet.rows) {
+        const addedRow = ws.addRow(Object.fromEntries(sheet.columns.map((x) => {
+          let val = row[x.key]?.value ?? null;
+          const fmt = row[x.key]?.format;
+          if (val !== null && (fmt === "number" || fmt === "integer" || !isNaN(Number(val)) && val !== "")) {
+             // Convert string numbers to real numbers for Excel to format them properly
+             if (typeof val === "string") val = Number(val);
+          }
+          return [x.key, val];
+        })));
+        
+        // Apply number formats
+        sheet.columns.forEach((col, index) => {
+           const cellInfo = row[col.key];
+           const fmt = cellInfo?.format;
+           const excelCell = addedRow.getCell(index + 1);
+           
+           if (fmt === "number" || fmt === "integer" || (typeof excelCell.value === "number")) {
+             excelCell.numFmt = '#,##0'; // format with thousands separator
+           }
+        });
+      }
+
+      // Beautiful header formatting
+      const headerRow = ws.getRow(1);
+      headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 12 };
+      headerRow.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF4F81BD" } // Nice corporate blue
+      };
+      headerRow.alignment = { vertical: "middle", horizontal: "center" };
+      
       ws.views = [{ state: "frozen", ySplit: 1 }];
+      
+      // Auto-fit column widths based on content
+      ws.columns.forEach((column) => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, (cell) => {
+          const columnLength = cell.value ? cell.value.toString().length : 10;
+          if (columnLength > maxLength) {
+            maxLength = columnLength;
+          }
+        });
+        column.width = maxLength < 10 ? 10 : Math.min(maxLength + 2, 60);
+      });
     }
     return normalizeZipTimestamps(Buffer.from(await book.xlsx.writeBuffer()));
   }

@@ -219,16 +219,15 @@ export function AccountantExportListWorkspace() {
   const [exports, setExports] = useState<readonly AccountantExportContract[]>([demoExport]);
   const [fallback, setFallback] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [format, setFormat] = useState<"all" | Format>("all");
   useEffect(() => {
     if (!hydrated || !hasToken) return;
     void client
       .data<{ items: AccountantExportContract[] }>("accountant-exports")
       .then((result) => {
-        if (result.items.length) {
-          setExports(result.items);
-          setFallback(false);
-        }
+        setExports(result.items);
+        setFallback(false);
       })
       .catch(() => undefined);
   }, [client, hasToken, hydrated]);
@@ -251,11 +250,9 @@ export function AccountantExportListWorkspace() {
               <Filter data-icon="inline-start" />
               Bộ lọc
             </Button>
-            <Button asChild>
-              <Link href="/reports/accountant-exports/new">
-                <FilePlus2 data-icon="inline-start" />
-                Tạo gói xuất
-              </Link>
+            <Button onClick={() => setCreateOpen(true)}>
+              <FilePlus2 data-icon="inline-start" />
+              Tạo gói xuất
             </Button>
           </div>
         </div>
@@ -358,32 +355,43 @@ export function AccountantExportListWorkspace() {
           </PopoverFooter>
         </PopoverContent>
       </Popover>
+      <AccountantExportCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
     </ModulePage>
   );
 }
 
-export function AccountantExportCreateWorkspace() {
+export function AccountantExportCreateDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+}) {
   const router = useRouter();
   const { client, hydrated, hasToken } = useApi();
-  const [snapshots, setSnapshots] = useState<readonly ReportSnapshotContract[]>([demoSnapshot]);
-  const [snapshotId, setSnapshotId] = useState(demoSnapshot.id);
+  const [snapshots, setSnapshots] = useState<readonly ReportSnapshotContract[]>([]);
+  const [snapshotId, setSnapshotId] = useState("");
   const [format, setFormat] = useState<Format>("xlsx");
-  const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
   const selected = snapshots.find((item) => item.id === snapshotId) ?? snapshots[0];
+
   useEffect(() => {
-    if (!hydrated || !hasToken) return;
+    if (!open || !hydrated || !hasToken) return;
     void client
       .data<{ items: ReportSnapshotContract[] }>("report-snapshots")
       .then((r) => {
-        if (r.items.length) {
-          setSnapshots(r.items);
+        setSnapshots(r.items);
+        if (r.items.length > 0) {
           setSnapshotId(r.items[0]!.id);
+        } else {
+          setSnapshotId("");
         }
       })
       .catch(() => undefined);
-  }, [client, hasToken, hydrated]);
+  }, [client, hasToken, hydrated, open]);
+
   async function create() {
     if (!selected) return;
     setBusy(true);
@@ -398,119 +406,87 @@ export function AccountantExportCreateWorkspace() {
           reportKind: selected.reportKind,
         },
       });
+      onOpenChange(false);
       router.push(`/reports/accountant-exports/${result.id}?version=${result.version}`);
     } catch (cause) {
-      if (!hasToken) {
-        router.push(`/reports/accountant-exports/${demoExport.id}?version=1&preview=1`);
-        return;
-      }
       setError(cause instanceof Error ? cause.message : "Không thể tạo gói xuất.");
-      setConfirm(false);
+    } finally {
       setBusy(false);
     }
   }
+
   return (
-    <ModulePage
-      title="Tạo gói xuất kế toán"
-      description="Chọn một snapshot đã capture và định dạng bàn giao; dữ liệu nguồn không bị tính lại âm thầm."
-      section="Xuất dữ liệu kế toán"
-    >
-      <div className="flex max-w-3xl flex-col gap-6">
-        <Button variant="ghost" asChild className="w-fit">
-          <Link href="/reports/accountant-exports">
-            <ArrowLeft data-icon="inline-start" />
-            Quay lại danh sách
-          </Link>
-        </Button>
-        <Card>
-          <CardHeader>
-            <CardTitle>Cấu hình gói xuất</CardTitle>
-            <CardDescription>
-              File luôn gắn với đúng version của snapshot được chọn.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <Field>
-                <FieldLabel>Snapshot</FieldLabel>
-                <Select value={snapshotId} onValueChange={setSnapshotId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {snapshots.map((item) => (
-                        <SelectItem key={`${item.id}-${item.version}`} value={item.id}>
-                          {reportLabels[item.reportKind]} · {item.period.asOfDate} · v{item.version}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>Định dạng</FieldLabel>
-                <Select value={format} onValueChange={(value) => setFormat(value as Format)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="xlsx">XLSX workbook</SelectItem>
-                      <SelectItem value="csv">CSV bundle</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldGroup>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Button onClick={() => setConfirm(true)}>Kiểm tra và tạo</Button>
-          </CardFooter>
-        </Card>
-        {selected?.readiness === "review_required" ? (
-          <Alert variant="destructive">
-            <AlertTitle>Snapshot chưa final</AlertTitle>
-            <AlertDescription>
-              File tạo từ snapshot này chỉ dùng để rà soát. Không gửi như báo cáo đã chốt cho kế
-              toán hoặc cơ quan thuế.
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Tạo gói xuất thất bại</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-      </div>
-      <Dialog open={confirm} onOpenChange={setConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Xác nhận tạo gói {format.toUpperCase()}</DialogTitle>
-            <DialogDescription>
-              Gói xuất sẽ khóa vào {selected?.id} phiên bản {selected?.version}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Readiness value={selected?.readiness ?? "review_required"} />
-            <p className="text-sm text-muted-foreground">
-              {selected ? reportLabels[selected.reportKind] : ""} · {selected?.period.asOfDate}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirm(false)}>
-              Hủy
-            </Button>
-            <Button disabled={busy} onClick={() => void create()}>
-              {busy ? "Đang tạo…" : "Tạo gói xuất"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </ModulePage>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Cấu hình gói xuất</DialogTitle>
+          <DialogDescription>
+            Chọn một snapshot đã capture và định dạng bàn giao; file luôn gắn với đúng version của snapshot được chọn.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <FieldGroup>
+            <Field>
+              <FieldLabel>Snapshot</FieldLabel>
+              <Select value={snapshotId} onValueChange={setSnapshotId} disabled={snapshots.length === 0}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={snapshots.length === 0 ? "Chưa có snapshot nào" : "Chọn snapshot..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {snapshots.map((item) => (
+                      <SelectItem key={`${item.id}-${item.version}`} value={item.id}>
+                        {reportLabels[item.reportKind]} · {item.period.asOfDate} · v{item.version}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>Định dạng</FieldLabel>
+              <Select value={format} onValueChange={(value) => setFormat(value as Format)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="xlsx">XLSX workbook</SelectItem>
+                    <SelectItem value="csv">CSV bundle</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          </FieldGroup>
+          {selected?.readiness === "review_required" ? (
+            <Alert variant="destructive">
+              <AlertTitle>Snapshot chưa final</AlertTitle>
+              <AlertDescription>
+                File tạo từ snapshot này chỉ dùng để rà soát.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTitle>Tạo gói xuất thất bại</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Hủy</Button>
+          </DialogClose>
+          <Button disabled={busy || !selected} onClick={() => void create()}>
+            {busy ? "Đang tạo…" : "Tạo gói xuất"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
+
+
 
 export function AccountantExportDetailWorkspace({
   exportId,

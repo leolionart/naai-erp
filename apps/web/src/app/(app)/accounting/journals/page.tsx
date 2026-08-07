@@ -8,7 +8,12 @@ export default function JournalsPage() {
       section="Kế toán"
       description="Tạo, duyệt, ghi sổ, đảo bút toán và xem báo cáo sổ cái."
     >
-      <LedgerMasterWorkspace initialSection="journals" />
+      <LedgerMasterWorkspace
+        initialSection="journals"
+        allowedSections={["journals", "reports"]}
+        title="Bút toán & Báo cáo"
+        description="Quản lý lịch sử hạch toán kế toán, lên sổ nhật ký chung và báo cáo sổ cái."
+      />
     </ModulePage>
   );
 }
