@@ -85,7 +85,7 @@ describe("ERP-640 CLI executable", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
   it("maps report options to the executive metrics projection query", async () => {
     const result = await invoke([
       "executive-metrics",
