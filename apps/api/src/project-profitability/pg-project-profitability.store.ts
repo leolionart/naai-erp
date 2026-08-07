@@ -243,7 +243,7 @@ export class PgProjectProfitabilityStore {
                                from reconciliation_allocations a join reconciliation_attempts r
                                 on r.organization_id=a.organization_id and r.id=a.reconciliation_id
                               where a.organization_id=d.organization_id and a.commercial_document_id=d.id
-                                and r.state='reconciled') p on true
+                                and r.state='reconciled' and r.reconciled_at::date<=$3::date) p on true
           where d.organization_id=$1 and d.type='sales_invoice' and d.due_date<$3::date
             and d.document_date<=$3::date and d.state in('issued','posted','partially_paid','paid')`,
         [organizationId, project.id, asOf],

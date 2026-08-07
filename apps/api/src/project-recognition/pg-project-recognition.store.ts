@@ -215,10 +215,12 @@ export class PgProjectRecognitionStore {
     const collected = await this.pool.query<{ n: string }>(
       `select coalesce(sum(a.target_amount_minor * x.project_net_minor / nullif(d.net_minor,0)),0)::text n
        from reconciliation_allocations a
+       join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id
        join commercial_documents d on d.organization_id=a.organization_id and d.id=a.commercial_document_id
        join lateral (select sum(a2.amount_minor) project_net_minor from commercial_document_allocations a2 where a2.organization_id=d.organization_id and a2.document_id=d.id and a2.dimensions->>'projectId'=$2) x on x.project_net_minor is not null
-       where a.organization_id=$1 and d.type='sales_invoice'`,
-      [c.organizationId, projectId],
+       where a.organization_id=$1 and d.type='sales_invoice' and r.state='reconciled'
+         and r.reconciled_at::date<=$3::date`,
+      [c.organizationId, projectId, asOf],
     );
     return {
       projectId,

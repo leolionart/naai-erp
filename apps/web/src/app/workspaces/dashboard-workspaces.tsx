@@ -793,8 +793,8 @@ export function ExecutiveDashboardWorkspace() {
   const fallbackBacklogMinor = sumMinor(
     projects.map((item) => {
       const budget = BigInt(item.budgetRevenueMinor ?? "0");
-      const recognized = BigInt(item.recognizedRevenueMinor ?? "0");
-      return budget > recognized ? (budget - recognized).toString() : "0";
+      const invoiced = BigInt(item.invoicedRevenueMinor ?? "0");
+      return budget > invoiced ? (budget - invoiced).toString() : "0";
     }),
   );
   const overdueMinor = operating?.collections.overdueMinor ?? fallbackOverdueMinor;
@@ -909,9 +909,9 @@ export function ExecutiveDashboardWorkspace() {
                 <SelectValue placeholder="Cơ sở doanh thu" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="invoiced">Xuất hóa đơn (Invoiced)</SelectItem>
-                <SelectItem value="recognized">Nghiệm thu (Recognized)</SelectItem>
-                <SelectItem value="collected">Thực thu (Collected)</SelectItem>
+                <SelectItem value="invoiced">Giá trị đã xuất hóa đơn</SelectItem>
+                <SelectItem value="recognized">Doanh thu đã ghi nhận</SelectItem>
+                <SelectItem value="collected">Đã thu từ khách hàng</SelectItem>
               </SelectContent>
             </Select>
             {search.get("serviceLineCode") ? (
@@ -959,7 +959,7 @@ export function ExecutiveDashboardWorkspace() {
           <>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <MetricCard
-                title="Doanh thu đã xuất hóa đơn"
+                title="Giá trị đã xuất hóa đơn"
                 value={money(
                   nonZeroMinor(data.actualSummary?.amountMinor) ??
                     nonZeroMinor(operating?.clientConcentration.totalRevenueMinor) ??
@@ -970,12 +970,12 @@ export function ExecutiveDashboardWorkspace() {
                     performance?.currency ??
                     data.projects?.currency,
                 )}
-                description="Tổng tiền hóa đơn GTGT đã xuất trong kỳ"
+                description="Giá trị hóa đơn bán ra đã phát hành; không đồng nghĩa đã thu tiền"
                 href={`/reports/project-profitability?${q}`}
                 provisional={usingOperatingFallback}
               />
               <MetricCard
-                title="Doanh thu ghi nhận (Theo mốc hợp đồng)"
+                title="Doanh thu đã nghiệm thu/ghi nhận"
                 value={money(
                   search.get("actualBasis") === "recognized"
                     ? (nonZeroMinor(data.actualSummary?.amountMinor) ?? recognizedDisplayMinor)
@@ -984,7 +984,7 @@ export function ExecutiveDashboardWorkspace() {
                 )}
                 description={
                   operating?.financials.recognitionEventCount
-                    ? "Giá trị nghiệm thu dồn tích theo mốc dự án"
+                    ? "Phần giá trị hợp đồng đã đủ điều kiện ghi nhận doanh thu"
                     : "Chưa có mốc ghi nhận doanh thu đã post"
                 }
                 href={`/reports/project-profitability?${q}`}
@@ -1038,11 +1038,11 @@ export function ExecutiveDashboardWorkspace() {
                 status={executive?.runwayStatus}
               />
               <MetricCard
-                title="Backlog hợp đồng"
+                title="Giá trị hợp đồng chưa xuất hóa đơn"
                 value={money(backlogMinor, data.projects?.currency)}
                 description={
                   operating
-                    ? `${operating.backlog.projectCount} dự án có hợp đồng`
+                    ? `Tổng hợp từ ${operating.backlog.projectCount} dự án có hợp đồng`
                     : "Doanh thu hợp đồng chưa ghi nhận"
                 }
                 href={`/reports/project-profitability?${q}`}

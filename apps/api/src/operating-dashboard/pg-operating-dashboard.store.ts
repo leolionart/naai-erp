@@ -180,12 +180,12 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         case when b.id is null then 'project-budget-fallback' else 'approved-direct-cost-budget' end "eacMethod"
        from projects p join parties pa on pa.organization_id=p.organization_id and pa.id=p.client_party_id
        left join lateral (select sum(value_minor) amount from contracts where organization_id=p.organization_id and project_id=p.id) c on true
-       left join lateral (select sum(a.amount_minor) amount from commercial_document_allocations a join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid')) i on true
-       left join lateral (select sum(a.amount_minor) amount from expense_allocations a join expenses x on x.organization_id=a.organization_id and x.id=a.expense_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and x.state='posted') e on true
+       left join lateral (select sum(a.amount_minor) amount from commercial_document_allocations a join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date<=$4::date) i on true
+       left join lateral (select sum(a.amount_minor) amount from expense_allocations a join expenses x on x.organization_id=a.organization_id and x.id=a.expense_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and x.state='posted' and x.expense_date<=$4::date) e on true
        left join lateral (select id,direct_cost_total_minor from project_budget_versions where organization_id=p.organization_id and project_id=p.id and state='approved' order by version_number desc limit 1) b on true
        where p.organization_id=$1 and p.starts_on<=$2 and (p.ends_on is null or p.ends_on>=$3)
        order by greatest(coalesce(c.amount,p.budget_minor)-coalesce(i.amount,0),0) desc,p.id`,
-        [org, q.endsOn, q.startsOn],
+        [org, q.endsOn, q.startsOn, q.asOf],
       )
     ).rows;
   }
@@ -195,9 +195,9 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       await this.pool.query<Record<string, unknown>>(
         `select d.party_id "clientId",p.display_name "clientName",sum(d.net_minor)::text "revenueMinor",count(*)::int "invoiceCount"
        from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id
-       where d.organization_id=$1 and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and $3
+       where d.organization_id=$1 and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and least($3::date,$4::date)
        group by d.party_id,p.display_name order by sum(d.net_minor) desc,d.party_id`,
-        [org, q.startsOn, q.endsOn],
+        [org, q.startsOn, q.endsOn, q.asOf],
       )
     ).rows;
   }

@@ -241,12 +241,28 @@ function thousandths(value: string) {
   return fraction === 0n ? whole.toString() : `${whole},${fraction.toString().padStart(3, "0")}`;
 }
 
+function cleanFormula(formula: string): string {
+  const map: Record<string, string> = {
+    "max(0, -retained earnings)": "Lỗ lũy kế tính đến cuối kỳ",
+    "Approved contributed-capital mapping": "Vốn góp theo đăng ký kinh doanh & thực góp",
+    "accumulated-loss-over-contributed-capital-v1": "Tỷ lệ lỗ lũy kế trên vốn góp",
+    "equity-roll-forward-control-v1": "Kiểm soát biến động vốn chủ sở hữu",
+    "Liability; excluded from contributed capital": "Nợ phải trả chủ sở hữu (Không tính vào vốn góp)",
+    "Approved unrestricted-cash mapping": "Số dư tiền mặt & tiền gửi khả dụng",
+    "reviewed-operating-net-burn-v1": "Tốc độ chi tiêu vận hành bình quân",
+    "unrestricted-cash-over-reviewed-net-burn-v1": "Thời gian duy trì dòng tiền khả dụng",
+    "signed-revenue-profitability-v1": "Tỷ suất lợi nhuận trên doanh thu",
+    "executive-metrics-v1": "Mô hình dồn tích quản trị",
+  };
+  return map[formula] ?? formula;
+}
+
 function ratioMetric(code: string, label: string, ratio: ExecutiveRatioContract): Metric {
   return {
     code,
     label,
     value: ratioValue(ratio),
-    formula: ratio.formulaVersion,
+    formula: cleanFormula(ratio.formulaVersion),
     status: ratio.status === "available" ? "ready" : "review",
     source: ratio.reason ?? `${ratio.numeratorMinor} / ${ratio.denominatorMinor}`,
   };
@@ -262,7 +278,7 @@ function reportMetrics(
         code: "accumulated_loss",
         label: "Lỗ lũy kế",
         value: money(report.accumulatedLossMinor, report.currency),
-        formula: "max(0, -retained earnings)",
+        formula: cleanFormula("max(0, -retained earnings)"),
         status: "ready",
         source: report.sourceBoundary.ledgerCutoffFingerprint,
       },
@@ -270,7 +286,7 @@ function reportMetrics(
         code: "contributed_capital",
         label: "Vốn góp",
         value: money(report.contributedCapitalMinor, report.currency),
-        formula: "Approved contributed-capital mapping",
+        formula: cleanFormula("Approved contributed-capital mapping"),
         status: "ready",
         source: report.sourceBoundary.ledgerCutoffFingerprint,
       },
@@ -279,7 +295,7 @@ function reportMetrics(
         code: "equity_roll_forward",
         label: "Kiểm soát biến động vốn",
         value: money(report.equityRollForward.differenceMinor, report.currency),
-        formula: report.equityRollForward.controlVersion,
+        formula: cleanFormula(report.equityRollForward.controlVersion),
         status: report.equityRollForward.status === "tied_out" ? "ready" : "review",
         source: `${report.equityRollForward.openingEquityMinor} → ${report.equityRollForward.actualClosingEquityMinor}`,
       },
@@ -287,7 +303,7 @@ function reportMetrics(
         code: "owner_loans",
         label: "Khoản vay chủ sở hữu",
         value: money(report.ownerLoansMinor, report.currency),
-        formula: "Liability; excluded from contributed capital",
+        formula: cleanFormula("Liability; excluded from contributed capital"),
         status: "ready",
         source: report.sourceBoundary.ledgerCutoffFingerprint,
       },
@@ -298,7 +314,7 @@ function reportMetrics(
         code: "unrestricted_cash",
         label: "Tiền khả dụng",
         value: money(report.unrestrictedCashMinor, report.currency),
-        formula: "Approved unrestricted-cash mapping",
+        formula: cleanFormula("Approved unrestricted-cash mapping"),
         status: "ready",
         source: report.sourceBoundary.ledgerCutoffFingerprint,
       },
@@ -306,7 +322,7 @@ function reportMetrics(
         code: "average_burn",
         label: "Net operating burn bình quân",
         value: report.netBurnMinor === null ? "N/A" : money(report.netBurnMinor, report.currency),
-        formula: report.burnFormulaVersion,
+        formula: cleanFormula(report.burnFormulaVersion),
         status: report.netBurnMinor === null ? "review" : "ready",
         source: report.runwayStatus,
       },
@@ -317,7 +333,7 @@ function reportMetrics(
           report.runwayMonthsThousandths === null
             ? "N/A"
             : `${thousandths(report.runwayMonthsThousandths)} tháng`,
-        formula: report.runwayFormulaVersion,
+        formula: cleanFormula(report.runwayFormulaVersion),
         status: report.runwayStatus === "available" ? "ready" : "review",
         source: `Restricted cash excluded: ${report.restrictedCashMinor}`,
       },
@@ -348,37 +364,37 @@ export function ExecutiveMetricsLanding() {
       section="Tài chính"
       description="Một nơi kiểm tra vốn bị tiêu hao, sức khỏe tiền mặt, profitability và ROI; mỗi nhóm có route và source riêng."
     >
-      <Alert>
-        <Info />
-        <AlertTitle>Số liệu quản trị có policy version</AlertTitle>
-        <AlertDescription>
-          Chỉ số không có mẫu số hợp lệ sẽ hiển thị N/A; runway không bao giờ trả về Infinity và
-          owner loan luôn là liability.
-        </AlertDescription>
-      </Alert>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {pages.map((page) => (
-          <Card className="h-full" key={page.kind}>
-            <CardHeader>
-              <Badge className="w-fit" variant="outline">
-                {page.badge}
-              </Badge>
-              <CardTitle>{page.title}</CardTitle>
-              <CardDescription>{page.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Exact values · Policy version · Source drill-down
-            </CardContent>
-            <CardFooter>
-              <Link
-                className="inline-flex items-center gap-2 text-sm font-medium"
-                href={`/reports/executive-metrics/${page.kind}`}
-              >
-                Mở phân tích <ArrowRight />
-              </Link>
-            </CardFooter>
-          </Card>
-        ))}
+      <div className="flex flex-col gap-6">
+        <Alert>
+          <Info />
+          <AlertTitle>Số liệu quản trị dồn tích</AlertTitle>
+          <AlertDescription>
+            Tự động tổng hợp dữ liệu vốn, thanh khoản, biên lợi nhuận và hiệu quả sử dụng vốn theo kỳ.
+          </AlertDescription>
+        </Alert>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {pages.map((page) => (
+            <Card className="flex flex-col justify-between h-full" key={page.kind}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-lg font-semibold">{page.title}</CardTitle>
+                  <Badge variant="outline" className="shrink-0">{page.badge}</Badge>
+                </div>
+                <CardDescription className="line-clamp-2 mt-1.5">{page.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground pt-0">
+                Theo dõi chi tiết số liệu dồn tích & nguồn chứng từ
+              </CardContent>
+              <CardFooter className="pt-0">
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/reports/executive-metrics/${page.kind}`}>
+                    Mở phân tích <ArrowRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
       </div>
     </ModulePage>
   );
@@ -475,65 +491,69 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
   }
   return (
     <ModulePage title={config.title} section="Chỉ số điều hành" description={config.description}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">
-            {startsOn}–{endsOn}
-          </Badge>
-          <Badge variant="secondary">{report?.formulaVersion ?? "Đang chờ API"}</Badge>
-          <Badge variant="outline">{report ? "Dữ liệu hệ thống" : "Dữ liệu phát triển"}</Badge>
-          {serviceLine ? <Badge variant="outline">Service line: {serviceLine}</Badge> : null}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">
+              {startsOn}–{endsOn}
+            </Badge>
+            <Badge variant="secondary">
+              {report?.formulaVersion ? "Số liệu dồn tích chuẩn" : "Đang chờ API"}
+            </Badge>
+            <Badge variant="outline">{report ? "Dữ liệu hệ thống" : "Dữ liệu phát triển"}</Badge>
+            {serviceLine ? <Badge variant="outline">Service line: {serviceLine}</Badge> : null}
+          </div>
+          <Button variant="outline" onClick={() => setFilterOpen(true)}>
+            <Filter />
+            Bộ lọc
+          </Button>
         </div>
-        <Button variant="outline" onClick={() => setFilterOpen(true)}>
-          <Filter />
-          Bộ lọc
-        </Button>
+        {loadError ? (
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertTitle>Chưa tải được dữ liệu hệ thống</AlertTitle>
+            <AlertDescription>
+              {loadError}. Giao diện đang hiển thị fixture phát triển để kiểm tra luồng tương tác.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {rows.some((row) => row.status === "review") ? (
+          <Alert>
+            <AlertTriangle />
+            <AlertTitle>Có chỉ số cần review</AlertTitle>
+            <AlertDescription>
+              Kiểm tra policy, mapping và nguồn trước khi dùng cho quyết định vốn hoặc đầu tư.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {rows.slice(0, 3).map((row) => (
+            <KpiCard
+              key={row.code}
+              title={row.label}
+              period={`${startsOn}–${endsOn}`}
+              value={row.value}
+              comparison={row.formula}
+              footer={
+                <Badge variant={row.status === "ready" ? "secondary" : "outline"}>
+                  {row.status === "ready" ? "Sẵn sàng" : "Cần review"}
+                </Badge>
+              }
+            />
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Bảng chỉ số exact</CardTitle>
+            <CardDescription>
+              Bảng số liệu là bằng chứng chính; không suy luận giá trị từ biểu đồ.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FinancialDataTable rows={rows} columns={columns} rowKey={(row) => row.code} />
+          </CardContent>
+        </Card>
       </div>
-      {loadError ? (
-        <Alert variant="destructive">
-          <AlertTriangle />
-          <AlertTitle>Chưa tải được dữ liệu hệ thống</AlertTitle>
-          <AlertDescription>
-            {loadError}. Giao diện đang hiển thị fixture phát triển để kiểm tra luồng tương tác.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {rows.some((row) => row.status === "review") ? (
-        <Alert>
-          <AlertTriangle />
-          <AlertTitle>Có chỉ số cần review</AlertTitle>
-          <AlertDescription>
-            Kiểm tra policy, mapping và nguồn trước khi dùng cho quyết định vốn hoặc đầu tư.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {rows.slice(0, 3).map((row) => (
-          <KpiCard
-            key={row.code}
-            title={row.label}
-            period={`${startsOn}–${endsOn}`}
-            value={row.value}
-            comparison={row.formula}
-            footer={
-              <Badge variant={row.status === "ready" ? "secondary" : "outline"}>
-                {row.status === "ready" ? "Sẵn sàng" : "Cần review"}
-              </Badge>
-            }
-          />
-        ))}
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Bảng chỉ số exact</CardTitle>
-          <CardDescription>
-            Bảng số liệu là bằng chứng chính; không suy luận giá trị từ biểu đồ.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FinancialDataTable rows={rows} columns={columns} rowKey={(row) => row.code} />
-        </CardContent>
-      </Card>
       <Popover open={filterOpen} onOpenChange={setFilterOpen}>
         <PopoverActiveAnchor open={Boolean(filterOpen)} />
         <PopoverContent

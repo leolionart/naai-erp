@@ -30,11 +30,14 @@ suite("operating dashboard PostgreSQL API", () => {
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
         ('${org}','sales-journal',1,'131',1000,null,'AR','{}'),('${org}','sales-journal',2,'511',null,1000,'Revenue','{}');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,created_by)
-        values('${org}','invoice','sales_invoice','issued','OPS-1','OPS',2026,'client','2026-07-01','2026-07-31','VND',1000,0,1000,'131','sales-journal','${owner}');
+        values('${org}','invoice','sales_invoice','issued','OPS-1','OPS',2026,'client','2026-07-01','2026-07-31','VND',1000,0,1000,'131','sales-journal','${owner}'),
+        ('${org}','future-invoice','sales_invoice','issued','OPS-2','OPS',2026,'client','2026-10-01','2026-10-31','VND',700,0,700,'131',null,'${owner}');
       insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,dimensions)
-        values('${org}','invoice',1,'Service',1,1000,1000,0,1000,'511','{"projectId":"project"}');
+        values('${org}','invoice',1,'Service',1,1000,1000,0,1000,'511','{"projectId":"project"}'),
+        ('${org}','future-invoice',1,'Future service',1,700,700,0,700,'511','{"projectId":"project"}');
       insert into commercial_document_allocations(organization_id,document_id,line_number,allocation_number,amount_minor,dimensions)
-        values('${org}','invoice',1,1,1000,'{"projectId":"project"}');
+        values('${org}','invoice',1,1,1000,'{"projectId":"project"}'),
+        ('${org}','future-invoice',1,1,700,'{"projectId":"project"}');
       insert into workbook_import_review_rows(organization_id,id,import_identity,source_identity,workbook,sheet,source_row,kind,proposed_resource_type,status,review_flags,raw_data,mapped_data,created_by,updated_by)
         values
         ('${org}','review','import','source','source.xlsx','Sheet1',2,'sales','commercial_document','pending_review','["missing_project"]','{}','{}','${owner}','${owner}'),

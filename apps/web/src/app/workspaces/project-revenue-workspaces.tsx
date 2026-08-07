@@ -307,33 +307,33 @@ function RevenueAxesCards({ axes }: Readonly<{ axes?: RevenueAxes }>) {
     <>
       <div className="grid gap-3 sm:grid-cols-3">
         <KpiCard
-          title="Recognized"
+          title="Doanh thu đã ghi nhận"
           period={axes ? `${axes.startsOn} → ${axes.endsOn}` : "Period"}
           value={<MoneyCell minor={axes?.recognizedNetMinor ?? "0"} />}
-          comparison="Recognized net"
+          comparison="Theo chính sách và mốc đã post"
         />
         <KpiCard
-          title="Invoiced"
-          period="Invoice axis"
+          title="Giá trị đã xuất hóa đơn"
+          period="Trục hóa đơn"
           value={<MoneyCell minor={axes?.invoicedNetMinor ?? "0"} />}
-          comparison="Invoiced net"
+          comparison="Không đồng nghĩa đã thu tiền"
         />
         <KpiCard
-          title="Collected"
-          period="Cash axis"
+          title="Đã thu từ khách hàng"
+          period="Trục dòng tiền"
           value={<MoneyCell minor={axes?.collectedGrossMinor ?? "0"} />}
           comparison={`Net ${axes?.collectedNetMinor ?? "0"}`}
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <KpiCard
-          title="Deferred revenue"
-          period="Contract liability"
+          title="Doanh thu chưa thực hiện"
+          period="Đã xuất hóa đơn nhưng chưa ghi nhận"
           value={<MoneyCell minor={axes?.deferredRevenueMinor ?? "0"} />}
         />
         <KpiCard
-          title="Contract asset"
-          period="Recognized not yet invoiced"
+          title="Doanh thu đã ghi nhận chưa xuất hóa đơn"
+          period="Tài sản hợp đồng"
           value={<MoneyCell minor={axes?.contractAssetMinor ?? "0"} />}
         />
       </div>
