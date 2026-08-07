@@ -439,16 +439,24 @@ function MetricCard({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="transition-colors group-hover:text-primary">{title}</CardTitle>
-          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-50 transition-all group-hover:translate-x-0.5 group-hover:text-primary group-hover:opacity-100" />
+          <div className="flex shrink-0 items-center gap-1.5">
+            {provisional ? (
+              <Badge variant="secondary" className="text-xs font-normal">
+                Tạm tính
+              </Badge>
+            ) : null}
+            {formattedStatus ? (
+              <Badge variant="outline" className="text-xs font-normal">
+                {formattedStatus}
+              </Badge>
+            ) : null}
+            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover:translate-x-0.5 group-hover:text-primary group-hover:opacity-100" />
+          </div>
         </div>
-        <CardDescription className="min-h-[2.5rem] line-clamp-2">{description}</CardDescription>
+        <CardDescription className="min-h-[2.25rem] line-clamp-2">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pb-4 pt-0">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <div className="mt-3 flex min-h-[1.625rem] flex-wrap items-center gap-1.5">
-          {provisional ? <Badge variant="secondary">Tạm tính</Badge> : null}
-          {formattedStatus ? <Badge variant="outline">{formattedStatus}</Badge> : null}
-        </div>
       </CardContent>
     </Card>
   );
