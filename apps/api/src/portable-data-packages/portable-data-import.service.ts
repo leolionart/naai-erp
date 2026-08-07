@@ -21,7 +21,7 @@ import {
   type PortableImportInventory,
   type PortableWorkbookUpload,
 } from "./portable-data-import.types.js";
-import { portableOperationHasAccountingEffect } from "./portable-resource-mutation-matrix.js";
+import { portableBatchRequiresAtomicService } from "./portable-resource-mutation-matrix.js";
 
 const IMPORT_ROLES = new Set(["owner", "finance_admin", "accountant"]);
 const OPERATIONS = new Set([
@@ -403,9 +403,8 @@ export class PortableDataImportService {
         .map((row) => ({ resourceType: sheet.resourceType, row })),
     );
     if (
-      mutationRows.length > 1 &&
-      mutationRows.some(({ resourceType, row }) =>
-        portableOperationHasAccountingEffect(resourceType, row.operation),
+      portableBatchRequiresAtomicService(
+        mutationRows.map(({ resourceType, row }) => ({ resourceType, operation: row.operation })),
       )
     )
       throw new Error("PORTABLE_IMPORT_ATOMIC_BATCH_UNAVAILABLE");

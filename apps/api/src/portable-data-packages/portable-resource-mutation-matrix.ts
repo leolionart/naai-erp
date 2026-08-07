@@ -67,3 +67,11 @@ export const portableOperationHasAccountingEffect = (resourceType: string, opera
   resourceType === "journal_entries" ||
   ((resourceType === "commercial_documents" || resourceType === "expenses") &&
     (operation === "cancel" || operation === "reverse_replace"));
+
+export const portableBatchRequiresAtomicService = (
+  mutations: readonly Readonly<{ resourceType: string; operation: string }>[],
+) =>
+  mutations.length > 1 &&
+  mutations.some(({ resourceType, operation }) =>
+    portableOperationHasAccountingEffect(resourceType, operation),
+  );

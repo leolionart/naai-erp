@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PortableRowEnvelopeContract } from "@naai-erp/contracts";
 import { PortableCanonicalMutationAdapter } from "./portable-canonical-mutation.adapter.js";
 import {
+  portableBatchRequiresAtomicService,
   portableMutationEntry,
   portableOperationHasAccountingEffect,
 } from "./portable-resource-mutation-matrix.js";
@@ -104,5 +105,17 @@ describe("PortableCanonicalMutationAdapter", () => {
     });
     expect(portableOperationHasAccountingEffect("commercial_documents", "cancel")).toBe(true);
     expect(portableOperationHasAccountingEffect("parties", "update")).toBe(false);
+    expect(
+      portableBatchRequiresAtomicService([
+        { resourceType: "commercial_documents", operation: "cancel" },
+        { resourceType: "parties", operation: "update" },
+      ]),
+    ).toBe(true);
+    expect(
+      portableBatchRequiresAtomicService([
+        { resourceType: "parties", operation: "update" },
+        { resourceType: "accounts", operation: "deactivate" },
+      ]),
+    ).toBe(false);
   });
 });
