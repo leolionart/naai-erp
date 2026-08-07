@@ -219,8 +219,9 @@ function resolvedDashboardSearch(
 
 function reportQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
-  const endsOn = search.get("endsOn") ?? "2026-08-31";
-  query.set("startsOn", search.get("startsOn") ?? "2026-08-01");
+  const startsOn = search.get("startsOn") ?? "2025-01-01";
+  const endsOn = search.get("endsOn") ?? "2025-12-31";
+  query.set("startsOn", startsOn);
   query.set("endsOn", endsOn);
   query.set("asOfInstant", `${search.get("asOfDate") ?? endsOn}T16:59:59.999Z`);
   query.set("framework", "TT133");
@@ -233,10 +234,10 @@ function reportQuery(search: URLSearchParams) {
 
 function performanceQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
-  query.set("periodId", search.get("periodId") ?? "CAL-2026-08");
+  query.set("periodId", search.get("periodId") ?? "CAL-2025-01");
   query.set("periodBasis", "calendar");
   query.set("actualBasis", search.get("actualBasis") ?? "invoiced");
-  const asOfDate = search.get("asOfDate") ?? search.get("endsOn") ?? "2026-08-31";
+  const asOfDate = search.get("asOfDate") ?? search.get("endsOn") ?? "2025-12-31";
   query.set("asOfInstant", `${asOfDate}T16:59:59.999Z`);
   for (const key of ["serviceLineCode", "teamId", "ownerId"]) {
     const value = search.get(key);
@@ -247,9 +248,11 @@ function performanceQuery(search: URLSearchParams) {
 
 function projectQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
-  query.set("periodStart", search.get("startsOn") ?? "2026-08-01");
-  query.set("periodEnd", search.get("endsOn") ?? "2026-08-31");
-  query.set("asOf", search.get("asOfDate") ?? "2026-08-31");
+  const startsOn = search.get("startsOn") ?? "2025-01-01";
+  const endsOn = search.get("endsOn") ?? "2025-12-31";
+  query.set("periodStart", startsOn);
+  query.set("periodEnd", endsOn);
+  query.set("asOf", search.get("asOfDate") ?? endsOn);
   if (search.get("serviceLineCode")) query.set("serviceLineId", search.get("serviceLineCode")!);
   return query;
 }

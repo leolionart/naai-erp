@@ -417,6 +417,7 @@ function DirectoryEditor({
           name: String(form.get("name") ?? "").trim(),
           budget_minor: String(form.get("budget_minor") ?? "0").trim(),
           ends_on: String(form.get("ends_on") ?? "").trim() || null,
+          notes: String(form.get("notes") ?? "").trim() || null,
           state: String(form.get("state") ?? "planned"),
         };
     const resource = customer ? "parties" : "projects";
@@ -521,6 +522,11 @@ function DirectoryEditor({
                 label="Ngày kết thúc"
                 type="date"
                 defaultValue={value(initial ?? {}, "ends_on")}
+              />
+              <EditorField
+                name="notes"
+                label="Ghi chú / Thông tin bổ sung"
+                defaultValue={value(initial ?? {}, "notes") || value(initial ?? {}, "description")}
               />
               <EditorField
                 name="state"
