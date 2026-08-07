@@ -299,23 +299,26 @@ export function DocumentForm({
     : undefined;
   const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
 
-  const [id, setId] = useState(String(field(initial, "id") ?? ""));
   const [type, setType] = useState(String(field(initial, "type") ?? "sales_invoice"));
   const [documentNumber, setDocumentNumber] = useState(
-    String(field(initial, "documentNumber") ?? ""),
+    String(field(initial, "documentNumber", "document_number") ?? ""),
   );
   const [series, setSeries] = useState(String(field(initial, "series") ?? ""));
   const [fiscalYear, setFiscalYear] = useState(
-    String(field(initial, "fiscalYear") ?? new Date().getFullYear()),
+    String(field(initial, "fiscalYear", "fiscal_year") ?? new Date().getFullYear()),
   );
-  const [partyId, setPartyId] = useState(String(field(initial, "partyId") ?? parties[0]?.id ?? ""));
+  const [partyId, setPartyId] = useState(
+    String(field(initial, "partyId", "party_id") ?? parties[0]?.id ?? ""),
+  );
   const [documentDate, setDocumentDate] = useState(
-    String(field(initial, "documentDate") ?? new Date().toISOString().slice(0, 10)),
+    String(
+      field(initial, "documentDate", "document_date") ?? new Date().toISOString().slice(0, 10),
+    ),
   );
-  const [dueDate, setDueDate] = useState(String(field(initial, "dueDate") ?? ""));
+  const [dueDate, setDueDate] = useState(String(field(initial, "dueDate", "due_date") ?? ""));
   const [currency, setCurrency] = useState(String(field(initial, "currency") ?? "VND"));
   const [controlAccountCode, setControlAccountCode] = useState(
-    String(field(initial, "controlAccountCode") ?? "131"),
+    String(field(initial, "controlAccountCode", "control_account_code") ?? "131"),
   );
   const [reason, setReason] = useState(String(field(initial, "reason") ?? ""));
   const isPurchase = type === "purchase_invoice";
@@ -332,26 +335,39 @@ export function DocumentForm({
   );
   const [quantity, setQuantity] = useState(String(field(initialLine, "quantity") ?? "1"));
   const [unitPriceMinor, setUnitPriceMinor] = useState(
-    String(field(initialLine, "unitPriceMinor") ?? "0"),
+    String(field(initialLine, "unitPriceMinor", "unit_price_minor") ?? "0"),
   );
   const [netMinor, setNetMinor] = useState(
-    String(field(initialLine, "netMinor") ?? field(initial, "netMinor") ?? "0"),
+    String(
+      field(initial, "netMinor", "net_minor") ?? field(initialLine, "netMinor", "net_minor") ?? "0",
+    ),
   );
   const [taxMinor, setTaxMinor] = useState(
-    String(field(initialLine, "taxMinor") ?? field(initial, "taxMinor") ?? "0"),
+    String(
+      field(initial, "taxMinor", "tax_minor") ?? field(initialLine, "taxMinor", "tax_minor") ?? "0",
+    ),
   );
   const [grossMinor, setGrossMinor] = useState(
-    String(field(initialLine, "grossMinor") ?? field(initial, "grossMinor") ?? "0"),
+    String(
+      field(initial, "grossMinor", "gross_minor") ??
+        field(initialLine, "grossMinor", "gross_minor") ??
+        "0",
+    ),
   );
   const [primaryAccountCode, setPrimaryAccountCode] = useState(
-    String(field(initialLine, "primaryAccountCode") ?? (isPurchase ? "642" : "511")),
+    String(
+      field(initialLine, "primaryAccountCode", "primary_account_code") ??
+        (isPurchase ? "642" : "511"),
+    ),
   );
   const [taxAccountCode, setTaxAccountCode] = useState(
-    String(field(initialLine, "taxAccountCode") ?? (isPurchase ? "1331" : "3331")),
+    String(
+      field(initialLine, "taxAccountCode", "tax_account_code") ?? (isPurchase ? "1331" : "3331"),
+    ),
   );
-  const [taxCode, setTaxCode] = useState(String(field(initialLine, "taxCode") ?? "VAT10"));
-
-  const isUpdate = Boolean(initial);
+  const [taxCode, setTaxCode] = useState(
+    String(field(initialLine, "taxCode", "tax_code") ?? "VAT10"),
+  );
 
   function handleTypeChange(newType: string) {
     setType(newType);
@@ -383,7 +399,6 @@ export function DocumentForm({
   function submit(event: FormEvent) {
     event.preventDefault();
     const payload: Row = {
-      ...(id ? { id } : {}),
       type,
       documentNumber,
       series: series || null,
@@ -421,13 +436,6 @@ export function DocumentForm({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <FieldSet className="grid gap-4 sm:grid-cols-2">
         <FieldLegend className="col-span-full font-semibold">Thông tin hóa đơn</FieldLegend>
-        <TextField
-          label="Mã định danh (ID)"
-          value={id}
-          onChange={setId}
-          disabled={isUpdate}
-          placeholder="sales-001 (để trống nếu tự sinh)"
-        />
         <Field>
           <FieldLabel>Loại hóa đơn</FieldLabel>
           <Select value={type} onValueChange={handleTypeChange}>
@@ -667,44 +675,49 @@ export function ExpenseForm({
     : undefined;
   const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
 
-  const [id, setId] = useState(String(field(initial, "id") ?? ""));
   const [expenseClass, setExpenseClass] = useState(
-    String(field(initial, "expenseClass") ?? "documented_operational"),
+    String(field(initial, "expenseClass", "expense_class") ?? "documented_operational"),
   );
   const [category, setCategory] = useState(
     String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
   );
   const [payeePartyId, setPayeePartyId] = useState(
-    String(field(initial, "payeePartyId") ?? parties[0]?.id ?? ""),
+    String(field(initial, "payeePartyId", "payee_party_id") ?? parties[0]?.id ?? ""),
   );
   const [employeePartyId, setEmployeePartyId] = useState(
-    String(field(initial, "employeePartyId") ?? ""),
+    String(field(initial, "employeePartyId", "employee_party_id") ?? ""),
   );
   const [expenseDate, setExpenseDate] = useState(
-    String(field(initial, "expenseDate") ?? new Date().toISOString().slice(0, 10)),
+    String(field(initial, "expenseDate", "expense_date") ?? new Date().toISOString().slice(0, 10)),
   );
   const [businessPurpose, setBusinessPurpose] = useState(
-    String(field(initial, "businessPurpose") ?? ""),
+    String(field(initial, "businessPurpose", "business_purpose") ?? "Chi phí kinh doanh"),
   );
   const [currency, setCurrency] = useState(String(field(initial, "currency") ?? "VND"));
+
   const [netMinor, setNetMinor] = useState(
-    String(field(initial, "netMinor") ?? field(initialLine, "netMinor") ?? "0"),
+    String(
+      field(initial, "netMinor", "net_minor") ?? field(initialLine, "netMinor", "net_minor") ?? "0",
+    ),
   );
   const [vatMinor, setVatMinor] = useState(
-    String(field(initial, "vatMinor") ?? field(initialLine, "vatMinor") ?? "0"),
+    String(
+      field(initial, "vatMinor", "vat_minor") ?? field(initialLine, "vatMinor", "vat_minor") ?? "0",
+    ),
   );
   const [grossMinor, setGrossMinor] = useState(
-    String(field(initial, "grossMinor") ?? field(initialLine, "grossMinor") ?? "0"),
+    String(
+      field(initial, "grossMinor", "gross_minor") ??
+        field(initialLine, "grossMinor", "gross_minor") ??
+        "0",
+    ),
   );
   const [counterAccountCode, setCounterAccountCode] = useState(
-    String(field(initial, "counterAccountCode") ?? "111"),
+    String(field(initial, "counterAccountCode", "counter_account_code") ?? "111"),
   );
-
   const [postingAccountCode, setPostingAccountCode] = useState(
-    String(field(initialLine, "postingAccountCode") ?? "642"),
+    String(field(initialLine, "postingAccountCode", "posting_account_code") ?? "642"),
   );
-
-  const isUpdate = Boolean(initial);
 
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
@@ -717,7 +730,6 @@ export function ExpenseForm({
   function submit(event: FormEvent) {
     event.preventDefault();
     const payload: Row = {
-      ...(id ? { id } : {}),
       expenseClass,
       category,
       payeePartyId: payeePartyId || null,
@@ -747,13 +759,6 @@ export function ExpenseForm({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <FieldSet className="grid gap-4 sm:grid-cols-2">
         <FieldLegend className="col-span-full font-semibold">Thông tin chi phí</FieldLegend>
-        <TextField
-          label="Mã chi phí (ID)"
-          value={id}
-          onChange={setId}
-          disabled={isUpdate}
-          placeholder="exp-001 (để trống nếu tự sinh)"
-        />
         <Field>
           <FieldLabel>Phân loại chi phí</FieldLabel>
           <Select value={expenseClass} onValueChange={setExpenseClass}>

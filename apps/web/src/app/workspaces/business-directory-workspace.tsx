@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import type { createApiClient } from "@/lib/api";
+import { ProjectBudgetWorkspace } from "./project-revenue-workspaces";
+import { ProjectCostsWorkspace } from "./project-cost-workspaces";
 
 type DirectoryKind = "customers" | "projects";
 type Row = Record<string, unknown>;
@@ -164,12 +166,10 @@ export function BusinessRecordWorkspace({
   const [record, setRecord] = useState<Row>();
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
+  const [clientParty, setClientParty] = useState<Row>();
+
   useEffect(() => {
-    if (!hydrated) return;
-    if (!hasToken) {
-      setError("AUTH_REQUIRED");
-      return;
-    }
+    if (!hydrated || !hasToken || !id) return;
     const resource = kind === "customers" ? "parties" : "projects";
     setError("");
     void client
@@ -177,11 +177,19 @@ export function BusinessRecordWorkspace({
       .then((item) => {
         setRecord(item);
         setError("");
+        const clientId = String(item.client_party_id || "");
+        if (clientId) {
+          client
+            .data<Row>(`master-data/parties/${masterDataKey(clientId)}`)
+            .then(setClientParty)
+            .catch(() => undefined);
+        }
       })
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : "Không thể tải hồ sơ."),
       );
   }, [client, hasToken, hydrated, id, kind]);
+
   if (error)
     return (
       <Alert variant="destructive">
@@ -189,16 +197,33 @@ export function BusinessRecordWorkspace({
         <AlertDescription>{error}</AlertDescription>
       </Alert>
     );
+
   if (!record) return <p className="text-sm text-muted-foreground">Đang tải hồ sơ…</p>;
+
   const customer = kind === "customers";
+  const clientName = clientParty
+    ? String(clientParty.display_name || clientParty.name || value(record, "client_party_id"))
+    : value(record, "client_party_id");
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{customer ? value(record, "display_name") : value(record, "name")}</CardTitle>
-          <CardDescription>
-            {customer ? `Mã khách hàng: ${id}` : `${value(record, "code")} · ${id}`}
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl">
+                {customer ? value(record, "display_name") : value(record, "name")}
+              </CardTitle>
+              <CardDescription className="font-mono text-xs mt-1">
+                {customer ? `Mã khách hàng: ${id}` : `${value(record, "code")} · ${id}`}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditor(true)}>
+                Chỉnh sửa thông tin
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {customer ? (
@@ -212,11 +237,11 @@ export function BusinessRecordWorkspace({
             </>
           ) : (
             <>
-              <Fact label="Khách hàng" value={value(record, "client_party_id")} />
+              <Fact label="Khách hàng" value={clientName} />
               <Fact label="Loại hợp đồng" value={value(record, "contract_type")} />
               <Fact label="Trạng thái" value={value(record, "state")} />
               <Fact
-                label="Ngân sách"
+                label="Ngân sách phê duyệt"
                 value={money(value(record, "budget_minor"), value(record, "currency"))}
               />
               <Fact label="Ngày bắt đầu" value={value(record, "starts_on")} />
@@ -225,45 +250,36 @@ export function BusinessRecordWorkspace({
           )}
         </CardContent>
       </Card>
-      <div className="flex flex-wrap gap-2">
-        {customer ? (
-          <>
-            <Button asChild>
-              <Link href={`/receivables/customers/${encodeURIComponent(id)}`}>
-                Xem công nợ phải thu
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/documents?partyId=${encodeURIComponent(id)}`}>Hóa đơn khách hàng</Link>
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button asChild>
-              <Link href={`/customers/${encodeURIComponent(value(record, "client_party_id"))}`}>
-                Khách hàng
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/projects/${encodeURIComponent(id)}/budget`}>Ngân sách</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/projects/${encodeURIComponent(id)}/costs`}>Chi phí dự án</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/documents?projectId=${encodeURIComponent(id)}`}>Hóa đơn dự án</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/reports/project-profitability/projects/${encodeURIComponent(id)}`}>
-                Lợi nhuận
-              </Link>
-            </Button>
-          </>
-        )}
-        <Button variant="outline" onClick={() => setEditor(true)}>
-          Chỉnh sửa
-        </Button>
-      </div>
+
+      {!customer ? (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">1. Ngân sách & Ghi nhận Doanh thu</CardTitle>
+              <CardDescription className="text-xs">
+                Budget versions, scope changes và các mốc doah thu (recognized, invoiced, collected)
+                của dự án.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProjectBudgetWorkspace projectId={id} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">2. Chi phí Dự án (Project Costs)</CardTitle>
+              <CardDescription className="text-xs">
+                Chi tiết các khoản chi phí mua ngoài, vật tư, nhân công gắn liền với dự án.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProjectCostsWorkspace projectId={id} />
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
       <DirectoryEditor
         kind={kind}
         open={editor}
