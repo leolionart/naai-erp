@@ -38,14 +38,6 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -202,13 +194,9 @@ function resolvedDashboardSearch(
   if (!search.has("periodKind")) search.set("periodKind", kind);
 
   const range = periodRange(period, kind);
-  let startsOn = search.get("startsOn") ?? range.startsOn;
-  let endsOn = search.get("endsOn") ?? range.endsOn;
+  const startsOn = range.startsOn;
+  const endsOn = range.endsOn;
 
-  if (!ISO_DATE.test(startsOn) || !ISO_DATE.test(endsOn) || startsOn > endsOn) {
-    startsOn = range.startsOn;
-    endsOn = range.endsOn;
-  }
   let asOfDate = search.get("asOfDate") ?? endsOn;
   if (!ISO_DATE.test(asOfDate) || asOfDate < endsOn) asOfDate = endsOn;
   search.set("startsOn", startsOn);
@@ -383,36 +371,13 @@ function DashboardFilters({
           </div>
           <FieldGroup className="p-4">
             <Field>
-              <FieldLabel htmlFor="dash-period">Period ID</FieldLabel>
-              <Input
-                id="dash-period"
-                name="periodId"
-                defaultValue={search.get("periodId") ?? "CAL-2026-08"}
-              />
-            </Field>
-            <Field>
               <FieldLabel htmlFor="dash-start">Từ ngày</FieldLabel>
               <Input
                 id="dash-start"
                 type="date"
                 name="startsOn"
-                defaultValue={search.get("startsOn") ?? "2026-08-01"}
+                defaultValue={search.get("startsOn") ?? "2025-01-01"}
               />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="dash-basis">Basis thực tế</FieldLabel>
-              <Select name="actualBasis" defaultValue={search.get("actualBasis") ?? "invoiced"}>
-                <SelectTrigger id="dash-basis">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="invoiced">Đã xuất hóa đơn</SelectItem>
-                    <SelectItem value="recognized">Đã ghi nhận</SelectItem>
-                    <SelectItem value="collected">Đã thu tiền</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
             </Field>
             <Field>
               <FieldLabel htmlFor="dash-end">Đến ngày</FieldLabel>
@@ -420,23 +385,15 @@ function DashboardFilters({
                 id="dash-end"
                 type="date"
                 name="endsOn"
-                defaultValue={search.get("endsOn") ?? "2026-08-31"}
+                defaultValue={search.get("endsOn") ?? "2025-12-31"}
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="dash-asof">As of</FieldLabel>
-              <Input
-                id="dash-asof"
-                type="date"
-                name="asOfDate"
-                defaultValue={search.get("asOfDate") ?? "2026-08-31"}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="dash-service">Service line</FieldLabel>
+              <FieldLabel htmlFor="dash-service">Mảng dịch vụ (Service line)</FieldLabel>
               <Input
                 id="dash-service"
                 name="serviceLineCode"
+                placeholder="Tất cả mảng"
                 defaultValue={search.get("serviceLineCode") ?? ""}
               />
             </Field>
@@ -699,16 +656,6 @@ export function ExecutiveDashboardWorkspace() {
       return budget > recognized ? (budget - recognized).toString() : "0";
     }),
   );
-  const clientRevenue = new Map<string, bigint>();
-  for (const project of projects) {
-    const client = project.clientName ?? project.clientId ?? "Chưa phân loại";
-    clientRevenue.set(
-      client,
-      (clientRevenue.get(client) ?? 0n) + BigInt(project.recognizedRevenueMinor ?? "0"),
-    );
-  }
-  const topClient = [...clientRevenue.entries()].sort((a, b) => (a[1] > b[1] ? -1 : 1))[0];
-  const fallbackTopClientShare = topClient ? percent(topClient[1], BigInt(recognizedMinor)) : "N/A";
   const overdueMinor = operating?.collections.overdueMinor ?? fallbackOverdueMinor;
   const dso = operating
     ? operating.collections.dsoDays == null
@@ -716,11 +663,6 @@ export function ExecutiveDashboardWorkspace() {
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
     : fallbackDso;
   const backlogMinor = operating?.backlog.remainingMinor ?? fallbackBacklogMinor;
-  const operatingTopClient = operating?.clientConcentration.clients[0];
-  const topClientName = operatingTopClient?.clientName ?? topClient?.[0];
-  const topClientShare = operating
-    ? ratio(operating.clientConcentration.topClientShareBps)
-    : fallbackTopClientShare;
   const fallbackProjectRisks = [...projects]
     .filter((item) => BigInt(item.overrunAmountMinor ?? "0") > 0n || item.confidenceCodes.length)
     .sort((a, b) =>
@@ -793,7 +735,6 @@ export function ExecutiveDashboardWorkspace() {
                 <ChevronRight />
               </Button>
             </div>
-            <Badge variant="secondary">Basis: {search.get("actualBasis") ?? "invoiced"}</Badge>
             {search.get("serviceLineCode") ? (
               <Badge variant="outline">Service line: {search.get("serviceLineCode")}</Badge>
             ) : null}
@@ -925,29 +866,6 @@ export function ExecutiveDashboardWorkspace() {
                 }
                 href={`/reports/project-profitability?${q}`}
                 provisional={usingOperatingFallback}
-              />
-              <MetricCard
-                title="Tập trung khách hàng"
-                value={topClientShare}
-                description={
-                  topClientName
-                    ? `Khách hàng lớn nhất: ${topClientName}`
-                    : "Chưa có doanh thu theo khách hàng"
-                }
-                href={`/customers`}
-                provisional={usingOperatingFallback}
-                onQuick={() =>
-                  setPreview({
-                    title: "Tập trung khách hàng",
-                    description: "Tỷ trọng doanh thu ghi nhận của khách hàng lớn nhất trong kỳ.",
-                    sourceIds: [],
-                    href: "/customers",
-                    facts: [
-                      { label: "Khách hàng lớn nhất", value: topClientName ?? "N/A" },
-                      { label: "Tỷ trọng", value: topClientShare },
-                    ],
-                  })
-                }
               />
               <MetricCard
                 title="Lợi nhuận fully loaded"
