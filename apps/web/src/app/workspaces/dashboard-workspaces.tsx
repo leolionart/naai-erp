@@ -221,7 +221,10 @@ function resolvedDashboardSearch(
   let asOfDate = search.get("asOfDate") ?? asOfFromInstant ?? endsOn;
   if (!ISO_DATE.test(asOfDate) || asOfDate < endsOn) asOfDate = endsOn;
   const today = new Date().toISOString().slice(0, 10);
-  if (asOfDate > today) asOfDate = today > endsOn ? today : endsOn;
+  // Never send a future asOf — clamp to today
+  if (asOfDate > today) asOfDate = today;
+  // But asOf must be >= startsOn for the query to be valid
+  if (asOfDate < startsOn) asOfDate = startsOn;
   search.set("startsOn", startsOn);
   search.set("endsOn", endsOn);
   search.set("asOfDate", asOfDate);
@@ -271,6 +274,17 @@ function projectQuery(search: URLSearchParams) {
 function money(value: string | null | undefined, currency = "VND") {
   if (value == null) return "N/A";
   return `${new Intl.NumberFormat("vi-VN").format(BigInt(value))} ${currency === "VND" ? "₫" : currency}`;
+}
+/** Return the minor-amount string only when it represents a non-zero value;
+ *  otherwise return undefined so that the || fallback chain works correctly
+ *  ("0" is truthy in JS which used to block the fallback). */
+function nonZeroMinor(value: string | null | undefined): string | undefined {
+  if (value == null) return undefined;
+  try {
+    return BigInt(value) !== 0n ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 function ratio(value: number | null | undefined) {
   return value == null
@@ -760,9 +774,9 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu đã xuất hóa đơn"
                 value={money(
-                  (data as { directSalesSum?: string }).directSalesSum ||
-                    operating?.clientConcentration.totalRevenueMinor ||
-                    performance?.actualVsFullTarget.numeratorMinor ||
+                  nonZeroMinor((data as { directSalesSum?: string }).directSalesSum) ??
+                    nonZeroMinor(operating?.clientConcentration.totalRevenueMinor) ??
+                    nonZeroMinor(performance?.actualVsFullTarget.numeratorMinor) ??
                     invoicedMinor,
                   operating?.currency ?? performance?.currency ?? data.projects?.currency,
                 )}
@@ -773,7 +787,8 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu ghi nhận (Theo mốc hợp đồng)"
                 value={money(
-                  (data as { directSalesSum?: string }).directSalesSum || recognizedDisplayMinor,
+                  nonZeroMinor((data as { directSalesSum?: string }).directSalesSum) ??
+                    recognizedDisplayMinor,
                   data.projects?.currency ?? performance?.currency,
                 )}
                 description={

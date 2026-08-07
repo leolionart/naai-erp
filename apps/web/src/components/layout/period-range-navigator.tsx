@@ -71,15 +71,17 @@ export function PeriodRangeNavigator({
 
   const periodKind = (searchParams.get("periodKind") as PeriodKind | null) ?? "year";
 
+  const fallbackMonth = new Date().toISOString().slice(0, 7);
+
   const requestedAnchor = (
     searchParams.get("periodId") ??
     searchParams.get("startsOn") ??
-    "2025-01"
+    fallbackMonth
   ).replace(/^CAL-/, "");
 
   const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor.slice(0, 7))
     ? requestedAnchor.slice(0, 7)
-    : "2025-01";
+    : fallbackMonth;
 
   const periodDetails = useMemo(
     () => getPeriodRangeDetails(anchorMonth, periodKind),
