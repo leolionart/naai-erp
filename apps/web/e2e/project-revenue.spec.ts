@@ -115,11 +115,13 @@ async function install(page: Page) {
 test("@desktop shows recognized, invoiced and collected axes side by side", async ({ page }) => {
   await install(page);
   await page.goto("http://localhost:3000/projects/project-web/budget?asOf=2026-08-06");
-  await expect(page.getByText("Recognized", { exact: true })).toBeVisible();
-  await expect(page.getByText("Invoiced", { exact: true })).toBeVisible();
-  await expect(page.getByText("Collected", { exact: true })).toBeVisible();
-  await expect(page.getByText("Deferred revenue", { exact: true })).toBeVisible();
-  await expect(page.getByText("Contract asset", { exact: true })).toBeVisible();
+  await expect(page.getByText("Doanh thu đã ghi nhận", { exact: true })).toBeVisible();
+  await expect(page.getByText("Giá trị đã xuất hóa đơn", { exact: true })).toBeVisible();
+  await expect(page.getByText("Đã thu từ khách hàng", { exact: true })).toBeVisible();
+  await expect(page.getByText("Doanh thu chưa thực hiện", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Doanh thu đã ghi nhận chưa xuất hóa đơn", { exact: true }),
+  ).toBeVisible();
 });
 test("@desktop keeps scope changes and milestone acceptance as separate workflows", async ({
   page,

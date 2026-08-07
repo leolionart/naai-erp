@@ -26,7 +26,7 @@ export default async function DocumentsPage({
   }
 
   return (
-    <ModulePage title={title} section="Tài chính" description={description}>
+    <ModulePage title={title} description={description}>
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <FocusedRecordListWorkspace kind="documents" />
       </Suspense>

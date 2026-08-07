@@ -11,7 +11,6 @@ export default function ReceivablesPage() {
   return (
     <ModulePage
       title="Công nợ phải thu"
-      section="Tài chính"
       description="Theo dõi tuổi nợ khách hàng, credit riêng biệt và đối chiếu AR về sổ cái tại ngày báo cáo."
     >
       <Suspense fallback={<QueueFallback />}>

@@ -361,7 +361,6 @@ export function ExecutiveMetricsLanding() {
   return (
     <ModulePage
       title="Chỉ số điều hành"
-      section="Tài chính"
       description="Một nơi kiểm tra vốn bị tiêu hao, sức khỏe tiền mặt, profitability và ROI; mỗi nhóm có route và source riêng."
     >
       <div className="flex flex-col gap-6">
@@ -490,7 +489,12 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
     setFilterOpen(false);
   }
   return (
-    <ModulePage title={config.title} section="Chỉ số điều hành" description={config.description}>
+    <ModulePage
+      title={config.title}
+      section="Chỉ số điều hành"
+      sectionHref="/reports/executive-metrics"
+      description={config.description}
+    >
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">

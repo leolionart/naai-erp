@@ -5,12 +5,14 @@ export function ModulePage({
   title,
   description,
   section,
+  sectionHref,
   toolbar,
   children,
 }: Readonly<{
   title: string;
   description: string;
-  section: string;
+  section?: string;
+  sectionHref?: string;
   toolbar?: ReactNode;
   children: ReactNode;
 }>) {
@@ -21,7 +23,7 @@ export function ModulePage({
         description={description}
         breadcrumbs={[
           { label: "Trang chủ", href: "/dashboard" },
-          ...(section ? [{ label: section }] : []),
+          ...(section ? [{ label: section, href: sectionHref }] : []),
           { label: title },
         ]}
         toolbar={toolbar}

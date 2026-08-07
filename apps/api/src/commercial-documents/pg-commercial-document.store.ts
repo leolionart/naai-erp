@@ -945,14 +945,14 @@ export class PgCommercialDocumentStore {
         throw new Error("SALES_INVOICE_CONTRACT_CURRENCY_MISMATCH");
       const capacity = await client.query<{ allowed: string; used: string }>(
         `select
-           (coalesce((select sum(value_minor) from contracts where organization_id=$1 and project_id=$2 and currency=$3),0)
-            + coalesce((select sum(expected_revenue_impact_minor) from scope_changes where organization_id=$1 and project_id=$2 and state='approved'),0))::text allowed,
+           (coalesce((select sum(value_minor) from contracts where organization_id=$1 and project_id=$2 and currency=$3 and signed_on <= $5),0)
+            + coalesce((select sum(expected_revenue_impact_minor) from scope_changes where organization_id=$1 and project_id=$2 and state='approved' and approved_at::date <= $5),0))::text allowed,
            coalesce((select sum(case when d.type='credit_note' then -a.amount_minor else a.amount_minor end)
              from commercial_document_allocations a join commercial_documents d
                on d.organization_id=a.organization_id and d.id=a.document_id
             where a.organization_id=$1 and a.dimensions->>'projectId'=$2 and d.id<>$4
               and d.state in('issued','posted','partially_paid','paid')),0)::text used`,
-        [organizationId, projectId, document.currency, document.id],
+        [organizationId, projectId, document.currency, document.id, document.document_date],
       );
       const allowed = BigInt(capacity.rows[0]?.allowed ?? "0");
       if (allowed <= 0n) throw new Error("SALES_INVOICE_CONTRACT_REQUIRED");

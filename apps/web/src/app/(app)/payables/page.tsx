@@ -11,7 +11,6 @@ export default function PayablesPage() {
   return (
     <ModulePage
       title="Công nợ phải trả"
-      section="Tài chính"
       description="Theo dõi hạn thanh toán nhà cung cấp, advance/credit riêng biệt và đối chiếu AP về sổ cái."
     >
       <Suspense fallback={<QueueFallback />}>

@@ -975,7 +975,7 @@ export function ExecutiveDashboardWorkspace() {
                 provisional={usingOperatingFallback}
               />
               <MetricCard
-                title="Doanh thu đã nghiệm thu/ghi nhận"
+                title="Doanh thu đã ghi nhận"
                 value={money(
                   search.get("actualBasis") === "recognized"
                     ? (nonZeroMinor(data.actualSummary?.amountMinor) ?? recognizedDisplayMinor)
@@ -1043,7 +1043,7 @@ export function ExecutiveDashboardWorkspace() {
                 description={
                   operating
                     ? `Tổng hợp từ ${operating.backlog.projectCount} dự án có hợp đồng`
-                    : "Doanh thu hợp đồng chưa ghi nhận"
+                    : "Phần giá trị hợp đồng còn lại chưa được lập hóa đơn"
                 }
                 href={`/reports/project-profitability?${q}`}
                 provisional={usingOperatingFallback}

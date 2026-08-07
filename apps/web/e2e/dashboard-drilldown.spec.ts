@@ -272,7 +272,7 @@ test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", 
   await page.getByRole("option", { name: "Web app" }).click();
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
-  await page.getByRole("link", { name: "Doanh thu đã xuất hóa đơn" }).first().click();
+  await page.getByRole("link", { name: "Giá trị đã xuất hóa đơn" }).first().click();
   await expect(page).toHaveURL(/reports\/project-profitability.*serviceLineCode=web-app/);
 });
 
@@ -341,7 +341,7 @@ test("@desktop selects the latest source-control period and invoiced basis by de
   await page.goto("http://localhost:3000/dashboard");
 
   await expect(page.getByText("2025-03", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Xuất hóa đơn (Invoiced)")).toBeVisible();
+  await expect(page.getByText("Giá trị đã xuất hóa đơn")).toBeVisible();
   expect(requestedUrls.find((url) => url.includes("performance-comparisons"))).toContain(
     "periodId=CAL-2025-03",
   );

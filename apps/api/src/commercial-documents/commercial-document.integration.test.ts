@@ -11,9 +11,9 @@ describeIntegration("ERP-300 commercial documents", () => {
   const org = `org-doc-${process.pid}`;
   const integrationUser = `${org}-integration-user`;
   let app: Awaited<ReturnType<typeof createApp>>;
-  const integrationToken = "erp300-integration";
-  const financeToken = "erp300-finance";
-  const approverToken = "erp300-approver";
+  const integrationToken = `erp300-integration-${process.pid}`;
+  const financeToken = `erp300-finance-${process.pid}`;
+  const approverToken = `erp300-approver-${process.pid}`;
   beforeAll(async () => {
     await pool.query(`
       insert into organizations (id,legal_name,base_currency,timezone) values ('${org}','Document Org','VND','Asia/Ho_Chi_Minh');
@@ -28,7 +28,8 @@ describeIntegration("ERP-300 commercial documents", () => {
         ('${org}','B','B','Project B','CLIENT-A','${integrationUser}','fixed_fee','VND',40000000,'2026-01-01','active');
       insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency) values
         ('${org}','CONTRACT-A','A','CONTRACT-A','2026-01-01',60000000,'VND'),
-        ('${org}','CONTRACT-B','B','CONTRACT-B','2026-01-01',40000000,'VND');
+        ('${org}','CONTRACT-B','B','CONTRACT-B','2026-01-01',40000000,'VND'),
+        ('${org}','CONTRACT-A-FUTURE','A','CONTRACT-A-FUTURE','2026-12-01',1000000,'VND');
       insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
        ('${org}','131-AR','AR','asset',true,false),('${org}','331-AP','AP','liability',true,false),
        ('${org}','511-REV','Revenue','revenue',false,true),('${org}','3331-VAT-OUT','VAT output','liability',true,false),
@@ -395,6 +396,10 @@ describeIntegration("ERP-300 commercial documents", () => {
         documentNumber: "WB-CP-2",
         taxMinor: "101",
         grossMinor: "1001",
+        externalReference: {
+          ...payload.externalReference,
+          externalId: "chi-phi:2",
+        },
         lines: [
           {
             ...payload.lines[0],
