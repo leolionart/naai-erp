@@ -131,6 +131,15 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
     }
     return undefined;
   }
+  private async portableExternalReferences(tableName: string, organizationId: string, id: string) {
+    if (!["commercial_documents", "expenses"].includes(tableName)) return [];
+    const target = tableName === "commercial_documents" ? "document_id" : "expense_id";
+    const result = await this.pool.query<{ system: string; external_id: string }>(
+      `select system,external_id from external_references where organization_id=$1 and ${target}=$2 order by system,external_id`,
+      [organizationId, id],
+    );
+    return result.rows.map((row) => ({ system: row.system, externalId: row.external_id }));
+  }
 
   async collectOrganizationResources(
     context: PortableDataPackageContext,
@@ -214,7 +223,14 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
         result.rows.map(async (row) => ({
           ...row,
           ...(["commercial_documents", "expenses"].includes(tableName)
-            ? { lines: await this.portableLines(tableName, context.organizationId, String(row.id)) }
+            ? {
+                lines: await this.portableLines(tableName, context.organizationId, String(row.id)),
+                __externalReferences: await this.portableExternalReferences(
+                  tableName,
+                  context.organizationId,
+                  String(row.id),
+                ),
+              }
             : {}),
         })),
       );
@@ -226,7 +242,8 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           stableId: names.includes("id")
             ? String(row.id)
             : sha(canonical(stableKeys.map((key) => row[key]))),
-          externalReferences: [],
+          externalReferences: (row.__externalReferences ??
+            []) as PortableRowEnvelopeContract["externalReferences"],
           ...(names.includes("version") && row.version != null
             ? { expectedResourceVersion: String(row.version) }
             : {}),
@@ -317,8 +334,8 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           input.packageId,
           PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
           input.input.asOf,
-          input.manifest,
-          input.schemas,
+          JSON.stringify(input.manifest),
+          JSON.stringify(input.schemas),
           input.content,
           input.contentHash,
           input.manifest.packageHash,

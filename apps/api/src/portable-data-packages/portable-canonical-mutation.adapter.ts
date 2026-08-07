@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import type { PortableRowEnvelopeContract, PortableRowIssueContract } from "@naai-erp/contracts";
 import { CommercialDocumentService } from "../commercial-documents/commercial-document.service.js";
@@ -47,13 +48,28 @@ const decoded = (key: string, value: unknown) => {
   }
   return value;
 };
-const payload = (row: PortableRowEnvelopeContract) =>
-  Object.fromEntries(
+const payload = (row: PortableRowEnvelopeContract) => ({
+  ...Object.fromEntries(
     [...Object.entries(row.data), ...Object.entries(row.relationships)].map(([key, value]) => [
       camel(key),
       decoded(key, value),
     ]),
+  ),
+  ...(row.externalReferences[0] ? { externalReference: row.externalReferences[0] } : {}),
+});
+const masterPayload = (
+  definition: (typeof MASTER_DATA_RESOURCES)[keyof typeof MASTER_DATA_RESOURCES],
+  row: PortableRowEnvelopeContract,
+) => {
+  const source = { ...row.data, ...row.relationships } as Record<string, unknown>;
+  const allowed = new Set(definition.writableColumns);
+  const data = Object.fromEntries(
+    Object.entries(source).filter(([key, value]) => allowed.has(key as never) && value != null),
   );
+  for (const key of definition.keyColumns)
+    if (data[key] == null && key === "id") data[key] = row.stableId ?? randomUUID();
+  return data;
+};
 
 @Injectable()
 export class PortableCanonicalMutationAdapter {
@@ -88,8 +104,9 @@ export class PortableCanonicalMutationAdapter {
     try {
       if (entry.adapter === "master_data") {
         const canonical = entry.canonicalResource!;
+        const definition = MASTER_DATA_RESOURCES[canonical as keyof typeof MASTER_DATA_RESOURCES];
         const dryRun = this.masterData.dryRunImport(canonical, context, [
-          { ...row.data, ...row.relationships },
+          masterPayload(definition, row),
         ]).data;
         const errors = dryRun?.rows[0]?.errors ?? [];
         return errors.length ? invalid("FIELD_INVALID", errors.join("; ")) : ready(row);
@@ -155,7 +172,7 @@ export class PortableCanonicalMutationAdapter {
       if (entry.adapter === "master_data") {
         const canonical = entry.canonicalResource!;
         const definition = MASTER_DATA_RESOURCES[canonical as keyof typeof MASTER_DATA_RESOURCES];
-        const data = { ...row.data, ...row.relationships } as Record<string, unknown>;
+        const data = masterPayload(definition, row);
         const keyValues = Object.fromEntries(
           definition.keyColumns.map((key) => [
             key,

@@ -7,8 +7,8 @@ development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G15
-current_task: ERP-850
+current_gate: G14
+current_task: ERP-841
 
 tasks:
   - id: ERP-000
@@ -1091,7 +1091,7 @@ tasks:
   - id: ERP-850
     title: Portable organization workbook round-trip
     phase: P11
-    status: in_progress
+    status: done
     dependencies: [ERP-840]
     business_rules:
       [
@@ -1110,7 +1110,8 @@ tasks:
     evidence: docs/implementation/evidence/ERP-850/
     agent: codex-root
     started_at: 2026-08-07T23:00:00+07:00
-    notes: Scope switched from the independently unfinished ERP-841 to the owner-requested complete Excel-editable export and safe re-import package.
+    completed_at: 2026-08-08T06:32:00+07:00
+    notes: Complete self-contained Excel export, inventory, dry-run, canonical commit, transactional correction adapters, UI, API, CLI and live edited round-trip evidence.
     planned_files:
       - packages/contracts/src/
       - packages/domain/src/
@@ -1158,4 +1159,4 @@ gate_status:
   G12: done
   G13: done
   G14: in_progress
-  G15: in_progress
+  G15: done

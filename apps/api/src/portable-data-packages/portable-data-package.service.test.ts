@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { canonicalJson } from "@naai-erp/domain";
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { PortableDataPackageService } from "./portable-data-package.service.js";
@@ -18,6 +19,7 @@ const context = (organizationId = "org-a", roles = ["owner"]): PortableDataPacka
 });
 
 class MemoryStore implements PortableDataPackageStore {
+  lastInput?: SavePortablePackageInput;
   readonly records = new Map<
     string,
     { record: PortablePackageRecord; file: PortablePackageFile }
@@ -83,6 +85,7 @@ class MemoryStore implements PortableDataPackageStore {
     input: SavePortablePackageInput,
     idempotencyKey: string,
   ) {
+    this.lastInput = input;
     const scopeKey = `${c.organizationId}:${idempotencyKey}`;
     const existing = this.idempotency.get(scopeKey);
     if (existing) return this.records.get(existing)!.record;
@@ -148,6 +151,12 @@ describe("PortableDataPackageService", () => {
         expect.objectContaining({ resourceType: "sales_invoice", excluded: false, rowCount: 1 }),
         expect.objectContaining({ resourceType: "evidence_binary", excluded: true, rowCount: 0 }),
       ]),
+    );
+    const { workbookSha256: _workbookSha256, packageHash, ...manifestBase } = result.data.manifest;
+    expect(packageHash).toBe(
+      createHash("sha256")
+        .update(canonicalJson({ ...manifestBase, schemas: store.lastInput!.schemas } as never))
+        .digest("hex"),
     );
 
     const file = await store.downloadExport(context(), result.data.packageId);

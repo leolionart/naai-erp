@@ -8,6 +8,7 @@ import {
   type PortableRowEnvelopeContract,
   type PortableSheetInventoryContract,
 } from "@naai-erp/contracts";
+import { canonicalJson as canonicalDomainJson } from "@naai-erp/domain";
 import ExcelJS from "exceljs";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
@@ -202,7 +203,7 @@ export class PortableDataPackageService {
       totalSheetCount: inventory.filter((item) => !item.excluded).length,
       totalRowCount: inventory.reduce((sum, item) => sum + item.rowCount, 0),
     };
-    const packageHash = sha256(canonicalJson(packageHashPayload));
+    const packageHash = sha256(canonicalDomainJson(packageHashPayload as never));
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "NAAI ERP";
     workbook.created = new Date("1980-01-01T00:00:00.000Z");

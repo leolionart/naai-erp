@@ -55,6 +55,45 @@ const setup = (state = "draft", version = "2") => {
 };
 
 describe("PortableCanonicalMutationAdapter", () => {
+  it("filters exported system columns and generates an id for master-data create rows", async () => {
+    const { adapter, master } = setup();
+    master.dryRunImport.mockReturnValue({
+      data: { valid: true, rows: [{ index: 0, valid: true, errors: [] }] },
+    });
+    master.mutate.mockResolvedValue({ data: { resource: { id: "party-new" } } });
+    const createRow: PortableRowEnvelopeContract = {
+      rowNumber: 8,
+      operation: "create",
+      externalReferences: [{ system: "demo", externalId: "party-new" }],
+      relationships: {},
+      data: {
+        display_name: "Portable customer",
+        status: "active",
+        created_at: "2026-08-07T00:00:00.000Z",
+        updated_at: null,
+      },
+    };
+
+    expect(await adapter.apply(context, "parties", createRow, "party-create")).toEqual({
+      applied: true,
+      stableId: "party-new",
+    });
+    expect(master.mutate).toHaveBeenCalledWith(
+      "create",
+      "parties",
+      undefined,
+      context,
+      {
+        data: {
+          id: expect.any(String),
+          display_name: "Portable customer",
+          status: "active",
+        },
+      },
+      "party-create",
+    );
+  });
+
   it("updates only draft commercial documents with optimistic version and idempotency", async () => {
     const { adapter, documents } = setup();
     expect(await adapter.validate(context, "commercial_documents", row("update"))).toMatchObject({

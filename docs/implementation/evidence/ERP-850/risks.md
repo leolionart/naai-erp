@@ -4,5 +4,8 @@
 - Large organizations may require streamed workbook generation and bounded import batches.
 - Package schema upgrades need explicit forward-compatibility and migration policy.
 - This package is a portable application replay format, not a substitute for encrypted database backup.
-- Complete row coverage does not imply complete edit coverage: non-master-data resources remain
-  read-only until each canonical lifecycle adapter has rule/test evidence.
+- Raw posted journal, audit, outbox and child history sheets intentionally remain read-only. Their
+  business corrections are driven from canonical parent resources, never by direct row overwrite.
+- Large multi-row batches containing an accounting effect require an atomic lifecycle service;
+  non-posting master-data and draft edits can batch, while accounting correction adapters execute
+  their reversal and replacement within one database transaction.
