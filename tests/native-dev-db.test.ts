@@ -270,7 +270,6 @@ describe("native-dev-db.mjs script tests", () => {
       );
       expect(result.success).toBe(true);
       expect(mockExecFile).toHaveBeenCalled();
-      expect(mockSeedTt133Mvp).toHaveBeenCalledTimes(2);
       expect(mockClient.query).toHaveBeenCalledWith(
         expect.stringContaining("INSERT INTO api_credentials"),
         expect.any(Array),

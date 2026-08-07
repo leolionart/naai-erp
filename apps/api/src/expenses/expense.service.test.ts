@@ -178,4 +178,31 @@ describe("ERP-310 ExpenseService", () => {
       ).rejects.toThrow("FORBIDDEN");
     });
   });
+  it("delegates posted expense reverse_replace as one canonical store transaction", async () => {
+    const store = {
+      reverseReplace: vi.fn().mockResolvedValue({
+        expenseId: "e-1",
+        replacementExpenseId: "e-2",
+        reversalJournalId: "jr-rev",
+      }),
+    };
+    const service = new ExpenseService(store as never, {} as never);
+    const result = await service.reverseReplace(
+      context,
+      "e-1",
+      "4",
+      { ...expense, id: "e-2" },
+      "Correct posted expense",
+      "replace-expense",
+    );
+    expect(store.reverseReplace).toHaveBeenCalledWith(
+      context,
+      "e-1",
+      "4",
+      expect.objectContaining({ id: "e-2" }),
+      "Correct posted expense",
+      "replace-expense",
+    );
+    expect(result.data).toMatchObject({ replacementExpenseId: "e-2" });
+  });
 });

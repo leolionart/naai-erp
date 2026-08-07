@@ -37,11 +37,21 @@ const invalid = (
 });
 const camel = (key: string) =>
   key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+const decoded = (key: string, value: unknown) => {
+  if (["lines", "evidence_checklist"].includes(key) && typeof value === "string") {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  }
+  return value;
+};
 const payload = (row: PortableRowEnvelopeContract) =>
   Object.fromEntries(
     [...Object.entries(row.data), ...Object.entries(row.relationships)].map(([key, value]) => [
       camel(key),
-      value,
+      decoded(key, value),
     ]),
   );
 
@@ -75,11 +85,6 @@ export class PortableCanonicalMutationAdapter {
       const identity = this.requireIdentity(row);
       if (identity) return identity;
     }
-    if (row.operation === "reverse_replace")
-      return invalid(
-        "ATOMIC_REVERSE_REPLACE_UNAVAILABLE",
-        `${resourceType} reversal and replacement are not exposed as one atomic application service`,
-      );
     try {
       if (entry.adapter === "master_data") {
         const canonical = entry.canonicalResource!;
@@ -90,6 +95,10 @@ export class PortableCanonicalMutationAdapter {
         return errors.length ? invalid("FIELD_INVALID", errors.join("; ")) : ready(row);
       }
       if (entry.adapter === "commercial_document") {
+        if (row.operation === "create") {
+          this.documents.validatePortableInput(payload(row) as never);
+          return ready(row);
+        }
         const current = (await this.documents.get(context, row.stableId!)) as {
           data: { state: string; version: string | number | bigint };
         };
@@ -97,9 +106,18 @@ export class PortableCanonicalMutationAdapter {
           return invalid("VERSION_CONFLICT", "Commercial document version is stale");
         if (row.operation === "update" && current.data.state !== "draft")
           return invalid("STATE_CONFLICT", "Only draft commercial documents can be updated");
+        if (
+          row.operation === "reverse_replace" &&
+          !["issued", "posted", "partially_paid", "paid"].includes(current.data.state)
+        )
+          return invalid("STATE_CONFLICT", "Only issued or posted documents can be replaced");
         return ready(row);
       }
       if (entry.adapter === "expense") {
+        if (row.operation === "create") {
+          this.expenses.validatePortableInput(payload(row) as never);
+          return ready(row);
+        }
         const current = (await this.expenses.get(context, row.stableId!)) as {
           data: { state: string; version: string | number | bigint };
         };
@@ -107,6 +125,8 @@ export class PortableCanonicalMutationAdapter {
           return invalid("VERSION_CONFLICT", "Expense version is stale");
         if (row.operation === "update" && current.data.state !== "draft")
           return invalid("STATE_CONFLICT", "Only draft expenses can be updated");
+        if (row.operation === "reverse_replace" && current.data.state !== "posted")
+          return invalid("STATE_CONFLICT", "Only posted expenses can be replaced");
         return ready(row);
       }
       return invalid("READ_ONLY_RESOURCE", entry.reason ?? `${resourceType} is read-only`);
@@ -167,7 +187,35 @@ export class PortableCanonicalMutationAdapter {
         };
       }
       if (entry.adapter === "commercial_document") {
-        if (row.operation === "cancel") {
+        if (row.operation === "create") {
+          const response = await this.documents.create(
+            context,
+            { ...payload(row), ...(row.stableId ? { id: row.stableId } : {}) } as never,
+            idempotencyKey,
+          );
+          return {
+            applied: true,
+            stableId: String((response as { data: { documentId: string } }).data.documentId),
+          };
+        } else if (row.operation === "reverse_replace") {
+          const response = await this.documents.reverseReplace(
+            context,
+            row.stableId!,
+            row.expectedResourceVersion!,
+            {
+              ...payload(row),
+              ...(row.data.replacementId ? { id: String(row.data.replacementId) } : {}),
+            } as never,
+            String(row.data.reason ?? "Portable package correction"),
+            idempotencyKey,
+          );
+          return {
+            applied: true,
+            stableId: String(
+              (response as { data: { replacementDocumentId: string } }).data.replacementDocumentId,
+            ),
+          };
+        } else if (row.operation === "cancel") {
           await this.documents.transition(
             context,
             row.stableId!,
@@ -187,7 +235,35 @@ export class PortableCanonicalMutationAdapter {
         return row.stableId ? { applied: true, stableId: row.stableId } : { applied: true };
       }
       if (entry.adapter === "expense") {
-        if (row.operation === "cancel") {
+        if (row.operation === "create") {
+          const response = await this.expenses.create(
+            context,
+            { ...payload(row), ...(row.stableId ? { id: row.stableId } : {}) } as never,
+            idempotencyKey,
+          );
+          return {
+            applied: true,
+            stableId: String((response as { data: { expenseId: string } }).data.expenseId),
+          };
+        } else if (row.operation === "reverse_replace") {
+          const response = await this.expenses.reverseReplace(
+            context,
+            row.stableId!,
+            row.expectedResourceVersion!,
+            {
+              ...payload(row),
+              ...(row.data.replacementId ? { id: String(row.data.replacementId) } : {}),
+            } as never,
+            String(row.data.reason ?? "Portable package correction"),
+            idempotencyKey,
+          );
+          return {
+            applied: true,
+            stableId: String(
+              (response as { data: { replacementExpenseId: string } }).data.replacementExpenseId,
+            ),
+          };
+        } else if (row.operation === "cancel") {
           await this.expenses.transition(
             context,
             row.stableId!,

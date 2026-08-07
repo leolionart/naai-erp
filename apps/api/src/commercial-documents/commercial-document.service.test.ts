@@ -196,4 +196,31 @@ describe("ERP-300 CommercialDocumentService", () => {
       ).rejects.toThrow("FORBIDDEN");
     });
   });
+  it("delegates reverse_replace as one canonical store transaction", async () => {
+    const store = {
+      reverseReplace: vi.fn().mockResolvedValue({
+        documentId: "sales-1",
+        replacementDocumentId: "sales-2",
+        reversalJournalId: "jr-rev",
+      }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    const result = await service.reverseReplace(
+      context,
+      "sales-1",
+      "3",
+      { ...sales, id: "sales-2", documentNumber: "SI-002" },
+      "Correct issued invoice",
+      "replace-1",
+    );
+    expect(store.reverseReplace).toHaveBeenCalledWith(
+      context,
+      "sales-1",
+      "3",
+      expect.objectContaining({ id: "sales-2" }),
+      "Correct issued invoice",
+      "replace-1",
+    );
+    expect(result.data).toMatchObject({ replacementDocumentId: "sales-2" });
+  });
 });

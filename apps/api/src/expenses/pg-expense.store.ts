@@ -913,6 +913,167 @@ export class PgExpenseStore {
       c.release();
     }
   }
+  async reverseReplace(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    input: CreateExpenseInput,
+    reason: string,
+    key: string,
+  ) {
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, input, reason }))
+      .digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const found = await c.query<StoredExpense & { journal_id: string | null }>(
+        `select id,expense_class,state,expense_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,
+          counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist,journal_id
+         from expenses where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const original = found.rows[0];
+      if (!original) throw new Error("RESOURCE_NOT_FOUND");
+      if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (original.state !== "posted" || !original.journal_id)
+        throw new Error("INVALID_EXPENSE_TRANSITION");
+      if ((input.id ?? "") === id) throw new Error("VALIDATION_FAILED");
+      await this.period(c, context, input.expenseDate);
+      const journal = await c.query<{ state: string; currency: string }>(
+        `select state,currency from journal_entries where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, original.journal_id],
+      );
+      if (journal.rows[0]?.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
+      const reversalJournalId = randomUUID();
+      await c.query(
+        `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
+         values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
+        [
+          context.organizationId,
+          reversalJournalId,
+          input.expenseDate,
+          `Reversal of ${original.journal_id}: ${reason}`,
+          journal.rows[0].currency,
+          context.actorId,
+          reason,
+          original.journal_id,
+        ],
+      );
+      await c.query(
+        `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+         select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
+         from journal_lines where organization_id=$1 and journal_id=$2`,
+        [context.organizationId, original.journal_id, reversalJournalId],
+      );
+      await c.query(
+        `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        [context.organizationId, original.journal_id],
+      );
+      const replacementId = input.id ?? randomUUID();
+      await c.query(
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'unreviewed',$15,$16,$17)`,
+        [
+          context.organizationId,
+          replacementId,
+          input.expenseClass,
+          input.payeePartyId ?? null,
+          input.employeePartyId ?? null,
+          input.expenseDate,
+          input.servicePeriodStart ?? null,
+          input.servicePeriodEnd ?? null,
+          input.businessPurpose,
+          input.currency,
+          input.netMinor,
+          input.vatMinor,
+          input.grossMinor,
+          input.counterAccountCode,
+          input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
+          input.evidenceChecklist ?? {},
+          context.actorId,
+        ],
+      );
+      for (const [index, line] of input.lines.entries()) {
+        const taxState = expenseClassToTaxState(input.expenseClass);
+        await c.query(
+          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions)
+           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [
+            context.organizationId,
+            replacementId,
+            index + 1,
+            line.description,
+            line.netMinor,
+            line.vatMinor,
+            line.grossMinor,
+            line.postingAccountCode,
+            line.vatAccountCode ?? null,
+            line.managementState ?? "unreviewed",
+            line.citState ?? taxState.citState,
+            line.vatState ?? taxState.vatState,
+            line.citEligibleMinor ?? (taxState.citState === "eligible" ? line.netMinor : "0"),
+            line.vatEligibleMinor ?? (taxState.vatState === "eligible" ? line.vatMinor : "0"),
+            line.dimensions ?? {},
+          ],
+        );
+        for (const [aIndex, a] of line.allocations.entries())
+          await c.query(
+            `insert into expense_allocations(organization_id,expense_id,line_number,allocation_number,amount_minor,dimensions) values($1,$2,$3,$4,$5,$6)`,
+            [
+              context.organizationId,
+              replacementId,
+              index + 1,
+              aIndex + 1,
+              a.amountMinor,
+              { ...a.dimensions, allocationId: a.id },
+            ],
+          );
+      }
+      const version = (BigInt(original.version) + 1n).toString();
+      await c.query(
+        `update expenses set version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        [context.organizationId, id],
+      );
+      const audit = randomUUID();
+      await c.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'expense',$3,$4,'reverse_replace',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          audit,
+          id,
+          version,
+          context.actorId,
+          context.correlationId,
+          { state: "posted", journalId: original.journal_id },
+          { state: "posted_reversed", reversalJournalId, replacementId, reason },
+        ],
+      );
+      const response = {
+        expenseId: id,
+        state: "posted",
+        resourceVersion: version,
+        reversalJournalId,
+        replacementExpenseId: replacementId,
+        auditEventId: audit,
+        nextActions: [],
+      };
+      await this.save(c, context.organizationId, key, "expense:reverse-replace", hash, response);
+      await c.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await c.query("rollback");
+      throw error;
+    } finally {
+      c.release();
+    }
+  }
   private async lock(c: PoolClient, org: string, id: string) {
     const r = await c.query<StoredExpense>(
       `select id,expense_class,state,expense_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist from expenses where organization_id=$1 and id=$2 for update`,

@@ -91,6 +91,47 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
     return grouped;
   }
 
+  private async portableLines(tableName: string, organizationId: string, id: string) {
+    if (tableName === "commercial_documents") {
+      const result = await this.pool.query(
+        `select coalesce(jsonb_agg(jsonb_build_object(
+          'description',l.description,'quantity',l.quantity,'unitPriceMinor',l.unit_price_minor::text,
+          'netMinor',l.net_minor::text,'taxMinor',l.tax_minor::text,'grossMinor',l.gross_minor::text,
+          'primaryAccountCode',l.primary_account_code,'taxAccountCode',l.tax_account_code,
+          'taxCode',l.tax_code,'dimensions',l.dimensions,
+          'allocations',(select coalesce(jsonb_agg(jsonb_build_object(
+            'id',coalesce(a.dimensions->>'allocationId',a.allocation_number::text),
+            'amountMinor',a.amount_minor::text,'dimensions',a.dimensions-'allocationId') order by a.allocation_number),'[]'::jsonb)
+            from commercial_document_allocations a where a.organization_id=l.organization_id
+              and a.document_id=l.document_id and a.line_number=l.line_number)
+        ) order by l.line_number),'[]'::jsonb) lines
+        from commercial_document_lines l where l.organization_id=$1 and l.document_id=$2`,
+        [organizationId, id],
+      );
+      return result.rows[0]?.lines ?? [];
+    }
+    if (tableName === "expenses") {
+      const result = await this.pool.query(
+        `select coalesce(jsonb_agg(jsonb_build_object(
+          'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,
+          'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,
+          'vatAccountCode',l.vat_account_code,'dimensions',l.dimensions,
+          'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,
+          'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
+          'allocations',(select coalesce(jsonb_agg(jsonb_build_object(
+            'id',coalesce(a.dimensions->>'allocationId',a.allocation_number::text),
+            'amountMinor',a.amount_minor::text,'dimensions',a.dimensions-'allocationId') order by a.allocation_number),'[]'::jsonb)
+            from expense_allocations a where a.organization_id=l.organization_id
+              and a.expense_id=l.expense_id and a.line_number=l.line_number)
+        ) order by l.line_number),'[]'::jsonb) lines
+        from expense_lines l where l.organization_id=$1 and l.expense_id=$2`,
+        [organizationId, id],
+      );
+      return result.rows[0]?.lines ?? [];
+    }
+    return undefined;
+  }
+
   async collectOrganizationResources(
     context: PortableDataPackageContext,
     asOf: string,
@@ -144,6 +185,15 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           column.column_name !== "id" &&
           column.column_name !== "version",
       );
+      if (["commercial_documents", "expenses"].includes(tableName))
+        dataColumns.push({
+          table_name: tableName,
+          column_name: "lines",
+          data_type: "jsonb",
+          udt_name: "jsonb",
+          is_nullable: "NO",
+          ordinal_position: 100_000,
+        });
       const mutation = portableMutationEntry(resourceType);
       const mutability = ["commercial_document", "expense", "journal"].includes(mutation.adapter)
         ? "correction_only"
@@ -160,23 +210,34 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
         editable: false,
         description: "Canonical exported value; mutation requires the matching application service",
       }));
-      const rows: PortableRowEnvelopeContract[] = result.rows.map((row, index) => ({
-        rowNumber: index + 2,
-        operation: "no_change",
-        stableId: names.includes("id")
-          ? String(row.id)
-          : sha(canonical(stableKeys.map((key) => row[key]))),
-        externalReferences: [],
-        ...(names.includes("version") && row.version != null
-          ? { expectedResourceVersion: String(row.version) }
-          : {}),
-        data: Object.fromEntries(
-          dataColumns.map((column) => [column.column_name, scalar(row[column.column_name])]),
-        ),
-        relationships: Object.fromEntries(
-          relationshipKeys.map((key) => [key, row[key] == null ? null : String(row[key])]),
-        ),
-      }));
+      const enrichedRows: Record<string, unknown>[] = await Promise.all(
+        result.rows.map(async (row) => ({
+          ...row,
+          ...(["commercial_documents", "expenses"].includes(tableName)
+            ? { lines: await this.portableLines(tableName, context.organizationId, String(row.id)) }
+            : {}),
+        })),
+      );
+      const rows: PortableRowEnvelopeContract[] = enrichedRows.map((r, index) => {
+        const row = r as Record<string, unknown>;
+        return {
+          rowNumber: index + 2,
+          operation: "no_change",
+          stableId: names.includes("id")
+            ? String(row.id)
+            : sha(canonical(stableKeys.map((key) => row[key]))),
+          externalReferences: [],
+          ...(names.includes("version") && row.version != null
+            ? { expectedResourceVersion: String(row.version) }
+            : {}),
+          data: Object.fromEntries(
+            dataColumns.map((column) => [column.column_name, scalar(row[column.column_name])]),
+          ),
+          relationships: Object.fromEntries(
+            relationshipKeys.map((key) => [key, row[key] == null ? null : String(row[key])]),
+          ),
+        };
+      });
       resources.push({
         inventory: {
           resourceType,

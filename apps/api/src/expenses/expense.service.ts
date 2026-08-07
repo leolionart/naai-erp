@@ -223,6 +223,27 @@ export class ExpenseService {
     this.validate(input);
     return this.envelope(context, await this.store.create(context, input, key));
   }
+  validatePortableInput(input: CreateExpenseInput) {
+    this.validate(input);
+  }
+  async reverseReplace(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    input: CreateExpenseInput,
+    reason: string,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => POST.has(role))) throw new Error("FORBIDDEN");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    this.validate(input);
+    return this.envelope(
+      context,
+      await this.store.reverseReplace(context, id, expectedVersion, input, reason.trim(), key),
+    );
+  }
   async transition(
     context: ExpenseContext,
     id: string,

@@ -30,11 +30,17 @@ const setup = (state = "draft", version = "2") => {
     get: vi.fn().mockResolvedValue({ data: { state, version } }),
     update: vi.fn().mockResolvedValue({ data: {} }),
     transition: vi.fn().mockResolvedValue({ data: {} }),
+    reverseReplace: vi.fn().mockResolvedValue({ data: { replacementDocumentId: "doc-2" } }),
+    validatePortableInput: vi.fn(),
+    create: vi.fn(),
   };
   const expenses = {
     get: vi.fn().mockResolvedValue({ data: { state, version } }),
     update: vi.fn().mockResolvedValue({ data: {} }),
     transition: vi.fn().mockResolvedValue({ data: {} }),
+    reverseReplace: vi.fn().mockResolvedValue({ data: { replacementExpenseId: "expense-2" } }),
+    validatePortableInput: vi.fn(),
+    create: vi.fn(),
   };
   return {
     master,
@@ -69,8 +75,8 @@ describe("PortableCanonicalMutationAdapter", () => {
     );
   });
 
-  it("rejects draft updates after issue and rejects non-atomic reverse_replace", async () => {
-    const { adapter } = setup("issued");
+  it("rejects draft updates after issue and delegates atomic reverse_replace", async () => {
+    const { adapter, documents } = setup("issued");
     expect(await adapter.validate(context, "commercial_documents", row("update"))).toMatchObject({
       disposition: "conflict",
       issues: [{ code: "STATE_CONFLICT" }],
@@ -78,9 +84,17 @@ describe("PortableCanonicalMutationAdapter", () => {
     expect(
       await adapter.validate(context, "commercial_documents", row("reverse_replace")),
     ).toMatchObject({
-      disposition: "invalid",
-      issues: [{ code: "ATOMIC_REVERSE_REPLACE_UNAVAILABLE" }],
+      disposition: "ready",
     });
+    await adapter.apply(context, "commercial_documents", row("reverse_replace"), "replace-row");
+    expect(documents.reverseReplace).toHaveBeenCalledWith(
+      context,
+      "doc-1",
+      "2",
+      expect.any(Object),
+      "Correct imported workbook",
+      "replace-row",
+    );
   });
 
   it("routes cancellation through the canonical lifecycle service", async () => {

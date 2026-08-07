@@ -231,6 +231,34 @@ export class CommercialDocumentService {
     this.validate(input);
     return this.envelope(context, await this.store.create(context, input, idempotencyKey));
   }
+  validatePortableInput(input: CreateCommercialDocumentInput) {
+    this.validate(input);
+  }
+  async reverseReplace(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: CreateCommercialDocumentInput,
+    reason: string,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    this.validate(input);
+    return this.envelope(
+      context,
+      await this.store.reverseReplace(
+        context,
+        id,
+        expectedVersion,
+        input,
+        reason.trim(),
+        idempotencyKey,
+      ),
+    );
+  }
   async transition(
     context: CommercialDocumentContext,
     id: string,

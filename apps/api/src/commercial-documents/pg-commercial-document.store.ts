@@ -910,6 +910,181 @@ export class PgCommercialDocumentStore {
     }
   }
 
+  async reverseReplace(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: CreateCommercialDocumentInput,
+    reason: string,
+    idempotencyKey: string,
+  ) {
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, input, reason }))
+      .digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        requestHash,
+      );
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const found = await client.query<StoredDocument & { journal_id: string | null }>(
+        `select id,type,state,document_date::text,currency,party_id,document_number,net_minor::text,tax_minor::text,
+          gross_minor::text,control_account_code,original_document_id,created_by,version::text,journal_id
+         from commercial_documents where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const original = found.rows[0];
+      if (!original) throw new Error("RESOURCE_NOT_FOUND");
+      if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (
+        !original.journal_id ||
+        !["issued", "posted", "partially_paid", "paid"].includes(original.state)
+      )
+        throw new Error("INVALID_DOCUMENT_TRANSITION");
+      if ((input.id ?? "") === id) throw new Error("VALIDATION_FAILED");
+      await this.assertPostingPeriod(client, context, input.documentDate);
+      const journal = await client.query<{ state: string; currency: string; version: string }>(
+        `select state,currency,version::text from journal_entries where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, original.journal_id],
+      );
+      if (journal.rows[0]?.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
+      const reversalJournalId = randomUUID();
+      await client.query(
+        `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
+         values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
+        [
+          context.organizationId,
+          reversalJournalId,
+          input.documentDate,
+          `Reversal of ${original.journal_id}: ${reason}`,
+          journal.rows[0].currency,
+          context.actorId,
+          reason,
+          original.journal_id,
+        ],
+      );
+      await client.query(
+        `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+         select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
+         from journal_lines where organization_id=$1 and journal_id=$2`,
+        [context.organizationId, original.journal_id, reversalJournalId],
+      );
+      await client.query(
+        `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        [context.organizationId, original.journal_id],
+      );
+      await client.query(
+        `update commercial_documents set state='cancelled',version=version+1,updated_at=now(),reason=$3 where organization_id=$1 and id=$2`,
+        [context.organizationId, id, reason],
+      );
+      const replacementId = input.id ?? randomUUID();
+      await client.query(
+        `insert into commercial_documents
+         (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,reason,created_by)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+        [
+          context.organizationId,
+          replacementId,
+          input.type,
+          input.documentNumber,
+          input.series ?? null,
+          input.fiscalYear,
+          input.partyId,
+          input.documentDate,
+          input.dueDate,
+          input.currency,
+          input.netMinor,
+          input.taxMinor,
+          input.grossMinor,
+          input.controlAccountCode,
+          input.originalDocumentId ?? null,
+          input.reason ?? reason,
+          context.actorId,
+        ],
+      );
+      for (const [lineIndex, line] of input.lines.entries()) {
+        await client.query(
+          `insert into commercial_document_lines(organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code,dimensions)
+           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [
+            context.organizationId,
+            replacementId,
+            lineIndex + 1,
+            line.originalLineNumber ?? null,
+            line.description,
+            line.quantity,
+            line.unitPriceMinor,
+            line.netMinor,
+            line.taxMinor,
+            line.grossMinor,
+            line.primaryAccountCode,
+            line.taxAccountCode ?? null,
+            line.taxCode ?? null,
+            line.dimensions ?? {},
+          ],
+        );
+        for (const [allocationIndex, allocation] of line.allocations.entries())
+          await client.query(
+            `insert into commercial_document_allocations(organization_id,document_id,line_number,allocation_number,amount_minor,dimensions) values($1,$2,$3,$4,$5,$6)`,
+            [
+              context.organizationId,
+              replacementId,
+              lineIndex + 1,
+              allocationIndex + 1,
+              allocation.amountMinor,
+              { ...allocation.dimensions, allocationId: allocation.id },
+            ],
+          );
+      }
+      const auditEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'commercial_document',$3,$4,'reverse_replace',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          (BigInt(original.version) + 1n).toString(),
+          context.actorId,
+          context.correlationId,
+          { state: original.state, journalId: original.journal_id },
+          { state: "cancelled", reversalJournalId, replacementId, reason },
+        ],
+      );
+      const response = {
+        documentId: id,
+        state: "cancelled",
+        resourceVersion: (BigInt(original.version) + 1n).toString(),
+        reversalJournalId,
+        replacementDocumentId: replacementId,
+        auditEventId,
+        nextActions: [],
+      };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        "commercial-document:reverse-replace",
+        requestHash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   private nextActions(type: CommercialDocumentType, state: string) {
     return Object.keys(NEXT[type][state] ?? {});
   }

@@ -32,7 +32,7 @@ export const PORTABLE_RESOURCE_MUTATION_MATRIX: ReadonlyMap<string, PortableMuta
       {
         resourceType: "commercial_documents",
         adapter: "commercial_document",
-        operations: ["update", "cancel", "reverse_replace"],
+        operations: ["create", "update", "cancel", "reverse_replace"],
       },
     ],
     [
@@ -40,7 +40,7 @@ export const PORTABLE_RESOURCE_MUTATION_MATRIX: ReadonlyMap<string, PortableMuta
       {
         resourceType: "expenses",
         adapter: "expense",
-        operations: ["update", "cancel", "reverse_replace"],
+        operations: ["create", "update", "cancel", "reverse_replace"],
       },
     ],
     [

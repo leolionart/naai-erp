@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // @ts-expect-error - mjs module import without ambient declarations
-import { seedTt133Mvp } from "../../db/seed/tt133-mvp.mjs";
+import { seedTt133Mvp } from "../../../scripts/seed-local-demo.mjs";
 import { createApp } from "./bootstrap.js";
 
 const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_URL;
