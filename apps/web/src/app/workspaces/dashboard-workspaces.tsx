@@ -989,14 +989,14 @@ export function ExecutiveDashboardWorkspace() {
                     ? `Burn: ${money(executive.netBurnMinor, executive.currency)}/tháng`
                     : "Tổng số dư tiền mặt và tiền gửi khả dụng"
                 }
-                href={`/reports/financial-statements/cash-flow?${q}`}
+                href={`/reports/financial-statements/cash-flow/current?${q}`}
                 status={executive?.runwayStatus}
               />
               <MetricCard
                 title="Runway"
                 value={months(executive?.runwayMonthsThousandths)}
                 description="Thời gian duy trì dòng tiền với tốc độ chi tiêu hiện tại"
-                href={`/reports/financial-statements/cash-flow?${q}`}
+                href={`/reports/financial-statements/cash-flow/current?${q}`}
                 status={executive?.runwayStatus}
               />
               <MetricCard
@@ -1030,7 +1030,7 @@ export function ExecutiveDashboardWorkspace() {
                 title="ROS"
                 value={ratio(executive?.ros.valueBps ?? operating?.financials.rosBps)}
                 description="Tỷ suất lợi nhuận trên doanh thu (Return on Sales)"
-                href={`/reports/financial-statements/profit-and-loss?${q}`}
+                href={`/reports/financial-statements/profit-and-loss/current?${q}`}
                 status={
                   executive?.ros.status ??
                   (operating?.financials.rosBps == null ? undefined : "Dồn tích")
@@ -1310,14 +1310,14 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       value: ratio(executive?.ros.valueBps),
       formula: executive?.ros.formulaVersion ?? "Executive Metrics API",
       sourceIds: executive?.sourceBoundary.sourceIds ?? [],
-      canonicalHref: `/reports/executive-metrics/profitability?${q}`,
+      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
     },
     runway: {
       title: "Cash Runway",
       value: months(executive?.runwayMonthsThousandths),
       formula: executive?.runwayFormulaVersion ?? "Executive Metrics API",
       sourceIds: executive?.sourceBoundary.sourceIds ?? [],
-      canonicalHref: `/reports/executive-metrics/liquidity?${q}`,
+      canonicalHref: `/reports/financial-statements/cash-flow/current?${q}`,
     },
     "equity-consumed": {
       title: "Equity consumed",

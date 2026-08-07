@@ -34,7 +34,14 @@ const money = (amount: string, currency = "VND") => {
     return amount || "—";
   }
 };
-const dateOnly = (input: string) => (input ? input.slice(0, 10) : "—");
+const dateOnly = (input: string) => {
+  if (!input) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+  const date = new Date(input);
+  return Number.isNaN(date.getTime())
+    ? input
+    : date.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+};
 const masterDataKey = (id: string) =>
   btoa(JSON.stringify({ id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 
@@ -302,7 +309,9 @@ export function BusinessRecordWorkspace({
               <Fact label="Ngày bắt đầu" value={dateOnly(value(record, "starts_on"))} />
               <Fact
                 label="Ngày kết thúc"
-                value={value(record, "ends_on") ? dateOnly(value(record, "ends_on")) : "Chưa xác định"}
+                value={
+                  value(record, "ends_on") ? dateOnly(value(record, "ends_on")) : "Chưa xác định"
+                }
               />
               {projectNote ? (
                 <div className="col-span-full rounded-lg border p-3 bg-muted/20">
@@ -405,7 +414,8 @@ export function BusinessRecordWorkspace({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Hợp đồng & Mốc thực hiện</CardTitle>
               <CardDescription className="text-xs">
-                Giá trị hợp đồng và các mốc bàn giao dùng cho backlog, nghiệm thu và ghi nhận doanh thu.
+                Giá trị hợp đồng và các mốc bàn giao dùng cho backlog, nghiệm thu và ghi nhận doanh
+                thu.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -419,16 +429,24 @@ export function BusinessRecordWorkspace({
                           Ký ngày {dateOnly(value(contract, "signed_on"))}
                         </p>
                       </div>
-                      <strong>{money(value(contract, "value_minor"), value(contract, "currency"))}</strong>
+                      <strong>
+                        {money(value(contract, "value_minor"), value(contract, "currency"))}
+                      </strong>
                     </div>
                     <div className="mt-3 grid gap-2 md:grid-cols-2">
                       {projectMilestones
-                        .filter((milestone) => value(milestone, "contract_id") === value(contract, "id"))
+                        .filter(
+                          (milestone) => value(milestone, "contract_id") === value(contract, "id"),
+                        )
                         .map((milestone) => (
-                          <div key={value(milestone, "id")} className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div
+                            key={value(milestone, "id")}
+                            className="rounded-md bg-muted/30 p-3 text-sm"
+                          >
                             <p className="font-medium">{value(milestone, "name")}</p>
                             <p className="text-xs text-muted-foreground">
-                              Hạn {dateOnly(value(milestone, "due_on"))} · {money(value(milestone, "amount_minor"), value(contract, "currency"))}
+                              Hạn {dateOnly(value(milestone, "due_on"))} ·{" "}
+                              {money(value(milestone, "amount_minor"), value(contract, "currency"))}
                             </p>
                           </div>
                         ))}

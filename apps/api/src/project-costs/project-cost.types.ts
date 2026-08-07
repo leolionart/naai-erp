@@ -1,7 +1,7 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
 export type ProjectCostContext = JournalActorContext;
 export type ProjectCostStore = Readonly<{
-  listCosts(org: string): Promise<unknown>;
+  listCosts(org: string, projectId?: string): Promise<unknown>;
   getCost(org: string, id: string): Promise<unknown | undefined>;
   unallocated(org: string): Promise<unknown>;
   createAllocation(

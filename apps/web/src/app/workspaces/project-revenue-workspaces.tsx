@@ -167,7 +167,7 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
           .then((wire) => {
             const recognized = BigInt(String(wire.recognizedRevenueMinor ?? "0"));
             const invoiced = BigInt(String(wire.invoicedRevenueMinor ?? "0"));
-            const collected = String(wire.collectedCashMinor ?? "0");
+            const collected = String(wire.collectedCashMinor ?? "0").split(".")[0] || "0";
             return {
               startsOn: "—",
               endsOn: String(wire.asOf ?? asOf),

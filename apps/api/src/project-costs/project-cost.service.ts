@@ -29,8 +29,8 @@ export class ProjectCostService {
     if (!c.roles.some((r) => (approve ? APPROVE : WRITE).has(r))) throw new Error("FORBIDDEN");
     if (!k) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
   }
-  list(c: ProjectCostContext) {
-    return this.store.listCosts(c.organizationId).then((x) => this.e(c, x));
+  list(c: ProjectCostContext, projectId?: string) {
+    return this.store.listCosts(c.organizationId, projectId).then((x) => this.e(c, x));
   }
   async get(c: ProjectCostContext, id: string) {
     const x = await this.store.getCost(c.organizationId, id);

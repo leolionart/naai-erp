@@ -6,14 +6,47 @@ const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).dige
 @Injectable()
 export class PgProjectCostStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  async listCosts(org: string) {
+  async listCosts(org: string, projectId?: string) {
+    const purchases = await this.pool.query(
+      `select 'purchase:'||a.document_id||':'||a.line_number||':'||a.allocation_number id,
+        a.dimensions->>'projectId' "projectId",'vendor_service' "costClass",'ledger' basis,
+        d.document_date::text "effectiveOn",d.currency,a.amount_minor::text "amountMinor",
+        a.amount_minor::text "baseAmountMinor",l.primary_account_code "ledgerAccountCode",
+        d.id "sourceId",a.line_number::text "sourceLineId",a.allocation_number::text "sourceAllocationId",
+        d.journal_id "journalId"
+       from commercial_document_allocations a
+       join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id
+       join commercial_document_lines l on l.organization_id=a.organization_id and l.document_id=a.document_id and l.line_number=a.line_number
+       where a.organization_id=$1 and d.type='purchase_invoice' and d.state in('posted','partially_paid','paid')
+         and ($2::text is null or a.dimensions->>'projectId'=$2)
+       order by d.document_date desc,d.id,a.line_number,a.allocation_number`,
+      [org, projectId ?? null],
+    );
     return {
-      items: (
-        await this.pool.query(
-          this.costSql() + " where c.organization_id=$1 order by c.created_at desc,c.id",
-          [org],
-        )
-      ).rows,
+      items: purchases.rows.map((row) => ({
+        id: row.id,
+        projectId: row.projectId,
+        costClass: row.costClass,
+        basis: row.basis,
+        effectiveOn: row.effectiveOn,
+        currency: row.currency,
+        amountMinor: row.amountMinor,
+        baseAmountMinor: row.baseAmountMinor,
+        ledgerAccountCode: row.ledgerAccountCode,
+        drilldown: {
+          sourceType: "purchase_invoice_allocation",
+          sourceId: row.sourceId,
+          sourceLineId: row.sourceLineId,
+          sourceAllocationId: row.sourceAllocationId,
+          journalId: row.journalId,
+          evidenceIds: [],
+          sourceHref: `/documents/${encodeURIComponent(row.sourceId)}`,
+          ...(row.journalId
+            ? { journalHref: `/journals/${encodeURIComponent(row.journalId)}` }
+            : {}),
+          evidenceHrefs: [],
+        },
+      })),
     };
   }
   async getCost(org: string, id: string) {

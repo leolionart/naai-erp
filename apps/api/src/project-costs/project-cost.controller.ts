@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { ProjectCostService } from "./project-cost.service.js";
 @Controller("api/v1/organizations/:organizationId")
@@ -9,10 +9,11 @@ export class ProjectCostController {
   }
   @Get("project-costs") async list(
     @Param("organizationId") o: string,
+    @Query("projectId") projectId?: string,
     @Headers("authorization") a?: string,
     @Headers("x-correlation-id") c?: string,
   ) {
-    return this.s.list(await this.c(o, a, c));
+    return this.s.list(await this.c(o, a, c), projectId);
   }
   @Get("project-costs/:id") async get(
     @Param("organizationId") o: string,
