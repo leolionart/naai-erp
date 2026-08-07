@@ -172,6 +172,22 @@ export function FocusedRecordListWorkspace({
         client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
       ]);
       let rawItems = Array.isArray(result) ? result : (result.items ?? []);
+      const startsOn = sourceParams.get("startsOn");
+      const endsOn = sourceParams.get("endsOn");
+      if (startsOn || endsOn) {
+        rawItems = rawItems.filter((row) => {
+          const dateVal = text(
+            row,
+            sourceKind === "documents" ? "documentDate" : "expenseDate",
+            "issueDate",
+            "createdAt",
+          );
+          if (!dateVal) return true;
+          if (startsOn && dateVal < startsOn) return false;
+          if (endsOn && dateVal > endsOn) return false;
+          return true;
+        });
+      }
       if (initialProjectId) {
         rawItems = rawItems.filter(
           (row) =>

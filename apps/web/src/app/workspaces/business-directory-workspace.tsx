@@ -116,22 +116,34 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
         {filtered.map((row) => {
           const id = value(row, "id");
           const customer = kind === "customers";
+          const rawName = customer ? value(row, "display_name") : value(row, "name");
+          let title = rawName;
+          let note = value(row, "notes") || value(row, "description");
+          if (!customer && rawName.includes(" — ")) {
+            const parts = rawName.split(" — ");
+            title = parts[0]!.trim();
+            if (!note) note = parts.slice(1).join(" — ").trim();
+          }
+
           return (
-            <Card key={id}>
-              <CardHeader>
+            <Card key={id} className="flex flex-col justify-between">
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle>
-                      {customer ? value(row, "display_name") : value(row, "name")}
-                    </CardTitle>
-                    <CardDescription>{customer ? id : value(row, "code")}</CardDescription>
+                  <div className="space-y-1">
+                    <CardTitle className="text-base font-semibold leading-tight">{title}</CardTitle>
+                    <CardDescription className="font-mono text-xs">
+                      {customer ? id : value(row, "code")}
+                    </CardDescription>
                   </div>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="shrink-0">
                     {customer ? value(row, "status") : value(row, "state")}
                   </Badge>
                 </div>
+                {note ? (
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic">{note}</p>
+                ) : null}
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
+              <CardContent className="flex flex-wrap gap-2 pt-0">
                 <Button asChild size="sm">
                   <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
                 </Button>
