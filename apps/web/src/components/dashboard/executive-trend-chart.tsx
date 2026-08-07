@@ -47,7 +47,7 @@ export default function ExecutiveTrendChart({
     <div className="flex flex-col gap-4">
       <div role="img" aria-label="Xu hướng doanh thu tương tác">
         <ChartContainer config={chartConfig} className="h-72 w-full aspect-auto">
-          <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 12 }}>
+          <AreaChart accessibilityLayer data={data} margin={{ top: 20, right: 16, left: 4, bottom: 0 }}>
             <defs>
               <linearGradient id="revenue-gradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.45} />
@@ -67,6 +67,7 @@ export default function ExecutiveTrendChart({
               axisLine={false}
               tickMargin={8}
               width={64}
+              domain={[0, (dataMax: number) => (dataMax > 0 ? Math.ceil(dataMax * 1.25) : 100)]}
               tickFormatter={(value) => compactMoney.format(Number(value))}
             />
             <ChartTooltip
@@ -88,7 +89,7 @@ export default function ExecutiveTrendChart({
             />
             <Area
               dataKey="revenue"
-              type="natural"
+              type="monotone"
               fill="url(#revenue-gradient)"
               stroke="var(--color-revenue)"
               strokeWidth={2}
