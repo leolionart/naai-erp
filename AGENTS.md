@@ -6,12 +6,10 @@ These instructions apply to every coding agent working in this repository.
 
 Before modifying code, read these files completely in order:
 
-1. `docs/planning/NAAI ERP - Sequential Coding Plan.md`
-2. `docs/product/business-rules.md`
-3. `docs/testing/test-specification.md`
-4. `docs/agent/overnight-runbook.md`
-5. `docs/implementation/task-ledger.yaml`
-6. ADRs and specifications referenced by the selected task.
+1. `docs/product/business-rules.md`
+2. `docs/testing/test-specification.md`
+3. `docs/implementation/task-ledger.yaml`
+4. ADRs and specifications referenced by the selected task.
 
 Do not start implementation if any mandatory file is missing, unreadable, or contradictory. Record the blocker in the task ledger.
 

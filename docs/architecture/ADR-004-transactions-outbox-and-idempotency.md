@@ -24,4 +24,3 @@ Webhook retries and process crashes must not duplicate invoices, journals or eve
 - Direct message publishing inside an uncommitted transaction is forbidden.
 - Event schemas are versioned in contracts.
 - Integration tests inject crashes before/after commit and delivery.
-

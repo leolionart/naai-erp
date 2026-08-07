@@ -25,4 +25,3 @@ Invoices, XML, receipts, contracts and acceptance evidence may contain sensitive
 - Container filesystem is never the durable evidence store.
 - Deleting a draft does not silently destroy evidence needed by audit/retention policy.
 - Backup/restore includes database-to-object consistency checks.
-

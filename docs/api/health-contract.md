@@ -20,4 +20,3 @@
 - Health endpoints never disclose secrets, stack traces or internal addresses.
 - Liveness failure restarts a process; readiness failure removes it from traffic without restart loops where possible.
 - Database migration is a one-shot service, not an API-replica startup race.
-

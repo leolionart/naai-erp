@@ -7,4 +7,3 @@
 - Logs, audit payloads, test artifacts, SBOM and release manifests must not contain secret values.
 - Rotate session, webhook, storage and database secrets after suspected exposure.
 - Access follows least privilege and is reviewed when team membership changes.
-

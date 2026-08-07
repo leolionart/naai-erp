@@ -8,3 +8,5 @@
 6. [ADR-006: Reporting and Read Models](./ADR-006-reporting-and-read-models.md)
 7. [ADR-007: Source and Dependency License Policy](./ADR-007-license-policy.md)
 8. [ADR-008: Database Access and Migration Tooling](./ADR-008-database-access-and-migrations.md)
+9. [ADR-009: AI-native Interfaces](./ADR-009-ai-native-interfaces.md)
+10. [ADR-010: Import Staging Queue and In-place Quick View Editing](./ADR-010-import-staging-and-quick-view-editing.md)

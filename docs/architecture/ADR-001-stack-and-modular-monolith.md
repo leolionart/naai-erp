@@ -33,4 +33,3 @@ banking, ledger, planning, reporting, integrations, audit
 - Modules must not access another module's tables directly without an approved boundary.
 - Microservice extraction is allowed only after measured scaling/ownership need and an ADR.
 - Node 22 LTS and exact dependency versions are the supported baseline.
-

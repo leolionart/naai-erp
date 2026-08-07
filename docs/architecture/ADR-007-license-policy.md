@@ -23,4 +23,3 @@ Research included GPL, AGPL, BSL, Elastic, MIT and Apache projects. Copying impl
 
 - A dependency/license inventory becomes a CI/release gate in later tasks.
 - License ambiguity blocks adoption rather than being resolved by assumption.
-

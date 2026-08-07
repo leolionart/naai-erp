@@ -34,4 +34,3 @@ Financial correctness cannot depend on UI convention. The accounting kernel need
 
 - No business document may write arbitrary journal lines without posting rules or elevated manual-journal workflow.
 - Golden expected outputs require explicit review; tests are not weakened to accommodate implementation errors.
-

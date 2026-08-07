@@ -25,4 +25,3 @@ Operational models and financial reports have different query shapes. Dashboard 
 - Dashboard-only formulas are forbidden.
 - Read-model lag and unresolved-data confidence indicators are visible.
 - Snapshot/golden tests prove reproducibility.
-

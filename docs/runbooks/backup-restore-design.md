@@ -24,4 +24,3 @@
 6. Record duration, exceptions and approval in evidence.
 
 Exact scripts, retention and RPO/RTO are finalized with Docker/production infrastructure tasks.
-

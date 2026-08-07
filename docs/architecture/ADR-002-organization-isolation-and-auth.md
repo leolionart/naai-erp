@@ -25,4 +25,3 @@ Financial data must never leak across organizations. Background jobs, APIs and r
 - Repositories/services require organization context explicitly.
 - Tests must include cross-organization IDOR and background-job isolation.
 - Global reference data must be explicitly marked; tenant data cannot use a nullable organization as a shortcut.
-

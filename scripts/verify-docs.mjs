@@ -9,6 +9,7 @@ const requiredAdrs = [
   "ADR-006-reporting-and-read-models.md",
   "ADR-007-license-policy.md",
   "ADR-009-ai-native-interfaces.md",
+  "ADR-010-import-staging-and-quick-view-editing.md",
 ];
 
 const requiredRuleReferences = [
