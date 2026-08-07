@@ -33,6 +33,17 @@ Additional gates:
 - `pnpm demo:seed`: passed; all 13 report requests returned successfully.
 - `pnpm demo:verify`: passed after the internal-transfer seed extension; all 13 report requests
   returned successfully.
+- `pnpm demo:seed`: passed after adding itemized project payroll and two contract-backed project
+  expenses. Canonical readback verified VND 70,000,000 direct payroll across two projects, VND
+  18,000,000 freelance UI for `demo-project-web`, and VND 28,000,000 contract backend development for
+  `demo-project-ai`.
+- `pnpm demo:verify`: passed with the new `project-cost-readback` assertion in addition to all 13
+  report requests.
+- Live expense readback: `demo-expense-freelance-ui` and `demo-expense-contract-dev-ai` are `posted`
+  contract-backed expenses with exact project allocations and payees.
+- Live P&L readback after the expanded demo data: revenue VND 290,000,000, direct cost VND
+  176,000,000, operating expense VND 53,000,000 and net profit VND 61,000,000; ledger/report control
+  status `tied_out` with zero difference.
 - `pnpm --filter @naai-erp/web typecheck`: passed.
 - `RUN_DB_INTEGRATION=1 DATABASE_URL=... pnpm --dir apps/api exec vitest run
 src/commercial-documents/commercial-document.integration.test.ts

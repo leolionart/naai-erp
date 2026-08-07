@@ -40,3 +40,11 @@ and executive-metric workspaces.
 VAT uses `output VAT - eligible input VAT` and exposes unreviewed input separately. Provisional CIT
 uses posted-ledger accounting profit before tax plus reviewed CIT-ineligible expenses, keeps
 unreviewed expenses visible, and multiplies by the effective accountant-approved `cit` tax-code rate.
+
+The demo cost mix is now more representative of actual project delivery. The existing VND
+120,000,000 payroll payment is itemized without increasing its total: VND 35,000,000 is attributed to
+the website project, VND 35,000,000 to the AI project and VND 50,000,000 remains shared operating
+payroll. Separate contract-backed, owner-paid expenses record VND 18,000,000 of freelance UI work for
+the website project and VND 28,000,000 of backend development for the AI project. Both expenses have
+explicit freelancer payees, accepted synthetic contract/acceptance evidence, independent tax review,
+project allocations and posted journal links.

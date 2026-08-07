@@ -34,3 +34,11 @@
   VAT and unreviewed CIT expense: passed.
 - Fully-loaded profit backed by a posted overhead allocation run: pending; source materialization API
   is not available yet.
+- Payroll remains VND 120,000,000 in total but is split into VND 70,000,000 direct project labor
+  across the website and AI projects plus VND 50,000,000 shared operating payroll: passed.
+- Contract-backed freelance UI cost of VND 18,000,000 is posted to the website project with a
+  freelancer payee and accepted contract/acceptance evidence: passed.
+- Contract backend-dev cost of VND 28,000,000 is posted to the AI project with a freelancer payee and
+  accepted contract/acceptance evidence: passed.
+- `pnpm demo:verify` fails if those canonical expense/journal records lose their exact posted state,
+  amount, payee or project allocation: passed.

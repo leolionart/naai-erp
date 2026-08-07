@@ -15,6 +15,7 @@ import type {
   PortableResourceExport,
   SavePortablePackageInput,
 } from "./portable-data-package.types.js";
+import { portableMutationEntry } from "./portable-resource-mutation-matrix.js";
 
 type ColumnRow = Readonly<{
   table_name: string;
@@ -29,6 +30,7 @@ const EXCLUDED_RESOURCES: Readonly<Record<string, string>> = {
   api_credentials: "Authentication credentials and token hashes are never portable business data",
   api_idempotency_records: "Internal request replay controls are environment-local",
   portable_data_packages: "Generated package bytes cannot recursively contain data packages",
+  portable_data_imports: "Import staging and replay controls are environment-local",
 };
 const SECRET_COLUMN =
   /(^|_)(secret|password|token_hash|access_token|refresh_token|private_key|signed_url)($|_)/i;
@@ -142,6 +144,14 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           column.column_name !== "id" &&
           column.column_name !== "version",
       );
+      const mutation = portableMutationEntry(resourceType);
+      const mutability = ["commercial_document", "expense", "journal"].includes(mutation.adapter)
+        ? "correction_only"
+        : mutation.operations.includes("create") || mutation.operations.includes("update")
+          ? "editable"
+          : mutation.operations.includes("deactivate")
+            ? "deactivate_only"
+            : "read_only";
       const sheetColumns: PortableSheetColumnContract[] = dataColumns.map((column) => ({
         key: column.column_name,
         header: column.column_name,
@@ -174,7 +184,7 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           excluded: false,
           schemaVersion: PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
           dependencyOrder: tableName === "organizations" ? 0 : 100,
-          mutability: MASTER_RESOURCE_BY_TABLE.has(tableName) ? "editable" : "read_only",
+          mutability,
         },
         schema: {
           resourceType,
@@ -187,7 +197,10 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           operationColumn: "operation",
           columns: sheetColumns.map((column) => ({
             ...column,
-            editable: MASTER_RESOURCE_BY_TABLE.has(tableName),
+            editable:
+              mutability === "editable" ||
+              (mutability === "correction_only" &&
+                !["state", "journal_id", "posted_at"].includes(column.key)),
           })),
         },
         rows,
@@ -200,7 +213,10 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
     return {
       packageId: String(row.id),
       organizationId: String(row.organization_id),
-      asOf: String(row.as_of),
+      asOf:
+        row.as_of instanceof Date
+          ? row.as_of.toISOString().slice(0, 10)
+          : String(row.as_of).slice(0, 10),
       format: "xlsx",
       filename: String(row.filename),
       mediaType: String(row.media_type),

@@ -5,10 +5,13 @@ import {
   PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
   type PortableDryRunResultContract,
   type PortableDryRunRowResultContract,
+  type PortableDataPackageManifestContract,
   type PortableRowEnvelopeContract,
   type PortableRowIssueContract,
+  type PortableSheetInventoryContract,
+  type PortableSheetSchemaContract,
 } from "@naai-erp/contracts";
-import { assertPortableRowOperation, hashPortableRows } from "@naai-erp/domain";
+import { assertPortableRowOperation, canonicalJson, hashPortableRows } from "@naai-erp/domain";
 import ExcelJS from "exceljs";
 import type { PortableDataPackageContext } from "./portable-data-package.types.js";
 import {
@@ -18,6 +21,7 @@ import {
   type PortableImportInventory,
   type PortableWorkbookUpload,
 } from "./portable-data-import.types.js";
+import { portableOperationHasAccountingEffect } from "./portable-resource-mutation-matrix.js";
 
 const IMPORT_ROLES = new Set(["owner", "finance_admin", "accountant"]);
 const OPERATIONS = new Set([
@@ -29,6 +33,7 @@ const OPERATIONS = new Set([
   "reverse_replace",
 ]);
 const sha256 = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
+const packageHash = (value: unknown) => sha256(canonicalJson(value as never));
 const issue = (code: string, message: string, field?: string): PortableRowIssueContract => ({
   code,
   message,
@@ -43,6 +48,21 @@ const jsonObject = (value: ExcelJS.CellValue, field: string) => {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
     throw new Error(`${field} must be a JSON object`);
   return parsed as Record<string, string | null>;
+};
+const jsonExternalReferences = (value: ExcelJS.CellValue) => {
+  const raw = text(value);
+  if (!raw) return [];
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) throw new Error("externalReferences must be a JSON array");
+  return parsed.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry))
+      throw new Error("externalReferences entries must be objects");
+    const system = String((entry as Record<string, unknown>).system ?? "").trim();
+    const externalId = String((entry as Record<string, unknown>).externalId ?? "").trim();
+    if (!system || !externalId)
+      throw new Error("externalReferences entries require system and externalId");
+    return { system, externalId };
+  });
 };
 
 @Injectable()
@@ -71,7 +91,7 @@ export class PortableDataImportService {
     const manifestSheet = workbook.getWorksheet("_manifest");
     if (!manifestSheet) throw new Error("PORTABLE_IMPORT_MANIFEST_MISSING");
     const values = new Map<string, string>();
-    for (let row = 1; row <= 5; row += 1)
+    for (let row = 1; row <= Math.min(manifestSheet.rowCount, 20); row += 1)
       values.set(
         text(manifestSheet.getCell(row, 1).value),
         text(manifestSheet.getCell(row, 2).value),
@@ -82,15 +102,83 @@ export class PortableDataImportService {
       throw new Error("PORTABLE_IMPORT_ORGANIZATION_MISMATCH");
     if (Number(values.get("schema_version")) !== PORTABLE_DATA_PACKAGE_SCHEMA_VERSION)
       throw new Error("PORTABLE_IMPORT_SCHEMA_VERSION_UNSUPPORTED");
-    const source = await this.store.getSourcePackage(context, packageId);
-    if (!source) throw new Error("RESOURCE_NOT_FOUND");
+    const schemaSheet = workbook.getWorksheet("_schemas");
+    if (!schemaSheet) throw new Error("PORTABLE_IMPORT_SCHEMA_MISSING");
+    const schemas: PortableSheetSchemaContract[] = [];
+    for (let row = 2; row <= schemaSheet.rowCount; row += 1) {
+      const raw = text(schemaSheet.getCell(row, 2).value);
+      if (raw) schemas.push(JSON.parse(raw) as PortableSheetSchemaContract);
+    }
+    let inventoryHeaderRow = 0;
+    for (let row = 1; row <= manifestSheet.rowCount; row += 1)
+      if (text(manifestSheet.getCell(row, 1).value) === "resource_type") {
+        inventoryHeaderRow = row;
+        break;
+      }
+    if (!inventoryHeaderRow) throw new Error("PORTABLE_IMPORT_INVENTORY_MISSING");
+    const sheetInventory: PortableSheetInventoryContract[] = [];
+    for (let row = inventoryHeaderRow + 1; row <= manifestSheet.rowCount; row += 1) {
+      const resourceType = text(manifestSheet.getCell(row, 1).value);
+      if (!resourceType) continue;
+      const excludedRaw = manifestSheet.getCell(row, 3).value;
+      const excluded = excludedRaw === true || text(excludedRaw) === "true";
+      sheetInventory.push({
+        resourceType,
+        ...(text(manifestSheet.getCell(row, 2).value)
+          ? { sheetName: text(manifestSheet.getCell(row, 2).value) }
+          : {}),
+        excluded,
+        ...(text(manifestSheet.getCell(row, 4).value)
+          ? { exclusionReason: text(manifestSheet.getCell(row, 4).value) }
+          : {}),
+        schemaVersion: Number(text(manifestSheet.getCell(row, 5).value)),
+        dependencyOrder: Number(text(manifestSheet.getCell(row, 6).value)),
+        mutability: text(
+          manifestSheet.getCell(row, 7).value,
+        ) as PortableSheetInventoryContract["mutability"],
+        ...(text(manifestSheet.getCell(row, 8).value)
+          ? { headerCount: Number(text(manifestSheet.getCell(row, 8).value)) }
+          : {}),
+        rowCount: Number(text(manifestSheet.getCell(row, 9).value)),
+        ...(text(manifestSheet.getCell(row, 10).value)
+          ? { sha256: text(manifestSheet.getCell(row, 10).value) }
+          : {}),
+      });
+    }
+    const embeddedPackageHash = values.get("package_hash") ?? "";
+    const embeddedHashPayload = {
+      schemaVersion: PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
+      packageId,
+      organizationId: context.organizationId,
+      exportedAt: values.get("exported_at") ?? "",
+      asOf: values.get("as_of") ?? "",
+      exportedBy: values.get("exported_by") ?? "",
+      sourceSystem: "naai-erp" as const,
+      sourceApiVersion: "v1" as const,
+      hashAlgorithm: "sha256" as const,
+      sheets: sheetInventory,
+      schemas,
+      totalSheetCount: sheetInventory.filter((item) => !item.excluded).length,
+      totalRowCount: sheetInventory.reduce((sum, item) => sum + item.rowCount, 0),
+    };
+    if (!embeddedPackageHash || packageHash(embeddedHashPayload) !== embeddedPackageHash)
+      throw new Error("PORTABLE_IMPORT_PACKAGE_HASH_INVALID");
+    const embeddedManifest: PortableDataPackageManifestContract = {
+      ...embeddedHashPayload,
+      workbookSha256: sha256(upload.content),
+      packageHash: embeddedPackageHash,
+    };
+    const persistedSource = await this.store.getSourcePackage(context, packageId);
+    if (persistedSource && persistedSource.manifest.packageHash !== embeddedPackageHash)
+      throw new Error("PORTABLE_IMPORT_PACKAGE_HASH_MISMATCH");
+    const source = persistedSource ?? { manifest: embeddedManifest, schemas };
     const issues: PortableRowIssueContract[] = [];
     const parsedSheets: ParsedPortableSheet[] = [];
     const expectedNames = new Set(
       source.manifest.sheets.filter((x) => !x.excluded).map((x) => x.sheetName!),
     );
     for (const sheet of workbook.worksheets)
-      if (sheet.name !== "_manifest" && !expectedNames.has(sheet.name))
+      if (!new Set(["_manifest", "_schemas"]).has(sheet.name) && !expectedNames.has(sheet.name))
         issues.push(issue("UNKNOWN_SHEET", `Unknown workbook sheet ${sheet.name}`));
     for (const inventory of source.manifest.sheets.filter((x) => !x.excluded)) {
       const sheet = workbook.getWorksheet(inventory.sheetName!);
@@ -130,7 +218,7 @@ export class PortableDataImportService {
             ...(stableId ? { stableId } : {}),
             ...(expectedResourceVersion ? { expectedResourceVersion } : {}),
           });
-          const external = jsonObject(sheet.getCell(rowNumber, 4).value, "externalReferences");
+          const external = jsonExternalReferences(sheet.getCell(rowNumber, 4).value);
           const relationships = jsonObject(sheet.getCell(rowNumber, 5).value, "relationships");
           const data = Object.fromEntries(
             schema.columns.map((column, index) => {
@@ -146,10 +234,7 @@ export class PortableDataImportService {
             operation: operation as PortableRowEnvelopeContract["operation"],
             ...(stableId ? { stableId } : {}),
             ...(expectedResourceVersion ? { expectedResourceVersion } : {}),
-            externalReferences: Object.entries(external).map(([system, externalId]) => ({
-              system,
-              externalId: String(externalId),
-            })),
+            externalReferences: external,
             relationships,
             data,
           });
@@ -207,11 +292,7 @@ export class PortableDataImportService {
   ) {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     const parsed = await this.parse(context, upload);
-    const staged = await this.store.saveInventory(
-      context,
-      parsed,
-      `${idempotencyKey}:inventory`,
-    );
+    await this.store.saveInventory(context, parsed, `${idempotencyKey}:inventory`);
     const rows: PortableDryRunRowResultContract[] = [];
     for (const sheet of parsed.parsedSheets)
       for (const row of sheet.rows) {
@@ -316,6 +397,23 @@ export class PortableDataImportService {
       record as typeof record & { parsedSheets?: readonly ParsedPortableSheet[] }
     ).parsedSheets;
     if (!parsedSheets) throw new Error("PORTABLE_IMPORT_STAGED_ROWS_MISSING");
+    const mutationRows = parsedSheets.flatMap((sheet) =>
+      sheet.rows
+        .filter((row) => row.operation !== "no_change")
+        .map((row) => ({ resourceType: sheet.resourceType, row })),
+    );
+    if (
+      mutationRows.length > 1 &&
+      mutationRows.some(({ resourceType, row }) =>
+        portableOperationHasAccountingEffect(resourceType, row.operation),
+      )
+    )
+      throw new Error("PORTABLE_IMPORT_ATOMIC_BATCH_UNAVAILABLE");
+    for (const { resourceType, row } of mutationRows) {
+      const validation = await this.store.validateCanonicalRow(context, resourceType, row);
+      if (validation.disposition !== "ready")
+        throw new Error("PORTABLE_IMPORT_COMMIT_REVALIDATION_FAILED");
+    }
     const resultRows: PortableDryRunRowResultContract[] = [];
     let applied = 0,
       unchanged = 0,

@@ -3062,6 +3062,192 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/exports": {
+      "post": {
+        "operationId": "createPortableDataPackageExport",
+        "tags": ["portable-data-packages"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePortableDataPackageExportRequest" },
+              "example": { "asOf": "2026-08-07", "format": "xlsx" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Complete portable package metadata",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PortableDataPackageEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/exports/{packageId}": {
+      "get": {
+        "operationId": "getPortableDataPackageExport",
+        "tags": ["portable-data-packages"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PortablePackageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package manifest and metadata",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PortableDataPackageEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/exports/{packageId}/inventory": {
+      "get": {
+        "operationId": "getPortableDataPackageInventory",
+        "tags": ["portable-data-packages"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PortablePackageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Included and explicitly excluded resource inventory",
+            "content": {
+              "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/exports/{packageId}/download": {
+      "get": {
+        "operationId": "downloadPortableDataPackageExport",
+        "tags": ["portable-data-packages"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PortablePackageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immutable XLSX bytes",
+            "headers": {
+              "X-Content-Sha256": { "schema": { "$ref": "#/components/schemas/PortableSha256" } }
+            },
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/imports/inventory": {
+      "post": {
+        "operationId": "inventoryPortableDataPackageImport",
+        "tags": ["portable-data-packages"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/PortableDataPackageWorkbook" },
+        "responses": {
+          "201": {
+            "description": "Completeness and checksum inventory",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PortableImportEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/imports/dry-run": {
+      "post": {
+        "operationId": "dryRunPortableDataPackageImport",
+        "tags": ["portable-data-packages"],
+        "description": "Always zero mutation; returns row diffs, resolved references, warnings and errors.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/PortableDataPackageWorkbook" },
+        "responses": {
+          "201": {
+            "description": "Deterministic zero-mutation result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PortableDryRunEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/imports/{importId}": {
+      "get": {
+        "operationId": "getPortableDataPackageImport",
+        "tags": ["portable-data-packages"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PortableImportId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PortableImportEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/imports/{importId}/commit": {
+      "post": {
+        "operationId": "commitPortableDataPackageImport",
+        "tags": ["portable-data-packages"],
+        "description": "Explicit idempotent commit. Posted history is corrected through cancel or reverse_replace, never overwritten.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/PortableImportId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CommitPortableDataPackageImportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Commit result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PortableImportEnvelope" }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed workbook, stale version, closed period or unresolved relationship"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3073,6 +3259,18 @@
         "schema": {
           "type": "string"
         }
+      },
+      "PortablePackageId": {
+        "name": "packageId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
+      },
+      "PortableImportId": {
+        "name": "importId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
       },
       "ExecutiveMetricResourceId": {
         "name": "id",
@@ -3384,6 +3582,154 @@
       }
     },
     "schemas": {
+      "PortableSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "PortableSheetInventory": {
+        "type": "object",
+        "required": [
+          "resourceType",
+          "excluded",
+          "schemaVersion",
+          "dependencyOrder",
+          "mutability",
+          "rowCount"
+        ],
+        "properties": {
+          "resourceType": { "type": "string" },
+          "sheetName": { "type": "string" },
+          "excluded": { "type": "boolean" },
+          "exclusionReason": { "type": "string" },
+          "schemaVersion": { "const": 1 },
+          "dependencyOrder": { "type": "integer", "minimum": 0 },
+          "mutability": { "enum": ["editable", "deactivate_only", "correction_only", "read_only"] },
+          "headerCount": { "type": "integer", "minimum": 1 },
+          "rowCount": { "type": "integer", "minimum": 0 },
+          "sha256": { "$ref": "#/components/schemas/PortableSha256" }
+        }
+      },
+      "PortableDataPackageManifest": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "packageId",
+          "organizationId",
+          "exportedAt",
+          "asOf",
+          "workbookSha256",
+          "sheets",
+          "packageHash"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "packageId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "exportedAt": { "type": "string", "format": "date-time" },
+          "asOf": { "type": "string", "format": "date" },
+          "workbookSha256": { "$ref": "#/components/schemas/PortableSha256" },
+          "packageHash": { "$ref": "#/components/schemas/PortableSha256" },
+          "sheets": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PortableSheetInventory" }
+          }
+        }
+      },
+      "PortableDryRunRowResult": {
+        "type": "object",
+        "required": [
+          "sheetName",
+          "resourceType",
+          "rowNumber",
+          "operation",
+          "disposition",
+          "issues",
+          "resolvedReferences"
+        ],
+        "properties": {
+          "sheetName": { "type": "string" },
+          "resourceType": { "type": "string" },
+          "rowNumber": { "type": "integer" },
+          "operation": {
+            "enum": ["no_change", "create", "update", "deactivate", "cancel", "reverse_replace"]
+          },
+          "disposition": { "enum": ["ready", "invalid", "conflict", "unchanged"] },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["code", "message", "severity"],
+              "properties": {
+                "code": { "type": "string" },
+                "message": { "type": "string" },
+                "field": { "type": "string" },
+                "severity": { "enum": ["error", "warning"] }
+              }
+            }
+          },
+          "resolvedReferences": { "type": "object", "additionalProperties": { "type": "string" } }
+        }
+      },
+      "PortableDryRunResult": {
+        "type": "object",
+        "required": ["dryRun", "mutationCount", "valid", "totals", "rows"],
+        "properties": {
+          "dryRun": { "const": true },
+          "mutationCount": { "const": 0 },
+          "valid": { "type": "boolean" },
+          "totals": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "rows": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PortableDryRunRowResult" }
+          }
+        }
+      },
+      "CreatePortableDataPackageExportRequest": {
+        "type": "object",
+        "required": ["asOf"],
+        "properties": {
+          "asOf": { "type": "string", "format": "date" },
+          "format": { "const": "xlsx" }
+        },
+        "additionalProperties": false
+      },
+      "CommitPortableDataPackageImportRequest": {
+        "type": "object",
+        "required": ["dryRunId", "workbookSha256"],
+        "properties": {
+          "dryRunId": { "type": "string" },
+          "workbookSha256": { "$ref": "#/components/schemas/PortableSha256" }
+        },
+        "additionalProperties": false
+      },
+      "PortableDataPackageEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "manifest": { "$ref": "#/components/schemas/PortableDataPackageManifest" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "PortableImportEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "properties": { "dryRun": { "$ref": "#/components/schemas/PortableDryRunResult" } },
+            "additionalProperties": true
+          }
+        }
+      },
+      "PortableDryRunEnvelope": { "$ref": "#/components/schemas/PortableImportEnvelope" },
       "WorkbookImportRequest": {
         "type": "object",
         "required": [
@@ -5566,6 +5912,18 @@
       }
     },
     "requestBodies": {
+      "PortableDataPackageWorkbook": {
+        "required": true,
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "required": ["workbook"],
+              "properties": { "workbook": { "type": "string", "format": "binary" } }
+            }
+          }
+        }
+      },
       "CreateCommercialDocument": {
         "required": true,
         "content": {

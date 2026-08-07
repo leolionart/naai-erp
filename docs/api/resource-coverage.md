@@ -66,7 +66,7 @@ machine-readable contract is [`openapi-v1.json`](./openapi-v1.json), served at
 | Accountant exports           | `/organizations/{organizationId}/accountant-exports`                        |  ✓  |  ✓  |  —  |  —  | download, supersede                                          |                            ✓                            |
 | Workbook imports             | `/organizations/{organizationId}/workbook-imports`                          |  —  |  —  |  —  |  —  | dry-run, commit                                              |                            ✓                            |
 | Workbook review rows         | `/organizations/{organizationId}/workbook-imports/review-rows`              |  —  |  ✓  |  ✓  |  —  | Versioned audited correction                                 |                            ✓                            |
-| Portable data packages       | `/organizations/{organizationId}/portable-data-packages`                    |  ✓  |  ✓  |  —  |  —  | complete export, inventory, download, dry-run, commit         |                            ✓                            |
+| Portable data packages       | `/organizations/{organizationId}/portable-data-packages/exports`, `/imports` | export | status | — | — | inventory, download, zero-mutation dry-run, explicit commit | ✓ |
 
 ## Read-only reports
 

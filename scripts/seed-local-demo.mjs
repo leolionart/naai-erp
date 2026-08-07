@@ -285,6 +285,8 @@ async function seedMasterData() {
       normalized_tax_id: "0310000003",
       status: "active",
     },
+    { id: "demo-freelancer-ui", display_name: "Freelancer Nguyễn Minh Anh", status: "active" },
+    { id: "demo-dev-contractor", display_name: "Dev Backend Trần Quốc Huy", status: "active" },
     { id: "demo-owner", display_name: "Chủ doanh nghiệp NAAI", status: "active" },
   ])
     await createMaster("parties", party, `party-${party.id}`);
@@ -292,6 +294,8 @@ async function seedMasterData() {
     ["demo-client-a", "client"],
     ["demo-client-b", "client"],
     ["demo-supplier-a", "supplier"],
+    ["demo-freelancer-ui", "freelancer"],
+    ["demo-dev-contractor", "freelancer"],
     ["demo-owner", "employee"],
   ])
     await createMaster("party-roles", { party_id, role }, `role-${party_id}-${role}`);
@@ -774,6 +778,12 @@ async function seedJournals() {
     "demo-owner-paid-payroll-120m-reversal",
     "Move the owner-paid payroll demo case into the active August dashboard cutoff",
   );
+  await reverseJournalIfPosted(
+    "demo-owner-paid-payroll-120m-current",
+    "2026-08-06",
+    "demo-owner-paid-payroll-120m-current-reversal",
+    "Replace the aggregate payroll line with project-attributed payroll detail",
+  );
   await seedJournal(
     "demo-owner-custody-withdrawal-90m-current",
     "2026-08-05",
@@ -792,16 +802,39 @@ async function seedJournals() {
     ],
   );
   await seedJournal(
-    "demo-owner-paid-payroll-120m-current",
+    "demo-owner-paid-payroll-120m-itemized",
     "2026-08-06",
-    "Chủ doanh nghiệp dùng tiền đang giữ và tiền cá nhân trả lương 120 triệu cho công ty",
+    "Chủ doanh nghiệp dùng tiền đang giữ và tiền cá nhân trả lương đội ngũ tháng 8",
     [
       {
+        accountCode: "632-COGS",
+        debitMinor: "35000000",
+        dimensions: {
+          partyId: "demo-dev-contractor",
+          projectId: "demo-project-web",
+          costCenter: "GENERAL",
+          costType: "project_payroll",
+          ownerMovement: "owner_paid_company_payroll",
+        },
+      },
+      {
+        accountCode: "632-COGS",
+        debitMinor: "35000000",
+        dimensions: {
+          partyId: "demo-dev-contractor",
+          projectId: "demo-project-ai",
+          costCenter: "GENERAL",
+          costType: "project_payroll",
+          ownerMovement: "owner_paid_company_payroll",
+        },
+      },
+      {
         accountCode: "642-OPEX",
-        debitMinor: "120000000",
+        debitMinor: "50000000",
         dimensions: {
           partyId: "demo-owner",
           costCenter: "GENERAL",
+          costType: "shared_payroll",
           ownerMovement: "owner_paid_company_payroll",
         },
       },
@@ -814,7 +847,7 @@ async function seedJournals() {
   );
   note(
     "journals",
-    "opening capital, owner funding, equipment and owner-current-account withdrawal/payroll case posted",
+    "opening capital, owner funding, equipment and itemized project/shared payroll posted",
   );
 }
 
@@ -1068,48 +1101,54 @@ async function seedDocuments() {
   note("documents", "paid, current unpaid, overdue sales and posted purchase invoice cases ready");
 }
 
-async function seedExpense() {
-  const id = "demo-expense-office";
+async function seedExpenseEvidence(expenseId, evidenceType) {
+  const evidenceId = `${expenseId}-${evidenceType}`;
+  if (!(await getOrNull(`/evidence/${evidenceId}`)))
+    await request("/evidence", {
+      method: "POST",
+      body: {
+        evidenceId,
+        subjectType: "expense",
+        subjectId: expenseId,
+        evidenceType,
+        originalFilename: `${evidenceId}.pdf`,
+        declaredMediaType: "application/pdf",
+        contentBase64: Buffer.from(`%PDF-1.7\nSynthetic ${evidenceType} for ${expenseId}`).toString(
+          "base64",
+        ),
+        source: "local-demo",
+      },
+      key: `${evidenceId}:create`,
+    });
+  const evidence = await request(`/evidence/${evidenceId}`);
+  const currentVersion = evidence.data.current_version ?? evidence.data.currentVersion;
+  const currentEvidenceVersion = evidence.data.versions?.find(
+    (item) => Number(item.version_number ?? item.versionNumber) === Number(currentVersion),
+  );
+  if ((currentEvidenceVersion?.review_state ?? currentEvidenceVersion?.reviewState) === "pending")
+    await request(`/evidence/${evidenceId}/review`, {
+      method: "POST",
+      body: {
+        state: "accepted",
+        reason: `Accepted synthetic ${evidenceType}`,
+        reference: `NAAI-DEMO-${evidenceType.toUpperCase()}`,
+      },
+      token: checkerToken,
+      key: `${evidenceId}:accept`,
+    });
+}
+
+async function seedReviewedExpense({ id, input, reviews, evidenceTypes = [] }) {
   if (!(await getOrNull(`/expenses/${id}`)))
     await request("/expenses", {
       method: "POST",
-      body: {
-        id,
-        expenseClass: "non_documented",
-        payeePartyId: "demo-supplier-a",
-        expenseDate: "2026-07-20",
-        businessPurpose: "Chi phí văn phòng do chủ doanh nghiệp chi hộ",
-        currency: "VND",
-        netMinor: "3000000",
-        vatMinor: "0",
-        grossMinor: "3000000",
-        counterAccountCode: "3388-OWNER",
-        lines: [
-          {
-            description: "Vật tư văn phòng",
-            netMinor: "3000000",
-            vatMinor: "0",
-            grossMinor: "3000000",
-            postingAccountCode: "642-OPEX",
-            allocations: [
-              {
-                id: "office",
-                amountMinor: "3000000",
-                dimensions: { costCenter: "GENERAL", projectId: "demo-project-web" },
-              },
-            ],
-          },
-        ],
-      },
+      body: { id, ...input },
       key: `${id}:create`,
     });
   await ensureAction("/expenses", id, "submit", ["draft"], makerToken);
+  for (const evidenceType of evidenceTypes) await seedExpenseEvidence(id, evidenceType);
   let detail = await request(`/expenses/${id}`);
-  for (const [axis, state] of [
-    ["management", "valid"],
-    ["cit", "ineligible"],
-    ["vat", "ineligible"],
-  ]) {
+  for (const [axis, state, eligibleMinor] of reviews) {
     const current = detail.data.lines?.[0]?.[`${axis}_state`] ?? detail.data[`${axis}_state`];
     if (!current || current === "unreviewed")
       await request(`/expenses/${id}/review`, {
@@ -1118,7 +1157,7 @@ async function seedExpense() {
           axis,
           lineNumber: 1,
           state,
-          eligibleMinor: "0",
+          eligibleMinor,
           reason: `NAAI demo ${axis} review`,
         },
         token: checkerToken,
@@ -1126,9 +1165,130 @@ async function seedExpense() {
       });
     detail = await request(`/expenses/${id}`);
   }
-  await ensureAction("/expenses", id, "approve", ["reviewed"], checkerToken);
+  await ensureAction("/expenses", id, "approve", ["submitted"], checkerToken);
   await ensureAction("/expenses", id, "post", ["approved"], checkerToken);
-  note("expense", "owner-paid non-invoice office expense posted to owner current account");
+}
+
+async function seedExpense() {
+  await seedReviewedExpense({
+    id: "demo-expense-office",
+    input: {
+      expenseClass: "non_documented",
+      payeePartyId: "demo-supplier-a",
+      expenseDate: "2026-07-20",
+      businessPurpose: "Chi phí văn phòng do chủ doanh nghiệp chi hộ",
+      currency: "VND",
+      netMinor: "3000000",
+      vatMinor: "0",
+      grossMinor: "3000000",
+      counterAccountCode: "3388-OWNER",
+      lines: [
+        {
+          description: "Vật tư văn phòng",
+          netMinor: "3000000",
+          vatMinor: "0",
+          grossMinor: "3000000",
+          postingAccountCode: "642-OPEX",
+          allocations: [
+            {
+              id: "office",
+              amountMinor: "3000000",
+              dimensions: { costCenter: "GENERAL", projectId: "demo-project-web" },
+            },
+          ],
+        },
+      ],
+    },
+    reviews: [
+      ["management", "valid", "0"],
+      ["cit", "ineligible", "0"],
+      ["vat", "ineligible", "0"],
+    ],
+  });
+  await seedReviewedExpense({
+    id: "demo-expense-freelance-ui",
+    input: {
+      expenseClass: "contract_backed",
+      payeePartyId: "demo-freelancer-ui",
+      expenseDate: "2026-07-28",
+      businessPurpose: "Thuê freelancer hoàn thiện UI và design system cho dự án website An Phát",
+      currency: "VND",
+      netMinor: "18000000",
+      vatMinor: "0",
+      grossMinor: "18000000",
+      counterAccountCode: "3388-OWNER",
+      lines: [
+        {
+          description: "Freelance UI/UX theo hợp đồng khoán việc",
+          netMinor: "18000000",
+          vatMinor: "0",
+          grossMinor: "18000000",
+          postingAccountCode: "632-COGS",
+          allocations: [
+            {
+              id: "freelance-ui-web",
+              amountMinor: "18000000",
+              dimensions: {
+                costCenter: "GENERAL",
+                projectId: "demo-project-web",
+                costType: "freelancer",
+              },
+            },
+          ],
+        },
+      ],
+    },
+    reviews: [
+      ["management", "valid", "0"],
+      ["cit", "eligible", "18000000"],
+      ["vat", "ineligible", "0"],
+    ],
+    evidenceTypes: ["contract", "acceptance"],
+  });
+  await seedReviewedExpense({
+    id: "demo-expense-contract-dev-ai",
+    input: {
+      expenseClass: "contract_backed",
+      payeePartyId: "demo-dev-contractor",
+      expenseDate: "2026-08-03",
+      businessPurpose: "Thuê dev backend tích hợp dữ liệu và API cho dự án Trợ lý AI Bình Minh",
+      currency: "VND",
+      netMinor: "28000000",
+      vatMinor: "0",
+      grossMinor: "28000000",
+      counterAccountCode: "3388-OWNER",
+      lines: [
+        {
+          description: "Dev backend theo hợp đồng cộng tác dự án",
+          netMinor: "28000000",
+          vatMinor: "0",
+          grossMinor: "28000000",
+          postingAccountCode: "632-COGS",
+          allocations: [
+            {
+              id: "contract-dev-ai",
+              amountMinor: "28000000",
+              dimensions: {
+                costCenter: "GENERAL",
+                projectId: "demo-project-ai",
+                costType: "contract_dev",
+              },
+            },
+          ],
+        },
+      ],
+    },
+    reviews: [
+      ["management", "valid", "0"],
+      ["cit", "eligible", "28000000"],
+      ["vat", "ineligible", "0"],
+    ],
+    evidenceTypes: ["contract", "acceptance"],
+  });
+  note(
+    "expense",
+    "office, freelance UI and contract backend-dev costs posted with project allocations",
+  );
 }
 
 async function seedBanking() {
@@ -1463,6 +1623,57 @@ const reportRequests = [
   ],
 ];
 
+async function verifyDemoProjectCosts() {
+  for (const expected of [
+    {
+      id: "demo-expense-freelance-ui",
+      amountMinor: "18000000",
+      projectId: "demo-project-web",
+      payeePartyId: "demo-freelancer-ui",
+    },
+    {
+      id: "demo-expense-contract-dev-ai",
+      amountMinor: "28000000",
+      projectId: "demo-project-ai",
+      payeePartyId: "demo-dev-contractor",
+    },
+  ]) {
+    const expense = (await request(`/expenses/${expected.id}`)).data;
+    const allocation = expense.lines?.[0]?.allocations?.[0];
+    const dimensions = allocation?.dimensions ?? {};
+    if (
+      expense.state !== "posted" ||
+      String(expense.grossMinor ?? expense.gross_minor) !== expected.amountMinor ||
+      (expense.payeePartyId ?? expense.payee_party_id) !== expected.payeePartyId ||
+      dimensions.projectId !== expected.projectId
+    )
+      throw new Error(`Demo project expense readback mismatch: ${expected.id}`);
+  }
+  const payroll = (await request("/journals/demo-owner-paid-payroll-120m-itemized")).data;
+  const payrollLines = payroll.lines ?? [];
+  const directPayroll = payrollLines.filter(
+    (line) =>
+      (line.accountCode ?? line.account_code) === "632-COGS" &&
+      line.dimensions?.costType === "project_payroll",
+  );
+  const directPayrollTotal = directPayroll.reduce(
+    (sum, line) => sum + BigInt(line.debitMinor ?? line.debit_minor ?? 0),
+    0n,
+  );
+  const projectIds = new Set(directPayroll.map((line) => line.dimensions?.projectId));
+  if (
+    payroll.state !== "posted" ||
+    directPayrollTotal !== 70000000n ||
+    !projectIds.has("demo-project-web") ||
+    !projectIds.has("demo-project-ai")
+  )
+    throw new Error("Demo itemized project payroll readback mismatch");
+  note(
+    "project-cost-readback",
+    "posted payroll 70m across two projects plus freelance 18m and contract dev 28m verified",
+  );
+}
+
 async function verifyReports() {
   const verification = [];
   for (const [name, path] of reportRequests) {
@@ -1535,6 +1746,7 @@ if (!verifyOnly) {
 }
 
 const verification = await verifyReports();
+await verifyDemoProjectCosts();
 let exportResult = null;
 if (!verifyOnly) exportResult = await seedSnapshotAndExports();
 const failedReports = verification.filter((item) => !item.ok);

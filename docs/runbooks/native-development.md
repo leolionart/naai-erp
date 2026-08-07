@@ -150,4 +150,9 @@ Verify all supported demo report families without mutation:
 node scripts/seed-local-demo.mjs --verify
 ```
 
+The demo includes posted, project-attributed cost cases for itemized payroll, freelance UI work,
+contract backend development, supplier invoices and office expense. Verification reads the canonical
+expense and journal resources back and fails if the exact project, payee, amount or posted state is
+missing.
+
 The script is for local synthetic data only. Do not run it against staging or production.

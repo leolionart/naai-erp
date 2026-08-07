@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { PortableDataPackageContext } from "./portable-data-package.types.js";
 import { PortableDataImportService } from "./portable-data-import.service.js";
 import type { PortableDryRunResultContract } from "@naai-erp/contracts";
+import { canonicalJson } from "@naai-erp/domain";
+import { createHash } from "node:crypto";
 import type {
   ParsedPortableSheet,
   PortableDataImportStore,
@@ -34,13 +36,48 @@ const schema = {
     },
   ],
 };
+const inventorySheet = {
+  resourceType: "parties",
+  sheetName: "parties",
+  excluded: false,
+  schemaVersion: 1,
+  dependencyOrder: 10,
+  mutability: "editable" as const,
+  headerCount: 6,
+  rowCount: 1,
+  sha256: "b".repeat(64),
+};
+const embeddedPackageHash = createHash("sha256")
+  .update(
+    canonicalJson({
+      schemaVersion: 1,
+      packageId: "package-1",
+      organizationId: "org-a",
+      exportedAt: "2026-08-07T00:00:00.000Z",
+      asOf: "2026-08-07",
+      exportedBy: "owner-1",
+      sourceSystem: "naai-erp",
+      sourceApiVersion: "v1",
+      hashAlgorithm: "sha256",
+      sheets: [inventorySheet],
+      schemas: [schema],
+      totalSheetCount: 1,
+      totalRowCount: 1,
+    } as never),
+  )
+  .digest("hex");
 
 class Store implements PortableDataImportStore {
+  constructor(
+    private readonly sourceAvailable = true,
+    private readonly applySuccess = false,
+  ) {}
   record?: PortableImportRecord & { parsedSheets?: readonly ParsedPortableSheet[] };
   validationCalls = 0;
   applyCalls = 0;
   async getSourcePackage(c: PortableDataPackageContext, packageId: string) {
-    if (c.organizationId !== "org-a" || packageId !== "package-1") return undefined;
+    if (!this.sourceAvailable || c.organizationId !== "org-a" || packageId !== "package-1")
+      return undefined;
     return {
       manifest: {
         schemaVersion: 1 as const,
@@ -55,20 +92,12 @@ class Store implements PortableDataImportStore {
         workbookSha256: "a".repeat(64),
         sheets: [
           {
-            resourceType: "parties",
-            sheetName: "parties",
-            excluded: false,
-            schemaVersion: 1,
-            dependencyOrder: 10,
-            mutability: "editable" as const,
-            headerCount: 6,
-            rowCount: 1,
-            sha256: "b".repeat(64),
+            ...inventorySheet,
           },
         ],
         totalSheetCount: 1,
         totalRowCount: 1,
-        packageHash: "c".repeat(64),
+        packageHash: embeddedPackageHash,
       },
       schemas: [schema],
     };
@@ -103,7 +132,7 @@ class Store implements PortableDataImportStore {
       organizationId: "org-a",
       state: result.valid ? "dry_run_valid" : "dry_run_invalid",
       workbookSha256: this.record?.workbookSha256 ?? "",
-      packageHash: "c".repeat(64),
+      packageHash: embeddedPackageHash,
       dryRunId,
       dryRun: result,
       parsedSheets,
@@ -116,6 +145,8 @@ class Store implements PortableDataImportStore {
   }
   async applyCanonicalRow() {
     this.applyCalls += 1;
+    if (this.applySuccess)
+      return { applied: true as const, stableId: `applied-${this.applyCalls}` };
     return {
       applied: false as const,
       issue: {
@@ -139,7 +170,7 @@ class Store implements PortableDataImportStore {
   }
 }
 
-async function upload(operation: "no_change" | "update" = "no_change") {
+async function upload(operation: "no_change" | "update" = "no_change", secondMutation = false) {
   const workbook = new ExcelJS.Workbook();
   const manifest = workbook.addWorksheet("_manifest");
   manifest.addRow(["schema_version", 1]);
@@ -147,6 +178,25 @@ async function upload(operation: "no_change" | "update" = "no_change") {
   manifest.addRow(["organization_id", "org-a"]);
   manifest.addRow(["as_of", "2026-08-07"]);
   manifest.addRow(["exported_at", "2026-08-07T00:00:00.000Z"]);
+  manifest.addRow(["exported_by", "owner-1"]);
+  manifest.addRow(["package_hash", embeddedPackageHash]);
+  manifest.addRow([]);
+  manifest.addRow([
+    "resource_type",
+    "sheet_name",
+    "excluded",
+    "exclusion_reason",
+    "schema_version",
+    "dependency_order",
+    "mutability",
+    "header_count",
+    "row_count",
+    "sha256",
+  ]);
+  manifest.addRow(["parties", "parties", false, null, 1, 10, "editable", 6, 1, "b".repeat(64)]);
+  const schemas = workbook.addWorksheet("_schemas");
+  schemas.addRow(["resource_type", "schema_json"]);
+  schemas.addRow(["parties", canonicalJson(schema as never)]);
   const parties = workbook.addWorksheet("parties");
   parties.addRow([
     "operation",
@@ -156,7 +206,8 @@ async function upload(operation: "no_change" | "update" = "no_change") {
     "relationships",
     "displayName",
   ]);
-  parties.addRow([operation, "party-1", "2", "{}", "{}", "NAAI Edited"]);
+  parties.addRow([operation, "party-1", "2", "[]", "{}", "NAAI Edited"]);
+  if (secondMutation) parties.addRow([operation, "party-2", "1", "[]", "{}", "Second Edit"]);
   return { filename: "package.xlsx", content: Buffer.from(await workbook.xlsx.writeBuffer()) };
 }
 
@@ -179,6 +230,15 @@ describe("PortableDataImportService", () => {
     });
     expect(store.validationCalls).toBe(1);
     expect(store.applyCalls).toBe(0);
+  });
+
+  it("inventories a self-contained workbook after its original export record is unavailable", async () => {
+    const store = new Store(false);
+    const service = new PortableDataImportService(store);
+    const inventory = (await service.inventory(context, await upload(), "detached-inventory")) as {
+      data: PortableImportRecord;
+    };
+    expect(inventory.data).toMatchObject({ packageId: "package-1", state: "inventoried" });
   });
 
   it("rejects cross-organization workbooks and commit precondition mismatches", async () => {
@@ -219,5 +279,21 @@ describe("PortableDataImportService", () => {
       failed: 1,
       rows: [{ issues: [{ code: "UNSUPPORTED_OPERATION" }] }],
     });
+  });
+
+  it("revalidates and permits multi-row non-posting master-data updates", async () => {
+    const store = new Store(true, true);
+    const service = new PortableDataImportService(store);
+    const dryRun = (await service.dryRun(context, await upload("update", true), "dry-batch")) as {
+      data: PortableImportRecord;
+    };
+    const committed = (await service.commit(
+      context,
+      dryRun.data.importId,
+      { dryRunId: dryRun.data.dryRunId, workbookSha256: dryRun.data.workbookSha256 },
+      "commit-batch",
+    )) as { data: PortableImportRecord };
+    expect(store.applyCalls).toBe(2);
+    expect(committed.data.commitResult).toMatchObject({ committed: true, applied: 2, failed: 0 });
   });
 });

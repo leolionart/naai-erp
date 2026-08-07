@@ -119,6 +119,7 @@ import { PortableDataImportController } from "./portable-data-packages/portable-
 import { PortableDataImportService } from "./portable-data-packages/portable-data-import.service.js";
 import { PORTABLE_DATA_IMPORT_STORE } from "./portable-data-packages/portable-data-import.types.js";
 import { PgPortableDataImportStore } from "./portable-data-packages/pg-portable-data-import.store.js";
+import { PortableCanonicalMutationAdapter } from "./portable-data-packages/portable-canonical-mutation.adapter.js";
 
 @Module({
   controllers: [
@@ -240,6 +241,7 @@ import { PgPortableDataImportStore } from "./portable-data-packages/pg-portable-
     { provide: PORTABLE_DATA_PACKAGE_STORE, useExisting: PgPortableDataPackageStore },
     PortableDataImportService,
     PgPortableDataImportStore,
+    PortableCanonicalMutationAdapter,
     { provide: PORTABLE_DATA_IMPORT_STORE, useExisting: PgPortableDataImportStore },
   ],
 })

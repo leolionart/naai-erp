@@ -1,12 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import pg from "pg";
-import { MasterDataService } from "../master-data/master-data.service.js";
-import { MASTER_DATA_RESOURCES, encodeResourceKey } from "../master-data/resource-registry.js";
 import type {
   PortableDryRunResultContract,
   PortableRowEnvelopeContract,
-  PortableRowIssueContract,
 } from "@naai-erp/contracts";
 import type { PortableDataPackageContext } from "./portable-data-package.types.js";
 import type {
@@ -18,19 +15,16 @@ import type {
   PortableImportInventory,
   PortableImportRecord,
 } from "./portable-data-import.types.js";
-
-const errorIssue = (code: string, message: string, field?: string): PortableRowIssueContract => ({
-  code,
-  message,
-  ...(field ? { field } : {}),
-  severity: "error",
-});
+import { PortableCanonicalMutationAdapter } from "./portable-canonical-mutation.adapter.js";
 
 @Injectable()
 export class PgPortableDataImportStore implements PortableDataImportStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-  constructor(@Inject(MasterDataService) private readonly masterData: MasterDataService) {}
+  constructor(
+    @Inject(PortableCanonicalMutationAdapter)
+    private readonly mutations: PortableCanonicalMutationAdapter,
+  ) {}
 
   async getSourcePackage(context: PortableDataPackageContext, packageId: string) {
     const result = await this.pool.query(
@@ -83,7 +77,7 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
         inventory.workbookSha256,
         inventory.packageHash,
         JSON.stringify(inventory),
-        inventory.parsedSheets,
+        JSON.stringify(inventory.parsedSheets),
         idempotencyKey,
         context.actorId,
         context.correlationId,
@@ -130,53 +124,12 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
     return this.record(updated.rows[0]);
   }
 
-  private definition(resourceType: string) {
-    return MASTER_DATA_RESOURCES[resourceType as keyof typeof MASTER_DATA_RESOURCES];
-  }
-
-  private payload(row: PortableRowEnvelopeContract) {
-    return { ...row.data, ...row.relationships } as Record<string, unknown>;
-  }
-
   async validateCanonicalRow(
     context: PortableDataPackageContext,
     resourceType: string,
     row: PortableRowEnvelopeContract,
   ): Promise<PortableCanonicalRowValidation> {
-    const definition = this.definition(resourceType);
-    if (!definition)
-      return {
-        disposition: "invalid",
-        issues: [
-          errorIssue(
-            "READ_ONLY_RESOURCE",
-            `${resourceType} is exported for traceability but has no portable mutation adapter`,
-          ),
-        ],
-      };
-    if (row.operation === "cancel" || row.operation === "reverse_replace")
-      return {
-        disposition: "invalid",
-        issues: [
-          errorIssue(
-            "LIFECYCLE_ADAPTER_REQUIRED",
-            `${row.operation} requires the resource-specific canonical lifecycle service`,
-          ),
-        ],
-      };
-    if (row.operation === "deactivate" && !("deactivate" in definition))
-      return {
-        disposition: "invalid",
-        issues: [errorIssue("DEACTIVATION_UNSUPPORTED", `${resourceType} cannot be deactivated`)],
-      };
-    const dryRun = this.masterData.dryRunImport(resourceType, context, [this.payload(row)]).data!;
-    const errors = dryRun.rows[0]?.errors ?? [];
-    return errors.length
-      ? {
-          disposition: "invalid",
-          issues: errors.map((message) => errorIssue("FIELD_INVALID", message)),
-        }
-      : { disposition: "ready", resolvedReferences: row.relationships as Record<string, string> };
+    return this.mutations.validate(context, resourceType, row);
   }
 
   async applyCanonicalRow(
@@ -185,55 +138,7 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
     row: PortableRowEnvelopeContract,
     idempotencyKey: string,
   ): Promise<PortableCanonicalApplyResult> {
-    const validation = await this.validateCanonicalRow(context, resourceType, row);
-    if (validation.disposition !== "ready")
-      return {
-        applied: false,
-        issue: validation.issues?.[0] ?? errorIssue("ROW_INVALID", "Row is not ready"),
-      };
-    const definition = this.definition(resourceType)!;
-    const data = this.payload(row);
-    const keyValues = Object.fromEntries(
-      definition.keyColumns.map((key) => [
-        key,
-        data[key] ?? (key === "id" ? row.stableId : undefined),
-      ]),
-    );
-    if (Object.values(keyValues).some((value) => value == null || value === ""))
-      return {
-        applied: false,
-        issue: errorIssue("KEY_MISSING", "Resource key fields are required"),
-      };
-    const action =
-      row.operation === "create"
-        ? "create"
-        : row.operation === "deactivate"
-          ? "deactivate"
-          : "update";
-    try {
-      const response = await this.masterData.mutate(
-        action,
-        resourceType,
-        action === "create" ? undefined : encodeResourceKey(keyValues),
-        context,
-        {
-          data,
-          ...(row.expectedResourceVersion ? { expectedVersion: row.expectedResourceVersion } : {}),
-        },
-        idempotencyKey,
-      );
-      const resource = response.data!.resource;
-      const stableId = String(resource.id ?? row.stableId ?? "");
-      return stableId ? { applied: true, stableId } : { applied: true };
-    } catch (error) {
-      return {
-        applied: false,
-        issue: errorIssue(
-          "CANONICAL_MUTATION_FAILED",
-          error instanceof Error ? error.message : String(error),
-        ),
-      };
-    }
+    return this.mutations.apply(context, resourceType, row, idempotencyKey);
   }
 
   async saveCommit(

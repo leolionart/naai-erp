@@ -154,7 +154,7 @@ export class PortableDataPackageService {
     packageId: string,
   ) {
     this.validateResources(resources);
-    const usedSheets = new Set(["_manifest"]);
+    const usedSheets = new Set(["_manifest", "_schemas"]);
     const included = [...resources]
       .filter((resource) => !resource.inventory.excluded)
       .sort(
@@ -187,6 +187,22 @@ export class PortableDataPackageService {
         (a, b) =>
           a.dependencyOrder - b.dependencyOrder || a.resourceType.localeCompare(b.resourceType),
       );
+    const packageHashPayload = {
+      schemaVersion: PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
+      packageId,
+      organizationId: context.organizationId,
+      exportedAt: generatedAt,
+      asOf: input.asOf,
+      exportedBy: context.actorId,
+      sourceSystem: "naai-erp" as const,
+      sourceApiVersion: "v1" as const,
+      hashAlgorithm: PORTABLE_DATA_PACKAGE_HASH_ALGORITHM,
+      sheets: inventory,
+      schemas: included.map((resource) => resource.schema),
+      totalSheetCount: inventory.filter((item) => !item.excluded).length,
+      totalRowCount: inventory.reduce((sum, item) => sum + item.rowCount, 0),
+    };
+    const packageHash = sha256(canonicalJson(packageHashPayload));
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "NAAI ERP";
     workbook.created = new Date("1980-01-01T00:00:00.000Z");
@@ -197,6 +213,8 @@ export class PortableDataPackageService {
     manifestSheet.addRow(["organization_id", context.organizationId]);
     manifestSheet.addRow(["as_of", input.asOf]);
     manifestSheet.addRow(["exported_at", generatedAt]);
+    manifestSheet.addRow(["exported_by", context.actorId]);
+    manifestSheet.addRow(["package_hash", packageHash]);
     manifestSheet.addRow([]);
     manifestSheet.addRow([
       "resource_type",
@@ -223,6 +241,11 @@ export class PortableDataPackageService {
         item.rowCount,
         item.sha256 ?? null,
       ]);
+    const schemaSheet = workbook.addWorksheet("_schemas");
+    schemaSheet.state = "veryHidden";
+    schemaSheet.addRow(["resource_type", "schema_json"]);
+    for (const resource of included)
+      schemaSheet.addRow([resource.schema.resourceType, canonicalJson(resource.schema)]);
     for (const resource of included) {
       const sheet = workbook.addWorksheet(resource.schema.sheetName);
       sheet.addRow([
@@ -249,23 +272,12 @@ export class PortableDataPackageService {
     const content = normalizeZipTimestamps(Buffer.from(raw));
     const workbookSha256 = sha256(content);
     const manifestBase = {
-      schemaVersion: PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
-      packageId,
-      organizationId: context.organizationId,
-      exportedAt: generatedAt,
-      asOf: input.asOf,
-      exportedBy: context.actorId,
-      sourceSystem: "naai-erp" as const,
-      sourceApiVersion: "v1" as const,
-      hashAlgorithm: PORTABLE_DATA_PACKAGE_HASH_ALGORITHM,
+      ...packageHashPayload,
       workbookSha256,
-      sheets: inventory,
-      totalSheetCount: inventory.filter((item) => !item.excluded).length,
-      totalRowCount: inventory.reduce((sum, item) => sum + item.rowCount, 0),
     };
     const manifest: PortableDataPackageManifestContract = {
       ...manifestBase,
-      packageHash: sha256(canonicalJson(manifestBase)),
+      packageHash,
     };
     return { content, manifest, schemas: included.map((resource) => resource.schema) };
   }

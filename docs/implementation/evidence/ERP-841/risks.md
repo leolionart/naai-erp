@@ -12,3 +12,6 @@
 - Commercial invoice allocations still persist project attribution in `dimensions.projectId`; they
   do not persist canonical `contractId` or `milestoneId`. The issue gate prevents aggregate project
   over-invoicing but cannot report exactly which contract or milestone an allocation consumed.
+- The added salary, freelance and contract-dev records are direct-cost and expense examples only.
+  Shared payroll remains on operating expense and is not presented as project cost until a canonical
+  overhead allocation run exists, preventing double counting or a false fully-loaded claim.

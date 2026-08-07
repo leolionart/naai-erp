@@ -224,6 +224,14 @@ export const adminNavigation = [
         status: "available",
       },
       {
+        key: "portable-data-package",
+        label: "Sao lưu & nhập lại ERP",
+        href: "/settings/data-package",
+        description: "Export toàn bộ dữ liệu ERP ra XLSX và nhập lại có kiểm soát.",
+        icon: "folder",
+        status: "available",
+      },
+      {
         key: "accountant-exports",
         label: "Xuất dữ liệu kế toán",
         href: "/reports/accountant-exports",

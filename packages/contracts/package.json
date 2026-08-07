@@ -12,6 +12,7 @@
     "clean": "rm -rf dist coverage"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

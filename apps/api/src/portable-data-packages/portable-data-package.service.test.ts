@@ -155,7 +155,11 @@ describe("PortableDataPackageService", () => {
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file!.content as never);
-    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(["_manifest", "sales_invoices"]);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      "_manifest",
+      "_schemas",
+      "sales_invoices",
+    ]);
     expect(workbook.getWorksheet("sales_invoices")?.getRow(1).values).toEqual([
       undefined,
       "operation",
