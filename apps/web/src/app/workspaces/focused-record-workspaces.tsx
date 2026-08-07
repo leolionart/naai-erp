@@ -216,17 +216,27 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       "var(--chart-4, #dc2626)",
       "var(--chart-5, #9333ea)",
       "var(--chart-6, #0891b2)",
+      "#ec4899",
+      "#8b5cf6",
+      "#14b8a6",
+      "#f97316",
     ];
     for (const row of rows) {
-      let groupName = "Khác";
-      if (sourceKind === "documents") {
-        const type = text(row, "type");
-        if (type === "sales_invoice") groupName = "Hóa đơn bán ra";
-        else if (type === "purchase_invoice") groupName = "Hóa đơn mua vào";
-        else if (type === "credit_note") groupName = "Hóa đơn giảm trừ";
-      } else {
-        const expenseClass = text(row, "expenseClass");
-        if (expenseClass) groupName = getCategoryName(expenseClass);
+      let groupName = "";
+      const categoryCode = text(row, "category", "expenseClass", "categoryCode");
+      if (categoryCode) {
+        groupName = getCategoryName(categoryCode);
+      }
+      if (!groupName) {
+        if (sourceKind === "documents") {
+          const type = text(row, "type");
+          if (type === "sales_invoice") groupName = "Doanh thu dịch vụ/hóa đơn bán";
+          else if (type === "purchase_invoice") groupName = "Chi phí mua hàng/hóa đơn mua";
+          else if (type === "credit_note") groupName = "Giảm trừ hóa đơn";
+          else groupName = "Chứng từ khác";
+        } else {
+          groupName = "Chi phí khác";
+        }
       }
       const amountStr = text(row, "grossMinor", "totalAmountMinor", "amountMinor", "totalMinor");
       const amount = BigInt(amountStr || "0");
