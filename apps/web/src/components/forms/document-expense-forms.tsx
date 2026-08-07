@@ -120,6 +120,7 @@ function TextField({
 }
 
 export const INBOUND_CATEGORIES = [
+  { code: "SALARY", name: "Chi phí Lương & Thưởng nhân sự", defaultAccount: "6421" },
   { code: "MEAL", name: "Chi phí Ăn uống / Tiếp khách", defaultAccount: "6428" },
   { code: "OFFICE_SUPPLIES", name: "Chi phí Văn phòng phẩm / Vật tư", defaultAccount: "6422" },
   { code: "INTERNET_TELECOM", name: "Chi phí Internet / Điện thoại", defaultAccount: "6427" },
@@ -127,9 +128,11 @@ export const INBOUND_CATEGORIES = [
   { code: "ELECTRONIC_EQUIP", name: "Chi phí Thiết bị điện tử", defaultAccount: "6422" },
   { code: "SERVER_CLOUD", name: "Chi phí Máy chủ / Cloud Services", defaultAccount: "6427" },
   { code: "DOMAIN_HOSTING", name: "Chi phí Tên miền / Hosting", defaultAccount: "6427" },
-  { code: "VEHICLE_RENTAL", name: "Chi phí Thuê xe / Thuê pin", defaultAccount: "6427" },
+  { code: "VEHICLE_RENTAL", name: "Chi phí Thuê xe / Thuê pin sạc", defaultAccount: "6427" },
   { code: "DECORATION", name: "Chi phí Trang trí văn phòng", defaultAccount: "6428" },
-  { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc", defaultAccount: "6428" },
+  { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc / Đặt cọc", defaultAccount: "6428" },
+  { code: "TAX", name: "Chi phí Thuế & Phí nhà nước", defaultAccount: "6428" },
+  { code: "OWNER_DRAWING", name: "Chi tiêu cá nhân chủ sở hữu", defaultAccount: "6428" },
   { code: "OTHER_EXPENSE", name: "Chi phí mua vào khác", defaultAccount: "6428" },
 ] as const;
 

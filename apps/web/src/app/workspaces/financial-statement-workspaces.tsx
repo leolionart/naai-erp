@@ -12,6 +12,7 @@ import {
 import { KpiCard } from "@/components/financial/kpi-card";
 import { MoneyCell } from "@/components/financial/money-cell";
 import { StatusBadge } from "@/components/financial/status-badge";
+import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -385,6 +386,18 @@ function ReportFilterSheet({
             </PopoverDescription>
           </PopoverHeader>
           <FieldGroup className="px-4">
+            <QuickDatePresetButtons
+              onSelectRange={(startsOn, endsOn) => {
+                const form = document.querySelector("form") as HTMLFormElement | null;
+                if (!form) return;
+                const startInput = form.querySelector(
+                  '[name="startsOn"]',
+                ) as HTMLInputElement | null;
+                const endInput = form.querySelector('[name="endsOn"]') as HTMLInputElement | null;
+                if (startInput) startInput.value = startsOn;
+                if (endInput) endInput.value = endsOn;
+              }}
+            />
             {kind !== "balance_sheet" ? (
               <Field>
                 <FieldLabel htmlFor="statement-start">Từ ngày</FieldLabel>

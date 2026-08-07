@@ -154,7 +154,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
         client.data<{ items?: Row[] } | Row[]>(
           `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
         ),
-        client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=100").catch(() => []),
+        client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
       ]);
       setRows(Array.isArray(result) ? result : (result.items ?? []));
       setParties(Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []));
@@ -699,7 +699,7 @@ export function FocusedRecordCreateWorkspace({ kind }: { kind: Kind }) {
   useEffect(() => {
     if (hydrated && hasToken) {
       client
-        .data<readonly Row[] | { items: readonly Row[] }>("master-data/parties")
+        .data<readonly Row[] | { items: readonly Row[] }>("master-data/parties?limit=500")
         .then((res) => {
           if (Array.isArray(res)) {
             setParties(res);
@@ -804,7 +804,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
     try {
       const [resRecord, partiesRes] = await Promise.all([
         client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`),
-        client.data<readonly Row[] | { items: readonly Row[] }>("master-data/parties"),
+        client.data<readonly Row[] | { items: readonly Row[] }>("master-data/parties?limit=500"),
       ]);
       setRecord(resRecord);
       if (Array.isArray(partiesRes)) {

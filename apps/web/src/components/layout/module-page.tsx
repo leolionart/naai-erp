@@ -5,11 +5,13 @@ export function ModulePage({
   title,
   description,
   section,
+  toolbar,
   children,
 }: Readonly<{
   title: string;
   description: string;
   section: string;
+  toolbar?: ReactNode;
   children: ReactNode;
 }>) {
   return (
@@ -22,6 +24,7 @@ export function ModulePage({
           ...(section ? [{ label: section }] : []),
           { label: title },
         ]}
+        toolbar={toolbar}
       />
       <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
     </div>
