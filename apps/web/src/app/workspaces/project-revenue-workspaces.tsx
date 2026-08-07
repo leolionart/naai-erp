@@ -157,12 +157,18 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
     [dialog, setDialog] = useState(false);
   const asOf = params.get("asOf") || today();
   const load = useCallback(async () => {
-    const [b, a] = await Promise.all([
-      client.data<{ items: readonly BudgetVersion[] }>(projectRevenueApi.budgets(projectId)),
-      client.data<RevenueAxes>(projectRevenueApi.axes(projectId, asOf)),
-    ]);
-    setRows([...b.items]);
-    setAxes(a);
+    try {
+      const [b, a] = await Promise.all([
+        client
+          .data<{ items: readonly BudgetVersion[] }>(projectRevenueApi.budgets(projectId))
+          .catch(() => ({ items: [] })),
+        client.data<RevenueAxes>(projectRevenueApi.axes(projectId, asOf)).catch(() => undefined),
+      ]);
+      setRows([...(b?.items ?? [])]);
+      if (a) setAxes(a);
+    } catch {
+      setRows([]);
+    }
   }, [asOf, client, projectId]);
   useEffect(() => void load(), [load]);
   async function create(e: FormEvent<HTMLFormElement>) {

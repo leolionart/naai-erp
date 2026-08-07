@@ -795,8 +795,10 @@ export function ExecutiveDashboardWorkspace() {
               <MetricCard
                 title="Doanh thu đã xuất hóa đơn"
                 value={money(
-                  operating?.clientConcentration.totalRevenueMinor ?? invoicedMinor,
-                  operating?.currency ?? data.projects?.currency,
+                  operating?.clientConcentration.totalRevenueMinor ||
+                    performance?.actualVsFullTarget.numeratorMinor ||
+                    invoicedMinor,
+                  operating?.currency ?? performance?.currency ?? data.projects?.currency,
                 )}
                 description="Tổng tiền hóa đơn GTGT đã xuất trong kỳ"
                 href={`/dashboard/drilldown/revenue?${q}`}

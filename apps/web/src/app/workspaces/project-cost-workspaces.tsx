@@ -105,10 +105,14 @@ export function ProjectCostsWorkspace({ projectId }: Readonly<{ projectId: strin
       const query = new URLSearchParams();
       if (costClass) query.set("costClass", costClass);
       if (sourceType) query.set("sourceType", sourceType);
-      const data = await client.data<{ items: readonly ProjectCostItem[] }>(
-        projectCostApi.costs(projectId, query.toString()),
-      );
-      setRows([...data.items]);
+      const data = await client
+        .data<{ items: readonly ProjectCostItem[] }>(
+          projectCostApi.costs(projectId, query.toString()),
+        )
+        .catch(() => ({ items: [] }));
+      setRows([...(data?.items ?? [])]);
+    } catch {
+      setRows([]);
     } finally {
       setLoading(false);
     }
