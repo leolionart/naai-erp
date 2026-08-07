@@ -115,6 +115,10 @@ import { PortableDataPackageController } from "./portable-data-packages/portable
 import { PortableDataPackageService } from "./portable-data-packages/portable-data-package.service.js";
 import { PORTABLE_DATA_PACKAGE_STORE } from "./portable-data-packages/portable-data-package.types.js";
 import { PgPortableDataPackageStore } from "./portable-data-packages/pg-portable-data-package.store.js";
+import { PortableDataImportController } from "./portable-data-packages/portable-data-import.controller.js";
+import { PortableDataImportService } from "./portable-data-packages/portable-data-import.service.js";
+import { PORTABLE_DATA_IMPORT_STORE } from "./portable-data-packages/portable-data-import.types.js";
+import { PgPortableDataImportStore } from "./portable-data-packages/pg-portable-data-import.store.js";
 
 @Module({
   controllers: [
@@ -153,6 +157,7 @@ import { PgPortableDataPackageStore } from "./portable-data-packages/pg-portable
     WorkbookImportController,
     OperatingDashboardController,
     PortableDataPackageController,
+    PortableDataImportController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -233,6 +238,9 @@ import { PgPortableDataPackageStore } from "./portable-data-packages/pg-portable
     PortableDataPackageService,
     PgPortableDataPackageStore,
     { provide: PORTABLE_DATA_PACKAGE_STORE, useExisting: PgPortableDataPackageStore },
+    PortableDataImportService,
+    PgPortableDataImportStore,
+    { provide: PORTABLE_DATA_IMPORT_STORE, useExisting: PgPortableDataImportStore },
   ],
 })
 export class AppModule {}

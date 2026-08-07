@@ -267,7 +267,7 @@ export class PortableDataPackageService {
       ...manifestBase,
       packageHash: sha256(canonicalJson(manifestBase)),
     };
-    return { content, manifest };
+    return { content, manifest, schemas: included.map((resource) => resource.schema) };
   }
 
   async createExport(
@@ -280,7 +280,7 @@ export class PortableDataPackageService {
     const generatedAt = new Date().toISOString();
     const packageId = randomUUID();
     const resources = await this.store.collectOrganizationResources(context, input.asOf);
-    const { content, manifest } = await this.workbook(
+    const { content, manifest, schemas } = await this.workbook(
       context,
       input,
       resources,
@@ -298,6 +298,7 @@ export class PortableDataPackageService {
         filename,
         mediaType: XLSX_MEDIA_TYPE,
         manifest,
+        schemas,
       },
       idempotencyKey,
     );

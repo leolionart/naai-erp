@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./api-exception.filter.js";
+import multipart from "@fastify/multipart";
 
 type BootstrapEnvironment = Readonly<{
   NODE_ENV?: string;
@@ -49,6 +50,7 @@ export async function createApp(
     },
   );
   const origin = webOrigin(environment);
+  await app.register(multipart, { limits: { fileSize: apiBodyLimit(environment), files: 1 } });
   if (origin) {
     app.enableCors({
       origin,

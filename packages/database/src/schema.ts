@@ -4761,6 +4761,7 @@ export const accountantExports = pgTable(
     state: accountantExportState("state").notNull().default("generated"),
     label: text("label").notNull(),
     manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull(),
+    schemas: jsonb("schemas").$type<readonly Record<string, unknown>[]>().notNull(),
     content: bytea("content").notNull(),
     contentHash: text("content_hash").notNull(),
     sizeBytes: bigint("size_bytes", { mode: "bigint" }).notNull(),
@@ -4812,6 +4813,45 @@ export const accountantExports = pgTable(
       "accountant_export_supersede_metadata",
       sql`(${table.state} = 'generated' and ${table.supersededBy} is null and ${table.supersededAt} is null and ${table.supersedeReason} is null) or (${table.state} = 'superseded' and ${table.supersededBy} is not null and ${table.supersededAt} is not null and btrim(coalesce(${table.supersedeReason}, '')) <> '')`,
     ),
+  ],
+);
+
+export const portableDataImports = pgTable(
+  "portable_data_imports",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    packageId: text("package_id").notNull(),
+    state: text("state").notNull(),
+    workbookSha256: text("workbook_sha256").notNull(),
+    packageHash: text("package_hash").notNull(),
+    inventory: jsonb("inventory").$type<Record<string, unknown>>().notNull(),
+    parsedSheets: jsonb("parsed_sheets").$type<readonly Record<string, unknown>[]>().notNull(),
+    dryRunId: text("dry_run_id"),
+    dryRun: jsonb("dry_run").$type<Record<string, unknown>>(),
+    commitResult: jsonb("commit_result").$type<Record<string, unknown>>(),
+    inventoryIdempotencyKey: text("inventory_idempotency_key").notNull(),
+    dryRunIdempotencyKey: text("dry_run_idempotency_key"),
+    commitIdempotencyKey: text("commit_idempotency_key"),
+    actorId: text("actor_id").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.packageId],
+      foreignColumns: [portableDataPackages.organizationId, portableDataPackages.id],
+      name: "portable_data_imports_package_fk",
+    }),
+    unique("portable_data_imports_inventory_idempotency_unique").on(
+      table.organizationId,
+      table.inventoryIdempotencyKey,
+    ),
+    index("portable_data_imports_package_idx").on(table.organizationId, table.packageId),
   ],
 );
 
@@ -5044,4 +5084,5 @@ export const schema = {
   externalReferences,
   workbookImportReviewRows,
   portableDataPackages,
+  portableDataImports,
 } as const;

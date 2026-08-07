@@ -45,6 +45,7 @@ export type SavePortablePackageInput = Readonly<{
   filename: string;
   mediaType: string;
   manifest: PortableDataPackageManifestContract;
+  schemas: readonly PortableSheetSchemaContract[];
 }>;
 
 export type PortableDataPackageStore = Readonly<{
