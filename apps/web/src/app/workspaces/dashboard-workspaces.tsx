@@ -1166,9 +1166,19 @@ export function ExecutiveDashboardWorkspace() {
           </>
         )}
         <Card>
-          <CardHeader>
-            <CardTitle>Xu hướng doanh thu</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <Link
+                href="/documents?type=sales_invoice"
+                className="group/link flex items-center gap-1.5 transition-colors"
+              >
+                <CardTitle className="text-base font-semibold transition-colors group-hover/link:text-primary">
+                  Xu hướng doanh thu
+                </CardTitle>
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary group-hover/link:opacity-100" />
+              </Link>
+            </div>
+            <CardDescription className="text-xs">
               So sánh doanh thu thực tế, kế hoạch mục tiêu và số liệu dự báo theo kỳ.
             </CardDescription>
           </CardHeader>
@@ -1182,24 +1192,13 @@ export function ExecutiveDashboardWorkspace() {
               <p className="text-sm text-muted-foreground">Chưa có dữ liệu xu hướng.</p>
             )}
           </CardContent>
-          <CardFooter className="flex flex-wrap gap-2 pt-2">
-            <Button asChild variant="outline">
-              <Link href="/documents?type=sales_invoice">
-                Hóa đơn đầu ra (Doanh thu) <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/documents?type=purchase_invoice">
-                Hóa đơn đầu vào (Chi phí) <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          </CardFooter>
         </Card>
         <MonthlyCategoryStackedChart
           title="Thống kê chi phí"
           description="Dữ liệu chi phí phân bổ theo tháng từ nguồn Operating Dashboard."
           points={expensePoints}
           currency={operating?.currency ?? data.projects?.currency ?? "VND"}
+          href="/documents?type=purchase_invoice"
         />
       </div>
       <PreviewDialog preview={preview} onClose={() => setPreview(undefined)} />

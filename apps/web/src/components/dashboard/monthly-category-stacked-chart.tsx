@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -32,11 +34,13 @@ export function MonthlyCategoryStackedChart({
   description,
   points,
   currency = "VND",
+  href,
 }: Readonly<{
   title: string;
   description: string;
   points: readonly StackedCategoryPoint[];
   currency?: string;
+  href?: string;
 }>) {
   // Collect all unique categories across all months
   const allCategories = useMemo(() => {
@@ -78,7 +82,16 @@ export function MonthlyCategoryStackedChart({
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{title}</CardTitle>
+          <div className="flex items-center justify-between">
+            {href ? (
+              <Link href={href} className="group/link flex items-center gap-1.5 transition-colors">
+                <CardTitle className="text-base font-semibold group-hover/link:text-primary transition-colors">{title}</CardTitle>
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary group-hover/link:opacity-100" />
+              </Link>
+            ) : (
+              <CardTitle className="text-base font-semibold">{title}</CardTitle>
+            )}
+          </div>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="flex h-56 items-center justify-center text-sm text-muted-foreground">
@@ -92,7 +105,14 @@ export function MonthlyCategoryStackedChart({
     <Card className="flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">{title}</CardTitle>
+          {href ? (
+            <Link href={href} className="group/link flex items-center gap-1.5 transition-colors">
+              <CardTitle className="text-base font-semibold group-hover/link:text-primary transition-colors">{title}</CardTitle>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary group-hover/link:opacity-100" />
+            </Link>
+          ) : (
+            <CardTitle className="text-base font-semibold">{title}</CardTitle>
+          )}
           <span className="text-xs font-mono font-medium text-muted-foreground">
             Tổng: {totalFormatted}
           </span>

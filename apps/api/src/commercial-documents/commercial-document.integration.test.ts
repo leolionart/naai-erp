@@ -123,6 +123,56 @@ describeIntegration("ERP-300 commercial documents", () => {
     );
     expect(salesTotals.rows[0]).toEqual({ debit: "110000000", credit: "110000000" });
 
+    const overCap = {
+      ...sales,
+      id: "sales-over-cap",
+      documentNumber: "SI-2026-OVER-CAP",
+      netMinor: "1",
+      taxMinor: "0",
+      grossMinor: "1",
+      lines: [
+        {
+          ...sales.lines[0],
+          unitPriceMinor: "1",
+          netMinor: "1",
+          taxMinor: "0",
+          grossMinor: "1",
+          taxAccountCode: undefined,
+          taxCode: undefined,
+          allocations: [{ id: "OVER-A", amountMinor: "1", dimensions: { projectId: "A" } }],
+        },
+      ],
+    };
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/organizations/org-doc/commercial-documents",
+          headers: headers(integrationToken, "sales-over-cap-create"),
+          payload: overCap,
+        })
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (await command("sales-over-cap", "validate", integrationToken, "sales-over-cap-validate"))
+        .statusCode,
+    ).toBe(201);
+    const rejectedOverCap = await command(
+      "sales-over-cap",
+      "issue",
+      financeToken,
+      "sales-over-cap-issue",
+    );
+    expect(rejectedOverCap.statusCode, rejectedOverCap.body).toBe(409);
+    expect(rejectedOverCap.json().error.code).toBe("SALES_INVOICE_CONTRACT_CAP_EXCEEDED");
+    expect(
+      (
+        await pool.query<{ n: number }>(
+          `select count(*)::int n from journal_entries where organization_id='org-doc' and description like '%sales-over-cap%'`,
+        )
+      ).rows[0]?.n,
+    ).toBe(0);
+
     const purchase = {
       ...sales,
       id: "purchase-001",
