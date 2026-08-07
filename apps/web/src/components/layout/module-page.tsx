@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "./page-header";
 
 export function ModulePage({
@@ -18,8 +17,11 @@ export function ModulePage({
       <PageHeader
         title={title}
         description={description}
-        breadcrumbs={[{ label: "Admin", href: "/dashboard" }, { label: section }, { label: title }]}
-        status={<Badge variant="secondary">Local development</Badge>}
+        breadcrumbs={[
+          { label: "Trang chủ", href: "/dashboard" },
+          { label: section, href: "/dashboard" },
+          { label: title },
+        ]}
       />
       <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
     </div>
