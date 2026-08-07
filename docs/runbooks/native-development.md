@@ -155,4 +155,8 @@ contract backend development, supplier invoices and office expense. Verification
 expense and journal resources back and fails if the exact project, payee, amount or posted state is
 missing.
 
+The full-year demo also posts VND 24,000,000 of recurring operating cash outflow in each of October,
+November and December. With VND 261,000,000 unrestricted cash at year end, Executive Metrics reports
+a reviewed three-month average burn of VND 24,000,000 and runway of 10.875 months.
+
 The script is for local synthetic data only. Do not run it against staging or production.

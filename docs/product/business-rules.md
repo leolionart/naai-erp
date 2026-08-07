@@ -34,6 +34,22 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Currency fields across forms display formatted numbers with thousand separators and the Vietnamese Dong (`₫`) symbol, ensuring high legibility while parsing back to exact integer/minor-unit amounts.
 - Financial report and dashboard workspaces support quick period selectors (MTD, YTD, full year) and respect URL-driven date range parameters.
 
+### BR-MVP-007 — Revenue and expense management listings
+
+- The primary document workspaces are named **Revenue Management** and **Expense Management**, not
+  inbound/outbound invoice silos.
+- Each workspace defaults to all relevant records. Invoice presence is an optional URL-backed filter
+  with `all`, `present` and `missing` semantics.
+- Revenue Management shows invoiced revenue activity separately from recognized revenue activity.
+  These axes are visibly labeled and are never added together as one revenue total. A recognition
+  event without an explicit invoice relationship is shown as non-invoice activity; the UI never
+  guesses a link from amount, date or project.
+- Expense Management shows purchase invoices and non-invoice expense records in one listing. Every
+  row retains its canonical source type, endpoint, lifecycle and correction form; the UI never fuzzy
+  deduplicates supplier/date/amount matches.
+- Stable invoice, expense and revenue-recognition detail routes remain available from the unified
+  listings.
+
 ### BR-MVP-004 — Minimal report readiness
 
 - A clean installation receives a minimal approved TT133 account, tax and statement-mapping setup.
@@ -651,6 +667,19 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   source of document bytes; the package carries only durable external references and checksums.
 - Post-import controls reconcile resource counts and canonical Trial Balance, P&L, Balance Sheet,
   cash, AR/AP, tax and project reporting at the package cutoff.
+
+### BR-EXPOR-003 — Filtered accounting list workbooks
+
+- Accountants can export sales invoices separately from a combined purchase-invoice and non-invoice
+  expense workbook, using organization-scoped date, lifecycle, party/payee, project and invoice
+  presence filters.
+- The combined expense workbook preserves canonical `sourceType`; supplier/date/amount similarity
+  never merges a purchase invoice with an expense.
+- Workbooks contain Summary, Records, Lines and Filters sheets. Stable IDs, lifecycle state,
+  relationships and exact minor-unit strings remain machine-readable and totals reconcile to the
+  filtered canonical records.
+- REST and the first-party CLI use the same filters. Downloads are XLSX attachments with a SHA-256
+  checksum and never bypass authorization, organization isolation or audit controls.
 
 ### BR-SNP-001 — Report snapshot
 

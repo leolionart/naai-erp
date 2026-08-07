@@ -15,3 +15,6 @@
 - The added salary, freelance and contract-dev records are direct-cost and expense examples only.
   Shared payroll remains on operating expense and is not presented as project cost until a canonical
   overhead allocation run exists, preventing double counting or a false fully-loaded claim.
+- This evidence proves the contract, OpenAPI and CLI routing for accounting-list workbooks. Runtime
+  workbook content and live database reconciliation remain dependent on the separately owned API
+  implementation and must pass its integration tests before ERP-841 is marked done.

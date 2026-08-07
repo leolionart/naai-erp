@@ -1,5 +1,13 @@
 export const API_VERSION = "v1" as const;
 export {
+  FILTERED_DOCUMENT_EXPORT_CONTRACT_VERSION,
+  type FilteredDocumentExportContract,
+  type FilteredDocumentExportKindContract,
+  type FilteredDocumentExportQueryContract,
+  type FilteredDocumentExportSheetContract,
+  type InvoicePresenceFilterContract,
+} from "./filtered-document-exports.js";
+export {
   PORTABLE_DATA_PACKAGE_HASH_ALGORITHM,
   PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
   type PortableCellTypeContract,

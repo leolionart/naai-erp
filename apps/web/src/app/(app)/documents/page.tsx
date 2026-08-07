@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { ModulePage } from "@/components/layout/module-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FocusedRecordListWorkspace } from "../../workspaces/focused-record-workspaces";
@@ -10,16 +11,15 @@ export default async function DocumentsPage({
 }) {
   const params = await searchParams;
   const type = params.type;
+  if (type === "purchase_invoice") redirect("/expenses?invoiceStatus=present");
 
-  let title = "Hóa đơn";
-  let description = "Quản lý hóa đơn bán ra, mua vào và giảm trừ (credit note).";
+  let title = "Quản lý doanh thu";
+  let description =
+    "Xem toàn bộ hoạt động doanh thu; dùng bộ lọc để tách bản ghi có hoặc chưa có hóa đơn.";
 
   if (type === "sales_invoice") {
-    title = "Hóa đơn bán ra";
-    description = "Quản lý danh sách các hóa đơn bán ra phát sinh doanh thu.";
-  } else if (type === "purchase_invoice") {
-    title = "Hóa đơn mua vào";
-    description = "Quản lý các hóa đơn mua hàng và dịch vụ từ nhà cung cấp.";
+    title = "Doanh thu có hóa đơn";
+    description = "Các hóa đơn bán ra phát sinh trên trục doanh thu đã xuất hóa đơn.";
   } else if (type === "credit_note") {
     title = "Hóa đơn giảm trừ (Credit Note)";
     description = "Quản lý các chứng từ ghi nhận giảm trừ giá trị hóa đơn.";

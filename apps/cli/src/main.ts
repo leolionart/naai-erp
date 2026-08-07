@@ -27,6 +27,7 @@ const { values, positionals } = parseArgs({
     cursor: { type: "string" },
     limit: { type: "string" },
     status: { type: "string" },
+    state: { type: "string" },
     "worker-id": { type: "string" },
     "project-id": { type: "string" },
     billable: { type: "boolean" },
@@ -69,6 +70,8 @@ const { values, positionals } = parseArgs({
     commit: { type: "boolean", default: false },
     "dry-run-id": { type: "string" },
     "workbook-sha256": { type: "string" },
+    "payee-party-id": { type: "string" },
+    "invoice-presence": { type: "string" },
   },
 });
 
@@ -91,7 +94,32 @@ if (!resource || (!discovery && (!organizationId || !token))) {
     ...(token ? { token } : {}),
   });
   try {
-    if (resource === "portable-data-export") {
+    if (resource === "sales-invoice-export" || resource === "purchase-expense-export") {
+      if (!["export", "download"].includes(action) || !values.output || !values.from || !values.to)
+        throw new Error(`${resource} download requires --from, --to, and explicit --output`);
+      const file = await client.downloadAccountingListExport(
+        resource === "sales-invoice-export" ? "sales-invoices" : "purchase-invoices-expenses",
+        {
+          startsOn: values.from,
+          endsOn: values.to,
+          ...(values.state ? { state: values.state } : {}),
+          ...(values.party ? { partyId: values.party } : {}),
+          ...(values["payee-party-id"] ? { payeePartyId: values["payee-party-id"] } : {}),
+          ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
+          ...(values["invoice-presence"] ? { invoicePresence: values["invoice-presence"] } : {}),
+        },
+      );
+      await writeFile(values.output, file.content);
+      process.stdout.write(
+        JSON.stringify({
+          output: values.output,
+          bytes: file.content.byteLength,
+          contentType: file.contentType,
+          ...(file.filename ? { filename: file.filename } : {}),
+          ...(file.sha256 ? { sha256: file.sha256 } : {}),
+        }) + "\n",
+      );
+    } else if (resource === "portable-data-export") {
       if (action === "download") {
         if (!values.key || !values.output)
           throw new Error("portable-data-export download requires --key and explicit --output");

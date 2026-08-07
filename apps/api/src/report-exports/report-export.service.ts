@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
+import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   REPORT_EXPORT_STORE,
@@ -12,6 +13,7 @@ import {
 const WRITE = new Set(["owner", "finance_admin", "accountant", "integration"]);
 const APPROVE = new Set(["owner", "finance_admin", "accountant", "approver"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const EXPORT_ROLES = new Set(["owner", "finance_admin", "accountant"]);
 const KINDS = new Set([
   "profit_and_loss",
   "balance_sheet",
@@ -69,6 +71,28 @@ export class ReportExportService {
       throw new Error("VALIDATION_FAILED");
     return input as ExportInput;
   }
+  parseListExport(input: Record<string, unknown>): FilteredDocumentExportQueryContract {
+    const startsOn = String(input.startsOn ?? "");
+    const endsOn = String(input.endsOn ?? "");
+    const invoicePresence = String(input.invoicePresence ?? "all");
+    if (
+      !DATE.test(startsOn) ||
+      !DATE.test(endsOn) ||
+      startsOn > endsOn ||
+      !["all", "present", "missing"].includes(invoicePresence)
+    )
+      throw new Error("VALIDATION_FAILED");
+    return {
+      startsOn,
+      endsOn,
+      format: "xlsx",
+      ...(input.state ? { state: String(input.state) } : {}),
+      ...(input.partyId ? { partyId: String(input.partyId) } : {}),
+      ...(input.payeePartyId ? { payeePartyId: String(input.payeePartyId) } : {}),
+      ...(input.projectId ? { projectId: String(input.projectId) } : {}),
+      invoicePresence: invoicePresence as "all" | "present" | "missing",
+    };
+  }
   listSnapshots(c: ReportExportContext) {
     return this.store.listSnapshots(c).then((x) => this.envelope(c, x));
   }
@@ -98,6 +122,17 @@ export class ReportExportService {
   download(c: ReportExportContext, id: string, version: number) {
     if (!Number.isInteger(version) || version < 1) throw new Error("VALIDATION_FAILED");
     return this.store.downloadExport(c, id, version);
+  }
+  exportSalesInvoices(c: ReportExportContext, filters: FilteredDocumentExportQueryContract) {
+    if (!c.roles.some((r) => EXPORT_ROLES.has(r))) throw new Error("FORBIDDEN");
+    return this.store.exportSalesInvoices(c, filters);
+  }
+  exportPurchaseInvoicesExpenses(
+    c: ReportExportContext,
+    filters: FilteredDocumentExportQueryContract,
+  ) {
+    if (!c.roles.some((r) => EXPORT_ROLES.has(r))) throw new Error("FORBIDDEN");
+    return this.store.exportPurchaseInvoicesExpenses(c, filters);
   }
   async supersede(
     c: ReportExportContext,

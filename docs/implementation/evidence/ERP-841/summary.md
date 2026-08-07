@@ -48,3 +48,15 @@ payroll. Separate contract-backed, owner-paid expenses record VND 18,000,000 of 
 the website project and VND 28,000,000 of backend development for the AI project. Both expenses have
 explicit freelancer payees, accepted synthetic contract/acceptance evidence, independent tax review,
 project allocations and posted journal links.
+
+Runway is now demonstrable from canonical ledger data rather than an N/A state. October, November
+and December each contain VND 24,000,000 of paid operating cost split across team payroll, workspace
+rent, cloud/tools and marketing. At the full-year cutoff, unrestricted cash is VND 261,000,000 and
+the reviewed three-month average operating burn is VND 24,000,000 per month, producing 10.875 months
+of runway.
+
+ERP-841 now also defines two accountant-facing filtered XLSX exports. Sales invoices are exported
+on their own axis; purchase invoices and non-invoice expenses share a workbook while preserving
+canonical `sourceType`. OpenAPI and the first-party CLI expose identical date, lifecycle,
+party/payee, project and invoice-presence filters. Both workbook contracts contain Summary,
+Records, Lines and Filters sheets with exact minor-unit strings and SHA-256 controls.

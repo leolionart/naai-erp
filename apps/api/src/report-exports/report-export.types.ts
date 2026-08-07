@@ -1,4 +1,5 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
+import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
 
 export type ReportExportContext = JournalActorContext;
 export type ReportKind =
@@ -42,5 +43,13 @@ export type ReportExportStore = Readonly<{
     reason: string,
     key: string,
   ): Promise<unknown>;
+  exportSalesInvoices(
+    c: ReportExportContext,
+    filters: FilteredDocumentExportQueryContract,
+  ): Promise<{ content: Buffer; mediaType: string; filename: string; sha256: string }>;
+  exportPurchaseInvoicesExpenses(
+    c: ReportExportContext,
+    filters: FilteredDocumentExportQueryContract,
+  ): Promise<{ content: Buffer; mediaType: string; filename: string; sha256: string }>;
 }>;
 export const REPORT_EXPORT_STORE = Symbol("REPORT_EXPORT_STORE");

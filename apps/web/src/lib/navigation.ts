@@ -83,23 +83,23 @@ export const adminNavigation = [
     items: [
       {
         key: "documents",
-        label: "Hóa đơn & Chi phí",
-        description: "Quản lý hóa đơn bán ra (đầu ra) và chi phí mua vào (đầu vào).",
+        label: "Doanh thu & Chi phí",
+        description: "Quản lý toàn bộ hoạt động doanh thu và chi phí, có hoặc chưa có hóa đơn.",
         icon: "invoice",
         status: "available",
         children: [
           {
             key: "sales-documents",
-            label: "Hóa đơn đầu ra (Bán)",
-            href: "/documents?type=sales_invoice",
-            description: "Doanh thu và hóa đơn bán ra xuất cho khách hàng.",
+            label: "Quản lý doanh thu",
+            href: "/documents",
+            description: "Hoạt động đã xuất hóa đơn và doanh thu đã ghi nhận chưa có hóa đơn.",
             status: "available",
           },
           {
             key: "purchase-documents",
-            label: "Hóa đơn đầu vào (Mua)",
-            href: "/documents?type=purchase_invoice",
-            description: "Chi phí mua hàng, server, thiết bị có hóa đơn hợp lệ.",
+            label: "Quản lý chi phí",
+            href: "/expenses",
+            description: "Hóa đơn mua vào và mọi chi phí chưa có hóa đơn trong một listing.",
             status: "available",
           },
         ],

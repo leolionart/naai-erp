@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
+import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
 import ExcelJS from "exceljs";
 import {
   canonicalJson,
@@ -459,7 +460,7 @@ export class PgReportExportStore {
     const snapshotRaw = await this.rawSnapshot(c, input.snapshotId, input.snapshotVersion);
     if (snapshotRaw.report_kind !== input.reportKind) throw new Error("VALIDATION_FAILED");
     const snapshot = this.snapshotContract(snapshotRaw),
-      workbook = this.workbook(snapshot),
+      workbook = await this.workbook(c, snapshot),
       manifest = createAccountantExportManifest(workbook, input.format);
     const rendered =
       input.format === "csv"
@@ -550,6 +551,188 @@ export class PgReportExportStore {
       content: r.rows[0].content,
       mediaType: r.rows[0].media_type,
       filename: r.rows[0].filename,
+    };
+  }
+  async exportSalesInvoices(c: ReportExportContext, filters: FilteredDocumentExportQueryContract) {
+    const rows =
+      filters.invoicePresence === "missing"
+        ? []
+        : (
+            await this.pool.query(
+              `select d.id,d.type::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.original_document_id "originalDocumentId",d.reason,d.journal_id "journalId",d.version::text version
+       from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
+       where d.organization_id=$1 and d.document_date between $2::date and $3::date and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) and ($4::text is null or d.state::text=$4) and ($5::text is null or d.party_id=$5)
+       and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
+              [
+                c.organizationId,
+                filters.startsOn,
+                filters.endsOn,
+                filters.state ?? null,
+                filters.partyId ?? null,
+                filters.projectId ?? null,
+              ],
+            )
+          ).rows;
+    const ids = rows.map((x) => String(x.id));
+    const lines = ids.length
+      ? (
+          await this.pool.query(
+            `select document_id "recordId",line_number::text "lineNumber",description,quantity::text quantity,unit_price_minor::text "unitPriceMinor",net_minor::text "netMinor",tax_minor::text "taxMinor",gross_minor::text "grossMinor",primary_account_code "accountCode",tax_code "taxCode",dimensions from commercial_document_lines where organization_id=$1 and document_id=any($2::text[]) order by document_id,line_number`,
+            [c.organizationId, ids],
+          )
+        ).rows
+      : [];
+    return this.filteredWorkbook(c, "sales_invoices", filters, rows, lines);
+  }
+  async exportPurchaseInvoicesExpenses(
+    c: ReportExportContext,
+    filters: FilteredDocumentExportQueryContract,
+  ) {
+    const party = filters.payeePartyId ?? filters.partyId ?? null;
+    const invoices =
+      filters.invoicePresence === "missing"
+        ? []
+        : (
+            await this.pool.query(
+              `select d.id,'purchase_invoice'::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.party_id "partyId",p.display_name "partyName",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.journal_id "journalId",d.version::text version from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id where d.organization_id=$1 and d.type='purchase_invoice' and d.document_date between $2::date and $3::date and ($4::text is null or d.state::text=$4) and ($5::text is null or d.party_id=$5) and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
+              [
+                c.organizationId,
+                filters.startsOn,
+                filters.endsOn,
+                filters.state ?? null,
+                party,
+                filters.projectId ?? null,
+              ],
+            )
+          ).rows;
+    const expenses =
+      filters.invoicePresence === "present"
+        ? []
+        : (
+            await this.pool.query(
+              `select e.id,'expense'::text "sourceType",'missing'::text "invoicePresence",e.state::text state,null::text "documentNumber",e.payee_party_id "partyId",p.display_name "partyName",e.expense_date::text "recordDate",null::text "dueDate",e.currency,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",e.counter_account_code "accountCode",e.journal_id "journalId",e.version::text version,e.expense_class::text "expenseClass",e.business_purpose "businessPurpose",e.cit_state::text "citState",e.vat_state::text "vatState" from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id where e.organization_id=$1 and e.expense_date between $2::date and $3::date and ($4::text is null or e.state::text=$4) and ($5::text is null or e.payee_party_id=$5) and ($6::text is null or exists(select 1 from expense_lines l left join expense_allocations a on a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number where l.organization_id=e.organization_id and l.expense_id=e.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by e.expense_date,e.id`,
+              [
+                c.organizationId,
+                filters.startsOn,
+                filters.endsOn,
+                filters.state ?? null,
+                party,
+                filters.projectId ?? null,
+              ],
+            )
+          ).rows;
+    const invoiceIds = invoices.map((x) => String(x.id));
+    const expenseIds = expenses.map((x) => String(x.id));
+    const [invoiceLines, expenseLines] = await Promise.all([
+      invoiceIds.length
+        ? this.pool
+            .query(
+              `select document_id "recordId",'purchase_invoice'::text "sourceType",line_number::text "lineNumber",description,net_minor::text "netMinor",tax_minor::text "taxMinor",gross_minor::text "grossMinor",primary_account_code "accountCode",dimensions from commercial_document_lines where organization_id=$1 and document_id=any($2::text[]) order by document_id,line_number`,
+              [c.organizationId, invoiceIds],
+            )
+            .then((x) => x.rows)
+        : [],
+      expenseIds.length
+        ? this.pool
+            .query(
+              `select expense_id "recordId",'expense'::text "sourceType",line_number::text "lineNumber",description,net_minor::text "netMinor",vat_minor::text "taxMinor",gross_minor::text "grossMinor",posting_account_code "accountCode",management_state::text "managementState",cit_state::text "citState",vat_state::text "vatState",cit_eligible_minor::text "citEligibleMinor",vat_eligible_minor::text "vatEligibleMinor",dimensions from expense_lines where organization_id=$1 and expense_id=any($2::text[]) order by expense_id,line_number`,
+              [c.organizationId, expenseIds],
+            )
+            .then((x) => x.rows)
+        : [],
+    ]);
+    return this.filteredWorkbook(
+      c,
+      "purchase_invoices_and_expenses",
+      filters,
+      [...invoices, ...expenses],
+      [...invoiceLines, ...expenseLines],
+    );
+  }
+  private async filteredWorkbook(
+    c: ReportExportContext,
+    kind: "sales_invoices" | "purchase_invoices_and_expenses",
+    filters: FilteredDocumentExportQueryContract,
+    records: Record<string, unknown>[],
+    lines: Record<string, unknown>[],
+  ) {
+    const sums = records.reduce(
+      (a: { net: bigint; tax: bigint; gross: bigint }, x) => ({
+        net: a.net + BigInt(String(x.netMinor ?? 0)),
+        tax: a.tax + BigInt(String(x.taxMinor ?? 0)),
+        gross: a.gross + BigInt(String(x.grossMinor ?? 0)),
+      }),
+      { net: 0n, tax: 0n, gross: 0n },
+    );
+    const sheets = [
+      this.tableSheet(
+        "summary",
+        "Summary",
+        [
+          {
+            exportKind: kind,
+            organizationId: c.organizationId,
+            generatedBy: c.actorId,
+            recordCount: String(records.length),
+            netMinor: sums.net.toString(),
+            taxMinor: sums.tax.toString(),
+            grossMinor: sums.gross.toString(),
+          },
+        ],
+        [
+          "exportKind",
+          "organizationId",
+          "generatedBy",
+          "recordCount",
+          "netMinor",
+          "taxMinor",
+          "grossMinor",
+        ],
+      ),
+      this.tableSheet("records", "Records", records, [
+        "id",
+        "sourceType",
+        "invoicePresence",
+        "state",
+        "recordDate",
+        "partyId",
+        "currency",
+        "netMinor",
+        "taxMinor",
+        "grossMinor",
+      ]),
+      this.tableSheet("lines", "Lines", lines, [
+        "recordId",
+        "sourceType",
+        "lineNumber",
+        "description",
+        "netMinor",
+        "taxMinor",
+        "grossMinor",
+        "dimensions",
+      ]),
+      this.tableSheet(
+        "filters",
+        "Filters",
+        Object.entries(filters).map(([field, value]) => ({ field, value })),
+        ["field", "value"],
+      ),
+    ];
+    const content = await this.xlsx({
+      schemaVersion: 1,
+      title: kind,
+      currency: "VND",
+      snapshotId: "filtered",
+      snapshotVersion: 1,
+      snapshotResultHash: "filtered",
+      snapshotReadiness: "ready",
+      sheets,
+    } as unknown as ReturnType<typeof createAccountantWorkbook>);
+    return {
+      content,
+      mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      filename: `${kind}-${filters.startsOn}-${filters.endsOn}.xlsx`,
+      sha256: createHash("sha256").update(content).digest("hex"),
     };
   }
   async supersedeExport(
@@ -681,7 +864,7 @@ export class PgReportExportStore {
       downloadUrl: `/api/v1/organizations/${encodeURIComponent(c.organizationId)}/accountant-exports/${encodeURIComponent(r.id)}/versions/${r.version}/download`,
     };
   }
-  private workbook(snapshot: ReportSnapshot) {
+  private async workbook(c: ReportExportContext, snapshot: ReportSnapshot) {
     const result = JSON.parse(snapshot.canonicalResultJson) as Record<string, unknown>;
     const summary: WorkbookSheet = {
       key: "summary",
@@ -702,11 +885,15 @@ export class PgReportExportStore {
     const reportRows: Record<string, WorkbookCell>[] = [];
 
     if (
-      ["profit_and_loss", "balance_sheet", "cash_flow", "vat_reconciliation"].includes(
+      ["profit_and_loss", "balance_sheet", "direct_cash_flow", "vat_reconciliation"].includes(
         snapshot.reportKind,
       )
     ) {
-      const lines = Array.isArray(result.lines) ? result.lines : [];
+      const lines = Array.isArray(result.rows)
+        ? result.rows
+        : Array.isArray(result.lines)
+          ? result.lines
+          : [];
       reportRows.push({ path: cell("Chỉ tiêu"), value: cell("Số tiền"), code: cell("Mã") });
       for (const line of lines as Record<string, unknown>[]) {
         reportRows.push({
@@ -892,6 +1079,192 @@ export class PgReportExportStore {
       sheets: [summary, report, mapping, unresolved, source],
     });
   }
+  private tableSheet(
+    key: string,
+    name: string,
+    rows: Record<string, unknown>[],
+    fallback: string[],
+  ): WorkbookSheet {
+    const keys = [...new Set([...fallback, ...rows.flatMap((row) => Object.keys(row))])];
+    return {
+      key,
+      name,
+      columns: keys.map((x) => ({ key: x, label: x })),
+      rows: rows.map((row) =>
+        Object.fromEntries(
+          keys.map((x) => [
+            x,
+            cell(
+              row[x] && typeof row[x] === "object" ? canonicalJson(jsonSafe(row[x])) : row[x],
+              x.toLowerCase().endsWith("minor") || x.endsWith("_minor") ? "money_minor" : "text",
+            ),
+          ]),
+        ),
+      ),
+    };
+  }
+  private async accountingSheets(c: ReportExportContext, snapshot: ReportSnapshot) {
+    const org = c.organizationId;
+    const cutoff = snapshot.period.asOfDate;
+    const query = (sql: string, dateScoped = true) =>
+      this.pool.query(sql, dateScoped ? [org, cutoff] : [org]).then((x) => x.rows);
+    const [
+      journals,
+      journalLines,
+      sales,
+      purchases,
+      expenses,
+      docAllocations,
+      expenseAllocations,
+      bank,
+      payments,
+      reconciliations,
+      reconciliationAllocations,
+      accounts,
+      parties,
+    ] = await Promise.all([
+      query(
+        `select id,journal_date::text journal_date,description,currency,state::text state,version::text version,reversal_of_id,created_by,approved_by,approved_at::text approved_at,posted_by,posted_at::text posted_at from journal_entries where organization_id=$1 and journal_date<=$2::date order by journal_date,id`,
+      ),
+      query(
+        `select l.journal_id,l.line_number::text line_number,j.journal_date::text journal_date,l.account_code,l.debit_minor::text debit_minor,l.credit_minor::text credit_minor,l.description,l.dimensions from journal_lines l join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where l.organization_id=$1 and j.journal_date<=$2::date order by j.journal_date,l.journal_id,l.line_number`,
+      ),
+      query(
+        `select id,type::text type,state::text state,document_number,series,fiscal_year::text fiscal_year,party_id,document_date::text document_date,due_date::text due_date,currency,net_minor::text net_minor,tax_minor::text tax_minor,gross_minor::text gross_minor,control_account_code,original_document_id,reason,journal_id,version::text version from commercial_documents d where organization_id=$1 and document_date<=$2::date and (type='sales_invoice' or type='credit_note') order by document_date,id`,
+      ),
+      query(
+        `select id,type::text type,state::text state,document_number,party_id,document_date::text document_date,due_date::text due_date,currency,net_minor::text net_minor,tax_minor::text tax_minor,gross_minor::text gross_minor,control_account_code,journal_id,version::text version from commercial_documents where organization_id=$1 and document_date<=$2::date and type='purchase_invoice' order by document_date,id`,
+      ),
+      query(
+        `select id,expense_class::text expense_class,state::text state,payee_party_id,employee_party_id,expense_date::text expense_date,business_purpose,currency,net_minor::text net_minor,vat_minor::text vat_minor,gross_minor::text gross_minor,counter_account_code,cit_state::text cit_state,vat_state::text vat_state,evidence_checklist,journal_id,version::text version from expenses where organization_id=$1 and expense_date<=$2::date order by expense_date,id`,
+      ),
+      query(
+        `select a.document_id,a.line_number::text line_number,a.allocation_number::text allocation_number,a.amount_minor::text amount_minor,a.dimensions from commercial_document_allocations a join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id where a.organization_id=$1 and d.document_date<=$2::date order by a.document_id,a.line_number,a.allocation_number`,
+      ),
+      query(
+        `select a.expense_id,a.line_number::text line_number,a.allocation_number::text allocation_number,a.amount_minor::text amount_minor,a.dimensions from expense_allocations a join expenses e on e.organization_id=a.organization_id and e.id=a.expense_id where a.organization_id=$1 and e.expense_date<=$2::date order by a.expense_id,a.line_number,a.allocation_number`,
+      ),
+      query(
+        `select id,financial_account_id,booking_date::text booking_date,value_date::text value_date,amount_minor::text amount_minor,currency,reference,description,counterparty_name,state::text state,version::text version from bank_transactions where organization_id=$1 and booking_date<=$2::date order by booking_date,id`,
+      ),
+      query(
+        `select p.id,p.bank_transaction_id,p.direction,p.statement_amount_minor::text statement_amount_minor,p.statement_currency,p.current_attempt_number::text current_attempt_number,p.version::text version from payment_reconciliations p join bank_transactions b on b.organization_id=p.organization_id and b.id=p.bank_transaction_id where p.organization_id=$1 and b.booking_date<=$2::date order by b.booking_date,p.id`,
+      ),
+      query(
+        `select r.id,r.reconciliation_id,r.attempt_number::text attempt_number,r.state::text state,r.bank_transaction_id,r.bank_amount_minor::text bank_amount_minor,r.bank_currency,r.base_amount_minor::text base_amount_minor,r.journal_id,r.reversal_journal_id,r.version::text version from reconciliation_attempts r join bank_transactions b on b.organization_id=r.organization_id and b.id=r.bank_transaction_id where r.organization_id=$1 and b.booking_date<=$2::date order by b.booking_date,r.id`,
+      ),
+      query(
+        `select a.id,a.reconciliation_id,a.line_number::text line_number,a.target_type::text target_type,a.commercial_document_id,a.expense_id,a.target_amount_minor::text target_amount_minor,a.target_currency,a.base_amount_minor::text base_amount_minor,a.statement_amount_minor::text statement_amount_minor,a.target_outstanding_before_minor::text target_outstanding_before_minor,a.control_account_code from reconciliation_allocations a join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id join bank_transactions b on b.organization_id=r.organization_id and b.id=r.bank_transaction_id where a.organization_id=$1 and b.booking_date<=$2::date order by b.booking_date,a.id`,
+      ),
+      query(
+        `select code,name,root_type::text root_type,is_control_account,allow_manual_posting from accounts where organization_id=$1 order by code`,
+        false,
+      ),
+      query(
+        `select id,display_name,status::text status,normalized_tax_id from parties where organization_id=$1 order by id`,
+        false,
+      ),
+    ]);
+    return [
+      this.tableSheet("journal_entries", "Journal Entries", journals, [
+        "id",
+        "journal_date",
+        "state",
+      ]),
+      this.tableSheet("journal_lines", "Journal Lines", journalLines, [
+        "journal_id",
+        "line_number",
+        "account_code",
+        "debit_minor",
+        "credit_minor",
+      ]),
+      this.tableSheet("sales_invoices", "Sales Invoices", sales, [
+        "id",
+        "type",
+        "state",
+        "document_number",
+        "document_date",
+        "party_id",
+        "net_minor",
+        "tax_minor",
+        "gross_minor",
+      ]),
+      this.tableSheet("purchase_invoices", "Purchase Invoices", purchases, [
+        "id",
+        "state",
+        "document_number",
+        "document_date",
+        "party_id",
+        "net_minor",
+        "tax_minor",
+        "gross_minor",
+      ]),
+      this.tableSheet("expenses", "Expenses", expenses, [
+        "id",
+        "state",
+        "expense_date",
+        "payee_party_id",
+        "net_minor",
+        "vat_minor",
+        "gross_minor",
+      ]),
+      this.tableSheet("document_allocations", "Invoice Allocations", docAllocations, [
+        "document_id",
+        "line_number",
+        "allocation_number",
+        "amount_minor",
+        "dimensions",
+      ]),
+      this.tableSheet("expense_allocations", "Expense Allocations", expenseAllocations, [
+        "expense_id",
+        "line_number",
+        "allocation_number",
+        "amount_minor",
+        "dimensions",
+      ]),
+      this.tableSheet("bank_transactions", "Bank Transactions", bank, [
+        "id",
+        "booking_date",
+        "amount_minor",
+        "currency",
+        "state",
+      ]),
+      this.tableSheet("payments", "Payments", payments, [
+        "id",
+        "bank_transaction_id",
+        "direction",
+        "statement_amount_minor",
+        "statement_currency",
+      ]),
+      this.tableSheet("reconciliations", "Reconciliations", reconciliations, [
+        "id",
+        "reconciliation_id",
+        "state",
+        "bank_amount_minor",
+        "base_amount_minor",
+      ]),
+      this.tableSheet(
+        "reconciliation_allocations",
+        "Payment Allocations",
+        reconciliationAllocations,
+        [
+          "id",
+          "reconciliation_id",
+          "target_type",
+          "commercial_document_id",
+          "expense_id",
+          "target_amount_minor",
+        ],
+      ),
+      this.tableSheet("accounts", "Accounts", accounts, ["code", "name", "root_type"]),
+      this.tableSheet("parties", "Parties", parties, [
+        "id",
+        "display_name",
+        "status",
+        "normalized_tax_id",
+      ]),
+    ];
+  }
   private csv(sheets: readonly WorkbookSheet[]) {
     const columns = [
       { key: "sheet", label: "Sheet" },
@@ -956,8 +1329,13 @@ export class PgReportExportStore {
                 val !== null &&
                 (fmt === "money_minor" || fmt === "integer" || (!isNaN(Number(val)) && val !== ""))
               ) {
-                // Convert string numbers to real numbers for Excel to format them properly
-                if (typeof val === "string") val = Number(val);
+                if (
+                  typeof val === "string" &&
+                  /^-?\d+$/.test(val) &&
+                  BigInt(val) <= BigInt(Number.MAX_SAFE_INTEGER) &&
+                  BigInt(val) >= BigInt(Number.MIN_SAFE_INTEGER)
+                )
+                  val = Number(val);
               }
               return [x.key, val];
             }),
@@ -970,9 +1348,11 @@ export class PgReportExportStore {
           const fmt = cellInfo?.format;
           const excelCell = addedRow.getCell(index + 1);
 
-          if (fmt === "money_minor" || fmt === "integer" || typeof excelCell.value === "number") {
-            excelCell.numFmt = "#,##0"; // format with thousands separator
-          }
+          if (fmt === "money_minor") excelCell.numFmt = '#,##0 "₫";[Red]-#,##0 "₫"';
+          else if (fmt === "integer" || typeof excelCell.value === "number")
+            excelCell.numFmt = "#,##0";
+          if (/date|_on$|_at$/.test(col.key)) excelCell.numFmt = "yyyy-mm-dd";
+          excelCell.alignment = { vertical: "top", wrapText: true };
         });
       }
 
@@ -987,6 +1367,19 @@ export class PgReportExportStore {
       headerRow.alignment = { vertical: "middle", horizontal: "center" };
 
       ws.views = [{ state: "frozen", ySplit: 1 }];
+      if (sheet.columns.length)
+        ws.autoFilter = {
+          from: { row: 1, column: 1 },
+          to: { row: 1, column: sheet.columns.length },
+        };
+      ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+      ws.pageSetup.printTitlesRow = "1:1";
+      if (sheet.name === "Summary") {
+        ws.eachRow((row, rowNumber) => {
+          if (rowNumber > 1 && /review|unresolved/i.test(String(row.getCell(2).value ?? "")))
+            row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE699" } };
+        });
+      }
 
       // Auto-fit column widths based on content
       ws.columns?.forEach((column) => {

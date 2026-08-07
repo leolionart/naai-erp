@@ -1104,6 +1104,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank cash owner payable and accounting profit"
     blocking_gate: G14
 
+  - id: T-CONTRACT-ERP-841-004
+    task: ERP-841
+    rules: [BR-EXPOR-003, BR-AI-001, BR-AI-003, BR-MVP-007]
+    title: Filtered sales and purchase-expense workbook contracts preserve source axes exact money sheets filters and checksums
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts exec vitest run src/filtered-document-exports.test.ts
+    blocking_gate: G14
+
+  - id: T-CLI-ERP-841-005
+    task: ERP-841
+    rules: [BR-EXPOR-003, BR-AI-001, BR-AI-004]
+    title: First-party CLI maps filtered invoice export flags to the versioned XLSX endpoints
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
+    blocking_gate: G14
+
   - id: T-CONTRACT-ERP-850-001
     task: ERP-850
     rules: [BR-EXPOR-002, BR-AI-003, BR-AI-004, BR-AI-005]

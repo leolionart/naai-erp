@@ -845,9 +845,58 @@ async function seedJournals() {
       },
     ],
   );
+  for (const [month, date] of [
+    ["10", "2026-10-25"],
+    ["11", "2026-11-25"],
+    ["12", "2026-12-25"],
+  ])
+    await seedJournal(
+      `demo-operating-burn-2026-${month}`,
+      date,
+      `Chi phí vận hành định kỳ tháng ${month}/2026`,
+      [
+        {
+          accountCode: "642-OPEX",
+          debitMinor: "12000000",
+          dimensions: { costCenter: "GENERAL", costType: "team_payroll", period: `2026-${month}` },
+        },
+        {
+          accountCode: "642-OPEX",
+          debitMinor: "6000000",
+          dimensions: {
+            costCenter: "GENERAL",
+            costType: "workspace_rent",
+            period: `2026-${month}`,
+          },
+        },
+        {
+          accountCode: "642-OPEX",
+          debitMinor: "4000000",
+          dimensions: {
+            costCenter: "GENERAL",
+            costType: "cloud_and_tools",
+            period: `2026-${month}`,
+          },
+        },
+        {
+          accountCode: "642-OPEX",
+          debitMinor: "2000000",
+          dimensions: { costCenter: "GENERAL", costType: "marketing", period: `2026-${month}` },
+        },
+        {
+          accountCode: "112-BANK",
+          creditMinor: "24000000",
+          dimensions: {
+            costCenter: "GENERAL",
+            cashFlowPurpose: "operating_burn",
+            period: `2026-${month}`,
+          },
+        },
+      ],
+    );
   note(
     "journals",
-    "opening capital, owner funding, equipment and itemized project/shared payroll posted",
+    "opening capital, owner funding, itemized payroll and three months of operating burn posted",
   );
 }
 
@@ -1674,6 +1723,26 @@ async function verifyDemoProjectCosts() {
   );
 }
 
+async function verifyDemoRunway() {
+  const metrics = (
+    await request(
+      `/reports/executive-metrics?startsOn=${startsOn}&endsOn=${endsOn}&asOfInstant=${encodeURIComponent(asOfInstant)}&framework=TT133`,
+    )
+  ).data;
+  if (
+    metrics.runwayStatus !== "available" ||
+    metrics.averageOperatingNetCashFlowMinor !== "-24000000" ||
+    metrics.netBurnMinor !== "24000000" ||
+    metrics.unrestrictedCashMinor !== "261000000" ||
+    metrics.runwayMonthsThousandths !== "10875"
+  )
+    throw new Error("Demo runway readback is not available");
+  note(
+    "runway-readback",
+    `${metrics.runwayMonthsThousandths} thousandths of a month from cash ${metrics.unrestrictedCashMinor} and burn ${metrics.netBurnMinor}`,
+  );
+}
+
 async function verifyReports() {
   const verification = [];
   for (const [name, path] of reportRequests) {
@@ -1747,6 +1816,7 @@ if (!verifyOnly) {
 
 const verification = await verifyReports();
 await verifyDemoProjectCosts();
+await verifyDemoRunway();
 let exportResult = null;
 if (!verifyOnly) exportResult = await seedSnapshotAndExports();
 const failedReports = verification.filter((item) => !item.ok);

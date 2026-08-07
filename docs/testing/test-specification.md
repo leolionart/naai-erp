@@ -112,8 +112,21 @@ exact-commit CI/release readback is green.
 - In-place editing inside Quick View Dialog updates records seamlessly without full page navigation.
 - Formatted currency inputs properly display `₫` and thousand separators, and submit exact amounts without floating-point issues.
 - Quick period selectors (MTD, YTD, full year) correctly update parameters across financial report workspaces.
+- Revenue and expense management listings default to all invoice-presence states, visibly preserve
+  invoiced versus recognized revenue axes, and open each mixed row through its canonical endpoint.
+- The `present` and `missing` filters exclude the opposite source class without hiding other valid
+  non-invoice expense classes.
 
 Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push readback are green.
+
+### ERP-841 — Complete management listings and accountant workbooks
+
+- Revenue and expense management listings keep invoice, recognition and non-invoice expense axes
+  distinct while retaining stable detail routes.
+- Sales invoice and purchase-invoice/expense workbook downloads honor the same date, lifecycle,
+  party/payee, project and invoice-presence filters exposed by the first-party CLI.
+- Workbook controls reconcile to filtered canonical records; exact money remains minor-unit strings
+  and purchase invoices are never fuzzy-merged with expenses.
 
 ## 5. Evidence
 

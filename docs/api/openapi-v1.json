@@ -100,6 +100,8 @@
     "accountant-exports/create",
     "accountant-exports/download",
     "accountant-exports/supersede",
+    "accounting-list-exports/sales-invoices",
+    "accounting-list-exports/purchase-invoices-expenses",
     "workbook-imports/dry-run",
     "workbook-imports/commit",
     "workbook-imports/review-rows/list",
@@ -3063,6 +3065,47 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/accounting-list-exports/sales-invoices": {
+      "get": {
+        "operationId": "exportFilteredSalesInvoices",
+        "tags": ["accounting-list-exports"],
+        "summary": "Download an accountant XLSX workbook of filtered sales invoices",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AccountingExportStartsOn" },
+          { "$ref": "#/components/parameters/AccountingExportEndsOn" },
+          { "$ref": "#/components/parameters/AccountingExportState" },
+          { "$ref": "#/components/parameters/AccountingExportPartyId" },
+          { "$ref": "#/components/parameters/AccountingExportProjectId" },
+          { "$ref": "#/components/parameters/AccountingExportInvoicePresence" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/AccountingListWorkbook" },
+          "400": { "description": "Invalid date range or filter" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/accounting-list-exports/purchase-invoices-expenses": {
+      "get": {
+        "operationId": "exportFilteredPurchaseInvoicesAndExpenses",
+        "tags": ["accounting-list-exports"],
+        "summary": "Download an accountant XLSX workbook of filtered purchase invoices and non-invoice expenses",
+        "description": "Records preserve sourceType so purchase invoices and expenses are never fuzzy-deduplicated or merged.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AccountingExportStartsOn" },
+          { "$ref": "#/components/parameters/AccountingExportEndsOn" },
+          { "$ref": "#/components/parameters/AccountingExportState" },
+          { "$ref": "#/components/parameters/AccountingExportPayeePartyId" },
+          { "$ref": "#/components/parameters/AccountingExportProjectId" },
+          { "$ref": "#/components/parameters/AccountingExportInvoicePresence" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/AccountingListWorkbook" },
+          "400": { "description": "Invalid date range or filter" }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/portable-data-packages/exports": {
       "post": {
         "operationId": "createPortableDataPackageExport",
@@ -3259,6 +3302,39 @@
         "schema": {
           "type": "string"
         }
+      },
+      "AccountingExportStartsOn": {
+        "name": "startsOn",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "AccountingExportEndsOn": {
+        "name": "endsOn",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "format": "date" }
+      },
+      "AccountingExportState": { "name": "state", "in": "query", "schema": { "type": "string" } },
+      "AccountingExportPartyId": {
+        "name": "partyId",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "AccountingExportPayeePartyId": {
+        "name": "payeePartyId",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "AccountingExportProjectId": {
+        "name": "projectId",
+        "in": "query",
+        "schema": { "type": "string" }
+      },
+      "AccountingExportInvoicePresence": {
+        "name": "invoicePresence",
+        "in": "query",
+        "schema": { "type": "string", "enum": ["all", "present", "missing"], "default": "all" }
       },
       "PortablePackageId": {
         "name": "packageId",
@@ -3464,6 +3540,18 @@
       }
     },
     "responses": {
+      "AccountingListWorkbook": {
+        "description": "Filtered accountant workbook with Summary, Records, Lines and Filters sheets",
+        "headers": {
+          "Content-Disposition": { "schema": { "type": "string" } },
+          "X-Content-Sha256": { "schema": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+        },
+        "content": {
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+            "schema": { "type": "string", "format": "binary" }
+          }
+        }
+      },
       "ProfitAndLossReport": {
         "description": "Canonical accrual-management P&L",
         "content": {

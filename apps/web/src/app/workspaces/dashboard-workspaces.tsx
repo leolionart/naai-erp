@@ -1188,7 +1188,7 @@ export function ExecutiveDashboardWorkspace() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <Link
-                href="/documents?type=sales_invoice"
+                href="/documents?invoiceStatus=present"
                 className="group/link flex items-center gap-1.5 transition-colors"
               >
                 <CardTitle className="text-base font-semibold transition-colors group-hover/link:text-primary">
@@ -1217,7 +1217,7 @@ export function ExecutiveDashboardWorkspace() {
           description="Dữ liệu chi phí phân bổ theo tháng từ nguồn Operating Dashboard."
           points={expensePoints}
           currency={operating?.currency ?? data.projects?.currency ?? "VND"}
-          href="/documents?type=purchase_invoice"
+          href="/expenses?invoiceStatus=present"
         />
       </div>
       <PreviewDialog preview={preview} onClose={() => setPreview(undefined)} />

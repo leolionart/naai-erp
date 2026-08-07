@@ -41,9 +41,13 @@ Additional gates:
   report requests.
 - Live expense readback: `demo-expense-freelance-ui` and `demo-expense-contract-dev-ai` are `posted`
   contract-backed expenses with exact project allocations and payees.
-- Live P&L readback after the expanded demo data: revenue VND 290,000,000, direct cost VND
-  176,000,000, operating expense VND 53,000,000 and net profit VND 61,000,000; ledger/report control
-  status `tied_out` with zero difference.
+- Live P&L readback after the expanded demo and recurring-burn data: revenue VND 290,000,000, direct
+  cost VND 176,000,000, operating expense VND 125,000,000 and net loss VND 11,000,000;
+  ledger/report control status `tied_out` with zero difference.
+- `pnpm demo:verify`: passed after adding the runway fixture. Exact Executive Metrics readback is
+  `averageOperatingNetCashFlowMinor: -24000000`, `netBurnMinor: 24000000`,
+  `unrestrictedCashMinor: 261000000`, `runwayMonthsThousandths: 10875` and
+  `runwayStatus: available`.
 - `pnpm --filter @naai-erp/web typecheck`: passed.
 - `RUN_DB_INTEGRATION=1 DATABASE_URL=... pnpm --dir apps/api exec vitest run
 src/commercial-documents/commercial-document.integration.test.ts
@@ -76,3 +80,15 @@ src/operating-dashboard/operating-dashboard.integration.test.ts`: passed, 2 file
 
 Repository-wide API typecheck is currently blocked by pre-existing unrelated errors in the removed
 TT133 seed import and report-export changes; these errors were not introduced by ERP-841.
+
+Accounting-list export contract evidence:
+
+- `pnpm --filter @naai-erp/contracts exec vitest run src/filtered-document-exports.test.ts`: passed,
+  1 file and 1 test.
+- `pnpm --filter @naai-erp/contracts typecheck`: passed.
+- `pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts`: passed, 2 files
+  and 121 tests.
+- `pnpm --filter @naai-erp/cli typecheck`: passed.
+- `python3 -m json.tool docs/api/openapi-v1.json`: passed.
+- `pnpm test:docs`: passed.
+- `git diff --check`: passed.

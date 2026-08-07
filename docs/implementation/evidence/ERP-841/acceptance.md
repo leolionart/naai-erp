@@ -42,3 +42,13 @@
   accepted contract/acceptance evidence: passed.
 - `pnpm demo:verify` fails if those canonical expense/journal records lose their exact posted state,
   amount, payee or project allocation: passed.
+- Full-year Executive Metrics reads three reviewed monthly operating cash outflows of VND 24,000,000,
+  unrestricted cash of VND 261,000,000 and returns `runwayStatus: available`: passed.
+- Runway is calculated exactly as `261,000,000 / 24,000,000 = 10.875` months and is protected by the
+  demo verification readback: passed.
+- Versioned OpenAPI paths exist for filtered sales-invoice and purchase-invoice/expense XLSX
+  downloads with date, state, party/payee, project and invoice-presence filters: passed.
+- First-party CLI downloads both workbook kinds through those REST paths and requires an explicit
+  output filename: passed.
+- Workbook contracts preserve exact minor-unit totals, SHA-256 controls and the Summary, Records,
+  Lines and Filters sheet inventory: passed.

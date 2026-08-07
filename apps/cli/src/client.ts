@@ -7,6 +7,35 @@ export type CliOptions = Readonly<{
 }>;
 
 export class NaaiErpClient {
+  async downloadAccountingListExport(
+    kind: "sales-invoices" | "purchase-invoices-expenses",
+    filters: Readonly<Record<string, string>>,
+  ): Promise<{ content: Uint8Array; contentType: string; filename?: string; sha256?: string }> {
+    if (!this.options.organizationId || !this.options.token)
+      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    const query = new URLSearchParams(filters).toString();
+    const response = await this.fetchFn(
+      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/accounting-list-exports/${kind}?${query}`,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${this.options.token.replace(/^Bearer\s+/i, "")}`,
+          accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "x-correlation-id": randomUUID(),
+        },
+      },
+    );
+    if (!response.ok) throw new Error(await response.text());
+    const disposition = response.headers.get("content-disposition");
+    const filename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
+    const sha256 = response.headers.get("x-content-sha256") ?? undefined;
+    return {
+      content: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      ...(filename ? { filename } : {}),
+      ...(sha256 ? { sha256 } : {}),
+    };
+  }
   constructor(
     private readonly options: CliOptions,
     private readonly fetchFn: typeof fetch = fetch,

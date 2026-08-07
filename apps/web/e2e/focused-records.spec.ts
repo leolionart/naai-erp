@@ -47,6 +47,24 @@ const invoice = {
     },
   ],
 };
+const purchaseInvoice = {
+  ...invoice,
+  id: "purchase-720",
+  type: "purchase_invoice",
+  documentNumber: "PINV-720",
+  partyId: "supplier-720",
+  controlAccountCode: "331",
+};
+const recognition = {
+  id: "recognition-720",
+  projectId: "project-720",
+  effectiveOn: "2026-08-05",
+  amountMinor: "8000000",
+  currency: "VND",
+  state: "posted",
+  reason: "Ghi nhận doanh thu thiết kế web",
+  resourceVersion: "1",
+};
 const expense = {
   id: "expense-720",
   expenseClass: "non_documented",
@@ -88,6 +106,18 @@ async function install(
   let currentExpense = { ...expense };
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp720-token"));
   await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/**",
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers: {
+          "content-disposition": `attachment; filename="${route.request().url().includes("sales-invoices") ? "naai-erp-doanh-thu-2026-08-01_2026-08-31.xlsx" : "naai-erp-chi-phi-2026-08-01_2026-08-31.xlsx"}"`,
+        },
+        body: Buffer.from([80, 75, 3, 4]),
+      }),
+  );
+  await page.route(
     "http://localhost:3001/api/v1/organizations/naai/commercial-documents**",
     async (route) => {
       const url = new URL(route.request().url());
@@ -106,7 +136,15 @@ async function install(
       if (route.request().method() === "POST" && url.pathname.endsWith("/commercial-documents"))
         return reply(route, currentInvoice);
       if (url.pathname.endsWith("/invoice-720")) return reply(route, currentInvoice);
-      return reply(route, { items: [currentInvoice] });
+      const type = url.searchParams.get("type");
+      return reply(route, {
+        items:
+          type === "purchase_invoice"
+            ? [purchaseInvoice]
+            : type === "sales_invoice"
+              ? [currentInvoice]
+              : [currentInvoice, purchaseInvoice],
+      });
     },
   );
   await page.route("http://localhost:3001/api/v1/organizations/naai/expenses**", async (route) => {
@@ -126,19 +164,27 @@ async function install(
     if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
     return reply(route, { items: [currentExpense] });
   });
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/revenue-recognition-events**",
+    (route) => reply(route, { items: [recognition] }),
+  );
 }
 
-test("@desktop T-MVP-UI-001 uses stable invoice list new and detail routes", async ({ page }) => {
+test("@desktop T-E2E-ERP-841-003 defaults revenue management to invoiced and non-invoice activity", async ({
+  page,
+}) => {
   await install(page);
   await page.goto("http://localhost:3000/documents");
+  await expect(page.getByRole("heading", { level: 1, name: "Quản lý doanh thu" })).toBeVisible();
   await expect(page.getByText("INV-720")).toBeVisible();
+  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const filters = page.locator('[data-slot="popover-content"]');
   await filters.getByLabel("Party ID").fill("client-720");
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/partyId=client-720/);
-  await page.getByRole("button", { name: "Xem nhanh" }).click();
-  const quickView = page.getByRole("dialog", { name: "Xem nhanh hóa đơn" });
+  await page.getByRole("button", { name: "Xem" }).first().click();
+  const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động doanh thu" });
   await expect(quickView.getByText("11.000.000 ₫")).toBeVisible();
   await quickView.getByRole("link", { name: "Mở trang chi tiết" }).click();
   await expect(page).toHaveURL(/\/documents\/invoice-720$/);
@@ -153,11 +199,14 @@ test("@desktop T-MVP-UI-001 uses stable invoice list new and detail routes", asy
   await expect(action).not.toBeVisible();
 });
 
-test("@desktop invoice presence stays a list filter instead of a separate menu", async ({
+test("@desktop expense management defaults to purchase invoices and every non-invoice expense", async ({
   page,
 }) => {
   await install(page);
-  await page.goto("http://localhost:3000/documents?type=purchase_invoice");
+  await page.goto("http://localhost:3000/expenses");
+  await expect(page.getByRole("heading", { level: 1, name: "Quản lý chi phí" })).toBeVisible();
+  await expect(page.getByText("PINV-720")).toBeVisible();
+  await expect(page.getByText("Phí vận hành")).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const filters = page.locator('[data-slot="popover-content"]');
   await filters.getByLabel("Tình trạng hóa đơn").click();
@@ -165,11 +214,90 @@ test("@desktop invoice presence stays a list filter instead of a separate menu",
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/invoiceStatus=missing/);
   await expect(page.getByText("Phí vận hành")).toBeVisible();
-  await page.getByRole("button", { name: "Xem nhanh" }).click();
+  await page.getByRole("button", { name: "Xem" }).click();
   await expect(page.getByRole("link", { name: "Mở trang chi tiết" })).toHaveAttribute(
     "href",
     "/expenses/expense-720",
   );
+});
+
+test("@desktop revenue invoice-presence filter isolates recognition activity", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/documents");
+  await page.getByRole("button", { name: "Bộ lọc" }).click();
+  const filters = page.locator('[data-slot="popover-content"]');
+  await filters.getByLabel("Tình trạng hóa đơn").click();
+  await page.getByRole("option", { name: "Chưa có hóa đơn" }).click();
+  await filters.getByRole("button", { name: "Áp dụng" }).click();
+  await expect(page).toHaveURL(/invoiceStatus=missing/);
+  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
+  await expect(page.getByText("INV-720")).toHaveCount(0);
+});
+
+test("@desktop exports revenue and expense XLSX with current URL filters and clear filenames", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto(
+    "http://localhost:3000/documents?startsOn=2026-08-01&endsOn=2026-08-31&state=posted&partyId=client-720&projectId=project-720&invoiceStatus=missing",
+  );
+  const revenueRequest = page.waitForRequest((request) =>
+    request.url().includes("/accounting-list-exports/sales-invoices"),
+  );
+  const revenueDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Xuất danh sách XLSX" }).click();
+  const revenueUrl = new URL((await revenueRequest).url());
+  expect(Object.fromEntries(revenueUrl.searchParams)).toEqual({
+    startsOn: "2026-08-01",
+    endsOn: "2026-08-31",
+    state: "posted",
+    projectId: "project-720",
+    partyId: "client-720",
+    invoicePresence: "missing",
+  });
+  expect((await revenueDownload).suggestedFilename()).toBe(
+    "naai-erp-doanh-thu-2026-08-01_2026-08-31.xlsx",
+  );
+
+  await page.goto(
+    "http://localhost:3000/expenses?startsOn=2026-08-01&endsOn=2026-08-31&state=draft&payeePartyId=supplier-720&invoiceStatus=present",
+  );
+  const expenseRequest = page.waitForRequest((request) =>
+    request.url().includes("/accounting-list-exports/purchase-invoices-expenses"),
+  );
+  const expenseDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Xuất danh sách XLSX" }).click();
+  const expenseUrl = new URL((await expenseRequest).url());
+  expect(Object.fromEntries(expenseUrl.searchParams)).toEqual({
+    startsOn: "2026-08-01",
+    endsOn: "2026-08-31",
+    state: "draft",
+    payeePartyId: "supplier-720",
+    invoicePresence: "present",
+  });
+  expect((await expenseDownload).suggestedFilename()).toBe(
+    "naai-erp-chi-phi-2026-08-01_2026-08-31.xlsx",
+  );
+});
+
+test("@desktop shows export loading and structured failure without disturbing the list", async ({
+  page,
+}) => {
+  await install(page);
+  await page.unroute("http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/**");
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/sales-invoices**",
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await fail(route, 422, "EXPORT_FILTER_INVALID", "Khoảng ngày export không hợp lệ");
+    },
+  );
+  await page.goto("http://localhost:3000/documents");
+  await page.getByRole("button", { name: "Xuất danh sách XLSX" }).click();
+  await expect(page.getByRole("button", { name: "Đang export..." })).toBeDisabled();
+  await expect(page.getByText("Không thể export dữ liệu")).toBeVisible();
+  await expect(page.getByText("Khoảng ngày export không hợp lệ")).toBeVisible();
+  await expect(page.getByText("INV-720")).toBeVisible();
 });
 
 test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable detail", async ({
@@ -178,14 +306,14 @@ test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable 
   await install(page);
   await page.goto("http://localhost:3000/expenses/new");
   await page.getByRole("combobox").first().click();
-  await page.getByRole("option", { name: "Không có hóa đơn" }).click();
+  await page.getByRole("option", { name: "Chi phí không hóa đơn" }).click();
   await page
-    .getByText("Mục đích kinh doanh", { exact: true })
+    .getByText("Mục đích chi / Diễn giải", { exact: true })
     .locator("..")
     .locator("input")
     .fill("Phí vận hành");
   await page
-    .getByText("Tiền trước thuế", { exact: true })
+    .getByText("Tiền gốc chưa VAT (VNĐ)", { exact: true })
     .locator("..")
     .locator("input")
     .fill("2000000");
@@ -201,7 +329,7 @@ test("@desktop edits a draft invoice through PATCH and reloads the new resource 
   await install(page);
   await page.goto("http://localhost:3000/documents/invoice-720");
   await page.getByRole("button", { name: "Sửa draft" }).click();
-  const dialog = page.getByRole("dialog", { name: "Sửa draft hóa đơn" });
+  const dialog = page.getByRole("dialog", { name: "Sửa draft hoạt động doanh thu" });
   await dialog.getByLabel("Số hóa đơn").fill("INV-720-EDITED");
   await dialog.getByRole("button", { name: "Lưu thay đổi hóa đơn" }).click();
   await expect(dialog).not.toBeVisible();
@@ -212,7 +340,7 @@ test("@desktop blocks an invoice due date before its document date", async ({ pa
   await install(page);
   await page.goto("http://localhost:3000/documents/invoice-720");
   await page.getByRole("button", { name: "Sửa draft" }).click();
-  const dialog = page.getByRole("dialog", { name: "Sửa draft hóa đơn" });
+  const dialog = page.getByRole("dialog", { name: "Sửa draft hoạt động doanh thu" });
   await dialog.getByLabel("Ngày hóa đơn").fill("2026-08-21");
   await expect(dialog.getByLabel("Hạn thanh toán")).toHaveAttribute("aria-invalid", "true");
   await expect(dialog.getByText("Hạn thanh toán không được trước ngày hóa đơn.")).toBeVisible();
@@ -228,7 +356,7 @@ test("@desktop reports stale draft edit conflicts without closing the form", asy
   });
   await page.goto("http://localhost:3000/documents/invoice-720");
   await page.getByRole("button", { name: "Sửa draft" }).click();
-  const dialog = page.getByRole("dialog", { name: "Sửa draft hóa đơn" });
+  const dialog = page.getByRole("dialog", { name: "Sửa draft hoạt động doanh thu" });
   await dialog.getByRole("button", { name: "Lưu thay đổi hóa đơn" }).click();
   await expect(dialog).toBeVisible();
   await expect(page.getByText("Bản ghi đã được cập nhật bởi người khác.")).toBeVisible();
@@ -243,7 +371,7 @@ test("@desktop reports an expense that stopped being draft during edit", async (
   });
   await page.goto("http://localhost:3000/expenses/expense-720");
   await page.getByRole("button", { name: "Sửa draft" }).click();
-  const dialog = page.getByRole("dialog", { name: "Sửa draft chi phí" });
+  const dialog = page.getByRole("dialog", { name: "Sửa draft hoạt động chi phí" });
   await dialog.getByRole("button", { name: "Lưu thay đổi chi phí" }).click();
   await expect(dialog).toBeVisible();
   await expect(page.getByText("Chỉ chi phí draft mới có thể sửa.")).toBeVisible();

@@ -35,6 +35,42 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("downloads filtered accounting list workbooks through the versioned paths", async () => {
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: {
+            "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "x-content-sha256": "a".repeat(64),
+          },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.downloadAccountingListExport("sales-invoices", {
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+      partyId: "party-1",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/accounting-list-exports/sales-invoices?startsOn=2026-01-01&endsOn=2026-12-31&partyId=party-1",
+      expect.objectContaining({ method: "GET" }),
+    );
+    await client.downloadAccountingListExport("purchase-invoices-expenses", {
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+      invoicePresence: "missing",
+    });
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      expect.stringContaining("/accounting-list-exports/purchase-invoices-expenses?"),
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("routes ERP-630 financial statements, VAT, drilldown, and mapping workflows", async () => {
     const fetchFn = vi.fn(() =>
       Promise.resolve(

@@ -24,8 +24,8 @@ async function expectDashboard(page: Page) {
 async function expectDocumentCreateForm(page: Page) {
   await expect(page).toHaveURL(/\/documents(?:\?.*)?$/);
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { level: 1, name: "Hóa đơn" })).toBeVisible();
-  await page.getByRole("link", { name: "Tạo mới", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Quản lý doanh thu" })).toBeVisible();
+  await page.getByRole("link", { name: "Tạo hóa đơn bán ra", exact: true }).click();
   await expect(page).toHaveURL(/\/documents\/new$/);
   await expect(
     page.getByText("Số hóa đơn", { exact: true }).locator("..").locator("input"),
@@ -38,8 +38,8 @@ async function expectDocumentCreateForm(page: Page) {
 test("@desktop dashboard navigates to documents and opens the create form", async ({ page }) => {
   const assertNoBrowserErrors = failOnBrowserErrors(page);
   await expectDashboard(page);
-  await page.getByRole("button", { name: "Hóa đơn", exact: true }).click();
-  await page.getByRole("link", { name: "Đầu ra", exact: true }).click();
+  await page.getByRole("button", { name: "Doanh thu & Chi phí", exact: true }).click();
+  await page.getByRole("link", { name: "Quản lý doanh thu", exact: true }).click();
   await expectDocumentCreateForm(page);
   assertNoBrowserErrors();
 });
@@ -50,7 +50,7 @@ test("@desktop primary navigation exposes customers and projects", async ({ page
     await expect(page.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
   }
   await expect(page.getByRole("link", { name: "Chi phí không hóa đơn" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Báo cáo tài chính", exact: true }).click();
+  await page.getByRole("button", { name: "Báo cáo Thuế & Kế toán", exact: true }).click();
   await expect(page.getByRole("link", { name: "Kết quả kinh doanh" })).toBeVisible();
   await page.getByRole("button", { name: "Công nợ", exact: true }).click();
   await expect(page.getByRole("link", { name: "Phải thu", exact: true })).toBeVisible();
@@ -71,11 +71,11 @@ test("@mobile Sheet navigation reaches documents and keeps the primary workflow 
   await page.getByRole("button", { name: "Mở menu chính" }).click();
   await expect(page.getByRole("dialog", { name: "Điều hướng NAAI ERP" })).toBeVisible();
   const navigation = page.getByRole("dialog", { name: "Điều hướng NAAI ERP" });
-  await navigation.getByRole("button", { name: "Hóa đơn", exact: true }).click();
-  await navigation.getByRole("link", { name: "Đầu vào", exact: true }).click();
-  await expect(page).toHaveURL(/\/documents\?type=purchase_invoice$/);
+  await navigation.getByRole("button", { name: "Doanh thu & Chi phí", exact: true }).click();
+  await navigation.getByRole("link", { name: "Quản lý chi phí", exact: true }).click();
+  await expect(page).toHaveURL(/\/expenses$/);
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
-  await expectDocumentCreateForm(page);
+  await expect(page.getByRole("heading", { level: 1, name: "Quản lý chi phí" })).toBeVisible();
   assertNoBrowserErrors();
 });
 
@@ -87,7 +87,7 @@ test("@mobile Sheet navigation exposes customer and project modules", async ({ p
     await expect(navigation.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
   }
   await expect(navigation.getByRole("link", { name: "Chi phí không hóa đơn" })).toHaveCount(0);
-  await navigation.getByRole("button", { name: "Báo cáo tài chính", exact: true }).click();
+  await navigation.getByRole("button", { name: "Báo cáo Thuế & Kế toán", exact: true }).click();
   await expect(navigation.getByRole("link", { name: "Bảng cân đối kế toán" })).toBeVisible();
   await navigation.getByRole("button", { name: "Công nợ", exact: true }).click();
   await expect(navigation.getByRole("link", { name: "Phải thu", exact: true })).toBeVisible();

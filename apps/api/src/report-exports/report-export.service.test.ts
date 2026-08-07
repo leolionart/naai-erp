@@ -11,6 +11,8 @@ const store = {
   getExport: vi.fn(),
   createExport: vi.fn(),
   downloadExport: vi.fn(),
+  exportSalesInvoices: vi.fn(),
+  exportPurchaseInvoicesExpenses: vi.fn(),
   supersedeExport: vi.fn(),
 } satisfies ReportExportStore;
 const master = { authenticate: vi.fn() };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, Eye, Filter, Plus } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Eye, Filter, Plus } from "lucide-react";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -52,19 +53,25 @@ import {
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 
 type Kind = "documents" | "expenses";
+type SourceKind = "documents" | "expenses" | "recognition";
 type Row = Record<string, unknown>;
+type TaggedRow = Row & {
+  __sourceKind: SourceKind;
+  __invoicePresence: "present" | "missing";
+  __revenueAxis?: "invoiced" | "recognized";
+};
 const config = {
   documents: {
     endpoint: "commercial-documents",
-    singular: "hóa đơn",
-    title: "Hóa đơn",
+    singular: "hoạt động doanh thu",
+    title: "Quản lý doanh thu",
     newTitle: "Tạo hóa đơn",
     detailTitle: "Chi tiết hóa đơn",
   },
   expenses: {
     endpoint: "expenses",
-    singular: "chi phí",
-    title: "Chi phí",
+    singular: "hoạt động chi phí",
+    title: "Quản lý chi phí",
     newTitle: "Tạo chi phí",
     detailTitle: "Chi tiết chi phí",
   },
@@ -107,6 +114,23 @@ function money(value: unknown) {
 function human(value: string) {
   return value ? value.replaceAll("_", " ") : "—";
 }
+function sourceKind(row: Row | undefined): SourceKind {
+  const value = row?.__sourceKind;
+  return value === "expenses" || value === "recognition" ? value : "documents";
+}
+function sourceEndpoint(source: SourceKind) {
+  if (source === "expenses") return "expenses";
+  if (source === "recognition") return "revenue-recognition-events";
+  return "commercial-documents";
+}
+function tagRow(
+  row: Row,
+  source: SourceKind,
+  presence: "present" | "missing",
+  revenueAxis?: "invoiced" | "recognized",
+): TaggedRow {
+  return { ...row, __sourceKind: source, __invoicePresence: presence, __revenueAxis: revenueAxis };
+}
 
 function queryFor(kind: Kind, params: URLSearchParams) {
   const query = new URLSearchParams();
@@ -128,7 +152,7 @@ export function FocusedRecordListWorkspace({
   initialProjectId?: string;
   initialPartyId?: string;
 }) {
-  const { client, hasToken, hydrated } = useAuthenticatedApiClient();
+  const { client, connection, token, hasToken, hydrated } = useAuthenticatedApiClient();
   const params = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -140,10 +164,11 @@ export function FocusedRecordListWorkspace({
   const [quickRecord, setQuickRecord] = useState<Row>();
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const key = params.toString();
-  const invoiceStatus = params.get("invoiceStatus") ?? "present";
-  const sourceKind: Kind = kind === "documents" && invoiceStatus === "missing" ? "expenses" : kind;
-  const current = config[sourceKind];
+  const invoiceStatus = params.get("invoiceStatus") ?? "all";
+  const current = config[kind];
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
@@ -166,36 +191,49 @@ export function FocusedRecordListWorkspace({
       if (initialPartyId && !sourceParams.has("partyId")) {
         sourceParams.set("partyId", initialPartyId);
       }
-      if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
-        sourceParams.set("class", "non_documented");
+      const includePresent = invoiceStatus !== "missing";
+      const includeMissing = invoiceStatus !== "present";
+      const documentParams = new URLSearchParams(sourceParams);
+      if (kind === "expenses") documentParams.set("type", "purchase_invoice");
+      else if (!new Set(["sales_invoice", "credit_note"]).has(documentParams.get("type") ?? ""))
+        documentParams.delete("type");
+      const recognitionQuery = new URLSearchParams();
+      for (const name of ["projectId", "state"]) {
+        const value = sourceParams.get(name);
+        if (value) recognitionQuery.set(name, value);
       }
-
-      let rawItems: Row[] = [];
-      let partiesRes;
-
-      if (kind === "documents" && invoiceStatus === "all") {
-        const [docsRes, expsRes, partiesRaw] = await Promise.all([
-          client.data<{ items?: Row[] } | Row[]>(
-            `${current.endpoint}?${queryFor("documents", sourceParams)}`,
-          ),
-          client.data<{ items?: Row[] } | Row[]>(`expenses?${queryFor("expenses", sourceParams)}`),
-          client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
-        ]);
-        rawItems = [
-          ...(Array.isArray(docsRes) ? docsRes : (docsRes.items ?? [])),
-          ...(Array.isArray(expsRes) ? expsRes : (expsRes.items ?? [])),
-        ];
-        partiesRes = partiesRaw;
-      } else {
-        const [result, partiesRaw] = await Promise.all([
-          client.data<{ items?: Row[] } | Row[]>(
-            `${current.endpoint}?${queryFor(sourceKind, sourceParams)}`,
-          ),
-          client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
-        ]);
-        rawItems = Array.isArray(result) ? result : (result.items ?? []);
-        partiesRes = partiesRaw;
-      }
+      const [documentsResult, expensesResult, recognitionResult, partiesRes] = await Promise.all([
+        includePresent
+          ? client.data<{ items?: Row[] } | Row[]>(
+              `commercial-documents?${queryFor("documents", documentParams)}`,
+            )
+          : Promise.resolve([] as Row[]),
+        kind === "expenses" && includeMissing
+          ? client.data<{ items?: Row[] } | Row[]>(`expenses?${queryFor("expenses", sourceParams)}`)
+          : Promise.resolve([] as Row[]),
+        kind === "documents" && includeMissing
+          ? client.data<{ items?: Row[] } | Row[]>(`revenue-recognition-events?${recognitionQuery}`)
+          : Promise.resolve([] as Row[]),
+        client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
+      ]);
+      const listedDocuments = (
+        Array.isArray(documentsResult) ? documentsResult : (documentsResult.items ?? [])
+      ).filter((row) =>
+        kind === "expenses"
+          ? text(row, "type") === "purchase_invoice"
+          : ["sales_invoice", "credit_note"].includes(text(row, "type")),
+      );
+      const listedExpenses = Array.isArray(expensesResult)
+        ? expensesResult
+        : (expensesResult.items ?? []);
+      const listedRecognitions = Array.isArray(recognitionResult)
+        ? recognitionResult
+        : (recognitionResult.items ?? []);
+      let rawItems: TaggedRow[] = [
+        ...listedDocuments.map((row) => tagRow(row, "documents", "present", "invoiced")),
+        ...listedExpenses.map((row) => tagRow(row, "expenses", "missing")),
+        ...listedRecognitions.map((row) => tagRow(row, "recognition", "missing", "recognized")),
+      ];
 
       const startsOn = sourceParams.get("startsOn");
       const endsOn = sourceParams.get("endsOn");
@@ -211,7 +249,7 @@ export function FocusedRecordListWorkspace({
       }
       // Commercial documents are already filtered canonically by the API, including
       // project links stored on allocations that are intentionally omitted from list rows.
-      if (initialProjectId && sourceKind !== "documents") {
+      if (initialProjectId) {
         rawItems = rawItems.filter(
           (row) =>
             String(row.projectId ?? row.project_id ?? "").trim() === initialProjectId.trim() ||
@@ -234,6 +272,11 @@ export function FocusedRecordListWorkspace({
             ).trim() === initialPartyId.trim(),
         );
       }
+      rawItems.sort((left, right) =>
+        text(right, "documentDate", "expenseDate", "effectiveOn", "createdAt").localeCompare(
+          text(left, "documentDate", "expenseDate", "effectiveOn", "createdAt"),
+        ),
+      );
       setRows(rawItems);
       setParties(Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []));
     } catch (cause) {
@@ -251,29 +294,87 @@ export function FocusedRecordListWorkspace({
     invoiceStatus,
     key,
     kind,
-    sourceKind,
   ]);
   useEffect(() => void load(), [load]);
   function apply(form: FormData) {
     const query = new URLSearchParams();
-    const selectedInvoiceStatus = String(form.get("invoiceStatus") ?? "all");
-    for (const name of kind === "documents" && selectedInvoiceStatus !== "missing"
-      ? ["invoiceStatus", "type", "state", "partyId", "projectId"]
-      : kind === "documents"
-        ? ["invoiceStatus", "state", "class", "payeePartyId"]
-        : ["class", "state", "payeePartyId"]) {
+    for (const name of kind === "documents"
+      ? ["invoiceStatus", "type", "state", "partyId", "projectId", "startsOn", "endsOn"]
+      : ["invoiceStatus", "class", "state", "payeePartyId", "startsOn", "endsOn"]) {
       const value = String(form.get(name) ?? "").trim();
       if (value && value !== "all") query.set(name, value);
     }
     router.replace(`${pathname}?${query}`);
     setFilters(false);
   }
+  async function exportWorkbook() {
+    setExporting(true);
+    setExportError("");
+    try {
+      const currentParams = new URLSearchParams(key);
+      const query = new URLSearchParams();
+      for (const name of ["startsOn", "endsOn", "state", "projectId"]) {
+        const value = currentParams.get(name);
+        if (value) query.set(name, value);
+      }
+      const partyKey = kind === "documents" ? "partyId" : "payeePartyId";
+      const partyValue = currentParams.get(partyKey);
+      if (partyValue) query.set(partyKey, partyValue);
+      const presence = currentParams.get("invoiceStatus");
+      if (presence && presence !== "all") query.set("invoicePresence", presence);
+      if (initialProjectId && !query.has("projectId")) query.set("projectId", initialProjectId);
+      if (initialPartyId) {
+        if (!query.has(partyKey)) query.set(partyKey, initialPartyId);
+      }
+      const exportPath =
+        kind === "documents"
+          ? "accounting-list-exports/sales-invoices"
+          : "accounting-list-exports/purchase-invoices-expenses";
+      const response = await fetch(
+        `${connection.baseUrl}/api/v1/organizations/${encodeURIComponent(connection.organizationId)}/${exportPath}?${query}`,
+        {
+          headers: {
+            accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            authorization: `Bearer ${token}`,
+            "x-correlation-id": crypto.randomUUID(),
+          },
+        },
+      );
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => undefined)) as
+          { error?: { message?: string } } | undefined;
+        throw new Error(
+          payload?.error?.message ?? `Không thể export XLSX (HTTP ${response.status}).`,
+        );
+      }
+      const disposition = response.headers.get("content-disposition");
+      const serverFilename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
+      const range = [query.get("startsOn"), query.get("endsOn")].filter(Boolean).join("_");
+      const fallbackFilename = `naai-erp-${kind === "documents" ? "doanh-thu" : "chi-phi"}${range ? `-${range}` : ""}.xlsx`;
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = serverFilename ?? fallbackFilename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setExportError(cause instanceof Error ? cause.message : "Không thể export workbook.");
+    } finally {
+      setExporting(false);
+    }
+  }
   async function openQuickView(row: Row) {
     const id = text(row, "id");
     setQuickRecord(row);
     setQuickLoading(true);
     try {
-      setQuickRecord(await client.data<Row>(`${current.endpoint}/${encodeURIComponent(id)}`));
+      const source = sourceKind(row);
+      setQuickRecord({
+        ...(await client.data<Row>(`${sourceEndpoint(source)}/${encodeURIComponent(id)}`)),
+        __sourceKind: source,
+        __invoicePresence: row.__invoicePresence,
+        __revenueAxis: row.__revenueAxis,
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
@@ -286,11 +387,16 @@ export function FocusedRecordListWorkspace({
     setQuickBusy(true);
     setError("");
     try {
-      const updated = await client.data<Row>(`${current.endpoint}/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        expectedVersion: text(quickRecord, "resourceVersion", "version"),
-        body,
-      });
+      const source = sourceKind(quickRecord);
+      if (source === "recognition") return;
+      const updated = await client.data<Row>(
+        `${sourceEndpoint(source)}/${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          expectedVersion: text(quickRecord, "resourceVersion", "version"),
+          body,
+        },
+      );
       setQuickRecord({ ...quickRecord, ...body, ...updated });
       await load();
     } catch (cause) {
@@ -302,6 +408,7 @@ export function FocusedRecordListWorkspace({
   const stackedPoints = useCallback((): readonly StackedCategoryPoint[] => {
     const monthlyMap = new Map<string, Map<string, bigint>>();
     for (const row of rows) {
+      const rowSource = sourceKind(row);
       const dateStr = text(row, "documentDate", "expenseDate", "issueDate", "createdAt");
       const monthKey = dateStr && /^\d{4}-\d{2}/.test(dateStr) ? dateStr.substring(0, 7) : "Khác";
 
@@ -316,12 +423,14 @@ export function FocusedRecordListWorkspace({
         groupName = getCategoryName(categoryCode);
       }
       if (!groupName) {
-        if (sourceKind === "documents") {
+        if (rowSource === "documents") {
           const type = text(row, "type");
           if (type === "sales_invoice") groupName = "Doanh thu dịch vụ/bán hàng";
           else if (type === "purchase_invoice") groupName = "Chi phí mua hàng/dịch vụ";
           else if (type === "credit_note") groupName = "Giảm trừ hóa đơn";
           else groupName = "Chứng từ khác";
+        } else if (rowSource === "recognition") {
+          groupName = "Doanh thu đã ghi nhận";
         } else {
           groupName = "Chi phí khác";
         }
@@ -349,7 +458,7 @@ export function FocusedRecordListWorkspace({
         categories,
       };
     });
-  }, [rows, sourceKind]);
+  }, [rows]);
 
   const points = stackedPoints();
 
@@ -358,13 +467,13 @@ export function FocusedRecordListWorkspace({
       {!loading && rows.length > 0 ? (
         <MonthlyCategoryStackedChart
           title={
-            sourceKind === "documents"
-              ? "Tỷ trọng chứng từ từng danh mục theo tháng"
+            kind === "documents"
+              ? "Hoạt động doanh thu theo tháng"
               : "Tỷ trọng chi phí từng danh mục theo tháng"
           }
           description={
-            sourceKind === "documents"
-              ? "Biểu đồ cột chồng (Stacked Bar) biểu diễn biến động tỷ trọng doanh thu & chi phí mua vào theo tháng"
+            kind === "documents"
+              ? "Các trục đã xuất hóa đơn và đã ghi nhận được trình bày riêng, không cộng gộp thành một chỉ tiêu."
               : "Biểu đồ cột chồng (Stacked Bar) biểu diễn biến động tỷ trọng chi phí ăn uống, máy chủ, vận hành... theo tháng"
           }
           points={points}
@@ -378,7 +487,7 @@ export function FocusedRecordListWorkspace({
           </Badge>
           {!initialProjectId && !initialPartyId ? <PeriodRangeNavigator /> : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex max-w-full flex-wrap justify-end gap-2">
           <FilterPopover
             kind={kind}
             open={filters}
@@ -386,10 +495,23 @@ export function FocusedRecordListWorkspace({
             params={new URLSearchParams(key)}
             onApply={apply}
           />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasToken || exporting}
+            onClick={exportWorkbook}
+          >
+            {exporting ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}
+            {exporting ? "Đang export..." : "Xuất danh sách XLSX"}
+          </Button>
           <Button asChild size="sm">
-            <Link href={`/${sourceKind}/new`}>
+            <Link href={`/${kind}/new`}>
               <Plus data-icon="inline-start" />
-              Tạo {current.singular} mới
+              {kind === "documents" ? "Tạo hóa đơn bán ra" : "Tạo chi phí"}
             </Link>
           </Button>
         </div>
@@ -400,6 +522,12 @@ export function FocusedRecordListWorkspace({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
+      {exportError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Không thể export dữ liệu</AlertTitle>
+          <AlertDescription>{exportError}</AlertDescription>
+        </Alert>
+      ) : null}
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? (
@@ -408,20 +536,12 @@ export function FocusedRecordListWorkspace({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[140px]">
-                    {sourceKind === "documents" ? "Số hóa đơn" : "Mã chi phí"}
-                  </TableHead>
+                  <TableHead className="w-[140px]">Mã bản ghi</TableHead>
                   <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
-                  <TableHead className="w-[140px]">
-                    {sourceKind === "documents" ? "Loại hóa đơn" : "Phân loại chi phí"}
-                  </TableHead>
+                  <TableHead className="w-[140px]">Nguồn / Trục</TableHead>
                   <TableHead className="w-[160px]">Danh mục nghiệp vụ</TableHead>
-                  <TableHead>
-                    {sourceKind === "documents" ? "Đối tượng (Mua/Bán)" : "Chi cho ai / Người nhận"}
-                  </TableHead>
-                  <TableHead>
-                    {sourceKind === "documents" ? "Nội dung / Diễn giải" : "Mục đích chi"}
-                  </TableHead>
+                  <TableHead>Đối tượng</TableHead>
+                  <TableHead>Nội dung / Diễn giải</TableHead>
                   <TableHead className="w-[140px] text-right">Tổng tiền</TableHead>
                   <TableHead className="w-[120px]">Trạng thái</TableHead>
                   <TableHead className="w-[110px] text-right">Thao tác</TableHead>
@@ -430,12 +550,10 @@ export function FocusedRecordListWorkspace({
               <TableBody>
                 {rows.map((row) => {
                   const id = text(row, "id");
-                  const dateVal = text(
-                    row,
-                    sourceKind === "documents" ? "documentDate" : "expenseDate",
-                  );
+                  const rowSource = sourceKind(row);
+                  const dateVal = text(row, "documentDate", "expenseDate", "effectiveOn");
                   const rawParty =
-                    text(row, sourceKind === "documents" ? "partyId" : "payeePartyId") ||
+                    text(row, rowSource === "expenses" ? "payeePartyId" : "partyId") ||
                     text(row, "employeePartyId");
                   const partyMatch = parties.find((p) => String(p.id) === rawParty);
                   const partyName = partyMatch
@@ -457,7 +575,11 @@ export function FocusedRecordListWorkspace({
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {human(text(row, sourceKind === "documents" ? "type" : "expenseClass"))}
+                          {rowSource === "recognition"
+                            ? "Đã ghi nhận · Chưa có hóa đơn"
+                            : rowSource === "expenses"
+                              ? `${human(text(row, "expenseClass"))} · Chưa có hóa đơn`
+                              : `${human(text(row, "type"))} · Có hóa đơn`}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -466,13 +588,12 @@ export function FocusedRecordListWorkspace({
                       <TableCell className="font-medium">{partyName}</TableCell>
                       <TableCell
                         className="max-w-[200px] truncate text-muted-foreground"
-                        title={text(row, sourceKind === "documents" ? "reason" : "businessPurpose")}
+                        title={text(row, "businessPurpose", "reason")}
                       >
-                        {text(row, sourceKind === "documents" ? "reason" : "businessPurpose") ||
-                          "—"}
+                        {text(row, "businessPurpose", "reason") || "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                        {money(text(row, "grossMinor"))}
+                        {money(text(row, "grossMinor", "amountMinor"))}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{human(text(row, "state"))}</Badge>
@@ -518,12 +639,20 @@ export function FocusedRecordListWorkspace({
                 <Card>
                   <CardHeader>
                     <CardDescription>
-                      {sourceKind === "documents" ? "Số hóa đơn" : "Ngày"}
+                      {sourceKind(quickRecord) === "documents"
+                        ? "Số hóa đơn"
+                        : sourceKind(quickRecord) === "recognition"
+                          ? "Mã ghi nhận doanh thu"
+                          : "Ngày chi phí"}
                     </CardDescription>
                     <CardTitle>
                       {text(
                         quickRecord,
-                        sourceKind === "documents" ? "documentNumber" : "expenseDate",
+                        sourceKind(quickRecord) === "documents"
+                          ? "documentNumber"
+                          : sourceKind(quickRecord) === "recognition"
+                            ? "id"
+                            : "expenseDate",
                       ) || text(quickRecord, "id")}
                     </CardTitle>
                   </CardHeader>
@@ -531,7 +660,7 @@ export function FocusedRecordListWorkspace({
                 <Card>
                   <CardHeader>
                     <CardDescription>Tổng tiền</CardDescription>
-                    <CardTitle>{money(text(quickRecord, "grossMinor"))}</CardTitle>
+                    <CardTitle>{money(text(quickRecord, "grossMinor", "amountMinor"))}</CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
@@ -543,7 +672,7 @@ export function FocusedRecordListWorkspace({
                   </CardHeader>
                 </Card>
               </div>
-              {sourceKind === "documents" ? (
+              {sourceKind(quickRecord) === "documents" ? (
                 <DocumentForm
                   key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
                   busy={quickBusy}
@@ -552,7 +681,7 @@ export function FocusedRecordListWorkspace({
                   submitLabel="Cập nhật thông tin hóa đơn"
                   onSubmit={(body: Row) => void updateQuickRecord(body)}
                 />
-              ) : (
+              ) : sourceKind(quickRecord) === "expenses" ? (
                 <ExpenseForm
                   key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
                   busy={quickBusy}
@@ -561,7 +690,37 @@ export function FocusedRecordListWorkspace({
                   submitLabel="Cập nhật thông tin chi phí"
                   onSubmit={(body: Row) => void updateQuickRecord(body)}
                 />
+              ) : (
+                <div className="grid gap-3 rounded-lg border p-4">
+                  <p className="font-medium">Trục doanh thu: Đã ghi nhận</p>
+                  <p className="text-sm text-muted-foreground">
+                    Đây là nghiệp vụ ghi nhận doanh thu chưa có quan hệ hóa đơn rõ ràng. Hệ thống
+                    không suy đoán liên kết từ số tiền, ngày hoặc dự án.
+                  </p>
+                  <Button asChild variant="outline" className="w-fit">
+                    <Link
+                      href={`/revenue-recognition/${encodeURIComponent(text(quickRecord, "id"))}`}
+                    >
+                      Mở trang chi tiết
+                    </Link>
+                  </Button>
+                </div>
               )}
+              <DialogFooter>
+                <Button asChild variant="outline">
+                  <Link
+                    href={
+                      sourceKind(quickRecord) === "documents"
+                        ? `/documents/${encodeURIComponent(text(quickRecord, "id"))}`
+                        : sourceKind(quickRecord) === "expenses"
+                          ? `/expenses/${encodeURIComponent(text(quickRecord, "id"))}`
+                          : `/revenue-recognition/${encodeURIComponent(text(quickRecord, "id"))}`
+                    }
+                  >
+                    Mở trang chi tiết
+                  </Link>
+                </Button>
+              </DialogFooter>
             </div>
           ) : null}
         </DialogContent>
@@ -583,13 +742,13 @@ function FilterPopover({
   params: URLSearchParams;
   onApply(data: FormData): void;
 }) {
-  const [invoiceStatus, setInvoiceStatus] = useState(params.get("invoiceStatus") ?? "present");
+  const [invoiceStatus, setInvoiceStatus] = useState(params.get("invoiceStatus") ?? "all");
   const [startsOn, setStartsOn] = useState(params.get("startsOn") ?? params.get("from") ?? "");
   const [endsOn, setEndsOn] = useState(params.get("endsOn") ?? params.get("to") ?? "");
 
   useEffect(() => {
     if (open) {
-      setInvoiceStatus(params.get("invoiceStatus") ?? "present");
+      setInvoiceStatus(params.get("invoiceStatus") ?? "all");
       setStartsOn(params.get("startsOn") ?? params.get("from") ?? "");
       setEndsOn(params.get("endsOn") ?? params.get("to") ?? "");
     }
@@ -674,27 +833,23 @@ function FilterPopover({
                 </SelectContent>
               </Select>
             </Field>
+            <Field>
+              <FieldLabel>Tình trạng hóa đơn</FieldLabel>
+              <Select name="invoiceStatus" value={invoiceStatus} onValueChange={setInvoiceStatus}>
+                <SelectTrigger aria-label="Tình trạng hóa đơn">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">Tất cả</SelectItem>
+                    <SelectItem value="present">Có hóa đơn</SelectItem>
+                    <SelectItem value="missing">Chưa có hóa đơn</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
             {kind === "documents" ? (
               <>
-                <Field>
-                  <FieldLabel>Tình trạng hóa đơn</FieldLabel>
-                  <Select
-                    name="invoiceStatus"
-                    value={invoiceStatus}
-                    onValueChange={setInvoiceStatus}
-                  >
-                    <SelectTrigger aria-label="Tình trạng hóa đơn">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="all">Tất cả</SelectItem>
-                        <SelectItem value="present">Có hóa đơn</SelectItem>
-                        <SelectItem value="missing">Chưa có hóa đơn</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
                 {invoiceStatus !== "missing" ? (
                   <>
                     <Field>
@@ -730,19 +885,7 @@ function FilterPopover({
                       />
                     </Field>
                   </>
-                ) : (
-                  <>
-                    <input type="hidden" name="class" value="non_documented" />
-                    <Field>
-                      <FieldLabel htmlFor="filter-payee">Payee ID</FieldLabel>
-                      <Input
-                        id="filter-payee"
-                        name="payeePartyId"
-                        defaultValue={params.get("payeePartyId") ?? ""}
-                      />
-                    </Field>
-                  </>
-                )}
+                ) : null}
               </>
             ) : (
               <>

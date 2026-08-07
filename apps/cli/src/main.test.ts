@@ -48,6 +48,44 @@ async function invoke(args: string[]) {
 }
 
 describe("ERP-640 CLI executable", () => {
+  it("downloads sales invoice and purchase-expense filtered workbooks", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "naai-erp-list-export-"));
+    try {
+      const sales = await invoke([
+        "sales-invoice-export",
+        "download",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2026-12-31",
+        "--party",
+        "party-1",
+        "--output",
+        join(directory, "sales.xlsx"),
+      ]);
+      expect(sales.requestedUrl).toBe(
+        "/api/v1/organizations/org-a/accounting-list-exports/sales-invoices?startsOn=2026-01-01&endsOn=2026-12-31&partyId=party-1",
+      );
+      const purchases = await invoke([
+        "purchase-expense-export",
+        "download",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2026-12-31",
+        "--invoice-presence",
+        "missing",
+        "--output",
+        join(directory, "purchases.xlsx"),
+      ]);
+      expect(purchases.requestedUrl).toContain(
+        "/accounting-list-exports/purchase-invoices-expenses?",
+      );
+      expect(purchases.requestedUrl).toContain("invoicePresence=missing");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   it("maps report options to the executive metrics projection query", async () => {
     const result = await invoke([
       "executive-metrics",

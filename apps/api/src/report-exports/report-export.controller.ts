@@ -50,6 +50,37 @@ export class ReportExportController {
   ) {
     return this.s.listExports(await this.c(o, a, c));
   }
+  @Get("accounting-list-exports/sales-invoices") async salesListExport(
+    @Param("organizationId") o: string,
+    @Query() q: Record<string, unknown>,
+    @Res() reply: FastifyReply,
+    @Headers("authorization") a?: string,
+    @Headers("x-correlation-id") c?: string,
+  ) {
+    const file = await this.s.exportSalesInvoices(await this.c(o, a, c), this.s.parseListExport(q));
+    return reply
+      .header("content-type", file.mediaType)
+      .header("content-disposition", `attachment; filename="${file.filename}"`)
+      .header("x-content-sha256", file.sha256)
+      .send(file.content);
+  }
+  @Get("accounting-list-exports/purchase-invoices-expenses") async purchaseListExport(
+    @Param("organizationId") o: string,
+    @Query() q: Record<string, unknown>,
+    @Res() reply: FastifyReply,
+    @Headers("authorization") a?: string,
+    @Headers("x-correlation-id") c?: string,
+  ) {
+    const file = await this.s.exportPurchaseInvoicesExpenses(
+      await this.c(o, a, c),
+      this.s.parseListExport(q),
+    );
+    return reply
+      .header("content-type", file.mediaType)
+      .header("content-disposition", `attachment; filename="${file.filename}"`)
+      .header("x-content-sha256", file.sha256)
+      .send(file.content);
+  }
   @Get("accountant-exports/:id") async ge(
     @Param("organizationId") o: string,
     @Param("id") id: string,

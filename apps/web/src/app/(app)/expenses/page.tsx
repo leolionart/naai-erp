@@ -6,9 +6,9 @@ import { FocusedRecordListWorkspace } from "../../workspaces/focused-record-work
 export default function ExpensesPage() {
   return (
     <ModulePage
-      title="Chi phí"
+      title="Quản lý chi phí"
       section="Tài chính"
-      description="Ghi nhận chi phí có hoặc không hóa đơn, hoàn ứng và review thuế độc lập."
+      description="Xem toàn bộ hóa đơn mua vào và chi phí chưa có hóa đơn; chỉ lọc khi cần."
     >
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <FocusedRecordListWorkspace kind="expenses" />

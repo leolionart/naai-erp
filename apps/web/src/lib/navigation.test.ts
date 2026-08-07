@@ -14,8 +14,8 @@ describe("typed admin navigation", () => {
   it("exposes only the narrowed MVP destinations", () => {
     expect(findNavigationItem("overview")?.href).toBe("/dashboard");
     expect(findNavigationItem("documents")?.href).toBeUndefined();
-    expect(findNavigationItem("sales-documents")?.href).toBe("/documents?type=sales_invoice");
-    expect(findNavigationItem("purchase-documents")?.href).toBe("/documents?type=purchase_invoice");
+    expect(findNavigationItem("sales-documents")?.href).toBe("/documents");
+    expect(findNavigationItem("purchase-documents")?.href).toBe("/expenses");
     expect(findNavigationItem("expenses")).toBeUndefined();
     expect(findNavigationItem("financial-statements")?.href).toBeUndefined();
     expect(isNavigationAvailable(findNavigationItem("financial-statements")!)).toBe(true);
