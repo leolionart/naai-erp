@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   BanknoteIcon,
@@ -122,15 +122,23 @@ function NavigationUser() {
 
 export function AppNavigation() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   function matchesPath(href: string) {
     const target = new URL(href, "http://naai.local");
-    return pathname === target.pathname || pathname.startsWith(`${target.pathname}/`);
+    const pathMatches = pathname === target.pathname || pathname.startsWith(`${target.pathname}/`);
+    if (!pathMatches) return false;
+    if (target.search) {
+      const targetParams = new URLSearchParams(target.search);
+      for (const [key, value] of targetParams.entries()) {
+        if (searchParams.get(key) !== value) return false;
+      }
+    }
+    return true;
   }
 
   function isActive(href: string) {
-    const target = new URL(href, "http://naai.local");
-    return !target.search && matchesPath(href);
+    return matchesPath(href);
   }
 
   return (

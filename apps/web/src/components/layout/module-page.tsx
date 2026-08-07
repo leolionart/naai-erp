@@ -19,7 +19,7 @@ export function ModulePage({
         description={description}
         breadcrumbs={[
           { label: "Trang chủ", href: "/dashboard" },
-          { label: section, href: "/dashboard" },
+          ...(section ? [{ label: section }] : []),
           { label: title },
         ]}
       />

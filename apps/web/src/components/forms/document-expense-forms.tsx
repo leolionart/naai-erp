@@ -119,20 +119,74 @@ function TextField({
   );
 }
 
+export const BUSINESS_CATEGORIES = [
+  { code: "MEAL", name: "Chi phí Ăn uống / Tiếp khách", defaultAccount: "6428" },
+  { code: "OFFICE_SUPPLIES", name: "Chi phí Văn phòng phẩm / Vật tư", defaultAccount: "6422" },
+  { code: "INTERNET_TELECOM", name: "Chi phí Internet / Điện thoại", defaultAccount: "6427" },
+  { code: "ELECTRICITY_WATER", name: "Chi phí Điện / Nước", defaultAccount: "6427" },
+  { code: "ELECTRONIC_EQUIP", name: "Chi phí Thiết bị điện tử", defaultAccount: "6422" },
+  { code: "SERVER_CLOUD", name: "Chi phí Máy chủ / Cloud Services", defaultAccount: "6427" },
+  { code: "DOMAIN_HOSTING", name: "Chi phí Tên miền / Hosting", defaultAccount: "6427" },
+  { code: "VEHICLE_RENTAL", name: "Chi phí Thuê xe / Thuê pin", defaultAccount: "6427" },
+  { code: "DECORATION", name: "Chi phí Trang trí văn phòng", defaultAccount: "6428" },
+  { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc", defaultAccount: "6428" },
+  { code: "SALES_SERVICES", name: "Doanh thu Dịch vụ / Phần mềm", defaultAccount: "5113" },
+  { code: "OTHER", name: "Chi phí / Doanh thu khác", defaultAccount: "6428" },
+] as const;
+
+export function getCategoryName(categoryCode?: string): string {
+  if (!categoryCode) return "";
+  const found = BUSINESS_CATEGORIES.find((c) => c.code === categoryCode);
+  return found ? found.name : categoryCode;
+}
+
+export const CURRENCIES = [
+  { code: "VND", name: "VNĐ - Đồng Việt Nam" },
+  { code: "USD", name: "USD - Đô la Mỹ" },
+  { code: "EUR", name: "EUR - Euro" },
+] as const;
+
+export const ACCOUNT_CODES = [
+  { code: "111", name: "111 - Tiền mặt" },
+  { code: "112", name: "112 - Tiền gửi ngân hàng" },
+  { code: "131", name: "131 - Phải thu của khách hàng" },
+  { code: "331", name: "331 - Phải trả cho người bán" },
+  { code: "3331", name: "3331 - Thuế GTGT phải nộp" },
+  { code: "1331", name: "1331 - Thuế GTGT được khấu trừ" },
+  { code: "511", name: "511 - Doanh thu bán hàng và dịch vụ" },
+  { code: "5113", name: "5113 - Doanh thu cung cấp dịch vụ" },
+  { code: "642", name: "642 - Chi phí quản lý doanh nghiệp" },
+  { code: "6421", name: "6421 - Chi phí nhân viên" },
+  { code: "6422", name: "6422 - Chi phí vật liệu, đồ dùng văn phòng" },
+  { code: "6427", name: "6427 - Chi phí dịch vụ mua ngoài" },
+  { code: "6428", name: "6428 - Chi phí bằng tiền khác" },
+] as const;
+
+export const TAX_CODES = [
+  { code: "VAT10", name: "VAT 10%" },
+  { code: "VAT8", name: "VAT 8%" },
+  { code: "VAT5", name: "VAT 5%" },
+  { code: "VAT0", name: "VAT 0%" },
+  { code: "NONE", name: "Không chịu thuế" },
+] as const;
+
 export function DocumentForm({
   busy,
   onSubmit,
   initial,
+  parties = [],
   submitLabel = "Lưu hóa đơn nháp",
 }: {
   busy: boolean;
   onSubmit: (body: Row) => void;
   initial?: Row;
+  parties?: readonly Row[];
   submitLabel?: string;
 }) {
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
+  const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
 
   const [id, setId] = useState(String(field(initial, "id") ?? ""));
   const [type, setType] = useState(String(field(initial, "type") ?? "sales_invoice"));
@@ -143,7 +197,7 @@ export function DocumentForm({
   const [fiscalYear, setFiscalYear] = useState(
     String(field(initial, "fiscalYear") ?? new Date().getFullYear()),
   );
-  const [partyId, setPartyId] = useState(String(field(initial, "partyId") ?? ""));
+  const [partyId, setPartyId] = useState(String(field(initial, "partyId") ?? parties[0]?.id ?? ""));
   const [documentDate, setDocumentDate] = useState(
     String(field(initial, "documentDate") ?? new Date().toISOString().slice(0, 10)),
   );
@@ -153,6 +207,9 @@ export function DocumentForm({
     String(field(initial, "controlAccountCode") ?? "131"),
   );
   const [reason, setReason] = useState(String(field(initial, "reason") ?? ""));
+  const [category, setCategory] = useState(
+    String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
+  );
 
   const [lineDescription, setLineDescription] = useState(
     String(field(initialLine, "description") ?? "Chi tiết hóa đơn"),
@@ -180,6 +237,14 @@ export function DocumentForm({
 
   const isUpdate = Boolean(initial);
 
+  function handleCategoryChange(catCode: string) {
+    setCategory(catCode);
+    const item = BUSINESS_CATEGORIES.find((c) => c.code === catCode);
+    if (item && !initial) {
+      setPrimaryAccountCode(item.defaultAccount);
+    }
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
     const payload: Row = {
@@ -192,6 +257,7 @@ export function DocumentForm({
       documentDate,
       dueDate: dueDate || documentDate,
       currency,
+      category,
       netMinor: netMinor || "0",
       taxMinor: taxMinor || "0",
       grossMinor: grossMinor || "0",
@@ -209,6 +275,7 @@ export function DocumentForm({
           primaryAccountCode,
           taxAccountCode: taxAccountCode || undefined,
           taxCode: taxCode || undefined,
+          dimensions: { category },
         },
       ],
     };
@@ -241,6 +308,23 @@ export function DocumentForm({
             </SelectContent>
           </Select>
         </Field>
+        <Field>
+          <FieldLabel>Danh mục nghiệp vụ / Dịch vụ</FieldLabel>
+          <Select value={category} onValueChange={handleCategoryChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {BUSINESS_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.code} value={cat.code}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <TextField
           label="Số hóa đơn"
           value={documentNumber}
@@ -255,7 +339,27 @@ export function DocumentForm({
           onChange={setFiscalYear}
           required
         />
-        <TextField label="Mã đối tác (Party ID)" value={partyId} onChange={setPartyId} required />
+        <Field>
+          <FieldLabel>Đối tác (Khách hàng / Nhà cung cấp)</FieldLabel>
+          {parties.length > 0 ? (
+            <Select value={partyId} onValueChange={setPartyId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {parties.map((p) => (
+                    <SelectItem key={String(p.id)} value={String(p.id)}>
+                      {String(p.displayName || p.name || p.id)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input value={partyId} onChange={(e) => setPartyId(e.target.value)} required />
+          )}
+        </Field>
         <TextField
           label="Ngày hóa đơn"
           type="date"
@@ -264,13 +368,40 @@ export function DocumentForm({
           required
         />
         <TextField label="Hạn thanh toán" type="date" value={dueDate} onChange={setDueDate} />
-        <TextField label="Loại tiền" value={currency} onChange={setCurrency} required />
-        <TextField
-          label="Tài khoản công nợ"
-          value={controlAccountCode}
-          onChange={setControlAccountCode}
-          required
-        />
+        <Field>
+          <FieldLabel>Loại tiền</FieldLabel>
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Tài khoản công nợ</FieldLabel>
+          <Select value={controlAccountCode} onValueChange={setControlAccountCode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {ACCOUNT_CODES.map((acc) => (
+                  <SelectItem key={acc.code} value={acc.code}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <Field className="col-span-full">
           <FieldLabel htmlFor="doc-reason">Lý do / Ghi chú</FieldLabel>
           <Textarea id="doc-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -303,14 +434,57 @@ export function DocumentForm({
           onChange={setGrossMinor}
           required
         />
-        <TextField
-          label="Tài khoản doanh thu / chi phí"
-          value={primaryAccountCode}
-          onChange={setPrimaryAccountCode}
-          required
-        />
-        <TextField label="Tài khoản thuế" value={taxAccountCode} onChange={setTaxAccountCode} />
-        <TextField label="Mã thuế" value={taxCode} onChange={setTaxCode} />
+        <Field>
+          <FieldLabel>Tài khoản doanh thu / chi phí</FieldLabel>
+          <Select value={primaryAccountCode} onValueChange={setPrimaryAccountCode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {ACCOUNT_CODES.map((acc) => (
+                  <SelectItem key={acc.code} value={acc.code}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Tài khoản thuế</FieldLabel>
+          <Select value={taxAccountCode} onValueChange={setTaxAccountCode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {ACCOUNT_CODES.map((acc) => (
+                  <SelectItem key={acc.code} value={acc.code}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Mã thuế</FieldLabel>
+          <Select value={taxCode} onValueChange={setTaxCode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {TAX_CODES.map((t) => (
+                  <SelectItem key={t.code} value={t.code}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
       </FieldSet>
 
       <Button type="submit" disabled={busy} className="self-end">
@@ -324,22 +498,30 @@ export function ExpenseForm({
   busy,
   onSubmit,
   initial,
+  parties = [],
   submitLabel = "Lưu chi phí nháp",
 }: {
   busy: boolean;
   onSubmit: (body: Row) => void;
   initial?: Row;
+  parties?: readonly Row[];
   submitLabel?: string;
 }) {
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
+  const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
 
   const [id, setId] = useState(String(field(initial, "id") ?? ""));
   const [expenseClass, setExpenseClass] = useState(
     String(field(initial, "expenseClass") ?? "documented_operational"),
   );
-  const [payeePartyId, setPayeePartyId] = useState(String(field(initial, "payeePartyId") ?? ""));
+  const [category, setCategory] = useState(
+    String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
+  );
+  const [payeePartyId, setPayeePartyId] = useState(
+    String(field(initial, "payeePartyId") ?? parties[0]?.id ?? ""),
+  );
   const [employeePartyId, setEmployeePartyId] = useState(
     String(field(initial, "employeePartyId") ?? ""),
   );
@@ -369,11 +551,20 @@ export function ExpenseForm({
 
   const isUpdate = Boolean(initial);
 
+  function handleCategoryChange(catCode: string) {
+    setCategory(catCode);
+    const item = BUSINESS_CATEGORIES.find((c) => c.code === catCode);
+    if (item && !initial) {
+      setPostingAccountCode(item.defaultAccount);
+    }
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
     const payload: Row = {
       ...(id ? { id } : {}),
       expenseClass,
+      category,
       payeePartyId: payeePartyId || null,
       employeePartyId: employeePartyId || null,
       expenseDate,
@@ -390,6 +581,7 @@ export function ExpenseForm({
           netMinor: netMinor || "0",
           vatMinor: vatMinor || "0",
           grossMinor: grossMinor || "0",
+          dimensions: { category },
         },
       ],
     };
@@ -423,8 +615,66 @@ export function ExpenseForm({
             </SelectContent>
           </Select>
         </Field>
-        <TextField label="Mã đối tác thụ hưởng" value={payeePartyId} onChange={setPayeePartyId} />
-        <TextField label="Mã nhân viên" value={employeePartyId} onChange={setEmployeePartyId} />
+        <Field>
+          <FieldLabel>Danh mục nghiệp vụ / Dịch vụ</FieldLabel>
+          <Select value={category} onValueChange={handleCategoryChange}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {BUSINESS_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.code} value={cat.code}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Đối tác thụ hưởng</FieldLabel>
+          {parties.length > 0 ? (
+            <Select value={payeePartyId} onValueChange={setPayeePartyId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {parties.map((p) => (
+                    <SelectItem key={String(p.id)} value={String(p.id)}>
+                      {String(p.displayName || p.name || p.id)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input value={payeePartyId} onChange={(e) => setPayeePartyId(e.target.value)} />
+          )}
+        </Field>
+        <Field>
+          <FieldLabel>Nhân viên thực hiện</FieldLabel>
+          {parties.length > 0 ? (
+            <Select value={employeePartyId} onValueChange={setEmployeePartyId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="">-- Không chọn --</SelectItem>
+                  {parties.map((p) => (
+                    <SelectItem key={String(p.id)} value={String(p.id)}>
+                      {String(p.displayName || p.name || p.id)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input value={employeePartyId} onChange={(e) => setEmployeePartyId(e.target.value)} />
+          )}
+        </Field>
         <TextField
           label="Ngày chi phí"
           type="date"
@@ -432,7 +682,23 @@ export function ExpenseForm({
           onChange={setExpenseDate}
           required
         />
-        <TextField label="Loại tiền" value={currency} onChange={setCurrency} required />
+        <Field>
+          <FieldLabel>Loại tiền</FieldLabel>
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <Field className="col-span-full">
           <FieldLabel htmlFor="exp-purpose">Mục đích chi / Diễn giải</FieldLabel>
           <Textarea
@@ -459,18 +725,40 @@ export function ExpenseForm({
           onChange={setGrossMinor}
           required
         />
-        <TextField
-          label="Tài khoản hạch toán chi phí"
-          value={postingAccountCode}
-          onChange={setPostingAccountCode}
-          required
-        />
-        <TextField
-          label="Tài khoản đối ứng (Tiền mặt/NH)"
-          value={counterAccountCode}
-          onChange={setCounterAccountCode}
-          required
-        />
+        <Field>
+          <FieldLabel>Tài khoản hạch toán chi phí</FieldLabel>
+          <Select value={postingAccountCode} onValueChange={setPostingAccountCode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {ACCOUNT_CODES.map((acc) => (
+                  <SelectItem key={acc.code} value={acc.code}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Tài khoản đối ứng (Tiền mặt/NH)</FieldLabel>
+          <Select value={counterAccountCode} onValueChange={setCounterAccountCode}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {ACCOUNT_CODES.map((acc) => (
+                  <SelectItem key={acc.code} value={acc.code}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
       </FieldSet>
 
       <Button type="submit" disabled={busy} className="self-end">

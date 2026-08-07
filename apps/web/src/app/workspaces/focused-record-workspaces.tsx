@@ -40,7 +40,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
-import { DocumentForm, ExpenseForm } from "@/components/forms/document-expense-forms";
+import {
+  DocumentForm,
+  ExpenseForm,
+  getCategoryName,
+} from "@/components/forms/document-expense-forms";
 
 type Kind = "documents" | "expenses";
 type Row = Record<string, unknown>;
@@ -247,6 +251,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                   <TableHead className="w-[140px]">
                     {sourceKind === "documents" ? "Loại hóa đơn" : "Phân loại chi phí"}
                   </TableHead>
+                  <TableHead className="w-[160px]">Danh mục nghiệp vụ</TableHead>
                   <TableHead>
                     {sourceKind === "documents" ? "Đối tượng (Mua/Bán)" : "Chi cho ai / Người nhận"}
                   </TableHead>
@@ -273,6 +278,12 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                     ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
                     : rawParty || "—";
                   const docNumber = text(row, "documentNumber") || id;
+                  const lines = Array.isArray(row.lines)
+                    ? (row.lines[0] as Row | undefined)
+                    : undefined;
+                  const lineDims = (lines?.dimensions as Record<string, string> | undefined) ?? {};
+                  const catCode = text(row, "category") || lineDims.category || "";
+                  const catName = getCategoryName(catCode);
 
                   return (
                     <TableRow key={id}>
@@ -284,6 +295,9 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                         <Badge variant="outline">
                           {human(text(row, sourceKind === "documents" ? "type" : "expenseClass"))}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {catName ? <Badge variant="secondary">{catName}</Badge> : "—"}
                       </TableCell>
                       <TableCell className="font-medium">{partyName}</TableCell>
                       <TableCell
@@ -370,6 +384,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                   key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
                   busy={quickBusy}
                   initial={quickRecord}
+                  parties={parties}
                   submitLabel="Cập nhật thông tin hóa đơn"
                   onSubmit={(body: Row) => void updateQuickRecord(body)}
                 />
@@ -378,6 +393,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
                   key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
                   busy={quickBusy}
                   initial={quickRecord}
+                  parties={parties}
                   submitLabel="Cập nhật thông tin chi phí"
                   onSubmit={(body: Row) => void updateQuickRecord(body)}
                 />
@@ -609,6 +625,23 @@ export function FocusedRecordCreateWorkspace({ kind }: { kind: Kind }) {
   const current = config[kind];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [parties, setParties] = useState<readonly Row[]>([]);
+
+  useEffect(() => {
+    if (hydrated && hasToken) {
+      client
+        .data<readonly Row[] | { items: readonly Row[] }>("master-data/parties")
+        .then((res) => {
+          if (Array.isArray(res)) {
+            setParties(res);
+          } else if (res && typeof res === "object" && "items" in res && Array.isArray(res.items)) {
+            setParties(res.items);
+          }
+        })
+        .catch(() => setParties([]));
+    }
+  }, [client, hasToken, hydrated]);
+
   async function create(body: Row) {
     if (!hydrated || !hasToken) {
       setError("AUTH_REQUIRED");
@@ -655,9 +688,9 @@ export function FocusedRecordCreateWorkspace({ kind }: { kind: Kind }) {
           </CardHeader>
           <CardContent>
             {kind === "documents" ? (
-              <DocumentForm busy={busy} onSubmit={(body) => void create(body)} />
+              <DocumentForm busy={busy} parties={parties} onSubmit={(body) => void create(body)} />
             ) : (
-              <ExpenseForm busy={busy} onSubmit={(body) => void create(body)} />
+              <ExpenseForm busy={busy} parties={parties} onSubmit={(body) => void create(body)} />
             )}
           </CardContent>
         </Card>
@@ -679,6 +712,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const current = config[kind];
   const [record, setRecord] = useState<Row>();
+  const [parties, setParties] = useState<readonly Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [action, setAction] = useState<string>();
@@ -699,7 +733,21 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       return;
     }
     try {
-      setRecord(await client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`));
+      const [resRecord, partiesRes] = await Promise.all([
+        client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`),
+        client.data<readonly Row[] | { items: readonly Row[] }>("master-data/parties"),
+      ]);
+      setRecord(resRecord);
+      if (Array.isArray(partiesRes)) {
+        setParties(partiesRes);
+      } else if (
+        partiesRes &&
+        typeof partiesRes === "object" &&
+        "items" in partiesRes &&
+        Array.isArray(partiesRes.items)
+      ) {
+        setParties(partiesRes.items);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
@@ -921,6 +969,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 key={`document-${recordId}-${text(record, "resourceVersion", "version")}`}
                 busy={busy}
                 initial={record}
+                parties={parties}
                 submitLabel="Lưu thay đổi hóa đơn"
                 onSubmit={(body: Row) => void update(body)}
               />
@@ -929,6 +978,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 key={`expense-${recordId}-${text(record, "resourceVersion", "version")}`}
                 busy={busy}
                 initial={record}
+                parties={parties}
                 submitLabel="Lưu thay đổi chi phí"
                 onSubmit={(body) => void update(body)}
               />

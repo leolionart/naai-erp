@@ -171,6 +171,7 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<FastifyReply>();
+    console.error("ApiExceptionFilter caught error:", exception);
     const message = exception instanceof Error ? exception.message : "INTERNAL_ERROR";
     const status = STATUS_BY_CODE[message] ?? 400;
     response.status(status).send({
