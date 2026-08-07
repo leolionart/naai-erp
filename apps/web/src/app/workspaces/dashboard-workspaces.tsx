@@ -572,8 +572,15 @@ function useDashboardData() {
       searchKey: search.toString(),
     };
     setData(next);
-    if (!next.executive && !next.performance && !next.projects && !next.aging && !next.operating)
-      setError("Không thể tải các báo cáo nguồn của dashboard.");
+    if (!next.executive && !next.performance && !next.projects && !next.aging && !next.operating) {
+      const details = Object.entries(next.failures ?? {})
+        .filter(([, err]) => Boolean(err))
+        .map(([name, err]) => `${name}: ${err}`)
+        .join("; ");
+      setError(
+        `Không thể tải các báo cáo nguồn của dashboard.${details ? ` Details: ${details}` : ""}`,
+      );
+    }
     setLoading(false);
   }, [client, hasToken, hydrated, key]);
   useEffect(() => void load(), [load]);

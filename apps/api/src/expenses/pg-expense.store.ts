@@ -19,6 +19,21 @@ type StoredExpense = {
   payee_party_id: string | null;
   evidence_checklist: Record<string, boolean>;
 };
+
+/**
+ * Derive CIT and VAT eligibility state from expense class at insert time.
+ * - documented_operational: has invoice → eligible for both CIT and VAT
+ * - non_documented / petty_cash: no invoice → ineligible for both
+ * - employee_reimbursement: may or may not have invoice → unreviewed (needs check)
+ */
+function expenseClassToTaxState(expenseClass: string): { citState: string; vatState: string } {
+  if (expenseClass === "documented_operational")
+    return { citState: "eligible", vatState: "eligible" };
+  if (expenseClass === "non_documented" || expenseClass === "petty_cash")
+    return { citState: "ineligible", vatState: "ineligible" };
+  return { citState: "unreviewed", vatState: "unreviewed" };
+}
+
 const NEXT: Record<string, Record<string, string>> = {
   draft: { submit: "submitted" },
   submitted: {
@@ -138,6 +153,7 @@ export class PgExpenseStore {
                 ],
               );
               for (const [index, line] of input.lines.entries()) {
+                const taxState = expenseClassToTaxState(input.expenseClass);
                 await c.query(
                   `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
                   [
@@ -151,12 +167,14 @@ export class PgExpenseStore {
                     line.postingAccountCode,
                     line.vatAccountCode ?? null,
                     line.managementState ?? "unreviewed",
-                    line.citState ?? "unreviewed",
-                    input.expenseClass === "non_documented"
-                      ? "ineligible"
-                      : (line.vatState ?? "unreviewed"),
-                    line.citEligibleMinor ?? "0",
-                    line.vatEligibleMinor ?? "0",
+                    line.citState ?? taxState.citState,
+                    line.vatState ?? taxState.vatState,
+                    taxState.citState === "eligible"
+                      ? (line.citEligibleMinor ?? line.netMinor)
+                      : (line.citEligibleMinor ?? "0"),
+                    taxState.vatState === "eligible"
+                      ? (line.vatEligibleMinor ?? line.vatMinor)
+                      : (line.vatEligibleMinor ?? "0"),
                     line.dimensions ?? {},
                   ],
                 );
@@ -300,6 +318,7 @@ export class PgExpenseStore {
         ],
       );
       for (const [index, line] of input.lines.entries()) {
+        const taxState = expenseClassToTaxState(input.expenseClass);
         await c.query(
           `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
           [
@@ -313,12 +332,14 @@ export class PgExpenseStore {
             line.postingAccountCode,
             line.vatAccountCode ?? null,
             line.managementState ?? "unreviewed",
-            line.citState ?? "unreviewed",
-            input.expenseClass === "non_documented"
-              ? "ineligible"
-              : (line.vatState ?? "unreviewed"),
-            line.citEligibleMinor ?? "0",
-            line.vatEligibleMinor ?? "0",
+            line.citState ?? taxState.citState,
+            line.vatState ?? taxState.vatState,
+            taxState.citState === "eligible"
+              ? (line.citEligibleMinor ?? line.netMinor)
+              : (line.citEligibleMinor ?? "0"),
+            taxState.vatState === "eligible"
+              ? (line.vatEligibleMinor ?? line.vatMinor)
+              : (line.vatEligibleMinor ?? "0"),
             line.dimensions ?? {},
           ],
         );
@@ -561,6 +582,7 @@ export class PgExpenseStore {
       );
 
       for (const [index, line] of merged.lines.entries()) {
+        const taxState = expenseClassToTaxState(merged.expenseClass);
         await c.query(
           `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
           [
@@ -574,12 +596,14 @@ export class PgExpenseStore {
             line.postingAccountCode,
             line.vatAccountCode ?? null,
             line.managementState ?? "unreviewed",
-            line.citState ?? "unreviewed",
-            merged.expenseClass === "non_documented"
-              ? "ineligible"
-              : (line.vatState ?? "unreviewed"),
-            line.citEligibleMinor ?? "0",
-            line.vatEligibleMinor ?? "0",
+            line.citState ?? taxState.citState,
+            line.vatState ?? taxState.vatState,
+            taxState.citState === "eligible"
+              ? (line.citEligibleMinor ?? line.netMinor)
+              : (line.citEligibleMinor ?? "0"),
+            taxState.vatState === "eligible"
+              ? (line.vatEligibleMinor ?? line.vatMinor)
+              : (line.vatEligibleMinor ?? "0"),
             line.dimensions ?? {},
           ],
         );

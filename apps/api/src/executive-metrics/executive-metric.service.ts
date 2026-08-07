@@ -40,19 +40,18 @@ export class ExecutiveMetricService {
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
   }
   parseQuery(i: Record<string, string | undefined>): ExecutiveMetricQuery {
-    const startsOn = i.startsOn ?? i.from,
-      endsOn = i.endsOn ?? i.to,
-      asOfInstant = i.asOfInstant ?? i.asOf,
-      framework = i.framework ?? "TT133";
+    const endsOn = i.endsOn ?? i.to ?? new Date().toISOString().substring(0, 10);
+    const startsOn = i.startsOn ?? i.from ?? `${endsOn.substring(0, 4)}-01-01`;
+    let asOfInstant = i.asOfInstant ?? i.asOf ?? `${endsOn}T16:59:59.999Z`;
+    if (!asOfInstant.includes("T")) {
+      asOfInstant = `${asOfInstant}T16:59:59.999Z`;
+    }
+    const framework = i.framework ?? "TT133";
     if (
-      !startsOn ||
-      !endsOn ||
       !DATE.test(startsOn) ||
       !DATE.test(endsOn) ||
       startsOn > endsOn ||
-      !asOfInstant ||
       Number.isNaN(Date.parse(asOfInstant)) ||
-      !asOfInstant.includes("T") ||
       !["TT133", "TT200"].includes(framework)
     )
       throw new Error("VALIDATION_FAILED");

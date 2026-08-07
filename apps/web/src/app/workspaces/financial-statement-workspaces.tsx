@@ -296,6 +296,7 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
     citState: String(item.cit_state ?? "unreviewed"),
     vatState: String(item.vat_state ?? "unreviewed"),
     evidenceState: evidence.length ? "verified" : "missing",
+    ...(item.paperless_url ? { paperlessUrl: String(item.paperless_url) } : {}),
     ...(item.reviewed_by ? { reviewer: String(item.reviewed_by) } : {}),
     ...(item.review_reason ? { reason: String(item.review_reason) } : {}),
     sourceIds: Object.values(source).filter((value): value is string => typeof value === "string"),
@@ -1064,15 +1065,17 @@ export function TaxExpenseExceptionsWorkspace() {
         ),
       },
       {
-        id: "evidence",
-        header: "Chứng từ",
+        id: "action",
+        header: "",
+        align: "right",
         cell: (row) => (
-          <div className="flex flex-col gap-1">
-            <StatusBadge status={row.evidenceState} />
-            {row.reason ? (
-              <span className="text-xs text-muted-foreground">{row.reason}</span>
-            ) : null}
-          </div>
+          <Button variant="ghost" size="sm" asChild>
+            <Link
+              href={row.expenseId ? `/expenses/${encodeURIComponent(row.expenseId)}` : `/expenses`}
+            >
+              Xem chi tiết <ChevronRight className="size-3.5 ml-0.5" />
+            </Link>
+          </Button>
         ),
       },
     ],

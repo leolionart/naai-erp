@@ -109,6 +109,9 @@ exact-commit CI/release readback is green.
   reversal and replacement posting; control totals must reconcile without duplicate accounting.
 - Source controls remain explicitly non-canonical in reports and the interactive dashboard chart.
 - Review, dashboard and financial-statement journeys pass on desktop and 390px mobile.
+- In-place editing inside Quick View Dialog updates records seamlessly without full page navigation.
+- Formatted currency inputs properly display `₫` and thousand separators, and submit exact amounts without floating-point issues.
+- Quick period selectors (MTD, YTD, full year) correctly update parameters across financial report workspaces.
 
 Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push readback are green.
 

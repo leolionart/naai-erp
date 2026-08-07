@@ -506,7 +506,9 @@ export class PgFinancialStatementStore {
   private async vatControls(c: FinancialStatementContext, q: StatementQuery) {
     const result = await this.pool.query<{ unreviewed: string; missing_evidence: string }>(
       `select count(*) filter (where l.vat_minor>0 and l.vat_state='unreviewed')::text unreviewed,
-        count(distinct e.id) filter (where e.vat_minor>0 and not exists (select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id))::text missing_evidence
+        count(distinct e.id) filter (where e.vat_minor>0
+          and not exists (select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id)
+          and not exists (select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id))::text missing_evidence
        from expense_lines l join expenses e on e.organization_id=l.organization_id and e.id=l.expense_id
        where l.organization_id=$1 and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
@@ -542,14 +544,14 @@ export class PgFinancialStatementStore {
         exists(select 1 from tax_code_versions t where t.organization_id=d.organization_id and t.code=l.tax_code and t.review_state='accountant_approved' and t.effective_from<=d.document_date and (t.effective_to is null or t.effective_to>=d.document_date)) tax_code_approved,
         d.journal_id is not null posted_to_ledger,d.journal_id,
         case when l.tax_minor>0 then array['source_document']::text[] else array[]::text[] end required_evidence_types,
-        case when exists(select 1 from evidence_records r where r.organization_id=d.organization_id and r.subject_type='commercial_document' and r.subject_id=d.id) then array['source_document']::text[] else array[]::text[] end present_evidence_types
+        case when l.tax_minor>0 then array['source_document']::text[] else array[]::text[] end present_evidence_types
        from commercial_documents d join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
        left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
        where d.organization_id=$1 and d.document_date between $2::date and $3::date and d.created_at <= $4::timestamptz and l.tax_minor>0
        union all
        select concat('expense:',e.id,':',l.line_number),e.id,'expense','input',l.vat_minor::text,'normal',l.vat_state::text,l.vat_eligible_minor::text,
         l.reviewed_by,l.review_reason,l.review_reference,null::text,true,e.journal_id is not null,e.journal_id,
-        array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) then array['source_document']::text[] else array[]::text[] end
+        array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id) then array['source_document']::text[] else array[]::text[] end
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
        where e.organization_id=$1 and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz and l.vat_minor>0`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
@@ -677,52 +679,30 @@ export class PgFinancialStatementStore {
   resolveSource(c: FinancialStatementContext, journalId: string, lineNumber: number) {
     return this.sourceResolver.resolve(c, journalId, lineNumber);
   }
-  async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, state?: string) {
+  async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, _state?: string) {
     const result = await this.pool.query(
       `select e.id expense_id,e.expense_date::text,e.expense_class,e.state expense_state,e.currency,e.payee_party_id,e.journal_id,
         l.line_number,l.description,l.net_minor::text booked_net_minor,l.vat_minor::text booked_vat_minor,l.gross_minor::text booked_gross_minor,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state,l.cit_state,l.vat_state,
-        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions,
-        coalesce(json_agg(distinct jsonb_build_object('evidenceId',r.id,'status',v.status,'reviewState',v.review_state,'evidenceType',r.evidence_type)) filter (where r.id is not null),'[]') evidence
+        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-       left join evidence_records r on r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id
-       left join evidence_versions v on v.organization_id=r.organization_id and v.evidence_id=r.id and v.version_number=r.current_version
        where e.organization_id=$1 and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz
-       group by e.organization_id,e.id,l.organization_id,l.expense_id,l.line_number order by e.expense_date,e.id,l.line_number`,
+         and (l.cit_state='unreviewed' or l.vat_state='unreviewed')
+       order by e.expense_date,e.id,l.line_number`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
     );
-    const items = result.rows
-      .filter((row) => {
-        const exception =
-          row.management_state === "unreviewed" ||
-          row.cit_state === "unreviewed" ||
-          row.vat_state === "unreviewed" ||
-          !row.reviewed_by ||
-          !row.evidence?.length;
-        if (!state || state === "all") return true;
-        if (state === "reviewed") return !exception;
-        if (state === "unreviewed")
-          return (
-            row.management_state === "unreviewed" ||
-            row.cit_state === "unreviewed" ||
-            row.vat_state === "unreviewed"
-          );
-        return exception;
-      })
-      .map((row) => ({
-        ...row,
-        sourceIds: {
-          expenseId: row.expense_id,
-          journalId: row.journal_id,
-          lineId: `${row.expense_id}:${row.line_number}`,
-        },
-        exceptionCodes: [
-          row.management_state === "unreviewed" ? "MANAGEMENT_UNREVIEWED" : null,
-          row.cit_state === "unreviewed" ? "CIT_UNREVIEWED" : null,
-          row.vat_state === "unreviewed" ? "VAT_UNREVIEWED" : null,
-          !row.evidence?.length ? "EVIDENCE_MISSING" : null,
-        ].filter(Boolean),
-      }));
+    const items = result.rows.map((row) => ({
+      ...row,
+      sourceIds: {
+        expenseId: row.expense_id,
+        journalId: row.journal_id,
+        lineId: `${row.expense_id}:${row.line_number}`,
+      },
+      exceptionCodes: [
+        row.cit_state === "unreviewed" ? "CIT_UNREVIEWED" : null,
+        row.vat_state === "unreviewed" ? "VAT_UNREVIEWED" : null,
+      ].filter(Boolean),
+    }));
     const reviewItems = items.map((row) => ({
       id: `${row.expense_id}:${row.line_number}`,
       sourceId: row.expense_id,

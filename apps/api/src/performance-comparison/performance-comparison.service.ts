@@ -35,17 +35,18 @@ export class PerformanceComparisonService {
     };
   }
   parseQuery(input: Record<string, string | undefined>): PerformanceQuery {
-    const actualBasis = input.actualBasis ?? input.basis;
-    const asOfInstant = input.asOfInstant ?? input.asOf;
+    const actualBasis = input.actualBasis ?? input.basis ?? "invoiced";
+    let asOfInstant = input.asOfInstant ?? input.asOf ?? new Date().toISOString().substring(0, 10);
+    if (!asOfInstant.includes("T")) {
+      asOfInstant = `${asOfInstant}T16:59:59.999Z`;
+    }
     const periodBasis =
       input.periodBasis ?? (input.periodId?.startsWith("FY") ? "fiscal" : "calendar");
+    const periodId = input.periodId ?? `CAL-${new Date().toISOString().substring(0, 7)}`;
     if (
-      !input.periodId ||
       !["calendar", "fiscal"].includes(periodBasis) ||
-      !BASIS.has(actualBasis ?? "") ||
-      !asOfInstant ||
-      Number.isNaN(Date.parse(asOfInstant)) ||
-      !asOfInstant.includes("T")
+      !BASIS.has(actualBasis) ||
+      Number.isNaN(Date.parse(asOfInstant))
     )
       throw new Error("VALIDATION_FAILED");
     const dimensions = Object.fromEntries(
@@ -56,7 +57,7 @@ export class PerformanceComparisonService {
       }).filter((x): x is [string, string] => Boolean(x[1])),
     );
     return {
-      periodId: input.periodId,
+      periodId,
       periodBasis: periodBasis as PerformanceQuery["periodBasis"],
       actualBasis: actualBasis as PerformanceQuery["actualBasis"],
       asOfInstant,

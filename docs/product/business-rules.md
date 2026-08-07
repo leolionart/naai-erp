@@ -28,6 +28,12 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Detail pages show Paperless reference, journal and payment/reconciliation links.
 - UI uses organization master data and never silently applies demo account codes.
 
+### BR-MVP-006 — In-place Quick View editing, currency formatting, and period controls
+
+- Invoices and expenses can be edited completely in-place within the Quick View Dialog without navigating away from the focused listing workspace.
+- Currency fields across forms display formatted numbers with thousand separators and the Vietnamese Dong (`₫`) symbol, ensuring high legibility while parsing back to exact integer/minor-unit amounts.
+- Financial report and dashboard workspaces support quick period selectors (MTD, YTD, full year) and respect URL-driven date range parameters.
+
 ### BR-MVP-004 — Minimal report readiness
 
 - A clean installation receives a minimal approved TT133 account, tax and statement-mapping setup.

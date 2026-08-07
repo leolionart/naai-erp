@@ -101,6 +101,7 @@ export type TaxExpenseException = Readonly<{
   citState: string;
   vatState: string;
   evidenceState: string;
+  paperlessUrl?: string;
   reviewer?: string;
   reason?: string;
   sourceIds: readonly string[];

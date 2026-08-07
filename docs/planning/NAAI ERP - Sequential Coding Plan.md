@@ -10,7 +10,7 @@ tags:
   - n8n
   - docker-compose
 created: 2026-08-05
-updated: 2026-08-06
+updated: 2026-08-07
 ---
 
 # NAAI ERP - MVP Sequential Coding Plan
@@ -170,6 +170,14 @@ ERP-800/G8 retains every supplied workbook row as organization-scoped review evi
 safe correction through application services, and exposes explicitly non-canonical source controls
 for dashboard/report review. It does not authorize guessed postings or bypass reversal, audit,
 idempotency, organization scope or accounting reconciliation.
+
+Key completed features in ERP-800 & recent updates:
+
+- Full in-place document and expense editing inside Quick View Dialog on desktop and mobile.
+- Formatted currency inputs with thousand separators and Vietnamese Dong (`₫`) symbol support across all forms.
+- Global year period selectors and quick period shortcuts (MTD, YTD, full year) in dashboard and report workspaces.
+- Optimized document listing UI with clean top headers and precise document-type titles.
+- Consolidated workspace routes eliminating obsolete detail page routes (`/documents/[documentId]`, `/expenses/[expenseId]`).
 
 ## 6. Cost-control execution
 
