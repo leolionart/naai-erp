@@ -119,7 +119,13 @@ function queryFor(kind: Kind, params: URLSearchParams) {
   return query;
 }
 
-export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
+export function FocusedRecordListWorkspace({
+  kind,
+  initialProjectId,
+}: {
+  kind: Kind;
+  initialProjectId?: string;
+}) {
   const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const params = useSearchParams();
   const pathname = usePathname();
@@ -148,6 +154,9 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
     }
     try {
       const sourceParams = new URLSearchParams(key);
+      if (initialProjectId && !sourceParams.has("projectId")) {
+        sourceParams.set("projectId", initialProjectId);
+      }
       if (kind === "documents" && sourceKind === "expenses" && !sourceParams.has("class")) {
         sourceParams.set("class", "non_documented");
       }
@@ -164,7 +173,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
     } finally {
       setLoading(false);
     }
-  }, [client, current, hasToken, hydrated, key, kind, sourceKind]);
+  }, [client, current, hasToken, hydrated, initialProjectId, key, kind, sourceKind]);
   useEffect(() => void load(), [load]);
   function apply(form: FormData) {
     const query = new URLSearchParams();

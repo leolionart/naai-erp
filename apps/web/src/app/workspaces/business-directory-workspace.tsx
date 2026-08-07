@@ -20,6 +20,7 @@ import { useAuthenticatedApiClient } from "@/lib/api";
 import type { createApiClient } from "@/lib/api";
 import { ProjectBudgetWorkspace } from "./project-revenue-workspaces";
 import { ProjectCostsWorkspace } from "./project-cost-workspaces";
+import { FocusedRecordListWorkspace } from "./focused-record-workspaces";
 
 type DirectoryKind = "customers" | "projects";
 type Row = Record<string, unknown>;
@@ -205,15 +206,23 @@ export function BusinessRecordWorkspace({
     ? String(clientParty.display_name || clientParty.name || value(record, "client_party_id"))
     : value(record, "client_party_id");
 
+  const rawName = customer ? value(record, "display_name") : value(record, "name");
+  let projectName = rawName;
+  let projectNote = value(record, "notes") || value(record, "description");
+
+  if (!customer && rawName.includes(" — ")) {
+    const parts = rawName.split(" — ");
+    projectName = parts[0]!.trim();
+    if (!projectNote) projectNote = parts.slice(1).join(" — ").trim();
+  }
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <CardTitle className="text-xl">
-                {customer ? value(record, "display_name") : value(record, "name")}
-              </CardTitle>
+              <CardTitle className="text-xl">{projectName}</CardTitle>
               <CardDescription className="font-mono text-xs mt-1">
                 {customer ? `Mã khách hàng: ${id}` : `${value(record, "code")} · ${id}`}
               </CardDescription>
@@ -246,6 +255,14 @@ export function BusinessRecordWorkspace({
               />
               <Fact label="Ngày bắt đầu" value={value(record, "starts_on")} />
               <Fact label="Ngày kết thúc" value={value(record, "ends_on") || "Chưa xác định"} />
+              {projectNote ? (
+                <div className="col-span-full rounded-lg border p-3 bg-muted/20">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Ghi chú / Mới bổ sung
+                  </p>
+                  <p className="mt-1 font-medium text-sm text-foreground">{projectNote}</p>
+                </div>
+              ) : null}
             </>
           )}
         </CardContent>
@@ -255,10 +272,22 @@ export function BusinessRecordWorkspace({
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">1. Ngân sách & Ghi nhận Doanh thu</CardTitle>
+              <CardTitle className="text-lg">1. Hóa đơn Dự án (Bán ra & Mua vào)</CardTitle>
               <CardDescription className="text-xs">
-                Budget versions, scope changes và các mốc doah thu (recognized, invoiced, collected)
-                của dự án.
+                Toàn bộ hóa đơn phát sinh doanh thu và chi phí gắn với mã dự án này.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FocusedRecordListWorkspace kind="documents" initialProjectId={id} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">2. Ngân sách & Ghi nhận Doanh thu</CardTitle>
+              <CardDescription className="text-xs">
+                Budget versions, scope changes và các mốc doanh thu (recognized, invoiced,
+                collected) của dự án.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -268,7 +297,7 @@ export function BusinessRecordWorkspace({
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">2. Chi phí Dự án (Project Costs)</CardTitle>
+              <CardTitle className="text-lg">3. Chi phí Dự án (Project Costs)</CardTitle>
               <CardDescription className="text-xs">
                 Chi tiết các khoản chi phí mua ngoài, vật tư, nhân công gắn liền với dự án.
               </CardDescription>
