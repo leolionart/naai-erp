@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, ChevronLeft, ChevronRight, Filter, Search } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { AlertCircle, ChevronRight, Filter, Search } from "lucide-react";
 import {
   FinancialDataTable,
   type FinancialColumn,
@@ -13,6 +12,7 @@ import { KpiCard } from "@/components/financial/kpi-card";
 import { MoneyCell } from "@/components/financial/money-cell";
 import { StatusBadge } from "@/components/financial/status-badge";
 import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
+import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -774,45 +774,6 @@ export function FinancialStatementWorkspace({
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
 
-  const periodKind = (searchParams.get("periodKind") as PeriodKind | null) ?? "year";
-  const defaultAnchor =
-    routeValue && /^\d{4}/.test(routeValue)
-      ? `${routeValue.slice(0, 4)}-01`
-      : searchParams.get("startsOn")
-        ? `${searchParams.get("startsOn")!.slice(0, 7)}`
-        : `CAL-${currentMonth()}`;
-  const requestedAnchor = (
-    searchParams.get("periodId") ??
-    searchParams.get("period") ??
-    defaultAnchor
-  ).replace(/^CAL-/, "");
-  const anchorMonth = /^\d{4}-(?:0[1-9]|1[0-2])$/.test(requestedAnchor)
-    ? requestedAnchor
-    : currentMonth();
-  const selectedPeriod = periodRange(anchorMonth, periodKind);
-
-  const isFuture = useMemo(() => {
-    const nextAnchor = shiftedMonth(anchorMonth, periodKind, 1);
-    const range = periodRange(nextAnchor, periodKind);
-    return range.startsOn > today();
-  }, [anchorMonth, periodKind]);
-
-  const setPeriod = useCallback(
-    (kind: PeriodKind, delta = 0) => {
-      const nextAnchor = shiftedMonth(anchorMonth, kind, delta);
-      const range = periodRange(nextAnchor, kind);
-      const next = new URLSearchParams(searchParams.toString());
-      next.set("periodKind", kind);
-      next.set("period", range.label);
-      next.set("periodId", `CAL-${nextAnchor}`);
-      next.set("startsOn", range.startsOn);
-      next.set("endsOn", range.endsOn);
-      next.set("asOfInstant", new Date().toISOString());
-      router.replace(`${pathname}?${next.toString()}`);
-    },
-    [anchorMonth, pathname, router, searchParams],
-  );
-
   const query = useMemo(
     () => reportQuery(new URLSearchParams(searchKey), kind, routeValue),
     [kind, routeValue, searchKey],
@@ -890,40 +851,7 @@ export function FinancialStatementWorkspace({
     <div className="flex min-w-0 flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <ToggleGroup
-            type="single"
-            value={periodKind}
-            onValueChange={(value: string) => value && setPeriod(value as PeriodKind)}
-            variant="outline"
-            size="sm"
-            aria-label="Chọn cấp kỳ"
-          >
-            <ToggleGroupItem value="year">Năm</ToggleGroupItem>
-            <ToggleGroupItem value="quarter">Quý</ToggleGroupItem>
-            <ToggleGroupItem value="month">Tháng</ToggleGroupItem>
-          </ToggleGroup>
-          <div className="flex items-center gap-1">
-            <Button
-              size="icon-sm"
-              variant="outline"
-              aria-label="Kỳ trước"
-              onClick={() => setPeriod(periodKind, -1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Badge variant="outline" className="min-w-24 justify-center">
-              {selectedPeriod.label}
-            </Badge>
-            <Button
-              size="icon-sm"
-              variant="outline"
-              aria-label="Kỳ sau"
-              onClick={() => setPeriod(periodKind, 1)}
-              disabled={isFuture}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <PeriodRangeNavigator />
           <Badge variant="outline">{report?.framework ?? query.get("framework")}</Badge>
           <StatusBadge status={report?.final ? "verified" : "needs_review"} />
           <Badge variant="secondary">

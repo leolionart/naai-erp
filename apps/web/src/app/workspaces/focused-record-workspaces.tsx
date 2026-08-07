@@ -49,6 +49,7 @@ import {
   MonthlyCategoryStackedChart,
   type StackedCategoryPoint,
 } from "@/components/dashboard/monthly-category-stacked-chart";
+import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 
 type Kind = "documents" | "expenses";
 type Row = Record<string, unknown>;
@@ -287,15 +288,7 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
           <Badge variant="secondary" className="text-xs font-normal">
             {rows.length} bản ghi
           </Badge>
-          <QuickDatePresetButtons
-            label=""
-            onSelectRange={(startsOn, endsOn) => {
-              const query = new URLSearchParams(key);
-              if (startsOn) query.set("startsOn", startsOn);
-              if (endsOn) query.set("endsOn", endsOn);
-              router.replace(`${pathname}?${query.toString()}`);
-            }}
-          />
+          <PeriodRangeNavigator />
         </div>
         <div className="flex gap-2">
           <FilterPopover
