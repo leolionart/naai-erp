@@ -385,6 +385,36 @@ function daysBetween(startsOn: string, endsOn: string) {
     : 30;
 }
 
+function formatStatusBadge(status?: string): string | null {
+  if (!status) return null;
+  const map: Record<string, string> = {
+    missing_reviewed_burn: "Thiếu burn rate",
+    out_of_balance: "Lệch đối soát",
+    missing: "Thiếu dữ liệu",
+    at_risk: "Cần lưu ý",
+    on_track: "Đạt mục tiêu",
+    "Cần rà soát": "Cần rà soát",
+    "Chưa có dữ liệu": "Chưa có dữ liệu",
+    "Dồn tích": "Dồn tích",
+  };
+
+  if (
+    status === "available" ||
+    status === "tied" ||
+    status === "ok" ||
+    status === "normal" ||
+    status === "balanced"
+  ) {
+    return null;
+  }
+
+  if (/^\d+\s/.test(status)) {
+    return status;
+  }
+
+  return map[status] ?? status;
+}
+
 function MetricCard({
   title,
   value,
@@ -402,23 +432,23 @@ function MetricCard({
   provisional?: boolean;
   onQuick?: () => void;
 }) {
+  const formattedStatus = formatStatusBadge(status);
+
   const cardElement = (
     <Card className="group relative flex h-full flex-col justify-between transition-all hover:border-primary/50 hover:bg-accent/30 active:scale-[0.99] cursor-pointer">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="transition-colors group-hover:text-primary">{title}</CardTitle>
           <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-50 transition-all group-hover:translate-x-0.5 group-hover:text-primary group-hover:opacity-100" />
         </div>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="min-h-[2.5rem] line-clamp-2">{description}</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        {provisional || status ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {provisional ? <Badge variant="secondary">Tạm tính</Badge> : null}
-            {status ? <Badge variant="outline">{status}</Badge> : null}
-          </div>
-        ) : null}
+        <div className="mt-3 flex min-h-[1.625rem] flex-wrap items-center gap-1.5">
+          {provisional ? <Badge variant="secondary">Tạm tính</Badge> : null}
+          {formattedStatus ? <Badge variant="outline">{formattedStatus}</Badge> : null}
+        </div>
       </CardContent>
     </Card>
   );
