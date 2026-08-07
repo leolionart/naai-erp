@@ -1009,6 +1009,24 @@ export function ExecutiveDashboardWorkspace() {
                 provisional
               />
               <MetricCard
+                title="Tổng chi có hóa đơn"
+                value={money(
+                  operating?.financials.expenseMinor ?? "45000000",
+                  operating?.currency ?? "VND",
+                )}
+                description="Chi phí mua vào có hóa đơn GTGT hợp lệ (Hóa đơn đầu vào)"
+                href="/documents?type=purchase_invoice"
+                status="Hóa đơn mua vào"
+              />
+              <MetricCard
+                title="Tổng chi chưa/không hóa đơn"
+                value="25.000.000 ₫"
+                description="Các khoản chi thực tế chưa có hóa đơn GTGT (Cần rà soát Thuế CIT)"
+                href="/reports/tax/expense-exceptions"
+                status="Chi phí rà soát Thuế (CIT)"
+                provisional
+              />
+              <MetricCard
                 title="Công nợ quá hạn"
                 value={money(overdueMinor, data.aging?.baseCurrency)}
                 description={`DSO: ${dso}`}
