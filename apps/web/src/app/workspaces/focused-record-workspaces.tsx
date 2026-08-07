@@ -45,7 +45,10 @@ import {
   ExpenseForm,
   getCategoryName,
 } from "@/components/forms/document-expense-forms";
-import { BreakdownPieChart, type BreakdownItem } from "@/components/dashboard/breakdown-pie-chart";
+import {
+  MonthlyCategoryStackedChart,
+  type StackedCategoryPoint,
+} from "@/components/dashboard/monthly-category-stacked-chart";
 
 type Kind = "documents" | "expenses";
 type Row = Record<string, unknown>;
@@ -207,21 +210,12 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       setQuickBusy(false);
     }
   }
-  const chartItems = useCallback((): readonly BreakdownItem[] => {
-    const map = new Map<string, bigint>();
-    const colors = [
-      "var(--chart-1, #2563eb)",
-      "var(--chart-2, #16a34a)",
-      "var(--chart-3, #d97706)",
-      "var(--chart-4, #dc2626)",
-      "var(--chart-5, #9333ea)",
-      "var(--chart-6, #0891b2)",
-      "#ec4899",
-      "#8b5cf6",
-      "#14b8a6",
-      "#f97316",
-    ];
+  const stackedPoints = useCallback((): readonly StackedCategoryPoint[] => {
+    const monthlyMap = new Map<string, Map<string, bigint>>();
     for (const row of rows) {
+      const dateStr = text(row, "documentDate", "expenseDate", "issueDate", "createdAt");
+      const monthKey = dateStr && /^\d{4}-\d{2}/.test(dateStr) ? dateStr.substring(0, 7) : "Khác";
+
       let groupName = "";
       const categoryCode = text(row, "category", "expenseClass", "categoryCode");
       if (categoryCode) {
@@ -230,43 +224,56 @@ export function FocusedRecordListWorkspace({ kind }: { kind: Kind }) {
       if (!groupName) {
         if (sourceKind === "documents") {
           const type = text(row, "type");
-          if (type === "sales_invoice") groupName = "Doanh thu dịch vụ/hóa đơn bán";
-          else if (type === "purchase_invoice") groupName = "Chi phí mua hàng/hóa đơn mua";
+          if (type === "sales_invoice") groupName = "Doanh thu dịch vụ/bán hàng";
+          else if (type === "purchase_invoice") groupName = "Chi phí mua hàng/dịch vụ";
           else if (type === "credit_note") groupName = "Giảm trừ hóa đơn";
           else groupName = "Chứng từ khác";
         } else {
           groupName = "Chi phí khác";
         }
       }
+
       const amountStr = text(row, "grossMinor", "totalAmountMinor", "amountMinor", "totalMinor");
       const amount = BigInt(amountStr || "0");
-      map.set(groupName, (map.get(groupName) ?? 0n) + amount);
+
+      if (!monthlyMap.has(monthKey)) {
+        monthlyMap.set(monthKey, new Map<string, bigint>());
+      }
+      const catMap = monthlyMap.get(monthKey)!;
+      catMap.set(groupName, (catMap.get(groupName) ?? 0n) + amount);
     }
-    return [...map.entries()].map(([name, valueMinor], idx) => ({
-      name,
-      valueMinor,
-      formattedValue: `${new Intl.NumberFormat("vi-VN").format(valueMinor)} ₫`,
-      color: colors[idx % colors.length],
-    }));
+
+    const sortedMonths = [...monthlyMap.keys()].sort();
+    return sortedMonths.map((month) => {
+      const catMap = monthlyMap.get(month)!;
+      const categories: Record<string, bigint> = {};
+      for (const [catName, valMinor] of catMap.entries()) {
+        categories[catName] = valMinor;
+      }
+      return {
+        month: month === "Khác" ? "Khác" : `Tháng ${month.substring(5)}/${month.substring(0, 4)}`,
+        categories,
+      };
+    });
   }, [rows, sourceKind]);
 
-  const items = chartItems();
+  const points = stackedPoints();
 
   return (
     <div className="flex flex-col gap-6">
       {!loading && rows.length > 0 ? (
-        <BreakdownPieChart
+        <MonthlyCategoryStackedChart
           title={
             sourceKind === "documents"
-              ? "Tỷ trọng chứng từ theo loại hóa đơn"
-              : "Tỷ trọng chi phí theo phân loại"
+              ? "Tỷ trọng chứng từ từng danh mục theo tháng"
+              : "Tỷ trọng chi phí từng danh mục theo tháng"
           }
           description={
             sourceKind === "documents"
-              ? "Theo dõi cơ cấu giá trị hóa đơn bán ra, mua vào và giảm trừ"
-              : "Theo dõi cơ cấu chi phí nhà cung cấp, vận hành và dịch vụ mua vào"
+              ? "Biểu đồ cột chồng (Stacked Bar) biểu diễn biến động tỷ trọng doanh thu & chi phí mua vào theo tháng"
+              : "Biểu đồ cột chồng (Stacked Bar) biểu diễn biến động tỷ trọng chi phí ăn uống, máy chủ, vận hành... theo tháng"
           }
-          items={items}
+          points={points}
         />
       ) : null}
 
