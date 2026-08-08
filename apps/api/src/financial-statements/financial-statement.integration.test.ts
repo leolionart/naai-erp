@@ -437,8 +437,8 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data).toMatchObject({
       status: "review_required",
-      accountingBookedMinor: "55",
-      citEligibleMinor: "55",
+      accountingBookedMinor: "50",
+      citEligibleMinor: "50",
       vatEligibleMinor: "5",
       missingEvidenceItemIds: ["expense630:1"],
       count: 1,
