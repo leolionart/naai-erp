@@ -278,6 +278,16 @@ test("@desktop expense management defaults to purchase invoices and every non-in
   );
 });
 
+test("@desktop table column visibility persists in application configuration", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/documents");
+  await page.getByRole("button", { name: "Cột hiển thị" }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Đối tượng" }).click();
+  await expect(page.getByRole("columnheader", { name: "Đối tượng" })).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole("columnheader", { name: "Đối tượng" })).toBeHidden();
+});
+
 test("@desktop revenue invoice-presence filter isolates recognition activity", async ({ page }) => {
   await install(page);
   await page.goto("http://localhost:3000/documents");

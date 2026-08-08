@@ -1288,6 +1288,14 @@ tests:
     command: pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts
     blocking_gate: G14
 
+  - id: T-E2E-ERP-841-011
+    task: ERP-841
+    rules: [BR-UI-001]
+    title: Every shared application table exposes persistent per-table column visibility controls
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "column visibility"
+    blocking_gate: G14
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

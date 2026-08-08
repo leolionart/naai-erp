@@ -96,3 +96,8 @@ updates only `dimensions.category`, validates the category against active organi
 and remains idempotent and RBAC-scoped. The database trigger continues rejecting every financial or
 structural child mutation on issued/posted documents. The revenue and expense quick view exposes the
 same operation without reopening the financial document lifecycle.
+
+The shared table primitive now exposes a column-visibility menu for every application table. Each
+table derives a stable route-and-header configuration key, stores hidden-column indexes in browser
+application configuration and restores them on reload while preventing users from hiding every
+column.

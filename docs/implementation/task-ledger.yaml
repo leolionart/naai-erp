@@ -1088,6 +1088,7 @@ tasks:
         T-UNIT-ERP-841-007,
         T-UNIT-ERP-841-008,
         T-API-ERP-841-010,
+        T-E2E-ERP-841-011,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1098,6 +1099,8 @@ tasks:
       - apps/api/src/overhead-allocations/
       - apps/web/src/app/workspaces/business-directory-workspace.tsx
       - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/src/components/ui/table.tsx
+      - apps/web/e2e/focused-records.spec.ts
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
       - apps/web/src/app/workspaces/banking-workspace.tsx
       - apps/web/src/app/workspaces/banking-workspace.test.tsx
