@@ -17,11 +17,6 @@ The login-theme Playwright regression now mocks the server-only `/auth/session` 
 username/password, verifies the returned API token is stored in session storage and retains the
 desktop dark-mode and mobile overflow assertions.
 
-Legacy imported final commercial documents remain immutable. The management UI uses a tested
-compatibility classifier only when line-level `dimensions.category` is absent, so historical rows
-display a business category without rewriting posted amounts, tax, accounts or journals. Explicitly
-stored categories always win.
-
 ## Ledger-derived dashboard regression
 
 ```text

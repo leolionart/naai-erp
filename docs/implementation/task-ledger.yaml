@@ -1087,7 +1087,6 @@ tasks:
         T-UNIT-ERP-841-006,
         T-UNIT-ERP-841-007,
         T-UNIT-ERP-841-008,
-        T-UNIT-ERP-841-009,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1108,8 +1107,6 @@ tasks:
       - apps/web/src/components/login-form.tsx
       - apps/web/src/lib/auth/environment-login.ts
       - apps/web/src/lib/auth/environment-login.test.ts
-      - apps/web/src/lib/categories/legacy-document-category.ts
-      - apps/web/src/lib/categories/legacy-document-category.test.ts
       - compose.yaml
       - deploy/env/.env.example
       - apps/api/src/report-exports/
