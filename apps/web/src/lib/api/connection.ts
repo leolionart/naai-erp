@@ -9,9 +9,28 @@ export type ApiConnectionSettingsV1 = Readonly<{
 
 export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
+export function resolveDefaultApiBaseUrl(input: {
+  nodeEnv: string | undefined;
+  publicApiUrl?: string;
+  serverApiUrl?: string;
+  browserOrigin?: string;
+}) {
+  const configured = input.publicApiUrl?.trim();
+  if (configured) return configured;
+  if (input.nodeEnv === "production" && input.browserOrigin) return input.browserOrigin;
+  const serverConfigured = input.serverApiUrl?.trim();
+  if (serverConfigured) return serverConfigured;
+  return "http://localhost:3001";
+}
+
 export const DEFAULT_API_CONNECTION: ApiConnectionSettingsV1 = Object.freeze({
   version: 1,
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
+  baseUrl: resolveDefaultApiBaseUrl({
+    nodeEnv: process.env.NODE_ENV,
+    publicApiUrl: process.env.NEXT_PUBLIC_API_URL,
+    serverApiUrl: process.env.API_BASE_URL,
+    ...(typeof window !== "undefined" ? { browserOrigin: window.location.origin } : {}),
+  }),
   organizationId: process.env.NEXT_PUBLIC_ORGANIZATION_ID ?? "naai",
 });
 

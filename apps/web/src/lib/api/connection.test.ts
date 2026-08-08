@@ -6,6 +6,7 @@ import {
   loadConnectionSettings,
   organizationApiRoot,
   parseConnectionSettings,
+  resolveDefaultApiBaseUrl,
   saveApiToken,
   saveConnectionSettings,
   type StorageLike,
@@ -21,6 +22,29 @@ function memoryStorage(): StorageLike {
 }
 
 describe("ERP-345 versioned API connection settings", () => {
+  it("uses the public same-origin API in production browsers without breaking local development", () => {
+    expect(
+      resolveDefaultApiBaseUrl({
+        nodeEnv: "production",
+        browserOrigin: "https://erp.naai.studio",
+        serverApiUrl: "http://api:3001",
+      }),
+    ).toBe("https://erp.naai.studio");
+    expect(
+      resolveDefaultApiBaseUrl({
+        nodeEnv: "development",
+        browserOrigin: "http://localhost:3000",
+      }),
+    ).toBe("http://localhost:3001");
+    expect(
+      resolveDefaultApiBaseUrl({
+        nodeEnv: "production",
+        publicApiUrl: "https://api.example.com",
+        browserOrigin: "https://erp.example.com",
+      }),
+    ).toBe("https://api.example.com");
+  });
+
   it("normalizes, persists and reloads v1 settings", () => {
     const storage = memoryStorage();
     const saved = saveConnectionSettings(storage, {

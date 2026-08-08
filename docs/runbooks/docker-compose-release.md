@@ -67,6 +67,10 @@ curl --fail http://localhost:3001/health/ready
 curl --fail http://localhost:3000/health
 ```
 
+The production reverse proxy must send `/api/*` on the public application origin to the API service
+and all other paths to the web service. The browser client intentionally uses the current HTTPS
+origin in production, while local development continues to default to `http://localhost:3001`.
+
 ## Persistence verification
 
 The automated verifier uses an isolated Compose project, writes a sentinel row, recreates the stack without deleting its volume, verifies the row, then deletes only that isolated project and volume:

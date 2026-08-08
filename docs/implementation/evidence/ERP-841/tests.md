@@ -153,3 +153,8 @@ Banking naming-alignment evidence on 2026-08-08:
   `Tài khoản & Giao dịch | NAAI ERP`, page heading `Tài khoản & Giao dịch`, module breadcrumb
   `Tiền mặt & Ngân hàng` and the three matching workspace links. No desktop console or page errors
   were recorded.
+# Production connection regression
+
+- `pnpm --filter @naai-erp/web exec vitest run src/lib/api/connection.test.ts` verifies that a
+  production browser uses the public same-origin API instead of its own `localhost:3001`, while
+  local development retains the split-port default.
