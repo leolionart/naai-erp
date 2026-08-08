@@ -1086,6 +1086,7 @@ tasks:
         T-E2E-ERP-841-005,
         T-UNIT-ERP-841-006,
         T-UNIT-ERP-841-007,
+        T-UNIT-ERP-841-008,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1101,6 +1102,13 @@ tasks:
       - apps/web/src/app/workspaces/banking-workspace.test.tsx
       - apps/web/src/components/authentication-gate.tsx
       - apps/web/src/components/authentication-gate.test.ts
+      - apps/web/src/app/auth/session/route.ts
+      - apps/web/src/app/auth/session/route.test.ts
+      - apps/web/src/components/login-form.tsx
+      - apps/web/src/lib/auth/environment-login.ts
+      - apps/web/src/lib/auth/environment-login.test.ts
+      - compose.yaml
+      - deploy/env/.env.example
       - apps/api/src/report-exports/
       - apps/web/e2e/focused-records.spec.ts
       - apps/cli/src/

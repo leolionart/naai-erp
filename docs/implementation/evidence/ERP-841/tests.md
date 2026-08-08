@@ -1,5 +1,18 @@
 # ERP-841 tests
 
+## Server-only environment login
+
+```text
+pnpm --filter @naai-erp/web exec vitest run src/lib/auth/environment-login.test.ts src/app/auth/session/route.test.ts
+```
+
+Coverage verifies successful username/password exchange, invalid-password rejection without token
+disclosure, fail-closed behavior when configuration is incomplete, and server-only environment
+parsing. The Compose contract passes the four non-public login variables only to the web container.
+The focused suite passed 7/7 tests across the login route, environment authenticator and production
+authentication gate. `pnpm check`, the production Next.js build, Compose packaging verification,
+documentation verification and `git diff --check` all passed on 2026-08-08.
+
 ## Ledger-derived dashboard regression
 
 ```text
@@ -153,6 +166,7 @@ Banking naming-alignment evidence on 2026-08-08:
   `Tài khoản & Giao dịch | NAAI ERP`, page heading `Tài khoản & Giao dịch`, module breadcrumb
   `Tiền mặt & Ngân hàng` and the three matching workspace links. No desktop console or page errors
   were recorded.
+
 # Production connection regression
 
 - `pnpm --filter @naai-erp/web exec vitest run src/lib/api/connection.test.ts` verifies that a

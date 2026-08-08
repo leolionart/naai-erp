@@ -28,3 +28,7 @@
   will be needed if transaction volume becomes large.
 - There is no canonical manual receipt/payment-voucher create endpoint yet. The new Sổ quỹ is a
   complete view of imported cash-account transactions, not a substitute manual journal workflow.
+- The environment login is intentionally a single-account deployment convenience and has no
+  lockout/rate-limit layer of its own. Its API token must already belong to an active organization
+  member with the intended RBAC roles; the login route does not bypass API authorization or provision
+  database identities.

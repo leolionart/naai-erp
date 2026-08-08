@@ -68,3 +68,6 @@
   preserve canonical row sources, endpoints, forms and stable detail routes: passed.
 - Production application routes require an explicit login session and preserve the requested route
   through the login redirect; local development fixture authentication remains available: passed.
+- Production username/password are deployment environment settings consumed only by the web server;
+  invalid credentials disclose no API token and incomplete configuration fails closed: passed by
+  route and constant-time comparison unit coverage.

@@ -86,6 +86,7 @@ through the commercial-document service or filters non-invoice expenses down to 
 
 Production application routes are now wrapped by an explicit browser-session authentication gate.
 Unauthenticated users are redirected to `/login` with their intended destination preserved. Local
-development keeps its fixture-token workflow, while production requires the organization and access
-token entered through the login form rather than treating infrastructure environment variables as a
-user session.
+development keeps its fixture-token workflow. Production accepts a username and password configured
+through server-only environment variables; the Next.js server releases the corresponding existing,
+organization-scoped API credential only after a constant-time credential check. No login secret is
+declared through a `NEXT_PUBLIC_*` variable or rendered into the initial browser payload.

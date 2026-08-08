@@ -22,21 +22,41 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const router = useRouter();
   const search = useSearchParams();
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function login(data: FormData) {
+  async function login(data: FormData) {
     setError("");
+    setSubmitting(true);
     try {
+      const response = await fetch("/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: String(data.get("username") ?? ""),
+          password: String(data.get("password") ?? ""),
+        }),
+      });
+      const result = (await response.json()) as {
+        error?: string;
+        organizationId?: string;
+        apiToken?: string;
+      };
+      if (!response.ok || !result.organizationId || !result.apiToken) {
+        throw new Error(result.error || "Không thể đăng nhập.");
+      }
       saveConnectionSettings(window.localStorage, {
         version: 1,
         baseUrl: DEFAULT_API_CONNECTION.baseUrl,
-        organizationId: String(data.get("organizationId") ?? ""),
+        organizationId: result.organizationId,
       });
-      const token = saveApiToken(window.sessionStorage, String(data.get("token") ?? ""));
+      const token = saveApiToken(window.sessionStorage, result.apiToken);
       if (!token) throw new Error("Access token is required");
       router.replace(safeNext(search.get("next")));
     } catch (caught) {
       window.sessionStorage.removeItem(API_TOKEN_KEY);
       setError(caught instanceof Error ? caught.message : "Không thể đăng nhập.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -51,32 +71,34 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
           <form action={login}>
             <FieldGroup>
               <Field data-invalid={Boolean(error)}>
-                <FieldLabel htmlFor="organizationId">Organization ID</FieldLabel>
+                <FieldLabel htmlFor="username">Tài khoản</FieldLabel>
                 <Input
-                  id="organizationId"
-                  name="organizationId"
-                  defaultValue={DEFAULT_API_CONNECTION.organizationId}
+                  id="username"
+                  name="username"
+                  autoComplete="username"
                   required
                   aria-invalid={Boolean(error)}
                 />
               </Field>
               <Field data-invalid={Boolean(error)}>
-                <FieldLabel htmlFor="token">Access token</FieldLabel>
+                <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>
                 <Input
-                  id="token"
-                  name="token"
+                  id="password"
+                  name="password"
                   type="password"
                   autoComplete="current-password"
                   required
                   aria-invalid={Boolean(error)}
                 />
                 <FieldDescription>
-                  Token chỉ được lưu trong phiên trình duyệt hiện tại.
+                  Thông tin đăng nhập được kiểm tra ở server và không được đóng gói vào trình duyệt.
                 </FieldDescription>
                 {error ? <FieldError>{error}</FieldError> : null}
               </Field>
               <Field>
-                <Button type="submit">Đăng nhập</Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Đang đăng nhập…" : "Đăng nhập"}
+                </Button>
               </Field>
             </FieldGroup>
           </form>

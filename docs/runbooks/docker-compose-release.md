@@ -15,6 +15,10 @@ POSTGRES_USER=naai_erp
 APP_BASE_URL=https://erp.example.com
 SESSION_SECRET=<at-least-32-random-characters>
 WEBHOOK_SIGNING_SECRET=<at-least-32-random-characters>
+NAAI_ERP_LOGIN_USERNAME=owner
+NAAI_ERP_LOGIN_PASSWORD=<strong-random-password>
+NAAI_ERP_LOGIN_ORGANIZATION=<organization-id>
+NAAI_ERP_LOGIN_API_TOKEN=<active-organization-api-token>
 IMAGE_TAG=sha-<first-12-characters-of-git-sha>
 ```
 
@@ -28,6 +32,11 @@ IMAGE_TAG=sha-<first-12-characters-of-git-sha>
 Each package receives `main` and `sha-<first-12-characters-of-git-sha>` tags. Use the immutable
 `sha-*` tag in `IMAGE_TAG`; `main` is only a convenience default for manual previews. All four
 services must use the same tag so the migration and runtime code stay on one release.
+
+The four `NAAI_ERP_LOGIN_*` values are server-only. Never rename them to `NEXT_PUBLIC_*`, commit
+their real values, or use an API token that is not backed by an active organization membership and
+RBAC roles. The login route exchanges a valid username/password for that existing token; it does not
+bypass API authorization.
 
 ## Build locally
 

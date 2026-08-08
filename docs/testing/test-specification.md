@@ -129,6 +129,9 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
   party/payee, project and invoice-presence filters exposed by the first-party CLI.
 - Workbook controls reconcile to filtered canonical records; exact money remains minor-unit strings
   and purchase invoices are never fuzzy-merged with expenses.
+- Production login accepts the server-only username/password configured in the deployment
+  environment and returns an existing organization-scoped API credential only after successful
+  authentication. Login secrets must not use public browser environment variables.
 
 ## 5. Evidence
 
