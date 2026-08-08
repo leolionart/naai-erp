@@ -13,6 +13,10 @@ The focused suite passed 7/7 tests across the login route, environment authentic
 authentication gate. `pnpm check`, the production Next.js build, Compose packaging verification,
 documentation verification and `git diff --check` all passed on 2026-08-08.
 
+The login-theme Playwright regression now mocks the server-only `/auth/session` exchange, submits
+username/password, verifies the returned API token is stored in session storage and retains the
+desktop dark-mode and mobile overflow assertions.
+
 ## Ledger-derived dashboard regression
 
 ```text
