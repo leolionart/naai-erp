@@ -127,6 +127,16 @@ async function install(
       }),
   );
   await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/master-data/parties**",
+    (route) =>
+      reply(route, {
+        items: [
+          { id: "client-720", name: "Khách hàng 720" },
+          { id: "supplier-720", name: "Nhà cung cấp 720" },
+        ],
+      }),
+  );
+  await page.route(
     "http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/**",
     (route) =>
       route.fulfill({
