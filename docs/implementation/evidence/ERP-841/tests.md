@@ -237,3 +237,16 @@ Banking naming-alignment evidence on 2026-08-08:
 - `pnpm db:check`: passed with 40 migration entries.
 - `pnpm test:docs`: passed.
 - `git diff --check`: passed.
+
+# Revenue and expense chart category consistency
+
+- `T-UNIT-ERP-841-018`: focused Vitest passed 1 file and 3 tests. Coverage proves per-line
+  commercial-document grouping, canonical expense-list category consumption and explicit
+  unclassified revenue labeling.
+- `T-E2E-ERP-841-019`: focused desktop Chromium coverage passed 2 cases for revenue and expense
+  chart/list category consistency.
+- `T-INT-ERP-841-020`: passed 1 file and 6 tests against a freshly migrated PostgreSQL 16 database.
+  The regression verifies list fallback to `expense_category_code` when category dimensions are
+  absent and list/detail category readback must agree.
+- ERP-841 remains `in_progress`; this focused change does not close the existing fully-loaded
+  profitability acceptance gap.

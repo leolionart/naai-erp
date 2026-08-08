@@ -37,6 +37,7 @@ const invoice = {
       netMinor: "10000000",
       taxMinor: "1000000",
       grossMinor: "11000000",
+      dimensions: { category: "SOFTWARE_DEV" },
       allocations: [
         {
           id: "allocation-1",
@@ -55,6 +56,10 @@ const purchaseInvoice = {
   partyId: "supplier-720",
   controlAccountCode: "331",
   counterAccountCode: "3388-OWNER",
+  lines: invoice.lines.map((line) => ({
+    ...line,
+    dimensions: { category: "DOMAIN_HOSTING" },
+  })),
 };
 const recognition = {
   id: "recognition-720",
@@ -76,6 +81,7 @@ const expense = {
   netMinor: "2000000",
   vatMinor: "0",
   grossMinor: "2000000",
+  category: "DOMAIN_HOSTING",
   state: "draft",
   resourceVersion: "1",
   counterAccountCode: "111",
@@ -214,7 +220,7 @@ async function install(
   );
 }
 
-test("@desktop T-E2E-ERP-841-003 defaults revenue management to invoiced and non-invoice activity", async ({
+test("@desktop T-E2E-ERP-841-003 revenue category chart defaults management to invoiced and non-invoice activity", async ({
   page,
 }) => {
   await install(page);
@@ -222,6 +228,10 @@ test("@desktop T-E2E-ERP-841-003 defaults revenue management to invoiced and non
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý doanh thu" })).toBeVisible();
   await expect(page.getByText("INV-720")).toBeVisible();
   await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
+  await expect(
+    page.getByText("Doanh thu Phát triển phần mềm / App", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Doanh thu đã ghi nhận", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const filters = page.locator('[data-slot="popover-content"]');
   await filters.getByLabel("Party ID").fill("client-720");
@@ -243,7 +253,7 @@ test("@desktop T-E2E-ERP-841-003 defaults revenue management to invoiced and non
   await expect(action).not.toBeVisible();
 });
 
-test("@desktop expense management defaults to purchase invoices and every non-invoice expense", async ({
+test("@desktop expense category chart defaults management to purchase invoices and every non-invoice expense", async ({
   page,
 }) => {
   await install(page);
@@ -251,6 +261,7 @@ test("@desktop expense management defaults to purchase invoices and every non-in
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý chi phí" })).toBeVisible();
   await expect(page.getByText("PINV-720")).toBeVisible();
   await expect(page.getByText("Phí vận hành")).toBeVisible();
+  await expect(page.getByText("Chi phí Tên miền / Hosting", { exact: true }).first()).toBeVisible();
   await expect(
     page.getByText("Chủ doanh nghiệp chi hộ (TK 3388 — không trừ quỹ công ty)"),
   ).toBeVisible();

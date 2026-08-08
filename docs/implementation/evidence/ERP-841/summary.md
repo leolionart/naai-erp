@@ -130,3 +130,10 @@ dates. Applied state and date values are persisted in `state`, `startsOn` and `e
 while the existing free-text search remains combined with them. Date filtering uses interval overlap,
 so a monthly or long-running project remains visible whenever any part of its execution period falls
 inside the selected range; an open-ended project continues to match future ranges.
+
+Revenue and expense management charts now follow the same category contract as their focused detail
+surfaces. Commercial documents are split and aggregated by each line's canonical category dimension
+instead of assigning the entire document to the first line. Non-invoice expenses consume the
+canonical category returned by the list API, whose read model falls back from
+`dimensions.category` to `expense_category_code`. Records without either value remain visible under
+the explicit **Doanh thu chưa phân loại** or **Chi phí chưa phân loại** series.

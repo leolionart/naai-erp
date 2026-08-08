@@ -1344,6 +1344,30 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --grep "project directory filters"
     blocking_gate: G14
 
+  - id: T-UNIT-ERP-841-018
+    task: ERP-841
+    rules: [BR-UI-001, BR-UI-005, BR-DIM-001]
+    title: Focused revenue and expense charts group canonical per-line categories and label missing dimensions explicitly
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/focused-record-chart.test.ts
+    blocking_gate: G14
+
+  - id: T-E2E-ERP-841-019
+    task: ERP-841
+    rules: [BR-MVP-007, BR-UI-001, BR-UI-005]
+    title: Revenue and expense management render chart categories consistently with their focused listing and detail data
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "category chart"
+    blocking_gate: G14
+
+  - id: T-INT-ERP-841-020
+    task: ERP-841
+    rules: [BR-EXP-001, BR-UI-005, BR-ORG-001]
+    title: Expense list API falls back from missing category dimensions to the canonical expense category code
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts --testNamePattern "lists the line expense category code"
+    blocking_gate: G14
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

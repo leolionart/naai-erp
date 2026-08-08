@@ -1074,6 +1074,7 @@ tasks:
         BR-TAX-003,
         BR-TAX-004,
         BR-UI-001,
+        BR-UI-005,
         BR-MVP-007,
         BR-EXPOR-001,
         BR-EXPOR-003,
@@ -1097,6 +1098,9 @@ tasks:
         T-INT-ERP-841-015,
         T-UNIT-ERP-841-016,
         T-E2E-ERP-841-017,
+        T-UNIT-ERP-841-018,
+        T-E2E-ERP-841-019,
+        T-INT-ERP-841-020,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1114,6 +1118,8 @@ tasks:
       - apps/web/src/app/workspaces/business-directory-filters.test.ts
       - apps/web/e2e/business-directory.spec.ts
       - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/src/app/workspaces/focused-record-chart.ts
+      - apps/web/src/app/workspaces/focused-record-chart.test.ts
       - apps/web/src/components/ui/table.tsx
       - apps/web/e2e/focused-records.spec.ts
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx

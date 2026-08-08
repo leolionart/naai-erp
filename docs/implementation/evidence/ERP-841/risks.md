@@ -44,3 +44,6 @@
   master-data rows. The URL contract and overlap semantics are stable, but organizations exceeding
   that response limit will require server-side state/date filtering and pagination to guarantee a
   complete result set.
+- The expense list category fallback regression passed on a freshly migrated PostgreSQL 16 database.
+  Dashboard-wide posted-ledger category breakdown remains a separate follow-up because the
+  operating-dashboard API currently exposes only monthly totals.

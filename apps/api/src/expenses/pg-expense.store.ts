@@ -52,7 +52,7 @@ export class PgExpenseStore {
   ) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
-       (select l.dimensions->>'category' from expense_lines l
+       (select coalesce(l.dimensions->>'category',l.expense_category_code) from expense_lines l
         where l.organization_id=e.organization_id and l.expense_id=e.id
         order by l.line_number limit 1) category
        from expenses e where e.organization_id=$1 and ($2::text is null or e.state::text=$2) and ($3::text is null or e.expense_class::text=$3) and ($4::text is null or e.payee_party_id=$4) order by e.expense_date desc,e.id`,

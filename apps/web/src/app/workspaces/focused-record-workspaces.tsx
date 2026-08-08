@@ -54,6 +54,7 @@ import {
   type StackedCategoryPoint,
 } from "@/components/dashboard/monthly-category-stacked-chart";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
+import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
@@ -435,62 +436,10 @@ export function FocusedRecordListWorkspace({
       setQuickBusy(false);
     }
   }
-  const stackedPoints = useCallback((): readonly StackedCategoryPoint[] => {
-    const monthlyMap = new Map<string, Map<string, bigint>>();
-    for (const row of rows) {
-      const rowSource = sourceKind(row);
-      const dateStr = text(row, "documentDate", "expenseDate", "issueDate", "createdAt");
-      const monthKey = dateStr && /^\d{4}-\d{2}/.test(dateStr) ? dateStr.substring(0, 7) : "Khác";
-
-      let groupName = "";
-      const linesArray = Array.isArray(row.lines) ? (row.lines as Record<string, unknown>[]) : [];
-      const lineCategory =
-        linesArray[0]?.category ||
-        (linesArray[0]?.dimensions as Record<string, unknown> | undefined)?.category;
-      const categoryCode =
-        text(row, "category", "expenseClass", "categoryCode") || String(lineCategory || "");
-      if (categoryCode) {
-        groupName = getCategoryName(categoryCode);
-      }
-      if (!groupName) {
-        if (rowSource === "documents") {
-          const type = text(row, "type");
-          if (type === "sales_invoice") groupName = "Doanh thu dịch vụ/bán hàng";
-          else if (type === "purchase_invoice") groupName = "Chi phí mua hàng/dịch vụ";
-          else if (type === "credit_note") groupName = "Giảm trừ hóa đơn";
-          else groupName = "Chứng từ khác";
-        } else if (rowSource === "recognition") {
-          groupName = "Doanh thu đã ghi nhận";
-        } else {
-          groupName = "Chi phí khác";
-        }
-      }
-
-      const amountStr = text(row, "grossMinor", "totalAmountMinor", "amountMinor", "totalMinor");
-      const amount = BigInt(amountStr || "0");
-
-      if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, new Map<string, bigint>());
-      }
-      const catMap = monthlyMap.get(monthKey)!;
-      catMap.set(groupName, (catMap.get(groupName) ?? 0n) + amount);
-    }
-
-    const sortedMonths = [...monthlyMap.keys()].sort();
-    return sortedMonths.map((month) => {
-      const catMap = monthlyMap.get(month)!;
-      const categories: Record<string, bigint> = {};
-      for (const [catName, valMinor] of catMap.entries()) {
-        categories[catName] = valMinor;
-      }
-      return {
-        month: month === "Khác" ? "Khác" : `Tháng ${month.substring(5)}/${month.substring(0, 4)}`,
-        categories,
-      };
-    });
-  }, [rows]);
-
-  const points = stackedPoints();
+  const points: readonly StackedCategoryPoint[] = buildFocusedRecordChartPoints(
+    rows,
+    getCategoryName,
+  );
 
   return (
     <div className="flex flex-col gap-6">

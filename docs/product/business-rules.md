@@ -652,6 +652,18 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Review queues show validation reason, source payload, mapping gaps and safe remediation actions.
 - Replay is explicit, authorized, idempotent and audited; UI never silently drops failed events.
 
+### BR-UI-005 — Revenue and expense chart category consistency
+
+- Revenue and expense management charts use the same canonical category/dimension identity exposed
+  by their detail and listing records; chart-only synthetic business categories are prohibited.
+- Commercial documents are aggregated per line so a multi-line document may contribute to multiple
+  category series. The chart must not assign the whole document to its first line's dimension.
+- Non-invoice expense list rows use persisted `dimensions.category` when present and otherwise fall
+  back to the canonical line `expense_category_code` returned by the versioned expense API.
+- A missing category is rendered explicitly as **Doanh thu chưa phân loại** or **Chi phí chưa phân
+  loại** according to the row's canonical source. Missing data must not be silently mapped to a
+  configured category.
+
 ### BR-UI-004 — Dashboard Data Sources and Fallback
 
 - The Operating Dashboard prioritizes reading trend and expense breakdown charts from aggregated workbook controls (`profitability_control`, `planning_control`, `expense_category_control`).

@@ -87,3 +87,10 @@
   overlapping execution-date filters: passed by 3 focused unit cases.
 - Project lifecycle and date filters persist in the URL and restore their selected values after
   navigation or refresh: passed by focused desktop Chromium E2E.
+- Revenue and expense charts aggregate commercial-document amounts per canonical line category,
+  matching the dimension identity shown on focused record surfaces: passed by 3 focused web unit
+  cases and 2 focused desktop Chromium E2E cases.
+- Expense list readback falls back to the persisted line `expense_category_code` when
+  `dimensions.category` is absent: passed against a freshly migrated PostgreSQL integration database.
+- Missing chart category data is labeled explicitly as revenue or expense unclassified and is never
+  silently assigned to a configured business category: passed by focused web unit proof.

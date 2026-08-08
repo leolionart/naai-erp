@@ -225,6 +225,50 @@ describeIntegration("ERP-310 expense workflow", () => {
     });
   });
 
+  it("lists the line expense category code when category dimensions are absent", async () => {
+    const id = "expense-list-category-fallback";
+    await pool.query(
+      `insert into expense_categories
+        (organization_id,code,name,funding_treatment,created_by,updated_by)
+       values($1,'LIST_FALLBACK','List fallback','company_funds','maker','maker')
+       on conflict do nothing`,
+      [organizationId],
+    );
+    await pool.query(
+      `insert into expenses
+        (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,created_by)
+       values($1,$2,'invoice_backed','draft','2026-08-02','Category list fallback','VND',1000,0,1000,'111-CASH','maker')`,
+      [organizationId, id],
+    );
+    await pool.query(
+      `insert into expense_lines
+        (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,management_state,cit_state,vat_state,dimensions)
+       values($1,$2,1,'Fallback category',1000,0,1000,'642-OPEX','LIST_FALLBACK','company_funds','unreviewed','unreviewed','unreviewed','{}')`,
+      [organizationId, id],
+    );
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(detail.statusCode, detail.body).toBe(200);
+    expect(detail.json().data.lines[0]).toMatchObject({
+      expenseCategoryCode: "LIST_FALLBACK",
+      dimensions: {},
+    });
+
+    const listing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(listing.statusCode, listing.body).toBe(200);
+    expect(listing.json().data.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id, category: "LIST_FALLBACK" })]),
+    );
+  });
+
   it("discards only a version-matched draft and replays idempotently", async () => {
     const id = "expense-inferred-payroll-2023";
     const created = await app.inject({
