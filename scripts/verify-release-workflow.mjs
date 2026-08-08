@@ -6,6 +6,7 @@ const root = resolve(import.meta.dirname, "..");
 const manifestPath = resolve(root, "scripts/release-images.json");
 const workflowPath = resolve(root, ".github/workflows/release-main.yml");
 const ciWorkflowPath = resolve(root, ".github/workflows/ci.yml");
+const apiDockerfilePath = resolve(root, "docker/Dockerfile.api");
 const expectedImages = new Map([
   ["naai-erp-api", "docker/Dockerfile.api"],
   ["naai-erp-web", "docker/Dockerfile.web"],
@@ -16,6 +17,7 @@ const expectedImages = new Map([
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const workflow = await readFile(workflowPath, "utf8");
 const ciWorkflow = await readFile(ciWorkflowPath, "utf8");
+const apiDockerfile = await readFile(apiDockerfilePath, "utf8");
 
 assert.equal(manifest.registry, "ghcr.io", "release registry must be GHCR");
 assert.equal(
@@ -100,6 +102,11 @@ assert.match(
   ciWorkflow,
   /uses:\s*docker\/build-push-action@v6/,
   "CI must build images with Buildx",
+);
+assert.match(
+  apiDockerfile,
+  /COPY --chown=node:node docs\/api\/openapi-v1\.json \/docs\/api\/openapi-v1\.json/,
+  "API image must include the versioned OpenAPI document used by discovery",
 );
 
 console.log(

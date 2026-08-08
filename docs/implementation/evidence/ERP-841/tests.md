@@ -158,3 +158,5 @@ Banking naming-alignment evidence on 2026-08-08:
 - `pnpm --filter @naai-erp/web exec vitest run src/lib/api/connection.test.ts` verifies that a
   production browser uses the public same-origin API instead of its own `localhost:3001`, while
   local development retains the split-port default.
+- `pnpm test:release` verifies that the API runtime image contains the OpenAPI document required by
+  the public discovery/capabilities endpoint.

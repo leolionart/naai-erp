@@ -34,6 +34,7 @@ ENV PORT=3001
 ENV HOST=0.0.0.0
 WORKDIR /app
 COPY --from=build --chown=node:node /out/api ./
+COPY --chown=node:node docs/api/openapi-v1.json /docs/api/openapi-v1.json
 USER node
 EXPOSE 3001
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
