@@ -41,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
+import { inferLegacyDocumentCategory } from "@/lib/categories/legacy-document-category";
 import {
   DocumentForm,
   ExpenseForm,
@@ -419,7 +420,9 @@ export function FocusedRecordListWorkspace({
         linesArray[0]?.category ||
         (linesArray[0]?.dimensions as Record<string, unknown> | undefined)?.category;
       const categoryCode =
-        text(row, "category", "expenseClass", "categoryCode") || String(lineCategory || "");
+        text(row, "category", "expenseClass", "categoryCode") ||
+        String(lineCategory || "") ||
+        inferLegacyDocumentCategory(row);
       if (categoryCode) {
         groupName = getCategoryName(categoryCode);
       }
@@ -565,7 +568,8 @@ export function FocusedRecordListWorkspace({
                     ? (row.lines[0] as Row | undefined)
                     : undefined;
                   const lineDims = (lines?.dimensions as Record<string, string> | undefined) ?? {};
-                  const catCode = text(row, "category") || lineDims.category || "";
+                  const catCode =
+                    text(row, "category") || lineDims.category || inferLegacyDocumentCategory(row);
                   const catName = getCategoryName(catCode);
 
                   return (
