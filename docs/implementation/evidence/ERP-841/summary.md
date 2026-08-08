@@ -83,3 +83,9 @@ with revenue-recognition activity while visibly preserving the invoiced versus r
 Expense combines tagged purchase invoices with every expense class. Mixed rows retain their own
 canonical endpoint, correction form and stable detail route, so the UI no longer opens an expense ID
 through the commercial-document service or filters non-invoice expenses down to one class.
+
+Production application routes are now wrapped by an explicit browser-session authentication gate.
+Unauthenticated users are redirected to `/login` with their intended destination preserved. Local
+development keeps its fixture-token workflow, while production requires the organization and access
+token entered through the login form rather than treating infrastructure environment variables as a
+user session.

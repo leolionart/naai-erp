@@ -1075,6 +1075,8 @@ tasks:
         BR-MVP-007,
         BR-EXPOR-001,
         BR-EXPOR-003,
+        BR-SEC-001,
+        BR-ORG-001,
       ]
     tests:
       [
@@ -1083,6 +1085,7 @@ tasks:
         T-INT-ERP-841-004,
         T-E2E-ERP-841-005,
         T-UNIT-ERP-841-006,
+        T-UNIT-ERP-841-007,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1096,6 +1099,8 @@ tasks:
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
       - apps/web/src/app/workspaces/banking-workspace.tsx
       - apps/web/src/app/workspaces/banking-workspace.test.tsx
+      - apps/web/src/components/authentication-gate.tsx
+      - apps/web/src/components/authentication-gate.test.ts
       - apps/api/src/report-exports/
       - apps/web/e2e/focused-records.spec.ts
       - apps/cli/src/

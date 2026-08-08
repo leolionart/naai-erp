@@ -66,3 +66,5 @@
   adds invoiced and recognized axes into one listing total: passed.
 - Expense defaults to purchase invoices plus all expense classes. Present/missing invoice filters
   preserve canonical row sources, endpoints, forms and stable detail routes: passed.
+- Production application routes require an explicit login session and preserve the requested route
+  through the login redirect; local development fixture authentication remains available: passed.

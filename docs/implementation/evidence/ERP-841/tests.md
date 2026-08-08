@@ -160,3 +160,6 @@ Banking naming-alignment evidence on 2026-08-08:
   local development retains the split-port default.
 - `pnpm test:release` verifies that the API runtime image contains the OpenAPI document required by
   the public discovery/capabilities endpoint.
+- `pnpm --filter @naai-erp/web exec vitest run src/components/authentication-gate.test.ts` verifies
+  that production routes require an explicit browser session token while development/test routes
+  retain their fixture workflow.

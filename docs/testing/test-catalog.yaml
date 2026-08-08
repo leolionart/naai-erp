@@ -1264,6 +1264,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/portable-data-package.spec.ts --project=desktop-chromium
     blocking_gate: G15
 
+  - id: T-UNIT-ERP-841-007
+    task: ERP-841
+    rules: [BR-SEC-001, BR-ORG-001]
+    title: Production application routes require an explicit browser login session while local development remains usable
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/authentication-gate.test.ts
+    blocking_gate: G14
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
