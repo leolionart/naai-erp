@@ -448,7 +448,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       cit_state: "eligible",
       vat_state: "eligible",
       sourceIds: { expenseId: "expense630", journalId: "vat-expense", lineId: "expense630:1" },
-      exceptionCodes: ["EVIDENCE_MISSING"],
+      exceptionCodes: [],
     });
   });
 

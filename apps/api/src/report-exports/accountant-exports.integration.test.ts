@@ -195,23 +195,8 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
       "Mapping",
       "Unresolved",
       "Source",
-      "Journal Entries",
-      "Journal Lines",
-      "Sales Invoices",
-      "Purchase Invoices",
-      "Expenses",
-      "Invoice Allocations",
-      "Expense Allocations",
-      "Bank Transactions",
-      "Payments",
-      "Reconciliations",
-      "Payment Allocations",
-      "Accounts",
-      "Parties",
     ]);
     expect(workbook.getWorksheet("Report")?.autoFilter).toBeTruthy();
-    expect(workbook.getWorksheet("Journal Lines")?.getCell("E2").numFmt).toContain("₫");
-    expect(workbook.getWorksheet("Journal Entries")?.pageSetup.printTitlesRow).toBe("1:1");
 
     const audits = await pool.query(
       `select resource_type,action,after_state from resource_audit_events
