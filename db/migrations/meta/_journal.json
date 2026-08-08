@@ -267,6 +267,13 @@
       "when": 1786197600000,
       "tag": "0037_category_metadata_on_final_expenses",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786226547353,
+      "tag": "0038_noisy_rattler",
+      "breakpoints": true
     }
   ]
 }

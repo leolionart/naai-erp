@@ -114,3 +114,12 @@ using its persisted client and project relationships. The eight 2026 invoices no
 software-development, consulting, design/media and system-maintenance categories. The outbound UI
 catalog includes the active `WEB` category so list and Quick View surfaces render its Vietnamese
 name instead of the raw category code.
+
+Projects now have an optional `default_service_line_code` available through the same versioned,
+organization-scoped master-data API used by the first-party clients and through the project admin
+editor. Migration 0038 adds the nullable project field and database guards that require an active
+same-organization `service_line` dimension and prevent an assigned dimension from being deactivated
+or deleted. Project profitability continues to prefer approved timesheet attribution, but falls back
+to this project default when no approved timesheet supplies a service line. This removes false
+`service-line-unclassified` review signals without inventing timesheets or mutating posted ledger
+history.

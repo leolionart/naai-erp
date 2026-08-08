@@ -1,5 +1,26 @@
 # ERP-841 tests
 
+## Project default service line
+
+```text
+pnpm --filter @naai-erp/api exec vitest run src/master-data/resource-registry.test.ts
+```
+
+Result on 2026-08-09: passed, 1 file and 3 tests. The project registry exposes
+`default_service_line_code` on both writable and mutable columns, keeping project classification
+available through the canonical master-data API rather than direct database updates.
+
+```text
+RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp pnpm --filter @naai-erp/api exec vitest run src/project-profitability/project-profitability.integration.test.ts
+```
+
+Result on 2026-08-09 against a freshly migrated integration database: passed, 1 file and 4 tests.
+The suite proves project-default fallback, resolved service-line name, absence of a false
+missing-dimension confidence code, rejection of an unknown default, and protection against
+deactivating an assigned service line. A later rerun against the long-lived shared database stopped
+during setup because its fixed `org-erp540` fixture already existed; that environmental collision
+does not replace the clean-database passing result.
+
 ## Final-document category metadata
 
 - Commercial-document service tests: 12/12 passed, including the category-only mutation.

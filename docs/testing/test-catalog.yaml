@@ -1312,6 +1312,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "posted expense category"
     blocking_gate: G14
 
+  - id: T-UNIT-ERP-841-014
+    task: ERP-841
+    rules: [BR-AI-001, BR-AI-002, BR-PRJ-001, BR-DIM-001]
+    title: Project master-data registry exposes the organization-scoped default service line for create and update
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/master-data/resource-registry.test.ts
+    blocking_gate: G14
+
+  - id: T-INT-ERP-841-015
+    task: ERP-841
+    rules: [BR-PRJ-001, BR-PRF-002, BR-DIM-001, BR-ORG-001]
+    title: Project profitability falls back to an active project default service line and rejects invalid or deactivated references
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp pnpm --filter @naai-erp/api exec vitest run src/project-profitability/project-profitability.integration.test.ts
+    blocking_gate: G14
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

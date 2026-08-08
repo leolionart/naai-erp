@@ -36,3 +36,7 @@
   `funding_treatment`. Reclassifying the funding treatment can change management balance semantics
   and therefore still requires the normal reversal/replacement workflow rather than this metadata
   endpoint.
+- Migration 0038 and the project-profitability fallback passed on a freshly migrated integration
+  database. A rerun against the long-lived shared database collided with its pre-existing fixed
+  `org-erp540` fixture. Production service-line assignments and the dashboard review-signal readback
+  still depend on successful release and migration deployment.

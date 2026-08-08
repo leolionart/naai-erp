@@ -16,6 +16,8 @@ type ProjectRow = {
   startsOn: string;
   endsOn: string | null;
   currency: string;
+  defaultServiceLineCode: string | null;
+  defaultServiceLineName: string | null;
 };
 
 type AmountRows = { amount: string; ids: string[]; journalIds: string[] };
@@ -43,11 +45,14 @@ export class PgProjectProfitabilityStore {
     const projects = await this.pool.query<ProjectRow>(
       `select p.id,p.code,p.name,p.client_party_id "clientId",c.display_name "clientName",
               p.owner_user_id "accountOwnerId",u.display_name "accountOwnerName",
-              p.starts_on::text "startsOn",p.ends_on::text "endsOn",p.currency
+              p.starts_on::text "startsOn",p.ends_on::text "endsOn",p.currency,
+              p.default_service_line_code "defaultServiceLineCode",sl.name "defaultServiceLineName"
          from projects p
          join organizations o on o.id=p.organization_id and o.base_currency=p.currency
          join parties c on c.organization_id=p.organization_id and c.id=p.client_party_id
          join users u on u.id=p.owner_user_id
+         left join dimension_values sl on sl.organization_id=p.organization_id
+          and sl.kind='service_line' and sl.code=p.default_service_line_code and sl.is_active
         where p.organization_id=$1 and p.starts_on<=$${values.length + 1}::date
           and(p.ends_on is null or p.ends_on>=$${values.length + 2}::date)${where}
         order by p.code,p.id`,
@@ -65,11 +70,14 @@ export class PgProjectProfitabilityStore {
     const result = await this.pool.query<ProjectRow>(
       `select p.id,p.code,p.name,p.client_party_id "clientId",c.display_name "clientName",
               p.owner_user_id "accountOwnerId",u.display_name "accountOwnerName",
-              p.starts_on::text "startsOn",p.ends_on::text "endsOn",p.currency
+              p.starts_on::text "startsOn",p.ends_on::text "endsOn",p.currency,
+              p.default_service_line_code "defaultServiceLineCode",sl.name "defaultServiceLineName"
          from projects p
          join organizations o on o.id=p.organization_id and o.base_currency=p.currency
          join parties c on c.organization_id=p.organization_id and c.id=p.client_party_id
          join users u on u.id=p.owner_user_id
+         left join dimension_values sl on sl.organization_id=p.organization_id
+          and sl.kind='service_line' and sl.code=p.default_service_line_code and sl.is_active
         where p.organization_id=$1 and p.id=$2`,
       [organizationId, projectId],
     );
@@ -249,13 +257,14 @@ export class PgProjectProfitabilityStore {
         [organizationId, project.id, asOf],
       ),
       this.pool.query(
-        `select coalesce(array_agg(distinct e.service_line_code order by e.service_line_code)
-                         filter(where e.service_line_code is not null),'{}') ids,
-                coalesce(array_agg(e.id order by e.id) filter(where e.service_line_code is null),'{}') missing
+        `select coalesce(array_agg(distinct coalesce(e.service_line_code,$5) order by coalesce(e.service_line_code,$5))
+                         filter(where coalesce(e.service_line_code,$5) is not null),'{}') ids,
+                coalesce(array_agg(e.id order by e.id)
+                         filter(where e.service_line_code is null and $5 is null),'{}') missing
            from timesheet_entries e join timesheets t on t.organization_id=e.organization_id and t.id=e.timesheet_id
           where e.organization_id=$1 and e.project_id=$2 and e.work_date between $3::date and $4::date
             and t.state in('approved','locked','billed')`,
-        range,
+        [...range, project.defaultServiceLineCode],
       ),
     ]);
 
@@ -271,10 +280,15 @@ export class PgProjectProfitabilityStore {
     const timeRow = time.rows[0] ?? { projectMinutes: 0, billableMinutes: 0, ids: [] };
     const budgetRow = budget.rows[0];
     const serviceLineIds = ids(serviceLines.rows[0]?.ids);
-    const serviceLineCode = serviceLineIds.length === 1 ? serviceLineIds[0] : undefined;
+    const serviceLineCode =
+      serviceLineIds.length === 1
+        ? serviceLineIds[0]
+        : serviceLineIds.length === 0
+          ? (project.defaultServiceLineCode ?? undefined)
+          : undefined;
     const missing = [
       ...ids(serviceLines.rows[0]?.missing),
-      ...(serviceLineIds.length === 1
+      ...(serviceLineCode
         ? []
         : [
             `project:${project.id}:${serviceLineIds.length ? "multiple-service-lines" : "service-line-unclassified"}`,
@@ -328,7 +342,15 @@ export class PgProjectProfitabilityStore {
       projectName: project.name,
       clientId: project.clientId,
       clientName: project.clientName,
-      ...(serviceLineCode ? { serviceLineCode, serviceLineName: serviceLineCode } : {}),
+      ...(serviceLineCode
+        ? {
+            serviceLineCode,
+            serviceLineName:
+              serviceLineCode === project.defaultServiceLineCode
+                ? (project.defaultServiceLineName ?? serviceLineCode)
+                : serviceLineCode,
+          }
+        : {}),
       accountOwnerId: project.accountOwnerId,
       accountOwnerName: project.accountOwnerName,
       startsOn: query.periodStart,

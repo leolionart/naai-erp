@@ -75,3 +75,11 @@
   amounts, tax states, funding treatment, allocations and journal linkage remain immutable: passed.
 - Expense Quick View saves the category and the combined expense listing receives the persisted
   category through canonical API list readback: passed.
+- Project create/update exposes optional `default_service_line_code` through the generic master-data
+  registry and the admin project editor: implementation complete; registry unit proof passed.
+- Project default service line is constrained to an active same-organization `service_line`, and an
+  assigned dimension cannot be deactivated or deleted: passed on a freshly migrated integration
+  database.
+- Project profitability prefers approved timesheet service-line attribution and otherwise uses the
+  project default without emitting a false `service-line-unclassified` confidence flag: integration
+  proof passed; production report readback remains pending.

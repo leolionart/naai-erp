@@ -301,6 +301,10 @@ export function BusinessRecordWorkspace({
             <>
               <Fact label="Khách hàng" value={clientName} />
               <Fact label="Loại hợp đồng" value={value(record, "contract_type")} />
+              <Fact
+                label="Mảng dịch vụ"
+                value={value(record, "default_service_line_code") || "Chưa phân loại"}
+              />
               <Fact label="Trạng thái" value={value(record, "state")} />
               <Fact
                 label="Ngân sách phê duyệt"
@@ -567,6 +571,8 @@ function DirectoryEditor({
                 starts_on: String(form.get("starts_on") ?? ""),
               }),
           name: String(form.get("name") ?? "").trim(),
+          default_service_line_code:
+            String(form.get("default_service_line_code") ?? "").trim() || null,
           budget_minor: String(form.get("budget_minor") ?? "0").trim(),
           ends_on: String(form.get("ends_on") ?? "").trim() || null,
           notes: String(form.get("notes") ?? "").trim() || null,
@@ -647,6 +653,12 @@ function DirectoryEditor({
                 label="ID người phụ trách"
                 defaultValue={value(initial ?? {}, "owner_user_id")}
                 required
+              />
+              <EditorField
+                name="default_service_line_code"
+                label="Mã mảng dịch vụ"
+                defaultValue={value(initial ?? {}, "default_service_line_code")}
+                placeholder="Ví dụ: SOFTWARE_DEV, WEB, CONSULTING"
               />
               {!initial ? (
                 <EditorField

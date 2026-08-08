@@ -507,6 +507,10 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
 
 - Closed project rejects new time/expense/invoice allocations unless approved reopen.
 - Project captures client, contract type, currency, budget, dates and owner.
+- A project may declare one default service line through the organization-scoped project master-data
+  API and admin UI. The code must reference an active `service_line` dimension in the same
+  organization; an assigned dimension cannot be deactivated or deleted until the project reference
+  is changed or cleared.
 
 ### BR-TIM-001 — Timesheet lifecycle
 
@@ -557,6 +561,9 @@ Supported methods: revenue proportion, labor hours, headcount, fixed percentage 
 - Project report totals tie to ledger/read-model dimensions.
 - Cash collected is not profit.
 - Show unbilled work, overdue AR, overrun and missing dimensions as confidence flags.
+- Approved timesheet service-line attribution takes precedence. When no approved timesheet supplies
+  a service line, profitability uses the project's valid default service line; a project with that
+  fallback must not be reported as `service-line-unclassified` solely because it has no timesheet.
 
 ## 8. Forecast and KPIs
 

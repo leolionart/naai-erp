@@ -26,9 +26,12 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       insert into parties(organization_id,id,display_name) values
         ('${org}','client540','Client 540'),('${org}','worker-party540','Worker 540'),
         ('org-erp540-other','client-other','Other client');
-      insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state) values
-        ('${org}','project540','P540','Profitable project','client540','owner540','fixed_fee','VND',100,'2026-01-01','active'),
-        ('org-erp540-other','project-other','OTHER','Other project','client-other','owner540','fixed_fee','VND',100,'2026-01-01','active');
+      insert into dimension_values(organization_id,kind,code,name) values
+        ('${org}','service_line','web-app','Web app');
+      insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state,default_service_line_code) values
+        ('${org}','project540','P540','Profitable project','client540','owner540','fixed_fee','VND',100,'2026-01-01','active','web-app'),
+        ('${org}','project-default540','P540D','Default-only service line','client540','owner540','fixed_fee','VND',0,'2027-01-01','planned','web-app'),
+        ('org-erp540-other','project-other','OTHER','Other project','client-other','owner540','fixed_fee','VND',100,'2026-01-01','active',null);
       insert into accounts(organization_id,code,name,root_type,allow_manual_posting) values
         ('${org}','131','AR','asset',false),('${org}','154','Contract asset','asset',false),
         ('${org}','3387','Contract liability','liability',false),('${org}','511','Revenue','revenue',false),
@@ -64,7 +67,7 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       insert into timesheets(organization_id,id,worker_id,week_starts_on,state,version,approved_by,approved_at,created_by) values
         ('${org}','timesheet540','worker-profile540','2026-08-03','approved',3,'owner540',now(),'worker540');
       insert into timesheet_entries(organization_id,id,timesheet_id,work_date,mode,scope,project_id,service_line_code,minutes,billable,description,started_at,ended_at,created_by) values
-        ('${org}','entry540','timesheet540','2026-08-03','timed','project','project540','web-app',90,true,'Build','2026-08-03T01:00:00Z','2026-08-03T02:30:00Z','worker540');
+        ('${org}','entry540','timesheet540','2026-08-03','timed','project','project540',null,90,true,'Build','2026-08-03T01:00:00Z','2026-08-03T02:30:00Z','worker540');
       insert into timesheet_cost_snapshots(organization_id,entry_id,rate_id,applied_hourly_rate_minor,applied_cost_minor,currency,applied_by) values
         ('${org}','entry540','rate540',10,10,'VND','owner540');
       insert into workforce_capacity_versions(organization_id,id,worker_id,weekly_minutes,workdays,effective_from,version,reason,created_by) values
@@ -127,6 +130,8 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       projectMinutes: 90,
       availableMinutes: 480,
       utilizationBps: 1875,
+      serviceLineCode: "web-app",
+      serviceLineName: "Web app",
       confidenceCodes: ["unbilled_work", "overdue_ar", "budget_overrun"],
     });
     expect(data.groups).toEqual([
@@ -152,5 +157,35 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
         allocatedOverhead: { status: "tied_out", differenceMinor: "0" },
       },
     });
+  });
+
+  it("uses the project default when no approved timesheet supplies a service line", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/reports/project-profitability/projects/project-default540?startsOn=2026-08-01&endsOn=2026-08-03`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data).toMatchObject({
+      serviceLineCode: "web-app",
+      serviceLineName: "Web app",
+      confidenceCodes: [],
+    });
+  });
+
+  it("rejects inactive or unknown project default service lines at the database boundary", async () => {
+    await expect(
+      pool.query(
+        `update projects set default_service_line_code='unknown' where organization_id=$1 and id='project540'`,
+        [org],
+      ),
+    ).rejects.toMatchObject({ code: "23503" });
+    await expect(
+      pool.query(
+        `update dimension_values set is_active=false
+          where organization_id=$1 and kind='service_line' and code='web-app'`,
+        [org],
+      ),
+    ).rejects.toMatchObject({ code: "23503" });
   });
 });

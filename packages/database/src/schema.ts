@@ -923,6 +923,7 @@ export const projects = pgTable(
     contractType: contractType("contract_type").notNull(),
     currency: text("currency").notNull(),
     budgetMinor: bigint("budget_minor", { mode: "bigint" }).notNull(),
+    defaultServiceLineCode: text("default_service_line_code"),
     startsOn: date("starts_on").notNull(),
     endsOn: date("ends_on"),
     state: projectState("state").notNull().default("planned"),
