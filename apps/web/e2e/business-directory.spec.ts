@@ -11,7 +11,9 @@ async function authenticate(page: Page) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "directory-token"));
 }
 
-test("@desktop customer profile links sales invoices and accounts receivable", async ({ page }) => {
+test("@desktop customer profile embeds revenue activity and links accounts receivable", async ({
+  page,
+}) => {
   await authenticate(page);
   await page.route("**/api/v1/organizations/naai/master-data/parties/*", async (route) => {
     await route.fulfill({
@@ -31,23 +33,21 @@ test("@desktop customer profile links sales invoices and accounts receivable", a
   await expect(page.getByRole("heading", { level: 1, name: "Hồ sơ khách hàng" })).toBeVisible();
   await expect(page.getByText("Công ty Khách hàng A", { exact: true })).toBeVisible();
   await expect(page.getByText("0312345678", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Hóa đơn khách hàng" })).toHaveAttribute(
-    "href",
-    "/documents?partyId=client-a",
-  );
-  await expect(page.getByRole("link", { name: "Xem công nợ phải thu" })).toHaveAttribute(
+  await expect(
+    page.getByText("2. Hóa đơn Khách hàng (Đầu ra & Đã liên kết)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Hóa đơn đầu ra · Công nợ phải thu")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Xem sổ chi tiết công nợ" })).toHaveAttribute(
     "href",
     "/receivables/customers/client-a",
   );
 
-  await page.getByRole("button", { name: "Chỉnh sửa" }).click();
+  await page.getByRole("button", { name: "Chỉnh sửa thông tin" }).click();
   await expect(page.getByRole("dialog", { name: "Chỉnh sửa khách hàng" })).toBeVisible();
   await expect(page.getByLabel("Tên khách hàng")).toHaveValue("Công ty Khách hàng A");
 });
 
-test("@desktop project profile exposes customer, invoice and financial drilldowns", async ({
-  page,
-}) => {
+test("@desktop project profile embeds invoice, budget and cost workspaces", async ({ page }) => {
   await authenticate(page);
   await page.route("**/api/v1/organizations/naai/master-data/projects/*", async (route) => {
     await route.fulfill({
@@ -73,32 +73,19 @@ test("@desktop project profile exposes customer, invoice and financial drilldown
   await page.goto("http://localhost:3000/projects/website-a");
   await expect(page.getByText("Website khách hàng A", { exact: true })).toBeVisible();
   await expect(page.getByText("250.000.000 ₫", { exact: true })).toBeVisible();
+  await expect(page.getByText("client-a", { exact: true })).toBeVisible();
   await expect(
-    page.locator("#main-content").getByRole("link", { name: "Khách hàng" }),
-  ).toHaveAttribute("href", "/customers/client-a");
-  await expect(page.getByRole("link", { name: "Hóa đơn dự án" })).toHaveAttribute(
-    "href",
-    "/documents?projectId=website-a",
-  );
-  await expect(page.getByRole("link", { name: "Ngân sách" })).toHaveAttribute(
-    "href",
-    "/projects/website-a/budget",
-  );
-  await expect(page.getByRole("link", { name: "Chi phí dự án" })).toHaveAttribute(
-    "href",
-    "/projects/website-a/costs",
-  );
-  await expect(page.getByRole("link", { name: "Lợi nhuận" })).toHaveAttribute(
-    "href",
-    "/reports/project-profitability/projects/website-a",
-  );
-  await page.getByRole("button", { name: "Chỉnh sửa" }).click();
+    page.getByText("1. Hóa đơn Dự án (Bán ra & Mua vào)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("2. Ngân sách & Ghi nhận Doanh thu", { exact: true })).toBeVisible();
+  await expect(page.getByText("3. Chi phí Dự án (Project Costs)", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Chỉnh sửa thông tin" }).click();
   const editor = page.getByRole("dialog", { name: "Chỉnh sửa dự án" });
   await expect(editor.getByLabel("ID khách hàng")).toHaveValue("client-a");
   await expect(editor.getByLabel("ID người phụ trách")).toHaveValue("owner-a");
 });
 
-test("@desktop directory create action opens an in-context drawer", async ({ page }) => {
+test("@desktop directory create action opens an in-context dialog", async ({ page }) => {
   await authenticate(page);
   await page.route("**/api/v1/organizations/naai/master-data/parties?limit=100", (route) =>
     route.fulfill({

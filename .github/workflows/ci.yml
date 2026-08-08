@@ -38,11 +38,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test:release
       - run: pnpm check
       - run: pnpm db:check
       - run: pnpm db:migrate
       - run: pnpm --filter @naai-erp/database test
-      - run: pnpm --filter @naai-erp/api test
+      - run: pnpm --filter @naai-erp/api exec vitest run --maxWorkers=1
         env:
           RUN_DB_INTEGRATION: "1"
       - run: pnpm --filter @naai-erp/worker test
@@ -50,3 +51,37 @@ jobs:
           RUN_DB_INTEGRATION: "1"
       - run: pnpm --filter @naai-erp/web exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+
+  container-builds:
+    name: Build ${{ matrix.name }} image
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: naai-erp-api
+            dockerfile: docker/Dockerfile.api
+          - name: naai-erp-web
+            dockerfile: docker/Dockerfile.web
+          - name: naai-erp-worker
+            dockerfile: docker/Dockerfile.worker
+          - name: naai-erp-migrate
+            dockerfile: docker/Dockerfile.migrate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build deployable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          build-args: |
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=1970-01-01T00:00:00Z
+            VERSION=ci-${{ github.sha }}
+          cache-from: type=gha,scope=ci-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=ci-${{ matrix.name }}

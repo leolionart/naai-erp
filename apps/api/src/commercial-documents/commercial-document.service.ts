@@ -341,9 +341,13 @@ export class CommercialDocumentService {
         lineTax > 0n &&
         line.allocations.some(
           (allocation) =>
-            !["eligible", "partially_eligible", "ineligible", "accountant_override"].includes(
-              allocation.dimensions.taxState ?? "",
-            ),
+            ![
+              "unreviewed",
+              "eligible",
+              "partially_eligible",
+              "ineligible",
+              "accountant_override",
+            ].includes(allocation.dimensions.taxState ?? ""),
         )
       )
         throw new Error("PURCHASE_TAX_REVIEW_REQUIRED");

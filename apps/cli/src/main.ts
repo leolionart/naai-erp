@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
@@ -72,6 +73,9 @@ const { values, positionals } = parseArgs({
     "workbook-sha256": { type: "string" },
     "payee-party-id": { type: "string" },
     "invoice-presence": { type: "string" },
+    "confirm-organization": { type: "string" },
+    "source-organization": { type: "string" },
+    reason: { type: "string" },
   },
 });
 
@@ -94,7 +98,64 @@ if (!resource || (!discovery && (!organizationId || !token))) {
     ...(token ? { token } : {}),
   });
   try {
-    if (resource === "sales-invoice-export" || resource === "purchase-expense-export") {
+    if (resource === "portable-data-restore") {
+      if (
+        action !== "empty" ||
+        !values.file ||
+        !values["source-organization"] ||
+        !values["confirm-organization"] ||
+        !values.reason ||
+        !values["idempotency-key"]
+      )
+        throw new Error(
+          "portable-data-restore empty requires --file, --source-organization, --confirm-organization, --reason, and --idempotency-key",
+        );
+      const content = await readFile(values.file);
+      const workbookSha256 = createHash("sha256").update(content).digest("hex");
+      const packageId = values.key;
+      if (!packageId) throw new Error("portable-data-restore empty requires --key package ID");
+      const result = await client.portableDataRequest(
+        "imports/restore-empty",
+        "POST",
+        {
+          sourceOrganizationId: values["source-organization"],
+          confirmTargetOrganizationId: values["confirm-organization"],
+          packageId,
+          workbookSha256,
+          reason: values.reason,
+          workbookBase64: content.toString("base64"),
+          mapSourceActorsToTargetActor: true,
+        },
+        values["idempotency-key"],
+      );
+      process.stdout.write(JSON.stringify(result) + "\n");
+    } else if (resource === "portable-data-reset") {
+      if (
+        action !== "local" ||
+        !values["confirm-organization"] ||
+        !values.key ||
+        !values["workbook-sha256"] ||
+        !values["idempotency-key"]
+      )
+        throw new Error(
+          "portable-data-reset local requires --confirm-organization, --key, --workbook-sha256, and --idempotency-key",
+        );
+      if (values["confirm-organization"] !== organizationId)
+        throw new Error("--confirm-organization must exactly match the target organization");
+      if (!/^[a-fA-F0-9]{64}$/.test(values["workbook-sha256"]))
+        throw new Error("--workbook-sha256 must be a 64-character SHA-256");
+      const result = await client.resetLocalOrganization(
+        {
+          confirmOrganizationId: values["confirm-organization"],
+          packageId: values.key,
+          workbookSha256: values["workbook-sha256"].toLowerCase(),
+        },
+        values["idempotency-key"],
+      );
+      process.stdout.write(
+        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+      );
+    } else if (resource === "sales-invoice-export" || resource === "purchase-expense-export") {
       if (!["export", "download"].includes(action) || !values.output || !values.from || !values.to)
         throw new Error(`${resource} download requires --from, --to, and explicit --output`);
       const file = await client.downloadAccountingListExport(

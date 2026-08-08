@@ -167,10 +167,13 @@ export function StatementSessionListWorkspace() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/banking">Ngân hàng</Link>
+            <Link href="/banking">Tài khoản & Giao dịch</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/banking/internal-transfers">Chuyển nội bộ</Link>
+            <Link href="/banking/internal-transfers">Chuyển tiền nội bộ</Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link href="/banking/statements">Kiểm soát sao kê</Link>
           </Button>
         </div>
         <div className="flex gap-2">

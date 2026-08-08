@@ -7,7 +7,8 @@ export default function StatementSessionsPage() {
   return (
     <ModulePage
       title="Kiểm soát sao kê"
-      section="Ngân hàng & tiền mặt"
+      section="Tiền mặt & Ngân hàng"
+      sectionHref="/banking"
       description="Kiểm soát opening/closing balance, import coverage và exception trước khi đóng kỳ sao kê."
     >
       <Suspense fallback={<Skeleton className="h-80 w-full" aria-label="Đang tải kỳ sao kê" />}>

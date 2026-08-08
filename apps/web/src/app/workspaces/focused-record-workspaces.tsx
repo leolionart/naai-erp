@@ -45,6 +45,7 @@ import {
   DocumentForm,
   ExpenseForm,
   getCategoryName,
+  getFundingSourceLabel,
 } from "@/components/forms/document-expense-forms";
 import {
   MonthlyCategoryStackedChart,
@@ -538,7 +539,7 @@ export function FocusedRecordListWorkspace({
                 <TableRow>
                   <TableHead className="w-[140px]">Mã bản ghi</TableHead>
                   <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
-                  <TableHead className="w-[140px]">Nguồn / Trục</TableHead>
+                  <TableHead className="w-[180px]">Nguồn thanh toán / Trục</TableHead>
                   <TableHead className="w-[160px]">Danh mục nghiệp vụ</TableHead>
                   <TableHead>Đối tượng</TableHead>
                   <TableHead>Nội dung / Diễn giải</TableHead>
@@ -574,13 +575,17 @@ export function FocusedRecordListWorkspace({
                         {dateVal || "—"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {rowSource === "recognition"
-                            ? "Đã ghi nhận · Chưa có hóa đơn"
-                            : rowSource === "expenses"
-                              ? `${human(text(row, "expenseClass"))} · Chưa có hóa đơn`
-                              : `${human(text(row, "type"))} · Có hóa đơn`}
-                        </Badge>
+                        {rowSource === "recognition" ? (
+                          <Badge variant="outline">Đã ghi nhận · Chưa có hóa đơn</Badge>
+                        ) : kind === "expenses" || text(row, "type") === "purchase_invoice" ? (
+                          <span className="text-sm">
+                            {getFundingSourceLabel(
+                              text(row, "counterAccountCode", "controlAccountCode"),
+                            )}
+                          </span>
+                        ) : (
+                          <Badge variant="outline">{human(text(row, "type"))} · Có hóa đơn</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {catName ? <Badge variant="secondary">{catName}</Badge> : "—"}
@@ -672,6 +677,24 @@ export function FocusedRecordListWorkspace({
                   </CardHeader>
                 </Card>
               </div>
+              {sourceKind(quickRecord) !== "recognition" &&
+              (kind === "expenses" || text(quickRecord, "type") === "purchase_invoice") ? (
+                <Card>
+                  <CardHeader>
+                    <CardDescription>Nguồn thanh toán</CardDescription>
+                    <CardTitle>
+                      {getFundingSourceLabel(
+                        text(quickRecord, "counterAccountCode", "controlAccountCode"),
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground">
+                    TK 111/112 là tiền công ty và làm giảm số dư quỹ. TK 3388 là chủ doanh nghiệp
+                    chi hộ, ghi nhận khoản phải trả chủ sở hữu và không làm giảm tiền mặt hay ngân
+                    hàng công ty.
+                  </CardContent>
+                </Card>
+              ) : null}
               {sourceKind(quickRecord) === "documents" ? (
                 <DocumentForm
                   key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
@@ -757,7 +780,7 @@ function FilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size="sm">
           <Filter data-icon="inline-start" />
           Bộ lọc
         </Button>
@@ -1205,6 +1228,22 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 </CardContent>
               </Card>
             </div>
+            {kind === "expenses" || text(record, "type") === "purchase_invoice" ? (
+              <Card>
+                <CardHeader>
+                  <CardDescription>Nguồn thanh toán</CardDescription>
+                  <CardTitle>
+                    {getFundingSourceLabel(
+                      text(record, "counterAccountCode", "controlAccountCode"),
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  Chi hộ qua TK 3388 không phải là dòng tiền ra từ tài khoản hay quỹ tiền mặt của
+                  công ty.
+                </CardContent>
+              </Card>
+            ) : null}
             <Card>
               <CardHeader>
                 <CardTitle>Dòng hạch toán nguồn</CardTitle>

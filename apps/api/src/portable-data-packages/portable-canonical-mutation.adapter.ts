@@ -39,6 +39,8 @@ const invalid = (
 const camel = (key: string) =>
   key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
 const decoded = (key: string, value: unknown) => {
+  if (key === "fiscal_year" && typeof value === "string" && /^\d+$/.test(value))
+    return Number(value);
   if (["lines", "evidence_checklist"].includes(key) && typeof value === "string") {
     try {
       return JSON.parse(value) as unknown;

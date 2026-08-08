@@ -175,6 +175,11 @@ type OperatingDashboardWire = Readonly<{
     cashAndBankMinor: string;
     ownerPayableMinor: string;
     netAvailableCashMinor: string;
+    actualOwnerPaidCompanyCostMinor?: string;
+    netCompanyFundsMinor?: string;
+    ownerPaidClassificationStatus?: "ready" | "review_required" | "unconfigured";
+    unclassifiedOwnerPaidCount?: number;
+    unclassifiedOwnerPaidMinor?: string;
     corporateIncomeTaxRateBps: number | null;
     rosBps: number | null;
     recognitionEventCount: number;
@@ -830,11 +835,8 @@ export function ExecutiveDashboardWorkspace() {
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
     : fallbackDso;
   const ownerPayableMinor = operating?.financials.ownerPayableMinor ?? "0";
-  const netAvailableCashMinor =
-    operating?.financials.netAvailableCashMinor ??
-    executive?.unrestrictedCashMinor ??
-    operating?.financials.unrestrictedCashMinor ??
-    "0";
+  const ownerPaidClassificationStatus =
+    operating?.financials.ownerPaidClassificationStatus ?? "unconfigured";
   const taxableProfitMinor =
     profitAndLoss == null || taxExpenses == null
       ? undefined
@@ -1079,14 +1081,47 @@ export function ExecutiveDashboardWorkspace() {
                 value={money(operating?.financials.bankAvailableMinor, operating?.currency)}
                 description="Số dư tài khoản ngân hàng công ty sau mọi khoản thu, chi và rút tiền"
                 href={`/reports/financial-statements/cash-flow/current?${q}`}
-                status={`Quỹ tiền mặt: ${money(operating?.financials.cashOnHandMinor, operating?.currency)}`}
+                status="Tiền của công ty"
               />
               <MetricCard
-                title="Tiền ròng sau khoản phải trả chủ sở hữu"
-                value={money(netAvailableCashMinor, operating?.currency ?? executive?.currency)}
-                description={`Tiền ngân hàng và quỹ sau khi trừ nghĩa vụ với chủ doanh nghiệp`}
+                title="Quỹ tiền mặt công ty"
+                value={money(operating?.financials.cashOnHandMinor, operating?.currency)}
+                description="Tiền mặt thực tế doanh nghiệp đang nắm giữ"
+                href={`/banking?${q}`}
+                status="Tiền của công ty"
+              />
+              <MetricCard
+                title="Tổng tiền công ty thực tế"
+                value={money(operating?.financials.cashAndBankMinor, operating?.currency)}
+                description="Tổng số dư vật lý tại ngân hàng và quỹ tiền mặt; không trừ hóa đơn chỉ theo dõi cho thuế"
                 href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                status={`Phải trả chủ sở hữu: ${money(ownerPayableMinor, operating?.currency ?? executive?.currency)}`}
+                status="Số dư quỹ thực tế"
+              />
+              <MetricCard
+                title="Quỹ thuần sau chi hộ thực tế"
+                value={money(
+                  operating?.financials.netCompanyFundsMinor,
+                  operating?.currency ?? executive?.currency,
+                )}
+                description="Chỉ trừ lương, domain, server/VPS và chi phí công ty thực tế do chủ doanh nghiệp trả; không trừ điện, nước, internet, ăn uống chỉ lưu cho thuế"
+                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                status={
+                  ownerPaidClassificationStatus === "ready"
+                    ? "Đã phân loại đủ"
+                    : `${operating?.financials.unclassifiedOwnerPaidCount ?? 0} khoản chưa phân loại · ${money(operating?.financials.unclassifiedOwnerPaidMinor, operating?.currency)}`
+                }
+                provisional={ownerPaidClassificationStatus !== "ready"}
+              />
+              <MetricCard
+                title="Chi phí công ty thực tế do chủ chi hộ"
+                value={money(
+                  operating?.financials.actualOwnerPaidCompanyCostMinor,
+                  operating?.currency ?? executive?.currency,
+                )}
+                description={`Chỉ gồm danh mục owner_paid_company_cost. Tổng TK 3388 theo sổ hiện tại: ${money(ownerPayableMinor, operating?.currency ?? executive?.currency)}.`}
+                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                status={ownerPaidClassificationStatus}
+                provisional={ownerPaidClassificationStatus !== "ready"}
               />
               <MetricCard
                 title="Runway"

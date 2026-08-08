@@ -44,6 +44,7 @@ interface ExistingExpense {
     vatMinor: string | number;
     grossMinor: string | number;
     postingAccountCode: string;
+    expenseCategoryCode?: string;
     vatAccountCode?: string;
     managementState?: "unreviewed" | "valid" | "invalid" | "accountant_override";
     citState?:
@@ -115,6 +116,22 @@ export class ExpenseService {
       await this.store.update(context, id, expectedVersion, merged, key),
     );
   }
+  async discard(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE.has(role))) throw new Error("FORBIDDEN");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.discard(context, id, expectedVersion, reason.trim(), key),
+    );
+  }
 
   private mergeExpense(
     existing: ExistingExpense,
@@ -142,6 +159,7 @@ export class ExpenseService {
         vatMinor: String(l.vatMinor),
         grossMinor: String(l.grossMinor),
         postingAccountCode: l.postingAccountCode,
+        ...(l.expenseCategoryCode ? { expenseCategoryCode: l.expenseCategoryCode } : {}),
         dimensions: l.dimensions || {},
         allocations,
         ...(l.vatAccountCode ? { vatAccountCode: l.vatAccountCode } : {}),

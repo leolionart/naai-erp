@@ -15,10 +15,19 @@ POSTGRES_USER=naai_erp
 APP_BASE_URL=https://erp.example.com
 SESSION_SECRET=<at-least-32-random-characters>
 WEBHOOK_SIGNING_SECRET=<at-least-32-random-characters>
-IMAGE_TAG=<immutable-git-sha>
+IMAGE_TAG=sha-<first-12-characters-of-git-sha>
 ```
 
-`POSTGRES_PASSWORD` is required by Compose. For releases, use an immutable Git SHA in `IMAGE_TAG`; `main` is only a convenience default for manual previews.
+`POSTGRES_PASSWORD` is required by Compose. The release workflow publishes four matching packages:
+
+- `ghcr.io/leolionart/naai-erp-api`
+- `ghcr.io/leolionart/naai-erp-web`
+- `ghcr.io/leolionart/naai-erp-worker`
+- `ghcr.io/leolionart/naai-erp-migrate`
+
+Each package receives `main` and `sha-<first-12-characters-of-git-sha>` tags. Use the immutable
+`sha-*` tag in `IMAGE_TAG`; `main` is only a convenience default for manual previews. All four
+services must use the same tag so the migration and runtime code stay on one release.
 
 ## Build locally
 
@@ -77,11 +86,11 @@ Never use `docker compose down --volumes` against a production project.
 
 ## Rollback
 
-Set `IMAGE_TAG` to the previous immutable Git SHA and recreate application services:
+Set `IMAGE_TAG` to the previous immutable workflow tag and recreate application services:
 
 ```bash
-IMAGE_TAG=<previous-git-sha> docker compose --env-file .env.production pull
-IMAGE_TAG=<previous-git-sha> docker compose --env-file .env.production up -d --wait
+IMAGE_TAG=sha-<previous-12-character-git-sha> docker compose --env-file .env.production pull
+IMAGE_TAG=sha-<previous-12-character-git-sha> docker compose --env-file .env.production up -d --wait
 ```
 
 Database migrations are forward-only. Before rollback, confirm that the previous application image remains compatible with the migrated schema. Restore PostgreSQL from the approved backup procedure if a schema rollback is required.

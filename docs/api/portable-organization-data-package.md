@@ -59,6 +59,7 @@ POST /api/v1/organizations/{organizationId}/portable-data-packages/imports/inven
 POST /api/v1/organizations/{organizationId}/portable-data-packages/imports/dry-run
 POST /api/v1/organizations/{organizationId}/portable-data-packages/imports/{importId}/commit
 GET  /api/v1/organizations/{organizationId}/portable-data-packages/imports/{importId}
+POST /api/v1/organizations/{organizationId}/portable-data-packages/local-admin/reset
 ```
 
 Mutation calls require authorization, `Idempotency-Key` and `X-Correlation-Id`. Commit requires the
@@ -100,7 +101,14 @@ binary floating-point value.
       "dryRun": true,
       "mutationCount": 0,
       "valid": true,
-      "totals": { "sheets": 12, "rows": 80, "ready": 1, "invalid": 0, "conflicts": 0, "unchanged": 79 },
+      "totals": {
+        "sheets": 12,
+        "rows": 80,
+        "ready": 1,
+        "invalid": 0,
+        "conflicts": 0,
+        "unchanged": 79
+      },
       "rows": [
         {
           "sheetName": "parties",
@@ -119,6 +127,31 @@ binary floating-point value.
 
 Errors and warnings are returned per row with stable `code`, `message`, optional `field` and
 `severity`. A dry-run response always has `dryRun: true` and `mutationCount: 0`.
+
+## Local organization reset
+
+Reset is a destructive local-development recovery command, not an import shortcut. Before reset,
+create and download a completed Full ERP Data Package and retain its package ID and workbook
+SHA-256. The API must run outside production with `NAAI_ERP_LOCAL_RESET_ENABLED=1`, and the CLI base
+URL must resolve directly to `localhost`, `127.0.0.1` or `::1`.
+
+```bash
+naai-erp portable-data-reset local \
+  --organization naai \
+  --confirm-organization naai \
+  --key package-backup-1 \
+  --workbook-sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --idempotency-key reset-naai-20260808
+```
+
+All five arguments are mandatory. `--confirm-organization` must exactly equal the target
+organization. The package must belong to that organization and its stored workbook hash must match
+the supplied SHA-256. The response reports deleted row counts by table, preserved tables, audit event
+ID and whether an idempotent retry was replayed.
+
+The reset preserves organization identity, memberships, API credentials and approved baseline
+configuration. Production, proxy/remote base URLs, missing backup evidence and mismatches are
+rejected before destructive work.
 
 ## Required acceptance behavior
 

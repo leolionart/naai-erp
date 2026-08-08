@@ -59,6 +59,8 @@ The repository currently maintains these reviewed fixtures:
 - `GF-LEDGER-001`: Trial Balance and General Ledger.
 - `GF-SALES-001`, `GF-SALES-002`, `GF-PURCHASE-001`: invoice and credit behavior.
 - `GF-EXPENSE-001`, `GF-EXPENSE-002`: non-invoice expense, allocations and tax views.
+- Draft-expense discard regression: only draft records can be removed; version, reason and
+  idempotency are mandatory; retry returns the original result and audit/outbox evidence is singular.
 - `GF-BANK-001`, `GF-TRANSFER-001`, `GF-AGING-001`: banking, transfers and AR/AP controls.
 - `GF-PROJECT-001`: project profitability and control ties.
 - `GF-FORECAST-001`, `GF-FORECAST-002`, `GF-KPI-001`: targets, forecast composition and comparisons.

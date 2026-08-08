@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { PortableDataPackageService } from "./portable-data-package.service.js";
 import type {
+  LocalOrganizationResetInput,
   PortableDataPackageContext,
   PortableDataPackageStore,
   PortablePackageFile,
@@ -125,6 +126,23 @@ class MemoryStore implements PortableDataPackageStore {
     const item = this.records.get(packageId);
     return item?.record.organizationId === c.organizationId ? item.file : undefined;
   }
+
+  async resetLocalOrganization(
+    c: PortableDataPackageContext,
+    input: LocalOrganizationResetInput,
+    _idempotencyKey: string,
+  ) {
+    return {
+      organizationId: c.organizationId,
+      packageId: input.packageId,
+      workbookSha256: input.workbookSha256,
+      deletedRows: 2,
+      deletedByTable: { expenses: 2 },
+      preservedTables: ["organizations"],
+      auditEventId: "audit-reset-1",
+      idempotencyReplayed: false,
+    };
+  }
 }
 
 const service = (store: MemoryStore) =>
@@ -133,6 +151,91 @@ const service = (store: MemoryStore) =>
   } as never);
 
 describe("PortableDataPackageService", () => {
+  it("allows an owner reset only in an explicitly enabled loopback runtime", async () => {
+    const previous = process.env.NAAI_ERP_LOCAL_RESET_ENABLED;
+    process.env.NAAI_ERP_LOCAL_RESET_ENABLED = "1";
+    try {
+      const store = new MemoryStore();
+      const result = await service(store).resetLocalOrganization(
+        context(),
+        {
+          confirmOrganizationId: "org-a",
+          packageId: "package-1",
+          workbookSha256: "a".repeat(64),
+        },
+        "127.0.0.1:3001",
+        "reset-1",
+      );
+      expect(result.data).toMatchObject({ organizationId: "org-a", deletedRows: 2 });
+      await expect(
+        service(store).resetLocalOrganization(
+          context(),
+          {
+            confirmOrganizationId: "org-a",
+            packageId: "package-1",
+            workbookSha256: "a".repeat(64),
+          },
+          "erp.example.com",
+          "reset-2",
+        ),
+      ).rejects.toThrow("LOCAL_RESET_NOT_ALLOWED");
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      await expect(
+        service(store).resetLocalOrganization(
+          context(),
+          {
+            confirmOrganizationId: "org-a",
+            packageId: "package-1",
+            workbookSha256: "a".repeat(64),
+          },
+          "localhost:3001",
+          "reset-production",
+        ),
+      ).rejects.toThrow("LOCAL_RESET_NOT_ALLOWED");
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+      await expect(
+        service(store).resetLocalOrganization(
+          context("org-a", ["accountant"]),
+          {
+            confirmOrganizationId: "org-a",
+            packageId: "package-1",
+            workbookSha256: "a".repeat(64),
+          },
+          "localhost:3001",
+          "reset-3",
+        ),
+      ).rejects.toThrow("FORBIDDEN");
+    } finally {
+      if (previous === undefined) delete process.env.NAAI_ERP_LOCAL_RESET_ENABLED;
+      else process.env.NAAI_ERP_LOCAL_RESET_ENABLED = previous;
+    }
+  });
+
+  it("requires exact organization confirmation and a SHA-256 backup checksum", async () => {
+    expect(() =>
+      service(new MemoryStore()).parseLocalResetInput({
+        confirmOrganizationId: "org-a",
+        packageId: "package-1",
+        workbookSha256: "short",
+      }),
+    ).toThrow("VALIDATION_FAILED");
+    process.env.NAAI_ERP_LOCAL_RESET_ENABLED = "1";
+    await expect(
+      service(new MemoryStore()).resetLocalOrganization(
+        context(),
+        {
+          confirmOrganizationId: "org-b",
+          packageId: "package-1",
+          workbookSha256: "b".repeat(64),
+        },
+        "localhost",
+        "reset-mismatch",
+      ),
+    ).rejects.toThrow("ORGANIZATION_CONFIRMATION_MISMATCH");
+    delete process.env.NAAI_ERP_LOCAL_RESET_ENABLED;
+  });
   it("exports every supplied business dataset with inventory and excludes secrets/blob bytes", async () => {
     const store = new MemoryStore();
     const result = (await service(store).createExport(

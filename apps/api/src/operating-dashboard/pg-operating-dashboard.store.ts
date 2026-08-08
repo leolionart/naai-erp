@@ -102,7 +102,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
   }
 
   private async financials(org: string, q: OperatingDashboardQuery) {
-    const [monthlyResult, cash, cashAndBank, ownerCurrent, taxPolicy, readiness] =
+    const [monthlyResult, cash, cashAndBank, ownerCurrent, expenseFunding, taxPolicy, readiness] =
       await Promise.all([
         this.pool.query<{ period: string; revenue: string; expense: string }>(
           `select
@@ -172,6 +172,24 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
           [org, q.asOf],
         ),
+        this.pool.query<{
+          owner_paid: string;
+          unclassified_count: number;
+          unclassified_minor: string;
+          category_count: number;
+        }>(
+          `select
+             coalesce(sum(l.gross_minor) filter (where l.funding_treatment='owner_paid_company_cost'),0)::text owner_paid,
+             count(*) filter (where l.expense_category_code is null)::int unclassified_count,
+             coalesce(sum(l.gross_minor) filter (where l.expense_category_code is null),0)::text unclassified_minor,
+             (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
+           from expenses e
+           join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+           join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
+           where e.organization_id=$1 and e.state='posted' and e.expense_date<=$2::date
+             and j.state in ('posted','reversed')`,
+          [org, q.asOf],
+        ),
         this.pool.query<{ rate_bps: number | null }>(
           `select round(rate*10000)::int rate_bps
          from tax_code_versions
@@ -205,6 +223,16 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
     const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
     const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
+    const actualOwnerPaidCompanyCostMinor = amount(expenseFunding.rows[0]?.owner_paid);
+    const unclassifiedOwnerPaidCount = expenseFunding.rows[0]?.unclassified_count ?? 0;
+    const unclassifiedOwnerPaidMinor = amount(expenseFunding.rows[0]?.unclassified_minor);
+    const categoryCount = expenseFunding.rows[0]?.category_count ?? 0;
+    const ownerPaidClassificationStatus =
+      categoryCount === 0
+        ? ("unconfigured" as const)
+        : unclassifiedOwnerPaidCount > 0
+          ? ("review_required" as const)
+          : ("ready" as const);
     return {
       revenueMinor: revenue.toString(),
       expenseMinor: expense.toString(),
@@ -215,6 +243,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       cashAndBankMinor: cashAndBankMinor.toString(),
       ownerPayableMinor: ownerPayableMinor.toString(),
       netAvailableCashMinor: (cashAndBankMinor - ownerPayableMinor).toString(),
+      actualOwnerPaidCompanyCostMinor: actualOwnerPaidCompanyCostMinor.toString(),
+      netCompanyFundsMinor: (cashAndBankMinor - actualOwnerPaidCompanyCostMinor).toString(),
+      unclassifiedOwnerPaidCount,
+      unclassifiedOwnerPaidMinor: unclassifiedOwnerPaidMinor.toString(),
+      ownerPaidClassificationStatus,
       corporateIncomeTaxRateBps: taxPolicy.rows[0]?.rate_bps ?? null,
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,

@@ -73,8 +73,24 @@ class Store implements PortableDataImportStore {
     private readonly applySuccess = false,
   ) {}
   record?: PortableImportRecord & { parsedSheets?: readonly ParsedPortableSheet[] };
+  savedInventory?: PortableImportInventory;
   validationCalls = 0;
   applyCalls = 0;
+  async restoreEmptyOrganization() {
+    return {
+      sourceOrganizationId: "source",
+      targetOrganizationId: "org-a",
+      packageId: "package-1",
+      workbookSha256: "a".repeat(64),
+      restoredRows: 0,
+      restoredByResource: {},
+      sourceHash: "b".repeat(64),
+      targetHash: "b".repeat(64),
+      balancedJournalCount: 0,
+      auditEventId: "audit",
+      idempotencyReplayed: false,
+    };
+  }
   async getSourcePackage(c: PortableDataPackageContext, packageId: string) {
     if (!this.sourceAvailable || c.organizationId !== "org-a" || packageId !== "package-1")
       return undefined;
@@ -103,6 +119,7 @@ class Store implements PortableDataImportStore {
     };
   }
   async saveInventory(_c: PortableDataPackageContext, value: PortableImportInventory) {
+    this.savedInventory = value;
     this.record = {
       importId: value.importId,
       packageId: value.packageId,
@@ -239,6 +256,19 @@ describe("PortableDataImportService", () => {
       data: PortableImportRecord;
     };
     expect(inventory.data).toMatchObject({ packageId: "package-1", state: "inventoried" });
+    expect(store.savedInventory?.sourcePackage).toMatchObject({
+      filename: "package.xlsx",
+      manifest: { packageId: "package-1", packageHash: embeddedPackageHash },
+      schemas: [schema],
+    });
+    expect(store.savedInventory?.sourcePackage?.content).toEqual(expect.any(Buffer));
+  });
+
+  it("does not carry duplicate source bytes when the package is already registered", async () => {
+    const store = new Store(true);
+    const service = new PortableDataImportService(store);
+    await service.inventory(context, await upload(), "registered-inventory");
+    expect(store.savedInventory?.sourcePackage).toBeUndefined();
   });
 
   it("rejects cross-organization workbooks and commit precondition mismatches", async () => {
@@ -295,5 +325,34 @@ describe("PortableDataImportService", () => {
     )) as { data: PortableImportRecord };
     expect(store.applyCalls).toBe(2);
     expect(committed.data.commitResult).toMatchObject({ committed: true, applied: 2, failed: 0 });
+  });
+
+  it("guards empty-tenant restore with owner, confirmation, reason, idempotency and workbook hash", async () => {
+    const service = new PortableDataImportService(new Store());
+    const input = {
+      sourceOrganizationId: "source-org",
+      confirmTargetOrganizationId: "org-a",
+      packageId: "package-1",
+      workbookSha256: "a".repeat(64),
+      reason: "Production cutover",
+      workbookBase64: Buffer.from("not-the-declared-workbook").toString("base64"),
+      mapSourceActorsToTargetActor: true as const,
+    };
+    await expect(
+      service.restoreEmptyOrganization({ ...context, roles: ["accountant"] }, input, "restore"),
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(service.restoreEmptyOrganization(context, input)).rejects.toThrow(
+      "IDEMPOTENCY_KEY_REQUIRED",
+    );
+    await expect(
+      service.restoreEmptyOrganization(
+        context,
+        { ...input, confirmTargetOrganizationId: "wrong" },
+        "restore",
+      ),
+    ).rejects.toThrow("VALIDATION_FAILED");
+    await expect(service.restoreEmptyOrganization(context, input, "restore")).rejects.toThrow(
+      "WORKBOOK_SHA256_MISMATCH",
+    );
   });
 });

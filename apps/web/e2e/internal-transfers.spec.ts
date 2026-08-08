@@ -236,7 +236,7 @@ test("@mobile transfer list and detail keep primary actions within the viewport"
   await page.goto("http://localhost:3000/banking/internal-transfers/transfer-mobile");
   await page.waitForLoadState("networkidle");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Chi tiết chuyển nội bộ" }),
+    page.getByRole("heading", { level: 1, name: "Chi tiết chuyển tiền nội bộ" }),
   ).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

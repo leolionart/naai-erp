@@ -5,6 +5,7 @@ import {
   PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
   type PortableDataPackageManifestContract,
   type PortableDryRunResultContract,
+  type LocalOrganizationResetRequestContract,
 } from "./portable-data-packages.js";
 
 describe("portable data package contracts", () => {
@@ -54,5 +55,16 @@ describe("portable data package contracts", () => {
       rows: [],
     };
     expect(result).toMatchObject({ dryRun: true, mutationCount: 0 });
+  });
+
+  it("requires explicit organization, package and workbook hash reset evidence", () => {
+    const request: LocalOrganizationResetRequestContract = {
+      confirmOrganizationId: "naai",
+      packageId: "package-backup-1",
+      workbookSha256: "a".repeat(64),
+    };
+    expect(request).toEqual(
+      expect.objectContaining({ confirmOrganizationId: "naai", packageId: "package-backup-1" }),
+    );
   });
 });

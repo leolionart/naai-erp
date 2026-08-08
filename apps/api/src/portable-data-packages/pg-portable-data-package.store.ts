@@ -11,11 +11,37 @@ import { MASTER_DATA_RESOURCES } from "../master-data/resource-registry.js";
 import type {
   PortableDataPackageContext,
   PortableDataPackageStore,
+  LocalOrganizationResetInput,
+  LocalOrganizationResetResult,
   PortablePackageRecord,
   PortableResourceExport,
   SavePortablePackageInput,
 } from "./portable-data-package.types.js";
 import { portableMutationEntry } from "./portable-resource-mutation-matrix.js";
+
+const LOCAL_RESET_PRESERVE = new Set([
+  "organizations",
+  "organization_memberships",
+  "membership_roles",
+  "api_credentials",
+  "api_idempotency_records",
+  "portable_data_packages",
+  "accounts",
+  "fiscal_years",
+  "fiscal_periods",
+  "tax_code_versions",
+  "dimension_values",
+  "dimension_requirement_versions",
+  "statutory_account_mappings",
+  "default_mapping_versions",
+  "posting_rule_versions",
+  "accounting_workflow_policies",
+  "financial_statement_mapping_versions",
+  "financial_statement_mapping_lines",
+  "executive_metric_policies",
+  "roi_definitions",
+]);
+const quoteIdentifier = (value: string) => `"${value.replaceAll('"', '""')}"`;
 
 type ColumnRow = Readonly<{
   table_name: string;
@@ -115,6 +141,7 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
         `select coalesce(jsonb_agg(jsonb_build_object(
           'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,
           'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,
+          'expenseCategoryCode',l.expense_category_code,'fundingTreatment',l.funding_treatment,
           'vatAccountCode',l.vat_account_code,'dimensions',l.dimensions,
           'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,
           'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
@@ -148,7 +175,12 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
     const resources: PortableResourceExport[] = [];
     for (const [tableName, sourceColumns] of await this.columnInventory()) {
       const resourceType = MASTER_RESOURCE_BY_TABLE.get(tableName) ?? tableName;
-      const excludedReason = EXCLUDED_RESOURCES[tableName];
+      const excludedReason =
+        EXCLUDED_RESOURCES[tableName] ??
+        (tableName.startsWith("evidence_") ||
+        sourceColumns.some((column) => BINARY_TYPES.has(column.udt_name))
+          ? "Paperless owns source files; binary/evidence payload tables are intentionally not restored"
+          : undefined);
       if (excludedReason) {
         resources.push({
           inventory: {
@@ -400,5 +432,164 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           contentHash: String(row.content_hash),
         }
       : undefined;
+  }
+
+  async resetLocalOrganization(
+    context: PortableDataPackageContext,
+    input: LocalOrganizationResetInput,
+    idempotencyKey: string,
+  ): Promise<LocalOrganizationResetResult> {
+    const operation = "portable-data-package:local-organization-reset";
+    const requestHash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `${context.organizationId}:${operation}`,
+      ]);
+      const replay = await client.query<{
+        request_hash: string;
+        response_body: LocalOrganizationResetResult;
+      }>(
+        `select request_hash,response_body from api_idempotency_records
+         where organization_id=$1 and idempotency_key=$2 for update`,
+        [context.organizationId, idempotencyKey],
+      );
+      if (replay.rows[0]) {
+        if (replay.rows[0].request_hash !== requestHash) throw new Error("IDEMPOTENCY_CONFLICT");
+        await client.query("commit");
+        return { ...replay.rows[0].response_body, idempotencyReplayed: true };
+      }
+      const backup = await client.query<{
+        content_hash: string;
+        manifest: {
+          organizationId?: string;
+          workbookSha256?: string;
+          sheets?: unknown[];
+          totalSheetCount?: number;
+        };
+        content: Buffer;
+        size_bytes: string;
+      }>(
+        `select content_hash,manifest,content,size_bytes::text size_bytes
+         from portable_data_packages where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, input.packageId],
+      );
+      const packageRow = backup.rows[0];
+      if (!packageRow) throw new Error("BACKUP_PACKAGE_NOT_FOUND");
+      const manifest = packageRow.manifest;
+      if (
+        packageRow.content_hash !== input.workbookSha256 ||
+        manifest.workbookSha256 !== input.workbookSha256 ||
+        manifest.organizationId !== context.organizationId
+      )
+        throw new Error("BACKUP_CHECKSUM_MISMATCH");
+      if (
+        !packageRow.content?.length ||
+        Number(packageRow.size_bytes) !== packageRow.content.length ||
+        !Array.isArray(manifest.sheets) ||
+        manifest.sheets.length === 0 ||
+        manifest.totalSheetCount !==
+          manifest.sheets.filter(
+            (sheet) =>
+              Boolean(sheet) &&
+              typeof sheet === "object" &&
+              !(sheet as { excluded?: boolean }).excluded,
+          ).length
+      )
+        throw new Error("BACKUP_PACKAGE_INCOMPLETE");
+
+      const catalog = await client.query<{ table_name: string }>(
+        `select distinct table_name from information_schema.columns
+         where table_schema='public' and column_name='organization_id' order by table_name`,
+      );
+      const tables = catalog.rows
+        .map((row) => row.table_name)
+        .filter((table) => !LOCAL_RESET_PRESERVE.has(table));
+      const dependencies = await client.query<{ child_table: string; parent_table: string }>(
+        `select child.relname child_table,parent.relname parent_table
+         from pg_constraint fk
+         join pg_class child on child.oid=fk.conrelid
+         join pg_class parent on parent.oid=fk.confrelid
+         join pg_namespace ns on ns.oid=child.relnamespace
+         where fk.contype='f' and ns.nspname='public'`,
+      );
+      const tableSet = new Set(tables);
+      const children = new Map<string, Set<string>>();
+      for (const edge of dependencies.rows) {
+        if (!tableSet.has(edge.child_table) || !tableSet.has(edge.parent_table)) continue;
+        const list = children.get(edge.parent_table) ?? new Set<string>();
+        list.add(edge.child_table);
+        children.set(edge.parent_table, list);
+      }
+      const ordered: string[] = [];
+      const visited = new Set<string>();
+      const visiting = new Set<string>();
+      const visit = (table: string) => {
+        if (visited.has(table) || visiting.has(table)) return;
+        visiting.add(table);
+        for (const child of children.get(table) ?? []) visit(child);
+        visiting.delete(table);
+        visited.add(table);
+        ordered.push(table);
+      };
+      for (const table of tables) visit(table);
+
+      // This guarded local transaction is the only path allowed to disable immutable-history
+      // user triggers. Foreign-key triggers remain active and are honored by child-first ordering.
+      const deletedByTable: Record<string, number> = {};
+      for (const table of ordered) {
+        await client.query(`alter table ${quoteIdentifier(table)} disable trigger user`);
+        const deleted = await client.query(
+          `delete from ${quoteIdentifier(table)} where organization_id=$1`,
+          [context.organizationId],
+        );
+        await client.query(`alter table ${quoteIdentifier(table)} enable trigger user`);
+        if ((deleted.rowCount ?? 0) > 0) deletedByTable[table] = deleted.rowCount ?? 0;
+      }
+      const auditEventId = randomUUID();
+      const deletedRows = Object.values(deletedByTable).reduce((sum, count) => sum + count, 0);
+      await client.query(
+        `insert into resource_audit_events
+         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)
+         values ($1,$2,'organization',$1,1,'local_reset',$3,$4,$5)`,
+        [
+          context.organizationId,
+          auditEventId,
+          context.actorId,
+          context.correlationId,
+          {
+            packageId: input.packageId,
+            workbookSha256: input.workbookSha256,
+            deletedRows,
+            deletedByTable,
+            preservedTables: [...LOCAL_RESET_PRESERVE].sort(),
+          },
+        ],
+      );
+      const response: LocalOrganizationResetResult = {
+        organizationId: context.organizationId,
+        packageId: input.packageId,
+        workbookSha256: input.workbookSha256,
+        deletedRows,
+        deletedByTable,
+        preservedTables: [...LOCAL_RESET_PRESERVE].sort(),
+        auditEventId,
+        idempotencyReplayed: false,
+      };
+      await client.query(
+        `insert into api_idempotency_records
+         (organization_id,idempotency_key,operation,request_hash,response_body)
+         values ($1,$2,$3,$4,$5)`,
+        [context.organizationId, idempotencyKey, operation, requestHash, response],
+      );
+      await client.query("commit");
+      return response;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }

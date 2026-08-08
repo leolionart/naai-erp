@@ -147,6 +147,11 @@ export class PgMasterDataStore {
         const values = [...whereValues, ...columns.map((column) => changes[column])];
         const set = columns
           .map((column, index) => `${quote(column)}=$${whereValues.length + index + 1}`)
+          .concat(
+            definition.versionColumn
+              ? `${quote(definition.versionColumn)}=${quote(definition.versionColumn)}+1`
+              : [],
+          )
           .join(",");
         const result = await client.query<Record<string, unknown>>(
           `update ${quote(definition.table)} set ${set} where ${where} returning *`,

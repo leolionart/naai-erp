@@ -60,6 +60,35 @@ describe("ERP-300 CommercialDocumentService", () => {
     const result = await service.create(context, sales, "idem-1");
     expect(result.data).toMatchObject({ documentId: "sales-1", state: "draft" });
   });
+  it("keeps purchase VAT unreviewed while an imported invoice remains a draft", async () => {
+    const store = {
+      create: vi.fn().mockResolvedValue({ documentId: "purchase-1", state: "draft" }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    await expect(
+      service.create(
+        context,
+        {
+          ...sales,
+          type: "purchase_invoice",
+          controlAccountCode: "331-AP",
+          lines: sales.lines.map((line) => ({
+            ...line,
+            primaryAccountCode: "642-OPEX",
+            taxAccountCode: "1331-VAT",
+            allocations: [
+              {
+                id: "purchase-allocation-1",
+                amountMinor: line.netMinor,
+                dimensions: { taxState: "unreviewed", source: "erp851-staging" },
+              },
+            ],
+          })),
+        },
+        "purchase-import-1",
+      ),
+    ).resolves.toMatchObject({ data: { state: "draft" } });
+  });
   it("restricts migration source expenses to purchase invoices", async () => {
     const service = new CommercialDocumentService({} as never, {} as never);
     await expect(

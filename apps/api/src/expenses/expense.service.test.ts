@@ -178,6 +178,45 @@ describe("ERP-310 ExpenseService", () => {
       ).rejects.toThrow("FORBIDDEN");
     });
   });
+  describe("discard command", () => {
+    it("delegates a versioned, reasoned draft discard", async () => {
+      const store = {
+        discard: vi.fn().mockResolvedValue({ expenseId: "e-1", state: "discarded" }),
+      };
+      const service = new ExpenseService(store as never, {} as never);
+      const result = await service.discard(
+        context,
+        "e-1",
+        "1",
+        "Imported payroll was inferred",
+        "idem",
+      );
+      expect(store.discard).toHaveBeenCalledWith(
+        context,
+        "e-1",
+        "1",
+        "Imported payroll was inferred",
+        "idem",
+      );
+      expect(result.data).toMatchObject({ expenseId: "e-1", state: "discarded" });
+    });
+
+    it("requires write permission, version, reason and idempotency", async () => {
+      const service = new ExpenseService({} as never, {} as never);
+      await expect(
+        service.discard({ ...context, roles: ["viewer"] }, "e-1", "1", "reason", "idem"),
+      ).rejects.toThrow("FORBIDDEN");
+      await expect(service.discard(context, "e-1", "", "reason", "idem")).rejects.toThrow(
+        "VERSION_CONFLICT",
+      );
+      await expect(service.discard(context, "e-1", "1", "", "idem")).rejects.toThrow(
+        "VALIDATION_FAILED",
+      );
+      await expect(service.discard(context, "e-1", "1", "reason")).rejects.toThrow(
+        "IDEMPOTENCY_KEY_REQUIRED",
+      );
+    });
+  });
   it("delegates posted expense reverse_replace as one canonical store transaction", async () => {
     const store = {
       reverseReplace: vi.fn().mockResolvedValue({

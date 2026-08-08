@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { ExpenseService } from "./expense.service.js";
 import type { CreateExpenseInput, ExpenseReviewInput } from "./expense.types.js";
@@ -56,6 +67,23 @@ export class ExpenseController {
     @Headers("idempotency-key") key?: string,
   ) {
     return this.service.create(await this.context(org, auth, corr), input, key);
+  }
+  @Delete(":id") async discard(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: { reason?: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.discard(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input.reason ?? "",
+      key,
+    );
   }
   @Post(":id/review") async review(
     @Param("organizationId") org: string,

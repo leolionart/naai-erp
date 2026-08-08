@@ -15,9 +15,16 @@
 - The added salary, freelance and contract-dev records are direct-cost and expense examples only.
   Shared payroll remains on operating expense and is not presented as project cost until a canonical
   overhead allocation run exists, preventing double counting or a false fully-loaded claim.
-- This evidence proves the contract, OpenAPI and CLI routing for accounting-list workbooks. Runtime
-  workbook content and live database reconciliation remain dependent on the separately owned API
-  implementation and must pass its integration tests before ERP-841 is marked done.
+- Runtime workbook content was verified through authenticated local API calls and ExcelJS readback.
+  The legacy ERP-650 integration fixture still assumes a freshly initialized database and collides
+  with its own fixed organization IDs on the long-lived demo database; it should be made isolated or
+  idempotent before being used as a repeatable shared-database gate.
 - The current unified listings are a frontend composition over existing versioned APIs. They use
   explicit source tags and no fuzzy matching, but server-side unified pagination and a first-class
   recognition-to-invoice relationship would require dedicated read-model endpoints later.
+- Cash-fund direction currently derives from the exact signed `amountMinor` returned by the banking
+  API. The API has no server-side account-kind/direction filter or pagination, so the web workspace
+  filters the complete organization transaction list client-side; a dedicated paginated read model
+  will be needed if transaction volume becomes large.
+- There is no canonical manual receipt/payment-voucher create endpoint yet. The new Sổ quỹ is a
+  complete view of imported cash-account transactions, not a substitute manual journal workflow.

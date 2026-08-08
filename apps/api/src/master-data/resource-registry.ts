@@ -5,6 +5,7 @@ export type ResourceDefinition = Readonly<{
   writableColumns: readonly string[];
   mutableColumns: readonly string[];
   deactivate?: Readonly<{ column: string; value: string | boolean }>;
+  versionColumn?: string;
 }>;
 
 export const MASTER_DATA_RESOURCES = {
@@ -100,6 +101,15 @@ export const MASTER_DATA_RESOURCES = {
     writableColumns: ["kind", "code", "name", "is_active"],
     mutableColumns: ["name", "is_active"],
     deactivate: { column: "is_active", value: false },
+  },
+  "expense-categories": {
+    table: "expense_categories",
+    organizationColumn: "organization_id",
+    keyColumns: ["code"],
+    writableColumns: ["code", "name", "funding_treatment", "is_active"],
+    mutableColumns: ["name", "funding_treatment", "is_active"],
+    deactivate: { column: "is_active", value: false },
+    versionColumn: "version",
   },
   "dimension-requirements": {
     table: "dimension_requirement_versions",

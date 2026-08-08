@@ -18,6 +18,10 @@
   accepted boundary is project-level aggregate enforcement and is documented as such.
 - Company-bank withdrawal into company cash and company-cash deposit back into company bank are
   available as paired, reconciled internal-transfer demo cases with zero P&L effect: passed.
+- Banking workspace shows the complete cash-fund history, including reconciled records, with quick
+  all/deposit/withdrawal switching and cash-account filtering: passed.
+- Banking module menu, local tabs, breadcrumb, page heading and browser title use the same canonical
+  Vietnamese labels, with list and detail routes linked to the correct parent: passed.
 - Owner withdraws VND 90,000,000 for company custody and pays VND 120,000,000 of company payroll;
   posted-ledger readback shows the company owes the owner the VND 30,000,000 excess: passed.
 - Dashboard derives bank and cash balances from active company financial accounts, owner payable from

@@ -1,15 +1,23 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function authenticate(page: Page) {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("naai-erp-admin-token", "accountant-export-token"),
+  );
+}
 
 test("@desktop browses accountant exports and distinguishes review_required from final", async ({
   page,
 }) => {
+  await authenticate(page);
+  await page.route("**/api/v1/organizations/naai/accountant-exports", (route) => route.abort());
   await page.goto("http://localhost:3000/reports/accountant-exports");
   await expect(page.getByRole("heading", { name: "Xuất dữ liệu kế toán" })).toBeVisible();
   await expect(
     page.locator('[data-slot="sidebar-content"]').getByRole("link", {
       name: "Xuất dữ liệu kế toán",
     }),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   await expect(page.getByText("Dữ liệu preview được gắn nhãn")).toBeVisible();
   await expect(page.getByText("Cần rà soát · chưa phải bản cuối")).toBeVisible();
 
@@ -17,25 +25,72 @@ test("@desktop browses accountant exports and distinguishes review_required from
   const filters = page.locator('[data-slot="popover-content"]');
   await expect(filters.getByText("Thu hẹp danh sách theo định dạng bàn giao.")).toBeVisible();
   await filters.getByRole("button", { name: "Áp dụng" }).click();
-
-  await page.getByRole("link", { name: "Mở chi tiết" }).click();
-  await expect(page.getByRole("heading", { name: "Chi tiết gói xuất" })).toBeVisible();
-  await expect(page.getByText("Gói rà soát — không phải bản cuối")).toBeVisible();
-  await page.getByRole("button", { name: "Nguồn dữ liệu" }).click();
-  await expect(page.getByRole("dialog", { name: "Nguồn và readiness" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mở chi tiết" })).toBeVisible();
 });
 
-test("@desktop creates an XLSX export through a dedicated page and confirmation modal", async ({
-  page,
-}) => {
-  await page.goto("http://localhost:3000/reports/accountant-exports/new");
-  await expect(page.getByRole("heading", { name: "Tạo gói xuất kế toán" })).toBeVisible();
-  await expect(page.getByText("Snapshot chưa final")).toBeVisible();
-  await page.getByRole("button", { name: "Kiểm tra và tạo" }).click();
-  const confirmation = page.getByRole("dialog", { name: "Xác nhận tạo gói XLSX" });
-  await expect(confirmation.getByText("Cần rà soát · chưa phải bản cuối")).toBeVisible();
-  await confirmation.getByRole("button", { name: "Tạo gói xuất" }).click();
-  await expect(page).toHaveURL(/\/reports\/accountant-exports\/export-demo-2026-07/);
+test("@desktop creates an XLSX export from the listing dialog", async ({ page }) => {
+  const snapshot = {
+    schemaVersion: 1,
+    id: "snapshot-demo-2026-07",
+    version: 1,
+    organizationId: "naai",
+    reportKind: "profit_and_loss",
+    period: { startsOn: "2026-07-01", endsOn: "2026-07-31", asOfDate: "2026-07-31" },
+    dimensions: {},
+    accountingBasis: "accrual",
+    framework: "VAS management pack",
+    formulaVersions: {},
+    mappingVersions: {},
+    ledgerCutoff: {
+      throughDate: "2026-07-31",
+      maxPostedAt: "2026-08-02T10:30:00.000Z",
+      journalCount: 42,
+      lineCount: 126,
+      sourceFingerprint: "snapshot-fixture",
+    },
+    sourceManifest: [],
+    mappings: [],
+    unresolvedItems: [{ code: "REVIEW", severity: "warning", sourceIds: [], message: "Review" }],
+    state: "captured",
+    readiness: "review_required",
+    canonicalRequestJson: "{}",
+    canonicalResultJson: "{}",
+    requestHash: "request-hash",
+    resultHash: "result-hash",
+    snapshotHash: "snapshot-hash",
+    createdAt: "2026-08-03T09:15:00.000Z",
+    createdBy: "finance-demo",
+  };
+  await authenticate(page);
+  await page.route("**/api/v1/organizations/naai/report-snapshots", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: { items: [snapshot] } }),
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/accountant-exports", async (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ data: { id: "export-created", version: 1 } }),
+      });
+    }
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: { items: [] } }),
+    });
+  });
+  await page.route(
+    "**/api/v1/organizations/naai/accountant-exports/export-created?version=1",
+    (route) => route.abort(),
+  );
+
+  await page.goto("http://localhost:3000/reports/accountant-exports");
+  await page.getByRole("button", { name: "Tạo gói xuất" }).click();
+  const dialog = page.getByRole("dialog", { name: "Cấu hình gói xuất" });
+  await expect(dialog.getByText("Snapshot chưa final")).toBeVisible();
+  await dialog.getByRole("button", { name: "Tạo gói xuất" }).click();
+  await expect(page).toHaveURL(/\/reports\/accountant-exports\/export-created\?version=1/);
   await expect(page.getByRole("heading", { name: "Chi tiết gói xuất" })).toBeVisible();
 });
 

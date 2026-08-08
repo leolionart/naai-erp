@@ -25,6 +25,24 @@ export class PortableDataPackageController {
     return this.service.createExport(context, this.service.parseExportInput(body), idempotencyKey);
   }
 
+  @Post("local-admin/reset")
+  async resetLocalOrganization(
+    @Param("organizationId") organizationId: string,
+    @Body() body: Record<string, unknown>,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+    @Headers("host") host?: string,
+  ) {
+    const context = await this.context(organizationId, authorization, correlationId);
+    return this.service.resetLocalOrganization(
+      context,
+      this.service.parseLocalResetInput(body),
+      host,
+      idempotencyKey,
+    );
+  }
+
   @Get("exports/:packageId")
   async get(
     @Param("organizationId") organizationId: string,

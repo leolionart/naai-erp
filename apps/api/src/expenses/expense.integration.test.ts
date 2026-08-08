@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../bootstrap.js";
@@ -8,36 +8,37 @@ const describeIntegration = enabled ? describe : describe.skip;
 
 describeIntegration("ERP-310 expense workflow", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const organizationId = `org-exp-${randomUUID()}`;
   let app: Awaited<ReturnType<typeof createApp>>;
-  const integrationToken = "erp310-integration";
-  const accountantToken = "erp310-accountant";
+  const integrationToken = `erp310-integration-${organizationId}`;
+  const accountantToken = `erp310-accountant-${organizationId}`;
 
   beforeAll(async () => {
     await pool.query(`
       insert into organizations (id,legal_name,base_currency,timezone)
-      values ('org-exp','Expense Org','VND','Asia/Ho_Chi_Minh');
+      values ('${organizationId}','Expense Org','VND','Asia/Ho_Chi_Minh');
       insert into fiscal_years (organization_id,year,starts_on,ends_on)
-      values ('org-exp',2026,'2026-01-01','2026-12-31');
+      values ('${organizationId}',2026,'2026-01-01','2026-12-31');
       insert into fiscal_periods (organization_id,fiscal_year,period_number,starts_on,ends_on)
-      values ('org-exp',2026,8,'2026-08-01','2026-08-31');
+      values ('${organizationId}',2026,8,'2026-08-01','2026-08-31');
       insert into parties (organization_id,id,display_name,status)
-      values ('org-exp','EMP-01','Employee One','active'),
-             ('org-exp','SUP-01','Supplier One','active');
+      values ('${organizationId}','EMP-01','Employee One','active'),
+             ('${organizationId}','SUP-01','Supplier One','active');
       insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting)
-      values ('org-exp','111-CASH','Petty cash','asset',true,false),
-             ('org-exp','331-AP','Accounts payable','liability',true,false),
-             ('org-exp','334-EMP','Employee payable','liability',true,false),
-             ('org-exp','642-OPEX','Operating expense','expense',false,true),
-             ('org-exp','1331-VAT','Deductible VAT','asset',true,false);
+      values ('${organizationId}','111-CASH','Petty cash','asset',true,false),
+             ('${organizationId}','331-AP','Accounts payable','liability',true,false),
+             ('${organizationId}','334-EMP','Employee payable','liability',true,false),
+             ('${organizationId}','642-OPEX','Operating expense','expense',false,true),
+             ('${organizationId}','1331-VAT','Deductible VAT','asset',true,false);
     `);
     const hashes = [integrationToken, accountantToken].map((token) =>
       createHash("sha256").update(token).digest("hex"),
     );
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles) values
-       ('org-exp','exp-integration','maker',$1,'["integration"]'),
-       ('org-exp','exp-accountant','accountant',$2,'["accountant","approver"]')`,
-      hashes,
+       ($3,'exp-integration','maker',$1,'["integration"]'),
+       ($3,'exp-accountant','accountant',$2,'["accountant","approver"]')`,
+      [...hashes, organizationId],
     );
     app = await createApp();
     await app.init();
@@ -56,7 +57,7 @@ describeIntegration("ERP-310 expense workflow", () => {
   const command = (id: string, action: string, token: string, key: string) =>
     app.inject({
       method: "POST",
-      url: `/api/v1/organizations/org-exp/expenses/${id}/${action}`,
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}/${action}`,
       headers: headers(token, key),
       payload: { reason: `${action} reviewed` },
     });
@@ -69,10 +70,153 @@ describeIntegration("ERP-310 expense workflow", () => {
   ) =>
     app.inject({
       method: "POST",
-      url: `/api/v1/organizations/org-exp/expenses/${id}/review`,
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}/review`,
       headers: headers(accountantToken, key),
       payload: { axis, lineNumber: 1, state, eligibleMinor, reason: `${axis} review` },
     });
+
+  it("manages an organization category and snapshots its treatment on the expense line", async () => {
+    const categoryUrl = `/api/v1/organizations/${organizationId}/master-data/expense-categories`;
+    const category = await app.inject({
+      method: "POST",
+      url: categoryUrl,
+      headers: headers(integrationToken, "category-create"),
+      payload: {
+        data: {
+          code: "DOMAIN",
+          name: "Domain and hosting",
+          funding_treatment: "owner_paid_company_cost",
+          is_active: true,
+        },
+      },
+    });
+    expect(category.statusCode, category.body).toBe(201);
+    const categoryKey = Buffer.from(JSON.stringify({ code: "DOMAIN" })).toString("base64url");
+    const id = "expense-category-snapshot";
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, `${id}-create`),
+      payload: {
+        id,
+        expenseClass: "invoice_backed",
+        expenseDate: "2026-08-01",
+        businessPurpose: "Domain renewal",
+        currency: "VND",
+        netMinor: "1000000",
+        vatMinor: "0",
+        grossMinor: "1000000",
+        counterAccountCode: "334-EMP",
+        lines: [
+          {
+            description: "Domain renewal",
+            netMinor: "1000000",
+            vatMinor: "0",
+            grossMinor: "1000000",
+            postingAccountCode: "642-OPEX",
+            expenseCategoryCode: "DOMAIN",
+            allocations: [
+              { id: `${id}-a`, amountMinor: "1000000", dimensions: { costCenter: "ADMIN" } },
+            ],
+          },
+        ],
+      },
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const changed = await app.inject({
+      method: "PATCH",
+      url: `${categoryUrl}/${categoryKey}`,
+      headers: {
+        ...headers(integrationToken, "category-update"),
+        "if-match": category.json().data.mutation.resourceVersion,
+      },
+      payload: { data: { funding_treatment: "tax_only_non_cash" } },
+    });
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect(changed.json().data.resource.version).toBe("2");
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(detail.json().data.lines[0]).toMatchObject({
+      expenseCategoryCode: "DOMAIN",
+      fundingTreatment: "owner_paid_company_cost",
+    });
+  });
+
+  it("discards only a version-matched draft and replays idempotently", async () => {
+    const id = "expense-inferred-payroll-2023";
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, `${id}-create`),
+      payload: {
+        id,
+        expenseClass: "payroll_personnel",
+        expenseDate: "2026-08-01",
+        businessPurpose: "Inferred payroll draft to discard",
+        currency: "VND",
+        netMinor: "1000000",
+        vatMinor: "0",
+        grossMinor: "1000000",
+        counterAccountCode: "334-EMP",
+        lines: [
+          {
+            description: "Inferred payroll",
+            netMinor: "1000000",
+            vatMinor: "0",
+            grossMinor: "1000000",
+            postingAccountCode: "642-OPEX",
+            allocations: [
+              {
+                id: `${id}-allocation`,
+                amountMinor: "1000000",
+                dimensions: { source: "inferred" },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(created.statusCode, created.body).toBe(201);
+
+    const discardRequest = {
+      method: "DELETE" as const,
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}`,
+      headers: {
+        ...headers(integrationToken, `${id}-discard`),
+        "if-match": "1",
+      },
+      payload: { reason: "2023 payroll was inferred and is outside confirmed scope" },
+    };
+    const discarded = await app.inject(discardRequest);
+    expect(discarded.statusCode, discarded.body).toBe(200);
+    expect(discarded.json().data).toMatchObject({
+      expenseId: id,
+      state: "discarded",
+      idempotencyReplayed: false,
+    });
+    const replay = await app.inject(discardRequest);
+    expect(replay.statusCode, replay.body).toBe(200);
+    expect(replay.json().data.idempotencyReplayed).toBe(true);
+    expect(
+      (
+        await pool.query(
+          "select count(*)::int count from expenses where organization_id=$1 and id=$2",
+          [organizationId, id],
+        )
+      ).rows[0]?.count,
+    ).toBe(0);
+    expect(
+      (
+        await pool.query(
+          "select count(*)::int count from resource_audit_events where organization_id=$1 and resource_type='expense' and resource_key=$2 and action='discard'",
+          [organizationId, id],
+        )
+      ).rows[0]?.count,
+    ).toBe(1);
+  });
 
   it("books and posts a non-invoice expense while keeping CIT and VAT ineligible", async () => {
     const input = {
@@ -100,7 +244,7 @@ describeIntegration("ERP-310 expense workflow", () => {
     };
     const created = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-exp/expenses",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
       headers: headers(integrationToken, "no-invoice-create"),
       payload: input,
     });
@@ -108,7 +252,7 @@ describeIntegration("ERP-310 expense workflow", () => {
 
     const filtered = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-exp/expenses?class=non_documented",
+      url: `/api/v1/organizations/${organizationId}/expenses?class=non_documented`,
       headers: { authorization: `Bearer ${integrationToken}` },
     });
     expect(filtered.statusCode, filtered.body).toBe(200);
@@ -120,7 +264,7 @@ describeIntegration("ERP-310 expense workflow", () => {
 
     const detail = await app.inject({
       method: "GET",
-      url: `/api/v1/organizations/org-exp/expenses/${input.id}`,
+      url: `/api/v1/organizations/${organizationId}/expenses/${input.id}`,
       headers: { authorization: `Bearer ${integrationToken}` },
     });
     expect(detail.statusCode, detail.body).toBe(200);
@@ -128,7 +272,7 @@ describeIntegration("ERP-310 expense workflow", () => {
 
     const replay = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-exp/expenses",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
       headers: headers(integrationToken, "no-invoice-create"),
       payload: input,
     });
@@ -157,8 +301,8 @@ describeIntegration("ERP-310 expense workflow", () => {
       credit_minor: string | null;
     }>(
       `select account_code,debit_minor::text,credit_minor::text from journal_lines
-       where organization_id='org-exp' and journal_id=$1 order by line_number`,
-      [journalId],
+       where organization_id=$1 and journal_id=$2 order by line_number`,
+      [organizationId, journalId],
     );
     expect(lines.rows).toEqual([
       { account_code: "642-OPEX", debit_minor: "3000000", credit_minor: null },
@@ -166,8 +310,8 @@ describeIntegration("ERP-310 expense workflow", () => {
     ]);
     await expect(
       pool.query(
-        "update expense_lines set gross_minor=1 where organization_id='org-exp' and expense_id=$1 and line_number=1",
-        [input.id],
+        "update expense_lines set gross_minor=1 where organization_id=$1 and expense_id=$2 and line_number=1",
+        [organizationId, input.id],
       ),
     ).rejects.toMatchObject({ code: "55000" });
   });
@@ -223,7 +367,7 @@ describeIntegration("ERP-310 expense workflow", () => {
         (
           await app.inject({
             method: "POST",
-            url: "/api/v1/organizations/org-exp/expenses",
+            url: `/api/v1/organizations/${organizationId}/expenses`,
             headers: headers(integrationToken, `${item.id}-create`),
             payload,
           })
@@ -238,7 +382,7 @@ describeIntegration("ERP-310 expense workflow", () => {
       if (item.expenseClass === "invoice_backed") {
         const evidence = await app.inject({
           method: "POST",
-          url: "/api/v1/organizations/org-exp/evidence",
+          url: `/api/v1/organizations/${organizationId}/evidence`,
           headers: headers(accountantToken, `${item.id}-evidence`),
           payload: {
             subjectType: "expense",
@@ -255,7 +399,7 @@ describeIntegration("ERP-310 expense workflow", () => {
           (
             await app.inject({
               method: "POST",
-              url: `/api/v1/organizations/org-exp/evidence/${evidenceId}/review`,
+              url: `/api/v1/organizations/${organizationId}/evidence/${evidenceId}/review`,
               headers: headers(accountantToken, `${item.id}-evidence-review`),
               payload: { state: "accepted", reason: "Invoice checked" },
             })
@@ -269,8 +413,8 @@ describeIntegration("ERP-310 expense workflow", () => {
       expect(posted.statusCode).toBe(201);
       const journal = await pool.query<{ account_code: string; debit: string; credit: string }>(
         `select account_code,coalesce(debit_minor,0)::text debit,coalesce(credit_minor,0)::text credit
-         from journal_lines where organization_id='org-exp' and journal_id=$1 order by line_number`,
-        [posted.json().data.journalId],
+         from journal_lines where organization_id=$1 and journal_id=$2 order by line_number`,
+        [organizationId, posted.json().data.journalId],
       );
       if (item.id === "expense-invoice") {
         expect(journal.rows).toEqual([

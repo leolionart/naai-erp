@@ -29,6 +29,7 @@ import type {
   ReportKind,
   SnapshotInput,
 } from "./report-export.types.js";
+import { createAccountingListWorkbook } from "./accounting-list-workbook.js";
 
 type SnapshotRow = Record<string, unknown> & {
   id: string;
@@ -559,7 +560,7 @@ export class PgReportExportStore {
         ? []
         : (
             await this.pool.query(
-              `select d.id,d.type::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.original_document_id "originalDocumentId",d.reason,d.journal_id "journalId",d.version::text version
+              `select d.id,d.type::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.original_document_id "originalDocumentId",d.reason,d.journal_id "journalId",d.version::text version
        from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
        where d.organization_id=$1 and d.document_date between $2::date and $3::date and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) and ($4::text is null or d.state::text=$4) and ($5::text is null or d.party_id=$5)
        and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
@@ -594,7 +595,7 @@ export class PgReportExportStore {
         ? []
         : (
             await this.pool.query(
-              `select d.id,'purchase_invoice'::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.party_id "partyId",p.display_name "partyName",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.journal_id "journalId",d.version::text version from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id where d.organization_id=$1 and d.type='purchase_invoice' and d.document_date between $2::date and $3::date and ($4::text is null or d.state::text=$4) and ($5::text is null or d.party_id=$5) and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
+              `select d.id,'purchase_invoice'::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.journal_id "journalId",d.version::text version from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id where d.organization_id=$1 and d.type='purchase_invoice' and d.document_date between $2::date and $3::date and ($4::text is null or d.state::text=$4) and ($5::text is null or d.party_id=$5) and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
               [
                 c.organizationId,
                 filters.startsOn,
@@ -610,7 +611,7 @@ export class PgReportExportStore {
         ? []
         : (
             await this.pool.query(
-              `select e.id,'expense'::text "sourceType",'missing'::text "invoicePresence",e.state::text state,null::text "documentNumber",e.payee_party_id "partyId",p.display_name "partyName",e.expense_date::text "recordDate",null::text "dueDate",e.currency,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",e.counter_account_code "accountCode",e.journal_id "journalId",e.version::text version,e.expense_class::text "expenseClass",e.business_purpose "businessPurpose",e.cit_state::text "citState",e.vat_state::text "vatState" from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id where e.organization_id=$1 and e.expense_date between $2::date and $3::date and ($4::text is null or e.state::text=$4) and ($5::text is null or e.payee_party_id=$5) and ($6::text is null or exists(select 1 from expense_lines l left join expense_allocations a on a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number where l.organization_id=e.organization_id and l.expense_id=e.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by e.expense_date,e.id`,
+              `select e.id,'expense'::text "sourceType",'missing'::text "invoicePresence",e.state::text state,null::text "documentNumber",e.payee_party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",e.expense_date::text "recordDate",null::text "dueDate",e.currency,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",e.counter_account_code "accountCode",e.journal_id "journalId",e.version::text version,e.expense_class::text "expenseClass",e.business_purpose "businessPurpose",e.cit_state::text "citState",e.vat_state::text "vatState" from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id where e.organization_id=$1 and e.expense_date between $2::date and $3::date and ($4::text is null or e.state::text=$4) and ($5::text is null or e.payee_party_id=$5) and ($6::text is null or exists(select 1 from expense_lines l left join expense_allocations a on a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number where l.organization_id=e.organization_id and l.expense_id=e.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by e.expense_date,e.id`,
               [
                 c.organizationId,
                 filters.startsOn,
@@ -656,78 +657,19 @@ export class PgReportExportStore {
     records: Record<string, unknown>[],
     lines: Record<string, unknown>[],
   ) {
-    const sums = records.reduce(
-      (a: { net: bigint; tax: bigint; gross: bigint }, x) => ({
-        net: a.net + BigInt(String(x.netMinor ?? 0)),
-        tax: a.tax + BigInt(String(x.taxMinor ?? 0)),
-        gross: a.gross + BigInt(String(x.grossMinor ?? 0)),
-      }),
-      { net: 0n, tax: 0n, gross: 0n },
+    const organization = await this.pool.query<{ legal_name: string }>(
+      `select legal_name from organizations where id=$1`,
+      [c.organizationId],
     );
-    const sheets = [
-      this.tableSheet(
-        "summary",
-        "Summary",
-        [
-          {
-            exportKind: kind,
-            organizationId: c.organizationId,
-            generatedBy: c.actorId,
-            recordCount: String(records.length),
-            netMinor: sums.net.toString(),
-            taxMinor: sums.tax.toString(),
-            grossMinor: sums.gross.toString(),
-          },
-        ],
-        [
-          "exportKind",
-          "organizationId",
-          "generatedBy",
-          "recordCount",
-          "netMinor",
-          "taxMinor",
-          "grossMinor",
-        ],
-      ),
-      this.tableSheet("records", "Records", records, [
-        "id",
-        "sourceType",
-        "invoicePresence",
-        "state",
-        "recordDate",
-        "partyId",
-        "currency",
-        "netMinor",
-        "taxMinor",
-        "grossMinor",
-      ]),
-      this.tableSheet("lines", "Lines", lines, [
-        "recordId",
-        "sourceType",
-        "lineNumber",
-        "description",
-        "netMinor",
-        "taxMinor",
-        "grossMinor",
-        "dimensions",
-      ]),
-      this.tableSheet(
-        "filters",
-        "Filters",
-        Object.entries(filters).map(([field, value]) => ({ field, value })),
-        ["field", "value"],
-      ),
-    ];
-    const content = await this.xlsx({
-      schemaVersion: 1,
-      title: kind,
-      currency: "VND",
-      snapshotId: "filtered",
-      snapshotVersion: 1,
-      snapshotResultHash: "filtered",
-      snapshotReadiness: "ready",
-      sheets,
-    } as unknown as ReturnType<typeof createAccountantWorkbook>);
+    const book = createAccountingListWorkbook({
+      kind,
+      organizationId: c.organizationId,
+      organizationName: organization.rows[0]?.legal_name ?? c.organizationId,
+      filters,
+      records,
+      lines,
+    });
+    const content = normalizeZipTimestamps(Buffer.from(await book.xlsx.writeBuffer()));
     return {
       content,
       mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1076,7 +1018,14 @@ export class PgReportExportStore {
       snapshot,
       title: `${snapshot.reportKind} ${snapshot.period.asOfDate}`,
       currency: String(result.currency ?? "VND"),
-      sheets: [summary, report, mapping, unresolved, source],
+      sheets: [
+        summary,
+        report,
+        mapping,
+        unresolved,
+        source,
+        ...(await this.accountingSheets(c, snapshot)),
+      ],
     });
   }
   private tableSheet(
@@ -1130,7 +1079,7 @@ export class PgReportExportStore {
         `select l.journal_id,l.line_number::text line_number,j.journal_date::text journal_date,l.account_code,l.debit_minor::text debit_minor,l.credit_minor::text credit_minor,l.description,l.dimensions from journal_lines l join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id where l.organization_id=$1 and j.journal_date<=$2::date order by j.journal_date,l.journal_id,l.line_number`,
       ),
       query(
-        `select id,type::text type,state::text state,document_number,series,fiscal_year::text fiscal_year,party_id,document_date::text document_date,due_date::text due_date,currency,net_minor::text net_minor,tax_minor::text tax_minor,gross_minor::text gross_minor,control_account_code,original_document_id,reason,journal_id,version::text version from commercial_documents d where organization_id=$1 and document_date<=$2::date and (type='sales_invoice' or type='credit_note') order by document_date,id`,
+        `select d.id,d.type::text type,d.state::text state,d.document_number,d.series,d.fiscal_year::text fiscal_year,d.party_id,d.document_date::text document_date,d.due_date::text due_date,d.currency,d.net_minor::text net_minor,d.tax_minor::text tax_minor,d.gross_minor::text gross_minor,d.control_account_code,d.original_document_id,d.reason,d.journal_id,d.version::text version from commercial_documents d left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id where d.organization_id=$1 and d.document_date<=$2::date and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) order by d.document_date,d.id`,
       ),
       query(
         `select id,type::text type,state::text state,document_number,party_id,document_date::text document_date,due_date::text due_date,currency,net_minor::text net_minor,tax_minor::text tax_minor,gross_minor::text gross_minor,control_account_code,journal_id,version::text version from commercial_documents where organization_id=$1 and document_date<=$2::date and type='purchase_invoice' order by document_date,id`,

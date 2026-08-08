@@ -45,6 +45,8 @@ Runtime export evidence on the local `naai` organization, 2026-08-08:
   bank, payment/reconciliation, account and party sheets. The Report sheet contained the real P&L
   rows, not a hardcoded or empty placeholder.
 - ExcelJS readback confirmed AutoFilter, VND number format, landscape print setup and repeating row 1.
+- Full repository `pnpm check` passed after formatting, including lint, typecheck, documentation,
+  security/fixture/native-DB checks, package tests and production builds.
 - The legacy DB integration fixture could not be rerun against the long-lived shared database because
   its fixed organization IDs already existed. Equivalent runtime SQL and workbook generation were
   exercised through a fresh local snapshot and authenticated API calls instead.
@@ -123,3 +125,31 @@ Accounting-list export contract evidence:
 - `python3 -m json.tool docs/api/openapi-v1.json`: passed.
 - `pnpm test:docs`: passed.
 - `git diff --check`: passed.
+
+Cash-fund history evidence on 2026-08-08:
+
+- `pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/banking-workspace.test.tsx`:
+  passed, 1 file and 3 tests. Coverage proves bank-account rows are excluded, reconciled/ignored cash
+  movements remain visible and the withdrawal filter accepts both negative `amountMinor` and
+  `outflowMinor` API shapes.
+- `pnpm --filter @naai-erp/web typecheck`: passed.
+- `pnpm test:docs`: passed.
+- `git diff --check`: passed.
+- Browser plugin selection returned `No browser is available`, so rendered QA used the repository's
+  Playwright runtime against `http://localhost:3000/banking` with the local authenticated API
+  session. Desktop rendered two cash movements (+VND 10,000,000 deposit and -VND 3,000,000
+  withdrawal), no console/page errors, and switching the direction filter to withdrawal removed the
+  deposit row.
+- The 390px view rendered the cash-history section without horizontal page overflow, but the existing
+  application sidebar produced a React hydration warning and development issue overlay. The mismatch
+  is outside the banking workspace change and remains a separate responsive-shell risk.
+
+Banking naming-alignment evidence on 2026-08-08:
+
+- `pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/banking-workspace.test.tsx src/lib/navigation.test.ts`:
+  passed, 2 files and 5 tests.
+- `pnpm --filter @naai-erp/web typecheck`: passed.
+- Playwright readback at `http://localhost:3000/banking` verified browser title
+  `Tài khoản & Giao dịch | NAAI ERP`, page heading `Tài khoản & Giao dịch`, module breadcrumb
+  `Tiền mặt & Ngân hàng` and the three matching workspace links. No desktop console or page errors
+  were recorded.

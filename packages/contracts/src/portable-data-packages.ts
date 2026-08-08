@@ -96,3 +96,40 @@ export type PortableDryRunResultContract = Readonly<{
   sheetInventory: readonly PortableSheetInventoryContract[];
   rows: readonly PortableDryRunRowResultContract[];
 }>;
+export type LocalOrganizationResetRequestContract = Readonly<{
+  confirmOrganizationId: string;
+  packageId: string;
+  workbookSha256: string;
+}>;
+export type LocalOrganizationResetResultContract = Readonly<{
+  organizationId: string;
+  packageId: string;
+  workbookSha256: string;
+  deletedRows: number;
+  deletedByTable: Readonly<Record<string, number>>;
+  preservedTables: readonly string[];
+  auditEventId: string;
+  idempotencyReplayed: boolean;
+}>;
+export type EmptyOrganizationRestoreRequestContract = Readonly<{
+  sourceOrganizationId: string;
+  confirmTargetOrganizationId: string;
+  packageId: string;
+  workbookSha256: string;
+  reason: string;
+  workbookBase64: string;
+  mapSourceActorsToTargetActor: true;
+}>;
+export type EmptyOrganizationRestoreResultContract = Readonly<{
+  sourceOrganizationId: string;
+  targetOrganizationId: string;
+  packageId: string;
+  workbookSha256: string;
+  restoredRows: number;
+  restoredByResource: Readonly<Record<string, number>>;
+  sourceHash: string;
+  targetHash: string;
+  balancedJournalCount: number;
+  auditEventId: string;
+  idempotencyReplayed: boolean;
+}>;

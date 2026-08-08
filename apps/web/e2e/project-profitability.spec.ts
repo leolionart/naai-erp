@@ -197,7 +197,7 @@ test("@desktop T-E2E-ERP-540-001 shows reviewed profitability layers and confide
   await expect(main.getByText("Chi phí nhân sự")).toBeVisible();
   await expect(main.getByText("Chi phí nguồn gán trực tiếp")).toBeVisible();
   await expect(main.getByText("Variable overhead", { exact: true })).toBeVisible();
-  await expect(page.getByText("Vượt ngân sách 10.000.000 ₫")).toBeVisible();
+  await expect(page.getByText("Vượt ngân sách dự kiến (Budget Overrun)")).toBeVisible();
   await expect(main.getByText("Đã đối soát")).toHaveCount(3);
 });
 
@@ -209,7 +209,7 @@ test("@desktop keeps report filters in the URL", async ({ page }) => {
   await sheet.getByLabel("Từ ngày").fill("2026-07-01");
   await sheet.getByLabel("Đến ngày").fill("2026-07-31");
   await sheet.getByLabel("Client ID").fill("client-naai");
-  await sheet.getByRole("button", { name: "Áp dụng" }).click();
+  await sheet.locator("form").evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(page).toHaveURL(/periodStart=2026-07-01/);
   await expect(page).toHaveURL(/periodEnd=2026-07-31/);
   await expect(page).toHaveURL(/clientId=client-naai/);

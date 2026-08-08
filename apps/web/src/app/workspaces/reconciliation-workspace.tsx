@@ -349,7 +349,7 @@ export function ReconciliationWorkspace({ transactionId }: Readonly<{ transactio
         <Button variant="ghost" asChild>
           <Link href="/banking">
             <ArrowLeftIcon data-icon="inline-start" />
-            Quay lại hàng chờ
+            Về Tài khoản &amp; Giao dịch
           </Link>
         </Button>
       </div>

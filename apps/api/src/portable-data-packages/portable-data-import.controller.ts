@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { PortableDataPackageService } from "./portable-data-package.service.js";
 import { PortableDataImportService } from "./portable-data-import.service.js";
 import type { PortableWorkbookUpload } from "./portable-data-import.types.js";
+import type { EmptyOrganizationRestoreInput } from "./portable-data-import.types.js";
 
 type MultipartPart = Readonly<{
   filename?: string;
@@ -63,6 +64,21 @@ export class PortableDataImportController {
     return this.imports.dryRun(
       await this.context(organizationId, authorization, correlationId),
       await this.workbook(request),
+      idempotencyKey,
+    );
+  }
+
+  @Post("restore-empty")
+  async restoreEmpty(
+    @Param("organizationId") organizationId: string,
+    @Body() body: EmptyOrganizationRestoreInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.imports.restoreEmptyOrganization(
+      await this.context(organizationId, authorization, correlationId),
+      body,
       idempotencyKey,
     );
   }

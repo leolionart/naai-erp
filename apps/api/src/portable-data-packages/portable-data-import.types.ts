@@ -30,6 +30,13 @@ export type PortableImportInventory = Readonly<{
   issues: readonly PortableRowIssueContract[];
   sheets: readonly PortableSheetInventoryContract[];
   parsedSheets: readonly ParsedPortableSheet[];
+  sourcePackage?: Readonly<{
+    manifest: PortableDataPackageManifestContract;
+    schemas: readonly PortableSheetSchemaContract[];
+    content: Buffer;
+    filename: string;
+    mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  }>;
 }>;
 
 export type PortableImportRecord = Readonly<{
@@ -53,6 +60,28 @@ export type PortableImportCommitResult = Readonly<{
   unchanged: number;
   failed: number;
   rows: readonly PortableDryRunRowResultContract[];
+}>;
+export type EmptyOrganizationRestoreInput = Readonly<{
+  sourceOrganizationId: string;
+  confirmTargetOrganizationId: string;
+  packageId: string;
+  workbookSha256: string;
+  reason: string;
+  workbookBase64: string;
+  mapSourceActorsToTargetActor: true;
+}>;
+export type EmptyOrganizationRestoreResult = Readonly<{
+  sourceOrganizationId: string;
+  targetOrganizationId: string;
+  packageId: string;
+  workbookSha256: string;
+  restoredRows: number;
+  restoredByResource: Readonly<Record<string, number>>;
+  sourceHash: string;
+  targetHash: string;
+  balancedJournalCount: number;
+  auditEventId: string;
+  idempotencyReplayed: boolean;
 }>;
 
 export type PortableCanonicalRowValidation = Readonly<{
@@ -110,6 +139,16 @@ export type PortableDataImportStore = Readonly<{
     result: PortableImportCommitResult,
     idempotencyKey: string,
   ): Promise<PortableImportRecord>;
+  restoreEmptyOrganization(
+    context: PortableDataPackageContext,
+    sourceOrganizationId: string,
+    packageId: string,
+    workbookSha256: string,
+    reason: string,
+    mapSourceActorsToTargetActor: true,
+    parsedSheets: readonly ParsedPortableSheet[],
+    idempotencyKey: string,
+  ): Promise<EmptyOrganizationRestoreResult>;
 }>;
 
 export const PORTABLE_DATA_IMPORT_STORE = Symbol("PORTABLE_DATA_IMPORT_STORE");

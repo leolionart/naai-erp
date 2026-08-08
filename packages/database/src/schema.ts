@@ -200,6 +200,11 @@ export const expenseClass = pgEnum("expense_class", [
   "overseas_vendor",
   "petty_cash",
 ]);
+export const expenseFundingTreatment = pgEnum("expense_funding_treatment", [
+  "company_funds",
+  "owner_paid_company_cost",
+  "tax_only_non_cash",
+]);
 export const expenseState = pgEnum("expense_state", [
   "draft",
   "submitted",
@@ -959,8 +964,8 @@ export const workforceProfiles = pgTable(
     version: bigint("version", { mode: "bigint" })
       .notNull()
       .default(sql`1`),
-    createdBy: text("created_by").notNull(),
-    updatedBy: text("updated_by").notNull(),
+    createdBy: text("created_by").notNull().default("master-data"),
+    updatedBy: text("updated_by").notNull().default("master-data"),
     ...auditColumns,
   },
   (table) => [
@@ -2553,6 +2558,31 @@ export const expenses = pgTable(
   ],
 );
 
+export const expenseCategories = pgTable(
+  "expense_categories",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    fundingTreatment: expenseFundingTreatment("funding_treatment").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.code] }),
+    check("expense_categories_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("expense_categories_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("expense_categories_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
 export const expenseLines = pgTable(
   "expense_lines",
   {
@@ -2564,6 +2594,8 @@ export const expenseLines = pgTable(
     vatMinor: bigint("vat_minor", { mode: "bigint" }).notNull(),
     grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
     postingAccountCode: text("posting_account_code").notNull(),
+    expenseCategoryCode: text("expense_category_code"),
+    fundingTreatment: expenseFundingTreatment("funding_treatment"),
     vatAccountCode: text("vat_account_code"),
     managementState: managementValidityState("management_state").notNull().default("unreviewed"),
     citState: eligibilityState("cit_state").notNull().default("unreviewed"),
@@ -2583,6 +2615,11 @@ export const expenseLines = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.organizationId, table.expenseId, table.lineNumber] }),
+    foreignKey({
+      columns: [table.organizationId, table.expenseCategoryCode],
+      foreignColumns: [expenseCategories.organizationId, expenseCategories.code],
+      name: "expense_lines_category_fk",
+    }).onDelete("restrict"),
     foreignKey({
       columns: [table.organizationId, table.expenseId],
       foreignColumns: [expenses.organizationId, expenses.id],
@@ -2611,6 +2648,10 @@ export const expenseLines = pgTable(
     check(
       "expense_lines_eligible_limits",
       sql`${table.citEligibleMinor} >= 0 and ${table.citEligibleMinor} <= ${table.grossMinor} and ${table.vatEligibleMinor} >= 0 and ${table.vatEligibleMinor} <= ${table.vatMinor}`,
+    ),
+    check(
+      "expense_lines_category_snapshot",
+      sql`(${table.expenseCategoryCode} is null and ${table.fundingTreatment} is null) or (${table.expenseCategoryCode} is not null and ${table.fundingTreatment} is not null)`,
     ),
     check(
       "expense_lines_review_metadata",
@@ -5019,6 +5060,7 @@ export const schema = {
   overheadSourcePoolItems,
   overheadAllocationRuns,
   overheadAllocationSplits,
+  expenseCategories,
   resourceVersions,
   apiIdempotencyRecords,
   resourceAuditEvents,

@@ -16,6 +16,7 @@ import ExcelJS from "exceljs";
 import type { PortableDataPackageContext } from "./portable-data-package.types.js";
 import {
   PORTABLE_DATA_IMPORT_STORE,
+  type EmptyOrganizationRestoreInput,
   type ParsedPortableSheet,
   type PortableDataImportStore,
   type PortableImportInventory,
@@ -84,7 +85,11 @@ export class PortableDataImportService {
     if (!context.roles.some((role) => IMPORT_ROLES.has(role))) throw new Error("FORBIDDEN");
   }
 
-  private async parse(context: PortableDataPackageContext, upload: PortableWorkbookUpload) {
+  private async parse(
+    context: PortableDataPackageContext,
+    upload: PortableWorkbookUpload,
+    expectedSourceOrganizationId = context.organizationId,
+  ) {
     this.authorize(context);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(upload.content as never);
@@ -98,7 +103,7 @@ export class PortableDataImportService {
       );
     const packageId = values.get("package_id") ?? "";
     if (!packageId) throw new Error("PORTABLE_IMPORT_PACKAGE_ID_MISSING");
-    if (values.get("organization_id") !== context.organizationId)
+    if (values.get("organization_id") !== expectedSourceOrganizationId)
       throw new Error("PORTABLE_IMPORT_ORGANIZATION_MISMATCH");
     if (Number(values.get("schema_version")) !== PORTABLE_DATA_PACKAGE_SCHEMA_VERSION)
       throw new Error("PORTABLE_IMPORT_SCHEMA_VERSION_UNSUPPORTED");
@@ -149,7 +154,7 @@ export class PortableDataImportService {
     const embeddedHashPayload = {
       schemaVersion: PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
       packageId,
-      organizationId: context.organizationId,
+      organizationId: expectedSourceOrganizationId,
       exportedAt: values.get("exported_at") ?? "",
       asOf: values.get("as_of") ?? "",
       exportedBy: values.get("exported_by") ?? "",
@@ -271,6 +276,18 @@ export class PortableDataImportService {
         return parsed ? { ...sheet, rowCount: parsed.rows.length, sha256: parsed.sha256 } : sheet;
       }),
       parsedSheets,
+      ...(!persistedSource
+        ? {
+            sourcePackage: {
+              manifest: embeddedManifest,
+              schemas,
+              content: upload.content,
+              filename: upload.filename,
+              mediaType:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" as const,
+            },
+          }
+        : {}),
     };
     return inventory;
   }
@@ -283,6 +300,45 @@ export class PortableDataImportService {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     const parsed = await this.parse(context, upload);
     return this.envelope(context, await this.store.saveInventory(context, parsed, idempotencyKey));
+  }
+
+  async restoreEmptyOrganization(
+    context: PortableDataPackageContext,
+    input: EmptyOrganizationRestoreInput,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.includes("owner")) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (
+      input.confirmTargetOrganizationId !== context.organizationId ||
+      !input.sourceOrganizationId.trim() ||
+      !input.packageId.trim() ||
+      !input.reason.trim() ||
+      input.mapSourceActorsToTargetActor !== true ||
+      !/^[0-9a-f]{64}$/.test(input.workbookSha256)
+    )
+      throw new Error("VALIDATION_FAILED");
+    const content = Buffer.from(input.workbookBase64, "base64");
+    if (sha256(content) !== input.workbookSha256) throw new Error("WORKBOOK_SHA256_MISMATCH");
+    const parsed = await this.parse(
+      context,
+      { filename: "portable-restore.xlsx", content },
+      input.sourceOrganizationId,
+    );
+    if (parsed.packageId !== input.packageId) throw new Error("PACKAGE_ID_MISMATCH");
+    return this.envelope(
+      context,
+      await this.store.restoreEmptyOrganization(
+        context,
+        input.sourceOrganizationId,
+        input.packageId,
+        input.workbookSha256,
+        input.reason.trim(),
+        input.mapSourceActorsToTargetActor,
+        parsed.parsedSheets,
+        idempotencyKey,
+      ),
+    );
   }
 
   async dryRun(

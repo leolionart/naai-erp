@@ -7,8 +7,9 @@ export default async function StatementSessionPage({
   const { sessionId } = await params;
   return (
     <ModulePage
-      title="Chi tiết kiểm soát sao kê"
+      title="Chi tiết kỳ sao kê"
       section="Kiểm soát sao kê"
+      sectionHref="/banking/statements"
       description="Import dispositions, balance movement, transaction coverage và close blockers của một kỳ sao kê."
     >
       <StatementSessionWorkspace sessionId={sessionId} />

@@ -8,7 +8,8 @@ export default async function ReconciliationPage({
   return (
     <ModulePage
       title="Đối soát giao dịch"
-      section="Ngân hàng & tiền mặt"
+      section="Tài khoản & Giao dịch"
+      sectionHref="/banking"
       description="Đánh giá candidate, phân bổ thanh toán và kiểm tra bút toán trước khi đối soát."
     >
       <ReconciliationWorkspace transactionId={transactionId} />

@@ -1,3 +1,12 @@
 # Deployment foundation
 
-Dockerfiles, Compose contracts and release workflows are implemented in ERP-800 through ERP-850. ERP-001 reserves the canonical deployment layout without introducing premature runtime configuration.
+Dockerfiles, Compose contracts and release workflows are implemented in ERP-800 through ERP-852.
+
+The production Compose stack is [compose.yaml](../compose.yaml). It runs PostgreSQL, a one-shot
+migration, API, worker and web services. Runtime images are the explicit GHCR packages published
+by `.github/workflows/release-main.yml`; [compose.build.yaml](../compose.build.yaml) only replaces
+those images with local builds for development verification.
+
+Start from [env/.env.example](env/.env.example) and follow
+[the release runbook](../docs/runbooks/docker-compose-release.md). Use one immutable
+`sha-<12-character>` tag across migrate, API, worker and web.

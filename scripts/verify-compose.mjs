@@ -32,10 +32,25 @@ const rendered = JSON.parse(
     "json",
   ]),
 );
+const remoteRendered = JSON.parse(
+  runDockerCompose(["-f", "compose.yaml", "config", "--format", "json"]),
+);
 const services = rendered.services ?? {};
 
 for (const name of ["postgres", "migrate", "api", "worker", "web"]) {
   if (!services[name]) fail(`missing ${name} service`);
+}
+
+const expectedRemoteImages = {
+  migrate: "ghcr.io/leolionart/naai-erp-migrate:main",
+  api: "ghcr.io/leolionart/naai-erp-api:main",
+  worker: "ghcr.io/leolionart/naai-erp-worker:main",
+  web: "ghcr.io/leolionart/naai-erp-web:main",
+};
+for (const [name, image] of Object.entries(expectedRemoteImages)) {
+  if (remoteRendered.services?.[name]?.image !== image) {
+    fail(`${name} must use explicit published image ${image}`);
+  }
 }
 
 if (!rendered.volumes?.["postgres-data"]) fail("missing postgres-data named volume");

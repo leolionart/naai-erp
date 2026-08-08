@@ -1067,12 +1067,23 @@ tasks:
         BR-EXP-001,
         BR-CST-002,
         BR-DIM-001,
+        BR-BNK-002,
         BR-BNK-003,
         BR-TAX-003,
         BR-TAX-004,
         BR-UI-001,
+        BR-MVP-007,
+        BR-EXPOR-001,
+        BR-EXPOR-003,
       ]
-    tests: [T-INT-ERP-841-001, T-E2E-ERP-841-002]
+    tests:
+      [
+        T-INT-ERP-841-001,
+        T-E2E-ERP-841-002,
+        T-INT-ERP-841-004,
+        T-E2E-ERP-841-005,
+        T-UNIT-ERP-841-006,
+      ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
     started_at: 2026-08-07T22:08:42+07:00
@@ -1083,6 +1094,14 @@ tasks:
       - apps/web/src/app/workspaces/business-directory-workspace.tsx
       - apps/web/src/app/workspaces/focused-record-workspaces.tsx
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/src/app/workspaces/banking-workspace.tsx
+      - apps/web/src/app/workspaces/banking-workspace.test.tsx
+      - apps/api/src/report-exports/
+      - apps/web/e2e/focused-records.spec.ts
+      - apps/cli/src/
+      - packages/contracts/src/filtered-document-exports.ts
+      - docs/api/accounting-list-exports.md
+      - docs/api/openapi-v1.json
       - docs/runbooks/native-development.md
       - docs/testing/test-catalog.yaml
       - docs/implementation/task-ledger.yaml
@@ -1116,6 +1135,7 @@ tasks:
       - packages/contracts/src/
       - packages/domain/src/
       - apps/api/src/portable-data-packages/
+      - apps/api/src/report-exports/
       - apps/cli/src/
       - apps/web/src/app/workspaces/
       - docs/architecture/ADR-012-portable-organization-data-package.md
@@ -1124,6 +1144,108 @@ tasks:
       - docs/product/business-rules.md
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-850/
+
+  - id: ERP-851
+    title: Normalize supplied workbooks and reset local demo organization safely
+    phase: P11
+    status: done
+    dependencies: [ERP-850]
+    business_rules:
+      [
+        BR-MIG-001,
+        BR-MIG-002,
+        BR-MIG-003,
+        BR-MIG-004,
+        BR-MIG-005,
+        BR-EXPOR-002,
+        BR-EXPOR-003,
+        BR-AUD-001,
+      ]
+    tests:
+      [
+        T-API-ERP-851-001,
+        T-CLI-ERP-851-002,
+        T-INT-ERP-851-003,
+        T-UNIT-ERP-851-004,
+        T-UNIT-ERP-851-005,
+      ]
+    evidence: docs/implementation/evidence/ERP-851/
+    agent: codex-root
+    started_at: 2026-08-08T08:40:00+07:00
+    planned_files:
+      - apps/api/src/portable-data-packages/
+      - apps/api/src/report-exports/
+      - apps/cli/src/
+      - packages/contracts/src/
+      - docs/api/portable-organization-data-package.md
+      - docs/api/openapi-v1.json
+      - docs/api/accounting-list-exports.md
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-851/
+      - output/naai-data-normalization/
+      - outputs/erp-851/
+    resumed_at: 2026-08-08T09:20:00+07:00
+    resume_context: Owner supplied an accountant-maintained VAT invoice schedule and authorized evidence-backed AI enrichment plus accountant-export parity work.
+
+  - id: ERP-852
+    title: Configurable expense-category funding treatment and net company funds
+    phase: P11
+    status: done
+    dependencies: [ERP-850]
+    business_rules: [BR-EXP-004, BR-EXP-002, BR-AUD-001, BR-ORG-001, BR-LED-003]
+    tests: [T-DB-ERP-852-001, T-API-ERP-852-002, T-INT-ERP-852-003, T-E2E-ERP-852-004]
+    evidence: docs/implementation/evidence/ERP-852/
+    agent: codex-team
+    started_at: 2026-08-08T13:24:00+07:00
+    parallel_file_ownership:
+      backend: apps/api/src/, packages/database/src/, db/migrations/, packages/contracts/src/
+      web: apps/web/src/, apps/web/e2e/
+      coordinator: docs/
+    planned_files:
+      - packages/database/src/schema.ts
+      - db/migrations/
+      - apps/api/src/master-data/
+      - apps/api/src/expenses/
+      - apps/api/src/operating-dashboard/
+      - apps/web/src/app/workspaces/
+      - apps/web/src/components/forms/document-expense-forms.tsx
+      - apps/web/e2e/
+      - packages/contracts/src/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-852/
+
+  - id: ERP-853
+    title: Restore a full organization package into an empty production tenant
+    phase: P11
+    status: done
+    dependencies: [ERP-850]
+    business_rules:
+      [
+        BR-MIG-006,
+        BR-MIG-002,
+        BR-MIG-003,
+        BR-OPS-002,
+        BR-AUD-001,
+        BR-ORG-001,
+        BR-LED-001,
+        BR-LED-003,
+      ]
+    tests: [T-API-ERP-853-001, T-CLI-ERP-853-002, T-INT-ERP-853-003]
+    evidence: docs/implementation/evidence/ERP-853/
+    agent: funding_backend_audit
+    started_at: 2026-08-08T14:00:00+07:00
+    planned_files:
+      - apps/api/src/portable-data-packages/
+      - apps/cli/src/
+      - packages/contracts/src/
+      - docs/api/portable-organization-data-package.md
+      - docs/api/openapi-v1.json
+      - docs/runbooks/docker-compose-release.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-853/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -1142,6 +1264,9 @@ gates:
   G13: [ERP-840]
   G14: [ERP-841]
   G15: [ERP-850]
+  G16: [ERP-851]
+  G17: [ERP-852]
+  G18: [ERP-853]
 
 gate_status:
   G0: done
@@ -1160,3 +1285,6 @@ gate_status:
   G13: done
   G14: in_progress
   G15: done
+  G16: done
+  G17: done
+  G18: done

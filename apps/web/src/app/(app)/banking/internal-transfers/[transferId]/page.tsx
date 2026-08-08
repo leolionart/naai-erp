@@ -7,8 +7,9 @@ export default async function InternalTransferPage({
   const { transferId } = await params;
   return (
     <ModulePage
-      title="Chi tiết chuyển nội bộ"
-      section="Ngân hàng & tiền mặt"
+      title="Chi tiết chuyển tiền nội bộ"
+      section="Chuyển tiền nội bộ"
+      sectionHref="/banking/internal-transfers"
       description="Kiểm tra hai chiều giao dịch, transit, phí riêng và journal readback trước khi ghép hoặc hủy ghép."
     >
       <InternalTransferWorkspace transferId={transferId} />

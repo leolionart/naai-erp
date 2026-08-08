@@ -152,6 +152,11 @@ describe("PortableCanonicalMutationAdapter", () => {
   });
 
   it("classifies journal export as read-only and cancellation as an accounting-effect operation", () => {
+    expect(portableMutationEntry("expense-categories")).toMatchObject({
+      adapter: "master_data",
+      canonicalResource: "expense-categories",
+      operations: ["create", "update", "deactivate"],
+    });
     expect(portableMutationEntry("journal_entries")).toMatchObject({
       adapter: "journal",
       operations: [],

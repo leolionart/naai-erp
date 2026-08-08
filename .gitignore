@@ -11,3 +11,6 @@ coverage/
 .DS_Store
 *.dump
 *.sql.gz
+output/
+outputs/
+.playwright-cli/

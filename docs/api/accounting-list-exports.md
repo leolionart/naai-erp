@@ -41,3 +41,19 @@ naai-erp purchase-expense-export download --from 2026-01-01 --to 2026-12-31 --pa
 
 The CLI refuses to write without explicit `--output`. JSON written to stdout reports the output
 path, byte size, content type, filename and SHA-256 when supplied by the API.
+## Workbook layout
+
+Both endpoints return a workbook with five sheets:
+
+1. `Bảng kê bán ra` or `Bảng kê mua vào`: accountant-readable inspection schedule modelled after
+   the Vietnamese VAT invoice schedule. It contains the organization and period header, invoice
+   identity, counterparty and tax ID, item description, pre-tax amount, VAT rate, VAT amount, gross
+   amount, lifecycle state and formula totals.
+2. `Summary`: export identity, organization and record counts.
+3. `Records`: canonical document/expense headers, stable IDs and lifecycle fields.
+4. `Lines`: canonical lines, accounts, tax codes and dimensions.
+5. `Filters`: the exact request filters used to generate the workbook.
+
+The presentation schedule uses typed Excel dates and numbers. A non-invoice expense keeps blank
+series/number/date fields and is labelled `Chi phí không có hóa đơn`; export never manufactures an
+invoice identity. `Records` and `Lines` remain authoritative for machine round-trip and audit.

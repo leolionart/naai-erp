@@ -35,6 +35,44 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("allows organization reset only through a loopback API with backup evidence", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ apiVersion: "v1", data: { deletedRows: 10 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://127.0.0.1:3001", organizationId: "naai", token: "secret" },
+      fetchFn,
+    );
+    await client.resetLocalOrganization(
+      { confirmOrganizationId: "naai", packageId: "package-1", workbookSha256: "a".repeat(64) },
+      "reset-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://127.0.0.1:3001/api/v1/organizations/naai/portable-data-packages/local-admin/reset",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          confirmOrganizationId: "naai",
+          packageId: "package-1",
+          workbookSha256: "a".repeat(64),
+        }),
+      }),
+    );
+    const remote = new NaaiErpClient(
+      { baseUrl: "https://erp.example.com", organizationId: "naai", token: "secret" },
+      vi.fn(),
+    );
+    await expect(
+      remote.resetLocalOrganization(
+        { confirmOrganizationId: "naai", packageId: "package-1", workbookSha256: "a".repeat(64) },
+        "reset-1",
+      ),
+    ).rejects.toThrow("LOCAL_RESET_REQUIRES_LOOPBACK_BASE_URL");
+  });
+
   it("downloads filtered accounting list workbooks through the versioned paths", async () => {
     const fetchFn = vi.fn().mockImplementation(() =>
       Promise.resolve(

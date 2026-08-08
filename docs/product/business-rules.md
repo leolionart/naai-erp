@@ -366,6 +366,9 @@ Document type and accounting treatment are independent.
 `draft → submitted → evidence_pending → approved/rejected → posted`
 
 - Business purpose, payee, period, amount/currency, dimensions, payment evidence and approver are captured as required by class.
+- A draft created in error may be discarded before submission. Discard requires write authorization,
+  optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
+  submitted, approved or posted expenses cannot be deleted.
 
 ### BR-TAX-001 — Versioned tax policy
 
@@ -423,6 +426,21 @@ Override requires reviewer, reason, timestamp and reference/evidence.
 ### BR-EXP-004 — Employee reimbursement
 
 - Approval: Dr expense/asset, Cr employee payable.
+
+### BR-EXP-004 — Configurable expense-category funding treatment
+
+- Expense categories are organization-scoped master data and may be added or deactivated without a
+  web deployment.
+- Each category has one funding treatment: `company_funds`, `owner_paid_company_cost`, or
+  `tax_only_non_cash`.
+- The selected category and funding treatment are snapshotted on the expense record/line so later
+  policy changes never rewrite historical management balances.
+- `owner_paid_company_cost` requires an owner-current/payable counter account. It does not change
+  physical bank/cash, but posted amounts reduce net company funds and increase the owner liability.
+- `tax_only_non_cash` remains available for VAT/CIT evidence and tax reporting but does not reduce
+  management net company funds.
+- Official dashboard balances include posted records only and disclose uncategorized or unreviewed
+  records separately.
 - Payment: Dr employee payable, Cr bank/cash.
 - Avoid duplicate booking from company-card/bank import and employee claim.
 
@@ -445,6 +463,15 @@ Override requires reviewer, reason, timestamp and reference/evidence.
 `imported → suggested → matched → reconciled`
 
 Branches: `ignored`, `needs_review`.
+
+- The banking workspace exposes a complete cash-fund history independently from the reconciliation
+  queue. It includes every transaction belonging to an organization cash account, including
+  reconciled and ignored records.
+- Cash direction derives only from the exact signed transaction amount: positive is cash deposited
+  into the fund and negative is cash withdrawn from the fund. The UI may filter by direction but
+  must not classify either direction as revenue or expense without canonical reconciliation data.
+- A bank-to-cash or cash-to-bank internal transfer appears once in the cash-fund history through its
+  cash-account leg and remains P&L-neutral.
 
 ### BR-BNK-003 — Internal transfer
 
@@ -675,9 +702,14 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   presence filters.
 - The combined expense workbook preserves canonical `sourceType`; supplier/date/amount similarity
   never merges a purchase invoice with an expense.
-- Workbooks contain Summary, Records, Lines and Filters sheets. Stable IDs, lifecycle state,
-  relationships and exact minor-unit strings remain machine-readable and totals reconcile to the
-  filtered canonical records.
+- Workbooks lead with an accountant-readable `Bảng kê bán ra` or `Bảng kê mua vào` sheet containing
+  organization/period headings, invoice series-number-date, counterparty tax ID, item description,
+  pre-tax amount, VAT rate, VAT amount, gross amount, lifecycle state and formula-driven totals.
+  Summary, Records, Lines and Filters remain present so stable IDs, relationships, source type and
+  exact canonical values are never lost behind the presentation sheet.
+- Non-invoice expenses have blank invoice identity and are explicitly labelled as non-invoice; the
+  export never invents a series or invoice number. Dates are typed dates and money is typed numeric
+  data in the presentation sheet so Excel formulas and month/quarter controls remain usable.
 - REST and the first-party CLI use the same filters. Downloads are XLSX attachments with a SHA-256
   checksum and never bypass authorization, organization isolation or audit controls.
 
@@ -776,6 +808,29 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 ### BR-MIG-004 — Cutover control
 
 - Cutover requires owner/accountant approval, final backup, signed control totals and archived source/evidence.
+
+### BR-MIG-005 — Local organization reset
+
+- A destructive organization reset is available only in an explicitly local development runtime.
+- Reset requires the exact organization ID, a completed Full ERP Data Package ID and matching
+  workbook SHA-256. Missing or mismatched backup evidence rejects the reset.
+- The operation preserves the organization identity, memberships, API credentials and approved
+  baseline configuration while removing organization-scoped business/demo records transactionally.
+- Production, non-loopback API bases and unconfirmed organization targets are always rejected.
+
+### BR-MIG-006 — Controlled empty-tenant organization restore
+
+- A Full ERP Data Package can restore canonical organization data into an explicitly empty target
+  organization through a versioned API and the first-party CLI; direct PostgreSQL access is not an
+  integration path.
+- Restore requires owner/platform authorization, exact source and target organization confirmation,
+  package ID, workbook SHA-256, schema compatibility, idempotency and a nonblank reason.
+- Authentication credentials, secrets, replay controls and package blobs are never copied. Target
+  credentials and membership are provisioned separately before restore.
+- Business/master data, posted ledgers, bank source rows and their relationships restore in one
+  controlled transaction. Existing target business rows reject the operation.
+- Completion requires source-versus-target resource counts, deterministic hashes, balanced-journal
+  checks and financial control totals with zero unexplained variance.
 
 ## Traceability requirement
 

@@ -7,6 +7,24 @@ export type CliOptions = Readonly<{
 }>;
 
 export class NaaiErpClient {
+  async resetLocalOrganization(
+    input: Readonly<{ confirmOrganizationId: string; packageId: string; workbookSha256: string }>,
+    idempotencyKey: string,
+  ): Promise<unknown> {
+    if (!this.options.organizationId || !this.options.token)
+      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    const hostname = new URL(this.options.baseUrl).hostname;
+    if (!["localhost", "127.0.0.1", "::1"].includes(hostname))
+      throw new Error("LOCAL_RESET_REQUIRES_LOOPBACK_BASE_URL");
+    const response = await this.fetchFn(`${this.portableDataBase()}/local-admin/reset`, {
+      method: "POST",
+      headers: { ...this.portableDataHeaders(idempotencyKey), "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const body: unknown = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(body));
+    return body;
+  }
   async downloadAccountingListExport(
     kind: "sales-invoices" | "purchase-invoices-expenses",
     filters: Readonly<Record<string, string>>,

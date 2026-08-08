@@ -22,14 +22,12 @@ type StoredExpense = {
 
 /**
  * Derive CIT and VAT eligibility state from expense class at insert time.
- * - documented_operational: has invoice → eligible for both CIT and VAT
- * - non_documented / petty_cash: no invoice → ineligible for both
- * - employee_reimbursement: may or may not have invoice → unreviewed (needs check)
+ * Tax eligibility is independent from management booking and funding source.
+ * Classes without business evidence start ineligible; every other class remains
+ * unreviewed until the accountant records an evidence-backed decision.
  */
 function expenseClassToTaxState(expenseClass: string): { citState: string; vatState: string } {
-  if (expenseClass === "documented_operational")
-    return { citState: "eligible", vatState: "eligible" };
-  if (expenseClass === "non_documented" || expenseClass === "petty_cash")
+  if (["non_documented", "owner_personal", "petty_cash"].includes(expenseClass))
     return { citState: "ineligible", vatState: "ineligible" };
   return { citState: "unreviewed", vatState: "unreviewed" };
 }
@@ -70,7 +68,7 @@ export class PgExpenseStore {
           'syncedAt', r.synced_at::text,
           'metadata', r.metadata
         ) from external_references r where r.organization_id=e.organization_id and r.expense_id=e.id) as "externalReference",
-       coalesce(json_agg(jsonb_build_object('lineNumber',l.line_number,'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,'vatAccountCode',l.vat_account_code,'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,'dimensions',l.dimensions,'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]') from expense_allocations a where a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number)) order by l.line_number) filter(where l.line_number is not null),'[]') lines from expenses e left join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id where e.organization_id=$1 and e.id=$2 group by e.organization_id,e.id`,
+       coalesce(json_agg(jsonb_build_object('lineNumber',l.line_number,'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,'expenseCategoryCode',l.expense_category_code,'fundingTreatment',l.funding_treatment,'vatAccountCode',l.vat_account_code,'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,'dimensions',l.dimensions,'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]') from expense_allocations a where a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number)) order by l.line_number) filter(where l.line_number is not null),'[]') lines from expenses e left join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id where e.organization_id=$1 and e.id=$2 group by e.organization_id,e.id`,
       [org, id],
     );
     return r.rows[0];
@@ -154,8 +152,13 @@ export class PgExpenseStore {
               );
               for (const [index, line] of input.lines.entries()) {
                 const taxState = expenseClassToTaxState(input.expenseClass);
+                const fundingTreatment = await this.categoryTreatment(
+                  c,
+                  context.organizationId,
+                  line.expenseCategoryCode,
+                );
                 await c.query(
-                  `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+                  `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
                   [
                     context.organizationId,
                     expId,
@@ -165,6 +168,8 @@ export class PgExpenseStore {
                     line.vatMinor,
                     line.grossMinor,
                     line.postingAccountCode,
+                    line.expenseCategoryCode ?? null,
+                    fundingTreatment,
                     line.vatAccountCode ?? null,
                     line.managementState ?? "unreviewed",
                     line.citState ?? taxState.citState,
@@ -319,8 +324,13 @@ export class PgExpenseStore {
       );
       for (const [index, line] of input.lines.entries()) {
         const taxState = expenseClassToTaxState(input.expenseClass);
+        const fundingTreatment = await this.categoryTreatment(
+          c,
+          context.organizationId,
+          line.expenseCategoryCode,
+        );
         await c.query(
-          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
           [
             context.organizationId,
             id,
@@ -330,6 +340,8 @@ export class PgExpenseStore {
             line.vatMinor,
             line.grossMinor,
             line.postingAccountCode,
+            line.expenseCategoryCode ?? null,
+            fundingTreatment,
             line.vatAccountCode ?? null,
             line.managementState ?? "unreviewed",
             line.citState ?? taxState.citState,
@@ -583,8 +595,13 @@ export class PgExpenseStore {
 
       for (const [index, line] of merged.lines.entries()) {
         const taxState = expenseClassToTaxState(merged.expenseClass);
+        const fundingTreatment = await this.categoryTreatment(
+          c,
+          context.organizationId,
+          line.expenseCategoryCode,
+        );
         await c.query(
-          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
           [
             context.organizationId,
             id,
@@ -594,6 +611,8 @@ export class PgExpenseStore {
             line.vatMinor,
             line.grossMinor,
             line.postingAccountCode,
+            line.expenseCategoryCode ?? null,
+            fundingTreatment,
             line.vatAccountCode ?? null,
             line.managementState ?? "unreviewed",
             line.citState ?? taxState.citState,
@@ -661,6 +680,84 @@ export class PgExpenseStore {
     } catch (e) {
       await c.query("rollback");
       throw e;
+    } finally {
+      c.release();
+    }
+  }
+  async discard(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    key: string,
+  ) {
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, reason }))
+      .digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const expense = await this.lock(c, context.organizationId, id);
+      if (expense.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (expense.state !== "draft") throw new Error("INVALID_STATE_TRANSITION");
+
+      await c.query("delete from external_references where organization_id=$1 and expense_id=$2", [
+        context.organizationId,
+        id,
+      ]);
+      await c.query("delete from expense_allocations where organization_id=$1 and expense_id=$2", [
+        context.organizationId,
+        id,
+      ]);
+      await c.query("delete from expense_lines where organization_id=$1 and expense_id=$2", [
+        context.organizationId,
+        id,
+      ]);
+      await c.query("delete from expenses where organization_id=$1 and id=$2", [
+        context.organizationId,
+        id,
+      ]);
+
+      const audit = randomUUID();
+      const outbox = randomUUID();
+      await c.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'expense',$3,$4,'discard',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          audit,
+          id,
+          expectedVersion,
+          context.actorId,
+          context.correlationId,
+          { state: "draft" },
+          { state: "discarded", reason },
+        ],
+      );
+      await c.query(
+        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+         values($1,$2,'expense',$3,'expense.discarded',1,$4,$5)`,
+        [context.organizationId, outbox, id, { expenseId: id, reason }, context.correlationId],
+      );
+      const response = {
+        expenseId: id,
+        state: "discarded",
+        resourceVersion: expectedVersion,
+        auditEventId: audit,
+        outboxEventId: outbox,
+        nextActions: [],
+      };
+      await this.save(c, context.organizationId, key, "expense:discard", hash, response);
+      await c.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await c.query("rollback");
+      throw error;
     } finally {
       c.release();
     }
@@ -835,6 +932,7 @@ export class PgExpenseStore {
       let journalId: string | undefined;
       if (action === "post") {
         await this.period(c, context, e.expense_date);
+        await this.assertOwnerPaidCounterAccount(c, context.organizationId, e);
         journalId = await this.postJournal(c, context, e);
       }
       const version = (BigInt(e.version) + 1n).toString();
@@ -1001,9 +1099,14 @@ export class PgExpenseStore {
       );
       for (const [index, line] of input.lines.entries()) {
         const taxState = expenseClassToTaxState(input.expenseClass);
+        const fundingTreatment = await this.categoryTreatment(
+          c,
+          context.organizationId,
+          line.expenseCategoryCode,
+        );
         await c.query(
-          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions)
-           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,dimensions)
+           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
           [
             context.organizationId,
             replacementId,
@@ -1013,6 +1116,8 @@ export class PgExpenseStore {
             line.vatMinor,
             line.grossMinor,
             line.postingAccountCode,
+            line.expenseCategoryCode ?? null,
+            fundingTreatment,
             line.vatAccountCode ?? null,
             line.managementState ?? "unreviewed",
             line.citState ?? taxState.citState,
@@ -1274,6 +1379,34 @@ export class PgExpenseStore {
       !context.roles.some((r) => ["owner", "finance_admin"].includes(r))
     )
       throw new Error("PERIOD_SOFT_LOCKED");
+  }
+  private async categoryTreatment(c: PoolClient, org: string, code?: string) {
+    if (!code) return null;
+    const category = await c.query<{ funding_treatment: string }>(
+      "select funding_treatment from expense_categories where organization_id=$1 and code=$2 and is_active=true",
+      [org, code],
+    );
+    if (!category.rows[0]) throw new Error("EXPENSE_CATEGORY_NOT_FOUND");
+    return category.rows[0].funding_treatment;
+  }
+  private async assertOwnerPaidCounterAccount(c: PoolClient, org: string, expense: StoredExpense) {
+    const ownerPaid = await c.query<{ exists: boolean }>(
+      "select exists(select 1 from expense_lines where organization_id=$1 and expense_id=$2 and funding_treatment='owner_paid_company_cost') exists",
+      [org, expense.id],
+    );
+    if (!ownerPaid.rows[0]?.exists) return;
+    const mapped = await c.query<{ exists: boolean }>(
+      `select exists(
+         select 1 from financial_statement_mapping_versions v
+         join financial_statement_mapping_lines l
+           on l.organization_id=v.organization_id and l.mapping_id=v.id and l.mapping_version=v.version
+         where v.organization_id=$1 and v.state='approved' and v.framework='TT133'
+           and v.effective_from<=$3::date and (v.effective_to is null or v.effective_to>=$3::date)
+           and l.statement='balance_sheet' and l.line_code='owner_current' and l.account_code=$2
+       ) exists`,
+      [org, expense.counter_account_code, expense.expense_date],
+    );
+    if (!mapped.rows[0]?.exists) throw new Error("OWNER_CURRENT_ACCOUNT_REQUIRED");
   }
   private async replay(c: PoolClient, org: string, key: string, hash: string) {
     await c.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [`${org}:${key}`]);

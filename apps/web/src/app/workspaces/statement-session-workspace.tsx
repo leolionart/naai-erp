@@ -287,7 +287,7 @@ export function StatementSessionWorkspace({ sessionId }: Readonly<{ sessionId: s
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="outline" asChild>
-          <Link href="/banking/statements">Về statement queue</Link>
+          <Link href="/banking/statements">Về danh sách kỳ sao kê</Link>
         </Button>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => void load()} disabled={loading}>

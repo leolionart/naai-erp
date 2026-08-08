@@ -13,6 +13,7 @@ export type ExpenseLineInput = Readonly<{
   vatMinor: string;
   grossMinor: string;
   postingAccountCode: string;
+  expenseCategoryCode?: string;
   vatAccountCode?: string;
   dimensions?: Readonly<Record<string, string>>;
   managementState?: "unreviewed" | "valid" | "invalid" | "accountant_override";

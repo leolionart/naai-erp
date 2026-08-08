@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,10 +22,16 @@ afterEach(async () => {
 
 async function invoke(args: string[]) {
   let requestedUrl = "";
+  let requestBody = "";
   const server = createServer((request, response) => {
     requestedUrl = request.url ?? "";
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({ apiVersion: "v1", data: {} }));
+    request.on("data", (chunk) => {
+      requestBody += String(chunk);
+    });
+    request.on("end", () => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ apiVersion: "v1", data: {} }));
+    });
   });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -44,10 +50,33 @@ async function invoke(args: string[]) {
       },
     },
   );
-  return { ...result, requestedUrl };
+  return { ...result, requestedUrl, requestBody };
 }
 
 describe("ERP-640 CLI executable", () => {
+  it("requires explicit backup evidence before routing a local organization reset", async () => {
+    const result = await invoke([
+      "portable-data-reset",
+      "local",
+      "--confirm-organization",
+      "org-a",
+      "--key",
+      "package-1",
+      "--workbook-sha256",
+      "a".repeat(64),
+      "--idempotency-key",
+      "reset-1",
+    ]);
+    expect(result.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/portable-data-packages/local-admin/reset",
+    );
+    const payload = JSON.parse(result.requestBody ?? "{}");
+    expect(payload).toEqual({
+      confirmOrganizationId: "org-a",
+      packageId: "package-1",
+      workbookSha256: "a".repeat(64),
+    });
+  });
   it("downloads sales invoice and purchase-expense filtered workbooks", async () => {
     const directory = await mkdtemp(join(tmpdir(), "naai-erp-list-export-"));
     try {
@@ -287,6 +316,41 @@ describe("ERP-850 portable organization data package CLI", () => {
         ])
       ).requestedUrl,
     ).toBe("/api/v1/organizations/org-a/portable-data-packages/imports/import-1/commit");
+  });
+
+  it("routes guarded empty-tenant restore through the portable REST API", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "naai-restore-"));
+    const workbook = join(directory, "full-package.xlsx");
+    await writeFile(workbook, Buffer.from("restore fixture"));
+    try {
+      const result = await invoke([
+        "portable-data-restore",
+        "empty",
+        "--file",
+        workbook,
+        "--key",
+        "package-1",
+        "--source-organization",
+        "source-org",
+        "--confirm-organization",
+        "org-a",
+        "--reason",
+        "Production cutover",
+        "--idempotency-key",
+        "restore-once",
+      ]);
+      expect(result.requestedUrl).toBe(
+        "/api/v1/organizations/org-a/portable-data-packages/imports/restore-empty",
+      );
+      expect(JSON.parse(result.requestBody)).toMatchObject({
+        sourceOrganizationId: "source-org",
+        confirmTargetOrganizationId: "org-a",
+        packageId: "package-1",
+        mapSourceActorsToTargetActor: true,
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 

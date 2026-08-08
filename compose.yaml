@@ -32,7 +32,7 @@ services:
         max-file: "3"
 
   migrate:
-    image: ${MIGRATE_IMAGE:-ghcr.io/leolionart/naai-erp-migrate}:${IMAGE_TAG:-main}
+    image: ghcr.io/leolionart/naai-erp-migrate:${IMAGE_TAG:-main}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD:-naai_erp_secret}@postgres:5432/${POSTGRES_DB:-naai_erp}
     depends_on:
@@ -42,7 +42,7 @@ services:
 
   api:
     <<: *service-defaults
-    image: ${API_IMAGE:-ghcr.io/leolionart/naai-erp-api}:${IMAGE_TAG:-main}
+    image: ghcr.io/leolionart/naai-erp-api:${IMAGE_TAG:-main}
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -71,7 +71,7 @@ services:
 
   worker:
     <<: *service-defaults
-    image: ${WORKER_IMAGE:-ghcr.io/leolionart/naai-erp-worker}:${IMAGE_TAG:-main}
+    image: ghcr.io/leolionart/naai-erp-worker:${IMAGE_TAG:-main}
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD:-naai_erp_secret}@postgres:5432/${POSTGRES_DB:-naai_erp}
@@ -87,7 +87,7 @@ services:
 
   web:
     <<: *service-defaults
-    image: ${WEB_IMAGE:-ghcr.io/leolionart/naai-erp-web}:${IMAGE_TAG:-main}
+    image: ghcr.io/leolionart/naai-erp-web:${IMAGE_TAG:-main}
     environment:
       NODE_ENV: production
       PORT: 3000

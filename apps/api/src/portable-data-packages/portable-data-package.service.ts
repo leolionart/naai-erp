@@ -15,6 +15,7 @@ import {
   PORTABLE_DATA_PACKAGE_STORE,
   type PortableDataPackageContext,
   type PortableDataPackageStore,
+  type LocalOrganizationResetInput,
   type PortableExportInput,
   type PortableResourceExport,
 } from "./portable-data-package.types.js";
@@ -116,6 +117,39 @@ export class PortableDataPackageService {
 
   private assertExportPermission(context: PortableDataPackageContext) {
     if (!context.roles.some((role) => EXPORT_ROLES.has(role))) throw new Error("FORBIDDEN");
+  }
+
+  parseLocalResetInput(input: Record<string, unknown>): LocalOrganizationResetInput {
+    const confirmOrganizationId = String(input.confirmOrganizationId ?? "");
+    const packageId = String(input.packageId ?? "");
+    const workbookSha256 = String(input.workbookSha256 ?? "").toLowerCase();
+    if (!confirmOrganizationId || !packageId || !/^[0-9a-f]{64}$/.test(workbookSha256))
+      throw new Error("VALIDATION_FAILED");
+    return { confirmOrganizationId, packageId, workbookSha256 };
+  }
+
+  async resetLocalOrganization(
+    context: PortableDataPackageContext,
+    input: LocalOrganizationResetInput,
+    host: string | undefined,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.includes("owner")) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (input.confirmOrganizationId !== context.organizationId)
+      throw new Error("ORGANIZATION_CONFIRMATION_MISMATCH");
+    const rawHost = String(host ?? "").toLowerCase();
+    const hostname = rawHost.startsWith("[")
+      ? rawHost.slice(1, rawHost.indexOf("]"))
+      : (rawHost.split(":")[0] ?? "");
+    const localHost = ["localhost", "127.0.0.1", "::1"].includes(hostname);
+    const localRuntime =
+      process.env.NODE_ENV !== "production" && process.env.NAAI_ERP_LOCAL_RESET_ENABLED === "1";
+    if (!localHost || !localRuntime) throw new Error("LOCAL_RESET_NOT_ALLOWED");
+    return this.envelope(
+      context,
+      await this.store.resetLocalOrganization(context, input, idempotencyKey),
+    );
   }
 
   private validateResources(resources: readonly PortableResourceExport[]) {

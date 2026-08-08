@@ -54,6 +54,7 @@ const purchaseInvoice = {
   documentNumber: "PINV-720",
   partyId: "supplier-720",
   controlAccountCode: "331",
+  counterAccountCode: "3388-OWNER",
 };
 const recognition = {
   id: "recognition-720",
@@ -105,6 +106,26 @@ async function install(
   let currentInvoice = { ...invoice };
   let currentExpense = { ...expense };
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp720-token"));
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/master-data/expense-categories**",
+    (route) =>
+      reply(route, {
+        items: [
+          {
+            code: "MEAL",
+            name: "Chi phí ăn uống / Tiếp khách",
+            isActive: true,
+            fundingTreatment: "tax_only_non_cash",
+          },
+          {
+            code: "DOMAIN_HOSTING",
+            name: "Chi phí Tên miền / Hosting",
+            isActive: true,
+            fundingTreatment: "owner_paid_company_cost",
+          },
+        ],
+      }),
+  );
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/**",
     (route) =>
@@ -209,6 +230,21 @@ test("@desktop expense management defaults to purchase invoices and every non-in
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý chi phí" })).toBeVisible();
   await expect(page.getByText("PINV-720")).toBeVisible();
   await expect(page.getByText("Phí vận hành")).toBeVisible();
+  await expect(
+    page.getByText("Chủ doanh nghiệp chi hộ (TK 3388 — không trừ quỹ công ty)"),
+  ).toBeVisible();
+  await expect(page.getByText("Quỹ tiền mặt công ty (TK 111)")).toBeVisible();
+  const filterButton = page.getByRole("button", { name: "Bộ lọc" });
+  const exportButton = page.getByRole("button", { name: "Xuất danh sách XLSX" });
+  const createButton = page.getByRole("link", { name: "Tạo chi phí" });
+  for (const control of [filterButton, exportButton, createButton])
+    await expect(control).toHaveAttribute("data-size", "sm");
+  const actionHeights = await Promise.all(
+    [filterButton, exportButton, createButton].map((control) =>
+      control.evaluate((element) => element.getBoundingClientRect().height),
+    ),
+  );
+  expect(new Set(actionHeights).size).toBe(1);
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const filters = page.locator('[data-slot="popover-content"]');
   await filters.getByLabel("Tình trạng hóa đơn").click();
@@ -217,6 +253,15 @@ test("@desktop expense management defaults to purchase invoices and every non-in
   await expect(page).toHaveURL(/invoiceStatus=missing/);
   await expect(page.getByText("Phí vận hành")).toBeVisible();
   await page.getByRole("button", { name: "Xem" }).click();
+  await expect(
+    page.getByRole("dialog").getByText("Nguồn thanh toán", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog")
+      .locator('[data-slot="card-title"]')
+      .filter({ hasText: "Quỹ tiền mặt công ty (TK 111)" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Mở trang chi tiết" })).toHaveAttribute(
     "href",
     "/expenses/expense-720",
@@ -307,6 +352,7 @@ test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable 
 }) => {
   await install(page);
   await page.goto("http://localhost:3000/expenses/new");
+  await expect(page.getByText(/Chính sách danh mục: tax_only_non_cash/)).toBeVisible();
   await page.getByRole("combobox").first().click();
   await page.getByRole("option", { name: "Chi phí không hóa đơn" }).click();
   await page.getByLabel("Mục đích chi / Diễn giải").fill("Phí vận hành");

@@ -20,6 +20,16 @@ The banking demo also includes a VND 10,000,000 withdrawal from the company VCB 
 company cash fund and a VND 3,000,000 cash deposit back into VCB. Both transfers use paired imported
 transaction legs, post through the canonical direct internal-transfer API and remain P&L-neutral.
 
+The banking workspace now exposes those cash-account legs in a dedicated **Sổ quỹ tiền mặt** section
+instead of hiding completed movements from the reconciliation queue. Users can switch quickly
+between all movements, deposits and withdrawals and filter the specific company cash account while
+retaining every lifecycle state.
+
+Banking navigation now uses one hierarchy consistently: **Tiền mặt & Ngân hàng** is the module;
+**Tài khoản & Giao dịch**, **Chuyển tiền nội bộ** and **Kiểm soát sao kê** are the three list
+workspaces. The sidebar, local navigation, breadcrumb, page heading and browser title use the same
+labels, and detail breadcrumbs link back to the correct parent list.
+
 The owner-current-account demo now contains the complete custody/overspend case: the owner withdraws
 VND 90,000,000 from the company bank to hold for company spending, then pays VND 120,000,000 of
 company payroll using the held funds plus personal funds. The resulting `3388-OWNER` balance is a

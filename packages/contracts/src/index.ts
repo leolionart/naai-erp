@@ -1,5 +1,11 @@
 export const API_VERSION = "v1" as const;
 export {
+  EXPENSE_CATEGORY_CONTRACT_VERSION,
+  type ExpenseCategoryContract,
+  type ExpenseFundingTreatmentContract,
+  type OwnerPaidClassificationStatusContract,
+} from "./expense-categories.js";
+export {
   FILTERED_DOCUMENT_EXPORT_CONTRACT_VERSION,
   type FilteredDocumentExportContract,
   type FilteredDocumentExportKindContract,
@@ -14,6 +20,10 @@ export {
   type PortableDataPackageManifestContract,
   type PortableDryRunResultContract,
   type PortableDryRunRowResultContract,
+  type LocalOrganizationResetRequestContract,
+  type LocalOrganizationResetResultContract,
+  type EmptyOrganizationRestoreRequestContract,
+  type EmptyOrganizationRestoreResultContract,
   type PortableRowEnvelopeContract,
   type PortableRowIssueContract,
   type PortableRowOperationContract,

@@ -8,6 +8,21 @@ import type { JournalActorContext } from "../journals/journal.types.js";
 
 export type PortableDataPackageContext = JournalActorContext;
 export type PortableExportInput = Readonly<{ asOf: string; format: "xlsx" }>;
+export type LocalOrganizationResetInput = Readonly<{
+  confirmOrganizationId: string;
+  packageId: string;
+  workbookSha256: string;
+}>;
+export type LocalOrganizationResetResult = Readonly<{
+  organizationId: string;
+  packageId: string;
+  workbookSha256: string;
+  deletedRows: number;
+  deletedByTable: Readonly<Record<string, number>>;
+  preservedTables: readonly string[];
+  auditEventId: string;
+  idempotencyReplayed: boolean;
+}>;
 
 export type PortableResourceExport = Readonly<{
   inventory: Omit<PortableSheetInventoryContract, "headerCount" | "rowCount" | "sha256">;
@@ -66,6 +81,11 @@ export type PortableDataPackageStore = Readonly<{
     context: PortableDataPackageContext,
     packageId: string,
   ): Promise<PortablePackageFile | undefined>;
+  resetLocalOrganization(
+    context: PortableDataPackageContext,
+    input: LocalOrganizationResetInput,
+    idempotencyKey: string,
+  ): Promise<LocalOrganizationResetResult>;
 }>;
 
 export const PORTABLE_DATA_PACKAGE_STORE = Symbol("PORTABLE_DATA_PACKAGE_STORE");

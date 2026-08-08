@@ -13,8 +13,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthenticatedApiClient } from "@/lib/api";
 
 type Row = Record<string, unknown>;
+type ExpenseCategoryPolicy = Readonly<{
+  code: string;
+  name: string;
+  isActive: boolean;
+  fundingTreatment: "company_funds" | "owner_paid_company_cost" | "tax_only_non_cash";
+}>;
+
+function defaultCounterAccount(treatment: ExpenseCategoryPolicy["fundingTreatment"]) {
+  if (treatment === "company_funds") return "112-BANK";
+  if (treatment === "owner_paid_company_cost") return "3388-OWNER";
+  return "331-AP";
+}
 
 function field(source: unknown, ...keys: string[]): unknown {
   if (!source || typeof source !== "object") return undefined;
@@ -212,20 +225,20 @@ function TextField({
 }
 
 export const INBOUND_CATEGORIES = [
-  { code: "SALARY", name: "Chi phí Lương & Thưởng nhân sự", defaultAccount: "6421" },
-  { code: "MEAL", name: "Chi phí Ăn uống / Tiếp khách", defaultAccount: "6428" },
-  { code: "OFFICE_SUPPLIES", name: "Chi phí Văn phòng phẩm / Vật tư", defaultAccount: "6422" },
-  { code: "INTERNET_TELECOM", name: "Chi phí Internet / Điện thoại", defaultAccount: "6427" },
-  { code: "ELECTRICITY_WATER", name: "Chi phí Điện / Nước", defaultAccount: "6427" },
-  { code: "ELECTRONIC_EQUIP", name: "Chi phí Thiết bị điện tử", defaultAccount: "6422" },
-  { code: "SERVER_CLOUD", name: "Chi phí Máy chủ / Cloud Services", defaultAccount: "6427" },
-  { code: "DOMAIN_HOSTING", name: "Chi phí Tên miền / Hosting", defaultAccount: "6427" },
-  { code: "VEHICLE_RENTAL", name: "Chi phí Thuê xe / Thuê pin sạc", defaultAccount: "6427" },
-  { code: "DECORATION", name: "Chi phí Trang trí văn phòng", defaultAccount: "6428" },
-  { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc / Đặt cọc", defaultAccount: "6428" },
-  { code: "TAX", name: "Chi phí Thuế & Phí nhà nước", defaultAccount: "6428" },
-  { code: "OWNER_DRAWING", name: "Chi tiêu cá nhân chủ sở hữu", defaultAccount: "6428" },
-  { code: "OTHER_EXPENSE", name: "Chi phí mua vào khác", defaultAccount: "6428" },
+  { code: "SALARY", name: "Chi phí Lương & Thưởng nhân sự", defaultAccount: "642-OPEX" },
+  { code: "MEAL", name: "Chi phí Ăn uống / Tiếp khách", defaultAccount: "642-OPEX" },
+  { code: "OFFICE_SUPPLIES", name: "Chi phí Văn phòng phẩm / Vật tư", defaultAccount: "642-OPEX" },
+  { code: "INTERNET_TELECOM", name: "Chi phí Internet / Điện thoại", defaultAccount: "642-OPEX" },
+  { code: "ELECTRICITY_WATER", name: "Chi phí Điện / Nước", defaultAccount: "642-OPEX" },
+  { code: "ELECTRONIC_EQUIP", name: "Chi phí Thiết bị điện tử", defaultAccount: "642-OPEX" },
+  { code: "SERVER_CLOUD", name: "Chi phí Máy chủ / Cloud Services", defaultAccount: "642-OPEX" },
+  { code: "DOMAIN_HOSTING", name: "Chi phí Tên miền / Hosting", defaultAccount: "642-OPEX" },
+  { code: "VEHICLE_RENTAL", name: "Chi phí Thuê xe / Thuê pin sạc", defaultAccount: "642-OPEX" },
+  { code: "DECORATION", name: "Chi phí Trang trí văn phòng", defaultAccount: "642-OPEX" },
+  { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc / Đặt cọc", defaultAccount: "642-OPEX" },
+  { code: "TAX", name: "Chi phí Thuế & Phí nhà nước", defaultAccount: "642-OPEX" },
+  { code: "OWNER_DRAWING", name: "Chi tiêu cá nhân chủ sở hữu", defaultAccount: "642-OPEX" },
+  { code: "OTHER_EXPENSE", name: "Chi phí mua vào khác", defaultAccount: "642-OPEX" },
 ] as const;
 
 export const OUTBOUND_CATEGORIES = [
@@ -271,7 +284,29 @@ export const ACCOUNT_CODES = [
   { code: "6422", name: "6422 - Chi phí vật liệu, đồ dùng văn phòng" },
   { code: "6427", name: "6427 - Chi phí dịch vụ mua ngoài" },
   { code: "6428", name: "6428 - Chi phí bằng tiền khác" },
+  { code: "3388-OWNER", name: "3388 - Phải trả chủ doanh nghiệp (chi hộ)" },
 ] as const;
+
+const FUNDING_SOURCE_OPTIONS = [
+  { code: "111-CASH", name: "Quỹ tiền mặt công ty (TK 111)" },
+  { code: "112-BANK", name: "Tài khoản ngân hàng công ty (TK 112)" },
+  {
+    code: "3388-OWNER",
+    name: "Chủ doanh nghiệp chi hộ (TK 3388 — không trừ quỹ công ty)",
+  },
+] as const;
+
+export function getFundingSourceLabel(counterAccountCode?: string): string {
+  const code = counterAccountCode?.trim();
+  if (!code) return "Chưa xác định nguồn thanh toán";
+  if (code === "111" || code.startsWith("111-")) return FUNDING_SOURCE_OPTIONS[0].name;
+  if (code === "112" || code.startsWith("112-")) return FUNDING_SOURCE_OPTIONS[1].name;
+  if (code === "3388" || code.startsWith("3388-")) return FUNDING_SOURCE_OPTIONS[2].name;
+  if (code === "331" || code.startsWith("331-")) {
+    return "Công nợ nhà cung cấp (TK 331 — chưa trừ quỹ công ty)";
+  }
+  return `Tài khoản đối ứng ${code}`;
+}
 
 export const TAX_CODES = [
   { code: "VAT10", name: "VAT 10%" },
@@ -672,13 +707,15 @@ export function ExpenseForm({
   parties?: readonly Row[];
   submitLabel?: string;
 }) {
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
+  const [categoryPolicies, setCategoryPolicies] = useState<readonly ExpenseCategoryPolicy[]>([]);
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
   const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
 
   const [expenseClass, setExpenseClass] = useState(
-    String(field(initial, "expenseClass", "expense_class") ?? "documented_operational"),
+    String(field(initial, "expenseClass", "expense_class") ?? "non_documented"),
   );
   const [category, setCategory] = useState(
     String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
@@ -715,17 +752,61 @@ export function ExpenseForm({
     ),
   );
   const [counterAccountCode, setCounterAccountCode] = useState(
-    String(field(initial, "counterAccountCode", "counter_account_code") ?? "111"),
+    String(field(initial, "counterAccountCode", "counter_account_code") ?? "111-CASH"),
   );
   const [postingAccountCode, setPostingAccountCode] = useState(
-    String(field(initialLine, "postingAccountCode", "posting_account_code") ?? "642"),
+    String(field(initialLine, "postingAccountCode", "posting_account_code") ?? "642-OPEX"),
   );
+
+  useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    let cancelled = false;
+    void client
+      .data<readonly ExpenseCategoryPolicy[] | { items?: readonly ExpenseCategoryPolicy[] }>(
+        "master-data/expense-categories?limit=200",
+      )
+      .then((payload) => {
+        if (cancelled) return;
+        const policies: readonly ExpenseCategoryPolicy[] = Array.isArray(payload)
+          ? (payload as readonly ExpenseCategoryPolicy[])
+          : ((payload as { items?: readonly ExpenseCategoryPolicy[] }).items ?? []);
+        const active = policies
+          .map((policy) => {
+            const row = policy as unknown as Record<string, unknown>;
+            return {
+              code: String(row.code ?? ""),
+              name: String(row.name ?? ""),
+              isActive: Boolean(row.isActive ?? row.is_active),
+              fundingTreatment: String(
+                row.fundingTreatment ?? row.funding_treatment,
+              ) as ExpenseCategoryPolicy["fundingTreatment"],
+            };
+          })
+          .filter((policy) => policy.isActive);
+        setCategoryPolicies(active);
+        if (!initial) {
+          const selected = active.find((policy) => policy.code === category);
+          if (selected) setCounterAccountCode(defaultCounterAccount(selected.fundingTreatment));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCategoryPolicies([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [category, client, hasToken, hydrated, initial]);
 
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
+    const policy = categoryPolicies.find((item) => item.code === catCode);
+    if (policy) setCounterAccountCode(defaultCounterAccount(policy.fundingTreatment));
     const item = INBOUND_CATEGORIES.find((c) => c.code === catCode);
     if (item && !initial) {
       setPostingAccountCode(item.defaultAccount);
+      if (catCode === "SALARY") setExpenseClass("payroll_personnel");
+      else if (catCode === "TAX") setExpenseClass("tax_payment");
+      else if (catCode === "OWNER_DRAWING") setExpenseClass("owner_personal");
     }
   }
 
@@ -746,11 +827,21 @@ export function ExpenseForm({
       lines: [
         {
           lineNumber: 1,
+          description: businessPurpose || getCategoryName(category) || "Chi phí doanh nghiệp",
           postingAccountCode,
+          expenseCategoryCode: category,
+          ...(BigInt(vatMinor || "0") > 0n ? { vatAccountCode: "1331-VAT" } : {}),
           netMinor: netMinor || "0",
           vatMinor: vatMinor || "0",
           grossMinor: grossMinor || "0",
           dimensions: { category },
+          allocations: [
+            {
+              id: crypto.randomUUID(),
+              amountMinor: netMinor || "0",
+              dimensions: { category, fundingSource: counterAccountCode },
+            },
+          ],
         },
       ],
     };
@@ -769,9 +860,14 @@ export function ExpenseForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="documented_operational">Chi phí vận hành có hóa đơn</SelectItem>
+                <SelectItem value="invoice_backed">Chi phí có hóa đơn</SelectItem>
+                <SelectItem value="receipt_backed">Chi phí có biên nhận</SelectItem>
+                <SelectItem value="contract_backed">Chi phí theo hợp đồng</SelectItem>
+                <SelectItem value="payroll_personnel">Lương / thưởng nhân sự</SelectItem>
+                <SelectItem value="tax_payment">Thuế và phí nhà nước</SelectItem>
                 <SelectItem value="non_documented">Chi phí không hóa đơn</SelectItem>
                 <SelectItem value="employee_reimbursement">Hoàn ứng nhân viên</SelectItem>
+                <SelectItem value="owner_personal">Chi tiêu cá nhân chủ sở hữu</SelectItem>
                 <SelectItem value="petty_cash">Tiền mặt / Tạm ứng nhỏ</SelectItem>
               </SelectGroup>
             </SelectContent>
@@ -785,7 +881,13 @@ export function ExpenseForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {INBOUND_CATEGORIES.map((cat) => (
+                {(categoryPolicies.length
+                  ? categoryPolicies.map((policy) => ({
+                      code: policy.code,
+                      name: policy.name,
+                    }))
+                  : INBOUND_CATEGORIES
+                ).map((cat) => (
                   <SelectItem key={cat.code} value={cat.code}>
                     {cat.name}
                   </SelectItem>
@@ -900,21 +1002,33 @@ export function ExpenseForm({
           </Select>
         </Field>
         <Field>
-          <FieldLabel>Tài khoản đối ứng (Tiền mặt/NH)</FieldLabel>
+          <FieldLabel>Nguồn thanh toán chi phí</FieldLabel>
           <Select value={counterAccountCode} onValueChange={setCounterAccountCode}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {ACCOUNT_CODES.map((acc) => (
+                {FUNDING_SOURCE_OPTIONS.map((acc) => (
                   <SelectItem key={acc.code} value={acc.code}>
                     {acc.name}
                   </SelectItem>
                 ))}
+                {!FUNDING_SOURCE_OPTIONS.some((item) => item.code === counterAccountCode) ? (
+                  <SelectItem value={counterAccountCode}>
+                    {getFundingSourceLabel(counterAccountCode)}
+                  </SelectItem>
+                ) : null}
               </SelectGroup>
             </SelectContent>
           </Select>
+          {categoryPolicies.find((item) => item.code === category) ? (
+            <p className="text-sm text-muted-foreground">
+              Chính sách danh mục:{" "}
+              {categoryPolicies.find((item) => item.code === category)?.fundingTreatment}. Có thể
+              chọn lại cho giao dịch này.
+            </p>
+          ) : null}
         </Field>
       </FieldSet>
 

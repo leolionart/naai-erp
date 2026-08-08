@@ -1128,6 +1128,110 @@ tests:
     command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
     blocking_gate: G14
 
+  - id: T-UNIT-ERP-841-006
+    task: ERP-841
+    rules: [BR-BNK-002, BR-BNK-003, BR-UI-003, BR-UI-004]
+    title: Banking workspace exposes complete company cash-fund deposit and withdrawal history separately from the reconciliation queue
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/banking-workspace.test.tsx
+    blocking_gate: G14
+
+  - id: T-API-ERP-851-001
+    task: ERP-851
+    rules: [BR-MIG-005, BR-AUD-001]
+    title: Local organization reset rejects unsafe requests and requires exact backup evidence
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/portable-data-packages/portable-data-package.service.test.ts
+    blocking_gate: G16
+
+  - id: T-CLI-ERP-851-002
+    task: ERP-851
+    rules: [BR-MIG-005, BR-EXPOR-002, BR-AUD-001]
+    title: First-party CLI requires exact organization confirmation portable package workbook SHA and loopback API before local reset
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
+    blocking_gate: G16
+
+  - id: T-INT-ERP-851-003
+    task: ERP-851
+    rules: [BR-MIG-005, BR-AUD-001]
+    title: Local reset is transactional and preserves organization identity and baseline configuration
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp pnpm --filter @naai-erp/api exec vitest run src/portable-data-packages/local-organization-reset.integration.test.ts
+    blocking_gate: G16
+
+  - id: T-UNIT-ERP-851-004
+    task: ERP-851
+    rules: [BR-EXPOR-003]
+    title: Filtered accounting exports contain accountant-readable VAT schedules without losing canonical audit sheets
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/report-exports/accounting-list-workbook.test.ts src/report-exports/report-export.service.test.ts
+    blocking_gate: G16
+
+  - id: T-UNIT-ERP-851-005
+    task: ERP-851
+    rules: [BR-MIG-001, BR-MIG-002, BR-EXPOR-002]
+    title: Reviewed normalization staging converts deterministically into a portable package without inventing accounting mappings
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts src/portable-data-packages/erp851-staging-converter.test.ts src/portable-data-packages/portable-data-import.service.test.ts src/portable-data-packages/portable-canonical-mutation.adapter.test.ts
+    blocking_gate: G16
+
+  - id: T-DB-ERP-852-001
+    task: ERP-852
+    rules: [BR-EXP-004, BR-ORG-001]
+    title: Expense category policy schema migrates on empty and upgraded databases with organization isolation
+    layer: database
+    command: pnpm --filter @naai-erp/database test
+    blocking_gate: G17
+
+  - id: T-API-ERP-852-002
+    task: ERP-852
+    rules: [BR-EXP-004, BR-AUD-001, BR-ORG-001]
+    title: Versioned API manages expense categories and snapshots funding treatment on expenses
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/master-data/master-data.integration.test.ts src/expenses/expense.integration.test.ts
+    blocking_gate: G17
+
+  - id: T-INT-ERP-852-003
+    task: ERP-852
+    rules: [BR-EXP-004, BR-LED-003]
+    title: Dashboard subtracts only posted owner-paid company-cost categories and discloses unclassified records
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/operating-dashboard/operating-dashboard.integration.test.ts
+    blocking_gate: G17
+
+  - id: T-E2E-ERP-852-004
+    task: ERP-852
+    rules: [BR-EXP-004]
+    title: User configures a future expense category and sees correct funding defaults and net company funds
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts e2e/focused-records.spec.ts --project=desktop-chromium
+    blocking_gate: G17
+
+  - id: T-API-ERP-853-001
+    task: ERP-853
+    rules: [BR-MIG-006, BR-AUD-001, BR-ORG-001]
+    title: Empty-tenant restore requires exact confirmation package hash authorization reason and idempotency
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/portable-data-packages/portable-data-package.service.test.ts
+    blocking_gate: G18
+
+  - id: T-CLI-ERP-853-002
+    task: ERP-853
+    rules: [BR-MIG-006]
+    title: First-party CLI exposes guarded full organization restore without direct database access
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
+    blocking_gate: G18
+
+  - id: T-INT-ERP-853-003
+    task: ERP-853
+    rules: [BR-MIG-006, BR-MIG-003, BR-LED-001, BR-LED-003]
+    title: Full package restores business ledger and bank rows into an empty tenant with exact counts hashes and balanced journals
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/portable-data-packages/empty-organization-restore.integration.test.ts
+    blocking_gate: G18
+
   - id: T-CONTRACT-ERP-850-001
     task: ERP-850
     rules: [BR-EXPOR-002, BR-AI-003, BR-AI-004, BR-AI-005]

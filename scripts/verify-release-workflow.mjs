@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const manifestPath = resolve(root, "scripts/release-images.json");
 const workflowPath = resolve(root, ".github/workflows/release-main.yml");
+const ciWorkflowPath = resolve(root, ".github/workflows/ci.yml");
 const expectedImages = new Map([
   ["naai-erp-api", "docker/Dockerfile.api"],
   ["naai-erp-web", "docker/Dockerfile.web"],
@@ -14,6 +15,7 @@ const expectedImages = new Map([
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const workflow = await readFile(workflowPath, "utf8");
+const ciWorkflow = await readFile(ciWorkflowPath, "utf8");
 
 assert.equal(manifest.registry, "ghcr.io", "release registry must be GHCR");
 assert.equal(
@@ -55,6 +57,7 @@ const requiredWorkflowPatterns = [
   [/needs:\s*checks/, "image publication must depend on checks"],
   [/uses:\s*docker\/login-action@v3/, "workflow must authenticate to GHCR"],
   [/uses:\s*docker\/build-push-action@v6/, "workflow must use Buildx image publication"],
+  [/platforms:\s*linux\/amd64,linux\/arm64/, "release must publish amd64 and arm64 images"],
   [/push:\s*true/, "workflow must push built images"],
   [/sha-\$\{\{\s*needs\.checks\.outputs\.short_sha\s*\}\}/, "immutable tags must use sha-<12>"],
   [
@@ -65,6 +68,8 @@ const requiredWorkflowPatterns = [
     /org\.opencontainers\.image\.source=https:\/\/github\.com\/leolionart\/naai-erp/,
     "images must identify the canonical repository",
   ],
+  [/provenance:\s*mode=max/, "release images must publish provenance"],
+  [/sbom:\s*true/, "release images must publish an SBOM"],
 ];
 
 for (const [pattern, message] of requiredWorkflowPatterns) {
@@ -82,6 +87,20 @@ assert.match(
   "build matrix must come from the verified release manifest",
 );
 assert.doesNotMatch(workflow, /nclamvn/i, "workflow must not publish to the obsolete namespace");
+
+for (const [name, dockerfile] of expectedImages) {
+  assert.match(ciWorkflow, new RegExp(`name:\\s*${name}`), `CI must build ${name}`);
+  assert.match(
+    ciWorkflow,
+    new RegExp(`dockerfile:\\s*${dockerfile.replaceAll("/", "\\/")}`),
+    `CI must use ${dockerfile}`,
+  );
+}
+assert.match(
+  ciWorkflow,
+  /uses:\s*docker\/build-push-action@v6/,
+  "CI must build images with Buildx",
+);
 
 console.log(
   `Release workflow verified: ${manifest.images.length} images, main + sha-<12> tags, exact OCI revision.`,

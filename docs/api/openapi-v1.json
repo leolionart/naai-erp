@@ -21,6 +21,7 @@
     "dimensions",
     "dimension-requirements",
     "default-mappings",
+    "expense-categories",
     "parties",
     "party-roles",
     "projects",
@@ -80,6 +81,7 @@
     "expenses/approve",
     "expenses/reject",
     "expenses/post",
+    "portable-data-packages/restore-empty",
     "evidence/upload",
     "evidence/review",
     "evidence/download-url",
@@ -109,6 +111,11 @@
     "workbook-imports/review-rows/update"
   ],
   "paths": {
+    "/api/v1/organizations/{organizationId}/portable-data-packages/imports/restore-empty": {
+      "post": {
+        "summary": "Restore a confirmed Full ERP package into an empty target organization with count hash and journal-balance controls"
+      }
+    },
     "/api/v1/organizations/{organizationId}/master-data/resources": {
       "get": {
         "summary": "List available master-data resources"
@@ -530,6 +537,9 @@
       },
       "patch": {
         "summary": "Update an existing draft expense, validating final state and preserving external reference"
+      },
+      "delete": {
+        "summary": "Discard a draft expense with If-Match, reason, idempotency and retained audit evidence"
       }
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/review": {
@@ -3106,6 +3116,44 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/portable-data-packages/local-admin/reset": {
+      "post": {
+        "operationId": "resetLocalOrganizationFromPortableBackup",
+        "tags": ["portable-data-packages", "local-admin"],
+        "summary": "Reset local organization business data after verifying a completed portable backup",
+        "description": "Destructive operation restricted to an explicitly enabled non-production runtime reached through localhost, 127.0.0.1 or ::1. Organization identity, memberships, credentials and approved baseline configuration are preserved.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LocalOrganizationResetRequest" },
+              "example": {
+                "confirmOrganizationId": "naai",
+                "packageId": "package-backup-1",
+                "workbookSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transactional local reset result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LocalOrganizationResetEnvelope" }
+              }
+            }
+          },
+          "400": { "description": "Missing or mismatched organization/package/SHA confirmation" },
+          "403": { "description": "Not owner, not loopback or local reset runtime disabled" },
+          "409": { "description": "Backup evidence or idempotency conflict" }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/portable-data-packages/exports": {
       "post": {
         "operationId": "createPortableDataPackageExport",
@@ -3671,6 +3719,52 @@
     },
     "schemas": {
       "PortableSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "LocalOrganizationResetRequest": {
+        "type": "object",
+        "required": ["confirmOrganizationId", "packageId", "workbookSha256"],
+        "properties": {
+          "confirmOrganizationId": { "type": "string", "minLength": 1 },
+          "packageId": { "type": "string", "minLength": 1 },
+          "workbookSha256": { "$ref": "#/components/schemas/PortableSha256" }
+        },
+        "additionalProperties": false
+      },
+      "LocalOrganizationResetResult": {
+        "type": "object",
+        "required": [
+          "organizationId",
+          "packageId",
+          "workbookSha256",
+          "deletedRows",
+          "deletedByTable",
+          "preservedTables",
+          "auditEventId",
+          "idempotencyReplayed"
+        ],
+        "properties": {
+          "organizationId": { "type": "string" },
+          "packageId": { "type": "string" },
+          "workbookSha256": { "$ref": "#/components/schemas/PortableSha256" },
+          "deletedRows": { "type": "integer", "minimum": 0 },
+          "deletedByTable": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          },
+          "preservedTables": { "type": "array", "items": { "type": "string" } },
+          "auditEventId": { "type": "string" },
+          "idempotencyReplayed": { "type": "boolean" }
+        }
+      },
+      "LocalOrganizationResetEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/LocalOrganizationResetResult" }
+        }
+      },
       "PortableSheetInventory": {
         "type": "object",
         "required": [

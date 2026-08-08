@@ -236,7 +236,7 @@ export function InternalTransferWorkspace({ transferId }: Readonly<{ transferId:
         <Button variant="ghost" asChild>
           <Link href="/banking/internal-transfers">
             <ArrowLeftIcon data-icon="inline-start" />
-            Quay lại transfer queue
+            Về danh sách chuyển tiền nội bộ
           </Link>
         </Button>
       </div>

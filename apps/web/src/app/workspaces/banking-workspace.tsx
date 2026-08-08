@@ -70,6 +70,40 @@ export function filterBankTransactions(
   });
 }
 
+export type CashMovementDirection = "" | "deposit" | "withdrawal";
+
+export function cashMovementDirection(row: BankingRow): Exclude<CashMovementDirection, ""> | "" {
+  try {
+    const amount = BigInt(signedAmount(row));
+    if (amount > 0n) return "deposit";
+    if (amount < 0n) return "withdrawal";
+  } catch {
+    // Keep malformed/unknown amounts visible in the unfiltered history.
+  }
+  return "";
+}
+
+export function filterCashFundTransactions(
+  rows: readonly BankingRow[],
+  accounts: readonly BankingRow[],
+  input: { accountId: string; direction: CashMovementDirection },
+) {
+  const cashAccountIds = new Set(
+    accounts
+      .filter((account) => textField(account, "kind", "accountType", "type") === "cash")
+      .map((account) => textField(account, "id"))
+      .filter(Boolean),
+  );
+  return rows.filter((row) => {
+    const accountId = textField(row, "financialAccountId", "bankAccountId", "accountId");
+    return (
+      cashAccountIds.has(accountId) &&
+      (!input.accountId || accountId === input.accountId) &&
+      (!input.direction || cashMovementDirection(row) === input.direction)
+    );
+  });
+}
+
 function textField(row: BankingRow, ...names: string[]): string {
   for (const name of names) {
     const snake = name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -108,7 +142,11 @@ export function BankingWorkspace() {
   const [notice, setNotice] = useState("Sẵn sàng tải tài khoản và giao dịch tiền.");
   const [accountDialog, setAccountDialog] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
-  const [filters, setFilters] = useState({ query: "", accountId: "", state: "" });
+  const [queueFilters, setQueueFilters] = useState({ query: "", accountId: "", state: "" });
+  const [cashHistoryFilters, setCashHistoryFilters] = useState<{
+    accountId: string;
+    direction: CashMovementDirection;
+  }>({ accountId: "", direction: "" });
 
   useEffect(() => {
     setConnection(loadConnectionSettings(window.localStorage));
@@ -128,9 +166,20 @@ export function BankingWorkspace() {
     () =>
       filterBankTransactions(
         transactions.filter((row) => !["reconciled", "ignored"].includes(textField(row, "state"))),
-        filters,
+        queueFilters,
       ),
-    [filters, transactions],
+    [queueFilters, transactions],
+  );
+
+  const cashAccounts = useMemo(
+    () =>
+      accounts.filter((account) => textField(account, "kind", "accountType", "type") === "cash"),
+    [accounts],
+  );
+
+  const cashFundHistory = useMemo(
+    () => filterCashFundTransactions(transactions, accounts, cashHistoryFilters),
+    [accounts, cashHistoryFilters, transactions],
   );
 
   function persistConnection(nextConnection = connection, nextToken = token) {
@@ -301,6 +350,27 @@ export function BankingWorkspace() {
     },
   ];
 
+  const cashHistoryColumns: readonly FinancialColumn<BankingRow>[] = [
+    transactionColumns[0]!,
+    transactionColumns[1]!,
+    {
+      id: "direction",
+      header: "Loại biến động",
+      cell: (row) => (
+        <Badge variant="outline">
+          {cashMovementDirection(row) === "deposit"
+            ? "Nộp tiền"
+            : cashMovementDirection(row) === "withdrawal"
+              ? "Rút tiền"
+              : "Chưa xác định"}
+        </Badge>
+      ),
+    },
+    transactionColumns[2]!,
+    transactionColumns[3]!,
+    transactionColumns[4]!,
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       {error ? (
@@ -316,10 +386,10 @@ export function BankingWorkspace() {
 
       <div className="flex flex-wrap gap-2" aria-label="Điều hướng nghiệp vụ ngân hàng">
         <Button variant="secondary" asChild>
-          <Link href="/banking">Tài khoản & đối soát</Link>
+          <Link href="/banking">Tài khoản & Giao dịch</Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link href="/banking/internal-transfers">Chuyển nội bộ</Link>
+          <Link href="/banking/internal-transfers">Chuyển tiền nội bộ</Link>
         </Button>
         <Button variant="outline" asChild>
           <Link href="/banking/statements">Kiểm soát sao kê</Link>
@@ -368,6 +438,77 @@ export function BankingWorkspace() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Lịch sử nộp/rút quỹ tiền mặt</CardTitle>
+          <CardDescription>
+            Toàn bộ biến động của quỹ tiền mặt doanh nghiệp, bao gồm cả giao dịch đang xử lý, đã đối
+            soát hoặc đã bỏ qua.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <FieldGroup className="grid gap-4 md:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="cash-history-account-filter">Quỹ tiền mặt</FieldLabel>
+              <Select
+                value={cashHistoryFilters.accountId || "all"}
+                onValueChange={(value) =>
+                  setCashHistoryFilters((current) => ({
+                    ...current,
+                    accountId: value === "all" ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger id="cash-history-account-filter">
+                  <SelectValue placeholder="Tất cả quỹ tiền mặt" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">Tất cả quỹ tiền mặt</SelectItem>
+                    {cashAccounts.map((account) => (
+                      <SelectItem key={textField(account, "id")} value={textField(account, "id")}>
+                        {textField(account, "displayName", "name") || textField(account, "id")}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="cash-history-direction-filter">Loại biến động</FieldLabel>
+              <Select
+                value={cashHistoryFilters.direction || "all"}
+                onValueChange={(value) =>
+                  setCashHistoryFilters((current) => ({
+                    ...current,
+                    direction: value === "deposit" || value === "withdrawal" ? value : "",
+                  }))
+                }
+              >
+                <SelectTrigger id="cash-history-direction-filter">
+                  <SelectValue placeholder="Tất cả nộp/rút" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">Tất cả nộp/rút</SelectItem>
+                    <SelectItem value="deposit">Nộp tiền</SelectItem>
+                    <SelectItem value="withdrawal">Rút tiền</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          </FieldGroup>
+          <FinancialDataTable
+            rows={cashFundHistory}
+            columns={cashHistoryColumns}
+            rowKey={(row) => textField(row, "id", "providerTransactionId") || JSON.stringify(row)}
+            loading={busy && !transactions.length}
+            emptyTitle="Chưa có biến động quỹ tiền mặt"
+            emptyDescription="Không có giao dịch nộp/rút phù hợp với bộ lọc hiện tại."
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Hàng chờ đối soát</CardTitle>
           <CardDescription>
             Mở từng giao dịch để xem candidate, phân bổ một phần, phí ngân hàng và chênh lệch tỷ giá
@@ -381,16 +522,21 @@ export function BankingWorkspace() {
               <Input
                 id="banking-query"
                 placeholder="Nội dung, tham chiếu, đối tác"
-                value={filters.query}
-                onChange={(event) => setFilters({ ...filters, query: event.target.value })}
+                value={queueFilters.query}
+                onChange={(event) =>
+                  setQueueFilters((current) => ({ ...current, query: event.target.value }))
+                }
               />
             </Field>
             <Field>
               <FieldLabel htmlFor="banking-account-filter">Tài khoản</FieldLabel>
               <Select
-                value={filters.accountId || "all"}
+                value={queueFilters.accountId || "all"}
                 onValueChange={(value) =>
-                  setFilters({ ...filters, accountId: value === "all" ? "" : value })
+                  setQueueFilters((current) => ({
+                    ...current,
+                    accountId: value === "all" ? "" : value,
+                  }))
                 }
               >
                 <SelectTrigger id="banking-account-filter">
@@ -411,9 +557,12 @@ export function BankingWorkspace() {
             <Field>
               <FieldLabel htmlFor="banking-state-filter">Trạng thái</FieldLabel>
               <Select
-                value={filters.state || "all"}
+                value={queueFilters.state || "all"}
                 onValueChange={(value) =>
-                  setFilters({ ...filters, state: value === "all" ? "" : value })
+                  setQueueFilters((current) => ({
+                    ...current,
+                    state: value === "all" ? "" : value,
+                  }))
                 }
               >
                 <SelectTrigger id="banking-state-filter">

@@ -124,7 +124,7 @@ export function MonthlyCategoryStackedChart({
         <CardDescription className="text-xs">{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
-        <div className="h-80 w-full relative z-10">
+        <div className="h-80 min-h-[20rem] w-full relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />

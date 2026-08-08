@@ -19,16 +19,42 @@ suite("operating dashboard PostgreSQL API", () => {
       insert into organization_memberships(organization_id,user_id) values('${org}','${owner}');
       insert into membership_roles(organization_id,user_id,role) values('${org}','${owner}','owner');
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
-        ('${org}','131','Receivables','asset',true,false),('${org}','511','Revenue','revenue',false,true);
+        ('${org}','131','Receivables','asset',true,false),('${org}','511','Revenue','revenue',false,true),
+        ('${org}','642','Expense','expense',false,true),('${org}','3388','Owner payable','liability',false,true),
+        ('${org}','112','Bank','asset',false,true);
+      insert into expense_categories(organization_id,code,name,funding_treatment,created_by,updated_by) values
+        ('${org}','OWNER-ACTUAL','Owner-paid actual','owner_paid_company_cost','${owner}','${owner}'),
+        ('${org}','TAX-ONLY','Tax-only invoice','tax_only_non_cash','${owner}','${owner}'),
+        ('${org}','COMPANY','Company funded','company_funds','${owner}','${owner}');
       insert into parties(organization_id,id,display_name,status) values('${org}','client','Client','active');
       insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
         values('${org}','project','OPS','Project','client','${owner}','fixed_fee','VND',2000,'2026-01-01','active');
       insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency)
         values('${org}','contract','project','OPS-C','2026-01-01',2000,'VND');
       insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by)
-        values('${org}','sales-journal','2026-07-01','Invoice','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+        values('${org}','sales-journal','2026-07-01','Invoice','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','owner-expense-journal','2026-07-02','Owner actual','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','tax-expense-journal','2026-07-03','Tax only','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','company-expense-journal','2026-07-04','Company cost','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','unclassified-expense-journal','2026-07-05','Unclassified','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
-        ('${org}','sales-journal',1,'131',1000,null,'AR','{}'),('${org}','sales-journal',2,'511',null,1000,'Revenue','{}');
+        ('${org}','sales-journal',1,'131',1000,null,'AR','{}'),('${org}','sales-journal',2,'511',null,1000,'Revenue','{}'),
+        ('${org}','owner-expense-journal',1,'642',100,null,'Owner actual','{}'),('${org}','owner-expense-journal',2,'3388',null,100,'Owner payable','{}'),
+        ('${org}','tax-expense-journal',1,'642',200,null,'Tax only','{}'),('${org}','tax-expense-journal',2,'3388',null,200,'Owner payable','{}'),
+        ('${org}','company-expense-journal',1,'642',300,null,'Company','{}'),('${org}','company-expense-journal',2,'112',null,300,'Bank','{}'),
+        ('${org}','unclassified-expense-journal',1,'642',50,null,'Unclassified','{}'),('${org}','unclassified-expense-journal',2,'3388',null,50,'Owner payable','{}');
+      insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by) values
+        ('${org}','owner-expense','invoice_backed','posted','2026-07-02','Owner actual','VND',100,0,100,'3388','owner-expense-journal','${owner}'),
+        ('${org}','tax-expense','invoice_backed','posted','2026-07-03','Tax only','VND',200,0,200,'3388','tax-expense-journal','${owner}'),
+        ('${org}','company-expense','invoice_backed','posted','2026-07-04','Company','VND',300,0,300,'112','company-expense-journal','${owner}'),
+        ('${org}','unclassified-expense','invoice_backed','posted','2026-07-05','Unclassified','VND',50,0,50,'3388','unclassified-expense-journal','${owner}'),
+        ('${org}','draft-owner-expense','invoice_backed','draft','2026-07-06','Draft','VND',400,0,400,'3388',null,'${owner}');
+      insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions) values
+        ('${org}','owner-expense',1,'Owner actual',100,0,100,'642','OWNER-ACTUAL','owner_paid_company_cost','{}'),
+        ('${org}','tax-expense',1,'Tax only',200,0,200,'642','TAX-ONLY','tax_only_non_cash','{}'),
+        ('${org}','company-expense',1,'Company',300,0,300,'642','COMPANY','company_funds','{}'),
+        ('${org}','unclassified-expense',1,'Unclassified',50,0,50,'642',null,null,'{}'),
+        ('${org}','draft-owner-expense',1,'Draft',400,0,400,'642','OWNER-ACTUAL','owner_paid_company_cost','{}');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,created_by)
         values('${org}','invoice','sales_invoice','issued','OPS-1','OPS',2026,'client','2026-07-01','2026-07-31','VND',1000,0,1000,'131','sales-journal','${owner}'),
         ('${org}','future-invoice','sales_invoice','issued','OPS-2','OPS',2026,'client','2026-10-01','2026-10-31','VND',700,0,700,'131',null,'${owner}');
@@ -89,16 +115,21 @@ suite("operating dashboard PostgreSQL API", () => {
         clientConcentration: { totalRevenueMinor: "1000", topClientShareBps: 10000 },
         financials: {
           revenueMinor: "1000",
-          expenseMinor: "0",
-          netProfitMinor: "1000",
+          expenseMinor: "650",
+          netProfitMinor: "350",
           unrestrictedCashMinor: null,
           bankAvailableMinor: "0",
           cashOnHandMinor: "0",
           cashAndBankMinor: "0",
           ownerPayableMinor: "0",
           netAvailableCashMinor: "0",
+          actualOwnerPaidCompanyCostMinor: "100",
+          netCompanyFundsMinor: "-100",
+          unclassifiedOwnerPaidCount: 1,
+          unclassifiedOwnerPaidMinor: "50",
+          ownerPaidClassificationStatus: "review_required",
           corporateIncomeTaxRateBps: null,
-          rosBps: 10000,
+          rosBps: 3500,
           recognitionEventCount: 0,
           approvedBudgetCount: 0,
           postedOverheadRunCount: 0,

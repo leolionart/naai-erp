@@ -234,10 +234,13 @@ export function InternalTransferListWorkspace() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" asChild>
-          <Link href="/banking">Tài khoản & đối soát</Link>
+          <Link href="/banking">Tài khoản & Giao dịch</Link>
         </Button>
         <Button variant="secondary" asChild>
-          <Link href="/banking/internal-transfers">Chuyển nội bộ</Link>
+          <Link href="/banking/internal-transfers">Chuyển tiền nội bộ</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/banking/statements">Kiểm soát sao kê</Link>
         </Button>
       </div>
       <Alert>

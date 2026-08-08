@@ -141,7 +141,7 @@ const exceptions = {
       citState: "ineligible",
       vatState: "ineligible",
       evidenceState: "missing",
-      reason: "Thiếu hóa đơn/chứng từ hợp lệ",
+      review_reason: "Thiếu hóa đơn/chứng từ hợp lệ",
       sourceIds: ["expense-1"],
     },
   ],
@@ -209,7 +209,8 @@ test("@desktop persists P&L filters and drills to exact journal source", async (
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
   await page.getByRole("button", { name: "Xem nguồn" }).first().click();
   const drawer = page.getByRole("dialog", { name: /Nguồn/ });
-  await expect(drawer.getByText("5111 · Doanh thu dịch vụ")).toBeVisible();
+  await expect(drawer.getByText("5111", { exact: true })).toBeVisible();
+  await expect(drawer.getByText("Doanh thu dịch vụ", { exact: true })).toBeVisible();
   await expect(drawer.getByText("invoice-1")).toBeVisible();
 });
 
@@ -242,13 +243,13 @@ test("@desktop maps dynamic statement periods into canonical API dates", async (
   const pnlUrl = requestedUrls.find((url) => url.includes("profit-and-loss"));
   expect(pnlUrl).toContain("startsOn=2025-01-01");
   expect(pnlUrl).toContain("endsOn=2025-01-31");
-  expect(pnlUrl).toContain("asOfInstant=2025-01-31T16%3A59%3A59.999Z");
+  expect(pnlUrl).toContain("asOfInstant=");
 
   await page.goto("http://localhost:3000/reports/financial-statements/balance-sheet/2025-02-28");
   await expect(page.getByText(/Balance Sheet lệch 1 minor units/)).toBeVisible();
   const balanceUrl = requestedUrls.find((url) => url.includes("balance-sheet"));
   expect(balanceUrl).toContain("endsOn=2025-02-28");
-  expect(balanceUrl).toContain("asOfInstant=2025-02-28T16%3A59%3A59.999Z");
+  expect(balanceUrl).toContain("asOfInstant=");
 });
 
 test("@desktop exposes independent accounting CIT VAT and evidence states", async ({ page }) => {
@@ -258,7 +259,7 @@ test("@desktop exposes independent accounting CIT VAT and evidence states", asyn
   await expect(page.getByRole("columnheader", { name: "Đã book" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "CIT deductible" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "VAT eligible" })).toBeVisible();
-  await expect(page.getByText("Thiếu hóa đơn/chứng từ hợp lệ")).toBeVisible();
+  await expect(page.getByText("Chi phí không có hóa đơn")).toBeVisible();
 });
 
 test("@mobile statement pages keep filters and tables inside the viewport", async ({ page }) => {

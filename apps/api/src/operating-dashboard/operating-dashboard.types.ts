@@ -107,6 +107,11 @@ export type OperatingDashboardReadModel = Readonly<{
     cashAndBankMinor: string;
     ownerPayableMinor: string;
     netAvailableCashMinor: string;
+    actualOwnerPaidCompanyCostMinor: string;
+    netCompanyFundsMinor: string;
+    unclassifiedOwnerPaidCount: number;
+    unclassifiedOwnerPaidMinor: string;
+    ownerPaidClassificationStatus: "ready" | "review_required" | "unconfigured";
     corporateIncomeTaxRateBps: number | null;
     rosBps: number | null;
     recognitionEventCount: number;
