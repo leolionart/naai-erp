@@ -1296,6 +1296,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "column visibility"
     blocking_gate: G14
 
+  - id: T-API-ERP-841-012
+    task: ERP-841
+    rules: [BR-EXP-002, BR-AUD-001, BR-ORG-001, BR-LED-003]
+    title: Posted expenses allow audited category-only metadata updates while financial fields and allocations remain immutable
+    layer: api
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts
+    blocking_gate: G14
+
+  - id: T-E2E-ERP-841-013
+    task: ERP-841
+    rules: [BR-EXP-002, BR-UI-001]
+    title: Expense Quick View persists category metadata and refreshes the combined expense listing
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "posted expense category"
+    blocking_gate: G14
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

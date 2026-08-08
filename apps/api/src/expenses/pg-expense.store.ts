@@ -51,7 +51,11 @@ export class PgExpenseStore {
     filters: { state?: string; expenseClass?: string; payeePartyId?: string },
   ) {
     const r = await this.pool.query(
-      `select e.*,e.expense_date::text expense_date from expenses e where e.organization_id=$1 and ($2::text is null or e.state::text=$2) and ($3::text is null or e.expense_class::text=$3) and ($4::text is null or e.payee_party_id=$4) order by e.expense_date desc,e.id`,
+      `select e.*,e.expense_date::text expense_date,
+       (select l.dimensions->>'category' from expense_lines l
+        where l.organization_id=e.organization_id and l.expense_id=e.id
+        order by l.line_number limit 1) category
+       from expenses e where e.organization_id=$1 and ($2::text is null or e.state::text=$2) and ($3::text is null or e.expense_class::text=$3) and ($4::text is null or e.payee_party_id=$4) order by e.expense_date desc,e.id`,
       [org, filters.state ?? null, filters.expenseClass ?? null, filters.payeePartyId ?? null],
     );
     return r.rows;
@@ -72,6 +76,67 @@ export class PgExpenseStore {
       [org, id],
     );
     return r.rows[0];
+  }
+  async updateCategory(context: ExpenseContext, id: string, category: string, key: string) {
+    const hash = createHash("sha256").update(JSON.stringify({ id, category })).digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const expense = await c.query<{ version: string }>(
+        "select version::text from expenses where organization_id=$1 and id=$2 for update",
+        [context.organizationId, id],
+      );
+      if (!expense.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
+      const categoryRow = await c.query(
+        "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
+        [context.organizationId, category],
+      );
+      if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+      const before = await c.query<{ line_number: number; category: string | null }>(
+        "select line_number,dimensions->>'category' category from expense_lines where organization_id=$1 and expense_id=$2 order by line_number",
+        [context.organizationId, id],
+      );
+      if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
+      await c.query(
+        "update expense_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text) where organization_id=$1 and expense_id=$2",
+        [context.organizationId, id, category],
+      );
+      const version = BigInt(expense.rows[0].version) + 1n;
+      await c.query(
+        "update expenses set version=$3,updated_at=now() where organization_id=$1 and id=$2",
+        [context.organizationId, id, version.toString()],
+      );
+      const auditEventId = randomUUID();
+      await c.query(
+        `insert into resource_audit_events
+         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'expense',$3,$4,'update_category',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          version.toString(),
+          context.actorId,
+          context.correlationId,
+          { lines: before.rows },
+          { category },
+        ],
+      );
+      const response = { expenseId: id, category, version: version.toString(), auditEventId };
+      await this.save(c, context.organizationId, key, "expense:update-category", hash, response);
+      await c.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await c.query("rollback");
+      throw error;
+    } finally {
+      c.release();
+    }
   }
   async create(context: ExpenseContext, input: CreateExpenseInput, key: string) {
     const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");

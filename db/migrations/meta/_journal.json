@@ -260,6 +260,13 @@
       "when": 1786194800000,
       "tag": "0036_category_metadata_on_final_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786197600000,
+      "tag": "0037_category_metadata_on_final_expenses",
+      "breakpoints": true
     }
   ]
 }

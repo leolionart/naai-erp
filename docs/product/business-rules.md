@@ -369,6 +369,9 @@ Document type and accounting treatment are independent.
 - A draft created in error may be discarded before submission. Discard requires write authorization,
   optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
   submitted, approved or posted expenses cannot be deleted.
+- Posted expenses may receive an audited, idempotent `dimensions.category` metadata correction when
+  the category is active organization master data. This operation never changes amounts, tax states,
+  allocations, funding treatment, journal linkage or any other posted financial field.
 
 ### BR-TAX-001 — Versioned tax policy
 

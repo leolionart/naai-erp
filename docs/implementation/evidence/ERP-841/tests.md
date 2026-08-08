@@ -189,3 +189,18 @@ Banking naming-alignment evidence on 2026-08-08:
 - `pnpm --filter @naai-erp/web exec vitest run src/components/authentication-gate.test.ts` verifies
   that production routes require an explicit browser session token while development/test routes
   retain their fixture workflow.
+
+# Posted expense category metadata
+
+- `pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.service.test.ts`: passed, 1 file
+  and 12 tests.
+- `RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts`:
+  passed, 1 file and 5 tests after migration 0037. Coverage includes posted category-only update,
+  list/detail readback, audit, idempotent replay, inactive category rejection and continued
+  financial-field immutability.
+- API and web typecheck: passed.
+- `pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "posted expense category"`:
+  passed, 1 test.
+- `pnpm db:check`: passed with 40 migration entries.
+- `pnpm test:docs`: passed.
+- `git diff --check`: passed.

@@ -75,6 +75,86 @@ describeIntegration("ERP-310 expense workflow", () => {
       payload: { axis, lineNumber: 1, state, eligibleMinor, reason: `${axis} review` },
     });
 
+  it("updates only category metadata on a posted expense with audit and idempotent readback", async () => {
+    const id = "expense-posted-category-metadata";
+    await pool.query(
+      `insert into dimension_values(organization_id,kind,code,name,is_active)
+       values($1,'category','MEAL','Ăn uống',true),($1,'category','INACTIVE','Ngừng dùng',false)
+       on conflict do nothing`,
+      [organizationId],
+    );
+    await pool.query(
+      `insert into expenses
+        (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,version,created_by,posted_by,posted_at)
+       values($1,$2,'non_documented','posted','2026-08-01','Posted category metadata','VND',1000,0,1000,'111-CASH',2,'maker','accountant',now())`,
+      [organizationId, id],
+    );
+    await pool.query(
+      `insert into expense_lines
+        (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,management_state,cit_state,vat_state,dimensions)
+       values($1,$2,1,'Meal',1000,0,1000,'642-OPEX','valid','ineligible','ineligible','{"project":"P-1"}')`,
+      [organizationId, id],
+    );
+
+    const request = () =>
+      app.inject({
+        method: "PATCH",
+        url: `/api/v1/organizations/${organizationId}/expenses/${id}/category`,
+        headers: headers(integrationToken, "posted-expense-category"),
+        payload: { category: "MEAL" },
+      });
+    const updated = await request();
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect(updated.json().data).toMatchObject({
+      expenseId: id,
+      category: "MEAL",
+      version: "3",
+      idempotencyReplayed: false,
+    });
+    const replay = await request();
+    expect(replay.statusCode, replay.body).toBe(200);
+    expect(replay.json().data).toMatchObject({ idempotencyReplayed: true, version: "3" });
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}`,
+      headers: headers(integrationToken, "unused-detail-key"),
+    });
+    expect(detail.json().data.lines[0]).toMatchObject({
+      dimensions: { project: "P-1", category: "MEAL" },
+      expenseCategoryCode: null,
+      fundingTreatment: null,
+    });
+    const listing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, "unused-list-key"),
+    });
+    expect(listing.json().data.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id, category: "MEAL" })]),
+    );
+    const audit = await pool.query<{ count: number }>(
+      `select count(*)::int count from resource_audit_events
+       where organization_id=$1 and resource_type='expense' and resource_key=$2 and action='update_category'`,
+      [organizationId, id],
+    );
+    expect(audit.rows[0]?.count).toBe(1);
+
+    await expect(
+      pool.query(
+        "update expense_lines set gross_minor=2 where organization_id=$1 and expense_id=$2 and line_number=1",
+        [organizationId, id],
+      ),
+    ).rejects.toMatchObject({ code: "55000" });
+    const inactive = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}/category`,
+      headers: headers(integrationToken, "inactive-expense-category"),
+      payload: { category: "INACTIVE" },
+    });
+    expect(inactive.statusCode).toBeGreaterThanOrEqual(400);
+  });
+
   it("manages an organization category and snapshots its treatment on the expense line", async () => {
     const categoryUrl = `/api/v1/organizations/${organizationId}/master-data/expense-categories`;
     const category = await app.inject({

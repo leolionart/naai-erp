@@ -101,3 +101,10 @@ The shared table primitive now exposes a column-visibility menu for every applic
 table derives a stable route-and-header configuration key, stores hidden-column indexes in browser
 application configuration and restores them on reload while preventing users from hiding every
 column.
+
+Posted non-invoice expenses now expose the same category-metadata correction path as commercial
+documents. The organization-scoped API validates active category master data, updates only
+`expense_lines.dimensions.category`, returns idempotent audit evidence and exposes the category in
+expense list readback. The database still rejects changes to amounts, tax review, funding treatment,
+allocations and every other posted financial field. Expense Quick View can save the category and the
+combined expense list refreshes without direct database access.

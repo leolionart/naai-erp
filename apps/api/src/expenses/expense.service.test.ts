@@ -217,6 +217,40 @@ describe("ERP-310 ExpenseService", () => {
       );
     });
   });
+  describe("category metadata command", () => {
+    it("delegates an idempotent category-only update", async () => {
+      const store = {
+        updateCategory: vi.fn().mockResolvedValue({
+          expenseId: "e-1",
+          category: "MEAL",
+          version: "3",
+        }),
+      };
+      const service = new ExpenseService(store as never, {} as never);
+      const result = await service.updateCategory(context, "e-1", { category: " MEAL " }, "cat-1");
+
+      expect(store.updateCategory).toHaveBeenCalledWith(context, "e-1", "MEAL", "cat-1");
+      expect(result.data).toMatchObject({ expenseId: "e-1", category: "MEAL", version: "3" });
+    });
+
+    it("requires write permission, a category and idempotency", async () => {
+      const service = new ExpenseService({} as never, {} as never);
+      await expect(
+        service.updateCategory(
+          { ...context, roles: ["viewer"] },
+          "e-1",
+          { category: "MEAL" },
+          "cat-1",
+        ),
+      ).rejects.toThrow("FORBIDDEN");
+      await expect(
+        service.updateCategory(context, "e-1", { category: " " }, "cat-1"),
+      ).rejects.toThrow("VALIDATION_FAILED");
+      await expect(service.updateCategory(context, "e-1", { category: "MEAL" })).rejects.toThrow(
+        "IDEMPOTENCY_KEY_REQUIRED",
+      );
+    });
+  });
   it("delegates posted expense reverse_replace as one canonical store transaction", async () => {
     const store = {
       reverseReplace: vi.fn().mockResolvedValue({

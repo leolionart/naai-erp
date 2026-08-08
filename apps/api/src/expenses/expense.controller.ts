@@ -12,7 +12,11 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { ExpenseService } from "./expense.service.js";
-import type { CreateExpenseInput, ExpenseReviewInput } from "./expense.types.js";
+import type {
+  CreateExpenseInput,
+  ExpenseCategoryInput,
+  ExpenseReviewInput,
+} from "./expense.types.js";
 
 @Controller("api/v1/organizations/:organizationId/expenses")
 export class ExpenseController {
@@ -58,6 +62,16 @@ export class ExpenseController {
       input,
       key,
     );
+  }
+  @Patch(":id/category") async updateCategory(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: ExpenseCategoryInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.updateCategory(await this.context(org, auth, corr), id, input, key);
   }
   @Post() async create(
     @Param("organizationId") org: string,

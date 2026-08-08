@@ -182,6 +182,17 @@ async function install(
   );
   await page.route("http://localhost:3001/api/v1/organizations/naai/expenses**", async (route) => {
     const url = new URL(route.request().url());
+    if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720/category")) {
+      const body = route.request().postDataJSON() as { category: string };
+      currentExpense = {
+        ...currentExpense,
+        lines: currentExpense.lines.map((line) => ({
+          ...line,
+          dimensions: { ...line.allocations[0]?.dimensions, category: body.category },
+        })),
+      };
+      return reply(route, { expenseId: currentExpense.id, category: body.category });
+    }
     if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720")) {
       if (patchFailure?.kind === "expenses")
         return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
@@ -276,6 +287,20 @@ test("@desktop expense management defaults to purchase invoices and every non-in
     "href",
     "/expenses/expense-720",
   );
+});
+
+test("@desktop posted expense category metadata persists through Quick View", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=missing");
+  await page.getByRole("button", { name: "Xem" }).click();
+  const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
+  const categorySelect = quickView.getByRole("combobox").first();
+  await categorySelect.click();
+  await page.getByRole("option", { name: "Chi phí Tên miền / Hosting" }).click();
+  await quickView.getByRole("button", { name: "Lưu danh mục" }).click();
+  await expect(categorySelect).toContainText("Chi phí Tên miền / Hosting");
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Chi phí Tên miền / Hosting")).toBeVisible();
 });
 
 test("@desktop table column visibility persists in application configuration", async ({ page }) => {

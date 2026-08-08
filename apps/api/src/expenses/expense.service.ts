@@ -5,6 +5,7 @@ import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgExpenseStore } from "./pg-expense.store.js";
 import type {
   CreateExpenseInput,
+  ExpenseCategoryInput,
   ExpenseContext,
   ExpenseReviewInput,
   ExternalReferenceInput,
@@ -91,6 +92,18 @@ export class ExpenseService {
     const item = await this.store.get(context.organizationId, id);
     if (!item) throw new Error("RESOURCE_NOT_FOUND");
     return this.envelope(context, item);
+  }
+  async updateCategory(
+    context: ExpenseContext,
+    id: string,
+    input: ExpenseCategoryInput,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE.has(role))) throw new Error("FORBIDDEN");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    const category = input.category?.trim();
+    if (!category) throw new Error("VALIDATION_FAILED");
+    return this.envelope(context, await this.store.updateCategory(context, id, category, key));
   }
   async update(
     context: ExpenseContext,

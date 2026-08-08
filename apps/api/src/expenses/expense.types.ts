@@ -61,3 +61,6 @@ export type ExpenseReviewInput = Readonly<{
   reason: string;
   reference?: string;
 }>;
+export type ExpenseCategoryInput = Readonly<{
+  category: string;
+}>;

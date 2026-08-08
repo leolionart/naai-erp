@@ -32,3 +32,7 @@
   lockout/rate-limit layer of its own. Its API token must already belong to an active organization
   member with the intended RBAC roles; the login route does not bypass API authorization or provision
   database identities.
+- Category metadata on posted expenses is deliberately independent from `expense_category_code` and
+  `funding_treatment`. Reclassifying the funding treatment can change management balance semantics
+  and therefore still requires the normal reversal/replacement workflow rather than this metadata
+  endpoint.

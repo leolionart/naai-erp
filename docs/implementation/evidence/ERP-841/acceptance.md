@@ -71,3 +71,7 @@
 - Production username/password are deployment environment settings consumed only by the web server;
   invalid credentials disclose no API token and incomplete configuration fails closed: passed by
   route and constant-time comparison unit coverage.
+- Posted expenses accept an audited, idempotent category metadata correction through REST while
+  amounts, tax states, funding treatment, allocations and journal linkage remain immutable: passed.
+- Expense Quick View saves the category and the combined expense listing receives the persisted
+  category through canonical API list readback: passed.

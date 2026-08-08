@@ -518,6 +518,11 @@
         "summary": "Update an existing draft commercial document, validating final state and preserving external reference"
       }
     },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category": {
+      "patch": {
+        "summary": "Update only audited category metadata on a commercial document, including issued or posted records"
+      }
+    },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}": {
       "post": {
         "summary": "Run a controlled lifecycle command; issue/post atomically creates the balanced linked journal"
@@ -540,6 +545,11 @@
       },
       "delete": {
         "summary": "Discard a draft expense with If-Match, reason, idempotency and retained audit evidence"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/category": {
+      "patch": {
+        "summary": "Update only audited category metadata on an expense, including posted records"
       }
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/review": {

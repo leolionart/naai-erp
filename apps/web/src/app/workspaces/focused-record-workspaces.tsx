@@ -389,13 +389,14 @@ export function FocusedRecordListWorkspace({
       setQuickLoading(false);
     }
   }
-  async function updateDocumentCategory() {
-    if (!quickRecord || sourceKind(quickRecord) !== "documents" || !quickCategory) return;
+  async function updateRecordCategory() {
+    if (!quickRecord || sourceKind(quickRecord) === "recognition" || !quickCategory) return;
     setQuickBusy(true);
     setError("");
     try {
+      const source = sourceKind(quickRecord);
       await client.data(
-        `commercial-documents/${encodeURIComponent(text(quickRecord, "id"))}/category`,
+        `${sourceEndpoint(source)}/${encodeURIComponent(text(quickRecord, "id"))}/category`,
         {
           method: "PATCH",
           idempotencyKey: `category-${text(quickRecord, "id")}-${quickCategory}`,
@@ -723,7 +724,7 @@ export function FocusedRecordListWorkspace({
                   </CardContent>
                 </Card>
               ) : null}
-              {sourceKind(quickRecord) === "documents" ? (
+              {sourceKind(quickRecord) !== "recognition" ? (
                 <>
                   <Card>
                     <CardHeader>
@@ -739,7 +740,8 @@ export function FocusedRecordListWorkspace({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
-                            {(text(quickRecord, "type") === "purchase_invoice"
+                            {(sourceKind(quickRecord) === "expenses" ||
+                            text(quickRecord, "type") === "purchase_invoice"
                               ? INBOUND_CATEGORIES
                               : OUTBOUND_CATEGORIES
                             ).map((category) => (
@@ -753,30 +755,32 @@ export function FocusedRecordListWorkspace({
                       <Button
                         type="button"
                         disabled={quickBusy || !quickCategory}
-                        onClick={() => void updateDocumentCategory()}
+                        onClick={() => void updateRecordCategory()}
                       >
                         Lưu danh mục
                       </Button>
                     </CardContent>
                   </Card>
-                  <DocumentForm
-                    key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
-                    busy={quickBusy}
-                    initial={quickRecord}
-                    parties={parties}
-                    submitLabel="Cập nhật thông tin hóa đơn"
-                    onSubmit={(body: Row) => void updateQuickRecord(body)}
-                  />
+                  {sourceKind(quickRecord) === "documents" ? (
+                    <DocumentForm
+                      key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                      busy={quickBusy}
+                      initial={quickRecord}
+                      parties={parties}
+                      submitLabel="Cập nhật thông tin hóa đơn"
+                      onSubmit={(body: Row) => void updateQuickRecord(body)}
+                    />
+                  ) : (
+                    <ExpenseForm
+                      key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                      busy={quickBusy}
+                      initial={quickRecord}
+                      parties={parties}
+                      submitLabel="Cập nhật thông tin chi phí"
+                      onSubmit={(body: Row) => void updateQuickRecord(body)}
+                    />
+                  )}
                 </>
-              ) : sourceKind(quickRecord) === "expenses" ? (
-                <ExpenseForm
-                  key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
-                  busy={quickBusy}
-                  initial={quickRecord}
-                  parties={parties}
-                  submitLabel="Cập nhật thông tin chi phí"
-                  onSubmit={(body: Row) => void updateQuickRecord(body)}
-                />
               ) : (
                 <div className="grid gap-3 rounded-lg border p-4">
                   <p className="font-medium">Trục doanh thu: Đã ghi nhận</p>

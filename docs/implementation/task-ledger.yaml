@@ -1089,6 +1089,8 @@ tasks:
         T-UNIT-ERP-841-008,
         T-API-ERP-841-010,
         T-E2E-ERP-841-011,
+        T-API-ERP-841-012,
+        T-E2E-ERP-841-013,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1114,6 +1116,8 @@ tasks:
       - apps/api/src/commercial-documents/
       - apps/web/src/app/workspaces/focused-record-workspaces.tsx
       - db/migrations/0036_category_metadata_on_final_documents.sql
+      - db/migrations/0037_category_metadata_on_final_expenses.sql
+      - apps/api/src/expenses/
       - compose.yaml
       - deploy/env/.env.example
       - apps/api/src/report-exports/
