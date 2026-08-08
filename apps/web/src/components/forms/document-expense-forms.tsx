@@ -316,6 +316,8 @@ export function DocumentForm({
     ),
   );
   const [dueDate, setDueDate] = useState(String(field(initial, "dueDate", "due_date") ?? ""));
+  const dueDateError =
+    dueDate && dueDate < documentDate ? "Hạn thanh toán không được trước ngày hóa đơn." : undefined;
   const [currency, setCurrency] = useState(String(field(initial, "currency") ?? "VND"));
   const [controlAccountCode, setControlAccountCode] = useState(
     String(field(initial, "controlAccountCode", "control_account_code") ?? "131"),
@@ -398,6 +400,7 @@ export function DocumentForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (dueDateError) return;
     const payload: Row = {
       type,
       documentNumber,
@@ -530,7 +533,13 @@ export function DocumentForm({
           onChange={setDocumentDate}
           required
         />
-        <TextField label="Hạn thanh toán" type="date" value={dueDate} onChange={setDueDate} />
+        <TextField
+          label="Hạn thanh toán"
+          type="date"
+          value={dueDate}
+          onChange={setDueDate}
+          error={dueDateError}
+        />
         <Field>
           <FieldLabel>Loại tiền</FieldLabel>
           <Select value={currency} onValueChange={setCurrency}>
@@ -643,7 +652,7 @@ export function DocumentForm({
         </Field>
       </FieldSet>
 
-      <Button type="submit" disabled={busy} className="self-end">
+      <Button type="submit" disabled={busy || Boolean(dueDateError)} className="self-end">
         {busy ? "Đang lưu…" : submitLabel}
       </Button>
     </form>

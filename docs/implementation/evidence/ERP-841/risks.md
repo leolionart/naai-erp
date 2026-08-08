@@ -18,3 +18,6 @@
 - This evidence proves the contract, OpenAPI and CLI routing for accounting-list workbooks. Runtime
   workbook content and live database reconciliation remain dependent on the separately owned API
   implementation and must pass its integration tests before ERP-841 is marked done.
+- The current unified listings are a frontend composition over existing versioned APIs. They use
+  explicit source tags and no fuzzy matching, but server-side unified pagination and a first-class
+  recognition-to-invoice relationship would require dedicated read-model endpoints later.

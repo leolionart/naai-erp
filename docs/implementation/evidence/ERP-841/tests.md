@@ -24,8 +24,39 @@ Live local readback at the active `2026-08-07` cutoff returned:
 Additional gates:
 
 - `pnpm --filter @naai-erp/web typecheck`: passed.
+- `pnpm --filter @naai-erp/web exec playwright test e2e/admin-navigation.spec.ts --workers=1`:
+  4/4 passed across desktop and mobile.
+- `pnpm --filter @naai-erp/web test`: 25/25 passed; production web build completed with all 48
+  routes generated successfully.
 - `pnpm test:docs`: passed.
 - `git diff --check`: passed.
+
+Runtime export evidence on the local `naai` organization, 2026-08-08:
+
+- API typecheck passed; report-export service tests passed, 3/3.
+- Web typecheck passed; the two focused export Playwright cases passed, 2/2 with one worker.
+- Contract tests passed, 62/62. CLI tests passed, 123/123 with one unrelated skipped test.
+- Live filtered sales workbook returned 200 with Summary, Records, Lines and Filters; Records had
+  four data rows for the 2026 filter and every sheet had AutoFilter.
+- Live purchase-invoice/expense workbook returned 200 with the same four-sheet contract; Records had
+  five data rows and preserved invoice versus non-invoice source type.
+- A newly captured P&L snapshot generated an 18-sheet accountant XLSX. Readback included 30 journal
+  entries, 77 journal lines, four sales invoices, two purchase invoices, three expenses, allocation,
+  bank, payment/reconciliation, account and party sheets. The Report sheet contained the real P&L
+  rows, not a hardcoded or empty placeholder.
+- ExcelJS readback confirmed AutoFilter, VND number format, landscape print setup and repeating row 1.
+- The legacy DB integration fixture could not be rerun against the long-lived shared database because
+  its fixed organization IDs already existed. Equivalent runtime SQL and workbook generation were
+  exercised through a fresh local snapshot and authenticated API calls instead.
+
+Revenue and expense management listing proof:
+
+- `pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --workers=1`:
+  11/11 passed across desktop and 390px mobile.
+- Coverage proves default-all revenue and expense sources, present/missing invoice filtering,
+  row-local Quick View endpoints, stable detail links, XLSX filter forwarding, draft correction and
+  no document overflow.
+- `pnpm --filter @naai-erp/web typecheck`: passed.
 - `pnpm --filter @naai-erp/api typecheck`: blocked by pre-existing errors in the missing
   `db/seed/tt133-mvp.mjs` module and report-export typing; the changed operating-dashboard files
   produced no reported TypeScript error.

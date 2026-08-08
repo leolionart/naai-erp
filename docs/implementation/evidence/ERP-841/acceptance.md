@@ -52,3 +52,13 @@
   output filename: passed.
 - Workbook contracts preserve exact minor-unit totals, SHA-256 controls and the Summary, Records,
   Lines and Filters sheet inventory: passed.
+- Accountant XLSX reads P&L from canonical `result.rows`, handles `direct_cash_flow`, and includes
+  journal, sales/purchase invoice, expense, allocation, bank, payment/reconciliation, account and
+  party detail sheets at the snapshot cutoff: passed by live local workbook readback.
+- Revenue and expense management pages expose separate XLSX buttons that preserve the active URL
+  filters, show loading/failure states and do not require a full accountant export: passed.
+- Primary navigation and page headings use Quản lý doanh thu / Quản lý chi phí: passed.
+- Revenue defaults to sales/credit documents plus separately labeled recognition activity; it never
+  adds invoiced and recognized axes into one listing total: passed.
+- Expense defaults to purchase invoices plus all expense classes. Present/missing invoice filters
+  preserve canonical row sources, endpoints, forms and stable detail routes: passed.

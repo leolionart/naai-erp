@@ -60,3 +60,16 @@ on their own axis; purchase invoices and non-invoice expenses share a workbook w
 canonical `sourceType`. OpenAPI and the first-party CLI expose identical date, lifecycle,
 party/payee, project and invoice-presence filters. Both workbook contracts contain Summary,
 Records, Lines and Filters sheets with exact minor-unit strings and SHA-256 controls.
+
+The full accountant export now appends canonical detail sheets for posted journals and lines,
+sales and purchase invoices, expenses, document and expense allocations, bank transactions,
+payments, reconciliation attempts and allocations, accounts and parties. The workbook uses real
+snapshot/report rows, VND/date formats, filters, frozen headers and print settings; no demo amount is
+embedded in the export implementation.
+
+The primary operational navigation now uses **Revenue Management** and **Expense Management**.
+Both listings default to all invoice-presence states. Revenue combines tagged sales/credit documents
+with revenue-recognition activity while visibly preserving the invoiced versus recognized axes;
+Expense combines tagged purchase invoices with every expense class. Mixed rows retain their own
+canonical endpoint, correction form and stable detail route, so the UI no longer opens an expense ID
+through the commercial-document service or filters non-invoice expenses down to one class.

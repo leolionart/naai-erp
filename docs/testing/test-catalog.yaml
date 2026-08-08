@@ -1104,6 +1104,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank cash owner payable and accounting profit"
     blocking_gate: G14
 
+  - id: T-E2E-ERP-841-003
+    task: ERP-841
+    rules: [BR-MVP-003, BR-MVP-006, BR-MVP-007, BR-REV-001, BR-EXP-001]
+    title: Revenue and expense management default to all records while preserving invoice presence source type canonical dialogs and mobile layout
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --workers=1
+    blocking_gate: G14
+
   - id: T-CONTRACT-ERP-841-004
     task: ERP-841
     rules: [BR-EXPOR-003, BR-AI-001, BR-AI-003, BR-MVP-007]

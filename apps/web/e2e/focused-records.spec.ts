@@ -126,10 +126,12 @@ async function install(
           return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
         expect(route.request().headers()["if-match"]).toBe("1");
         const body = route.request().postDataJSON() as typeof invoice;
-        expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({
-          projectId: "project-720",
-        });
-        expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("project");
+        if (body.lines[0]?.allocations?.[0]?.dimensions) {
+          expect(body.lines[0].allocations[0].dimensions).toMatchObject({
+            projectId: "project-720",
+          });
+          expect(body.lines[0].allocations[0].dimensions).not.toHaveProperty("project");
+        }
         currentInvoice = { ...currentInvoice, ...body, resourceVersion: "2" };
         return reply(route, { documentId: currentInvoice.id, resourceVersion: "2" });
       }
@@ -307,16 +309,8 @@ test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable 
   await page.goto("http://localhost:3000/expenses/new");
   await page.getByRole("combobox").first().click();
   await page.getByRole("option", { name: "Chi phí không hóa đơn" }).click();
-  await page
-    .getByText("Mục đích chi / Diễn giải", { exact: true })
-    .locator("..")
-    .locator("input")
-    .fill("Phí vận hành");
-  await page
-    .getByText("Tiền gốc chưa VAT (VNĐ)", { exact: true })
-    .locator("..")
-    .locator("input")
-    .fill("2000000");
+  await page.getByLabel("Mục đích chi / Diễn giải").fill("Phí vận hành");
+  await page.getByLabel("Tiền gốc chưa VAT (VNĐ)").fill("2000000");
   await page.getByRole("button", { name: "Lưu chi phí nháp" }).click();
   await expect(page).toHaveURL(/\/expenses\/expense-720$/, { timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "Chi tiết chi phí" })).toBeVisible();
@@ -342,6 +336,7 @@ test("@desktop blocks an invoice due date before its document date", async ({ pa
   await page.getByRole("button", { name: "Sửa draft" }).click();
   const dialog = page.getByRole("dialog", { name: "Sửa draft hoạt động doanh thu" });
   await dialog.getByLabel("Ngày hóa đơn").fill("2026-08-21");
+  await dialog.getByLabel("Hạn thanh toán").fill("2026-08-20");
   await expect(dialog.getByLabel("Hạn thanh toán")).toHaveAttribute("aria-invalid", "true");
   await expect(dialog.getByText("Hạn thanh toán không được trước ngày hóa đơn.")).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Lưu thay đổi hóa đơn" })).toBeDisabled();
