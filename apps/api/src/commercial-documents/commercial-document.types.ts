@@ -58,5 +58,8 @@ export type CreateCommercialDocumentInput = Readonly<{
 }>;
 
 export type UpdateCommercialDocumentInput = Partial<CreateCommercialDocumentInput>;
+export type CommercialDocumentCategoryInput = Readonly<{
+  category: string;
+}>;
 
 export type CommercialDocumentContext = JournalActorContext;

@@ -5,6 +5,7 @@ import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgCommercialDocumentStore } from "./pg-commercial-document.store.js";
 import type {
   CommercialDocumentAction,
+  CommercialDocumentCategoryInput,
   CommercialDocumentContext,
   CreateCommercialDocumentInput,
   UpdateCommercialDocumentInput,
@@ -119,6 +120,21 @@ export class CommercialDocumentService {
     return this.envelope(
       context,
       await this.store.update(context, id, expectedVersion, merged, idempotencyKey),
+    );
+  }
+  async updateCategory(
+    context: CommercialDocumentContext,
+    id: string,
+    input: CommercialDocumentCategoryInput,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    const category = input.category?.trim();
+    if (!category) throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.updateCategory(context, id, category, idempotencyKey),
     );
   }
 

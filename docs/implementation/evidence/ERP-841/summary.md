@@ -90,3 +90,9 @@ development keeps its fixture-token workflow. Production accepts a username and 
 through server-only environment variables; the Next.js server releases the corresponding existing,
 organization-scoped API credential only after a constant-time credential check. No login secret is
 declared through a `NEXT_PUBLIC_*` variable or rendered into the initial browser payload.
+
+Final commercial documents now expose a dedicated audited category-metadata mutation. The endpoint
+updates only `dimensions.category`, validates the category against active organization master data,
+and remains idempotent and RBAC-scoped. The database trigger continues rejecting every financial or
+structural child mutation on issued/posted documents. The revenue and expense quick view exposes the
+same operation without reopening the financial document lifecycle.

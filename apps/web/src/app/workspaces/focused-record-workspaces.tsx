@@ -46,6 +46,8 @@ import {
   ExpenseForm,
   getCategoryName,
   getFundingSourceLabel,
+  INBOUND_CATEGORIES,
+  OUTBOUND_CATEGORIES,
 } from "@/components/forms/document-expense-forms";
 import {
   MonthlyCategoryStackedChart,
@@ -165,6 +167,7 @@ export function FocusedRecordListWorkspace({
   const [quickRecord, setQuickRecord] = useState<Row>();
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
+  const [quickCategory, setQuickCategory] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const key = params.toString();
@@ -370,16 +373,41 @@ export function FocusedRecordListWorkspace({
     setQuickLoading(true);
     try {
       const source = sourceKind(row);
-      setQuickRecord({
+      const detail: Row = {
         ...(await client.data<Row>(`${sourceEndpoint(source)}/${encodeURIComponent(id)}`)),
         __sourceKind: source,
         __invoicePresence: row.__invoicePresence,
         __revenueAxis: row.__revenueAxis,
-      });
+      };
+      setQuickRecord(detail);
+      const lines = Array.isArray(detail.lines) ? (detail.lines as Row[]) : [];
+      const dimensions = (lines[0]?.dimensions as Record<string, string> | undefined) ?? {};
+      setQuickCategory(dimensions.category ?? "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
       setQuickLoading(false);
+    }
+  }
+  async function updateDocumentCategory() {
+    if (!quickRecord || sourceKind(quickRecord) !== "documents" || !quickCategory) return;
+    setQuickBusy(true);
+    setError("");
+    try {
+      await client.data(
+        `commercial-documents/${encodeURIComponent(text(quickRecord, "id"))}/category`,
+        {
+          method: "PATCH",
+          idempotencyKey: `category-${text(quickRecord, "id")}-${quickCategory}`,
+          body: { category: quickCategory },
+        },
+      );
+      await openQuickView(quickRecord);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể cập nhật danh mục.");
+    } finally {
+      setQuickBusy(false);
     }
   }
   async function updateQuickRecord(body: Row) {
@@ -696,14 +724,50 @@ export function FocusedRecordListWorkspace({
                 </Card>
               ) : null}
               {sourceKind(quickRecord) === "documents" ? (
-                <DocumentForm
-                  key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
-                  busy={quickBusy}
-                  initial={quickRecord}
-                  parties={parties}
-                  submitLabel="Cập nhật thông tin hóa đơn"
-                  onSubmit={(body: Row) => void updateQuickRecord(body)}
-                />
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Danh mục nghiệp vụ</CardTitle>
+                      <CardDescription>
+                        Có thể sửa riêng metadata này kể cả khi hóa đơn đã post.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3 sm:flex-row">
+                      <Select value={quickCategory} onValueChange={setQuickCategory}>
+                        <SelectTrigger className="sm:max-w-md">
+                          <SelectValue placeholder="Chọn danh mục" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {(text(quickRecord, "type") === "purchase_invoice"
+                              ? INBOUND_CATEGORIES
+                              : OUTBOUND_CATEGORIES
+                            ).map((category) => (
+                              <SelectItem key={category.code} value={category.code}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        disabled={quickBusy || !quickCategory}
+                        onClick={() => void updateDocumentCategory()}
+                      >
+                        Lưu danh mục
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  <DocumentForm
+                    key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                    busy={quickBusy}
+                    initial={quickRecord}
+                    parties={parties}
+                    submitLabel="Cập nhật thông tin hóa đơn"
+                    onSubmit={(body: Row) => void updateQuickRecord(body)}
+                  />
+                </>
               ) : sourceKind(quickRecord) === "expenses" ? (
                 <ExpenseForm
                   key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}

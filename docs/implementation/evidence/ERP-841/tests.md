@@ -1,5 +1,13 @@
 # ERP-841 tests
 
+## Final-document category metadata
+
+- Commercial-document service tests: 12/12 passed, including the category-only mutation.
+- API and web typechecks passed.
+- Migration directory verification passed with migration 0036.
+- The database trigger permits only a `dimensions.category` delta; all other final-document child
+  mutations still raise `FINAL_DOCUMENT_IMMUTABLE`.
+
 ## Server-only environment login
 
 ```text

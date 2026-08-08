@@ -40,6 +40,19 @@ const sales = {
 } as const;
 
 describe("ERP-300 CommercialDocumentService", () => {
+  it("updates category metadata independently from the final document lifecycle", async () => {
+    const store = {
+      updateCategory: vi.fn().mockResolvedValue({ documentId: "purchase-1", category: "MEAL" }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    const result = await service.updateCategory(
+      context,
+      "purchase-1",
+      { category: "MEAL" },
+      "category-1",
+    );
+    expect(result.data).toMatchObject({ documentId: "purchase-1", category: "MEAL" });
+  });
   it("passes customer and project filters to the organization-scoped store", async () => {
     const store = { list: vi.fn().mockResolvedValue([]) };
     const service = new CommercialDocumentService(store as never, {} as never);

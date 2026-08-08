@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import type {
   CommercialDocumentAction,
+  CommercialDocumentCategoryInput,
   CreateCommercialDocumentInput,
 } from "./commercial-document.types.js";
 
@@ -69,6 +70,22 @@ export class CommercialDocumentController {
   ) {
     return this.service.create(
       await this.context(organizationId, authorization, correlationId),
+      input,
+      idempotencyKey,
+    );
+  }
+  @Patch(":id/category")
+  async updateCategory(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: CommercialDocumentCategoryInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.updateCategory(
+      await this.context(organizationId, authorization, correlationId),
+      id,
       input,
       idempotencyKey,
     );

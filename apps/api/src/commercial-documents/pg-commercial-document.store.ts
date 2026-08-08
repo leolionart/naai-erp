@@ -46,6 +46,80 @@ const NEXT: Record<CommercialDocumentType, Record<string, Record<string, string>
 export class PgCommercialDocumentStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
+  async updateCategory(
+    context: CommercialDocumentContext,
+    id: string,
+    category: string,
+    idempotencyKey: string,
+  ) {
+    const hash = createHash("sha256").update(JSON.stringify({ id, category })).digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(client, context.organizationId, idempotencyKey, hash);
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const document = await client.query<{ version: string }>(
+        "select version::text from commercial_documents where organization_id=$1 and id=$2 for update",
+        [context.organizationId, id],
+      );
+      if (!document.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
+      const categoryRow = await client.query(
+        "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
+        [context.organizationId, category],
+      );
+      if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+      const before = await client.query<{ line_number: number; category: string | null }>(
+        "select line_number,dimensions->>'category' category from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
+        [context.organizationId, id],
+      );
+      if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
+      await client.query(
+        "update commercial_document_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text) where organization_id=$1 and document_id=$2",
+        [context.organizationId, id, category],
+      );
+      const version = BigInt(document.rows[0].version) + 1n;
+      await client.query(
+        "update commercial_documents set version=$3,updated_at=now() where organization_id=$1 and id=$2",
+        [context.organizationId, id, version.toString()],
+      );
+      const auditEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events
+         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'commercial-document',$3,$4,'update_category',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          version.toString(),
+          context.actorId,
+          context.correlationId,
+          { lines: before.rows },
+          { category },
+        ],
+      );
+      const response = { documentId: id, category, version: version.toString(), auditEventId };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        "commercial-document:update-category",
+        hash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async list(
     organizationId: string,
     filters: { type?: string; state?: string; partyId?: string; projectId?: string },

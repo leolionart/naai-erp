@@ -1280,6 +1280,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec vitest run src/lib/auth/environment-login.test.ts src/app/auth/session/route.test.ts
     blocking_gate: G14
 
+  - id: T-API-ERP-841-010
+    task: ERP-841
+    rules: [BR-EXP-001, BR-AUD-001, BR-UI-001]
+    title: Final commercial documents allow audited category-only metadata updates while financial fields remain immutable
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts
+    blocking_gate: G14
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
