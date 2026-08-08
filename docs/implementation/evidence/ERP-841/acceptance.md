@@ -83,3 +83,7 @@
 - Project profitability prefers approved timesheet service-line attribution and otherwise uses the
   project default without emitting a false `service-line-unclassified` confidence flag: integration
   proof passed; production report readback remains pending.
+- Project directory defaults to active projects and combines text search with explicit lifecycle and
+  overlapping execution-date filters: passed by 3 focused unit cases.
+- Project lifecycle and date filters persist in the URL and restore their selected values after
+  navigation or refresh: passed by focused desktop Chromium E2E.

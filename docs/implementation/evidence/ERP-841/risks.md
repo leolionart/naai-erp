@@ -40,3 +40,7 @@
   database. A rerun against the long-lived shared database collided with its pre-existing fixed
   `org-erp540` fixture. Production service-line assignments and the dashboard review-signal readback
   still depend on successful release and migration deployment.
+- Project directory filtering currently operates client-side after loading the first 100 project
+  master-data rows. The URL contract and overlap semantics are stable, but organizations exceeding
+  that response limit will require server-side state/date filtering and pagination to guarantee a
+  complete result set.

@@ -77,6 +77,18 @@ Additional gates:
 - `pnpm test:docs`: passed.
 - `git diff --check`: passed.
 
+# Project directory filters
+
+- `T-UNIT-ERP-841-016` covers the default active state, retained text search, overlapping date
+  intervals, excluded non-overlapping intervals and open-ended projects. Focused Vitest execution
+  passed: 1 file, 3 tests.
+- `T-E2E-ERP-841-017` opens the project directory with `state`, `startsOn` and `endsOn` URL
+  parameters, verifies that only the matching lifecycle/date rows render, and verifies the filter
+  controls restore the URL values when reopened. Focused desktop Chromium execution passed: 1 test.
+- `pnpm test:docs`: passed. `git diff --check`: passed.
+- ERP-841 remains `in_progress` because its wider gate still contains the previously recorded
+  fully-loaded profitability blocker.
+
 Runtime export evidence on the local `naai` organization, 2026-08-08:
 
 - API typecheck passed; report-export service tests passed, 3/3.

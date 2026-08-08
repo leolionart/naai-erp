@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { Filter } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +18,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import type { createApiClient } from "@/lib/api";
 import { ProjectBudgetWorkspace } from "./project-revenue-workspaces";
 import { ProjectCostsWorkspace } from "./project-cost-workspaces";
 import { FocusedRecordListWorkspace } from "./focused-record-workspaces";
+import { projectMatchesDirectoryFilters } from "./business-directory-filters";
 
 type DirectoryKind = "customers" | "projects";
 type Row = Record<string, unknown>;
@@ -47,11 +61,15 @@ const masterDataKey = (id: string) =>
 
 export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryKind }>) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<readonly Row[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!hydrated) return;
@@ -89,13 +107,39 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
   }, [client, hasToken, hydrated, kind]);
   useEffect(() => void load(), [load]);
 
-  const filtered = rows.filter((row) =>
-    Object.values(row).some((item) =>
+  const projectState = searchParams.get("state") ?? "active";
+  const startsOn = searchParams.get("startsOn") ?? "";
+  const endsOn = searchParams.get("endsOn") ?? "";
+  const filtered = rows.filter((row) => {
+    if (kind === "projects") {
+      return projectMatchesDirectoryFilters(row, {
+        query,
+        state: projectState,
+        startsOn,
+        endsOn,
+      });
+    }
+    const matchesQuery = Object.values(row).some((item) =>
       String(item ?? "")
         .toLowerCase()
         .includes(query.toLowerCase()),
-    ),
-  );
+    );
+    return matchesQuery;
+  });
+
+  function applyProjectFilters(data: FormData) {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const name of ["state", "startsOn", "endsOn"]) {
+      const selected = String(data.get(name) ?? "").trim();
+      if (!selected || selected === "all" || (name === "state" && selected === "active")) {
+        next.delete(name);
+      } else {
+        next.set(name, selected);
+      }
+    }
+    router.replace(`${pathname}${next.size ? `?${next.toString()}` : ""}`);
+    setFilterOpen(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -108,6 +152,14 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
           aria-label={kind === "customers" ? "Tìm khách hàng" : "Tìm dự án"}
         />
         <div className="flex gap-2">
+          {kind === "projects" ? (
+            <ProjectFilterPopover
+              open={filterOpen}
+              onOpenChange={setFilterOpen}
+              params={searchParams}
+              onApply={applyProjectFilters}
+            />
+          ) : null}
           <Button variant="outline" onClick={() => void load()} disabled={loading}>
             Làm mới
           </Button>
@@ -176,6 +228,102 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
         onSaved={load}
       />
     </div>
+  );
+}
+
+function ProjectFilterPopover({
+  open,
+  onOpenChange,
+  params,
+  onApply,
+}: Readonly<{
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  params: URLSearchParams;
+  onApply(data: FormData): void;
+}>) {
+  const [startsOn, setStartsOn] = useState(params.get("startsOn") ?? "");
+  const [endsOn, setEndsOn] = useState(params.get("endsOn") ?? "");
+
+  useEffect(() => {
+    if (!open) return;
+    setStartsOn(params.get("startsOn") ?? "");
+    setEndsOn(params.get("endsOn") ?? "");
+  }, [open, params]);
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="outline">
+          <Filter data-icon="inline-start" />
+          Bộ lọc
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-[min(70vh,36rem)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto p-0"
+      >
+        <form action={onApply} className="flex flex-col">
+          <div className="border-b p-4">
+            <h3 className="font-medium">Bộ lọc dự án</h3>
+            <p className="text-sm text-muted-foreground">
+              Lọc theo trạng thái và thời gian thực hiện; lựa chọn được giữ trên URL.
+            </p>
+          </div>
+          <FieldGroup className="p-4">
+            <QuickDatePresetButtons
+              onSelectRange={(start, end) => {
+                setStartsOn(start);
+                setEndsOn(end);
+              }}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Field>
+                <FieldLabel htmlFor="project-filter-starts-on">Từ ngày</FieldLabel>
+                <Input
+                  id="project-filter-starts-on"
+                  name="startsOn"
+                  type="date"
+                  value={startsOn}
+                  onChange={(event) => setStartsOn(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="project-filter-ends-on">Đến ngày</FieldLabel>
+                <Input
+                  id="project-filter-ends-on"
+                  name="endsOn"
+                  type="date"
+                  value={endsOn}
+                  onChange={(event) => setEndsOn(event.target.value)}
+                />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel>Trạng thái</FieldLabel>
+              <Select name="state" defaultValue={params.get("state") ?? "active"}>
+                <SelectTrigger aria-label="Trạng thái dự án">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="active">Đang hoạt động</SelectItem>
+                    <SelectItem value="planned">Dự kiến</SelectItem>
+                    <SelectItem value="on_hold">Tạm dừng</SelectItem>
+                    <SelectItem value="closed">Đã đóng</SelectItem>
+                    <SelectItem value="completed">Hoàn thành</SelectItem>
+                    <SelectItem value="all">Tất cả</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          </FieldGroup>
+          <div className="flex justify-end border-t bg-muted/50 p-4">
+            <Button type="submit">Áp dụng</Button>
+          </div>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
 

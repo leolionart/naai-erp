@@ -112,3 +112,56 @@ test("@desktop directory create action opens an in-context dialog", async ({ pag
   await expect(page.getByLabel("ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Tên khách hàng")).toBeVisible();
 });
+
+test("@desktop project directory filters by state and overlapping execution dates", async ({
+  page,
+}) => {
+  await authenticate(page);
+  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        envelope({
+          items: [
+            {
+              id: "ylvn-may",
+              code: "YLVN-2025-05",
+              name: "Yêu Lắm VN — 05/2025",
+              state: "active",
+              starts_on: "2025-05-01",
+              ends_on: "2025-05-31",
+            },
+            {
+              id: "ylvn-may-duplicate",
+              code: "YLVN-2025-05-DUP",
+              name: "Yêu Lắm VN — 05/2025 — bản nhập trùng",
+              state: "closed",
+              starts_on: "2025-05-01",
+              ends_on: "2025-05-31",
+            },
+            {
+              id: "website-august",
+              code: "WEB-2025-08",
+              name: "Website tháng 08/2025",
+              state: "active",
+              starts_on: "2025-08-01",
+              ends_on: "2025-08-31",
+            },
+          ],
+        }),
+      ),
+    }),
+  );
+
+  await page.goto(
+    "http://localhost:3000/projects?state=closed&startsOn=2025-05-15&endsOn=2025-05-20",
+  );
+  await expect(page.getByText("Yêu Lắm VN", { exact: true })).toBeVisible();
+  await expect(page.getByText("05/2025 — bản nhập trùng", { exact: true })).toBeVisible();
+  await expect(page.getByText("Website tháng 08/2025", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Bộ lọc" }).click();
+  await expect(page.getByLabel("Từ ngày")).toHaveValue("2025-05-15");
+  await expect(page.getByLabel("Đến ngày")).toHaveValue("2025-05-20");
+  await expect(page.getByLabel("Trạng thái dự án")).toContainText("Đã đóng");
+});

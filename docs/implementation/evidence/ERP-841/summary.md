@@ -123,3 +123,10 @@ or deleted. Project profitability continues to prefer approved timesheet attribu
 to this project default when no approved timesheet supplies a service line. This removes false
 `service-line-unclassified` review signals without inventing timesheets or mutating posted ledger
 history.
+
+The project directory now follows the established invoice-management filter pattern. It defaults to
+active projects and provides a compact filter popover for lifecycle state and quick/custom execution
+dates. Applied state and date values are persisted in `state`, `startsOn` and `endsOn` URL parameters,
+while the existing free-text search remains combined with them. Date filtering uses interval overlap,
+so a monthly or long-running project remains visible whenever any part of its execution period falls
+inside the selected range; an open-ended project continues to match future ranges.

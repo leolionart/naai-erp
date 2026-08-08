@@ -512,6 +512,18 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
   organization; an assigned dimension cannot be deactivated or deleted until the project reference
   is changed or cleared.
 
+### BR-PRJ-002 — Project directory filtering
+
+- The project directory defaults to `active` projects so completed, closed and duplicate historical
+  imports do not dominate the operational list; users can explicitly select another lifecycle state
+  or all states.
+- Lifecycle state, selected execution-date range and text search are combined without changing the
+  canonical project records. State and date selections are URL-backed so refresh and shared links
+  restore the same directory view.
+- A project matches a selected date range when its execution interval overlaps that range, including
+  projects that start before the range or have no end date. Projects ending before the selected start
+  or starting after the selected end are excluded.
+
 ### BR-TIM-001 — Timesheet lifecycle
 
 `draft → submitted → approved → locked/billed`

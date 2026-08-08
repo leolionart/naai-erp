@@ -1064,6 +1064,7 @@ tasks:
         BR-RPT-004,
         BR-REV-001,
         BR-PRJ-001,
+        BR-PRJ-002,
         BR-PRF-002,
         BR-EXP-001,
         BR-CST-002,
@@ -1094,6 +1095,8 @@ tasks:
         T-E2E-ERP-841-013,
         T-UNIT-ERP-841-014,
         T-INT-ERP-841-015,
+        T-UNIT-ERP-841-016,
+        T-E2E-ERP-841-017,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
@@ -1107,6 +1110,9 @@ tasks:
       - apps/api/src/project-profitability/project-profitability.integration.test.ts
       - apps/api/src/overhead-allocations/
       - apps/web/src/app/workspaces/business-directory-workspace.tsx
+      - apps/web/src/app/workspaces/business-directory-filters.ts
+      - apps/web/src/app/workspaces/business-directory-filters.test.ts
+      - apps/web/e2e/business-directory.spec.ts
       - apps/web/src/app/workspaces/focused-record-workspaces.tsx
       - apps/web/src/components/ui/table.tsx
       - apps/web/e2e/focused-records.spec.ts
