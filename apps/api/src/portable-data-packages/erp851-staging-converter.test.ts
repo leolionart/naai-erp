@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { ERP851_STAGING_SHA256, convertErp851StagingWorkbook } from "./erp851-staging-converter.js";
 
 const source = "../../outputs/erp-851/naai-normalized-import-staging.xlsx";
+const hasReviewedLocalStaging = existsSync(source) && existsSync(`${source}.inspect.ndjson`);
 const organizationId = "00000000-0000-4000-8000-000000000851";
 const mapping = {
   purchaseControlAccountCode: "reviewed-ap",
@@ -14,7 +16,9 @@ const mapping = {
   expensePostingAccountCode: "reviewed-management-expense",
 };
 
-describe("ERP-851 staging converter", () => {
+// The reviewed workbook contains customer financial data and is intentionally excluded from Git.
+// Run this evidence suite only where both guarded local artifacts are available.
+describe.skipIf(!hasReviewedLocalStaging)("ERP-851 staging converter", () => {
   it("verifies the source SHA and preserves reviewed controls and explicit exclusions", async () => {
     const result = await convertErp851StagingWorkbook({
       sourceWorkbookPath: source,
