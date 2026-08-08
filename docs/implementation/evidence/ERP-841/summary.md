@@ -108,3 +108,9 @@ documents. The organization-scoped API validates active category master data, up
 expense list readback. The database still rejects changes to amounts, tax review, funding treatment,
 allocations and every other posted financial field. Expense Quick View can save the category and the
 combined expense list refreshes without direct database access.
+
+Production sales-invoice metadata was reclassified from the temporary catch-all revenue category
+using its persisted client and project relationships. The eight 2026 invoices now use web,
+software-development, consulting, design/media and system-maintenance categories. The outbound UI
+catalog includes the active `WEB` category so list and Quick View surfaces render its Vietnamese
+name instead of the raw category code.

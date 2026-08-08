@@ -243,6 +243,7 @@ export const INBOUND_CATEGORIES = [
 
 export const OUTBOUND_CATEGORIES = [
   { code: "SOFTWARE_DEV", name: "Doanh thu Phát triển phần mềm / App", defaultAccount: "5113" },
+  { code: "WEB", name: "Doanh thu Thiết kế và phát triển web", defaultAccount: "5113" },
   { code: "CONSULTING", name: "Doanh thu Dịch vụ tư vấn / Giải pháp", defaultAccount: "5113" },
   { code: "DESIGN_MEDIA", name: "Doanh thu Thiết kế / Truyền thông", defaultAccount: "5113" },
   {
