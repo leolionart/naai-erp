@@ -7,7 +7,6 @@ export default function ExpensesPage() {
   return (
     <ModulePage
       title="Quản lý chi phí"
-      section="Tài chính"
       description="Xem toàn bộ hóa đơn mua vào và chi phí chưa có hóa đơn; chỉ lọc khi cần."
     >
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
