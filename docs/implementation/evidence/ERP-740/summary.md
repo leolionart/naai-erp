@@ -30,7 +30,8 @@ Successfully executed the real native workbook import pipeline for tenant `naai`
 
 - **Release separation (2026-08-09):** Main image publication now validates only the release
   manifest and Docker Compose packaging contract before building all four images. Full lint,
-  typecheck, database, unit and browser suites remain in the independent CI workflow.
+  typecheck, database, unit and browser suites remain in the independent CI workflow for pull
+  requests and manual runs; routine `main` pushes no longer start the `quality` job.
 
 - **API Runtime:** The native preview propagates its explicit `DATABASE_URL` through Turbo and serves the imported `naai` tenant on localhost.
 - **CI:** [Run 31096199429](https://github.com/leolionart/naai-erp/actions/runs/31096199429) passed for exact commit `edcbb6695aa31189e41c2c429b6a1644ce2f2f3f`.

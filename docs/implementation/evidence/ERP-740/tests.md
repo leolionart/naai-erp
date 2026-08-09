@@ -3,6 +3,8 @@
 - 2026-08-09 release regression: verified the image workflow no longer duplicates `pnpm check`,
   PostgreSQL integration or Playwright E2E; it still validates the four-image manifest, Compose
   contract, multi-architecture publication, immutable SHA tags, OCI provenance and SBOM.
+- Verified `.github/workflows/ci.yml` no longer runs `quality` on a direct `main` push; CI remains
+  available for pull requests and explicit manual dispatch.
 
 - Compose contract passed.
 - Four local images built non-root; persistence sentinel survived stack recreation.
