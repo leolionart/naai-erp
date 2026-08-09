@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T07:46:00+07:00
+updated_at: 2026-08-10T07:58:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G39
+current_gate: G40
 current_task: null
 
 tasks:
@@ -1864,6 +1864,23 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-874/
 
+  - id: ERP-875
+    title: Require GitHub CLI release notes for image-publishing pushes
+    phase: P13
+    status: done
+    dependencies: [ERP-874]
+    business_rules: [BR-MVP-005]
+    tests: [T-DOC-001, T-MVP-CMP-001]
+    evidence: docs/implementation/evidence/ERP-875/
+    agent: codex-root
+    started_at: 2026-08-10T07:54:00+07:00
+    completed_at: 2026-08-10T07:58:00+07:00
+    completion_basis: agent_release_governance_docs_gate_and_release_contract_validation
+    planned_files:
+      - AGENTS.md
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-875/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1905,6 +1922,7 @@ gates:
   G37: [ERP-872]
   G38: [ERP-873]
   G39: [ERP-874]
+  G40: [ERP-875]
 
 gate_status:
   G0: done
@@ -1947,3 +1965,4 @@ gate_status:
   G37: done
   G38: done
   G39: done
+  G40: done

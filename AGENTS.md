@@ -84,6 +84,21 @@ Any implementation that violates an invariant must stop; do not weaken a test to
 - Commits must reference the task ID, for example `feat(ERP-200): add balanced journal posting`.
 - Do not push or deploy unless the user explicitly requests it and the relevant gate passes.
 
+## Image release notes
+
+- Before pushing, determine whether the pushed commit range matches an image-building path in
+  `.github/workflows/release-main.yml`.
+- When a push builds and publishes Docker images, wait for the `Release main images` workflow for
+  the pushed SHA to complete successfully.
+- After the image workflow succeeds, use the authenticated GitHub CLI (`gh release create`) to
+  create a GitHub release and generated release notes targeting that exact pushed SHA. Do not use a
+  browser-only or manually drafted substitute when `gh` is available.
+- Use tag `release-<YYYYMMDD>-sha-<12-character-sha>` unless the user specifies another version.
+- Include the immutable `sha-<12-character-sha>` image tag and the published image set in the
+  release notes. Report the workflow URL, release URL and image tag in the final handoff.
+- Do not create a GitHub release for docs-only pushes or pushes where the image workflow does not
+  publish an image.
+
 ## Overnight autonomy boundaries
 
 Agents may continue sequentially while:
