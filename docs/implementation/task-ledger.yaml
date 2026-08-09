@@ -7,8 +7,8 @@ development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G33
-current_task: null
+current_gate: G34
+current_task: ERP-869
 
 tasks:
   - id: ERP-000
@@ -1690,6 +1690,27 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-868/
 
+  - id: ERP-869
+    title: Complete truthful executive metric visibility from production records
+    phase: P12
+    status: in_progress
+    dependencies: [ERP-868]
+    business_rules: [BR-KPI-003, BR-KPI-004, BR-KPI-005, BR-UI-003]
+    tests: [T-UNIT-ERP-869-001, T-INT-ERP-869-001, T-E2E-ERP-869-001]
+    evidence: docs/implementation/evidence/ERP-869/
+    agent: codex-root
+    started_at: 2026-08-09T21:20:00+07:00
+    planned_files:
+      - apps/api/src/executive-metrics/
+      - apps/web/src/app/workspaces/executive-metrics-workspaces.tsx
+      - packages/domain/src/executive-metrics.ts
+      - packages/domain/src/executive-metrics.test.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-869/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1725,6 +1746,7 @@ gates:
   G31: [ERP-866]
   G32: [ERP-867]
   G33: [ERP-868]
+  G34: [ERP-869]
 
 gate_status:
   G0: done
@@ -1761,3 +1783,4 @@ gate_status:
   G31: done
   G32: done
   G33: done
+  G34: in_progress

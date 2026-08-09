@@ -466,6 +466,7 @@ export class PgExecutiveMetricStore {
         openingAssetsMinor: BigInt(String(O.assetsMinor)),
         closingAssetsMinor: BigInt(String(B.assetsMinor)),
         retainedEarningsMinor: amounts.retained_earnings ?? 0n,
+        unclosedEarningsMinor: BigInt(String(B.unclosedEarningsMinor ?? "0")),
         contributedCapitalMinor: amounts.contributed_capital ?? 0n,
         ownerLoansMinor: amounts.owner_loan ?? 0n,
         unrestrictedCashMinor: amounts.unrestricted_cash ?? 0n,

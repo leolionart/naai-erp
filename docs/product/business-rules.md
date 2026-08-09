@@ -718,7 +718,15 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Closing equity = opening equity + contributions − withdrawals + profit/loss + reviewed equity adjustments.
 - Owner loans are liabilities unless formally converted.
 - Equity consumed uses accumulated losses versus contributed capital.
+- Accumulated loss includes reviewed retained earnings already posted to the retained-earnings
+  account plus current unclosed earnings from the canonical Balance Sheet. The two sources remain
+  explicit so current-period loss is not hidden before the closing journal.
+- Owner-current/payable balances must be labeled as công nợ/vãng lai chủ; they are not presented as
+  a formal loan or contributed capital without an explicit reclassification record.
 - Net burn excludes owner funding from operating inflow.
+- Direct cash-flow mapping classifies reviewed customer receipts, supplier payments, VAT,
+  other-income/expense and income-tax counterpart accounts as operating. Clearing-account movements
+  remain unclassified until their actual business purpose is resolved.
 - Runway = unrestricted cash / average positive net burn; if net burn ≤ 0, show cash-generating/N/A.
 - Dashboard must keep unrestricted cash separate from owner-adjusted net cash. Owner-adjusted net cash
   equals mapped company cash and bank balances less the positive closing Owner Payable/current-account

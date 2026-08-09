@@ -185,9 +185,10 @@ function reportMetrics(
       },
       {
         code: "owner_loans",
-        label: "Khoản vay chủ sở hữu",
+        label: "Công nợ/vãng lai chủ",
         value: money(report.ownerLoansMinor, report.currency),
-        formula: cleanFormula("Liability; excluded from contributed capital"),
+        formula:
+          "Số công ty đang phải trả chủ doanh nghiệp; không mặc định là khoản vay hoặc vốn góp",
         status: "ready",
         source: report.sourceBoundary.ledgerCutoffFingerprint,
       },

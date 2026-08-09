@@ -92,6 +92,15 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-868-001`: settings displays “Doanh nghiệp một người”, persists `solopreneur`, and the
   same owner can approve executive policy while controlled mode retains independent-approval copy.
 
+### ERP-869 — Truthful executive metric visibility
+
+- `T-UNIT-ERP-869-001`: accumulated loss combines mapped retained earnings and canonical unclosed
+  earnings while a missing contributed-capital balance still produces an explicit N/A denominator.
+- `T-INT-ERP-869-001`: an approved TT133 mapping classifies standard reviewed operating counterpart
+  accounts but leaves `3389-BANK-CLEAR` movements unresolved until the source purpose is known.
+- `T-E2E-ERP-869-001`: Equity labels the owner balance as công nợ/vãng lai chủ and keeps source
+  drill-down available.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

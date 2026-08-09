@@ -20,6 +20,7 @@ const base = (overrides: Partial<ExecutiveMetricsInput> = {}): ExecutiveMetricsI
   openingAssetsMinor: 1_800n,
   closingAssetsMinor: 2_200n,
   retainedEarningsMinor: -600n,
+  unclosedEarningsMinor: 0n,
   contributedCapitalMinor: 500n,
   ownerLoansMinor: 900n,
   unrestrictedCashMinor: 360n,
@@ -85,6 +86,22 @@ describe("ERP-640 executive metrics", () => {
       restrictedCashMinor: 90n,
       runwayMonthsThousandths: 3_000n,
       runwayStatus: "available",
+    });
+  });
+
+  it("includes reviewed unclosed earnings in accumulated loss without inventing capital", () => {
+    const result = buildExecutiveMetrics(
+      base({
+        retainedEarningsMinor: -100n,
+        unclosedEarningsMinor: -250n,
+        contributedCapitalMinor: 0n,
+      }),
+    );
+    expect(result.accumulatedLossMinor).toBe(350n);
+    expect(result.equityConsumed).toMatchObject({
+      status: "non_positive_denominator",
+      numeratorMinor: 350n,
+      denominatorMinor: 0n,
     });
   });
 

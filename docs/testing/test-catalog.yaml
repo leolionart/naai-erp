@@ -1624,6 +1624,30 @@ tests:
     command: PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_OUTPUT_DIR=/tmp/naai-erp-owner-liquidity pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank|single owner obligation"
     blocking_gate: G26
 
+  - id: T-UNIT-ERP-869-001
+    task: ERP-869
+    rules: [BR-KPI-004, BR-KPI-005]
+    title: Accumulated loss includes reviewed unclosed earnings without fabricating contributed capital
+    layer: unit
+    command: pnpm --filter @naai-erp/domain exec vitest run src/executive-metrics.test.ts
+    blocking_gate: G34
+
+  - id: T-INT-ERP-869-001
+    task: ERP-869
+    rules: [BR-KPI-005]
+    title: Standard operating cash counterpart mappings are approved while clearing movements remain unresolved
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/financial-statements/financial-statement.integration.test.ts src/executive-metrics/executive-metric.integration.test.ts
+    blocking_gate: G34
+
+  - id: T-E2E-ERP-869-001
+    task: ERP-869
+    rules: [BR-KPI-005, BR-UI-003]
+    title: Executive equity presents owner current balance with truthful semantics and source drill-down
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/executive-metrics.spec.ts --project=desktop-chromium
+    blocking_gate: G34
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

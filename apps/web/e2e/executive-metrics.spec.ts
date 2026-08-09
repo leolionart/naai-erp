@@ -83,6 +83,7 @@ test("@desktop persists executive filters in the URL and opens source Dialog", a
   await mockReport(page);
   await page.goto("http://localhost:3000/reports/executive-metrics/equity");
   await expect(page.getByRole("heading", { name: "Vốn chủ sở hữu" })).toBeVisible();
+  await expect(page.getByText("Công nợ/vãng lai chủ")).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Service line").fill("web-app");

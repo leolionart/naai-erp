@@ -65,6 +65,7 @@ export type ExecutiveMetricsInput = Readonly<{
   openingAssetsMinor: bigint;
   closingAssetsMinor: bigint;
   retainedEarningsMinor: bigint;
+  unclosedEarningsMinor: bigint;
   contributedCapitalMinor: bigint;
   ownerLoansMinor: bigint;
   unrestrictedCashMinor: bigint;
@@ -202,7 +203,9 @@ export function buildExecutiveMetrics(input: ExecutiveMetricsInput): ExecutiveMe
   const roiIds = input.roi.map((item) => required(item.id, "ROI ID"));
   if (new Set(roiIds).size !== roiIds.length) throw new Error("ROI IDs must be unique");
 
-  const accumulatedLossMinor = input.retainedEarningsMinor < 0n ? -input.retainedEarningsMinor : 0n;
+  const reviewedRetainedEarningsMinor = input.retainedEarningsMinor + input.unclosedEarningsMinor;
+  const accumulatedLossMinor =
+    reviewedRetainedEarningsMinor < 0n ? -reviewedRetainedEarningsMinor : 0n;
   const reviewedMonths = input.reviewedOperatingNetCashFlowMinor.length;
   const averageOperatingNetCashFlowMinor =
     reviewedMonths === 0
