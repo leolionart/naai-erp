@@ -389,6 +389,9 @@ export function BankingWorkspace() {
           <Link href="/banking">Tài khoản & Giao dịch</Link>
         </Button>
         <Button variant="outline" asChild>
+          <Link href="/banking/owner-current">Đối chiếu công nợ chủ</Link>
+        </Button>
+        <Button variant="outline" asChild>
           <Link href="/banking/internal-transfers">Chuyển tiền nội bộ</Link>
         </Button>
         <Button variant="outline" asChild>

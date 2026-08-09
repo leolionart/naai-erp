@@ -101,6 +101,32 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-869-001`: Equity labels the owner balance as công nợ/vãng lai chủ and keeps source
   drill-down available.
 
+### ERP-870 — Customer service subscription management
+
+- `T-UNIT-ERP-870-001`: service-plan defaults, exact subscription pricing, recurrence boundaries and
+  lifecycle transitions are deterministic; activation never creates accounting revenue.
+- `T-DB-ERP-870-002`: organization-scoped service-plan/subscription keys, customer/project
+  relationships, migration paths and optimistic versions are enforced by PostgreSQL.
+- `T-API-ERP-870-003`: REST CRUD, filters and typed lifecycle actions enforce client role,
+  customer-project consistency, audit, idempotency and structured errors.
+- `T-CONTRACT-ERP-870-004`: concrete TypeScript/OpenAPI schemas expose exact money strings,
+  relationships, resource versions and permitted next actions.
+- `T-CLI-ERP-870-005`: the first-party CLI calls only canonical REST routes for service plans and
+  customer subscriptions with matching filters and mutation headers.
+- `T-PORTABLE-ERP-870-006`: Full ERP Data Package exports both resources, dry-runs relationship and
+  version checks, and restores them through canonical services without direct SQL mutation.
+- `T-DOC-ERP-870-007`: AI relationship documentation orders party/client role, optional project,
+  service plan and subscription writes and prohibits invented IDs or inferred invoice relationships.
+- `T-E2E-ERP-870-008`: desktop/mobile UI lists historical and active subscriptions, maps canonical
+  customer/project relationships and performs create/edit/lifecycle actions in dialogs.
+
+### ERP-871 — Owner-current reconciliation menu
+
+- `T-API-ERP-871-001`: the read model resolves the approved Owner Current account mapping, includes
+  posted/reversed journal evidence and returns exact signed liability/company-funds effects.
+- `T-E2E-ERP-871-002`: the banking menu exposes owner-current movements, running balance, journal
+  drill-down and an explicit warning when recorded repayments/withdrawals are missing.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

@@ -11,7 +11,15 @@ export type NavigationIcon =
   | "report"
   | "customer"
   | "project"
-  | "review";
+  | "review"
+  | "executive-metrics"
+  | "debt"
+  | "financial-statements"
+  | "master-data"
+  | "purchase-products"
+  | "portable-data"
+  | "accountant-exports"
+  | "subscription";
 
 export type NavigationItem = Readonly<{
   key: string;
@@ -68,11 +76,19 @@ export const adminNavigation = [
         status: "available",
       },
       {
+        key: "customer-subscriptions",
+        label: "Dịch vụ subscription",
+        href: "/subscriptions",
+        description: "Theo dõi dịch vụ định kỳ khách hàng đã, đang và sắp sử dụng.",
+        icon: "subscription",
+        status: "available",
+      },
+      {
         key: "executive-metrics",
         label: "Chỉ số điều hành (BETA)",
         href: "/reports/executive-metrics",
         description: "Báo cáo dòng tiền, ROI, khả năng sinh lời và chỉ số sức khỏe doanh nghiệp.",
-        icon: "overview",
+        icon: "executive-metrics",
         status: "available",
       },
     ],
@@ -108,7 +124,7 @@ export const adminNavigation = [
         key: "debt",
         label: "Công nợ",
         description: "Theo dõi tiền khách chưa trả và tiền nợ nhà cung cấp.",
-        icon: "report",
+        icon: "debt",
         status: "available",
         children: [
           {
@@ -131,7 +147,7 @@ export const adminNavigation = [
         key: "financial-statements",
         label: "Báo cáo Thuế & Kế toán",
         description: "Kết quả kinh doanh và dữ liệu xuất cho đơn vị làm dịch vụ kế toán.",
-        icon: "report",
+        icon: "financial-statements",
         status: "available",
         children: [
           {
@@ -178,6 +194,13 @@ export const adminNavigation = [
             status: "available",
           },
           {
+            key: "owner-current",
+            label: "Đối chiếu công nợ chủ",
+            href: "/banking/owner-current",
+            description: "Xem từng khoản làm tăng hoặc giảm số tiền công ty nợ chủ doanh nghiệp.",
+            status: "available",
+          },
+          {
             key: "internal-transfers",
             label: "Chuyển tiền nội bộ",
             href: "/banking/internal-transfers",
@@ -220,7 +243,7 @@ export const adminNavigation = [
         label: "Danh mục hệ thống",
         href: "/settings/master-data",
         description: "Cấu hình tài khoản, mã thuế, phòng ban, và danh mục chuẩn.",
-        icon: "folder",
+        icon: "master-data",
         status: "available",
       },
       {
@@ -228,7 +251,7 @@ export const adminNavigation = [
         label: "Sản phẩm mua vào & VAT",
         href: "/settings/purchase-products",
         description: "Quản lý sản phẩm mua vào áp dụng VAT 8% hoặc 10%.",
-        icon: "folder",
+        icon: "purchase-products",
         status: "available",
       },
       {
@@ -236,7 +259,7 @@ export const adminNavigation = [
         label: "Sao lưu & nhập lại ERP",
         href: "/settings/data-package",
         description: "Export toàn bộ dữ liệu ERP ra XLSX và nhập lại có kiểm soát.",
-        icon: "folder",
+        icon: "portable-data",
         status: "available",
       },
       {
@@ -244,7 +267,7 @@ export const adminNavigation = [
         label: "Xuất dữ liệu kế toán",
         href: "/reports/accountant-exports",
         description: "Xuất khẩu file Excel chứng từ để gửi dịch vụ kế toán thuế.",
-        icon: "report",
+        icon: "accountant-exports",
         status: "available",
       },
     ],

@@ -9,6 +9,7 @@ export default async function ProjectPage({
     <ModulePage
       title="Hồ sơ dự án"
       section="Dự án"
+      sectionHref="/projects"
       description="Thông tin dự án và các báo cáo tài chính liên quan."
     >
       <BusinessRecordWorkspace kind="projects" id={projectId} />

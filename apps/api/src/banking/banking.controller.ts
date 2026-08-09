@@ -106,6 +106,13 @@ export class BankingController {
       ...(to ? { to } : {}),
     });
   }
+  @Get("owner-current-movements") async listOwnerCurrentMovements(
+    @Param("organizationId") org: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.listOwnerCurrentMovements(await this.context(org, auth, corr));
+  }
   @Get("transactions/:id") async getTransaction(
     @Param("organizationId") org: string,
     @Param("id") id: string,

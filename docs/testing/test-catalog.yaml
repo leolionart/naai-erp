@@ -1648,6 +1648,86 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/executive-metrics.spec.ts --project=desktop-chromium
     blocking_gate: G34
 
+  - id: T-UNIT-ERP-870-001
+    task: ERP-870
+    rules: [BR-SUB-001, BR-SUB-002]
+    title: Customer subscription recurrence lifecycle and exact pricing are deterministic and accounting-neutral
+    layer: unit
+    command: pnpm --filter @naai-erp/domain exec vitest run src/customer-service-subscriptions.test.ts
+    blocking_gate: G35
+
+  - id: T-DB-ERP-870-002
+    task: ERP-870
+    rules: [BR-SUB-001, BR-ORG-001]
+    title: Subscription schema enforces organization relationships uniqueness versions and migration safety
+    layer: database
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@localhost:5432/naai_erp pnpm --filter @naai-erp/database test
+    blocking_gate: G35
+
+  - id: T-API-ERP-870-003
+    task: ERP-870
+    rules: [BR-SUB-001, BR-SUB-002, BR-AI-002, BR-AUD-001]
+    title: Customer subscription REST CRUD filters and lifecycle actions enforce relationships audit and idempotency
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/customer-service-subscriptions/customer-service-subscription.integration.test.ts
+    blocking_gate: G35
+
+  - id: T-CONTRACT-ERP-870-004
+    task: ERP-870
+    rules: [BR-SUB-001, BR-AI-001, BR-AI-003]
+    title: Subscription TypeScript and OpenAPI contracts expose exact values relationships versions and actions
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts exec vitest run src/customer-service-subscriptions.test.ts
+    blocking_gate: G35
+
+  - id: T-CLI-ERP-870-005
+    task: ERP-870
+    rules: [BR-SUB-001, BR-AI-001, BR-AI-002]
+    title: First-party CLI uses canonical service-plan and customer-subscription REST operations
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
+    blocking_gate: G35
+
+  - id: T-PORTABLE-ERP-870-006
+    task: ERP-870
+    rules: [BR-SUB-002, BR-EXPOR-002, BR-AI-004]
+    title: Portable package inventories dry-runs and restores plans and subscriptions through canonical services
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/portable-data-packages/portable-resource-mutation-matrix.test.ts
+    blocking_gate: G35
+
+  - id: T-DOC-ERP-870-007
+    task: ERP-870
+    rules: [BR-SUB-001, BR-SUB-002, BR-AI-005]
+    title: AI relationship documentation defines ordered non-guessing subscription ingestion
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G35
+
+  - id: T-E2E-ERP-870-008
+    task: ERP-870
+    rules: [BR-SUB-001, BR-SUB-002, BR-UI-003, BR-UI-004]
+    title: Subscription UI manages active and historical customer services with canonical relationships on desktop and mobile
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/customer-subscriptions.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G35
+
+  - id: T-API-ERP-871-001
+    task: ERP-871
+    rules: [BR-BNK-004, BR-AI-001, BR-ORG-001]
+    title: Owner-current read model reconciles mapped posted ledger movements with exact signed balances
+    layer: integration
+    command: pnpm --filter @naai-erp/api test -- banking.service.test.ts
+    blocking_gate: G36
+
+  - id: T-E2E-ERP-871-002
+    task: ERP-871
+    rules: [BR-BNK-004, BR-UI-003, BR-UI-004]
+    title: Owner-current menu shows withdrawal evidence running balance and journal drill-down
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G36
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

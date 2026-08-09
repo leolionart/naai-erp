@@ -91,41 +91,145 @@ naai-erp/
 └── .env.production
 ```
 
-### 1. Tải file Compose và mẫu cấu hình
+### 1. Tạo `compose.yaml`
 
-```bash
-mkdir -p naai-erp && cd naai-erp
+Tạo một thư mục triển khai, sau đó copy nội dung dưới đây vào file `compose.yaml`.
 
-# Thay giá trị này bằng Git tag hoặc full commit SHA đã phát hành.
-export NAAI_ERP_REF="FULL_GIT_SHA_OR_TAG"
+<details>
+<summary><strong>Nội dung compose.yaml</strong></summary>
 
-curl -fsSL \
-  "https://raw.githubusercontent.com/leolionart/naai-erp/${NAAI_ERP_REF}/compose.yaml" \
-  -o compose.yaml
+```yaml
+name: naai-erp
 
-curl -fsSL \
-  "https://raw.githubusercontent.com/leolionart/naai-erp/${NAAI_ERP_REF}/deploy/env/.env.example" \
-  -o .env.production
+x-service-defaults: &service-defaults
+  init: true
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16.9-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-naai_erp}
+      POSTGRES_USER: ${POSTGRES_USER:-naai_erp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/leolionart/naai-erp-migrate:${IMAGE_TAG}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-naai_erp}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *service-defaults
+    image: ghcr.io/leolionart/naai-erp-api:${IMAGE_TAG}
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-naai_erp}
+      APP_BASE_URL: ${APP_BASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET}
+      NAAI_ERP_SOLOPRENEUR: ${NAAI_ERP_SOLOPRENEUR:-true}
+      NAAI_ERP_LOGIN_ORGANIZATION: ${NAAI_ERP_LOGIN_ORGANIZATION}
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *service-defaults
+    image: ghcr.io/leolionart/naai-erp-worker:${IMAGE_TAG}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-naai_erp}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "try{process.kill(1,0)}catch{process.exit(1)}"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  web:
+    <<: *service-defaults
+    image: ghcr.io/leolionart/naai-erp-web:${IMAGE_TAG}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: http://api:3001
+      SESSION_SECRET: ${SESSION_SECRET}
+      NAAI_ERP_LOGIN_USERNAME: ${NAAI_ERP_LOGIN_USERNAME}
+      NAAI_ERP_LOGIN_PASSWORD: ${NAAI_ERP_LOGIN_PASSWORD}
+      NAAI_ERP_LOGIN_ORGANIZATION: ${NAAI_ERP_LOGIN_ORGANIZATION}
+      NAAI_ERP_LOGIN_API_TOKEN: ${NAAI_ERP_LOGIN_API_TOKEN}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres-data:
 ```
 
-Không nên dùng `main` làm `NAAI_ERP_REF` cho production vì nội dung Compose có thể thay đổi. Git ref của `compose.yaml` nên tương ứng với release chứa image được chọn trong `IMAGE_TAG`.
+</details>
 
-### 2. Điền `.env.production`
+### 2. Tạo `.env.production`
 
-Mở `.env.production` bằng trình soạn thảo trên máy chủ và cập nhật ít nhất các giá trị sau:
+Tạo file `.env.production` cùng thư mục với `compose.yaml`:
 
 ```dotenv
-POSTGRES_PASSWORD=<mat-khau-postgres-manh>
+POSTGRES_DB=naai_erp
+POSTGRES_USER=naai_erp
+POSTGRES_PASSWORD=replace-with-a-strong-random-password
+
 APP_BASE_URL=https://erp.example.com
-SESSION_SECRET=<chuoi-ngau-nhien-toi-thieu-32-ky-tu>
-WEBHOOK_SIGNING_SECRET=<chuoi-ngau-nhien-toi-thieu-32-ky-tu>
+SESSION_SECRET=replace-with-at-least-32-random-characters
+WEBHOOK_SIGNING_SECRET=replace-with-at-least-32-random-characters
 
 NAAI_ERP_LOGIN_USERNAME=owner
-NAAI_ERP_LOGIN_PASSWORD=<mat-khau-dang-nhap-manh>
-NAAI_ERP_LOGIN_ORGANIZATION=<organization-id>
-NAAI_ERP_LOGIN_API_TOKEN=<api-token-cua-organization>
+NAAI_ERP_LOGIN_PASSWORD=replace-with-a-strong-random-password
+NAAI_ERP_LOGIN_ORGANIZATION=naai
+NAAI_ERP_LOGIN_API_TOKEN=replace-with-the-provisioned-owner-api-token
+NAAI_ERP_SOLOPRENEUR=true
 
-IMAGE_TAG=sha-<12-ky-tu-dau-cua-commit>
+IMAGE_TAG=sha-000000000000
+API_PORT=3001
+WEB_PORT=3000
 ```
 
 Không commit file `.env.production`. Bốn service `migrate`, `api`, `worker`, `web` phải dùng cùng một `IMAGE_TAG`; môi trường production nên dùng tag bất biến `sha-*` thay vì `main` hoặc `latest`.

@@ -122,8 +122,10 @@ import { PgPortableDataImportStore } from "./portable-data-packages/pg-portable-
 import { PortableCanonicalMutationAdapter } from "./portable-data-packages/portable-canonical-mutation.adapter.js";
 import { OrganizationWorkflowPolicyService } from "./workflow-policy/organization-workflow-policy.service.js";
 import { OrganizationWorkflowPolicyController } from "./workflow-policy/organization-workflow-policy.controller.js";
+import { CustomerServiceSubscriptionModule } from "./customer-service-subscriptions/customer-service-subscription.module.js";
 
 @Module({
+  imports: [CustomerServiceSubscriptionModule],
   controllers: [
     OrganizationWorkflowPolicyController,
     HealthController,

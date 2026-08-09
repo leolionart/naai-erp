@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import type { PortableRowEnvelopeContract, PortableRowIssueContract } from "@naai-erp/contracts";
 import { CommercialDocumentService } from "../commercial-documents/commercial-document.service.js";
 import type { UpdateCommercialDocumentInput } from "../commercial-documents/commercial-document.types.js";
 import { ExpenseService } from "../expenses/expense.service.js";
+import { CustomerServiceSubscriptionService } from "../customer-service-subscriptions/customer-service-subscription.service.js";
 import type { CreateExpenseInput } from "../expenses/expense.types.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { MASTER_DATA_RESOURCES, encodeResourceKey } from "../master-data/resource-registry.js";
@@ -72,6 +73,46 @@ const masterPayload = (
     if (data[key] == null && key === "id") data[key] = row.stableId ?? randomUUID();
   return data;
 };
+const subscriptionPayload = (resourceType: string, row: PortableRowEnvelopeContract) => {
+  const source = { ...row.data, ...row.relationships } as Record<string, unknown>;
+  const recurrence = {
+    frequency: source.recurrence_frequency,
+    interval: Number(source.recurrence_interval),
+    billingDay: Number(source.billing_day),
+  };
+  if (resourceType === "service_plans")
+    return {
+      schemaVersion: 1,
+      ...(row.stableId ? { id: row.stableId } : {}),
+      code: source.code,
+      name: source.name,
+      serviceLineCode: source.service_line_code,
+      defaultUnitPriceMinor: String(source.default_unit_price_minor ?? ""),
+      currency: source.currency,
+      recurrence,
+      reason: String(source.reason ?? "Portable data package import"),
+      ...(row.expectedResourceVersion
+        ? { expectedResourceVersion: row.expectedResourceVersion }
+        : {}),
+    };
+  return {
+    schemaVersion: 1,
+    ...(row.stableId ? { id: row.stableId } : {}),
+    customerPartyId: source.customer_party_id,
+    servicePlanId: source.service_plan_id,
+    projectId: source.project_id ?? null,
+    startsOn: source.starts_on,
+    endsOn: source.ends_on ?? null,
+    quantity: String(source.quantity ?? ""),
+    unitPriceMinor: String(source.unit_price_minor ?? ""),
+    currency: source.currency,
+    recurrence,
+    reason: String(source.reason ?? "Portable data package import"),
+    ...(row.expectedResourceVersion
+      ? { expectedResourceVersion: row.expectedResourceVersion }
+      : {}),
+  };
+};
 
 @Injectable()
 export class PortableCanonicalMutationAdapter {
@@ -79,6 +120,9 @@ export class PortableCanonicalMutationAdapter {
     @Inject(MasterDataService) private readonly masterData: MasterDataService,
     @Inject(CommercialDocumentService) private readonly documents: CommercialDocumentService,
     @Inject(ExpenseService) private readonly expenses: ExpenseService,
+    @Optional()
+    @Inject(CustomerServiceSubscriptionService)
+    private readonly subscriptions?: CustomerServiceSubscriptionService,
   ) {}
 
   private requireIdentity(row: PortableRowEnvelopeContract) {
@@ -146,6 +190,37 @@ export class PortableCanonicalMutationAdapter {
           return invalid("STATE_CONFLICT", "Only draft expenses can be updated");
         if (row.operation === "reverse_replace" && current.data.state !== "posted")
           return invalid("STATE_CONFLICT", "Only posted expenses can be replaced");
+        return ready(row);
+      }
+      if (entry.adapter === "customer_subscription") {
+        if (!this.subscriptions)
+          return invalid(
+            "CANONICAL_SERVICE_UNAVAILABLE",
+            "Customer subscription canonical service is unavailable",
+          );
+        const input = subscriptionPayload(resourceType, row);
+        if (row.operation === "create") {
+          await this.subscriptions.validatePortableInput(
+            context,
+            resourceType as "service_plans" | "customer_service_subscriptions",
+            input,
+          );
+          return ready(row);
+        }
+        const current =
+          resourceType === "service_plans"
+            ? await this.subscriptions.getPlan(context, row.stableId!)
+            : await this.subscriptions.getSubscription(context, row.stableId!);
+        const resource = (current as { data: Record<string, unknown> }).data;
+        if (String(resource.resourceVersion) !== row.expectedResourceVersion)
+          return invalid("VERSION_CONFLICT", `${resourceType} version is stale`);
+        if (
+          resourceType === "customer_service_subscriptions" &&
+          row.operation === "update" &&
+          resource.lifecycle !== "draft"
+        )
+          return invalid("STATE_CONFLICT", "Only draft subscriptions can be updated");
+        if (!input.reason) return invalid("FIELD_INVALID", "reason is required", "reason");
         return ready(row);
       }
       return invalid("READ_ONLY_RESOURCE", entry.reason ?? `${resourceType} is read-only`);
@@ -300,6 +375,94 @@ export class PortableCanonicalMutationAdapter {
           );
         }
         return row.stableId ? { applied: true, stableId: row.stableId } : { applied: true };
+      }
+      if (entry.adapter === "customer_subscription") {
+        if (!this.subscriptions)
+          return {
+            applied: false,
+            issue: problem(
+              "CANONICAL_SERVICE_UNAVAILABLE",
+              "Customer subscription canonical service is unavailable",
+            ),
+          };
+        const input = subscriptionPayload(resourceType, row);
+        if (resourceType === "service_plans") {
+          const response =
+            row.operation === "create"
+              ? await this.subscriptions.createPlan(context, input, idempotencyKey)
+              : row.operation === "deactivate"
+                ? await this.subscriptions.deactivatePlan(
+                    context,
+                    row.stableId!,
+                    input,
+                    idempotencyKey,
+                  )
+                : await this.subscriptions.updatePlan(
+                    context,
+                    row.stableId!,
+                    input,
+                    idempotencyKey,
+                  );
+          const resource = (response as { data: { resource: { id: string } } }).data.resource;
+          return { applied: true, stableId: resource.id };
+        }
+        const response =
+          row.operation === "create"
+            ? await this.subscriptions.createSubscription(context, input, idempotencyKey)
+            : row.operation === "cancel"
+              ? await this.subscriptions.transition(
+                  context,
+                  row.stableId!,
+                  "cancel",
+                  {
+                    schemaVersion: 1,
+                    expectedResourceVersion: row.expectedResourceVersion,
+                    effectiveOn: String(row.data.lifecycle_effective_on ?? row.data.ends_on),
+                    reason: String(row.data.reason ?? "Portable data package cancellation"),
+                  },
+                  idempotencyKey,
+                )
+              : await this.subscriptions.updateSubscription(
+                  context,
+                  row.stableId!,
+                  input,
+                  idempotencyKey,
+                );
+        let resource = (
+          response as {
+            data: { resource: { id: string; resourceVersion: string; lifecycle: string } };
+          }
+        ).data.resource;
+        if (row.operation === "create") {
+          const desired = String(row.data.lifecycle ?? "draft");
+          const effectiveOn = String(
+            row.data.lifecycle_effective_on ?? row.data.ends_on ?? row.data.starts_on,
+          );
+          const transition = async (action: "activate" | "pause" | "cancel" | "expire") => {
+            const transitioned = await this.subscriptions!.transition(
+              context,
+              resource.id,
+              action,
+              {
+                schemaVersion: 1,
+                expectedResourceVersion: resource.resourceVersion,
+                effectiveOn,
+                reason: String(row.data.lifecycle_reason ?? "Portable data package restore"),
+              },
+              `${idempotencyKey}:${action}`,
+            );
+            resource = (
+              transitioned as {
+                data: { resource: typeof resource };
+              }
+            ).data.resource;
+          };
+          if (["active", "paused", "expired"].includes(desired)) await transition("activate");
+          if (desired === "paused") await transition("pause");
+          if (desired === "cancelled") await transition("cancel");
+          if (desired === "expired") await transition("expire");
+        }
+        return { applied: true, stableId: resource.id };
       }
       return {
         applied: false,

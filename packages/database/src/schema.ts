@@ -142,6 +142,18 @@ export const contractType = pgEnum("contract_type", [
   "retainer",
   "internal",
 ]);
+export const customerSubscriptionLifecycle = pgEnum("customer_subscription_lifecycle", [
+  "draft",
+  "active",
+  "paused",
+  "cancelled",
+  "expired",
+]);
+export const subscriptionRecurrenceFrequency = pgEnum("subscription_recurrence_frequency", [
+  "month",
+  "quarter",
+  "year",
+]);
 export const journalState = pgEnum("journal_state", ["draft", "approved", "posted", "reversed"]);
 export const postingRuleStatus = pgEnum("posting_rule_status", ["draft", "active", "retired"]);
 export const targetPeriodKind = pgEnum("target_period_kind", ["month", "quarter", "year"]);
@@ -980,6 +992,110 @@ export const projects = pgTable(
     check(
       "projects_date_order",
       sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`,
+    ),
+  ],
+);
+
+export const servicePlans = pgTable(
+  "service_plans",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    serviceLineCode: text("service_line_code").notNull(),
+    defaultUnitPriceMinor: bigint("default_unit_price_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    recurrenceFrequency: subscriptionRecurrenceFrequency("recurrence_frequency").notNull(),
+    recurrenceInterval: integer("recurrence_interval").notNull(),
+    billingDay: integer("billing_day").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("service_plans_org_code_unique").on(table.organizationId, table.code),
+    check("service_plans_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("service_plans_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("service_plans_price_nonnegative", sql`${table.defaultUnitPriceMinor} >= 0`),
+    check("service_plans_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("service_plans_recurrence_interval", sql`${table.recurrenceInterval} between 1 and 120`),
+    check("service_plans_billing_day", sql`${table.billingDay} between 1 and 31`),
+    check("service_plans_version_positive", sql`${table.version} > 0`),
+    index("service_plans_active_name_idx").on(table.organizationId, table.active, table.name),
+  ],
+);
+
+export const customerServiceSubscriptions = pgTable(
+  "customer_service_subscriptions",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    customerPartyId: text("customer_party_id").notNull(),
+    servicePlanId: text("service_plan_id").notNull(),
+    projectId: text("project_id"),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on"),
+    quantity: bigint("quantity", { mode: "bigint" }).notNull(),
+    unitPriceMinor: bigint("unit_price_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    recurrenceFrequency: subscriptionRecurrenceFrequency("recurrence_frequency").notNull(),
+    recurrenceInterval: integer("recurrence_interval").notNull(),
+    billingDay: integer("billing_day").notNull(),
+    lifecycle: customerSubscriptionLifecycle("lifecycle").notNull().default("draft"),
+    lifecycleEffectiveOn: date("lifecycle_effective_on"),
+    lifecycleReason: text("lifecycle_reason"),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.customerPartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "customer_subscriptions_customer_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.servicePlanId],
+      foreignColumns: [servicePlans.organizationId, servicePlans.id],
+      name: "customer_subscriptions_plan_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "customer_subscriptions_project_fk",
+    }).onDelete("restrict"),
+    check("customer_subscriptions_quantity_positive", sql`${table.quantity} > 0`),
+    check("customer_subscriptions_price_nonnegative", sql`${table.unitPriceMinor} >= 0`),
+    check("customer_subscriptions_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "customer_subscriptions_date_order",
+      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`,
+    ),
+    check(
+      "customer_subscriptions_recurrence_interval",
+      sql`${table.recurrenceInterval} between 1 and 120`,
+    ),
+    check("customer_subscriptions_billing_day", sql`${table.billingDay} between 1 and 31`),
+    check("customer_subscriptions_version_positive", sql`${table.version} > 0`),
+    index("customer_subscriptions_filters_idx").on(
+      table.organizationId,
+      table.lifecycle,
+      table.customerPartyId,
+      table.servicePlanId,
     ),
   ],
 );
@@ -5117,6 +5233,8 @@ export const schema = {
   partyBankAccounts,
   partyExternalReferences,
   projects,
+  servicePlans,
+  customerServiceSubscriptions,
   workforceProfiles,
   laborCostRates,
   timesheets,

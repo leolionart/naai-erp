@@ -19,6 +19,7 @@ function fixture() {
     listImports: vi.fn().mockResolvedValue({ items: [] }),
     getImport: vi.fn().mockResolvedValue({ id: "import-1" }),
     listTransactions: vi.fn().mockResolvedValue({ items: [] }),
+    listOwnerCurrentMovements: vi.fn().mockResolvedValue({ summary: {}, items: [] }),
     getTransaction: vi.fn().mockResolvedValue({ id: "txn-1" }),
     transitionTransaction: vi.fn().mockResolvedValue({ transactionId: "txn-1", state: "ignored" }),
   };

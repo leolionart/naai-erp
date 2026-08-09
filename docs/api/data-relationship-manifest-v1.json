@@ -185,6 +185,26 @@
       "correction": "update_before_close_or_approved_reopen"
     },
     {
+      "id": "service_plan",
+      "stage": "parties_projects",
+      "endpoint": "/service-plans",
+      "cli": "service-plans",
+      "identifiers": ["id"],
+      "businessKeys": ["code"],
+      "dependsOn": ["dimension_value"],
+      "references": [
+        {
+          "field": "serviceLineCode",
+          "target": "dimension_value",
+          "targetKey": "kind=service_line+code",
+          "required": true,
+          "onMissing": "reject"
+        }
+      ],
+      "lifecycle": ["active", "inactive"],
+      "correction": "update_while_active_or_deactivate_preserving_history"
+    },
+    {
       "id": "contract",
       "stage": "parties_projects",
       "endpoint": "/master-data/contracts",
@@ -238,6 +258,52 @@
         }
       ],
       "correction": "deactivate; PATCH is a known unavailable runtime gap"
+    },
+    {
+      "id": "customer_service_subscription",
+      "stage": "business_sources",
+      "endpoint": "/customer-service-subscriptions",
+      "cli": "customer-service-subscriptions",
+      "identifiers": ["id"],
+      "dependsOn": ["party", "party_role", "service_plan", "project"],
+      "references": [
+        {
+          "field": "customerPartyId",
+          "target": "party",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "customerPartyId+client",
+          "target": "party_role",
+          "targetKey": "party_id+role",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "servicePlanId",
+          "target": "service_plan",
+          "targetKey": "id",
+          "required": true,
+          "onMissing": "reject"
+        },
+        {
+          "field": "projectId",
+          "target": "project",
+          "targetKey": "id",
+          "required": false,
+          "onMissing": "reject"
+        }
+      ],
+      "relationshipAssertions": [
+        "party has client role",
+        "service plan is active before activation",
+        "when projectId is present project.client_party_id equals customerPartyId"
+      ],
+      "lifecycle": ["draft", "active", "paused", "cancelled", "expired"],
+      "correction": "patch_draft_or_typed_lifecycle_action",
+      "accountingBoundary": "schedule preview is commercial only; invoices revenue and journals require separate canonical workflows"
     },
     {
       "id": "commercial_document",

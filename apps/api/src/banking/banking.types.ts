@@ -52,6 +52,7 @@ export type BankingStore = Readonly<{
     organizationId: string,
     filters: { financialAccountId?: string; state?: string; from?: string; to?: string },
   ): Promise<unknown>;
+  listOwnerCurrentMovements(organizationId: string): Promise<unknown>;
   getTransaction(organizationId: string, id: string): Promise<unknown | undefined>;
   transitionTransaction(
     context: BankingContext,

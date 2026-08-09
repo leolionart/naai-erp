@@ -100,6 +100,12 @@ export class BankingService {
       await this.store.listTransactions(context.organizationId, filters),
     );
   }
+  async listOwnerCurrentMovements(context: BankingContext) {
+    return this.envelope(
+      context,
+      await this.store.listOwnerCurrentMovements(context.organizationId),
+    );
+  }
   async getTransaction(context: BankingContext, id: string) {
     const data = await this.store.getTransaction(context.organizationId, id);
     if (!data) throw new Error("RESOURCE_NOT_FOUND");

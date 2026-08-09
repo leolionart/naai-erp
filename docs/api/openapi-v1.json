@@ -109,9 +109,327 @@
     "workbook-imports/commit",
     "workbook-imports/review-rows/list",
     "workbook-imports/review-rows/get",
-    "workbook-imports/review-rows/update"
+    "workbook-imports/review-rows/update",
+    "service-plans/create",
+    "service-plans/update",
+    "service-plans/deactivate",
+    "customer-service-subscriptions/create",
+    "customer-service-subscriptions/update",
+    "customer-service-subscriptions/activate",
+    "customer-service-subscriptions/pause",
+    "customer-service-subscriptions/resume",
+    "customer-service-subscriptions/cancel",
+    "customer-service-subscriptions/expire",
+    "customer-service-subscriptions/schedule-preview"
   ],
   "paths": {
+    "/api/v1/organizations/{organizationId}/service-plans": {
+      "get": {
+        "operationId": "listServicePlans",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "serviceLineCode", "in": "query", "schema": { "type": "string" } },
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization-scoped service plans",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ServicePlanListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createServicePlan",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateServicePlanRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created service plan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ServicePlanEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}": {
+      "get": {
+        "operationId": "getServicePlan",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ServicePlanId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service plan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ServicePlanReadEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateServicePlan",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ServicePlanId" },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateServicePlanRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated service plan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ServicePlanEnvelope" }
+              }
+            }
+          },
+          "409": { "description": "Stale resource version" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}/deactivate": {
+      "post": {
+        "operationId": "deactivateServicePlan",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ServicePlanId" },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["schemaVersion", "reason"],
+                "properties": {
+                  "schemaVersion": { "const": 1 },
+                  "reason": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deactivated plan retained for history",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ServicePlanEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/customer-service-subscriptions": {
+      "get": {
+        "operationId": "listCustomerServiceSubscriptions",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "customerId", "in": "query", "schema": { "type": "string" } },
+          { "name": "servicePlanId", "in": "query", "schema": { "type": "string" } },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "lifecycle",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/CustomerSubscriptionLifecycle" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historical and current subscriptions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerSubscriptionListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCustomerServiceSubscription",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCustomerServiceSubscriptionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created draft subscription without accounting effect",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerSubscriptionEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}": {
+      "get": {
+        "operationId": "getCustomerServiceSubscription",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/CustomerSubscriptionId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerSubscriptionReadEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateCustomerServiceSubscription",
+        "tags": ["customer-subscriptions"],
+        "description": "Only draft subscriptions may be edited; active history changes through typed lifecycle actions.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/CustomerSubscriptionId" },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateCustomerServiceSubscriptionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated draft subscription",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerSubscriptionEnvelope" }
+              }
+            }
+          },
+          "409": { "description": "Stale version or non-draft state" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}/{action}": {
+      "post": {
+        "operationId": "transitionCustomerServiceSubscription",
+        "tags": ["customer-subscriptions"],
+        "description": "Typed action is one of activate, pause, resume, cancel or expire.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/CustomerSubscriptionId" },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["activate", "pause", "resume", "cancel", "expire"]
+            }
+          },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerSubscriptionLifecycleActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transitioned subscription",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerSubscriptionEnvelope" }
+              }
+            }
+          },
+          "409": { "description": "Invalid lifecycle transition or stale version" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}/schedule-preview": {
+      "get": {
+        "operationId": "previewCustomerServiceSubscriptionSchedule",
+        "tags": ["customer-subscriptions"],
+        "description": "Commercial schedule preview only; it does not issue invoices, recognize revenue or post journals.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/CustomerSubscriptionId" },
+          {
+            "name": "through",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounting-neutral schedule preview",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubscriptionSchedulePreviewEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/portable-data-packages/imports/restore-empty": {
       "post": {
         "summary": "Restore a confirmed Full ERP package into an empty target organization with count hash and journal-balance controls"
@@ -803,6 +1121,12 @@
     "/api/v1/organizations/{organizationId}/banking/transactions": {
       "get": {
         "summary": "List imported bank transactions with exact string amounts state and latest normalization version"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/owner-current-movements": {
+      "get": {
+        "summary": "List posted owner-current ledger movements with exact signed deltas and running balance",
+        "description": "Resolves the approved TT133 owner_current mapping and returns organization-scoped posted or reversed journal evidence. It does not infer whether an unclassified payment is a reimbursement, withdrawal or equity movement."
       }
     },
     "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}": {
@@ -3603,6 +3927,18 @@
           "type": "string"
         }
       },
+      "ServicePlanId": {
+        "name": "servicePlanId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
+      },
+      "CustomerSubscriptionId": {
+        "name": "subscriptionId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
+      },
       "IfMatch": {
         "name": "If-Match",
         "in": "header",
@@ -3977,6 +4313,325 @@
       }
     },
     "schemas": {
+      "RecurrenceRule": {
+        "type": "object",
+        "required": ["frequency", "interval", "billingDay"],
+        "properties": {
+          "frequency": { "type": "string", "enum": ["month", "quarter", "year"] },
+          "interval": { "type": "integer", "minimum": 1 },
+          "billingDay": { "type": "integer", "minimum": 1, "maximum": 31 }
+        },
+        "additionalProperties": false
+      },
+      "CustomerSubscriptionLifecycle": {
+        "type": "string",
+        "enum": ["draft", "active", "paused", "cancelled", "expired"]
+      },
+      "ServicePlan": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "serviceLineCode",
+          "defaultUnitPriceMinor",
+          "currency",
+          "recurrence",
+          "active",
+          "resourceVersion",
+          "nextActions"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "code": { "type": "string" },
+          "name": { "type": "string" },
+          "serviceLineCode": { "type": "string" },
+          "defaultUnitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "recurrence": { "$ref": "#/components/schemas/RecurrenceRule" },
+          "active": { "type": "boolean" },
+          "resourceVersion": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "nextActions": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["update", "deactivate"] }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CustomerServiceSubscription": {
+        "type": "object",
+        "required": [
+          "id",
+          "customerPartyId",
+          "servicePlanId",
+          "projectId",
+          "startsOn",
+          "endsOn",
+          "quantity",
+          "unitPriceMinor",
+          "currency",
+          "recurrenceSnapshot",
+          "lifecycle",
+          "resourceVersion",
+          "nextActions"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "customerPartyId": { "type": "string" },
+          "servicePlanId": { "type": "string" },
+          "projectId": { "type": ["string", "null"] },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": ["string", "null"], "format": "date" },
+          "quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "unitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "recurrenceSnapshot": { "$ref": "#/components/schemas/RecurrenceRule" },
+          "lifecycle": { "$ref": "#/components/schemas/CustomerSubscriptionLifecycle" },
+          "resourceVersion": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "nextActions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "update",
+                "activate",
+                "pause",
+                "resume",
+                "cancel",
+                "expire",
+                "schedule-preview"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateServicePlanRequest": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "code",
+          "name",
+          "serviceLineCode",
+          "defaultUnitPriceMinor",
+          "currency",
+          "recurrence",
+          "reason"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "code": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "serviceLineCode": { "type": "string", "minLength": 1 },
+          "defaultUnitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "recurrence": { "$ref": "#/components/schemas/RecurrenceRule" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "UpdateServicePlanRequest": {
+        "type": "object",
+        "required": ["schemaVersion", "reason"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "code": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "serviceLineCode": { "type": "string", "minLength": 1 },
+          "defaultUnitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "recurrence": { "$ref": "#/components/schemas/RecurrenceRule" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "CreateCustomerServiceSubscriptionRequest": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "customerPartyId",
+          "servicePlanId",
+          "startsOn",
+          "quantity",
+          "reason"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "customerPartyId": { "type": "string", "minLength": 1 },
+          "servicePlanId": { "type": "string", "minLength": 1 },
+          "projectId": { "type": ["string", "null"] },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": ["string", "null"], "format": "date" },
+          "quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "unitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "recurrence": { "$ref": "#/components/schemas/RecurrenceRule" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "UpdateCustomerServiceSubscriptionRequest": {
+        "type": "object",
+        "required": ["schemaVersion", "reason"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "customerPartyId": { "type": "string", "minLength": 1 },
+          "servicePlanId": { "type": "string", "minLength": 1 },
+          "projectId": { "type": ["string", "null"] },
+          "startsOn": { "type": "string", "format": "date" },
+          "endsOn": { "type": ["string", "null"], "format": "date" },
+          "quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "unitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "recurrence": { "$ref": "#/components/schemas/RecurrenceRule" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "CustomerSubscriptionLifecycleActionRequest": {
+        "type": "object",
+        "required": ["schemaVersion", "effectiveOn", "reason"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "effectiveOn": { "type": "string", "format": "date" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "ServicePlanEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": {
+            "type": "object",
+            "required": ["resource", "mutation"],
+            "properties": {
+              "resource": { "$ref": "#/components/schemas/ServicePlan" },
+              "mutation": { "$ref": "#/components/schemas/SubscriptionMutationMetadata" }
+            }
+          }
+        }
+      },
+      "ServicePlanReadEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": { "$ref": "#/components/schemas/ServicePlan" }
+        }
+      },
+      "ServicePlanListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": { "type": "array", "items": { "$ref": "#/components/schemas/ServicePlan" } }
+            }
+          }
+        }
+      },
+      "CustomerSubscriptionEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": {
+            "type": "object",
+            "required": ["resource", "mutation"],
+            "properties": {
+              "resource": { "$ref": "#/components/schemas/CustomerServiceSubscription" },
+              "mutation": { "$ref": "#/components/schemas/SubscriptionMutationMetadata" }
+            }
+          }
+        }
+      },
+      "CustomerSubscriptionReadEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": { "$ref": "#/components/schemas/CustomerServiceSubscription" }
+        }
+      },
+      "SubscriptionMutationMetadata": {
+        "type": "object",
+        "required": [
+          "resourceVersion",
+          "auditEventId",
+          "correlationId",
+          "idempotencyReplayed",
+          "nextActions"
+        ],
+        "properties": {
+          "resourceVersion": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "auditEventId": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "idempotencyReplayed": { "type": "boolean" },
+          "nextActions": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "CustomerSubscriptionListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/CustomerServiceSubscription" }
+              }
+            }
+          }
+        }
+      },
+      "SubscriptionSchedulePreviewEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": {
+            "type": "object",
+            "required": ["accountingNeutral", "subscriptionId", "generatedThrough", "periods"],
+            "properties": {
+              "accountingNeutral": { "const": true },
+              "subscriptionId": { "type": "string" },
+              "generatedThrough": { "type": "string", "format": "date" },
+              "periods": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "sequence",
+                    "serviceStartsOn",
+                    "serviceEndsOn",
+                    "billingOn",
+                    "scheduledValueMinor",
+                    "currency"
+                  ],
+                  "properties": {
+                    "sequence": { "type": "integer", "minimum": 1 },
+                    "serviceStartsOn": { "type": "string", "format": "date" },
+                    "serviceEndsOn": { "type": "string", "format": "date" },
+                    "billingOn": { "type": "string", "format": "date" },
+                    "scheduledValueMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "OrganizationWorkflowPolicy": {
         "type": "object",
         "description": "Organization-scoped operating model. NAAI_ERP_SOLOPRENEUR only bootstraps this record when it is missing; this persisted policy is the runtime source of truth.",

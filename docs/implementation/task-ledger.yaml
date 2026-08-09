@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-09T17:20:00+07:00
+updated_at: 2026-08-10T05:55:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
-development_status: in_progress
-development_completed_at: 2026-08-07T20:49:00+07:00
-project_status: in_progress
-project_completed_at: 2026-08-07T21:50:53+07:00
+development_status: done
+development_completed_at: 2026-08-10T05:55:00+07:00
+project_status: done
+project_completed_at: 2026-08-10T05:55:00+07:00
 
-current_gate: null
+current_gate: G36
 current_task: null
 
 tasks:
@@ -1711,6 +1711,91 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-869/
 
+  - id: ERP-870
+    title: Customer service subscription management
+    phase: P13
+    status: done
+    dependencies: [ERP-869]
+    business_rules:
+      [
+        BR-SUB-001,
+        BR-SUB-002,
+        BR-PTY-001,
+        BR-PRJ-001,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AI-005,
+        BR-UI-003,
+        BR-UI-004,
+        BR-EXPOR-002,
+      ]
+    tests:
+      [
+        T-UNIT-ERP-870-001,
+        T-DB-ERP-870-002,
+        T-API-ERP-870-003,
+        T-CONTRACT-ERP-870-004,
+        T-CLI-ERP-870-005,
+        T-PORTABLE-ERP-870-006,
+        T-DOC-ERP-870-007,
+        T-E2E-ERP-870-008,
+      ]
+    evidence: docs/implementation/evidence/ERP-870/
+    agent: codex-team
+    started_at: 2026-08-10T05:36:05+07:00
+    completed_at: 2026-08-10T05:55:00+07:00
+    parallel_file_ownership:
+      backend: packages/domain/src/, packages/contracts/src/, packages/database/src/, db/migrations/, apps/api/src/customer-service-subscriptions/
+      machine_contract: apps/cli/src/, apps/api/src/portable-data-packages/, docs/api/
+      web: apps/web/src/app/(app)/subscriptions/, apps/web/src/app/workspaces/customer-subscription-workspace.tsx, apps/web/e2e/customer-subscriptions.spec.ts
+      coordinator: apps/api/src/app.module.ts, apps/web/src/lib/navigation.ts, apps/web/src/components/layout/app-navigation.tsx, docs/product/, docs/testing/, docs/implementation/
+    planned_files:
+      - packages/domain/src/customer-service-subscriptions.ts
+      - packages/contracts/src/customer-service-subscriptions.ts
+      - packages/database/src/schema.ts
+      - db/migrations/0045_customer_service_subscriptions.sql
+      - apps/api/src/customer-service-subscriptions/
+      - apps/api/src/app.module.ts
+      - apps/api/src/master-data/resource-registry.ts
+      - apps/api/src/portable-data-packages/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/subscriptions/page.tsx
+      - apps/web/src/app/workspaces/customer-subscription-workspace.tsx
+      - apps/web/e2e/customer-subscriptions.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/api/data-relationship-manifest-v1.json
+      - docs/api/data-relationships-and-ingestion.md
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-870/
+
+  - id: ERP-871
+    title: Owner-current reconciliation menu and ledger evidence
+    phase: P13
+    status: done
+    dependencies: [ERP-869]
+    business_rules: [BR-BNK-004, BR-AI-001, BR-ORG-001, BR-UI-003]
+    tests: [T-API-ERP-871-001, T-E2E-ERP-871-002]
+    evidence: docs/implementation/evidence/ERP-871/
+    agent: codex-root
+    started_at: 2026-08-10T05:42:00+07:00
+    review_at: 2026-08-10T05:57:20+07:00
+    completed_at: 2026-08-10T05:57:34+07:00
+    completion_basis: live_local_api_readback_cli_contract_unit_typecheck_docs_and_rendered_e2e
+    planned_files:
+      - apps/api/src/banking/
+      - apps/cli/src/client.ts
+      - apps/web/src/app/(app)/banking/owner-current/
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/src/lib/navigation.ts
+      - apps/web/e2e/owner-current.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/
+      - docs/implementation/evidence/ERP-871/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1747,6 +1832,8 @@ gates:
   G32: [ERP-867]
   G33: [ERP-868]
   G34: [ERP-869]
+  G35: [ERP-870]
+  G36: [ERP-871]
 
 gate_status:
   G0: done
@@ -1784,3 +1871,5 @@ gate_status:
   G32: done
   G33: done
   G34: done
+  G35: done
+  G36: done

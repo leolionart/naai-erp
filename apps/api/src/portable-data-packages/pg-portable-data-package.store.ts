@@ -293,7 +293,14 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           sheetName: tableName,
           excluded: false,
           schemaVersion: PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
-          dependencyOrder: tableName === "organizations" ? 0 : 100,
+          dependencyOrder:
+            tableName === "organizations"
+              ? 0
+              : tableName === "service_plans"
+                ? 45
+                : tableName === "customer_service_subscriptions"
+                  ? 65
+                  : 100,
           mutability,
         },
         schema: {

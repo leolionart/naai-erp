@@ -341,3 +341,15 @@ export {
   type ServiceBusinessMetricsContract,
   type ServiceBusinessMetricsQueryContract,
 } from "./service-business-metrics.js";
+export {
+  CUSTOMER_SERVICE_SUBSCRIPTION_CONTRACT_VERSION,
+  type CreateCustomerServiceSubscriptionRequest,
+  type CreateServicePlanRequest,
+  type CustomerServiceSubscriptionContract,
+  type CustomerSubscriptionLifecycleActionRequest,
+  type RecurrenceRuleContract,
+  type ServicePlanContract,
+  type SubscriptionSchedulePreviewContract,
+  type UpdateCustomerServiceSubscriptionRequest,
+  type UpdateServicePlanRequest,
+} from "./customer-service-subscriptions.js";

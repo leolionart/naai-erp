@@ -5,22 +5,29 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  BanknoteIcon,
-  BookOpenIcon,
-  BoxesIcon,
-  BriefcaseBusinessIcon,
+  ArchiveRestoreIcon,
+  BookMarkedIcon,
+  BriefcaseIcon,
+  CalculatorIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
-  FileTextIcon,
-  GaugeIcon,
+  DatabaseIcon,
+  FileDownIcon,
+  HandCoinsIcon,
+  LandmarkIcon,
+  LayoutDashboardIcon,
   ListChecksIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
+  PackageIcon,
+  PieChartIcon,
+  ReceiptIcon,
   ReceiptTextIcon,
+  Repeat2Icon,
   SunIcon,
+  TrendingUpIcon,
   UsersIcon,
-  WalletCardsIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -53,17 +60,25 @@ import {
 import { adminNavigation, isNavigationAvailable, type NavigationIcon } from "@/lib/navigation";
 
 const icons = {
-  overview: GaugeIcon,
-  folder: BoxesIcon,
-  ledger: BookOpenIcon,
-  invoice: FileTextIcon,
+  overview: LayoutDashboardIcon,
+  "executive-metrics": TrendingUpIcon,
+  folder: DatabaseIcon,
+  "master-data": DatabaseIcon,
+  "purchase-products": PackageIcon,
+  "portable-data": ArchiveRestoreIcon,
+  ledger: BookMarkedIcon,
+  invoice: ReceiptIcon,
   expense: ReceiptTextIcon,
-  bank: BanknoteIcon,
-  report: WalletCardsIcon,
+  bank: LandmarkIcon,
+  report: PieChartIcon,
+  debt: HandCoinsIcon,
+  "financial-statements": CalculatorIcon,
+  "accountant-exports": FileDownIcon,
   customer: UsersIcon,
-  project: BriefcaseBusinessIcon,
+  project: BriefcaseIcon,
+  subscription: Repeat2Icon,
   review: ListChecksIcon,
-} satisfies Record<NavigationIcon, typeof GaugeIcon>;
+} satisfies Record<NavigationIcon, typeof LayoutDashboardIcon>;
 
 function NavigationUser() {
   const router = useRouter();

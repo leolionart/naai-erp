@@ -30,6 +30,8 @@ describe("typed admin navigation", () => {
     expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
     expect(findNavigationItem("portable-data-package")?.href).toBe("/settings/data-package");
     expect(findNavigationItem("executive-metrics")?.href).toBe("/reports/executive-metrics");
+    expect(findNavigationItem("customer-subscriptions")?.href).toBe("/subscriptions");
+    expect(findNavigationItem("owner-current")?.href).toBe("/banking/owner-current");
     expect(findNavigationItem("customers")?.href).toBe("/customers");
     expect(findNavigationItem("projects")?.href).toBe("/projects");
     for (const hidden of [

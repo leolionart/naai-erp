@@ -602,6 +602,101 @@ export class PgBankingStore implements BankingStore {
     );
     return { items: result.rows };
   }
+  async listOwnerCurrentMovements(organizationId: string) {
+    const result = await this.pool.query<{
+      journal_id: string;
+      journal_date: string;
+      description: string;
+      currency: string;
+      state: string;
+      reversal_of_id: string | null;
+      owner_delta_minor: string;
+      company_funds_delta_minor: string;
+      owner_account_codes: string[];
+      counterpart_lines: unknown[];
+    }>(
+      `with selected_mapping as (
+         select id,version
+         from financial_statement_mapping_versions
+         where organization_id=$1 and framework='TT133' and state='approved'
+         order by effective_from desc,version desc limit 1
+       ), owner_accounts as (
+         select distinct ml.account_code
+         from selected_mapping sm
+         join financial_statement_mapping_lines ml
+           on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+         where ml.statement='balance_sheet' and ml.line_code='owner_current'
+       ), company_funds_accounts as (
+         select distinct ledger_account_code account_code
+         from financial_accounts
+         where organization_id=$1 and status='active' and kind in ('bank','cash')
+       )
+       select j.id journal_id,j.journal_date::text,j.description,j.currency,j.state,j.reversal_of_id,
+         sum(case when l.account_code in (select account_code from owner_accounts)
+           then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else 0 end)::text owner_delta_minor,
+         sum(case when l.account_code in (select account_code from company_funds_accounts)
+           then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else 0 end)::text company_funds_delta_minor,
+         array_agg(distinct l.account_code) filter (
+           where l.account_code in (select account_code from owner_accounts)
+         ) owner_account_codes,
+         jsonb_agg(jsonb_build_object(
+           'accountCode',l.account_code,'accountName',a.name,
+           'debitMinor',coalesce(l.debit_minor,0)::text,
+           'creditMinor',coalesce(l.credit_minor,0)::text,
+           'description',coalesce(l.description,'')
+         ) order by l.line_number) filter (
+           where l.account_code not in (select account_code from owner_accounts)
+         ) counterpart_lines
+       from journal_entries j
+       join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+       join accounts a on a.organization_id=l.organization_id and a.code=l.account_code
+       where j.organization_id=$1 and j.state in ('posted','reversed')
+       group by j.id,j.journal_date,j.description,j.currency,j.state,j.reversal_of_id
+       having bool_or(l.account_code in (select account_code from owner_accounts))
+       order by j.journal_date,j.id`,
+      [organizationId],
+    );
+    let running = 0n;
+    let increases = 0n;
+    let decreases = 0n;
+    const items = result.rows.map((row) => {
+      const ownerDelta = BigInt(row.owner_delta_minor);
+      const companyFundsDelta = BigInt(row.company_funds_delta_minor);
+      running += ownerDelta;
+      if (ownerDelta > 0n) increases += ownerDelta;
+      if (ownerDelta < 0n) decreases += -ownerDelta;
+      const movementType =
+        ownerDelta < 0n && companyFundsDelta < 0n
+          ? "company_payment_to_owner"
+          : ownerDelta > 0n && companyFundsDelta > 0n
+            ? "owner_funding"
+            : ownerDelta > 0n
+              ? "owner_paid_company_cost"
+              : "adjustment";
+      return {
+        journalId: row.journal_id,
+        date: row.journal_date,
+        description: row.description,
+        currency: row.currency,
+        state: row.state,
+        reversalOfId: row.reversal_of_id,
+        movementType,
+        ownerDeltaMinor: ownerDelta.toString(),
+        companyFundsDeltaMinor: companyFundsDelta.toString(),
+        runningOwnerBalanceMinor: running.toString(),
+        ownerAccountCodes: row.owner_account_codes ?? [],
+        counterpartLines: row.counterpart_lines ?? [],
+      };
+    });
+    return {
+      summary: {
+        increaseMinor: increases.toString(),
+        decreaseMinor: decreases.toString(),
+        closingBalanceMinor: running.toString(),
+      },
+      items: items.reverse(),
+    };
+  }
   async getTransaction(organizationId: string, id: string) {
     const result = await this.pool.query(
       `select t.*,

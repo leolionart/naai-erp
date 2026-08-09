@@ -23,8 +23,12 @@ afterEach(async () => {
 async function invoke(args: string[]) {
   let requestedUrl = "";
   let requestBody = "";
+  let requestMethod = "";
+  let requestHeaders: Record<string, string | string[] | undefined> = {};
   const server = createServer((request, response) => {
     requestedUrl = request.url ?? "";
+    requestMethod = request.method ?? "";
+    requestHeaders = request.headers;
     request.on("data", (chunk) => {
       requestBody += String(chunk);
     });
@@ -50,10 +54,89 @@ async function invoke(args: string[]) {
       },
     },
   );
-  return { ...result, requestedUrl, requestBody };
+  return { ...result, requestedUrl, requestBody, requestMethod, requestHeaders };
 }
 
 describe("ERP-640 CLI executable", () => {
+  it("manages service plans and customer subscriptions through canonical REST routes", async () => {
+    const plans = await invoke([
+      "service-plans",
+      "list",
+      "--service-line",
+      "managed-hosting",
+      "--active-only",
+    ]);
+    expect(plans.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/service-plans?serviceLineCode=managed-hosting&active=true",
+    );
+
+    const created = await invoke([
+      "customer-service-subscriptions",
+      "create",
+      "--data",
+      JSON.stringify({
+        customerId: "party-client",
+        servicePlanId: "plan-hosting",
+        projectId: "project-contract",
+        startsOn: "2026-08-01",
+      }),
+      "--idempotency-key",
+      "subscription-create-1",
+    ]);
+    expect(created.requestedUrl).toBe("/api/v1/organizations/org-a/customer-service-subscriptions");
+    expect(created.requestMethod).toBe("POST");
+    expect(created.requestHeaders["idempotency-key"]).toBe("subscription-create-1");
+
+    const active = await invoke([
+      "customer-service-subscriptions",
+      "list",
+      "--customer-id",
+      "party-client",
+      "--service-plan-id",
+      "plan-hosting",
+      "--project-id",
+      "project-contract",
+      "--status",
+      "active",
+    ]);
+    expect(active.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/customer-service-subscriptions?customerId=party-client&servicePlanId=plan-hosting&projectId=project-contract&lifecycle=active",
+    );
+
+    const paused = await invoke([
+      "customer-service-subscriptions",
+      "pause",
+      "--key",
+      "subscription-1",
+      "--version",
+      "2",
+      "--idempotency-key",
+      "subscription-pause-1",
+      "--data",
+      JSON.stringify({ reason: "Customer requested a temporary pause", effectiveOn: "2026-09-01" }),
+    ]);
+    expect(paused.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/customer-service-subscriptions/subscription-1/pause",
+    );
+    expect(paused.requestHeaders["if-match"]).toBe("2");
+    expect(paused.requestHeaders["idempotency-key"]).toBe("subscription-pause-1");
+
+    expect(
+      (
+        await invoke([
+          "customer-service-subscriptions",
+          "schedule-preview",
+          "--key",
+          "subscription-1",
+          "--through",
+          "2026-12-31",
+        ])
+      ).requestedUrl,
+    ).toBe(
+      "/api/v1/organizations/org-a/customer-service-subscriptions/subscription-1/schedule-preview?through=2026-12-31",
+    );
+  });
+
   it("manages purchase product VAT through the generic master-data REST contract", async () => {
     const created = await invoke([
       "purchase-products",

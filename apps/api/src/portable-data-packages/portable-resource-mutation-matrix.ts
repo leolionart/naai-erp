@@ -1,7 +1,12 @@
 import { MASTER_DATA_RESOURCES } from "../master-data/resource-registry.js";
 
 export type PortableMutationAdapterKind =
-  "master_data" | "commercial_document" | "expense" | "journal" | "read_only";
+  | "master_data"
+  | "commercial_document"
+  | "expense"
+  | "customer_subscription"
+  | "journal"
+  | "read_only";
 
 export type PortableMutationMatrixEntry = Readonly<{
   resourceType: string;
@@ -27,6 +32,22 @@ const masterEntries = Object.entries(MASTER_DATA_RESOURCES).map(
 export const PORTABLE_RESOURCE_MUTATION_MATRIX: ReadonlyMap<string, PortableMutationMatrixEntry> =
   new Map([
     ...masterEntries.map((entry) => [entry.resourceType, entry] as const),
+    [
+      "service_plans",
+      {
+        resourceType: "service_plans",
+        adapter: "customer_subscription",
+        operations: ["create", "update", "deactivate"],
+      },
+    ],
+    [
+      "customer_service_subscriptions",
+      {
+        resourceType: "customer_service_subscriptions",
+        adapter: "customer_subscription",
+        operations: ["create", "update", "cancel"],
+      },
+    ],
     [
       "commercial_documents",
       {

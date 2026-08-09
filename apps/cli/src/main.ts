@@ -19,6 +19,7 @@ const { values, positionals } = parseArgs({
     "idempotency-key": { type: "string" },
     from: { type: "string" },
     to: { type: "string" },
+    through: { type: "string" },
     account: { type: "string" },
     "as-of": { type: "string" },
     party: { type: "string" },
@@ -31,6 +32,9 @@ const { values, positionals } = parseArgs({
     state: { type: "string" },
     "worker-id": { type: "string" },
     "project-id": { type: "string" },
+    "customer-id": { type: "string" },
+    "service-plan-id": { type: "string" },
+    "active-only": { type: "boolean" },
     billable: { type: "boolean" },
     classification: { type: "string" },
     basis: { type: "string" },
@@ -333,6 +337,14 @@ if (!resource || (!discovery && (!organizationId || !token))) {
             throw new Error(`${resource} commit requires --idempotency-key`);
         }
       }
+      if (
+        resource === "customer-service-subscriptions" &&
+        action === "schedule-preview" &&
+        (!values.key || !values.through)
+      )
+        throw new Error(
+          "customer-service-subscriptions schedule-preview requires --key and --through",
+        );
       const payload = values.data
         ? JSON.parse(values.data)
         : ["commercial-document-relationship-backfill", "expense-relationship-backfill"].includes(
@@ -548,61 +560,100 @@ if (!resource || (!discovery && (!organizationId || !token))) {
                                             ? { ownerId: values["account-owner"] }
                                             : {}),
                                         }
-                                      : resource === "roi-input-facts"
+                                      : resource === "service-plans"
                                         ? {
-                                            ...(values["definition-id"]
-                                              ? { definitionId: values["definition-id"] }
+                                            ...(values["service-line"]
+                                              ? { serviceLineCode: values["service-line"] }
                                               : {}),
-                                            ...(values["review-state"]
-                                              ? { reviewState: values["review-state"] }
+                                            ...(values["active-only"] !== undefined
+                                              ? { active: values["active-only"] }
                                               : {}),
                                           }
-                                        : resource === "executive-metric-policies" ||
-                                            resource === "roi-definitions"
-                                          ? action === "get" && values.version
-                                            ? { version: values.version }
-                                            : undefined
-                                          : resource === "financial-statement-mappings"
+                                        : resource === "customer-service-subscriptions"
+                                          ? action === "schedule-preview"
                                             ? {
-                                                ...(values.framework
-                                                  ? { framework: values.framework }
-                                                  : {}),
-                                                ...(values.status ? { state: values.status } : {}),
-                                                ...(values["as-of"]
-                                                  ? { effectiveOn: values["as-of"] }
+                                                ...(values.through
+                                                  ? { through: values.through }
                                                   : {}),
                                               }
-                                            : resource === "performance-comparisons"
-                                              ? {
-                                                  periodId: values["period-id"],
-                                                  periodBasis: values["period-basis"],
-                                                  actualBasis: values.basis,
-                                                  asOfInstant: values["as-of"],
-                                                  ...(values["forecast-version-id"]
-                                                    ? {
-                                                        forecastVersionId:
-                                                          values["forecast-version-id"],
-                                                      }
-                                                    : {}),
-                                                  ...(values["team-id"]
-                                                    ? { teamId: values["team-id"] }
-                                                    : {}),
-                                                  ...(values["service-line"]
-                                                    ? { serviceLineCode: values["service-line"] }
-                                                    : {}),
-                                                  ...(values["account-owner"]
-                                                    ? { ownerId: values["account-owner"] }
-                                                    : {}),
-                                                }
-                                              : resource.startsWith("bank-")
+                                            : {
+                                                ...(values["customer-id"]
+                                                  ? { customerId: values["customer-id"] }
+                                                  : {}),
+                                                ...(values["service-plan-id"]
+                                                  ? { servicePlanId: values["service-plan-id"] }
+                                                  : {}),
+                                                ...(values["project-id"]
+                                                  ? { projectId: values["project-id"] }
+                                                  : {}),
+                                                ...(values.status
+                                                  ? { lifecycle: values.status }
+                                                  : {}),
+                                              }
+                                          : resource === "roi-input-facts"
+                                            ? {
+                                                ...(values["definition-id"]
+                                                  ? { definitionId: values["definition-id"] }
+                                                  : {}),
+                                                ...(values["review-state"]
+                                                  ? { reviewState: values["review-state"] }
+                                                  : {}),
+                                              }
+                                            : resource === "executive-metric-policies" ||
+                                                resource === "roi-definitions"
+                                              ? action === "get" && values.version
+                                                ? { version: values.version }
+                                                : undefined
+                                              : resource === "financial-statement-mappings"
                                                 ? {
-                                                    ...(values["account-id"]
-                                                      ? { financialAccountId: values["account-id"] }
+                                                    ...(values.framework
+                                                      ? { framework: values.framework }
                                                       : {}),
-                                                    ...(values.from ? { from: values.from } : {}),
-                                                    ...(values.to ? { to: values.to } : {}),
+                                                    ...(values.status
+                                                      ? { state: values.status }
+                                                      : {}),
+                                                    ...(values["as-of"]
+                                                      ? { effectiveOn: values["as-of"] }
+                                                      : {}),
                                                   }
-                                                : undefined;
+                                                : resource === "performance-comparisons"
+                                                  ? {
+                                                      periodId: values["period-id"],
+                                                      periodBasis: values["period-basis"],
+                                                      actualBasis: values.basis,
+                                                      asOfInstant: values["as-of"],
+                                                      ...(values["forecast-version-id"]
+                                                        ? {
+                                                            forecastVersionId:
+                                                              values["forecast-version-id"],
+                                                          }
+                                                        : {}),
+                                                      ...(values["team-id"]
+                                                        ? { teamId: values["team-id"] }
+                                                        : {}),
+                                                      ...(values["service-line"]
+                                                        ? {
+                                                            serviceLineCode: values["service-line"],
+                                                          }
+                                                        : {}),
+                                                      ...(values["account-owner"]
+                                                        ? { ownerId: values["account-owner"] }
+                                                        : {}),
+                                                    }
+                                                  : resource.startsWith("bank-")
+                                                    ? {
+                                                        ...(values["account-id"]
+                                                          ? {
+                                                              financialAccountId:
+                                                                values["account-id"],
+                                                            }
+                                                          : {}),
+                                                        ...(values.from
+                                                          ? { from: values.from }
+                                                          : {}),
+                                                        ...(values.to ? { to: values.to } : {}),
+                                                      }
+                                                    : undefined;
       const requestPayload =
         resource === "operating-dashboard"
           ? {

@@ -42,6 +42,17 @@ const setup = (state = "draft", version = "2") => {
     validatePortableInput: vi.fn(),
     create: vi.fn(),
   };
+  const subscriptions = {
+    validatePortableInput: vi.fn().mockResolvedValue({ valid: true }),
+    getPlan: vi.fn(),
+    getSubscription: vi.fn(),
+    createPlan: vi.fn(),
+    updatePlan: vi.fn(),
+    deactivatePlan: vi.fn(),
+    createSubscription: vi.fn(),
+    updateSubscription: vi.fn(),
+    transition: vi.fn(),
+  };
   return {
     master,
     documents,
@@ -50,7 +61,9 @@ const setup = (state = "draft", version = "2") => {
       master as never,
       documents as never,
       expenses as never,
+      subscriptions as never,
     ),
+    subscriptions,
   };
 };
 
@@ -161,6 +174,14 @@ describe("PortableCanonicalMutationAdapter", () => {
       adapter: "journal",
       operations: [],
     });
+    expect(portableMutationEntry("service_plans")).toMatchObject({
+      adapter: "customer_subscription",
+      operations: ["create", "update", "deactivate"],
+    });
+    expect(portableMutationEntry("customer_service_subscriptions")).toMatchObject({
+      adapter: "customer_subscription",
+      operations: ["create", "update", "cancel"],
+    });
     expect(portableOperationHasAccountingEffect("commercial_documents", "cancel")).toBe(true);
     expect(portableOperationHasAccountingEffect("parties", "update")).toBe(false);
     expect(
@@ -175,5 +196,44 @@ describe("PortableCanonicalMutationAdapter", () => {
         { resourceType: "accounts", operation: "deactivate" },
       ]),
     ).toBe(false);
+  });
+
+  it("preflights subscription relationships without mutation during portable dry-run", async () => {
+    const { adapter, subscriptions } = setup();
+    const subscriptionRow: PortableRowEnvelopeContract = {
+      rowNumber: 2,
+      operation: "create",
+      stableId: "subscription-1",
+      externalReferences: [],
+      relationships: {
+        customer_party_id: "client-1",
+        service_plan_id: "plan-1",
+        project_id: "project-1",
+      },
+      data: {
+        starts_on: "2026-08-01",
+        ends_on: null,
+        quantity: "1",
+        unit_price_minor: "2500000",
+        currency: "VND",
+        recurrence_frequency: "month",
+        recurrence_interval: "1",
+        billing_day: "1",
+        lifecycle: "active",
+      },
+    };
+    expect(
+      await adapter.validate(context, "customer_service_subscriptions", subscriptionRow),
+    ).toMatchObject({ disposition: "ready" });
+    expect(subscriptions.validatePortableInput).toHaveBeenCalledWith(
+      context,
+      "customer_service_subscriptions",
+      expect.objectContaining({
+        customerPartyId: "client-1",
+        servicePlanId: "plan-1",
+        projectId: "project-1",
+      }),
+    );
+    expect(subscriptions.createSubscription).not.toHaveBeenCalled();
   });
 });

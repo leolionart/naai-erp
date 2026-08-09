@@ -363,6 +363,42 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
 - Advance receipt posts to customer advance/contract liability.
 - Disputed or rejected milestones do not recognize revenue until resolved.
 
+### BR-SUB-001 — Customer service subscription identity and lifecycle
+
+- A service plan is organization-scoped active master data with a stable code, readable name,
+  service-line relationship, default exact price/currency and recurrence rule. Deactivation preserves
+  historical subscription references and prevents new activation.
+- A customer service subscription links exactly one client-role party to one service plan and may
+  optionally link the project that represents the customer contract. When a project is selected, its
+  canonical `client_party_id` must equal the subscription customer; no separate contract ID is
+  collected or inferred.
+- Lifecycle is `draft → active ↔ paused → cancelled|expired`. Lifecycle changes use typed actions,
+  optimistic version matching, idempotency, an effective date and an audited reason where applicable;
+  status is never changed through an unrestricted generic patch.
+- Draft commercial fields remain editable. Once active or referenced downstream, history is retained;
+  cancellation/expiry replaces hard deletion. Date ranges, recurrence intervals, quantity and exact
+  minor-unit pricing are validated deterministically without binary floating point arithmetic.
+- List/read APIs support stable IDs, pagination and filters for customer, service plan, project,
+  lifecycle and active date. UI selectors resolve canonical parties, plans and projects rather than
+  accepting arbitrary database identifiers.
+
+### BR-SUB-002 — Subscription schedule and accounting boundary
+
+- A subscription and its schedule preview are commercial management records only. They do not issue
+  an invoice, recognize revenue, create receivables, collect cash or post ledger entries.
+- Schedule preview derives deterministic service periods and billing dates from the snapshotted
+  recurrence rule. Paused, cancelled or expired ranges do not produce future scheduled periods.
+- Scheduled recurring value is labeled separately from invoiced, recognized and collected revenue.
+  Forecast composition may reference a subscription period through a stable source identity but must
+  not double-count the same invoice, project milestone or other commercial source.
+- Future invoice automation, if implemented, creates only an idempotent sales-invoice draft through
+  the canonical commercial-document service. Issued invoices retain their own price, tax and project
+  snapshot even when the subscription later changes.
+- Service plans and customer subscriptions are included in the portable organization package with
+  dependency-aware export, zero-mutation dry-run and canonical application-service import. Missing,
+  cross-organization or customer-project-mismatched relationships reject mutation with structured
+  field errors.
+
 ### BR-AR-003 — Payment allocation
 
 - One payment may settle multiple invoices; one invoice may receive multiple payments.
@@ -549,6 +585,18 @@ Branches: `ignored`, `needs_review`.
 - Transfer between own accounts does not affect P&L.
 - Bank fee is a separate line.
 - Transit account may be used while only one side is imported.
+
+### BR-BNK-004 — Owner-current reconciliation view
+
+- The banking workspace exposes a read-only owner-current ledger view resolved from the approved
+  Balance Sheet `owner_current` mapping, posted/reversed journals and organization financial accounts.
+- Every row shows the journal, signed owner-liability effect, signed company-funds effect and running
+  owner-current balance. The totals must reconcile exactly to the mapped ledger balance.
+- A company payment to the owner is identified only when the same journal debits Owner Current and
+  credits a configured company bank/cash account. The UI does not guess whether the payment is a
+  reimbursement, withdrawal, owner loan settlement or equity movement without canonical metadata.
+- Missing decrease movements remain visible as a reconciliation warning; they are never fabricated
+  from workbook notes or transaction descriptions.
 
 ### BR-REC-001 — Candidate matching
 

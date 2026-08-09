@@ -31,6 +31,10 @@ test("@desktop customer profile embeds revenue activity and links accounts recei
 
   await page.goto("http://localhost:3000/customers/client-a");
   await expect(page.getByRole("heading", { level: 1, name: "Hồ sơ khách hàng" })).toBeVisible();
+  const customersBreadcrumb = page
+    .getByLabel("breadcrumb")
+    .getByRole("link", { name: "Khách hàng", exact: true });
+  await expect(customersBreadcrumb).toHaveAttribute("href", "/customers");
   await expect(page.getByText("Công ty Khách hàng A", { exact: true })).toBeVisible();
   await expect(page.getByText("0312345678", { exact: true })).toBeVisible();
   await expect(
@@ -41,6 +45,12 @@ test("@desktop customer profile embeds revenue activity and links accounts recei
     "href",
     "/receivables/customers/client-a",
   );
+
+  await customersBreadcrumb.click();
+  await expect(page).toHaveURL(/\/customers$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Khách hàng" })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 1, name: "Hồ sơ khách hàng" })).toBeVisible();
 
   await page.getByRole("button", { name: "Chỉnh sửa thông tin" }).click();
   await expect(page.getByRole("dialog", { name: "Chỉnh sửa khách hàng" })).toBeVisible();
@@ -116,6 +126,9 @@ test("@desktop project profile embeds invoice, budget and cost workspaces", asyn
   );
 
   await page.goto("http://localhost:3000/projects/website-a");
+  await expect(
+    page.getByLabel("breadcrumb").getByRole("link", { name: "Dự án", exact: true }),
+  ).toHaveAttribute("href", "/projects");
   await expect(page.getByText("Website khách hàng A", { exact: true })).toBeVisible();
   await expect(page.getByText("250.000.000 ₫", { exact: true })).toBeVisible();
   await expect(page.getByText("client-a", { exact: true })).toBeVisible();

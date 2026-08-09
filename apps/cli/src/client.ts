@@ -229,6 +229,7 @@ export class NaaiErpClient {
     const isBankAccount = resource === "bank-accounts";
     const isBankImport = resource === "bank-imports";
     const isBankTransaction = resource === "bank-transactions";
+    const isOwnerCurrentMovement = resource === "owner-current-movements";
     const isReconciliation = resource === "reconciliations";
     const isInternalTransfer = resource === "internal-transfers";
     const isAging = resource === "ar-aging" || resource === "ap-aging";
@@ -274,6 +275,8 @@ export class NaaiErpClient {
     const isAccountantExport = resource === "accountant-exports";
     const isWorkbookImport = resource === "workbook-imports";
     const isWorkbookReviewRow = resource === "workbook-review-rows";
+    const isServicePlan = resource === "service-plans";
+    const isCustomerServiceSubscription = resource === "customer-service-subscriptions";
     if (isInboundEvent && !["list", "get"].includes(action))
       throw new Error("Inbound events are read-only admin resources");
     const forecastKey = () => {
@@ -290,7 +293,7 @@ export class NaaiErpClient {
         );
       return { forecastId, componentId };
     };
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isOrganizationWorkflowPolicy ? "organization-workflow-policy" : isCommercialRelationshipBackfill ? "commercial-documents" : isExpenseRelationshipBackfill ? "expenses" : isWorkbookReviewRow ? "workbook-imports/review-rows" : isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isOperatingDashboard ? "reports/operating-dashboard" : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isOverheadPolicy ? "overhead-allocation-policies" : isOverheadSourcePool ? "overhead-source-pools" : isOverheadRun ? "overhead-allocation-runs" : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isServicePlan || isCustomerServiceSubscription ? resource : isOrganizationWorkflowPolicy ? "organization-workflow-policy" : isCommercialRelationshipBackfill ? "commercial-documents" : isExpenseRelationshipBackfill ? "expenses" : isWorkbookReviewRow ? "workbook-imports/review-rows" : isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isOperatingDashboard ? "reports/operating-dashboard" : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isOverheadPolicy ? "overhead-allocation-policies" : isOverheadSourcePool ? "overhead-source-pools" : isOverheadRun ? "overhead-allocation-runs" : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isOwnerCurrentMovement ? "banking/owner-current-movements" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isWorker ? "time/workers" : isTimesheet || isTimesheetAdjustment ? "time/timesheets" : isCostRate ? "time/cost-rates" : isCapacityVersion ? "time/capacity-versions" : isTimeSummary ? "time/capacity-summary" : isProjectCost ? "project-costs" : isProjectCostSource ? "project-cost-sources/unallocated" : isDirectCostAllocation ? "direct-cost-allocations" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "delete"
         ? "DELETE"
@@ -310,6 +313,8 @@ export class NaaiErpClient {
             isVatReconciliation ||
             isExpenseException ||
             isExecutiveMetric ||
+            ((isServicePlan || isCustomerServiceSubscription) &&
+              ["list", "get", "schedule-preview"].includes(action)) ||
             ((isReportSnapshot || isAccountantExport) && ["list", "get"].includes(action))
           ? "GET"
           : action === "update"
@@ -357,284 +362,328 @@ export class NaaiErpClient {
                     return `${base}/${encodeURIComponent(key)}`;
                   })()
                 : base
-            : isExecutiveMetric
-              ? action === "get" || action === "list"
-                ? base
-                : `${base}/${encodeURIComponent(action)}`
-              : isExecutiveMetricPolicy || isRoiDefinition
-                ? action === "approve"
+            : isCustomerServiceSubscription && action === "schedule-preview"
+              ? (() => {
+                  if (!key)
+                    throw new Error(
+                      "customer-service-subscriptions schedule-preview requires --key",
+                    );
+                  return `${base}/${encodeURIComponent(key)}/schedule-preview`;
+                })()
+              : (isServicePlan || isCustomerServiceSubscription) && action === "get"
+                ? (() => {
+                    if (!key) throw new Error(`${resource} get requires --key`);
+                    return `${base}/${encodeURIComponent(key)}`;
+                  })()
+                : isServicePlan && action === "deactivate"
                   ? (() => {
-                      if (!key || !expectedVersion || !/^\d+$/.test(expectedVersion)) {
-                        throw new Error(
-                          `${resource} approve requires --key and a positive --version`,
-                        );
-                      }
-                      return `${base}/${encodeURIComponent(key)}/versions/${encodeURIComponent(expectedVersion)}/approve`;
+                      if (!key) throw new Error("service-plans deactivate requires --key");
+                      return `${base}/${encodeURIComponent(key)}/deactivate`;
                     })()
-                  : action === "get"
+                  : isCustomerServiceSubscription &&
+                      ["activate", "pause", "resume", "cancel", "expire"].includes(action)
                     ? (() => {
-                        if (!key) throw new Error(`${resource} get requires --key`);
-                        return `${base}/${encodeURIComponent(key)}`;
+                        if (!key) throw new Error(`${resource} ${action} requires --key`);
+                        return `${base}/${encodeURIComponent(key)}/${action}`;
                       })()
-                    : base
-                : isRoiInputFact
-                  ? action === "review"
-                    ? (() => {
-                        if (!key) throw new Error("roi-input-facts review requires --key");
-                        return `${base}/${encodeURIComponent(key)}/review`;
-                      })()
-                    : base
-                  : isFinancialStatement
-                    ? `${base}/${encodeURIComponent(action)}`
-                    : isFinancialStatementDrilldown
-                      ? (() => {
-                          const [statement, lineCode, extra] = (key ?? "").split("/");
-                          if (!statement || !lineCode || extra) {
-                            throw new Error(
-                              "Financial statement drilldown key must be <statement>/<line-code>",
-                            );
-                          }
-                          return `${base}/drilldown`;
-                        })()
-                      : isVatReconciliation
+                    : isExecutiveMetric
+                      ? action === "get" || action === "list"
                         ? base
-                        : isExpenseException
-                          ? base
-                          : isPerformanceComparison
-                            ? base
-                            : isPlanningActualFact && action === "backfill"
-                              ? `${base}/backfill`
-                              : isForecastComposition
-                                ? `${base}/composition`
-                                : isForecastComponent
-                                  ? action === "create"
-                                    ? `${base}/components`
-                                    : action === "list"
-                                      ? `${base}/components`
-                                      : ["review", "exclude"].includes(action)
-                                        ? `${base}/components/${encodeURIComponent(forecastKey().componentId ?? "")}/${action}`
-                                        : `${base}/components/${encodeURIComponent(forecastKey().componentId ?? "")}`
-                                  : action === "list" || isOperatingDashboard
+                        : `${base}/${encodeURIComponent(action)}`
+                      : isExecutiveMetricPolicy || isRoiDefinition
+                        ? action === "approve"
+                          ? (() => {
+                              if (!key || !expectedVersion || !/^\d+$/.test(expectedVersion)) {
+                                throw new Error(
+                                  `${resource} approve requires --key and a positive --version`,
+                                );
+                              }
+                              return `${base}/${encodeURIComponent(key)}/versions/${encodeURIComponent(expectedVersion)}/approve`;
+                            })()
+                          : action === "get"
+                            ? (() => {
+                                if (!key) throw new Error(`${resource} get requires --key`);
+                                return `${base}/${encodeURIComponent(key)}`;
+                              })()
+                            : base
+                        : isRoiInputFact
+                          ? action === "review"
+                            ? (() => {
+                                if (!key) throw new Error("roi-input-facts review requires --key");
+                                return `${base}/${encodeURIComponent(key)}/review`;
+                              })()
+                            : base
+                          : isFinancialStatement
+                            ? `${base}/${encodeURIComponent(action)}`
+                            : isFinancialStatementDrilldown
+                              ? (() => {
+                                  const [statement, lineCode, extra] = (key ?? "").split("/");
+                                  if (!statement || !lineCode || extra) {
+                                    throw new Error(
+                                      "Financial statement drilldown key must be <statement>/<line-code>",
+                                    );
+                                  }
+                                  return `${base}/drilldown`;
+                                })()
+                              : isVatReconciliation
+                                ? base
+                                : isExpenseException
+                                  ? base
+                                  : isPerformanceComparison
                                     ? base
-                                    : action === "get" || action === "update"
-                                      ? isProjectProfitability
-                                        ? `${base}/projects/${encodeURIComponent(key ?? "")}`
-                                        : `${base}/${key}`
-                                      : isStatementException && action === "create"
-                                        ? `${base}/${encodeURIComponent(key ?? "")}/exceptions`
-                                        : isStatementException &&
-                                            ["approve", "resolve", "reject"].includes(action)
-                                          ? (() => {
-                                              const [sessionId, exceptionId, extra] = (
-                                                key ?? ""
-                                              ).split("/");
-                                              if (!sessionId || !exceptionId || extra) {
-                                                throw new Error(
-                                                  "Statement exception key must be <session-id>/<exception-id>",
-                                                );
-                                              }
-                                              return `${base}/${encodeURIComponent(sessionId)}/exceptions/${encodeURIComponent(exceptionId)}/${action}`;
-                                            })()
-                                          : isFinancialStatementMapping && action === "approve"
-                                            ? (() => {
-                                                if (
-                                                  !key ||
-                                                  !expectedVersion ||
-                                                  !/^\d+$/.test(expectedVersion)
-                                                ) {
-                                                  throw new Error(
-                                                    "Financial statement mapping approve requires --key and a positive --version",
-                                                  );
-                                                }
-                                                return `${base}/${encodeURIComponent(key)}/versions/${encodeURIComponent(expectedVersion)}/approve`;
-                                              })()
-                                            : (isOverheadPolicy || isOverheadRun) &&
-                                                [
-                                                  "submit",
-                                                  "approve",
-                                                  "reject",
-                                                  "post",
-                                                  "reverse",
-                                                ].includes(action)
-                                              ? `${base}/${key}/${action}`
-                                              : isPlanning &&
-                                                  ["publish", "supersede"].includes(action)
-                                                ? `${base}/${key}/${action}`
-                                                : isStatementSession &&
-                                                    ["review", "close"].includes(action)
-                                                  ? `${base}/${key}/${action}`
-                                                  : (isProjectBudget || isScopeChange) &&
-                                                      ["submit", "approve", "reject"].includes(
-                                                        action,
-                                                      )
-                                                    ? `${base}/${key}/${action}`
-                                                    : isRecognitionPolicy &&
-                                                        ["approve", "retire"].includes(action)
+                                    : isPlanningActualFact && action === "backfill"
+                                      ? `${base}/backfill`
+                                      : isForecastComposition
+                                        ? `${base}/composition`
+                                        : isForecastComponent
+                                          ? action === "create"
+                                            ? `${base}/components`
+                                            : action === "list"
+                                              ? `${base}/components`
+                                              : ["review", "exclude"].includes(action)
+                                                ? `${base}/components/${encodeURIComponent(forecastKey().componentId ?? "")}/${action}`
+                                                : `${base}/components/${encodeURIComponent(forecastKey().componentId ?? "")}`
+                                          : action === "list" || isOperatingDashboard
+                                            ? base
+                                            : action === "get" || action === "update"
+                                              ? isProjectProfitability
+                                                ? `${base}/projects/${encodeURIComponent(key ?? "")}`
+                                                : `${base}/${key}`
+                                              : isStatementException && action === "create"
+                                                ? `${base}/${encodeURIComponent(key ?? "")}/exceptions`
+                                                : isStatementException &&
+                                                    ["approve", "resolve", "reject"].includes(
+                                                      action,
+                                                    )
+                                                  ? (() => {
+                                                      const [sessionId, exceptionId, extra] = (
+                                                        key ?? ""
+                                                      ).split("/");
+                                                      if (!sessionId || !exceptionId || extra) {
+                                                        throw new Error(
+                                                          "Statement exception key must be <session-id>/<exception-id>",
+                                                        );
+                                                      }
+                                                      return `${base}/${encodeURIComponent(sessionId)}/exceptions/${encodeURIComponent(exceptionId)}/${action}`;
+                                                    })()
+                                                  : isFinancialStatementMapping &&
+                                                      action === "approve"
+                                                    ? (() => {
+                                                        if (
+                                                          !key ||
+                                                          !expectedVersion ||
+                                                          !/^\d+$/.test(expectedVersion)
+                                                        ) {
+                                                          throw new Error(
+                                                            "Financial statement mapping approve requires --key and a positive --version",
+                                                          );
+                                                        }
+                                                        return `${base}/${encodeURIComponent(key)}/versions/${encodeURIComponent(expectedVersion)}/approve`;
+                                                      })()
+                                                    : (isOverheadPolicy || isOverheadRun) &&
+                                                        [
+                                                          "submit",
+                                                          "approve",
+                                                          "reject",
+                                                          "post",
+                                                          "reverse",
+                                                        ].includes(action)
                                                       ? `${base}/${key}/${action}`
-                                                      : isMilestoneAcceptance &&
-                                                          ["accept", "dispute", "reject"].includes(
-                                                            action,
-                                                          )
+                                                      : isPlanning &&
+                                                          ["publish", "supersede"].includes(action)
                                                         ? `${base}/${key}/${action}`
-                                                        : isRecognitionEvent &&
-                                                            [
-                                                              "submit",
-                                                              "approve",
-                                                              "post",
-                                                              "reverse",
-                                                            ].includes(action)
+                                                        : isStatementSession &&
+                                                            ["review", "close"].includes(action)
                                                           ? `${base}/${key}/${action}`
-                                                          : isTimesheetAdjustment &&
-                                                              action === "create"
-                                                            ? `${base}/${encodeURIComponent(key ?? "")}/adjustments`
-                                                            : isTimesheetAdjustment &&
-                                                                ["submit", "approve"].includes(
+                                                          : (isProjectBudget || isScopeChange) &&
+                                                              [
+                                                                "submit",
+                                                                "approve",
+                                                                "reject",
+                                                              ].includes(action)
+                                                            ? `${base}/${key}/${action}`
+                                                            : isRecognitionPolicy &&
+                                                                ["approve", "retire"].includes(
                                                                   action,
                                                                 )
-                                                              ? (() => {
-                                                                  const [
-                                                                    timesheetId,
-                                                                    adjustmentId,
-                                                                    extra,
-                                                                  ] = (key ?? "").split("/");
-                                                                  if (
-                                                                    !timesheetId ||
-                                                                    !adjustmentId ||
-                                                                    extra
-                                                                  ) {
-                                                                    throw new Error(
-                                                                      "Timesheet adjustment key must be <timesheet-id>/<adjustment-id>",
-                                                                    );
-                                                                  }
-                                                                  return `${base}/${encodeURIComponent(timesheetId)}/adjustments/${encodeURIComponent(adjustmentId)}/${action}`;
-                                                                })()
-                                                              : isTimesheet &&
+                                                              ? `${base}/${key}/${action}`
+                                                              : isMilestoneAcceptance &&
                                                                   [
-                                                                    "submit",
-                                                                    "approve",
+                                                                    "accept",
+                                                                    "dispute",
                                                                     "reject",
-                                                                    "revise",
-                                                                    "lock",
-                                                                    "mark-billed",
                                                                   ].includes(action)
                                                                 ? `${base}/${key}/${action}`
-                                                                : isCostRate &&
-                                                                    ["approve", "retire"].includes(
-                                                                      action,
-                                                                    )
+                                                                : isRecognitionEvent &&
+                                                                    [
+                                                                      "submit",
+                                                                      "approve",
+                                                                      "post",
+                                                                      "reverse",
+                                                                    ].includes(action)
                                                                   ? `${base}/${key}/${action}`
-                                                                  : isWorker &&
-                                                                      action === "deactivate"
-                                                                    ? `${base}/${key}/deactivate`
-                                                                    : isDirectCostAllocation &&
+                                                                  : isTimesheetAdjustment &&
+                                                                      action === "create"
+                                                                    ? `${base}/${encodeURIComponent(key ?? "")}/adjustments`
+                                                                    : isTimesheetAdjustment &&
                                                                         [
                                                                           "submit",
                                                                           "approve",
-                                                                          "post",
-                                                                          "reverse",
                                                                         ].includes(action)
-                                                                      ? `${base}/${key}/${action}`
-                                                                      : isJournal &&
+                                                                      ? (() => {
+                                                                          const [
+                                                                            timesheetId,
+                                                                            adjustmentId,
+                                                                            extra,
+                                                                          ] = (key ?? "").split(
+                                                                            "/",
+                                                                          );
+                                                                          if (
+                                                                            !timesheetId ||
+                                                                            !adjustmentId ||
+                                                                            extra
+                                                                          ) {
+                                                                            throw new Error(
+                                                                              "Timesheet adjustment key must be <timesheet-id>/<adjustment-id>",
+                                                                            );
+                                                                          }
+                                                                          return `${base}/${encodeURIComponent(timesheetId)}/adjustments/${encodeURIComponent(adjustmentId)}/${action}`;
+                                                                        })()
+                                                                      : isTimesheet &&
                                                                           [
+                                                                            "submit",
                                                                             "approve",
-                                                                            "post",
-                                                                            "reverse",
-                                                                            "repost",
+                                                                            "reject",
+                                                                            "revise",
+                                                                            "lock",
+                                                                            "mark-billed",
                                                                           ].includes(action)
                                                                         ? `${base}/${key}/${action}`
-                                                                        : isPostingRule &&
-                                                                            action === "evaluate"
-                                                                          ? `${base}/evaluate`
-                                                                          : isCommercialDocument &&
-                                                                              [
-                                                                                "capture",
-                                                                                "validate",
-                                                                                "verify",
-                                                                                "approve",
-                                                                                "issue",
-                                                                                "post",
-                                                                                "cancel",
-                                                                              ].includes(action)
-                                                                            ? `${base}/${key}/${action}`
-                                                                            : isBankImport &&
-                                                                                action === "dry-run"
-                                                                              ? `${base}/dry-run`
-                                                                              : isBankTransaction &&
+                                                                        : isCostRate &&
+                                                                            [
+                                                                              "approve",
+                                                                              "retire",
+                                                                            ].includes(action)
+                                                                          ? `${base}/${key}/${action}`
+                                                                          : isWorker &&
+                                                                              action ===
+                                                                                "deactivate"
+                                                                            ? `${base}/${key}/deactivate`
+                                                                            : isDirectCostAllocation &&
+                                                                                [
+                                                                                  "submit",
+                                                                                  "approve",
+                                                                                  "post",
+                                                                                  "reverse",
+                                                                                ].includes(action)
+                                                                              ? `${base}/${key}/${action}`
+                                                                              : isJournal &&
                                                                                   [
-                                                                                    "ignore",
-                                                                                    "mark-needs-review",
+                                                                                    "approve",
+                                                                                    "post",
+                                                                                    "reverse",
+                                                                                    "repost",
                                                                                   ].includes(action)
                                                                                 ? `${base}/${key}/${action}`
-                                                                                : isBankTransaction &&
-                                                                                    [
-                                                                                      "candidates",
-                                                                                      "suggest",
-                                                                                      "match",
-                                                                                      "reconcile",
-                                                                                      "unreconcile",
-                                                                                    ].includes(
-                                                                                      action,
-                                                                                    )
-                                                                                  ? `${base}/${key}/${action}`
-                                                                                  : isBankTransaction &&
-                                                                                      action ===
-                                                                                        "transfer-candidates"
-                                                                                    ? `${base}/${key}/transfer-candidates`
-                                                                                    : isInternalTransfer &&
-                                                                                        [
-                                                                                          "match",
-                                                                                          "unmatch",
-                                                                                        ].includes(
-                                                                                          action,
-                                                                                        )
-                                                                                      ? `${base}/${key}/${action}`
-                                                                                      : isEvidence &&
+                                                                                : isPostingRule &&
+                                                                                    action ===
+                                                                                      "evaluate"
+                                                                                  ? `${base}/evaluate`
+                                                                                  : isCommercialDocument &&
+                                                                                      [
+                                                                                        "capture",
+                                                                                        "validate",
+                                                                                        "verify",
+                                                                                        "approve",
+                                                                                        "issue",
+                                                                                        "post",
+                                                                                        "cancel",
+                                                                                      ].includes(
+                                                                                        action,
+                                                                                      )
+                                                                                    ? `${base}/${key}/${action}`
+                                                                                    : isBankImport &&
+                                                                                        action ===
+                                                                                          "dry-run"
+                                                                                      ? `${base}/dry-run`
+                                                                                      : isBankTransaction &&
                                                                                           [
-                                                                                            "review",
-                                                                                            "download-url",
+                                                                                            "ignore",
+                                                                                            "mark-needs-review",
                                                                                           ].includes(
                                                                                             action,
                                                                                           )
                                                                                         ? `${base}/${key}/${action}`
-                                                                                        : isOutboundEvent &&
-                                                                                            action ===
-                                                                                              "replay"
-                                                                                          ? `${base}/${key}/replay`
-                                                                                          : isExpense &&
-                                                                                              [
-                                                                                                "submit",
-                                                                                                "mark-evidence-pending",
-                                                                                                "review",
-                                                                                                "approve",
-                                                                                                "reject",
-                                                                                                "post",
-                                                                                              ].includes(
-                                                                                                action,
-                                                                                              )
-                                                                                            ? `${base}/${key}/${action}`
-                                                                                            : isReport
-                                                                                              ? `${base}/${action}`
-                                                                                              : isWorkbookImport
-                                                                                                ? `${base}/${action}`
-                                                                                                : isOpeningBalance &&
+                                                                                        : isBankTransaction &&
+                                                                                            [
+                                                                                              "candidates",
+                                                                                              "suggest",
+                                                                                              "match",
+                                                                                              "reconcile",
+                                                                                              "unreconcile",
+                                                                                            ].includes(
+                                                                                              action,
+                                                                                            )
+                                                                                          ? `${base}/${key}/${action}`
+                                                                                          : isBankTransaction &&
+                                                                                              action ===
+                                                                                                "transfer-candidates"
+                                                                                            ? `${base}/${key}/transfer-candidates`
+                                                                                            : isInternalTransfer &&
+                                                                                                [
+                                                                                                  "match",
+                                                                                                  "unmatch",
+                                                                                                ].includes(
+                                                                                                  action,
+                                                                                                )
+                                                                                              ? `${base}/${key}/${action}`
+                                                                                              : isEvidence &&
+                                                                                                  [
+                                                                                                    "review",
+                                                                                                    "download-url",
+                                                                                                  ].includes(
+                                                                                                    action,
+                                                                                                  )
+                                                                                                ? `${base}/${key}/${action}`
+                                                                                                : isOutboundEvent &&
                                                                                                     action ===
-                                                                                                      "dry-run"
-                                                                                                  ? `${base}/dry-run`
-                                                                                                  : isPeriodWorkflow
-                                                                                                    ? `${base}/${action}`
-                                                                                                    : action ===
-                                                                                                        "delete"
-                                                                                                      ? `${base}/${key}`
-                                                                                                      : action ===
-                                                                                                          "deactivate"
-                                                                                                        ? `${base}/${key}/deactivate`
-                                                                                                        : action ===
-                                                                                                            "import"
-                                                                                                          ? `${base}/import/dry-run`
-                                                                                                          : action ===
-                                                                                                              "export"
-                                                                                                            ? `${base}/export`
-                                                                                                            : base;
+                                                                                                      "replay"
+                                                                                                  ? `${base}/${key}/replay`
+                                                                                                  : isExpense &&
+                                                                                                      [
+                                                                                                        "submit",
+                                                                                                        "mark-evidence-pending",
+                                                                                                        "review",
+                                                                                                        "approve",
+                                                                                                        "reject",
+                                                                                                        "post",
+                                                                                                      ].includes(
+                                                                                                        action,
+                                                                                                      )
+                                                                                                    ? `${base}/${key}/${action}`
+                                                                                                    : isReport
+                                                                                                      ? `${base}/${action}`
+                                                                                                      : isWorkbookImport
+                                                                                                        ? `${base}/${action}`
+                                                                                                        : isOpeningBalance &&
+                                                                                                            action ===
+                                                                                                              "dry-run"
+                                                                                                          ? `${base}/dry-run`
+                                                                                                          : isPeriodWorkflow
+                                                                                                            ? `${base}/${action}`
+                                                                                                            : action ===
+                                                                                                                "delete"
+                                                                                                              ? `${base}/${key}`
+                                                                                                              : action ===
+                                                                                                                  "deactivate"
+                                                                                                                ? `${base}/${key}/deactivate`
+                                                                                                                : action ===
+                                                                                                                    "import"
+                                                                                                                  ? `${base}/import/dry-run`
+                                                                                                                  : action ===
+                                                                                                                      "export"
+                                                                                                                    ? `${base}/export`
+                                                                                                                    : base;
     const queryPayload =
       isFinancialStatementDrilldown && payload && typeof payload === "object"
         ? (() => {
@@ -686,7 +735,9 @@ export class NaaiErpClient {
         isRoiInputFact ||
         isExecutiveMetric ||
         isReportSnapshot ||
-        isAccountantExport) &&
+        isAccountantExport ||
+        isServicePlan ||
+        isCustomerServiceSubscription) &&
       method === "GET" &&
       queryPayload &&
       typeof queryPayload === "object"

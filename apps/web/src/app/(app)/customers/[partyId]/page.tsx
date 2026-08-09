@@ -9,6 +9,7 @@ export default async function CustomerPage({
     <ModulePage
       title="Hồ sơ khách hàng"
       section="Khách hàng"
+      sectionHref="/customers"
       description="Thông tin khách hàng và đường dẫn sang công nợ phải thu."
     >
       <BusinessRecordWorkspace kind="customers" id={partyId} />

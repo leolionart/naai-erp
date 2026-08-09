@@ -94,8 +94,10 @@ organization and service membership
   -> fiscal year / fiscal periods / currency rates
   -> accounts / tax versions / dimensions / mappings / posting policies
   -> parties / party roles
+  -> service plans
   -> projects / contracts / milestones / workforce
   -> financial accounts
+  -> customer subscriptions (optional commercial schedule)
   -> commercial documents OR non-invoice expenses
   -> evidence and allocations
   -> validate / review / approve / post
@@ -125,27 +127,31 @@ Never choose the nearest party/project/account by name similarity alone.
 
 ## 7. Core field-to-resource map
 
-| Request field                                                       | Target                                 | Required behavior                                                        |
-| ------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
-| `party_id`                                                          | Generic party master ID                | Used by party roles                                                      |
-| `client_party_id`                                                   | Party with client role                 | Used by projects                                                         |
-| `project_id`                                                        | Project ID                             | Used by contracts and master-data milestones indirectly                  |
-| `contract_id`                                                       | Contract ID                            | Used by milestones                                                       |
-| `partyId`                                                           | Party ID                               | Commercial-document counterparty                                         |
-| `lines[].dimensions.projectId` or allocation `dimensions.projectId` | Project stable `id`                    | Project attribution; resolve project code to its stable ID first         |
-| `lines[].dimensions.contractId` or allocation `dimensions.contractId` | Contract stable `id`                 | Optional; requires project attribution and must belong to that project   |
-| `payeePartyId`                                                      | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
-| `employeePartyId`                                                   | Party ID                               | Required for employee reimbursement                                      |
-| `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`    | Account `code`                         | Must exist and be allowed by posting rules                               |
-| `taxAccountCode`, `vatAccountCode`                                  | Account `code`                         | Optional only when tax treatment permits                                 |
-| `taxCode`                                                           | Effective tax-code version             | Resolve using document/expense date                                      |
-| `dimensions`                                                        | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values |
-| `originalDocumentId`                                                | Existing commercial-document ID        | Required for credit/correction relationship                              |
-| `ledgerAccountCode`                                                 | Account `code`                         | Links financial account to ledger control account                        |
-| `financialAccountId`                                                | Financial-account response `accountId` | Required by bank import                                                  |
-| `allocations[].targetId`                                            | `documentId` or `expenseId`            | Must match `targetType` exactly                                          |
-| `reversalOfId`                                                      | Posted journal ID                      | Application creates linked reversal history                              |
-| `resourceType + resourceId`                                         | Canonical resource                     | Evidence generic link; application validates ownership/type              |
+| Request field                                                         | Target                                 | Required behavior                                                        |
+| --------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| `party_id`                                                            | Generic party master ID                | Used by party roles                                                      |
+| `client_party_id`                                                     | Party with client role                 | Used by projects                                                         |
+| `project_id`                                                          | Project ID                             | Used by contracts and master-data milestones indirectly                  |
+| `contract_id`                                                         | Contract ID                            | Used by milestones                                                       |
+| `partyId`                                                             | Party ID                               | Commercial-document counterparty                                         |
+| `lines[].dimensions.projectId` or allocation `dimensions.projectId`   | Project stable `id`                    | Project attribution; resolve project code to its stable ID first         |
+| `lines[].dimensions.contractId` or allocation `dimensions.contractId` | Contract stable `id`                   | Optional; requires project attribution and must belong to that project   |
+| `payeePartyId`                                                        | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
+| `employeePartyId`                                                     | Party ID                               | Required for employee reimbursement                                      |
+| `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`      | Account `code`                         | Must exist and be allowed by posting rules                               |
+| `taxAccountCode`, `vatAccountCode`                                    | Account `code`                         | Optional only when tax treatment permits                                 |
+| `taxCode`                                                             | Effective tax-code version             | Resolve using document/expense date                                      |
+| `dimensions`                                                          | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values |
+| `originalDocumentId`                                                  | Existing commercial-document ID        | Required for credit/correction relationship                              |
+| `ledgerAccountCode`                                                   | Account `code`                         | Links financial account to ledger control account                        |
+| `financialAccountId`                                                  | Financial-account response `accountId` | Required by bank import                                                  |
+| `allocations[].targetId`                                              | `documentId` or `expenseId`            | Must match `targetType` exactly                                          |
+| `reversalOfId`                                                        | Posted journal ID                      | Application creates linked reversal history                              |
+| `resourceType + resourceId`                                           | Canonical resource                     | Evidence generic link; application validates ownership/type              |
+| `serviceLineCode`                                                     | Service-line dimension code            | Required by service plans; resolve the canonical code before create      |
+| `customerPartyId`                                                     | Party with explicit `client` role      | Required by customer subscription                                        |
+| `servicePlanId`                                                       | Active service-plan stable ID          | Required by customer subscription; retain from plan create/read          |
+| subscription `projectId`                                              | Project stable ID                      | Optional; project `client_party_id` must equal `customerPartyId`         |
 
 ## 8. Canonical recipes
 
@@ -159,6 +165,40 @@ Never choose the nearest party/project/account by name similarity alone.
 
 Generic resource updates use an encoded composite key where required. Obtain keys from list/get
 responses rather than constructing them from assumptions.
+
+### 8.1A Client → service plan → customer subscription
+
+This workflow records a service the customer has used, is using or will use. It is commercial
+management data; it does not itself create an invoice, revenue-recognition event, receivable,
+payment, journal or tax effect.
+
+1. Resolve the customer party and verify its explicit `client` role. Retain `party.id`.
+2. Resolve the canonical service-line dimension code.
+3. Lookup the service plan by stable ID or unique code. Create it only from verified plan terms and
+   retain `data.id`; a deactivated plan remains readable for history but cannot activate a new
+   subscription.
+4. If the subscription belongs to a project/contract, resolve the project and verify
+   `project.client_party_id === party.id`. Never infer a project from an invoice, similar name or
+   amount. No separate `contractId` is accepted.
+5. Create the subscription using exact decimal strings for `quantity` and `unitPriceMinor`. Omitted
+   price/currency/recurrence fields snapshot the reviewed service-plan defaults at creation.
+6. Retain the returned subscription `id`, `resourceVersion` and `nextActions`.
+7. Activate, pause, resume, cancel or expire only through the typed action endpoint with the latest
+   `If-Match`, a stable `Idempotency-Key`, `effectiveOn` and a nonblank reason. PATCH is only for a
+   draft subscription.
+8. Use `schedule-preview` only to inspect service periods and scheduled commercial value. If an
+   invoice is needed, create a separate canonical sales invoice for the same customer/project and
+   preserve the invoice's own lifecycle. Never mark a preview period as invoiced by assumption.
+
+CLI examples:
+
+```text
+naai-erp service-plans list --organization <org> --service-line <code> --active-only
+naai-erp service-plans create --organization <org> --data '<typed JSON>' --idempotency-key <key>
+naai-erp customer-service-subscriptions create --organization <org> --data '<typed JSON>' --idempotency-key <key>
+naai-erp customer-service-subscriptions pause --organization <org> --key <id> --version <version> --data '{"schemaVersion":1,"effectiveOn":"2026-09-01","reason":"Customer request"}' --idempotency-key <key>
+naai-erp customer-service-subscriptions schedule-preview --organization <org> --key <id>
+```
 
 ### 8.2 Customer – project – invoice relationship
 
