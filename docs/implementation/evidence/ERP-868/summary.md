@@ -13,5 +13,8 @@ Standardized the organization-wide operating model as `controlled | solopreneur`
 - Web settings and copy now use “Mô hình doanh nghiệp” / “Doanh nghiệp một người”.
 - Evidence, tax validation, locks, balancing, RBAC, audit and immutable posted history remain active.
 
-Production policy `naai-executive-metrics:1` already exists as draft and can be self-approved after
-the updated API is deployed.
+Production was released from revision `96cd501708a4b7abb468bf8a69bf87823a37b262` on the user-selected
+rolling `latest` channel. API, web, worker and migrate containers all report that OCI revision;
+migration `0044` completed with exit code 0 and runtime services are healthy. Organization `naai`
+reports `operatingMode: solopreneur`, and policy `naai-executive-metrics:1` was self-approved by the
+owner with an audited reason.

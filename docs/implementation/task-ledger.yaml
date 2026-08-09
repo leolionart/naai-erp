@@ -8,7 +8,7 @@ project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
 current_gate: G33
-current_task: ERP-868
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -1662,7 +1662,7 @@ tasks:
   - id: ERP-868
     title: Standardize organization-wide solopreneur operating mode and self-approval behavior
     phase: P12
-    status: review
+    status: done
     dependencies: [ERP-867]
     business_rules: [BR-KPI-005, BR-WFL-001, BR-WFL-002, BR-SEC-002, BR-UI-003]
     tests: [T-UNIT-ERP-868-001, T-INT-ERP-868-001, T-E2E-ERP-868-001]
@@ -1670,6 +1670,8 @@ tasks:
     agent: codex-root
     started_at: 2026-08-09T18:55:00+07:00
     review_at: 2026-08-09T19:22:00+07:00
+    completed_at: 2026-08-09T21:12:06+07:00
+    completion_basis: production_release_policy_approval_api_readback_and_local_ui_drilldown
     planned_files:
       - apps/api/src/workflow-policy/
       - apps/api/src/executive-metrics/
@@ -1758,4 +1760,4 @@ gate_status:
   G30: done
   G31: done
   G32: done
-  G33: in_progress
+  G33: done

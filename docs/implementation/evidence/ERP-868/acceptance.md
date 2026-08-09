@@ -8,3 +8,7 @@
 - Env bootstrap is strict, organization-scoped and non-overwriting.
 - UI persists `solopreneur` and presents correct self-approval guidance.
 - Missing documents/data-quality exceptions remain visible and are not auto-cleared by business mode.
+- Production organization mode reads back as `solopreneur`, and the owner successfully approved the
+  existing executive metric policy without bypassing audit or idempotency controls.
+- Every executive metric projection now returns a real API report; missing reviewed burn and absent
+  ROI definitions remain truthful `review`/empty states instead of fixture data.
