@@ -7,8 +7,8 @@ development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G34
-current_task: ERP-869
+current_gate: null
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -1693,7 +1693,7 @@ tasks:
   - id: ERP-869
     title: Complete truthful executive metric visibility from production records
     phase: P12
-    status: in_progress
+    status: done
     dependencies: [ERP-868]
     business_rules: [BR-KPI-003, BR-KPI-004, BR-KPI-005, BR-UI-003]
     tests: [T-UNIT-ERP-869-001, T-INT-ERP-869-001, T-E2E-ERP-869-001]
@@ -1783,4 +1783,4 @@ gate_status:
   G31: done
   G32: done
   G33: done
-  G34: in_progress
+  G34: done
