@@ -127,7 +127,15 @@ export class PgCommercialDocumentStore {
     line: CreateCommercialDocumentInput["lines"][number],
     operatingMode: string | null,
   ) {
-    const tax = purchaseLineTaxDecision(input, line, operatingMode);
+    const defaultTax = purchaseLineTaxDecision(input, line, operatingMode);
+    const account = await client.query<{ root_type: string }>(
+      "select root_type::text from accounts where organization_id=$1 and code=$2",
+      [context.organizationId, line.primaryAccountCode],
+    );
+    const tax =
+      input.type === "purchase_invoice" && account.rows[0]?.root_type === "asset"
+        ? { ...defaultTax, citState: "ineligible", citEligibleMinor: "0" }
+        : defaultTax;
     await client.query(
       `insert into commercial_document_lines
        (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
@@ -392,7 +400,12 @@ export class PgCommercialDocumentStore {
         'unitPriceMinor',l.unit_price_minor::text,'netMinor',l.net_minor::text,
         'taxMinor',l.tax_minor::text,'grossMinor',l.gross_minor::text,
         'primaryAccountCode',l.primary_account_code,'taxAccountCode',l.tax_account_code,
-        'taxCode',l.tax_code,'dimensions',l.dimensions,
+        'taxCode',l.tax_code,'managementState',l.management_state::text,
+        'citState',l.cit_state::text,'vatState',l.vat_state::text,
+        'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
+        'reviewedBy',l.reviewed_by,'reviewedAt',l.reviewed_at::text,
+        'reviewReason',l.review_reason,'reviewReference',l.review_reference,
+        'dimensions',l.dimensions,
         'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]')
           from commercial_document_allocations a where a.organization_id=l.organization_id
             and a.document_id=l.document_id and a.line_number=l.line_number))
@@ -1551,6 +1564,7 @@ export class PgCommercialDocumentStore {
       description: string;
       net_minor: string;
       tax_minor: string;
+      vat_state: string;
       primary_account_code: string;
       tax_account_code: string | null;
       dimensions: Record<string, string>;

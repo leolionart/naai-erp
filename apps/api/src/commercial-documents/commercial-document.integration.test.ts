@@ -391,6 +391,49 @@ describeIntegration("ERP-300 commercial documents", () => {
       review_reason: "Resolved when the purchase invoice was recorded",
       review_reference: "owner_final",
     });
+    expect(
+      (
+        await command(
+          "purchase-owner-final",
+          "capture",
+          integrationToken,
+          "owner-final-purchase-capture",
+        )
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (
+        await command(
+          "purchase-owner-final",
+          "verify",
+          integrationToken,
+          "owner-final-purchase-verify",
+        )
+      ).statusCode,
+    ).toBe(201);
+    expect(
+      (
+        await command(
+          "purchase-owner-final",
+          "approve",
+          approverToken,
+          "owner-final-purchase-approve",
+        )
+      ).statusCode,
+    ).toBe(201);
+    const posted = await command(
+      "purchase-owner-final",
+      "post",
+      financeToken,
+      "owner-final-purchase-post",
+    );
+    expect(posted.statusCode, posted.body).toBe(201);
+    const vatPosting = await pool.query<{ debit_minor: string }>(
+      `select debit_minor::text from journal_lines
+        where organization_id=$1 and journal_id=$2 and account_code='1331-VAT-IN'`,
+      [org, posted.json().data.journalId],
+    );
+    expect(vatPosting.rows).toEqual([{ debit_minor: "100" }]);
     await pool.query(
       "update accounting_workflow_policies set operating_mode='controlled' where organization_id=$1",
       [org],
@@ -409,7 +452,13 @@ describeIntegration("ERP-300 commercial documents", () => {
         .json()
         .data.items.map((item: { id: string }) => item.id)
         .sort(),
-    ).toEqual(["purchase-001", "sales-001", "sales-linked-relationships", "sales-over-cap"]);
+    ).toEqual([
+      "purchase-001",
+      "purchase-owner-final",
+      "sales-001",
+      "sales-linked-relationships",
+      "sales-over-cap",
+    ]);
     expect(
       projectA
         .json()

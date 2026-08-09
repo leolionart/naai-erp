@@ -111,6 +111,32 @@ describe("AI-native master data service", () => {
     );
   });
 
+  it("records the authenticated actor when updating the organization workflow policy", async () => {
+    const { service, store } = serviceWithStore();
+    const context = {
+      organizationId: "org-a",
+      actorId: "owner-a",
+      roles: ["owner"],
+      correlationId: "c-owner-final",
+    };
+    await service.mutate(
+      "update",
+      "accounting-workflow-policy",
+      "encoded-org-key",
+      context,
+      { data: { operating_mode: "owner_final", updated_by: "spoofed" } },
+      "owner-final-policy",
+    );
+    expect(store.mutate).toHaveBeenCalledWith(
+      "update",
+      "accounting-workflow-policy",
+      context,
+      "encoded-org-key",
+      { data: { operating_mode: "owner_final", updated_by: "owner-a" } },
+      "owner-final-policy",
+    );
+  });
+
   it("restricts hard delete to projects with idempotency, If-Match and a reason", async () => {
     const { service, store } = serviceWithStore();
     const context = {

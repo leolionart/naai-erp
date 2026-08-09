@@ -147,6 +147,8 @@ describeIntegration("ERP-310 expense workflow", () => {
       payload: {
         ...payload,
         id: "expense-owner-final-override",
+        expenseDate: "2026-08-02",
+        businessPurpose: "Documented operating cost with explicit tax override",
         lines: payload.lines.map((line) => ({
           ...line,
           managementState: "invalid",
@@ -177,6 +179,8 @@ describeIntegration("ERP-310 expense workflow", () => {
         ...payload,
         id: "expense-owner-final-undocumented",
         expenseClass: "non_documented",
+        expenseDate: "2026-08-03",
+        businessPurpose: "Undocumented owner-final exclusion",
         vatMinor: "0",
         grossMinor: "1000",
         lines: payload.lines.map((line) => ({
