@@ -127,6 +127,7 @@ for (const expense of nonZero) {
         taxMinor: tax.toString(),
         grossMinor: gross.toString(),
         primaryAccountCode: "642",
+        dimensions: { category: expense.categoryCode },
         ...(tax > 0n ? { taxAccountCode: "1331" } : {}),
         allocations: [
           {

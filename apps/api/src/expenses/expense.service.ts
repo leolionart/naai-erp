@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgExpenseStore } from "./pg-expense.store.js";
@@ -93,6 +93,42 @@ export class ExpenseService {
     if (!item) throw new Error("RESOURCE_NOT_FOUND");
     return this.envelope(context, item);
   }
+  async relationshipBackfillInventory(context: ExpenseContext) {
+    return this.envelope(context, {
+      items: await this.store.relationshipBackfillInventory(context.organizationId),
+    });
+  }
+  async dryRunRelationshipBackfill(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    replacement: CreateExpenseInput,
+    reason: string,
+  ) {
+    if (!context.roles.some((role) => POST.has(role))) throw new Error("FORBIDDEN");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    const existing = await this.store.get(context.organizationId, id);
+    if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+    if (String(existing.version) !== expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (existing.state !== "posted") throw new Error("INVALID_EXPENSE_TRANSITION");
+    const normalized = this.normalizeRelationships(replacement);
+    this.validate(normalized);
+    await this.store.validateRelationships?.(context.organizationId, normalized);
+    const planHash = createHash("sha256")
+      .update(
+        JSON.stringify({ id, expectedVersion, replacement: normalized, reason: reason.trim() }),
+      )
+      .digest("hex");
+    return this.envelope(context, {
+      dryRun: true,
+      planHash,
+      originalId: id,
+      originalState: existing.state,
+      replacement: normalized,
+      effects: ["reverse_original_journal", "reverse_original", "create_replacement_draft"],
+    });
+  }
   async updateCategory(
     context: ExpenseContext,
     id: string,
@@ -121,8 +157,9 @@ export class ExpenseService {
     if (existing.state !== "draft") throw new Error("INVALID_STATE_TRANSITION");
     if (existing.version.toString() !== expectedVersion) throw new Error("VERSION_CONFLICT");
 
-    const merged = this.mergeExpense(existing, input);
+    const merged = this.normalizeRelationships(this.mergeExpense(existing, input));
     this.validate(merged);
+    await this.store.validateRelationships?.(context.organizationId, merged);
 
     return this.envelope(
       context,
@@ -251,8 +288,10 @@ export class ExpenseService {
   async create(context: ExpenseContext, input: CreateExpenseInput, key?: string) {
     if (!context.roles.some((r) => WRITE.has(r))) throw new Error("FORBIDDEN");
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    this.validate(input);
-    return this.envelope(context, await this.store.create(context, input, key));
+    const normalized = this.normalizeRelationships(input);
+    this.validate(normalized);
+    await this.store.validateRelationships?.(context.organizationId, normalized);
+    return this.envelope(context, await this.store.create(context, normalized, key));
   }
   validatePortableInput(input: CreateExpenseInput) {
     this.validate(input);
@@ -269,11 +308,51 @@ export class ExpenseService {
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!expectedVersion) throw new Error("VERSION_CONFLICT");
     if (!reason.trim()) throw new Error("VALIDATION_FAILED");
-    this.validate(input);
+    const normalized = this.normalizeRelationships(input);
+    this.validate(normalized);
+    await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(
       context,
-      await this.store.reverseReplace(context, id, expectedVersion, input, reason.trim(), key),
+      await this.store.reverseReplace(context, id, expectedVersion, normalized, reason.trim(), key),
     );
+  }
+  async commitRelationshipBackfill(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    replacement: CreateExpenseInput,
+    reason: string,
+    planHash: string,
+    key?: string,
+  ) {
+    const normalized = this.normalizeRelationships(replacement);
+    const expectedPlanHash = createHash("sha256")
+      .update(
+        JSON.stringify({ id, expectedVersion, replacement: normalized, reason: reason.trim() }),
+      )
+      .digest("hex");
+    if (expectedPlanHash !== planHash) throw new Error("RELATIONSHIP_BACKFILL_PLAN_MISMATCH");
+    return this.reverseReplace(context, id, expectedVersion, normalized, reason, key);
+  }
+  private normalizeRelationships(input: CreateExpenseInput): CreateExpenseInput {
+    return {
+      ...input,
+      lines: input.lines.map((line) => ({
+        ...line,
+        allocations: line.allocations.map((allocation) => ({
+          ...allocation,
+          dimensions: {
+            ...allocation.dimensions,
+            ...(line.dimensions?.projectId && !allocation.dimensions.projectId
+              ? { projectId: line.dimensions.projectId }
+              : {}),
+            ...(line.dimensions?.contractId && !allocation.dimensions.contractId
+              ? { contractId: line.dimensions.contractId }
+              : {}),
+          },
+        })),
+      })),
+    };
   }
   async transition(
     context: ExpenseContext,

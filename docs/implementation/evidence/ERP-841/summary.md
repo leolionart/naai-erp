@@ -146,6 +146,80 @@ be deleted through the organization-scoped application service used by API, CLI 
 optimistic version, reason, idempotency and append-only audit evidence. Any canonical business or
 financial reference blocks deletion with a structured conflict; deletion never cascades into
 accounting or historical records.
+
+The project editor now prioritizes frequently changed operational fields. Project state is selected
+from the canonical lifecycle values instead of entered as free text; approved budget is displayed
+with Vietnamese thousand separators while the API still receives an exact digit-only minor-unit
+string; planned end date and multiline operating notes include concise management guidance. The
+project profile and directory also render Vietnamese lifecycle labels instead of raw enum values.
+Identity and classification fields remain editable in a separate lower section of the dialog.
+
+Local production-backed UI development remains read-only by default. An explicit development-only
+flag can enable PATCH for one narrow route shape: an existing project record in the configured
+organization. The proxy still rejects project creation/deletion, customer changes and every
+financial mutation. It forwards the server-held credential plus correlation, idempotency and
+optimistic-version headers without exposing the production token to browser code.
+
+The project directory now defaults to all lifecycle states and also provides a URL-backed Kanban
+view. Its five lifecycle columns use the canonical project states, show live counts and support
+drag-and-drop updates. Cards stay compact with project identity and a direct profile link; the
+project editor remains the non-drag path for precise state changes. State moves are optimistic in the
+UI, call the same guarded project PATCH as the editor and roll back visibly if the API rejects the
+update.
+
+Production cleanup on 2026-08-09 moved all 34 projects that were still marked `active` to
+`completed`. Readback over all 40 production projects returned zero remaining active records and no
+failed updates.
+
+Expense creation now opens as a large, scrollable dialog on the expense management list; the legacy
+`/expenses/new` URL redirects into that dialog. Payee suggestions are limited to supplier-role
+parties and render `display_name` instead of raw `party-*` IDs. Employee choices come from active
+workforce profiles joined back to party names. The current production organization has no workforce
+profiles, so the dialog truthfully shows that the employee catalog is empty rather than offering
+unrelated suppliers or clients as employees.
+
+The development production proxy remains mutation-deny-by-default and now has a second explicit,
+narrow capability flag for `POST /expenses`. It does not allow generic POST, party creation or any
+other financial endpoint and forwards the API client's idempotency key.
+
+Revenue creation now follows the same in-context pattern. **Tạo hóa đơn bán ra** opens a scrollable
+dialog on revenue management, and `/documents/new` redirects to that dialog. Customer options are
+derived from `client` party roles and display the real customer name instead of a `party-*` key. The
+development proxy exposes commercial-document POST only behind its own explicit flag and exact route
+allowlist.
+
+Revenue and expense draft forms now carry the relationships required for project reporting instead
+of creating disconnected records. Revenue selects a client-role customer, then a customer-owned
+project, then an optional contract belonging to that project. Expense keeps its supplier/payee
+independent while optionally selecting the project receiving the cost and one contract from that
+project. Both flows persist canonical `projectId` and optional `contractId` inside allocation
+dimensions. API validation rejects missing or cross-organization projects, closed projects,
+customer/project mismatches and contract/project mismatches. Draft PATCH requests that omit lines
+preserve stored lines and allocations; edit forms retain allocation identity and unrelated dimensions
+when updating the selected relationships.
+
+## Shared table column control follow-up
+
+Every shared table now follows the shadcn data-table toolbar pattern: a client-side row search sits on
+the left and the outline `Cột hiển thị` dropdown sits on the right above the table. Search matches the
+full canonical row text independently of which columns are currently hidden. The existing checkbox
+menu and per-table local visibility persistence are unchanged.
+
+## Shared expense overview
+
+Dashboard and Expense Management now render the same `ExpenseOverviewChart` from the same canonical
+purchase-invoice plus non-invoice expense population. Both use the same period filtering, category
+builder, Vietnamese category labels and exact minor-unit totals. Dashboard no longer creates the
+separate workbook-derived `Chưa phân bổ` series and drills down with `invoiceStatus=all`.
+
+## Expense category recovery
+
+The local `naai` organization had 124 expense rows and 190 purchase-invoice lines with no canonical
+category metadata. An audited, idempotent API backfill reconstructed workbook expense categories by
+source row and classified purchase invoices through the same deterministic inference rules. Readback
+now returns categories for every expense and purchase-invoice line. Workbook commit and workbook
+expense migration now persist inferred category dimensions when creating future records.
+
 ## Dashboard layout follow-up
 
 - Metric-card titles now use the full card width; provisional/review badges sit in a dedicated
@@ -154,9 +228,32 @@ accounting or historical records.
   actual contracted, invoiced and remaining values from the operating-dashboard read model.
 - Dashboard review signals now exclude workbook-import backlog rows and disclose that backlog as a
   separate data-normalization count, so the Finance review total matches the exceptions it renders.
-- Owner-paid classification warnings now count only posted lines explicitly carrying the
-  `owner_paid_company_cost` funding treatment; unrelated uncategorized company expenses no longer
-  inflate that warning.
+- Dashboard liquidity cards now use posted-ledger balances consistently: bank and cash are
+  consolidated into one company-funds card, the amount owed to the owner comes from the approved
+  owner-current operating subledger, and no hypothetical post-settlement cash card is shown. The
+  management amount includes operating losses borne by the owner, excludes equipment/assets and
+  owner financing, and subtracts posted repayments from company bank or cash. Legacy expense lines
+  posted to the mapped owner account without a funding snapshot are disclosed as review-required
+  instead of producing a false `ready` state.
 - Local UI development can use a development-only server-side read proxy to production. It keeps
   the production API token out of browser code, locks organization scope and exposes only GET/HEAD,
   so interface work does not need a second database and cannot mutate production financial truth.
+
+## Controlled relationship backfill
+
+Commercial documents and expenses now expose organization-scoped relationship inventories with
+top-level `projectIds` and `contractIds`. Corrections use inventory → zero-mutation dry-run → commit.
+Dry-run requires `If-Match`, a complete replacement and reason, and returns a deterministic SHA-256
+`planHash` plus reverse/replacement effects. Commit requires the unchanged plan/version, returned
+hash and `Idempotency-Key`, then uses the canonical reverse/replacement service: document originals
+become cancelled, expense originals become reversed, journal history is reversed under period locks,
+and a linked replacement draft retains the external identity and invoice identity.
+
+Production audit was read-only; no mutation or deployment occurred. It found 129 documents (8 issued
+sales, 121 posted purchase) and 124 expenses (112 posted, 12 draft). All sales have projects, none has
+contracts; seven have deterministic one-contract candidates. `sinv-c26tnt-5-2026` has customer
+`party-0108180534` but its project is owned by `party-0101362912`, so master data must be corrected
+first. Purchase invoices have valid suppliers but no project/contract attribution; six duplicate
+groups cover 12 documents. All expenses lack payee/project/contract/employee attribution. Eighteen
+have one likely invoice counterpart and one is ambiguous; these remain duplicate-source review cases,
+not automatic links.

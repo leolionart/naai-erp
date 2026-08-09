@@ -102,6 +102,150 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     expect(audit.rows[0].count).toBe(1);
   });
 
+  it("stores accountant identity metadata with organization scope and database validation", async () => {
+    const party = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/master-data/parties",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "accountant-party-metadata-create",
+      },
+      payload: {
+        data: {
+          id: "party-accountant-metadata",
+          display_name: "NAAI Client",
+          legal_name: "NAAI Client Company Limited",
+          normalized_tax_id: "0312345678",
+          registered_address: "1 Nguyen Hue, Ho Chi Minh City",
+          email: "accounting@example.vn",
+          phone: "+84 28 1234 5678",
+          website: "https://example.vn",
+          status: "active",
+        },
+      },
+    });
+    expect(party.statusCode, party.body).toBe(201);
+    expect(party.json().data.resource).toMatchObject({
+      legal_name: "NAAI Client Company Limited",
+      registered_address: "1 Nguyen Hue, Ho Chi Minh City",
+      email: "accounting@example.vn",
+      phone: "+84 28 1234 5678",
+      website: "https://example.vn",
+    });
+
+    const organizationKey = Buffer.from(JSON.stringify({ id: "org-api-a" })).toString("base64url");
+    const organization = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/org-api-a/master-data/organizations/${organizationKey}`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "accountant-organization-metadata-update",
+        "if-match": "1",
+      },
+      payload: {
+        data: {
+          tax_id: "0317654321",
+          registered_address: "2 Le Loi, Ho Chi Minh City",
+        },
+      },
+    });
+    expect(organization.statusCode, organization.body).toBe(200);
+    expect(organization.json().data.resource).toMatchObject({
+      id: "org-api-a",
+      tax_id: "0317654321",
+      registered_address: "2 Le Loi, Ho Chi Minh City",
+    });
+
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/master-data/parties",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "accountant-party-invalid-email",
+      },
+      payload: {
+        data: {
+          id: "party-invalid-email",
+          display_name: "Invalid Email",
+          email: "not-an-email",
+          status: "active",
+        },
+      },
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(
+      (
+        await pool.query(
+          "select 1 from parties where organization_id=$1 and id='party-invalid-email'",
+          ["org-api-a"],
+        )
+      ).rowCount,
+    ).toBe(0);
+  });
+
+  it("manages purchase products with only 8% or 10% VAT through the versioned API", async () => {
+    const create = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/master-data/purchase-products",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "purchase-product-create-8",
+      },
+      payload: {
+        data: { code: "HOSTING", name: "Dịch vụ hosting", vat_rate_percent: 8, is_active: true },
+      },
+    });
+    expect(create.statusCode, create.body).toBe(201);
+    expect(create.json().data.resource).toMatchObject({
+      code: "HOSTING",
+      vat_rate_percent: 8,
+      is_active: true,
+    });
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-api-a/master-data/purchase-products",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "purchase-product-create-5",
+      },
+      payload: { data: { code: "INVALID", name: "Sai thuế", vat_rate_percent: 5 } },
+    });
+    expect(invalid.statusCode).toBe(422);
+    expect(invalid.json().error.code).toBe("PURCHASE_PRODUCT_VAT_RATE_INVALID");
+
+    const key = Buffer.from(JSON.stringify({ code: "HOSTING" })).toString("base64url");
+    const updated = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/org-api-a/master-data/purchase-products/${key}`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "purchase-product-update-10",
+        "if-match": "1",
+      },
+      payload: { data: { vat_rate_percent: 10 } },
+    });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect(updated.json().data.resource.vat_rate_percent).toBe(10);
+    const deactivated = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/org-api-a/master-data/purchase-products/${key}/deactivate`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "purchase-product-deactivate",
+      },
+      payload: { data: {} },
+    });
+    expect(deactivated.statusCode, deactivated.body).toBe(201);
+    expect(deactivated.json().data.resource.is_active).toBe(false);
+    expect(
+      (
+        await pool.query(
+          "select vat_rate_percent,is_active,version::text from purchase_products where organization_id='org-api-a' and code='HOSTING'",
+        )
+      ).rows[0],
+    ).toEqual({ vat_rate_percent: 10, is_active: false, version: "3" });
+  });
+
   it("deletes only an unreferenced project with version, reason, audit and idempotency", async () => {
     await pool.query(`
       insert into users(id,email,display_name) values

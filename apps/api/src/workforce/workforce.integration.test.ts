@@ -37,23 +37,64 @@ dbSuite("ERP-500 workforce PostgreSQL API", () => {
   test("creates worker, snapshots approved labor cost, and summarizes capacity", async () => {
     const server = app.getHttpAdapter().getInstance();
     const runKey = `${Date.now()}`;
+    const workerCreated = await server.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-erp500/time/workers",
+      headers: { ...headers, "idempotency-key": "worker" },
+      payload: {
+        schemaVersion: 1,
+        id: "worker",
+        workerPartyId: "party-worker",
+        userId: "user-erp500",
+        employmentKind: "employee",
+        startsOn: "2026-08-01",
+      },
+    });
+    expect(workerCreated.statusCode, workerCreated.body).toBe(201);
+    const workerUpdated = await server.inject({
+      method: "PATCH",
+      url: "/api/v1/organizations/org-erp500/time/workers/worker",
+      headers: {
+        ...headers,
+        "if-match": workerCreated.json().data.resource.resourceVersion,
+        "idempotency-key": "worker-update",
+      },
+      payload: {
+        schemaVersion: 1,
+        employmentKind: "contractor",
+        endsOn: "2026-12-31",
+        reason: "Payroll classification corrected",
+      },
+    });
+    expect(workerUpdated.statusCode, workerUpdated.body).toBe(200);
+    expect(workerUpdated.json().data.resource).toMatchObject({
+      employmentKind: "contractor",
+      endsOn: "2026-12-31",
+      status: "active",
+      resourceVersion: "2",
+    });
+    const workerDeactivated = await server.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-erp500/time/workers/worker/deactivate",
+      headers: {
+        ...headers,
+        "if-match": "2",
+        "idempotency-key": "worker-deactivate",
+      },
+      payload: { schemaVersion: 1, reason: "Employment ended" },
+    });
+    expect(workerDeactivated.statusCode, workerDeactivated.body).toBe(201);
+    expect(workerDeactivated.json().data.resource).toMatchObject({
+      status: "inactive",
+      resourceVersion: "3",
+    });
     expect(
       (
-        await server.inject({
-          method: "POST",
-          url: "/api/v1/organizations/org-erp500/time/workers",
-          headers: { ...headers, "idempotency-key": "worker" },
-          payload: {
-            schemaVersion: 1,
-            id: "worker",
-            workerPartyId: "party-worker",
-            userId: "user-erp500",
-            employmentKind: "employee",
-            startsOn: "2026-08-01",
-          },
-        })
-      ).statusCode,
-    ).toBe(201);
+        await pool.query(
+          "select count(*)::int count from resource_audit_events where organization_id='org-erp500' and resource_type='workforce_profile' and resource_key='worker'",
+        )
+      ).rows[0]?.count,
+    ).toBe(2);
     const rateCreated = await server.inject({
       method: "POST",
       url: "/api/v1/organizations/org-erp500/time/cost-rates",

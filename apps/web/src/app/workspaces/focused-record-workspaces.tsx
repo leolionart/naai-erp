@@ -53,6 +53,7 @@ import {
   MonthlyCategoryStackedChart,
   type StackedCategoryPoint,
 } from "@/components/dashboard/monthly-category-stacked-chart";
+import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 
@@ -104,6 +105,50 @@ function text(row: Row | undefined, ...keys: string[]) {
     if (value !== undefined && value !== null && value !== "") return String(value);
   }
   return "";
+}
+function idList(row: Row | undefined, ...keys: string[]) {
+  for (const key of keys) {
+    const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    const value = row?.[key] ?? row?.[snake];
+    if (Array.isArray(value)) return value.map(String).filter(Boolean);
+    if (typeof value === "string" && value.trim()) {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      } catch {
+        return value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    }
+  }
+  return [];
+}
+function relationshipIdList(row: Row | undefined, key: "projectId" | "contractId") {
+  const direct = idList(row, `${key}s`);
+  if (direct.length) return direct;
+
+  const ids = new Set<string>();
+  const lines = Array.isArray(row?.lines) ? (row.lines as Row[]) : [];
+  for (const line of lines) {
+    const lineDimensions = line.dimensions as Row | undefined;
+    const lineId = text(lineDimensions, key);
+    if (lineId) ids.add(lineId);
+
+    const allocations = Array.isArray(line.allocations) ? (line.allocations as Row[]) : [];
+    for (const allocation of allocations) {
+      const allocationDimensions = allocation.dimensions as Row | undefined;
+      const allocationId = text(allocationDimensions, key);
+      if (allocationId) ids.add(allocationId);
+    }
+  }
+  return [...ids];
+}
+function items(payload: readonly Row[] | { items?: readonly Row[] }): readonly Row[] {
+  return Array.isArray(payload)
+    ? (payload as readonly Row[])
+    : ((payload as { items?: readonly Row[] }).items ?? []);
 }
 function money(value: unknown) {
   if (value === undefined || value === null || value === "") return "—";
@@ -162,6 +207,11 @@ export function FocusedRecordListWorkspace({
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
   const [parties, setParties] = useState<Row[]>([]);
+  const [clients, setClients] = useState<Row[]>([]);
+  const [payees, setPayees] = useState<Row[]>([]);
+  const [employees, setEmployees] = useState<Row[]>([]);
+  const [projects, setProjects] = useState<Row[]>([]);
+  const [contracts, setContracts] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
@@ -171,6 +221,8 @@ export function FocusedRecordListWorkspace({
   const [quickCategory, setQuickCategory] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
   const key = params.toString();
   const invoiceStatus = params.get("invoiceStatus") ?? "all";
   const current = config[kind];
@@ -203,7 +255,16 @@ export function FocusedRecordListWorkspace({
         const value = sourceParams.get(name);
         if (value) recognitionQuery.set(name, value);
       }
-      const [documentsResult, expensesResult, recognitionResult, partiesRes] = await Promise.all([
+      const [
+        documentsResult,
+        expensesResult,
+        recognitionResult,
+        partiesRes,
+        rolesRes,
+        workersRes,
+        projectsRes,
+        contractsRes,
+      ] = await Promise.all([
         includePresent
           ? client.data<{ items?: Row[] } | Row[]>(
               `commercial-documents?${queryFor("documents", documentParams)}`,
@@ -216,6 +277,12 @@ export function FocusedRecordListWorkspace({
           ? client.data<{ items?: Row[] } | Row[]>(`revenue-recognition-events?${recognitionQuery}`)
           : Promise.resolve([] as Row[]),
         client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
+        client.data<{ items?: Row[] } | Row[]>("master-data/party-roles?limit=500").catch(() => []),
+        kind === "expenses"
+          ? client.data<{ items?: Row[] } | Row[]>("time/workers").catch(() => [])
+          : Promise.resolve([] as Row[]),
+        client.data<{ items?: Row[] } | Row[]>("master-data/projects?limit=500").catch(() => []),
+        client.data<{ items?: Row[] } | Row[]>("master-data/contracts?limit=500").catch(() => []),
       ]);
       const listedDocuments = (
         Array.isArray(documentsResult) ? documentsResult : (documentsResult.items ?? [])
@@ -279,7 +346,34 @@ export function FocusedRecordListWorkspace({
         ),
       );
       setRows(rawItems);
-      setParties(Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []));
+      const listedParties = Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []);
+      setParties(listedParties);
+      const listedRoles = Array.isArray(rolesRes) ? rolesRes : (rolesRes.items ?? []);
+      const clientIds = new Set(
+        listedRoles
+          .filter((role) => text(role, "role") === "client")
+          .map((role) => text(role, "partyId")),
+      );
+      const clientParties = listedParties.filter((party) => clientIds.has(text(party, "id")));
+      setClients(clientParties);
+      setProjects(Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []));
+      setContracts(Array.isArray(contractsRes) ? contractsRes : (contractsRes.items ?? []));
+      if (kind === "expenses") {
+        const supplierIds = new Set(
+          listedRoles
+            .filter((role) => text(role, "role") === "supplier")
+            .map((role) => text(role, "partyId")),
+        );
+        const supplierParties = listedParties.filter((party) => supplierIds.has(text(party, "id")));
+        setPayees(supplierParties);
+        const listedWorkers = Array.isArray(workersRes) ? workersRes : (workersRes.items ?? []);
+        const employeeIds = new Set(
+          listedWorkers
+            .filter((worker) => text(worker, "status") === "active")
+            .map((worker) => text(worker, "workerPartyId")),
+        );
+        setEmployees(listedParties.filter((party) => employeeIds.has(text(party, "id"))));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
@@ -297,6 +391,32 @@ export function FocusedRecordListWorkspace({
     kind,
   ]);
   useEffect(() => void load(), [load]);
+  useEffect(() => {
+    if (params.get("create") === "1") setCreateOpen(true);
+  }, [params]);
+
+  function setCreateDialogOpen(open: boolean) {
+    setCreateOpen(open);
+    if (!open && params.get("create") === "1") {
+      const next = new URLSearchParams(params.toString());
+      next.delete("create");
+      router.replace(`${pathname}${next.size ? `?${next}` : ""}`);
+    }
+  }
+
+  async function createRecord(body: Row) {
+    setCreateBusy(true);
+    setError("");
+    try {
+      await client.data<Row>(current.endpoint, { method: "POST", body });
+      setCreateDialogOpen(false);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : `Không thể tạo ${current.singular}.`);
+    } finally {
+      setCreateBusy(false);
+    }
+  }
   function apply(form: FormData) {
     const query = new URLSearchParams();
     for (const name of kind === "documents"
@@ -440,19 +560,15 @@ export function FocusedRecordListWorkspace({
   return (
     <div className="flex flex-col gap-6">
       {!loading && rows.length > 0 ? (
-        <MonthlyCategoryStackedChart
-          title={
-            kind === "documents"
-              ? "Hoạt động doanh thu theo tháng"
-              : "Tỷ trọng chi phí từng danh mục theo tháng"
-          }
-          description={
-            kind === "documents"
-              ? "Các trục đã xuất hóa đơn và đã ghi nhận được trình bày riêng, không cộng gộp thành một chỉ tiêu."
-              : "Biểu đồ cột chồng (Stacked Bar) biểu diễn biến động tỷ trọng chi phí ăn uống, máy chủ, vận hành... theo tháng"
-          }
-          points={points}
-        />
+        kind === "expenses" ? (
+          <ExpenseOverviewChart rows={rows} />
+        ) : (
+          <MonthlyCategoryStackedChart
+            title="Hoạt động doanh thu theo tháng"
+            description="Các trục đã xuất hóa đơn và đã ghi nhận được trình bày riêng, không cộng gộp thành một chỉ tiêu."
+            points={points}
+          />
+        )
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -483,11 +599,9 @@ export function FocusedRecordListWorkspace({
             )}
             {exporting ? "Đang export..." : "Xuất danh sách XLSX"}
           </Button>
-          <Button asChild size="sm">
-            <Link href={`/${kind}/new`}>
-              <Plus data-icon="inline-start" />
-              {kind === "documents" ? "Tạo hóa đơn bán ra" : "Tạo chi phí"}
-            </Link>
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+            <Plus data-icon="inline-start" />
+            {kind === "documents" ? "Tạo hóa đơn bán ra" : "Tạo chi phí"}
           </Button>
         </div>
       </div>
@@ -503,6 +617,37 @@ export function FocusedRecordListWorkspace({
           <AlertDescription>{exportError}</AlertDescription>
         </Alert>
       ) : null}
+      <Dialog open={createOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{current.newTitle}</DialogTitle>
+            <DialogDescription>
+              {kind === "documents"
+                ? "Chọn khách hàng theo tên hiển thị; hệ thống vẫn lưu đúng ID liên kết."
+                : "Chọn đối tác và nhân viên theo tên hiển thị; hệ thống vẫn lưu đúng ID liên kết."}
+            </DialogDescription>
+          </DialogHeader>
+          {kind === "documents" ? (
+            <DocumentForm
+              busy={createBusy}
+              parties={clients}
+              projects={projects}
+              contracts={contracts}
+              onSubmit={(body) => void createRecord(body)}
+            />
+          ) : (
+            <ExpenseForm
+              busy={createBusy}
+              parties={parties}
+              payees={payees}
+              employees={employees}
+              projects={projects}
+              contracts={contracts}
+              onSubmit={(body) => void createRecord(body)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {loading ? (
@@ -515,7 +660,8 @@ export function FocusedRecordListWorkspace({
                   <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
                   <TableHead className="w-[180px]">Nguồn thanh toán / Trục</TableHead>
                   <TableHead className="w-[160px]">Danh mục nghiệp vụ</TableHead>
-                  <TableHead>Đối tượng</TableHead>
+                  <TableHead>Khách hàng / Nhà cung cấp</TableHead>
+                  <TableHead>Dự án / Hợp đồng</TableHead>
                   <TableHead>Nội dung / Diễn giải</TableHead>
                   <TableHead className="w-[140px] text-right">Tổng tiền</TableHead>
                   <TableHead className="w-[120px]">Trạng thái</TableHead>
@@ -541,6 +687,28 @@ export function FocusedRecordListWorkspace({
                   const lineDims = (lines?.dimensions as Record<string, string> | undefined) ?? {};
                   const catCode = text(row, "category") || lineDims.category || "";
                   const catName = getCategoryName(catCode);
+                  const projectIds = relationshipIdList(row, "projectId");
+                  const contractIds = relationshipIdList(row, "contractId");
+                  const projectNames = projectIds.map((projectId) => {
+                    const project = projects.find(
+                      (candidate) => text(candidate, "id") === projectId,
+                    );
+                    return project ? text(project, "name", "code") || projectId : projectId;
+                  });
+                  const contractNames = contractIds.map((contractId) => {
+                    const contract = contracts.find(
+                      (candidate) => text(candidate, "id") === contractId,
+                    );
+                    return contract
+                      ? text(contract, "reference", "name") || contractId
+                      : contractId;
+                  });
+                  const relationshipTitle = [
+                    projectNames.length ? `Dự án: ${projectNames.join(", ")}` : "",
+                    contractNames.length ? `Hợp đồng: ${contractNames.join(", ")}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
 
                   return (
                     <TableRow key={id}>
@@ -566,6 +734,24 @@ export function FocusedRecordListWorkspace({
                       </TableCell>
                       <TableCell className="max-w-[220px] truncate font-medium" title={partyName}>
                         {partyName}
+                      </TableCell>
+                      <TableCell className="max-w-[260px]" title={relationshipTitle || undefined}>
+                        {projectNames.length || contractNames.length ? (
+                          <div className="flex flex-col gap-1 text-sm">
+                            {projectNames.length ? (
+                              <span className="truncate font-medium">
+                                {projectNames.join(", ")}
+                              </span>
+                            ) : null}
+                            {contractNames.length ? (
+                              <span className="truncate text-muted-foreground">
+                                {contractNames.join(", ")}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Chưa phân bổ</span>
+                        )}
                       </TableCell>
                       <TableCell
                         className="max-w-[200px] truncate text-muted-foreground"
@@ -713,7 +899,9 @@ export function FocusedRecordListWorkspace({
                       key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
                       busy={quickBusy}
                       initial={quickRecord}
-                      parties={parties}
+                      parties={text(quickRecord, "type") === "purchase_invoice" ? payees : clients}
+                      projects={projects}
+                      contracts={contracts}
                       submitLabel="Cập nhật thông tin hóa đơn"
                       onSubmit={(body: Row) => void updateQuickRecord(body)}
                     />
@@ -723,6 +911,10 @@ export function FocusedRecordListWorkspace({
                       busy={quickBusy}
                       initial={quickRecord}
                       parties={parties}
+                      payees={payees}
+                      employees={employees}
+                      projects={projects}
+                      contracts={contracts}
                       submitLabel="Cập nhật thông tin chi phí"
                       onSubmit={(body: Row) => void updateQuickRecord(body)}
                     />
@@ -1059,6 +1251,11 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const current = config[kind];
   const [record, setRecord] = useState<Row>();
   const [parties, setParties] = useState<readonly Row[]>([]);
+  const [clients, setClients] = useState<readonly Row[]>([]);
+  const [payees, setPayees] = useState<readonly Row[]>([]);
+  const [employees, setEmployees] = useState<readonly Row[]>([]);
+  const [projects, setProjects] = useState<readonly Row[]>([]);
+  const [contracts, setContracts] = useState<readonly Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [action, setAction] = useState<string>();
@@ -1079,21 +1276,53 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       return;
     }
     try {
-      const [resRecord, partiesRes] = await Promise.all([
-        client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`),
-        client.data<readonly Row[] | { items: readonly Row[] }>("master-data/parties?limit=500"),
-      ]);
+      const [resRecord, partiesRes, rolesRes, workersRes, projectsRes, contractsRes] =
+        await Promise.all([
+          client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`),
+          client.data<readonly Row[] | { items: readonly Row[] }>("master-data/parties?limit=500"),
+          client.data<readonly Row[] | { items: readonly Row[] }>(
+            "master-data/party-roles?limit=500",
+          ),
+          kind === "expenses"
+            ? client.data<readonly Row[] | { items: readonly Row[] }>("time/workers")
+            : Promise.resolve([] as readonly Row[]),
+          client.data<readonly Row[] | { items: readonly Row[] }>("master-data/projects?limit=500"),
+          client.data<readonly Row[] | { items: readonly Row[] }>(
+            "master-data/contracts?limit=500",
+          ),
+        ]);
       setRecord(resRecord);
-      if (Array.isArray(partiesRes)) {
-        setParties(partiesRes);
-      } else if (
-        partiesRes &&
-        typeof partiesRes === "object" &&
-        "items" in partiesRes &&
-        Array.isArray(partiesRes.items)
-      ) {
-        setParties(partiesRes.items);
-      }
+      const listedParties = items(partiesRes);
+      const listedRoles = items(rolesRes);
+      const listedWorkers = items(workersRes);
+      setParties(listedParties);
+      setClients(
+        listedParties.filter((party) =>
+          listedRoles.some(
+            (role) =>
+              text(role, "role") === "client" && text(role, "partyId") === text(party, "id"),
+          ),
+        ),
+      );
+      setPayees(
+        listedParties.filter((party) =>
+          listedRoles.some(
+            (role) =>
+              text(role, "role") === "supplier" && text(role, "partyId") === text(party, "id"),
+          ),
+        ),
+      );
+      setEmployees(
+        listedParties.filter((party) =>
+          listedWorkers.some(
+            (worker) =>
+              text(worker, "status") === "active" &&
+              text(worker, "workerPartyId") === text(party, "id"),
+          ),
+        ),
+      );
+      setProjects(items(projectsRes));
+      setContracts(items(contractsRes));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
@@ -1331,7 +1560,9 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 key={`document-${recordId}-${text(record, "resourceVersion", "version")}`}
                 busy={busy}
                 initial={record}
-                parties={parties}
+                parties={type === "purchase_invoice" ? payees : clients}
+                projects={projects}
+                contracts={contracts}
                 submitLabel="Lưu thay đổi hóa đơn"
                 onSubmit={(body: Row) => void update(body)}
               />
@@ -1341,6 +1572,10 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 busy={busy}
                 initial={record}
                 parties={parties}
+                payees={payees}
+                employees={employees}
+                projects={projects}
+                contracts={contracts}
                 submitLabel="Lưu thay đổi chi phí"
                 onSubmit={(body) => void update(body)}
               />

@@ -33,6 +33,16 @@ export class CommercialDocumentController {
       projectId,
     );
   }
+  @Get("relationship-backfill/inventory")
+  async relationshipBackfillInventory(
+    @Param("organizationId") organizationId: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.relationshipBackfillInventory(
+      await this.context(organizationId, authorization, correlationId),
+    );
+  }
   @Get(":id")
   async get(
     @Param("organizationId") organizationId: string,
@@ -87,6 +97,63 @@ export class CommercialDocumentController {
       await this.context(organizationId, authorization, correlationId),
       id,
       input,
+      idempotencyKey,
+    );
+  }
+  @Post(":id/reverse-replace")
+  async reverseReplace(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { replacement: CreateCommercialDocumentInput; reason: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.reverseReplace(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input.replacement,
+      input.reason ?? "",
+      idempotencyKey,
+    );
+  }
+  @Post(":id/relationship-backfill/dry-run")
+  async dryRunRelationshipBackfill(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { replacement: CreateCommercialDocumentInput; reason: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.dryRunRelationshipBackfill(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input.replacement,
+      input.reason ?? "",
+    );
+  }
+  @Post(":id/relationship-backfill/commit")
+  async commitRelationshipBackfill(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body()
+    input: { replacement: CreateCommercialDocumentInput; reason: string; planHash: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.commitRelationshipBackfill(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input.replacement,
+      input.reason ?? "",
+      input.planHash ?? "",
       idempotencyKey,
     );
   }

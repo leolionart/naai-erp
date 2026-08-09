@@ -29,11 +29,38 @@ const expense = {
 } as const;
 describe("ERP-310 ExpenseService", () => {
   it("creates a non-invoice expense with VAT forced non-deductible", async () => {
-    const store = { create: vi.fn().mockResolvedValue({ expenseId: "e-1", state: "draft" }) };
+    const store = {
+      validateRelationships: vi.fn().mockResolvedValue(undefined),
+      create: vi.fn().mockResolvedValue({ expenseId: "e-1", state: "draft" }),
+    };
     const service = new ExpenseService(store as never, {} as never);
     expect((await service.create(context, expense, "idem")).data).toMatchObject({
       expenseId: "e-1",
     });
+    expect(store.validateRelationships).toHaveBeenCalledWith("org-a", expense);
+  });
+  it("rejects an invalid project or contract relationship before creating an expense", async () => {
+    const attributed = {
+      ...expense,
+      lines: expense.lines.map((line) => ({
+        ...line,
+        allocations: [
+          {
+            ...line.allocations[0],
+            dimensions: { projectId: "project-a", contractId: "contract-other" },
+          },
+        ],
+      })),
+    };
+    const store = {
+      validateRelationships: vi.fn().mockRejectedValue(new Error("CONTRACT_PROJECT_MISMATCH")),
+      create: vi.fn(),
+    };
+    const service = new ExpenseService(store as never, {} as never);
+    await expect(service.create(context, attributed, "expense-relationship-1")).rejects.toThrow(
+      "CONTRACT_PROJECT_MISMATCH",
+    );
+    expect(store.create).not.toHaveBeenCalled();
   });
   it("rejects VAT eligibility and allocation mismatch without an invoice", async () => {
     const service = new ExpenseService({} as never, {} as never);
@@ -128,6 +155,7 @@ describe("ERP-310 ExpenseService", () => {
       };
       const store = {
         get: vi.fn().mockResolvedValue(existing),
+        validateRelationships: vi.fn().mockResolvedValue(undefined),
         update: vi.fn().mockResolvedValue({ expenseId: "e-1", version: "2" }),
       };
       const service = new ExpenseService(store as never, {} as never);
@@ -144,6 +172,16 @@ describe("ERP-310 ExpenseService", () => {
           externalReference: expect.objectContaining({ system: "sys-2", externalId: "ext-2" }),
         }),
         "idem-3",
+      );
+      expect(store.validateRelationships).toHaveBeenCalledWith(
+        "org-a",
+        expect.objectContaining({
+          lines: [
+            expect.objectContaining({
+              allocations: [expect.objectContaining({ dimensions: { costCenter: "ADMIN" } })],
+            }),
+          ],
+        }),
       );
       expect(result.data).toEqual({ expenseId: "e-1", version: "2" });
     });

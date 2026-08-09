@@ -12,7 +12,14 @@ import { MoneyCell } from "@/components/financial/money-cell";
 import { StatusBadge } from "@/components/financial/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -189,10 +196,6 @@ export function StatementSessionListWorkspace() {
             )}
             Tải lại
           </Button>
-          <Button onClick={() => setCreateDialog(true)}>
-            <PlusIcon data-icon="inline-start" />
-            Tạo kỳ sao kê
-          </Button>
         </div>
       </div>
       <Alert>
@@ -204,6 +207,12 @@ export function StatementSessionListWorkspace() {
           <CardDescription>
             Mỗi kỳ có dedicated detail để review control totals, suspense và close blockers.
           </CardDescription>
+          <CardAction>
+            <Button onClick={() => setCreateDialog(true)}>
+              <PlusIcon data-icon="inline-start" />
+              Tạo kỳ sao kê
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <FinancialDataTable

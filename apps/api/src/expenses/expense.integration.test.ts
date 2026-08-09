@@ -23,7 +23,18 @@ describeIntegration("ERP-310 expense workflow", () => {
       values ('${organizationId}',2026,8,'2026-08-01','2026-08-31');
       insert into parties (organization_id,id,display_name,status)
       values ('${organizationId}','EMP-01','Employee One','active'),
-             ('${organizationId}','SUP-01','Supplier One','active');
+             ('${organizationId}','SUP-01','Supplier One','active'),
+             ('${organizationId}','CLIENT-01','Client One','active');
+      insert into users(id,email,display_name)
+      values ('${organizationId}-owner','${organizationId}@expense.example.com','Expense Owner');
+      insert into organization_memberships(organization_id,user_id)
+      values ('${organizationId}','${organizationId}-owner');
+      insert into projects
+        (organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
+      values ('${organizationId}','PROJECT-01','PROJECT-01','Project One','CLIENT-01','${organizationId}-owner','fixed_fee','VND',1000000,'2026-01-01','active'),
+             ('${organizationId}','A','A','Project A','CLIENT-01','${organizationId}-owner','fixed_fee','VND',1000000,'2026-01-01','active');
+      insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency)
+      values ('${organizationId}','CONTRACT-01','PROJECT-01','CONTRACT-01','2026-01-01',1000000,'VND');
       insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting)
       values ('${organizationId}','111-CASH','Petty cash','asset',true,false),
              ('${organizationId}','331-AP','Accounts payable','liability',true,false),
@@ -74,6 +85,199 @@ describeIntegration("ERP-310 expense workflow", () => {
       headers: headers(accountantToken, key),
       payload: { axis, lineNumber: 1, state, eligibleMinor, reason: `${axis} review` },
     });
+
+  it("defaults documented expenses to final tax states in owner-final mode while preserving overrides", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies
+        (organization_id,allow_self_approval,self_approval_max_minor,operating_mode,updated_by)
+       values($1,false,null,'owner_final','owner')
+       on conflict(organization_id) do update set operating_mode='owner_final',updated_by='owner'`,
+      [organizationId],
+    );
+    const payload = {
+      id: "expense-owner-final-defaults",
+      expenseClass: "invoice_backed",
+      payeePartyId: "SUP-01",
+      expenseDate: "2026-08-01",
+      businessPurpose: "Documented operating cost",
+      currency: "VND",
+      netMinor: "1000",
+      vatMinor: "100",
+      grossMinor: "1100",
+      counterAccountCode: "331-AP",
+      lines: [
+        {
+          description: "Documented operating cost",
+          netMinor: "1000",
+          vatMinor: "100",
+          grossMinor: "1100",
+          postingAccountCode: "642-OPEX",
+          vatAccountCode: "1331-VAT",
+          allocations: [
+            { id: "owner-final", amountMinor: "1000", dimensions: { costCenter: "ADMIN" } },
+          ],
+        },
+      ],
+    };
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, "owner-final-defaults"),
+      payload,
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const defaults = await pool.query(
+      `select management_state::text,cit_state::text,vat_state::text,
+        cit_eligible_minor::text,vat_eligible_minor::text
+       from expense_lines where organization_id=$1 and expense_id=$2`,
+      [organizationId, payload.id],
+    );
+    expect(defaults.rows[0]).toEqual({
+      management_state: "valid",
+      cit_state: "eligible",
+      vat_state: "eligible",
+      cit_eligible_minor: "1000",
+      vat_eligible_minor: "100",
+    });
+
+    const override = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, "owner-final-override"),
+      payload: {
+        ...payload,
+        id: "expense-owner-final-override",
+        lines: payload.lines.map((line) => ({
+          ...line,
+          managementState: "invalid",
+          citState: "ineligible",
+          vatState: "ineligible",
+        })),
+      },
+    });
+    expect(override.statusCode, override.body).toBe(201);
+    const overridden = await pool.query(
+      `select management_state::text,cit_state::text,vat_state::text,
+        cit_eligible_minor::text,vat_eligible_minor::text
+       from expense_lines where organization_id=$1 and expense_id='expense-owner-final-override'`,
+      [organizationId],
+    );
+    expect(overridden.rows[0]).toEqual({
+      management_state: "invalid",
+      cit_state: "ineligible",
+      vat_state: "ineligible",
+      cit_eligible_minor: "0",
+      vat_eligible_minor: "0",
+    });
+    const undocumented = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, "owner-final-undocumented"),
+      payload: {
+        ...payload,
+        id: "expense-owner-final-undocumented",
+        expenseClass: "non_documented",
+        vatMinor: "0",
+        grossMinor: "1000",
+        lines: payload.lines.map((line) => ({
+          ...line,
+          vatAccountCode: undefined,
+          vatMinor: "0",
+          grossMinor: "1000",
+        })),
+      },
+    });
+    expect(undocumented.statusCode, undocumented.body).toBe(201);
+    const excluded = await pool.query(
+      `select management_state::text,cit_state::text,vat_state::text
+       from expense_lines where organization_id=$1 and expense_id='expense-owner-final-undocumented'`,
+      [organizationId],
+    );
+    expect(excluded.rows[0]).toEqual({
+      management_state: "invalid",
+      cit_state: "ineligible",
+      vat_state: "ineligible",
+    });
+    await pool.query(
+      "update accounting_workflow_policies set operating_mode='controlled' where organization_id=$1",
+      [organizationId],
+    );
+  });
+
+  it("accepts project attribution and rejects a contract from another project", async () => {
+    const payload = {
+      id: "expense-project-attribution",
+      expenseClass: "non_documented",
+      payeePartyId: "SUP-01",
+      expenseDate: "2026-08-01",
+      businessPurpose: "Project supplies",
+      currency: "VND",
+      netMinor: "1000",
+      vatMinor: "0",
+      grossMinor: "1000",
+      counterAccountCode: "111-CASH",
+      lines: [
+        {
+          description: "Project supplies",
+          netMinor: "1000",
+          vatMinor: "0",
+          grossMinor: "1000",
+          postingAccountCode: "642-OPEX",
+          vatState: "ineligible",
+          allocations: [
+            {
+              id: "expense-project-a",
+              amountMinor: "1000",
+              dimensions: { projectId: "PROJECT-01", contractId: "CONTRACT-01" },
+            },
+          ],
+        },
+      ],
+    };
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, "expense-project-create"),
+      payload,
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses/${payload.id}`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(detail.json().data.lines[0].allocations[0].dimensions).toMatchObject({
+      projectId: "PROJECT-01",
+      contractId: "CONTRACT-01",
+    });
+    const listing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(
+      listing.json().data.items.find((item: { id: string }) => item.id === payload.id),
+    ).toMatchObject({ projectIds: ["PROJECT-01"], contractIds: ["CONTRACT-01"] });
+
+    const rejected = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(integrationToken, "expense-contract-reject"),
+      payload: {
+        ...payload,
+        id: "expense-contract-reject",
+        lines: payload.lines.map((line) => ({
+          ...line,
+          allocations: line.allocations.map((allocation) => ({
+            ...allocation,
+            dimensions: { contractId: "CONTRACT-01" },
+          })),
+        })),
+      },
+    });
+    expect(rejected.statusCode, rejected.body).toBe(422);
+    expect(rejected.json().error.code).toBe("EXPENSE_CONTRACT_PROJECT_REQUIRED");
+  });
 
   it("updates only category metadata on a posted expense with audit and idempotent readback", async () => {
     const id = "expense-posted-category-metadata";

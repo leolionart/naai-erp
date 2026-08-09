@@ -13,6 +13,7 @@ const store = {
   downloadExport: vi.fn(),
   exportSalesInvoices: vi.fn(),
   exportPurchaseInvoicesExpenses: vi.fn(),
+  exportManagementWorkbook: vi.fn(),
   supersedeExport: vi.fn(),
 } satisfies ReportExportStore;
 const master = { authenticate: vi.fn() };
@@ -77,6 +78,22 @@ describe("ERP-650 report export service", () => {
     expect(store.exportSalesInvoices).toHaveBeenCalledWith(context, filters);
     expect(() =>
       service.exportPurchaseInvoicesExpenses({ ...context, roles: ["viewer"] }, filters),
+    ).toThrow("FORBIDDEN");
+  });
+
+  it("validates and authorizes the canonical management workbook", async () => {
+    const filters = service.parseManagementExport({
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+    });
+    expect(filters).toEqual({ startsOn: "2026-01-01", endsOn: "2026-12-31" });
+    expect(() =>
+      service.parseManagementExport({ startsOn: "2026-12-31", endsOn: "2026-01-01" }),
+    ).toThrow("VALIDATION_FAILED");
+    await service.exportManagementWorkbook(context, filters);
+    expect(store.exportManagementWorkbook).toHaveBeenCalledWith(context, filters);
+    expect(() =>
+      service.exportManagementWorkbook({ ...context, roles: ["viewer"] }, filters),
     ).toThrow("FORBIDDEN");
   });
 });

@@ -539,8 +539,9 @@ export class PgFinancialStatementStore {
              when d.type='credit_note' then 'sales_credit_note' else d.type::text end source_type,
         case when d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice') then 'output' else 'input' end tax_kind,
         l.tax_minor::text tax_minor,case when d.type='credit_note' then 'reversal' else 'normal' end direction,
-        case when d.type='purchase_invoice' or (d.type='credit_note' and original.type='purchase_invoice') then 'unreviewed'::text else null::text end review_state,null::text eligible_minor,
-        null::text reviewer_id,null::text review_reason,null::text review_reference_id,l.tax_code,
+        case when d.type='purchase_invoice' or (d.type='credit_note' and original.type='purchase_invoice') then l.vat_state::text else null::text end review_state,
+        case when d.type='purchase_invoice' or (d.type='credit_note' and original.type='purchase_invoice') then l.vat_eligible_minor::text else null::text end eligible_minor,
+        l.reviewed_by reviewer_id,l.review_reason,l.review_reference review_reference_id,l.tax_code,
         exists(select 1 from tax_code_versions t where t.organization_id=d.organization_id and t.code=l.tax_code and t.review_state='accountant_approved' and t.effective_from<=d.document_date and (t.effective_to is null or t.effective_to>=d.document_date)) tax_code_approved,
         d.journal_id is not null posted_to_ledger,d.journal_id,
         case when l.tax_minor>0 then array['source_document']::text[] else array[]::text[] end required_evidence_types,
@@ -693,8 +694,8 @@ export class PgFinancialStatementStore {
        union all
        select d.id,d.document_date::text,'invoice_backed',d.state::text,d.currency,d.party_id,d.journal_id,
         l.line_number,l.description,l.net_minor::text,l.tax_minor::text,l.gross_minor::text,
-        '0','0','approved','unreviewed','unreviewed',
-        null,null,null,null,l.primary_account_code,null,l.dimensions
+        l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
+        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.primary_account_code,l.tax_account_code,l.dimensions
        from commercial_documents d
        join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
        join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id

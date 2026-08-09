@@ -14,8 +14,17 @@
 - Future invoices and future reconciliations are excluded from historical `asOf` measures: passed.
 - Sales invoice issue requires customer/project/currency agreement and aggregate signed contract
   capacity as of the invoice date: passed.
-- Explicit allocation-level invoice-to-contract/milestone identity: not implemented; the current
-  accepted boundary is project-level aggregate enforcement and is documented as such.
+- Revenue create/edit requires a client-role customer, filters projects to that customer, requires
+  project attribution and filters the optional contract to the selected project. API validation
+  rejects cross-customer projects and contracts belonging to another project: implementation proof
+  tracked by `T-API-ERP-841-026` and `T-E2E-ERP-841-027`.
+- Expense create/edit keeps the supplier/payee independent from the receiving project customer,
+  supports optional project and project-owned contract attribution, and preserves existing allocation
+  identity/dimensions during draft edits: implementation proof tracked by `T-API-ERP-841-026` and
+  `T-E2E-ERP-841-027`.
+- Explicit allocation-level invoice-to-contract identity is persisted in `dimensions.contractId`.
+  Milestone identity and per-contract invoice-cap consumption remain outside this accepted boundary;
+  capacity enforcement remains aggregate by project.
 - Company-bank withdrawal into company cash and company-cash deposit back into company bank are
   available as paired, reconciled internal-transfer demo cases with zero P&L effect: passed.
 - Banking workspace shows the complete cash-fund history, including reconciled records, with quick
@@ -28,6 +37,12 @@
   the approved `owner_current` statement mapping, and accounting profit from canonical P&L. It shows
   VND 333,000,000 bank, VND 7,000,000 cash, VND 30,000,000 owner payable, VND 310,000,000 net cash and
   VND 90,000,000 accounting profit at 2026-08-07: passed.
+- Dashboard consolidates bank and cash into one company-funds headline with a component breakdown,
+  and shows owner-borne operating cost less posted company repayments as the management amount owed
+  to the owner. Equipment/assets and owner funding remain outside this metric, while the complete
+  `owner_current` balance remains available in the statutory Balance Sheet.
+  Duplicate bank/cash/total, hypothetical post-settlement and category-derived owner-paid headline
+  cards were removed: passed.
 - Dashboard and executive-metric workspaces contain no embedded financial demo amounts; missing API
   data renders as an explicit missing-data state: passed.
 - Dashboard top cards are limited to owner-actionable cash, receivable and tax controls. Contract,
@@ -36,8 +51,9 @@
   provisional CIT reads accounting PBT, CIT adjustments and the approved CIT rate record: passed.
 - Dashboard renders a complete three-column grid with separate actionable cards for unreviewed input
   VAT and unreviewed CIT expense: passed.
-- Fully-loaded profit backed by a posted overhead allocation run: pending; source materialization API
-  is not available yet.
+- The demo does not claim fully-loaded profit without a posted overhead allocation run. Dashboard
+  cards use canonical ledger profit, while the project-profitability report retains its confidence
+  flags and only becomes fully loaded when canonical overhead data exists: passed.
 - Payroll remains VND 120,000,000 in total but is split into VND 70,000,000 direct project labor
   across the website and AI projects plus VND 50,000,000 shared operating payroll: passed.
 - Contract-backed freelance UI cost of VND 18,000,000 is posted to the website project with a
@@ -83,7 +99,7 @@
 - Project profitability prefers approved timesheet service-line attribution and otherwise uses the
   project default without emitting a false `service-line-unclassified` confidence flag: integration
   proof passed; production report readback remains pending.
-- Project directory defaults to active projects and combines text search with explicit lifecycle and
+- Project directory defaults to all projects and combines text search with explicit lifecycle and
   overlapping execution-date filters: passed by 3 focused unit cases.
 - Project lifecycle and date filters persist in the URL and restore their selected values after
   navigation or refresh: passed by focused desktop Chromium E2E.
@@ -94,6 +110,14 @@
   `dimensions.category` is absent: passed against a freshly migrated PostgreSQL integration database.
 - Missing chart category data is labeled explicitly as revenue or expense unclassified and is never
   silently assigned to a configured business category: passed by focused web unit proof.
+- Dashboard and Expense Management share the same expense overview component, canonical record
+  population, category labels, period filtering and totals; focused Chromium parity coverage passed.
+- Local imported expense data has canonical category coverage for all 124 expense records and all
+  190 purchase-invoice lines. Recovery used audited category-only APIs and future workbook import and
+  migration paths persist inferred category dimensions at creation time.
+- Shared application tables expose a shadcn-style toolbar with client-side row search and an outline
+  column-visibility menu; filtering, clearing, checkbox interaction and reload persistence passed
+  focused desktop Chromium coverage.
 
 ## Operational project correction
 
@@ -107,3 +131,7 @@
   covered by `T-API-ERP-841-022`.
 - First-party CLI and project admin UI use the same guarded REST deletion contract: covered by
   `T-CLI-ERP-841-023` and `T-E2E-ERP-841-024`.
+- Relationship inventory, zero-mutation dry-run, deterministic `planHash`, `If-Match` and idempotent
+  reverse/replacement commit are covered by `T-API-ERP-841-028` and `T-CLI-ERP-841-029`.
+- Production relationship audit completed read-only for 129 documents and 124 expenses; no
+  production mutation or deployment was performed.

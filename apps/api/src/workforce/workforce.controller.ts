@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { WorkforceService } from "./workforce.service.js";
 
@@ -23,6 +23,39 @@ export class WorkforceController {
     @Headers("idempotency-key") k?: string,
   ) {
     return this.service.createWorker(await this.c(o, a, c), i, k);
+  }
+  @Patch("workers/:id") async updateWorker(
+    @Param("organizationId") o: string,
+    @Param("id") id: string,
+    @Body() i: Record<string, unknown>,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") a?: string,
+    @Headers("x-correlation-id") c?: string,
+    @Headers("idempotency-key") k?: string,
+  ) {
+    return this.service.updateWorker(
+      await this.c(o, a, c),
+      id,
+      { ...i, expectedResourceVersion: expectedVersion ?? i.expectedResourceVersion },
+      k,
+    );
+  }
+  @Post("workers/:id/deactivate") async deactivateWorker(
+    @Param("organizationId") o: string,
+    @Param("id") id: string,
+    @Body() i: Record<string, unknown>,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") a?: string,
+    @Headers("x-correlation-id") c?: string,
+    @Headers("idempotency-key") k?: string,
+  ) {
+    return this.service.updateWorker(
+      await this.c(o, a, c),
+      id,
+      { ...i, expectedResourceVersion: expectedVersion ?? i.expectedResourceVersion },
+      k,
+      true,
+    );
   }
   @Get("timesheets") async timesheets(
     @Param("organizationId") o: string,

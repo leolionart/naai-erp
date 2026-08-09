@@ -1,6 +1,7 @@
 import { ModulePage } from "@/components/layout/module-page";
 import { LedgerMasterWorkspace } from "../../../workspaces/ledger-master-workspace";
 import { ExpenseCategoryPolicyWorkspace } from "../../../workspaces/expense-category-policy-workspace";
+import { OwnerFinalPolicyWorkspace } from "../../../workspaces/owner-final-policy-workspace";
 
 export default function MasterDataPage() {
   return (
@@ -10,6 +11,7 @@ export default function MasterDataPage() {
       description="Hệ thống tài khoản, kỳ tài chính, dimensions, parties và dự án."
     >
       <div className="flex flex-col gap-6">
+        <OwnerFinalPolicyWorkspace />
         <ExpenseCategoryPolicyWorkspace />
         <LedgerMasterWorkspace
           initialSection="accounts"

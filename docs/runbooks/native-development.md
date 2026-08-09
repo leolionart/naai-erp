@@ -163,11 +163,31 @@ The script is for local synthetic data only. Do not run it against staging or pr
 
 ## Develop the UI against production data without a second database
 
+The normal startup command reads the server-only API token and organization from macOS Keychain:
+
+```bash
+pnpm dev:prod-data
+```
+
+This mode is read-only. To enable only the explicitly allowlisted project-update, expense-create and
+commercial-document-create routes, start it with:
+
+```bash
+pnpm dev:prod-data -- --write
+```
+
+The Keychain entries are `naai-erp-api-token` and, optionally, `naai-erp-organization`, both under
+account `admin`. Validate the configuration without starting Next.js with
+`pnpm dev:prod-data -- --check`. The helper never prints the token and overrides any legacy
+`NEXT_PUBLIC_API_TOKEN` value with an empty value so credentials stay server-side.
+
 For read-only UI work, the local Next.js application can proxy production API reads without
 exposing the production token to the browser. Configure the web process with:
 
 ```dotenv
 NEXT_PUBLIC_API_URL=http://localhost:3000/dev-api
+NEXT_PUBLIC_PURCHASE_PRODUCTS_API_URL=http://localhost:3001
+NEXT_PUBLIC_PURCHASE_PRODUCTS_API_TOKEN=dev-token
 NEXT_PUBLIC_ORGANIZATION_ID=naai
 NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION=1
 NAAI_ERP_DEV_UPSTREAM_BASE_URL=https://erp.naai.studio

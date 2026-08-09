@@ -196,9 +196,9 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       values ('org-erp630','sale-doc','sales_invoice','posted','S-630','AA',2026,'client630','2026-08-15','2026-08-15','VND',100,10,110,'131-AR','vat-sale',null,'maker'),
              ('org-erp630','purchase-doc','purchase_invoice','captured','P-630',null,2026,'supplier630','2026-08-17','2026-08-17','VND',80,8,88,'331-AP',null,null,'maker'),
              ('org-erp630','purchase-credit-doc','credit_note','captured','PC-630','PC',2026,'supplier630','2026-08-18','2026-08-18','VND',20,2,22,'331-AP',null,'purchase-doc','maker');
-      insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code)
-      values ('org-erp630','sale-doc',1,'Sale',1,100,100,10,110,'511-REV','3331-VAT','VAT10O'),
-             ('org-erp630','purchase-doc',1,'Purchase',1,80,80,8,88,'642-OPEX','1331-VAT','VAT10I');
+      insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
+      values ('org-erp630','sale-doc',1,'Sale',1,100,100,10,110,'511-REV','3331-VAT','VAT10O','unreviewed','unreviewed','unreviewed',0,0,null,null,null,null),
+             ('org-erp630','purchase-doc',1,'Purchase',1,80,80,8,88,'642-OPEX','1331-VAT','VAT10I','valid','eligible','eligible',80,8,'owner630',now(),'Owner-final source decision','owner_final');
       insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code)
       values ('org-erp630','purchase-credit-doc',1,'Purchase credit',1,20,20,2,22,'642-OPEX','1331-VAT','VAT10I');
       insert into expenses(organization_id,id,expense_class,state,payee_party_id,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,journal_id,created_by)
@@ -411,10 +411,10 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       status: "review_required",
       outputVatMinor: "10",
       inputVatMinor: "11",
-      eligibleInputVatMinor: "5",
+      eligibleInputVatMinor: "13",
       ineligibleInputVatMinor: "0",
-      unreviewedInputVatMinor: "6",
-      netVatPayableMinor: "5",
+      unreviewedInputVatMinor: "-2",
+      netVatPayableMinor: "-3",
       outputVatLedgerMinor: "10",
       inputVatLedgerMinor: "5",
       outputDifferenceMinor: "0",
@@ -422,10 +422,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       sourceIds: ["expense630", "purchase-credit-doc", "purchase-doc", "sale-doc"],
       journalIds: ["vat-expense", "vat-sale"],
     });
-    expect(response.json().data.unreviewedItemIds).toEqual([
-      "document:purchase-credit-doc:1",
-      "document:purchase-doc:1",
-    ]);
+    expect(response.json().data.unreviewedItemIds).toEqual(["document:purchase-credit-doc:1"]);
   });
 
   it("exposes tax expense exceptions with independent CIT/VAT review and source IDs", async () => {

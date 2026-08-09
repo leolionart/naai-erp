@@ -102,10 +102,18 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
   }
 
   private async financials(org: string, q: OperatingDashboardQuery) {
-    const [monthlyResult, cash, cashAndBank, ownerCurrent, expenseFunding, taxPolicy, readiness] =
-      await Promise.all([
-        this.pool.query<{ period: string; revenue: string; expense: string }>(
-          `select
+    const [
+      monthlyResult,
+      cash,
+      cashAndBank,
+      ownerCurrent,
+      ownerOperatingPayable,
+      expenseFunding,
+      taxPolicy,
+      readiness,
+    ] = await Promise.all([
+      this.pool.query<{ period: string; revenue: string; expense: string }>(
+        `select
            to_char(j.journal_date, 'YYYY-MM') period,
            coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)) filter (where a.root_type='revenue'),0)::text revenue,
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where a.root_type='expense'),0)::text expense
@@ -116,10 +124,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           and j.journal_date between $2::date and $3::date
         group by to_char(j.journal_date, 'YYYY-MM')
         order by to_char(j.journal_date, 'YYYY-MM')`,
-          [org, q.startsOn, q.endsOn],
-        ),
-        this.pool.query<{ amount: string | null }>(
-          `select sum(
+        [org, q.startsOn, q.endsOn],
+      ),
+      this.pool.query<{ amount: string | null }>(
+        `select sum(
            (case when a.root_type in ('liability','equity','revenue')
              then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)
              else coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) end) * m.sign
@@ -133,10 +141,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         where p.organization_id=$1 and p.state='approved' and m.semantic='unrestricted_cash'
           and p.effective_from<=$2::date and (p.effective_to is null or p.effective_to>=$2::date)
           and j.state in ('posted','reversed') and j.journal_date<=$2::date`,
-          [org, q.asOf],
-        ),
-        this.pool.query<{ bank_amount: string; cash_amount: string; amount: string }>(
-          `with cash_accounts as (
+        [org, q.asOf],
+      ),
+      this.pool.query<{ bank_amount: string; cash_amount: string; amount: string }>(
+        `with cash_accounts as (
            select distinct ledger_account_code account_code,kind
            from financial_accounts
            where organization_id=$1 and status='active' and kind in ('bank','cash')
@@ -149,10 +157,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          join journal_lines l on l.organization_id=$1 and l.account_code=ca.account_code
          join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
          where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
-          [org, q.asOf],
-        ),
-        this.pool.query<{ amount: string }>(
-          `with selected_mapping as (
+        [org, q.asOf],
+      ),
+      this.pool.query<{ amount: string }>(
+        `with selected_mapping as (
            select id,version
            from financial_statement_mapping_versions
            where organization_id=$1 and framework='TT133' and state='approved'
@@ -170,23 +178,82 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          join journal_lines l on l.organization_id=$1 and l.account_code=oa.account_code
          join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
          where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
-          [org, q.asOf],
-        ),
-        this.pool.query<{
-          owner_paid: string;
-          unclassified_count: number;
-          unclassified_minor: string;
-          category_count: number;
-        }>(
-          `select
+        [org, q.asOf],
+      ),
+      this.pool.query<{ amount: string }>(
+        `with selected_mapping as (
+             select id,version
+             from financial_statement_mapping_versions
+             where organization_id=$1 and framework='TT133' and state='approved'
+               and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
+             order by effective_from desc,version desc limit 1
+           ), owner_accounts as (
+             select distinct ml.account_code
+             from selected_mapping sm
+             join financial_statement_mapping_lines ml
+               on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+             where ml.statement='balance_sheet' and ml.line_code='owner_current'
+           ), cash_accounts as (
+             select distinct ledger_account_code account_code
+             from financial_accounts
+             where organization_id=$1 and status='active' and kind in ('bank','cash')
+           ), eligible_owner_expenses as (
+             select coalesce(sum(l.gross_minor),0) amount
+             from expenses e
+             join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+             join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
+             join accounts a on a.organization_id=l.organization_id and a.code=l.posting_account_code
+             where e.organization_id=$1 and e.state='posted' and j.state in ('posted','reversed')
+               and e.expense_date<=$2::date
+               and e.counter_account_code in (select account_code from owner_accounts)
+               and a.root_type='expense'
+               and coalesce(l.expense_category_code,l.dimensions->>'category','') not in (
+                 'ELECTRONIC_EQUIP','ELECTRONICS_EQUIPMENT','OFFICE_FURNISHINGS'
+               )
+           ), repayment_movements as (
+             select j.id,
+               coalesce(sum(l.debit_minor) filter (where l.account_code in (select account_code from owner_accounts)),0) owner_debit,
+               coalesce(sum(l.credit_minor) filter (where l.account_code in (select account_code from cash_accounts)),0) company_cash_credit
+             from journal_entries j
+             join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+             where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date<=$2::date
+             group by j.id
+           )
+           select greatest(
+             (select amount from eligible_owner_expenses) -
+             coalesce((select sum(least(owner_debit,company_cash_credit)) from repayment_movements),0),
+             0
+           )::text amount`,
+        [org, q.asOf],
+      ),
+      this.pool.query<{
+        owner_paid: string;
+        unclassified_count: number;
+        unclassified_minor: string;
+        category_count: number;
+      }>(
+        `with selected_mapping as (
+             select id,version
+             from financial_statement_mapping_versions
+             where organization_id=$1 and framework='TT133' and state='approved'
+               and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
+             order by effective_from desc,version desc limit 1
+           ), owner_accounts as (
+             select distinct ml.account_code
+             from selected_mapping sm
+             join financial_statement_mapping_lines ml
+               on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+             where ml.statement='balance_sheet' and ml.line_code='owner_current'
+           )
+           select
              coalesce(sum(l.gross_minor) filter (where l.funding_treatment='owner_paid_company_cost'),0)::text owner_paid,
              count(*) filter (
-               where l.expense_category_code is null
-                 and l.funding_treatment='owner_paid_company_cost'
+               where l.funding_treatment is null
+                 and e.counter_account_code in (select account_code from owner_accounts)
              )::int unclassified_count,
              coalesce(sum(l.gross_minor) filter (
-               where l.expense_category_code is null
-                 and l.funding_treatment='owner_paid_company_cost'
+               where l.funding_treatment is null
+                 and e.counter_account_code in (select account_code from owner_accounts)
              ),0)::text unclassified_minor,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
@@ -194,28 +261,28 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
            where e.organization_id=$1 and e.state='posted' and e.expense_date<=$2::date
              and j.state in ('posted','reversed')`,
-          [org, q.asOf],
-        ),
-        this.pool.query<{ rate_bps: number | null }>(
-          `select round(rate*10000)::int rate_bps
+        [org, q.asOf],
+      ),
+      this.pool.query<{ rate_bps: number | null }>(
+        `select round(rate*10000)::int rate_bps
          from tax_code_versions
          where organization_id=$1 and kind='cit' and review_state='accountant_approved'
            and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
          order by effective_from desc,code limit 1`,
-          [org, q.asOf],
-        ),
-        this.pool.query<{
-          recognition_count: number;
-          budget_count: number;
-          overhead_count: number;
-        }>(
-          `select
+        [org, q.asOf],
+      ),
+      this.pool.query<{
+        recognition_count: number;
+        budget_count: number;
+        overhead_count: number;
+      }>(
+        `select
           (select count(*)::int from revenue_recognition_events where organization_id=$1 and state='posted' and effective_on between $2::date and $3::date) recognition_count,
           (select count(*)::int from project_budget_versions where organization_id=$1 and state='approved') budget_count,
           (select count(*)::int from overhead_allocation_runs where organization_id=$1 and state='posted' and period_end>=$2::date and period_start<=$3::date) overhead_count`,
-          [org, q.startsOn, q.endsOn],
-        ),
-      ]);
+        [org, q.startsOn, q.endsOn],
+      ),
+    ]);
     const monthly = monthlyResult.rows.map((row) => ({
       period: row.period,
       revenueMinor: amount(row.revenue).toString(),
@@ -229,6 +296,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
     const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
     const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
+    const ownerOperatingPayableMinor = amount(ownerOperatingPayable.rows[0]?.amount);
     const actualOwnerPaidCompanyCostMinor = amount(expenseFunding.rows[0]?.owner_paid);
     const unclassifiedOwnerPaidCount = expenseFunding.rows[0]?.unclassified_count ?? 0;
     const unclassifiedOwnerPaidMinor = amount(expenseFunding.rows[0]?.unclassified_minor);
@@ -248,9 +316,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       cashOnHandMinor: cashOnHandMinor.toString(),
       cashAndBankMinor: cashAndBankMinor.toString(),
       ownerPayableMinor: ownerPayableMinor.toString(),
+      ownerOperatingPayableMinor: ownerOperatingPayableMinor.toString(),
       netAvailableCashMinor: (cashAndBankMinor - ownerPayableMinor).toString(),
       actualOwnerPaidCompanyCostMinor: actualOwnerPaidCompanyCostMinor.toString(),
-      netCompanyFundsMinor: (cashAndBankMinor - actualOwnerPaidCompanyCostMinor).toString(),
+      netCompanyFundsMinor: (cashAndBankMinor - ownerPayableMinor).toString(),
       unclassifiedOwnerPaidCount,
       unclassifiedOwnerPaidMinor: unclassifiedOwnerPaidMinor.toString(),
       ownerPaidClassificationStatus,

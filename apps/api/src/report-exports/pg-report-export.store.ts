@@ -25,11 +25,21 @@ import {
 } from "../financial-statements/financial-statement.types.js";
 import type {
   ExportInput,
+  ManagementWorkbookQuery,
   ReportExportContext,
   ReportKind,
   SnapshotInput,
 } from "./report-export.types.js";
 import { createAccountingListWorkbook } from "./accounting-list-workbook.js";
+import {
+  createManagementWorkbook,
+  type ManagementExpenseCategoryRow,
+  type ManagementExpenseRow,
+  type ManagementMonthlyMetricRow,
+  type ManagementPlanRow,
+  type ManagementReceivableRow,
+  type ManagementRevenueRow,
+} from "./management-workbook.js";
 
 type SnapshotRow = Record<string, unknown> & {
   id: string;
@@ -674,6 +684,329 @@ export class PgReportExportStore {
       content,
       mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       filename: `${kind}-${filters.startsOn}-${filters.endsOn}.xlsx`,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  }
+  async exportManagementWorkbook(c: ReportExportContext, filters: ManagementWorkbookQuery) {
+    const params = [c.organizationId, filters.startsOn, filters.endsOn];
+    const [
+      organization,
+      sales,
+      recognition,
+      receipts,
+      receivables,
+      purchases,
+      directExpenses,
+      ledgerMonths,
+      targets,
+      forecasts,
+      categoryRows,
+    ] = await Promise.all([
+      this.pool.query<{ legal_name: string }>(`select legal_name from organizations where id=$1`, [
+        c.organizationId,
+      ]),
+      this.pool.query(
+        `select d.document_date::text date,'sales_invoice'::text "sourceType",
+                  concat_ws('-',nullif(d.series,''),d.document_number) reference,
+                  party.display_name "customerName",project.name "projectName",
+                  contract.reference "contractReference",d.net_minor::text "invoicedMinor",d.tax_minor::text "taxMinor",
+                  '0'::text "recognizedMinor",'0'::text "collectedMinor",d.state::text state
+             from commercial_documents d
+             join parties party on party.organization_id=d.organization_id and party.id=d.party_id
+             left join lateral (
+               select coalesce(a.dimensions->>'projectId',l.dimensions->>'projectId') project_id,
+                      coalesce(a.dimensions->>'contractId',l.dimensions->>'contractId') contract_id
+                 from commercial_document_lines l
+                 left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number
+                where l.organization_id=d.organization_id and l.document_id=d.id
+                  and coalesce(a.dimensions->>'projectId',l.dimensions->>'projectId') is not null
+                order by l.line_number,a.allocation_number nulls first limit 1
+             ) relation on true
+             left join projects project on project.organization_id=d.organization_id and project.id=relation.project_id
+             left join contracts contract on contract.organization_id=d.organization_id and contract.id=relation.contract_id
+            where d.organization_id=$1 and d.type='sales_invoice'
+              and d.state in ('issued','partially_paid','paid')
+              and d.document_date between $2::date and $3::date
+            order by d.document_date,d.id`,
+        params,
+      ),
+      this.pool.query(
+        `select event.effective_on::text date,'revenue_recognition'::text "sourceType",
+                  event.id reference,party.display_name "customerName",project.name "projectName",
+                  null::text "contractReference",'0'::text "invoicedMinor",
+                  event.amount_minor::text "recognizedMinor",'0'::text "collectedMinor",event.state::text state
+             from revenue_recognition_events event
+             join projects project on project.organization_id=event.organization_id and project.id=event.project_id
+             join parties party on party.organization_id=project.organization_id and party.id=project.client_party_id
+            where event.organization_id=$1 and event.state='posted'
+              and event.effective_on between $2::date and $3::date
+            order by event.effective_on,event.id`,
+        params,
+      ),
+      this.pool.query(
+        `select bank.booking_date::text date,'customer_receipt'::text "sourceType",
+                  bank.id reference,party.display_name "customerName",project.name "projectName",
+                  contract.reference "contractReference",'0'::text "invoicedMinor",
+                  '0'::text "recognizedMinor",allocation.target_amount_minor::text "collectedMinor",
+                  attempt.state::text state
+             from reconciliation_allocations allocation
+             join reconciliation_attempts attempt on attempt.organization_id=allocation.organization_id and attempt.id=allocation.reconciliation_id and attempt.state='reconciled'
+             join bank_transactions bank on bank.organization_id=attempt.organization_id and bank.id=attempt.bank_transaction_id
+             join commercial_documents d on d.organization_id=allocation.organization_id and d.id=allocation.commercial_document_id and d.type='sales_invoice'
+             join parties party on party.organization_id=d.organization_id and party.id=d.party_id
+             left join lateral (
+               select coalesce(a.dimensions->>'projectId',l.dimensions->>'projectId') project_id,
+                      coalesce(a.dimensions->>'contractId',l.dimensions->>'contractId') contract_id
+                 from commercial_document_lines l
+                 left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number
+                where l.organization_id=d.organization_id and l.document_id=d.id
+                order by l.line_number,a.allocation_number nulls first limit 1
+             ) relation on true
+             left join projects project on project.organization_id=d.organization_id and project.id=relation.project_id
+             left join contracts contract on contract.organization_id=d.organization_id and contract.id=relation.contract_id
+            where allocation.organization_id=$1 and allocation.target_type='commercial_document'
+              and bank.booking_date between $2::date and $3::date
+            order by bank.booking_date,allocation.id`,
+        params,
+      ),
+      this.pool.query(
+        `select party.display_name "customerName",d.document_number "documentNumber",
+                  project.name "projectName",d.document_date::text "documentDate",d.due_date::text "dueDate",
+                  d.gross_minor::text "grossMinor",coalesce(paid.amount_minor,0)::text "collectedMinor",
+                  greatest(d.gross_minor-coalesce(paid.amount_minor,0),0)::text "outstandingMinor",
+                  case when d.due_date>$3::date then 'Chưa đến hạn'
+                       when $3::date-d.due_date<=30 then '1-30'
+                       when $3::date-d.due_date<=60 then '31-60'
+                       when $3::date-d.due_date<=90 then '61-90' else '>90' end "agingBucket",
+                  d.state::text state
+             from commercial_documents d
+             join parties party on party.organization_id=d.organization_id and party.id=d.party_id
+             left join lateral (
+               select sum(a.target_amount_minor) amount_minor
+                 from reconciliation_allocations a
+                 join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id and r.state='reconciled'
+                 join bank_transactions b on b.organization_id=r.organization_id and b.id=r.bank_transaction_id and b.booking_date<=$3::date
+                where a.organization_id=d.organization_id and a.commercial_document_id=d.id
+             ) paid on true
+             left join lateral (
+               select coalesce(a.dimensions->>'projectId',l.dimensions->>'projectId') project_id
+                 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number
+                where l.organization_id=d.organization_id and l.document_id=d.id order by l.line_number,a.allocation_number nulls first limit 1
+             ) relation on true
+             left join projects project on project.organization_id=d.organization_id and project.id=relation.project_id
+            where d.organization_id=$1 and d.type='sales_invoice' and d.state in ('issued','partially_paid','paid')
+              and d.document_date between $2::date and $3::date
+              and d.gross_minor>coalesce(paid.amount_minor,0)
+            order by d.due_date,d.id`,
+        params,
+      ),
+      this.pool.query(
+        `select d.document_date::text date,'purchase_invoice'::text "sourceType",
+                  concat_ws('-',nullif(d.series,''),d.document_number) reference,party.display_name "supplierOrPayeeName",
+                  project.name "projectName",coalesce(category.name,account.name,'Chưa phân loại') "categoryName",
+                  coalesce(line.description,d.reason,'Hóa đơn mua vào') description,
+                  d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",
+                  d.control_account_code "fundingSource",d.state::text state
+             from commercial_documents d
+             join parties party on party.organization_id=d.organization_id and party.id=d.party_id
+             left join lateral (select * from commercial_document_lines l where l.organization_id=d.organization_id and l.document_id=d.id order by l.line_number limit 1) line on true
+             left join lateral (select coalesce(a.dimensions->>'projectId',line.dimensions->>'projectId') project_id,coalesce(a.dimensions->>'category',line.dimensions->>'category') category_code from commercial_document_allocations a where a.organization_id=d.organization_id and a.document_id=d.id and a.line_number=line.line_number order by a.allocation_number limit 1) relation on true
+             left join projects project on project.organization_id=d.organization_id and project.id=coalesce(relation.project_id,line.dimensions->>'projectId')
+             left join expense_categories category on category.organization_id=d.organization_id and category.code=coalesce(relation.category_code,line.dimensions->>'category')
+             left join accounts account on account.organization_id=d.organization_id and account.code=line.primary_account_code
+            where d.organization_id=$1 and d.type='purchase_invoice' and d.state='posted'
+              and d.document_date between $2::date and $3::date order by d.document_date,d.id`,
+        params,
+      ),
+      this.pool.query(
+        `select e.expense_date::text date,'expense'::text "sourceType",e.id reference,party.display_name "supplierOrPayeeName",
+                  project.name "projectName",coalesce(category.name,account.name,e.expense_class::text) "categoryName",
+                  e.business_purpose description,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",
+                  e.counter_account_code "fundingSource",e.state::text state
+             from expenses e left join parties party on party.organization_id=e.organization_id and party.id=e.payee_party_id
+             left join lateral (select * from expense_lines l where l.organization_id=e.organization_id and l.expense_id=e.id order by l.line_number limit 1) line on true
+             left join projects project on project.organization_id=e.organization_id and project.id=line.dimensions->>'projectId'
+             left join expense_categories category on category.organization_id=e.organization_id and category.code=line.expense_category_code
+             left join accounts account on account.organization_id=e.organization_id and account.code=line.posting_account_code
+            where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
+            order by e.expense_date,e.id`,
+        params,
+      ),
+      this.pool.query(
+        `select to_char(j.journal_date,'YYYY-MM') "month",
+                  coalesce(sum(case when account.root_type='revenue' then coalesce(line.credit_minor,0)-coalesce(line.debit_minor,0) else 0 end),0)::text revenue_minor,
+                  coalesce(sum(case when account.root_type='expense' then coalesce(line.debit_minor,0)-coalesce(line.credit_minor,0) else 0 end),0)::text expense_minor
+             from journal_entries j join journal_lines line on line.organization_id=j.organization_id and line.journal_id=j.id
+             join accounts account on account.organization_id=line.organization_id and account.code=line.account_code
+            where j.organization_id=$1 and j.state='posted' and j.journal_date between $2::date and $3::date
+            group by 1 order by 1`,
+        params,
+      ),
+      this.pool.query(
+        `select to_char(starts_on,'YYYY-MM') "month",amount_minor::text amount,state::text state
+             from revenue_target_versions where organization_id=$1 and state='published'
+              and team_id is null and service_line_code is null and owner_id is null
+              and starts_on<=$3::date and ends_on>=$2::date order by starts_on,version_number desc`,
+        params,
+      ),
+      this.pool.query(
+        `with selected as (select * from forecast_versions where organization_id=$1 and state='published'
+             and team_id is null and service_line_code is null and owner_id is null
+             and starts_on<=$3::date and ends_on>=$2::date order by published_at desc nulls last,version_number desc limit 1)
+           select to_char(component.scheduled_on,'YYYY-MM') "month",component.section::text section,
+                  sum(case when component.direction='increase' then component.amount_minor else -component.amount_minor end)::text amount,
+                  selected.state::text state
+             from selected join forecast_components component on component.organization_id=selected.organization_id and component.forecast_version_id=selected.id
+            where component.excluded=false and component.scheduled_on between $2::date and $3::date
+            group by 1,2,4 order by 1,2`,
+        params,
+      ),
+      this.pool.query(
+        `select source.period_month "month",source.category_code "categoryCode",source.category_name "categoryName",sum(source.amount_minor)::text "amountMinor" from (
+             select to_char(e.expense_date,'YYYY-MM') period_month,coalesce(line.expense_category_code,line.posting_account_code) category_code,coalesce(category.name,account.name,'Chưa phân loại') category_name,line.gross_minor amount_minor
+               from expenses e join expense_lines line on line.organization_id=e.organization_id and line.expense_id=e.id
+               left join expense_categories category on category.organization_id=line.organization_id and category.code=line.expense_category_code
+               left join accounts account on account.organization_id=line.organization_id and account.code=line.posting_account_code
+              where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
+             union all
+             select to_char(d.document_date,'YYYY-MM'),coalesce(line.dimensions->>'category',line.primary_account_code),coalesce(category.name,account.name,'Chưa phân loại'),line.gross_minor
+               from commercial_documents d join commercial_document_lines line on line.organization_id=d.organization_id and line.document_id=d.id
+               left join expense_categories category on category.organization_id=line.organization_id and category.code=line.dimensions->>'category'
+               left join accounts account on account.organization_id=line.organization_id and account.code=line.primary_account_code
+              where d.organization_id=$1 and d.type='purchase_invoice' and d.state='posted' and d.document_date between $2::date and $3::date
+           ) source group by source.period_month,source.category_code,source.category_name order by source.period_month,source.category_name`,
+        params,
+      ),
+    ]);
+
+    const revenue = [
+      ...sales.rows,
+      ...recognition.rows,
+      ...receipts.rows,
+    ] as ManagementRevenueRow[];
+    revenue.sort((a, b) => a.date.localeCompare(b.date) || a.reference.localeCompare(b.reference));
+    const expenses = [...purchases.rows, ...directExpenses.rows] as ManagementExpenseRow[];
+    expenses.sort((a, b) => a.date.localeCompare(b.date) || a.reference.localeCompare(b.reference));
+    const months = new Map<string, ManagementMonthlyMetricRow>();
+    const base = (month: string): ManagementMonthlyMetricRow => ({
+      month,
+      invoicedRevenueMinor: "0",
+      recognizedRevenueMinor: "0",
+      collectedRevenueMinor: "0",
+      expenseMinor: "0",
+      accountingProfitMinor: "0",
+      receivableMinor: "0",
+      outputVatMinor: "0",
+      inputVatMinor: "0",
+    });
+    const add = (
+      month: string,
+      field: keyof Omit<ManagementMonthlyMetricRow, "month">,
+      amount: string,
+    ) => {
+      const row = months.get(month) ?? base(month);
+      months.set(month, { ...row, [field]: (BigInt(row[field]) + BigInt(amount)).toString() });
+    };
+    for (const row of sales.rows as (ManagementRevenueRow & { taxMinor?: string })[])
+      add(row.date.slice(0, 7), "invoicedRevenueMinor", row.invoicedMinor);
+    for (const row of recognition.rows as ManagementRevenueRow[])
+      add(row.date.slice(0, 7), "recognizedRevenueMinor", row.recognizedMinor);
+    for (const row of receipts.rows as ManagementRevenueRow[])
+      add(row.date.slice(0, 7), "collectedRevenueMinor", row.collectedMinor);
+    for (const row of purchases.rows as ManagementExpenseRow[]) {
+      add(row.date.slice(0, 7), "inputVatMinor", row.taxMinor);
+    }
+    for (const row of directExpenses.rows as ManagementExpenseRow[])
+      add(row.date.slice(0, 7), "inputVatMinor", row.taxMinor);
+    for (const row of sales.rows as (ManagementRevenueRow & { taxMinor?: string })[])
+      if (row.taxMinor) add(row.date.slice(0, 7), "outputVatMinor", row.taxMinor);
+    for (const row of receivables.rows as ManagementReceivableRow[])
+      add(row.documentDate.slice(0, 7), "receivableMinor", row.outstandingMinor);
+    for (const row of ledgerMonths.rows as {
+      month: string;
+      revenue_minor: string;
+      expense_minor: string;
+    }[]) {
+      add(row.month, "expenseMinor", row.expense_minor);
+      add(
+        row.month,
+        "accountingProfitMinor",
+        (BigInt(row.revenue_minor) - BigInt(row.expense_minor)).toString(),
+      );
+    }
+    const targetByMonth = new Map(
+      (targets.rows as { month: string; amount: string; state: string }[]).map((row) => [
+        row.month,
+        row,
+      ]),
+    );
+    const forecastByMonth = new Map<
+      string,
+      { revenue: bigint; expense: bigint; cash: bigint; state: string }
+    >();
+    for (const row of forecasts.rows as {
+      month: string;
+      section: "revenue" | "expense" | "cash";
+      amount: string;
+      state: string;
+    }[]) {
+      const current = forecastByMonth.get(row.month) ?? {
+        revenue: 0n,
+        expense: 0n,
+        cash: 0n,
+        state: row.state,
+      };
+      current[row.section] += BigInt(row.amount);
+      forecastByMonth.set(row.month, current);
+    }
+    const planMonths = [
+      ...new Set([...targetByMonth.keys(), ...forecastByMonth.keys(), ...months.keys()]),
+    ].sort();
+    const plans: ManagementPlanRow[] = planMonths.map((month) => {
+      const actual = months.get(month) ?? base(month),
+        forecast = forecastByMonth.get(month);
+      return {
+        month,
+        revenueTargetMinor: targetByMonth.get(month)?.amount ?? "0",
+        forecastRevenueMinor: forecast?.revenue.toString() ?? "0",
+        actualRevenueMinor: actual.recognizedRevenueMinor,
+        forecastExpenseMinor: forecast?.expense.toString() ?? "0",
+        actualExpenseMinor: actual.expenseMinor,
+        state: targetByMonth.get(month)?.state ?? forecast?.state ?? "actual_only",
+      };
+    });
+    const book = createManagementWorkbook({
+      organizationId: c.organizationId,
+      organizationName: organization.rows[0]?.legal_name ?? c.organizationId,
+      startsOn: filters.startsOn,
+      endsOn: filters.endsOn,
+      asOfDate: filters.endsOn,
+      revenue,
+      receivables: receivables.rows as ManagementReceivableRow[],
+      expenses,
+      monthlyMetrics: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
+      plans,
+      expenseCategories: categoryRows.rows as ManagementExpenseCategoryRow[],
+      controls: [
+        {
+          name: "Nguồn kế toán",
+          value: "Chỉ posted/issued/reconciled",
+          status: "pass",
+          note: "Không dùng draft hoặc control workbook làm số liệu tài chính",
+        },
+        {
+          name: "Tiền cuối kỳ theo tháng",
+          value: "Chưa xuất",
+          status: "unavailable",
+          note: "Không đặt 0 giả định; cần canonical month-end cash read model",
+        },
+      ],
+    });
+    const content = normalizeZipTimestamps(Buffer.from(await book.xlsx.writeBuffer()));
+    return {
+      content,
+      mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      filename: `management-workbook-${filters.startsOn}-${filters.endsOn}.xlsx`,
       sha256: createHash("sha256").update(content).digest("hex"),
     };
   }

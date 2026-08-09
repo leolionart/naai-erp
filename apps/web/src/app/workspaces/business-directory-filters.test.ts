@@ -10,11 +10,11 @@ const activeProject = {
 };
 
 describe("project directory filters", () => {
-  it("defaults to active projects and keeps text search", () => {
+  it("supports the default all-state view and keeps text search", () => {
     expect(
       projectMatchesDirectoryFilters(activeProject, {
         query: "yêu lắm",
-        state: "active",
+        state: "all",
         startsOn: "",
         endsOn: "",
       }),
@@ -22,9 +22,9 @@ describe("project directory filters", () => {
     expect(
       projectMatchesDirectoryFilters(
         { ...activeProject, state: "closed" },
-        { query: "", state: "active", startsOn: "", endsOn: "" },
+        { query: "", state: "all", startsOn: "", endsOn: "" },
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("matches projects whose execution period overlaps the selected range", () => {

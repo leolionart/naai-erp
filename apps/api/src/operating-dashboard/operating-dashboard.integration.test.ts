@@ -20,12 +20,18 @@ suite("operating dashboard PostgreSQL API", () => {
       insert into membership_roles(organization_id,user_id,role) values('${org}','${owner}','owner');
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
         ('${org}','131','Receivables','asset',true,false),('${org}','511','Revenue','revenue',false,true),
-        ('${org}','642','Expense','expense',false,true),('${org}','3388','Owner payable','liability',false,true),
+        ('${org}','642','Expense','expense',false,true),('${org}','211','Equipment','asset',false,true),('${org}','3388','Owner payable','liability',false,true),
         ('${org}','112','Bank','asset',false,true);
+      insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,status,created_by,updated_by) values
+        ('${org}','bank','BANK','bank','Bank','VND','112','TESTBANK','active','${owner}','${owner}');
       insert into expense_categories(organization_id,code,name,funding_treatment,created_by,updated_by) values
         ('${org}','OWNER-ACTUAL','Owner-paid actual','owner_paid_company_cost','${owner}','${owner}'),
         ('${org}','TAX-ONLY','Tax-only invoice','tax_only_non_cash','${owner}','${owner}'),
         ('${org}','COMPANY','Company funded','company_funds','${owner}','${owner}');
+      insert into financial_statement_mapping_versions(organization_id,id,framework,version,effective_from,state,change_reason,created_by,approved_at,approved_by) values
+        ('${org}','tt133-dashboard','TT133',1,'2026-01-01','approved','Dashboard fixture','${owner}',now(),'${owner}');
+      insert into financial_statement_mapping_lines(organization_id,mapping_id,mapping_version,line_number,statement,line_code,label,account_code,display_order,sign) values
+        ('${org}','tt133-dashboard',1,1,'balance_sheet','owner_current','Owner current account','3388',1,1);
       insert into parties(organization_id,id,display_name,status) values('${org}','client','Client','active');
       insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
         values('${org}','project','OPS','Project','client','${owner}','fixed_fee','VND',2000,'2026-01-01','active');
@@ -36,13 +42,17 @@ suite("operating dashboard PostgreSQL API", () => {
         ('${org}','owner-expense-journal','2026-07-02','Owner actual','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
         ('${org}','tax-expense-journal','2026-07-03','Tax only','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
         ('${org}','company-expense-journal','2026-07-04','Company cost','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
-        ('${org}','unclassified-expense-journal','2026-07-05','Unclassified','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+        ('${org}','unclassified-expense-journal','2026-07-05','Unclassified','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','owner-equipment-journal','2026-07-06','Owner contributed equipment','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','owner-repayment-journal','2026-07-07','Cash withdrawn as owner repayment','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
         ('${org}','sales-journal',1,'131',1000,null,'AR','{}'),('${org}','sales-journal',2,'511',null,1000,'Revenue','{}'),
         ('${org}','owner-expense-journal',1,'642',100,null,'Owner actual','{}'),('${org}','owner-expense-journal',2,'3388',null,100,'Owner payable','{}'),
         ('${org}','tax-expense-journal',1,'642',200,null,'Tax only','{}'),('${org}','tax-expense-journal',2,'3388',null,200,'Owner payable','{}'),
         ('${org}','company-expense-journal',1,'642',300,null,'Company','{}'),('${org}','company-expense-journal',2,'112',null,300,'Bank','{}'),
-        ('${org}','unclassified-expense-journal',1,'642',50,null,'Unclassified','{}'),('${org}','unclassified-expense-journal',2,'3388',null,50,'Owner payable','{}');
+        ('${org}','unclassified-expense-journal',1,'642',50,null,'Unclassified','{}'),('${org}','unclassified-expense-journal',2,'3388',null,50,'Owner payable','{}'),
+        ('${org}','owner-equipment-journal',1,'211',500,null,'Equipment','{}'),('${org}','owner-equipment-journal',2,'3388',null,500,'Owner equipment','{}'),
+        ('${org}','owner-repayment-journal',1,'3388',40,null,'Owner repayment','{}'),('${org}','owner-repayment-journal',2,'112',null,40,'Bank withdrawal','{}');
       insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by) values
         ('${org}','owner-expense','invoice_backed','posted','2026-07-02','Owner actual','VND',100,0,100,'3388','owner-expense-journal','${owner}'),
         ('${org}','tax-expense','invoice_backed','posted','2026-07-03','Tax only','VND',200,0,200,'3388','tax-expense-journal','${owner}'),
@@ -83,7 +93,7 @@ suite("operating dashboard PostgreSQL API", () => {
     await app.getHttpAdapter().getInstance().ready();
   });
   afterAll(async () => {
-    await app.close();
+    await app?.close();
     await pool.end();
   });
 
@@ -118,16 +128,17 @@ suite("operating dashboard PostgreSQL API", () => {
           expenseMinor: "650",
           netProfitMinor: "350",
           unrestrictedCashMinor: null,
-          bankAvailableMinor: "0",
+          bankAvailableMinor: "-340",
           cashOnHandMinor: "0",
-          cashAndBankMinor: "0",
-          ownerPayableMinor: "0",
-          netAvailableCashMinor: "0",
+          cashAndBankMinor: "-340",
+          ownerPayableMinor: "810",
+          ownerOperatingPayableMinor: "310",
+          netAvailableCashMinor: "-1150",
           actualOwnerPaidCompanyCostMinor: "100",
-          netCompanyFundsMinor: "-100",
-          unclassifiedOwnerPaidCount: 0,
-          unclassifiedOwnerPaidMinor: "0",
-          ownerPaidClassificationStatus: "ready",
+          netCompanyFundsMinor: "-1150",
+          unclassifiedOwnerPaidCount: 1,
+          unclassifiedOwnerPaidMinor: "50",
+          ownerPaidClassificationStatus: "review_required",
           corporateIncomeTaxRateBps: null,
           rosBps: 3500,
           recognitionEventCount: 0,

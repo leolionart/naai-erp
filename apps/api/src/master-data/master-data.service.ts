@@ -116,6 +116,15 @@ export class MasterDataService {
   ): Promise<ApiEnvelope<{ resource: Record<string, unknown>; mutation: MutationMetadata }>> {
     if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (resource === "accounting-workflow-policy") {
+      input = { ...input, data: { ...input.data, updated_by: context.actorId } };
+    }
+    if (
+      resource === "purchase-products" &&
+      input.data.vat_rate_percent !== undefined &&
+      ![8, 10].includes(Number(input.data.vat_rate_percent))
+    )
+      throw new Error("PURCHASE_PRODUCT_VAT_RATE_INVALID");
     const result = await this.store.mutate(action, resource, context, key, input, idempotencyKey);
     return {
       apiVersion: API_VERSION,

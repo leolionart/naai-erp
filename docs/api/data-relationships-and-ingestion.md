@@ -133,6 +133,7 @@ Never choose the nearest party/project/account by name similarity alone.
 | `contract_id`                                                       | Contract ID                            | Used by milestones                                                       |
 | `partyId`                                                           | Party ID                               | Commercial-document counterparty                                         |
 | `lines[].dimensions.projectId` or allocation `dimensions.projectId` | Project stable `id`                    | Project attribution; resolve project code to its stable ID first         |
+| `lines[].dimensions.contractId` or allocation `dimensions.contractId` | Contract stable `id`                 | Optional; requires project attribution and must belong to that project   |
 | `payeePartyId`                                                      | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
 | `employeePartyId`                                                   | Party ID                               | Required for employee reimbursement                                      |
 | `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`    | Account `code`                         | Must exist and be allowed by posting rules                               |
@@ -187,9 +188,11 @@ Safe sales-invoice resolution:
    line amount.
 7. On mismatch, stop; never silently replace the customer or move the project.
 
-The create API has no top-level `projectId`. Project attribution uses the exact camelCase key
-`projectId` inside line/allocation dimensions. The list endpoint's `?projectId=` filter searches
-those values.
+The create API has no top-level `projectId` or `contractId`. Relationship attribution uses the exact
+camelCase keys `projectId` and optional `contractId` inside line/allocation dimensions. The list
+endpoint's `?projectId=` filter searches project attribution. When an allocation omits one of these
+keys, the application may inherit the corresponding line dimension; it never guesses a different
+project or contract.
 
 ### 8.3 Project revenue position: five independent axes
 
@@ -220,13 +223,13 @@ These axes answer different questions:
   invoice automatically;
 - collected cash never creates recognized or invoiced revenue by itself.
 
-Current implementation boundary: the accepted gate exposes this as a project-level aggregate.
-Invoice line/allocation data currently stores project attribution through `dimensions.projectId`;
-it does not persist canonical `contractId` or `milestoneId`. Contracts and milestones may be read as
-project master data, but an AI must not infer which contract or milestone an invoice allocation
-belongs to, must not claim contract-level remaining value, and must not enforce a contract or
-milestone invoice cap from name/date similarity. Such linkage requires a later versioned schema and
-API contract.
+Current implementation boundary: invoice line/allocation data stores project attribution through
+`dimensions.projectId` and may store an explicitly selected canonical contract through
+`dimensions.contractId`. The contract must resolve inside the organization and belong to that
+project. The application still enforces the issued-invoice ceiling at the project aggregate level;
+the explicit contract link supports relationship-preserving input and drill-down but does not by
+itself claim per-contract consumption or cap enforcement. `milestoneId` is not persisted, so an AI
+must not infer a milestone from name/date similarity.
 
 ### 8.4 Sales invoice → posting → receipt
 
@@ -267,13 +270,17 @@ Create body shape:
       "taxAccountCode": "3331",
       "dimensions": {
         "projectId": "project-stable-id-001",
+        "contractId": "contract-stable-id-001",
         "service_line": "DESIGN"
       },
       "allocations": [
         {
           "id": "allocation-1",
           "amountMinor": "10000000",
-          "dimensions": { "projectId": "project-stable-id-001" }
+          "dimensions": {
+            "projectId": "project-stable-id-001",
+            "contractId": "contract-stable-id-001"
+          }
         }
       ]
     }
@@ -284,12 +291,13 @@ Create body shape:
 Then:
 
 1. Verify `project-stable-id-001.client_party_id === party-client-1`.
-2. Retain `data.documentId` and `resourceVersion`.
-3. Follow only actions returned in `nextActions`, normally validate/issue/post according to type.
-4. Retain `journalId` returned by posting.
-5. Import the receipt under a resolved financial account.
-6. Match with allocation `{ "targetType": "commercial_document", "targetId": "<documentId>" }`.
-7. Reconcile and read back invoice outstanding plus journal/payment links.
+2. Verify `contract-stable-id-001.project_id === project-stable-id-001`.
+3. Retain `data.documentId` and `resourceVersion`.
+4. Follow only actions returned in `nextActions`, normally validate/issue/post according to type.
+5. Retain `journalId` returned by posting.
+6. Import the receipt under a resolved financial account.
+7. Match with allocation `{ "targetType": "commercial_document", "targetId": "<documentId>" }`.
+8. Reconcile and read back invoice outstanding plus journal/payment links.
 
 ### 8.5 Purchase invoice
 
@@ -298,8 +306,8 @@ invoice-backed expense. Typical lifecycle is capture → verify → approve → 
 targets the returned `documentId`.
 
 For project-attributed supplier cost, keep the supplier in `partyId` and place the receiving
-project's stable ID in `dimensions.projectId`. Do not require the project client to equal the
-supplier.
+project's stable ID in `dimensions.projectId`. An optional `dimensions.contractId` must belong to
+that project. Do not require the project client to equal the supplier.
 
 ### 8.6 Non-invoice expense
 
@@ -311,6 +319,12 @@ Use the validated request shape in
 
 Retain `data.expenseId`, then submit/review/approve/post. If paid through an imported bank
 transaction, reconciliation uses `targetType=expense` and `targetId=<expenseId>`.
+
+For a direct project cost, keep the supplier in `payeePartyId`, put the receiving project in
+`lines[].allocations[].dimensions.projectId`, and optionally put a contract from that project in
+`dimensions.contractId`. The payee is not remapped to the project's customer. A draft PATCH that
+omits `lines` preserves the stored lines and allocations; sending `lines` is an explicit replacement,
+so clients must read back and resend allocation IDs, amounts and all dimensions they intend to keep.
 
 ### 8.7 Bank import and reconciliation
 
@@ -350,7 +364,89 @@ transaction is corrected by authorized unreconcile with reason, then rematch.
 
 Never change a posted source's party, project, lines, amount or journal relationship in place.
 
-### 8.9 Workbook review row → canonical resource
+### 8.9 Relationship backfill for final documents and expenses
+
+Use this workflow only when an issued/posted commercial document or posted expense lacks canonical
+project/contract attribution. It is not a bulk guessing endpoint and it never mutates final history
+in place.
+
+Inventory first:
+
+```http
+GET /api/v1/organizations/{organizationId}/commercial-documents/relationship-backfill/inventory
+GET /api/v1/organizations/{organizationId}/expenses/relationship-backfill/inventory
+```
+
+Each inventory item includes top-level `projectIds: string[]` and `contractIds: string[]`, aggregated
+from line and allocation dimensions. Empty arrays mean missing attribution, not permission to infer a
+project from similar names, dates or amounts.
+
+For one reviewed record:
+
+1. Read the canonical detail and retain its current `version`.
+2. Build the complete replacement create payload, including every amount, line, allocation, evidence
+   reference and the reviewed `projectId`/optional `contractId` values to retain.
+3. Dry-run with `If-Match: <version>` and a nonblank reason:
+
+```http
+POST /api/v1/organizations/{organizationId}/commercial-documents/{id}/relationship-backfill/dry-run
+POST /api/v1/organizations/{organizationId}/expenses/{id}/relationship-backfill/dry-run
+```
+
+```json
+{
+  "replacement": { "...": "full canonical create payload" },
+  "reason": "Bổ sung liên kết dự án/hợp đồng đã được rà soát"
+}
+```
+
+The zero-mutation response returns `dryRun: true`, deterministic `planHash`, `originalId`,
+`originalState`, the normalized `replacement`, and planned `effects`. Document effects are
+`reverse_original_journal`, `cancel_original`, `create_replacement_draft`; expense effects are
+`reverse_original_journal`, `reverse_original`, `create_replacement_draft`.
+
+4. Review the normalized replacement and effects. Do not commit if the source version, mapping or
+   reason changes.
+5. Commit the exact plan with the same `If-Match`, the returned `planHash`, and a stable
+   `Idempotency-Key`:
+
+```http
+POST /api/v1/organizations/{organizationId}/commercial-documents/{id}/relationship-backfill/commit
+POST /api/v1/organizations/{organizationId}/expenses/{id}/relationship-backfill/commit
+```
+
+```json
+{
+  "replacement": { "...": "same normalized business payload" },
+  "reason": "Bổ sung liên kết dự án/hợp đồng đã được rà soát",
+  "planHash": "<sha256 from dry-run>"
+}
+```
+
+The hash covers normalized `{id, expectedVersion, replacement, trimmed reason}`. A stale version or
+different payload/reason is rejected; a hash mismatch returns a structured conflict. Commit follows
+the normal reverse/replacement service, period locks, authorization, audit and idempotency rules.
+Eligible commercial-document states are `issued`, `posted`, `partially_paid` and `paid`; eligible
+expenses must be `posted`. The original document becomes `cancelled`, the original expense becomes
+`reversed`, and the replacement is a draft. Durable external identity transfers to the replacement;
+active-only uniqueness permits the replacement document to reuse the original invoice number.
+
+CLI resources use the same REST application services:
+
+```text
+naai-erp commercial-document-relationship-backfill inventory --organization <org>
+naai-erp commercial-document-relationship-backfill dry-run --organization <org> --key <id> --version <version> --file mapping.json
+naai-erp commercial-document-relationship-backfill commit --organization <org> --key <id> --version <version> --file mapping-with-plan-hash.json --idempotency-key <key>
+
+naai-erp expense-relationship-backfill inventory --organization <org>
+naai-erp expense-relationship-backfill dry-run --organization <org> --key <id> --version <version> --data '<JSON>'
+naai-erp expense-relationship-backfill commit --organization <org> --key <id> --version <version> --data '<JSON>' --idempotency-key <key>
+```
+
+Non-inventory actions require `--key`, `--version` and explicit JSON through `--file` or `--data`;
+commit additionally requires `--idempotency-key`.
+
+### 8.10 Workbook review row → canonical resource
 
 The review row is staging evidence, not a report source.
 

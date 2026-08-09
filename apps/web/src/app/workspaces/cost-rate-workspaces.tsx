@@ -9,7 +9,14 @@ import { MoneyCell } from "@/components/financial/money-cell";
 import { StatusBadge } from "@/components/financial/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -113,9 +120,6 @@ export function CostRateListWorkspace() {
   ];
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setDialog(true)}>Tạo phiên bản rate</Button>
-      </div>
       <Alert>
         <AlertDescription>{notice}</AlertDescription>
       </Alert>
@@ -125,6 +129,9 @@ export function CostRateListWorkspace() {
           <CardDescription>
             Rate mới tạo version mới; không rewrite historical applied cost.
           </CardDescription>
+          <CardAction>
+            <Button onClick={() => setDialog(true)}>Tạo phiên bản rate</Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <FinancialDataTable rows={rows} columns={columns} rowKey={(r) => r.id} loading={busy} />

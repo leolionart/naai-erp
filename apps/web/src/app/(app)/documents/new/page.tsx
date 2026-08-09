@@ -1,5 +1,5 @@
-import { FocusedRecordCreateWorkspace } from "@/app/workspaces/focused-record-workspaces";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <FocusedRecordCreateWorkspace kind="documents" />;
+  redirect("/documents?create=1");
 }

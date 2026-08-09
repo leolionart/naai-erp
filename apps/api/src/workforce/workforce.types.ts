@@ -6,10 +6,19 @@ export type MutationInput = {
   expectedResourceVersion: string;
   reason: string;
   billingReference?: string;
+  employmentKind?: "employee" | "freelancer" | "contractor";
+  endsOn?: string | null;
 };
 export type WorkforceStore = Readonly<{
   listWorkers(org: string): Promise<unknown>;
   createWorker(c: WorkforceContext, input: Record<string, unknown>, key: string): Promise<unknown>;
+  updateWorker(
+    c: WorkforceContext,
+    id: string,
+    input: Record<string, unknown>,
+    key: string,
+    deactivate?: boolean,
+  ): Promise<unknown>;
   listTimesheets(org: string, query: Record<string, string | undefined>): Promise<unknown>;
   getTimesheet(org: string, id: string): Promise<unknown | undefined>;
   createTimesheet(

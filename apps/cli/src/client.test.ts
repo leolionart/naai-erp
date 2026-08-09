@@ -686,6 +686,63 @@ describe("NAAI ERP JSON-first CLI client", () => {
     },
   );
 
+  it("routes explicit relationship backfill inventory dry-run and commit operations", async () => {
+    const fetchFn = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("commercial-document-relationship-backfill", "inventory");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/commercial-documents/relationship-backfill/inventory",
+      expect.objectContaining({ method: "GET" }),
+    );
+    const payload = {
+      replacement: { id: "replacement-1" },
+      reason: "Explicit project and contract mapping",
+      planHash: "a".repeat(64),
+    };
+    await client.request(
+      "commercial-document-relationship-backfill",
+      "dry-run",
+      payload,
+      "document-1",
+      "2",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/commercial-documents/document-1/relationship-backfill/dry-run",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "if-match": "2" }),
+      }),
+    );
+    await client.request(
+      "expense-relationship-backfill",
+      "commit",
+      payload,
+      "expense-1",
+      "3",
+      "relationship-commit-1",
+    );
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/expenses/expense-1/relationship-backfill/commit",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "if-match": "3",
+          "idempotency-key": "relationship-commit-1",
+        }),
+      }),
+    );
+  });
+
   it.each(["review", "download-url"])(
     "calls evidence %s through its controlled API",
     async (action) => {
@@ -1252,6 +1309,41 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(fetchFn).toHaveBeenCalledWith(
       `http://api/api/v1/organizations/org-a/${path}?workerId=worker-1&from=2026-08-01`,
       expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("updates and deactivates workers through controlled REST mutations", async () => {
+    const fetchFn = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const payload = { schemaVersion: 1, reason: "Payroll correction" };
+    await client.request("workers", "update", payload, "worker-1", "2", "worker-update-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/time/workers/worker-1",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({ "if-match": "2", "idempotency-key": "worker-update-1" }),
+      }),
+    );
+    await client.request("workers", "deactivate", payload, "worker-1", "3", "worker-deactivate-1");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/time/workers/worker-1/deactivate",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "if-match": "3",
+          "idempotency-key": "worker-deactivate-1",
+        }),
+      }),
     );
   });
 

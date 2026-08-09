@@ -5,9 +5,15 @@ type Row = Record<string, unknown>;
 
 const text = (value: unknown) => (value == null ? "" : String(value));
 const money = (value: unknown) => {
-  const parsed = Number.parseInt(text(value) || "0", 10);
-  return Number.isSafeInteger(parsed) ? parsed : 0;
+  const raw = text(value).trim() || "0";
+  if (!/^-?\d+$/.test(raw)) throw new Error(`Invalid exact money amount: ${raw}`);
+  const parsed = BigInt(raw);
+  if (parsed > BigInt(Number.MAX_SAFE_INTEGER) || parsed < BigInt(Number.MIN_SAFE_INTEGER))
+    throw new Error(`Money amount exceeds Excel exact-integer range: ${raw}`);
+  return Number(parsed);
 };
+const optionalMoney = (value: unknown) =>
+  value == null || text(value).trim() === "" ? null : money(value);
 const date = (value: unknown) => {
   const parsed = new Date(`${text(value)}T00:00:00.000Z`);
   return Number.isNaN(parsed.valueOf()) ? null : parsed;
@@ -16,6 +22,126 @@ const rate = (net: number, tax: number, taxCode: unknown) => {
   const fromCode = text(taxCode).match(/(\d+(?:\.\d+)?)\s*%?$/)?.[1];
   if (fromCode) return Number(fromCode);
   return net ? Number(((tax / net) * 100).toFixed(2)) : 0;
+};
+
+const RAW_HEADERS = [
+  "STT",
+  "Ký hiệu mẫu số",
+  "Ký hiệu hóa đơn",
+  "Số hóa đơn",
+  "Ngày lập",
+  "MST người bán/MST người xuất hàng",
+  "Tên người bán/Tên người xuất hàng",
+  "MST người mua/MST người nhận hàng",
+  "Tên người mua/Tên người nhận hàng",
+  "Địa chỉ người mua",
+  "Tổng tiền chưa thuế",
+  "Tổng tiền thuế",
+  "Tổng tiền chiết khấu thương mại",
+  "Tổng tiền phí",
+  "Tổng tiền thanh toán",
+  "Đơn vị tiền tệ",
+  "Tỷ giá",
+  "Trạng thái hóa đơn",
+  "Kết quả kiểm tra hóa đơn",
+  "QUÝ",
+  "THÁNG",
+] as const;
+
+const addForm78Sheet = (
+  book: ExcelJS.Workbook,
+  input: {
+    sales: boolean;
+    organizationName: string;
+    records: Row[];
+  },
+) => {
+  const sheet = book.addWorksheet(input.sales ? "BRTT78" : "MVTT78", {
+    properties: { defaultRowHeight: 20 },
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+  sheet.addRow([]);
+  sheet.addRow([]);
+  sheet.addRow([...RAW_HEADERS]);
+  const header = sheet.getRow(3);
+  header.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  header.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17365D" } };
+  header.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  header.height = 64;
+
+  const invoiceRecords = input.records.filter(
+    (record) => text(record.invoicePresence) === "present",
+  );
+  invoiceRecords.forEach((record, index) => {
+    const recordDate = date(record.recordDate);
+    const invoicePresent = text(record.invoicePresence) === "present";
+    const quarter = recordDate ? `Q${Math.floor(recordDate.getUTCMonth() / 3) + 1}` : null;
+    const month = recordDate ? recordDate.getUTCMonth() + 1 : null;
+    const partyName = text(record.partyName) || null;
+    const partyTaxId = text(record.partyTaxId) || null;
+    const partyAddress = text(record.partyAddress) || null;
+    const orgTaxId = text(record.organizationTaxId) || null;
+    const orgAddress = text(record.organizationAddress) || null;
+    const row = sheet.addRow([
+      index + 1,
+      invoicePresent ? text(record.templateSymbol) || null : null,
+      invoicePresent ? text(record.series) || null : null,
+      invoicePresent ? text(record.documentNumber) || null : null,
+      invoicePresent ? recordDate : null,
+      input.sales ? orgTaxId : partyTaxId,
+      input.sales ? input.organizationName : partyName,
+      input.sales ? partyTaxId : orgTaxId,
+      input.sales ? partyName : input.organizationName,
+      input.sales ? partyAddress : orgAddress,
+      money(record.netMinor),
+      money(record.taxMinor),
+      optionalMoney(record.discountMinor),
+      optionalMoney(record.feeMinor),
+      money(record.grossMinor),
+      text(record.currency) || "VND",
+      record.exchangeRate == null || text(record.exchangeRate).trim() === ""
+        ? 1
+        : (() => {
+            const parsed = Number(text(record.exchangeRate));
+            if (!Number.isFinite(parsed) || parsed <= 0)
+              throw new Error(`Invalid exchange rate: ${text(record.exchangeRate)}`);
+            return parsed;
+          })(),
+      text(record.invoiceState || record.state) || null,
+      text(record.invoiceCheckResult) || null,
+      quarter,
+      month,
+    ]);
+    row.getCell(5).numFmt = "dd/mm/yyyy";
+    for (const column of [11, 12, 13, 14, 15]) row.getCell(column).numFmt = "#,##0;[Red](#,##0)";
+    row.getCell(17).numFmt = "0.########";
+    row.alignment = { vertical: "top", wrapText: true };
+  });
+
+  const lastDataRow = Math.max(4, sheet.rowCount);
+  for (const column of [11, 12, 15]) {
+    const letter = sheet.getColumn(column).letter;
+    sheet.getCell(2, column).value = { formula: `SUBTOTAL(9,${letter}4:${letter}${lastDataRow})` };
+    sheet.getCell(2, column).numFmt = "#,##0;[Red](#,##0)";
+    sheet.getCell(2, column).font = { bold: true };
+  }
+  const widths = [
+    7, 16, 16, 15, 14, 22, 38, 22, 38, 38, 20, 18, 22, 16, 20, 14, 14, 20, 30, 10, 10,
+  ];
+  widths.forEach((width, index) => (sheet.getColumn(index + 1).width = width));
+  sheet.views = [{ state: "frozen", ySplit: 3 }];
+  sheet.autoFilter = { from: { row: 3, column: 1 }, to: { row: lastDataRow, column: 21 } };
+  sheet.pageSetup.printTitlesRow = "1:3";
+
+  for (let rowNumber = 4; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    for (const column of [2, 6, 8, 10, 13, 14, 19]) {
+      const cell = sheet.getCell(rowNumber, column);
+      if (cell.value == null)
+        cell.note =
+          "Để trống vì API nguồn hiện chưa cung cấp trường này; NAAI ERP không tự suy đoán.";
+    }
+  }
+  return sheet;
 };
 
 const addRawSheet = (book: ExcelJS.Workbook, name: string, rows: Row[]) => {
@@ -54,6 +180,11 @@ export function createAccountingListWorkbook(input: {
   book.modified = book.created;
   book.calcProperties.fullCalcOnLoad = false;
   const sales = input.kind === "sales_invoices";
+  addForm78Sheet(book, {
+    sales,
+    organizationName: input.organizationName,
+    records: input.records,
+  });
   const sheet = book.addWorksheet(sales ? "Bảng kê bán ra" : "Bảng kê mua vào", {
     properties: { defaultRowHeight: 20 },
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },

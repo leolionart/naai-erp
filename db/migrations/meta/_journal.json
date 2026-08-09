@@ -274,6 +274,34 @@
       "when": 1786226547353,
       "tag": "0038_noisy_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1786250400000,
+      "tag": "0039_relationship_backfill_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1786254120000,
+      "tag": "0040_purchase_products_vat_rates",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786254300000,
+      "tag": "0041_accountant_identity_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1786257600000,
+      "tag": "0042_owner_final_tax_workflow",
+      "breakpoints": true
     }
   ]
 }

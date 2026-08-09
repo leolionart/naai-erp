@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Filter } from "lucide-react";
+import { Columns3, Filter, LayoutGrid } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -27,8 +27,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
 import {
@@ -39,6 +44,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import type { createApiClient } from "@/lib/api";
 import { ProjectBudgetWorkspace } from "./project-revenue-workspaces";
@@ -70,6 +78,27 @@ const dateOnly = (input: string) => {
 const masterDataKey = (id: string) =>
   btoa(JSON.stringify({ id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 
+const PROJECT_STATES = [
+  { value: "planned", label: "Dự kiến" },
+  { value: "active", label: "Đang triển khai" },
+  { value: "on_hold", label: "Tạm dừng" },
+  { value: "completed", label: "Hoàn thành" },
+  { value: "closed", label: "Đã đóng" },
+] as const;
+
+const projectStateLabel = (state: string) =>
+  (PROJECT_STATES.find((item) => item.value === state)?.label ?? state) || "—";
+const digitsOnly = (input: string) => input.replace(/[^0-9]/g, "");
+const formatInteger = (input: string) => {
+  const digits = digitsOnly(input);
+  if (!digits) return "";
+  try {
+    return new Intl.NumberFormat("vi-VN").format(BigInt(digits));
+  } catch {
+    return input;
+  }
+};
+
 export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryKind }>) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const router = useRouter();
@@ -81,6 +110,7 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [updatingProjectId, setUpdatingProjectId] = useState("");
 
   const load = useCallback(async () => {
     if (!hydrated) return;
@@ -118,7 +148,8 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
   }, [client, hasToken, hydrated, kind]);
   useEffect(() => void load(), [load]);
 
-  const projectState = searchParams.get("state") ?? "active";
+  const projectState = searchParams.get("state") ?? "all";
+  const viewMode = searchParams.get("view") === "kanban" ? "kanban" : "grid";
   const startsOn = searchParams.get("startsOn") ?? "";
   const endsOn = searchParams.get("endsOn") ?? "";
   const filtered = rows.filter((row) => {
@@ -137,12 +168,48 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
     );
     return matchesQuery;
   });
+  const kanbanRows = rows.filter((row) =>
+    projectMatchesDirectoryFilters(row, { query, state: "all", startsOn, endsOn }),
+  );
+
+  function changeView(nextView: string) {
+    if (nextView !== "grid" && nextView !== "kanban") return;
+    const next = new URLSearchParams(searchParams.toString());
+    if (nextView === "kanban") next.set("view", "kanban");
+    else next.delete("view");
+    router.replace(`${pathname}${next.size ? `?${next.toString()}` : ""}`);
+  }
+
+  async function updateProjectState(project: Row, state: string) {
+    const id = value(project, "id");
+    const previousState = value(project, "state");
+    if (!id || state === previousState || updatingProjectId) return;
+    setUpdatingProjectId(id);
+    setError("");
+    try {
+      await client.data(`master-data/projects/${masterDataKey(id)}`, {
+        method: "PATCH",
+        body: { data: { state } },
+        ...(value(project, "resource_version")
+          ? { expectedVersion: value(project, "resource_version") }
+          : {}),
+      });
+      await load();
+    } catch (caught) {
+      setRows((current) =>
+        current.map((row) => (value(row, "id") === id ? { ...row, state: previousState } : row)),
+      );
+      setError(caught instanceof Error ? caught.message : "Không thể cập nhật trạng thái dự án.");
+    } finally {
+      setUpdatingProjectId("");
+    }
+  }
 
   function applyProjectFilters(data: FormData) {
     const next = new URLSearchParams(searchParams.toString());
     for (const name of ["state", "startsOn", "endsOn"]) {
       const selected = String(data.get(name) ?? "").trim();
-      if (!selected || selected === "all" || (name === "state" && selected === "active")) {
+      if (!selected || selected === "all") {
         next.delete(name);
       } else {
         next.set(name, selected);
@@ -157,7 +224,8 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="secondary" className="text-xs font-normal">
-            {filtered.length} bản ghi
+            {kind === "projects" && viewMode === "kanban" ? kanbanRows.length : filtered.length} bản
+            ghi
           </Badge>
           <PeriodRangeNavigator />
           <Input
@@ -169,6 +237,26 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
           />
         </div>
         <div className="flex max-w-full flex-wrap justify-end gap-2">
+          {kind === "projects" ? (
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={changeView}
+              variant="outline"
+              size="sm"
+              spacing={0}
+              aria-label="Chế độ hiển thị dự án"
+            >
+              <ToggleGroupItem value="grid" aria-label="Dạng thẻ">
+                <LayoutGrid data-icon="inline-start" />
+                Thẻ
+              </ToggleGroupItem>
+              <ToggleGroupItem value="kanban" aria-label="Kanban">
+                <Columns3 data-icon="inline-start" />
+                Kanban
+              </ToggleGroupItem>
+            </ToggleGroup>
+          ) : null}
           {kind === "projects" ? (
             <ProjectFilterPopover
               open={filterOpen}
@@ -189,52 +277,63 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((row) => {
-          const id = value(row, "id");
-          const customer = kind === "customers";
-          const rawName = customer ? value(row, "display_name") : value(row, "name");
-          let title = rawName;
-          let note = value(row, "notes") || value(row, "description");
-          if (!customer && rawName.includes(" — ")) {
-            const parts = rawName.split(" — ");
-            title = parts[0]!.trim();
-            if (!note) note = parts.slice(1).join(" — ").trim();
-          }
+      {kind === "projects" && viewMode === "kanban" ? (
+        <ProjectKanban
+          rows={kanbanRows}
+          updatingProjectId={updatingProjectId}
+          onStateChange={updateProjectState}
+        />
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((row) => {
+            const id = value(row, "id");
+            const customer = kind === "customers";
+            const rawName = customer ? value(row, "display_name") : value(row, "name");
+            let title = rawName;
+            let note = value(row, "notes") || value(row, "description");
+            if (!customer && rawName.includes(" — ")) {
+              const parts = rawName.split(" — ");
+              title = parts[0]!.trim();
+              if (!note) note = parts.slice(1).join(" — ").trim();
+            }
 
-          return (
-            <Card key={id} className="flex flex-col justify-between">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base font-semibold leading-tight">{title}</CardTitle>
-                    <CardDescription className="font-mono text-xs">
-                      {customer ? id : value(row, "code")}
-                    </CardDescription>
+            return (
+              <Card key={id} className="flex flex-col justify-between">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <CardTitle className="text-base font-semibold leading-tight">
+                        {title}
+                      </CardTitle>
+                      <CardDescription className="font-mono text-xs">
+                        {customer ? id : value(row, "code")}
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="shrink-0">
+                      {customer ? value(row, "status") : projectStateLabel(value(row, "state"))}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="shrink-0">
-                    {customer ? value(row, "status") : value(row, "state")}
-                  </Badge>
-                </div>
-                {note ? (
-                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic">{note}</p>
-                ) : null}
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2 pt-0">
-                <Button asChild size="sm">
-                  <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
-                </Button>
-                {customer ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/receivables/customers/${encodeURIComponent(id)}`}>Công nợ</Link>
+                  {note ? (
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic">{note}</p>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2 pt-0">
+                  <Button asChild size="sm">
+                    <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
                   </Button>
-                ) : null}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      {!loading && filtered.length === 0 ? (
+                  {customer ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/receivables/customers/${encodeURIComponent(id)}`}>Công nợ</Link>
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      {!loading &&
+      (kind === "projects" && viewMode === "kanban" ? kanbanRows : filtered).length === 0 ? (
         <p className="text-sm text-muted-foreground">Chưa có dữ liệu phù hợp.</p>
       ) : null}
       <DirectoryEditor
@@ -245,6 +344,111 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
         onSaved={load}
       />
     </div>
+  );
+}
+
+function ProjectKanban({
+  rows,
+  updatingProjectId,
+  onStateChange,
+}: Readonly<{
+  rows: readonly Row[];
+  updatingProjectId: string;
+  onStateChange(project: Row, state: string): void | Promise<void>;
+}>) {
+  const [draggedProjectId, setDraggedProjectId] = useState("");
+  const projectsById = new Map(rows.map((row) => [value(row, "id"), row]));
+
+  return (
+    <ScrollArea className="w-full pb-3">
+      <div className="grid min-w-[78rem] grid-cols-5 gap-3 pb-3">
+        {PROJECT_STATES.map((state) => {
+          const projects = rows.filter((row) => value(row, "state") === state.value);
+          return (
+            <section
+              key={state.value}
+              data-testid={`project-kanban-column-${state.value}`}
+              className="flex min-h-[32rem] flex-col gap-3 rounded-xl border bg-muted/20 p-3"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const id = event.dataTransfer.getData("text/project-id") || draggedProjectId;
+                const project = projectsById.get(id);
+                if (project) void onStateChange(project, state.value);
+                setDraggedProjectId("");
+              }}
+            >
+              <header className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">{state.label}</h2>
+                <Badge variant="secondary">{projects.length}</Badge>
+              </header>
+              <div className="flex flex-col gap-3">
+                {projects.map((project) => {
+                  const id = value(project, "id");
+                  const rawName = value(project, "name");
+                  const [title, ...nameNote] = rawName.split(" — ");
+                  const note =
+                    value(project, "notes") ||
+                    value(project, "description") ||
+                    nameNote.join(" — ");
+                  return (
+                    <Card
+                      key={id}
+                      data-testid={`project-kanban-card-${id}`}
+                      draggable={!updatingProjectId}
+                      aria-busy={updatingProjectId === id}
+                      className="cursor-grab active:cursor-grabbing"
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/project-id", id);
+                        setDraggedProjectId(id);
+                      }}
+                      onDragEnd={() => setDraggedProjectId("")}
+                    >
+                      <CardHeader className="gap-1 pb-3">
+                        <CardTitle className="text-sm leading-snug">{title}</CardTitle>
+                        <CardDescription className="font-mono text-xs">
+                          {value(project, "code") || id}
+                        </CardDescription>
+                        {note ? (
+                          <p className="line-clamp-2 text-xs text-muted-foreground">{note}</p>
+                        ) : null}
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="mb-2">
+                          <Select
+                            value={value(project, "state")}
+                            onValueChange={(nextState) => void onStateChange(project, nextState)}
+                            disabled={Boolean(updatingProjectId)}
+                          >
+                            <SelectTrigger aria-label={`Chuyển trạng thái ${title}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {PROJECT_STATES.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button asChild size="sm" variant="outline" className="w-full">
+                          <Link href={`/projects/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
   );
 }
 
@@ -318,7 +522,7 @@ function ProjectFilterPopover({
             </div>
             <Field>
               <FieldLabel>Trạng thái</FieldLabel>
-              <Select name="state" defaultValue={params.get("state") ?? "active"}>
+              <Select name="state" defaultValue={params.get("state") ?? "all"}>
                 <SelectTrigger aria-label="Trạng thái dự án">
                   <SelectValue />
                 </SelectTrigger>
@@ -500,7 +704,7 @@ export function BusinessRecordWorkspace({
                 label="Mảng dịch vụ"
                 value={value(record, "default_service_line_code") || "Chưa phân loại"}
               />
-              <Fact label="Trạng thái" value={value(record, "state")} />
+              <Fact label="Trạng thái" value={projectStateLabel(value(record, "state"))} />
               <Fact
                 label="Ngân sách phê duyệt"
                 value={money(value(record, "budget_minor"), value(record, "currency"))}
@@ -557,7 +761,9 @@ export function BusinessRecordWorkspace({
                                 {value(proj, "code")}
                               </CardDescription>
                             </div>
-                            <Badge variant="outline">{value(proj, "state")}</Badge>
+                            <Badge variant="outline">
+                              {projectStateLabel(value(proj, "state"))}
+                            </Badge>
                           </div>
                           {pNote ? (
                             <p className="mt-1 text-xs text-muted-foreground italic line-clamp-2">
@@ -803,7 +1009,7 @@ function DirectoryEditor({
           name: String(form.get("name") ?? "").trim(),
           default_service_line_code:
             String(form.get("default_service_line_code") ?? "").trim() || null,
-          budget_minor: String(form.get("budget_minor") ?? "0").trim(),
+          budget_minor: digitsOnly(String(form.get("budget_minor") ?? "0")) || "0",
           ends_on: String(form.get("ends_on") ?? "").trim() || null,
           notes: String(form.get("notes") ?? "").trim() || null,
           state: String(form.get("state") ?? "planned"),
@@ -814,7 +1020,13 @@ function DirectoryEditor({
         initial
           ? `master-data/${resource}/${masterDataKey(value(initial, "id"))}`
           : `master-data/${resource}`,
-        { method: initial ? "PATCH" : "POST", body: { data } },
+        {
+          method: initial ? "PATCH" : "POST",
+          body: { data },
+          ...(initial && value(initial, "resource_version")
+            ? { expectedVersion: value(initial, "resource_version") }
+            : {}),
+        },
       );
       if (customer && !initial) {
         await client.data("master-data/party-roles", {
@@ -832,7 +1044,7 @@ function DirectoryEditor({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(90vh,48rem)] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[min(90vh,48rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {initial ? "Chỉnh sửa" : "Tạo"} {customer ? "khách hàng" : "dự án"}
@@ -841,108 +1053,118 @@ function DirectoryEditor({
             Dữ liệu được ghi trực tiếp vào danh mục ERP và có audit phía server.
           </DialogDescription>
         </DialogHeader>
-        <form className="space-y-4" action={(form) => void submit(form)}>
-          {!initial ? <EditorField name="id" label="ID" required /> : null}
-          {customer ? (
-            <>
-              <EditorField
-                name="display_name"
-                label="Tên khách hàng"
-                defaultValue={value(initial ?? {}, "display_name")}
-                required
-              />
-              <EditorField
-                name="normalized_tax_id"
-                label="Mã số thuế"
-                defaultValue={value(initial ?? {}, "normalized_tax_id")}
-              />
-              <EditorField
-                name="status"
-                label="Trạng thái"
-                defaultValue={value(initial ?? {}, "status") || "active"}
-                required
-              />
-            </>
-          ) : (
-            <>
-              {!initial ? <EditorField name="code" label="Mã dự án" required /> : null}
-              <EditorField
-                name="name"
-                label="Tên dự án"
-                defaultValue={value(initial ?? {}, "name")}
-                required
-              />
-              <EditorField
-                name="client_party_id"
-                label="ID khách hàng"
-                defaultValue={value(initial ?? {}, "client_party_id")}
-                required
-              />
-              <EditorField
-                name="owner_user_id"
-                label="ID người phụ trách"
-                defaultValue={value(initial ?? {}, "owner_user_id")}
-                required
-              />
-              <EditorField
-                name="default_service_line_code"
-                label="Mã mảng dịch vụ"
-                defaultValue={value(initial ?? {}, "default_service_line_code")}
-                placeholder="Ví dụ: SOFTWARE_DEV, WEB, CONSULTING"
-              />
-              {!initial ? (
+        <form action={(form) => void submit(form)}>
+          <FieldGroup>
+            {!initial ? <EditorField name="id" label="ID" required /> : null}
+            {customer ? (
+              <>
                 <EditorField
-                  name="contract_type"
-                  label="Loại hợp đồng"
-                  defaultValue="fixed_fee"
+                  name="display_name"
+                  label="Tên khách hàng"
+                  defaultValue={value(initial ?? {}, "display_name")}
                   required
                 />
-              ) : null}
-              {!initial ? (
-                <EditorField name="currency" label="Tiền tệ" defaultValue="VND" required />
-              ) : null}
-              <EditorField
-                name="budget_minor"
-                label="Ngân sách (đơn vị nhỏ nhất)"
-                type="number"
-                defaultValue={value(initial ?? {}, "budget_minor") || "0"}
-                required
-              />
-              {!initial ? (
-                <EditorField name="starts_on" label="Ngày bắt đầu" type="date" required />
-              ) : null}
-              <EditorField
-                name="ends_on"
-                label="Ngày kết thúc"
-                type="date"
-                defaultValue={value(initial ?? {}, "ends_on")}
-              />
-              <EditorField
-                name="notes"
-                label="Ghi chú / Thông tin bổ sung"
-                defaultValue={value(initial ?? {}, "notes") || value(initial ?? {}, "description")}
-              />
-              <EditorField
-                name="state"
-                label="Trạng thái"
-                defaultValue={value(initial ?? {}, "state") || "planned"}
-                required
-              />
-            </>
-          )}
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Hủy
-            </Button>
-            <Button type="submit" disabled={busy}>
-              {busy ? "Đang lưu…" : "Lưu"}
-            </Button>
-          </DialogFooter>
+                <EditorField
+                  name="normalized_tax_id"
+                  label="Mã số thuế"
+                  defaultValue={value(initial ?? {}, "normalized_tax_id")}
+                />
+                <EditorField
+                  name="status"
+                  label="Trạng thái"
+                  defaultValue={value(initial ?? {}, "status") || "active"}
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <FieldSeparator>Thông tin vận hành</FieldSeparator>
+                <ProjectStateField defaultValue={value(initial ?? {}, "state") || "planned"} />
+                <MoneyEditorField
+                  name="budget_minor"
+                  label="Ngân sách phê duyệt"
+                  defaultValue={value(initial ?? {}, "budget_minor") || "0"}
+                  description="VND · Số tiền được lưu chính xác, dấu chấm chỉ dùng để dễ đọc."
+                  required
+                />
+                {!initial ? (
+                  <EditorField
+                    name="starts_on"
+                    label="Ngày bắt đầu"
+                    type="date"
+                    description="Ngày dự án chính thức bắt đầu triển khai."
+                    required
+                  />
+                ) : null}
+                <EditorField
+                  name="ends_on"
+                  label="Ngày kết thúc dự kiến"
+                  type="date"
+                  defaultValue={value(initial ?? {}, "ends_on")}
+                  description="Có thể cập nhật thường xuyên khi kế hoạch bàn giao thay đổi."
+                />
+                <EditorTextareaField
+                  name="notes"
+                  label="Tình trạng / Ghi chú điều hành"
+                  defaultValue={
+                    value(initial ?? {}, "notes") || value(initial ?? {}, "description")
+                  }
+                  placeholder="Tiến độ hiện tại, việc đang chờ, rủi ro hoặc hành động tiếp theo…"
+                  description="Thông tin ngắn để theo dõi tình hình dự án trong công việc hằng ngày."
+                />
+                <FieldSeparator>Thông tin định danh</FieldSeparator>
+                {!initial ? <EditorField name="code" label="Mã dự án" required /> : null}
+                <EditorField
+                  name="name"
+                  label="Tên dự án"
+                  defaultValue={value(initial ?? {}, "name")}
+                  required
+                />
+                <EditorField
+                  name="client_party_id"
+                  label="ID khách hàng"
+                  defaultValue={value(initial ?? {}, "client_party_id")}
+                  required
+                />
+                <EditorField
+                  name="owner_user_id"
+                  label="ID người phụ trách"
+                  defaultValue={value(initial ?? {}, "owner_user_id")}
+                  required
+                />
+                <EditorField
+                  name="default_service_line_code"
+                  label="Mã mảng dịch vụ"
+                  defaultValue={value(initial ?? {}, "default_service_line_code")}
+                  placeholder="Ví dụ: SOFTWARE_DEV, WEB, CONSULTING"
+                />
+                {!initial ? (
+                  <EditorField
+                    name="contract_type"
+                    label="Loại hợp đồng"
+                    defaultValue="fixed_fee"
+                    required
+                  />
+                ) : null}
+                {!initial ? (
+                  <EditorField name="currency" label="Tiền tệ" defaultValue="VND" required />
+                ) : null}
+              </>
+            )}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? "Đang lưu…" : "Lưu"}
+              </Button>
+            </DialogFooter>
+          </FieldGroup>
         </form>
       </DialogContent>
     </Dialog>
@@ -952,12 +1174,86 @@ function DirectoryEditor({
 function EditorField({
   name,
   label,
+  description,
   ...props
-}: React.ComponentProps<typeof Input> & { name: string; label: string }) {
+}: React.ComponentProps<typeof Input> & { name: string; label: string; description?: string }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={`directory-${name}`}>{label}</Label>
+    <Field>
+      <FieldLabel htmlFor={`directory-${name}`}>{label}</FieldLabel>
       <Input id={`directory-${name}`} name={name} {...props} />
-    </div>
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
+    </Field>
+  );
+}
+
+function ProjectStateField({ defaultValue }: Readonly<{ defaultValue: string }>) {
+  return (
+    <Field>
+      <FieldLabel>Trạng thái dự án</FieldLabel>
+      <Select name="state" defaultValue={defaultValue}>
+        <SelectTrigger aria-label="Trạng thái dự án">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {PROJECT_STATES.map((state) => (
+              <SelectItem key={state.value} value={state.value}>
+                {state.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <FieldDescription>Cập nhật theo tình hình vận hành hiện tại của dự án.</FieldDescription>
+    </Field>
+  );
+}
+
+function MoneyEditorField({
+  name,
+  label,
+  defaultValue,
+  description,
+  required,
+}: Readonly<{
+  name: string;
+  label: string;
+  defaultValue: string;
+  description?: string;
+  required?: boolean;
+}>) {
+  const [rawValue, setRawValue] = useState(() => digitsOnly(defaultValue));
+  return (
+    <Field>
+      <FieldLabel htmlFor={`directory-${name}-display`}>{label}</FieldLabel>
+      <Input
+        id={`directory-${name}-display`}
+        inputMode="numeric"
+        value={formatInteger(rawValue)}
+        onChange={(event) => setRawValue(digitsOnly(event.target.value))}
+        required={required}
+      />
+      <input type="hidden" name={name} value={rawValue || "0"} />
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
+    </Field>
+  );
+}
+
+function EditorTextareaField({
+  name,
+  label,
+  description,
+  ...props
+}: React.ComponentProps<typeof Textarea> & {
+  name: string;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={`directory-${name}`}>{label}</FieldLabel>
+      <Textarea id={`directory-${name}`} name={name} rows={4} {...props} />
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
+    </Field>
   );
 }

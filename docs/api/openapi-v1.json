@@ -22,6 +22,7 @@
     "dimension-requirements",
     "default-mappings",
     "expense-categories",
+    "purchase-products",
     "parties",
     "party-roles",
     "projects",
@@ -535,7 +536,7 @@
         "summary": "List organization-scoped sales invoices, purchase invoices and credit notes"
       },
       "post": {
-        "summary": "Create an idempotent exact-amount commercial document draft with allocations",
+        "summary": "Create an idempotent exact-amount commercial document draft with customer-validated project and optional contract allocations",
         "requestBody": { "$ref": "#/components/requestBodies/CreateCommercialDocument" }
       }
     },
@@ -544,12 +545,77 @@
         "summary": "Read a document, lines, allocations, journal link and permitted next actions"
       },
       "patch": {
-        "summary": "Update an existing draft commercial document, validating final state and preserving external reference"
+        "summary": "Update an existing draft commercial document, validating customer-project-contract relationships and preserving omitted lines, allocations and external reference"
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category": {
       "patch": {
         "summary": "Update only audited category metadata on a commercial document, including issued or posted records"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/relationship-backfill/inventory": {
+      "get": {
+        "operationId": "inventoryCommercialDocumentRelationshipBackfill",
+        "tags": ["commercial-documents", "relationship-backfill"],
+        "summary": "Inventory final commercial documents whose canonical project or contract relationships need reviewed correction",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Relationship backfill candidates",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RelationshipBackfillInventoryEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/relationship-backfill/dry-run": {
+      "post": {
+        "operationId": "dryRunCommercialDocumentRelationshipBackfill",
+        "tags": ["commercial-documents", "relationship-backfill"],
+        "summary": "Validate a reverse-replacement relationship correction without mutation",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "documentId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/RelationshipBackfillDryRun" },
+        "responses": {
+          "200": {
+            "description": "Deterministic correction plan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RelationshipBackfillPlanEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/relationship-backfill/commit": {
+      "post": {
+        "operationId": "commitCommercialDocumentRelationshipBackfill",
+        "tags": ["commercial-documents", "relationship-backfill"],
+        "summary": "Commit the exact dry-run plan through audited idempotent reverse replacement",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "documentId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/RelationshipBackfillCommit" },
+        "responses": {
+          "200": {
+            "description": "Reverse-replacement result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}": {
@@ -562,7 +628,7 @@
         "summary": "List organization-scoped expenses with independent management CIT and VAT states"
       },
       "post": {
-        "summary": "Create an idempotent expense draft including non-invoice and reimbursement classes"
+        "summary": "Create an idempotent expense draft with an independent supplier/payee and optional receiving-project/contract allocations"
       }
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}": {
@@ -570,7 +636,7 @@
         "summary": "Read expense lines allocations review states evidence checklist and journal link"
       },
       "patch": {
-        "summary": "Update an existing draft expense, validating final state and preserving external reference"
+        "summary": "Update an existing draft expense, validating project-contract relationships and preserving omitted lines, allocations and external reference"
       },
       "delete": {
         "summary": "Discard a draft expense with If-Match, reason, idempotency and retained audit evidence"
@@ -579,6 +645,71 @@
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/category": {
       "patch": {
         "summary": "Update only audited category metadata on an expense, including posted records"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/relationship-backfill/inventory": {
+      "get": {
+        "operationId": "inventoryExpenseRelationshipBackfill",
+        "tags": ["expenses", "relationship-backfill"],
+        "summary": "Inventory posted expenses whose canonical project or contract relationships need reviewed correction",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Relationship backfill candidates",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RelationshipBackfillInventoryEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/relationship-backfill/dry-run": {
+      "post": {
+        "operationId": "dryRunExpenseRelationshipBackfill",
+        "tags": ["expenses", "relationship-backfill"],
+        "summary": "Validate an expense reverse-replacement relationship correction without mutation",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "expenseId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/RelationshipBackfillDryRun" },
+        "responses": {
+          "200": {
+            "description": "Deterministic correction plan",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RelationshipBackfillPlanEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/relationship-backfill/commit": {
+      "post": {
+        "operationId": "commitExpenseRelationshipBackfill",
+        "tags": ["expenses", "relationship-backfill"],
+        "summary": "Commit the exact expense dry-run plan through audited idempotent reverse replacement",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "expenseId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/RelationshipBackfillCommit" },
+        "responses": {
+          "200": {
+            "description": "Reverse-replacement result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/review": {
@@ -1361,6 +1492,44 @@
             "description": "Successful ERP-500 mutation"
           }
         }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/workers/{workerId}": {
+      "patch": {
+        "operationId": "updateWorkforceProfile",
+        "summary": "Update employment kind or employment end date with version, reason and idempotency controls",
+        "tags": ["time"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "workerId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "200": { "description": "Updated audited workforce profile" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/time/workers/{workerId}/deactivate": {
+      "post": {
+        "operationId": "deactivateWorkforceProfile",
+        "summary": "Deactivate a workforce profile with version, reason and idempotency controls",
+        "tags": ["time"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "workerId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "201": { "description": "Deactivated audited workforce profile" } }
       }
     },
     "/api/v1/organizations/{organizationId}/time/timesheets": {
@@ -3390,6 +3559,13 @@
           "type": "string"
         }
       },
+      "IfMatch": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "description": "Current optimistic resource version returned by the record read API.",
+        "schema": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+      },
       "AccountingExportStartsOn": {
         "name": "startsOn",
         "in": "query",
@@ -3758,6 +3934,66 @@
     },
     "schemas": {
       "PortableSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "RelationshipBackfillCandidate": {
+        "type": "object",
+        "required": ["id", "version", "state"],
+        "properties": {
+          "id": { "type": "string" },
+          "version": {
+            "oneOf": [
+              { "type": "string", "pattern": "^[1-9][0-9]*$" },
+              { "type": "integer", "minimum": 1 }
+            ]
+          },
+          "state": { "type": "string" },
+          "partyId": { "type": "string" },
+          "payeePartyId": { "type": "string" },
+          "projectIds": { "type": "array", "items": { "type": "string" } },
+          "contractIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      },
+      "RelationshipBackfillInventoryEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/RelationshipBackfillCandidate" }
+              }
+            }
+          }
+        }
+      },
+      "RelationshipBackfillPlan": {
+        "type": "object",
+        "required": ["dryRun", "planHash", "originalId", "originalState", "replacement", "effects"],
+        "properties": {
+          "dryRun": { "const": true },
+          "planHash": { "$ref": "#/components/schemas/PortableSha256" },
+          "originalId": { "type": "string" },
+          "originalState": { "type": "string" },
+          "replacement": { "type": "object", "additionalProperties": true },
+          "effects": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "RelationshipBackfillPlanEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/RelationshipBackfillPlan" }
+        }
+      },
       "LocalOrganizationResetRequest": {
         "type": "object",
         "required": ["confirmOrganizationId", "packageId", "workbookSha256"],
@@ -6133,6 +6369,39 @@
       }
     },
     "requestBodies": {
+      "RelationshipBackfillDryRun": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["replacement", "reason"],
+              "properties": {
+                "replacement": { "type": "object", "additionalProperties": true },
+                "reason": { "type": "string", "minLength": 1 }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "RelationshipBackfillCommit": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["replacement", "reason", "planHash"],
+              "properties": {
+                "replacement": { "type": "object", "additionalProperties": true },
+                "reason": { "type": "string", "minLength": 1 },
+                "planHash": { "$ref": "#/components/schemas/PortableSha256" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
       "PortableDataPackageWorkbook": {
         "required": true,
         "content": {
@@ -6195,10 +6464,89 @@
                   "format": "date",
                   "description": "Required together with migrationSourceExpenseId and matched exactly against the legacy expense."
                 },
-                "lines": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+                "lines": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Each line or allocation may carry dimensions.projectId and optional dimensions.contractId. Sales and credit projects must belong to partyId; every contract must belong to its selected project.",
+                  "items": { "type": "object" }
+                },
                 "externalReference": { "type": "object", "additionalProperties": true }
               },
               "additionalProperties": true
+            }
+          }
+        }
+      },
+      "CommercialDocumentRelationshipBackfillDryRun": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["replacement", "reason"],
+              "properties": {
+                "replacement": {
+                  "type": "object",
+                  "description": "Complete CreateCommercialDocument payload with reviewed projectId and optional contractId allocation dimensions."
+                },
+                "reason": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
+      "CommercialDocumentRelationshipBackfillCommit": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["replacement", "reason", "planHash"],
+              "properties": {
+                "replacement": {
+                  "type": "object",
+                  "description": "Exact normalized business payload reviewed during dry-run."
+                },
+                "reason": { "type": "string", "minLength": 1 },
+                "planHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+              }
+            }
+          }
+        }
+      },
+      "ExpenseRelationshipBackfillDryRun": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["replacement", "reason"],
+              "properties": {
+                "replacement": {
+                  "type": "object",
+                  "description": "Complete CreateExpense payload with reviewed projectId and optional contractId allocation dimensions."
+                },
+                "reason": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
+      "ExpenseRelationshipBackfillCommit": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["replacement", "reason", "planHash"],
+              "properties": {
+                "replacement": {
+                  "type": "object",
+                  "description": "Exact normalized business payload reviewed during dry-run."
+                },
+                "reason": { "type": "string", "minLength": 1 },
+                "planHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+              }
             }
           }
         }

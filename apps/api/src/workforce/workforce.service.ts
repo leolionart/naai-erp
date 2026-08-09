@@ -53,6 +53,30 @@ export class WorkforceService {
       throw new Error("VALIDATION_FAILED");
     return this.envelope(c, await this.store.createWorker(c, i, k));
   }
+  async updateWorker(
+    c: WorkforceContext,
+    id: string,
+    i: Record<string, unknown>,
+    k?: string,
+    deactivate = false,
+  ) {
+    this.authorize(c, k);
+    this.mutation(i);
+    if (!deactivate && i.employmentKind === undefined && i.endsOn === undefined)
+      throw new Error("VALIDATION_FAILED");
+    if (
+      i.employmentKind !== undefined &&
+      !["employee", "freelancer", "contractor"].includes(String(i.employmentKind))
+    )
+      throw new Error("VALIDATION_FAILED");
+    if (
+      i.endsOn !== undefined &&
+      i.endsOn !== null &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(i.endsOn))
+    )
+      throw new Error("VALIDATION_FAILED");
+    return this.envelope(c, await this.store.updateWorker(c, id, i, k, deactivate));
+  }
   async listTimesheets(c: WorkforceContext, q: Record<string, string | undefined>) {
     return this.envelope(c, await this.store.listTimesheets(c.organizationId, q));
   }

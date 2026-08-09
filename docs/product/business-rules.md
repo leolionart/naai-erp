@@ -101,6 +101,12 @@ These rules define the active release boundary. Historical rules remain valid fo
   ambiguous parents produce structured errors or a review state, never a guessed association.
 - Posted or issued financial history is corrected through cancel, deactivate, reverse or replacement
   workflows rather than relationship rewrites or hard delete.
+- Relationship backfill first inventories canonical records and their aggregated `projectIds` and
+  `contractIds`, then performs a zero-mutation dry-run against the current resource version. Commit
+  requires the dry-run `planHash`, the same `If-Match` version and an idempotency key; a changed
+  mapping, reason or version invalidates the plan.
+- Issued/posted document and posted-expense backfills reverse the original accounting effect and
+  create a linked replacement draft. They never update allocations or journals in place.
 
 ### BR-AI-006 — Cash-heavy business activity classification
 
@@ -268,6 +274,9 @@ Branches: cancellation before issue; credit note/reversal after issue.
 
 - Issued totals, customer, tax and lines are immutable.
 - Human invoice number is unique by organization/series/fiscal year.
+- A relationship correction after issue uses an authorized dry-run and reverse/replacement workflow:
+  the original becomes cancelled, its journal is reversed under normal period controls, and the
+  replacement draft retains the durable external reference and may reuse the human invoice identity.
 
 ### BR-INV-002 — Purchase invoice lifecycle
 
@@ -326,9 +335,17 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
   and collection facts dated after that cutoff are excluded rather than mixed into the result.
 - Cash receipt does not automatically create revenue.
 - Invoice before delivery may create deferred revenue/contract liability.
-- The current accepted gate is a project-level aggregate. Commercial-document allocations retain
-  project attribution, but do not yet persist canonical `contractId` or `milestoneId`; therefore the
-  system must not claim contract-level or milestone-level invoice-cap enforcement or drill-down.
+- Commercial-document line/allocation dimensions retain canonical `projectId` and may retain the
+  selected canonical `contractId`. A sales invoice requires project attribution; every selected
+  project must belong to the invoice customer, and an optional contract must belong to that project.
+  Contract selection is explicit rather than inferred from names, dates or amounts. Milestone
+  attribution is not yet persisted, so the system must not claim milestone-level invoice-cap
+  enforcement or drill-down.
+- Sales-invoice creation opens in context from revenue management. Customer choices are limited to
+  client-role parties and shown by business name while the REST payload retains the canonical party
+  ID. Selecting a customer limits the project choices to that customer's projects; selecting a
+  project limits optional contract choices to that project. Direct `/documents/new` navigation
+  resolves to the same dialog workflow.
 
 ### BR-REV-002 — Milestone recognition
 
@@ -355,6 +372,17 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
 
 ## 5. Expenses, evidence and tax review
 
+### BR-PRD-001 — Purchase product VAT catalog
+
+- Purchase products are organization-scoped master data identified by a stable code and readable
+  name. The configured purchase VAT rate is restricted to exactly 8% or 10%.
+- Authorized API and first-party CLI clients can list, read, create, update and deactivate products.
+  Mutations are idempotent, audited and versioned; inactive products remain readable for history.
+- The administration navigation exposes a dedicated purchase-product screen where authorized users
+  can add products, change names or VAT rates and deactivate products through the same REST service.
+- Deactivation is the supported removal path. Catalog changes never rewrite VAT or amounts already
+  snapshotted on financial documents.
+
 ### BR-EXP-001 — Expense classes
 
 Supported classes include invoice-backed, receipt-backed, contract-backed, payroll/personnel, bank fee, tax payment, non-documented, owner/personal, prepaid and fixed asset.
@@ -366,12 +394,23 @@ Document type and accounting treatment are independent.
 `draft → submitted → evidence_pending → approved/rejected → posted`
 
 - Business purpose, payee, period, amount/currency, dimensions, payment evidence and approver are captured as required by class.
+- Expense creation opens in context from the expense list. Payees are selected from active supplier
+  parties and displayed by business name while the payload retains the canonical party ID. Employee
+  attribution uses active workforce profiles mapped to party names; when workforce data is absent,
+  the UI states that explicitly instead of exposing arbitrary party identifiers.
+- A direct expense may optionally select the project receiving the cost and then an optional
+  contract belonging to that project. The supplier/payee remains independent from the receiving
+  project's customer. Draft edits preserve existing allocation IDs, dimensions and relationship
+  metadata unless the user explicitly replaces the allocation.
 - A draft created in error may be discarded before submission. Discard requires write authorization,
   optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
   submitted, approved or posted expenses cannot be deleted.
 - Posted expenses may receive an audited, idempotent `dimensions.category` metadata correction when
   the category is active organization master data. This operation never changes amounts, tax states,
   allocations, funding treatment, journal linkage or any other posted financial field.
+- A posted expense missing project/contract relationships is corrected only through relationship
+  backfill dry-run and reverse/replacement. The original becomes reversed and the replacement remains
+  draft for normal review/posting; amount, evidence and accounting history are not rewritten.
 
 ### BR-TAX-001 — Versioned tax policy
 
@@ -408,6 +447,21 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   it never embeds a tax rate or a demo tax amount.
 - Taxable profit and accounting profit are distinct. Purchase invoices without CIT review remain
   unreviewed rather than being assumed deductible merely because an invoice exists.
+
+### BR-TAX-005 — Owner-final tax workflow
+
+- An organization operated by one owner may enable the versioned `owner_final` workflow policy.
+- In `owner_final` mode, documented operating-expense and purchase-invoice lines default to
+  management-valid and CIT-eligible. Input VAT defaults to eligible only when the line contains VAT
+  and the required source-document evidence; explicit line classifications always take precedence.
+- Non-documented and owner-personal spending remain tax-ineligible. Fixed assets and prepaid costs
+  retain their capitalization or amortization treatment and never become immediate operating expense
+  merely because `owner_final` is enabled.
+- Resolved management, CIT and VAT states and eligible amounts are persisted on the source line with
+  actor, policy version and reason. Reports never reinterpret historical lines from the current
+  organization setting.
+- Existing unreviewed records change only through an organization-scoped, audited, idempotent
+  dry-run and commit operation. The operation reports counts and exact money totals before mutation.
 
 ### BR-EVD-001 — Evidence integrity
 
@@ -531,15 +585,19 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
 
 ### BR-PRJ-002 — Project directory filtering
 
-- The project directory defaults to `active` projects so completed, closed and duplicate historical
-  imports do not dominate the operational list; users can explicitly select another lifecycle state
-  or all states.
+- The project directory defaults to all lifecycle states so its count and card/Kanban views represent
+  the complete project portfolio; users can explicitly narrow the list to one lifecycle state.
 - Lifecycle state, selected execution-date range and text search are combined without changing the
   canonical project records. State and date selections are URL-backed so refresh and shared links
   restore the same directory view.
 - A project matches a selected date range when its execution interval overlaps that range, including
   projects that start before the range or have no end date. Projects ending before the selected start
   or starting after the selected end are excluded.
+- The directory offers both card and Kanban views. Kanban shows all canonical lifecycle columns and
+  allows an authorized user to move one project between states through the same organization-scoped,
+  audited project update service used by the form, CLI and API. Failed updates restore the prior
+  column. Kanban cards stay focused on project identity and profile navigation; precise non-drag
+  state changes remain available in the project editor.
 
 ### BR-TIM-001 — Timesheet lifecycle
 
@@ -651,6 +709,19 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   equals mapped company cash and bank balances less the positive closing Owner Payable/current-account
   liability. A debit owner-current balance does not increase available cash. The result may be negative
   when the company owes the owner more than its mapped cash and bank balances.
+- The executive dashboard presents company bank and cash as one company-funds card with a visible
+  component breakdown. It does not repeat bank, cash, their total or a hypothetical post-owner-
+  settlement balance as separate headline cards when those cards answer the same liquidity question.
+- The management owner-obligation card measures operating cost or loss borne personally by the owner,
+  less posted repayments from company bank or cash. It excludes asset/equipment purchases, owner
+  funding, owner loans, equity contributions and personal spending. The statutory Balance Sheet keeps
+  reporting the complete approved `owner_current` balance independently.
+- A repayment reduces this management obligation only through a posted owner-current debit paired
+  with a company bank/cash credit. Imported bank withdrawals that are not yet classified and posted
+  remain outside the official metric and are disclosed for review rather than silently deducted.
+- Company funds and the management owner obligation are displayed separately. The dashboard does not subtract
+  the owner obligation from physical company funds because the liability is not itself a completed
+  cash payment.
 
 ## 9. Reports and exports
 
@@ -681,10 +752,15 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   loại** according to the row's canonical source. Missing data must not be silently mapped to a
   configured category.
 
-### BR-UI-004 — Dashboard Data Sources and Fallback
+### BR-UI-006 — Dashboard data-source parity
 
-- The Operating Dashboard prioritizes reading trend and expense breakdown charts from aggregated workbook controls (`profitability_control`, `planning_control`, `expense_category_control`).
-- If control workbooks are missing or lack data for the selected period, dashboard charts automatically fall back to reading aggregated monthly totals directly from the posted ledger (`journal_entries`), grouping expenses into "Chưa phân bổ" if categorization is unavailable.
+- Dashboard trend and planning controls may read aggregated workbook or posted-ledger report sources
+  when their accounting status is disclosed.
+- The Dashboard expense-category overview uses the same purchase-invoice and non-invoice expense
+  population, period filtering, canonical category builder and shared component as Expense
+  Management. It must not create a separate `Chưa phân bổ` category or exclude non-invoice expenses.
+- A canonical expense overview load failure is shown explicitly and is never replaced by stale
+  workbook category controls.
 
 ### BR-UI-003 — Operational UI parity
 

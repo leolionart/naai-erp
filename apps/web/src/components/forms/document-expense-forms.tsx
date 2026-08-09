@@ -38,6 +38,122 @@ function field(source: unknown, ...keys: string[]): unknown {
   return undefined;
 }
 
+function partyName(party: Row) {
+  return String(field(party, "displayName", "display_name", "name") ?? party.id ?? "Không rõ tên");
+}
+
+function optionName(item: Row) {
+  return String(
+    field(item, "name", "displayName", "display_name", "code") ?? item.id ?? "Không rõ",
+  );
+}
+
+function relationId(item: Row, ...keys: string[]) {
+  return String(field(item, ...keys) ?? "");
+}
+
+function initialAllocation(line?: Row) {
+  return Array.isArray(line?.allocations) ? (line.allocations[0] as Row | undefined) : undefined;
+}
+
+function relationshipDimensions(line?: Row) {
+  const allocation = initialAllocation(line);
+  return {
+    allocation,
+    dimensions: {
+      ...((line?.dimensions as Record<string, unknown> | undefined) ?? {}),
+      ...((allocation?.dimensions as Record<string, unknown> | undefined) ?? {}),
+    },
+  };
+}
+
+function canonicalRelationshipDimensions(
+  base: Row | undefined,
+  common: Record<string, unknown>,
+  projectId: string,
+  contractId: string,
+) {
+  const dimensions: Record<string, unknown> = { ...(base ?? {}), ...common };
+  delete dimensions.project;
+  delete dimensions.contract;
+  if (projectId) dimensions.projectId = projectId;
+  else delete dimensions.projectId;
+  if (contractId) dimensions.contractId = contractId;
+  else delete dimensions.contractId;
+  return dimensions;
+}
+
+function RelationshipFields({
+  projects,
+  contracts,
+  projectId,
+  contractId,
+  onProjectChange,
+  onContractChange,
+  projectRequired,
+}: {
+  projects: readonly Row[];
+  contracts: readonly Row[];
+  projectId: string;
+  contractId: string;
+  onProjectChange(value: string): void;
+  onContractChange(value: string): void;
+  projectRequired?: boolean;
+}) {
+  return (
+    <>
+      <Field>
+        <FieldLabel>Dự án nhận doanh thu / chi phí</FieldLabel>
+        <Select
+          value={projectId || "__none__"}
+          onValueChange={(value) => onProjectChange(value === "__none__" ? "" : value)}
+        >
+          <SelectTrigger aria-label="Dự án">
+            <SelectValue placeholder="Chọn dự án" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {projectRequired ? null : (
+                <SelectItem value="__none__">-- Không phân bổ dự án --</SelectItem>
+              )}
+              {projects.map((project) => (
+                <SelectItem key={relationId(project, "id")} value={relationId(project, "id")}>
+                  {optionName(project)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {projectRequired && projects.length === 0 ? (
+          <FieldError>Khách hàng này chưa có dự án để liên kết.</FieldError>
+        ) : null}
+      </Field>
+      <Field>
+        <FieldLabel>Hợp đồng thuộc dự án</FieldLabel>
+        <Select
+          value={contractId || "__none__"}
+          onValueChange={(value) => onContractChange(value === "__none__" ? "" : value)}
+          disabled={!projectId}
+        >
+          <SelectTrigger aria-label="Hợp đồng">
+            <SelectValue placeholder={projectId ? "Chọn hợp đồng" : "Chọn dự án trước"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="__none__">-- Không chọn hợp đồng --</SelectItem>
+              {contracts.map((contract) => (
+                <SelectItem key={relationId(contract, "id")} value={relationId(contract, "id")}>
+                  {optionName(contract)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+    </>
+  );
+}
+
 function formatMoneyDisplay(rawVal: string): string {
   const digits = rawVal.replace(/[^0-9-]/g, "");
   if (!digits) return "";
@@ -127,25 +243,19 @@ function ComboboxInput({
   const [open, setOpen] = useState(false);
 
   // Resolve display value if current value matches an ID or name in options
-  const currentMatch = options.find(
-    (o) => String(o.id) === value || String(field(o, "displayName", "name")) === value,
-  );
-  const displayVal = currentMatch
-    ? String(field(currentMatch, "displayName", "name") ?? currentMatch.id)
-    : value;
+  const currentMatch = options.find((o) => String(o.id) === value || partyName(o) === value);
+  const displayVal = currentMatch ? partyName(currentMatch) : value;
 
   const [inputVal, setInputVal] = useState(displayVal);
 
   useEffect(() => {
-    const match = options.find(
-      (o) => String(o.id) === value || String(field(o, "displayName", "name")) === value,
-    );
-    setInputVal(match ? String(field(match, "displayName", "name") ?? match.id) : value);
+    const match = options.find((o) => String(o.id) === value || partyName(o) === value);
+    setInputVal(match ? partyName(match) : value);
   }, [value, options]);
 
   const filtered = options.filter((o) => {
     if (!inputVal.trim()) return true;
-    const nameStr = String(field(o, "displayName", "name") ?? o.id).toLowerCase();
+    const nameStr = partyName(o).toLowerCase();
     return nameStr.includes(inputVal.toLowerCase());
   });
 
@@ -173,7 +283,7 @@ function ComboboxInput({
         {open && filtered.length > 0 ? (
           <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
             {filtered.map((item) => {
-              const nameStr = String(field(item, "displayName", "name") ?? item.id);
+              const nameStr = partyName(item);
               const valStr = String(item.id ?? nameStr);
               return (
                 <div
@@ -322,18 +432,26 @@ export function DocumentForm({
   onSubmit,
   initial,
   parties = [],
+  projects = [],
+  contracts = [],
   submitLabel = "Lưu hóa đơn nháp",
 }: {
   busy: boolean;
   onSubmit: (body: Row) => void;
   initial?: Row;
   parties?: readonly Row[];
+  projects?: readonly Row[];
+  contracts?: readonly Row[];
   submitLabel?: string;
 }) {
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
-  const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
+  const remainingLines = Array.isArray(initial?.lines) ? (initial.lines.slice(1) as Row[]) : [];
+  const { dimensions: initialDims } = relationshipDimensions(initialLine);
+  const existingAllocations = Array.isArray(initialLine?.allocations)
+    ? (initialLine.allocations as Row[])
+    : [];
 
   const [type, setType] = useState(String(field(initial, "type") ?? "sales_invoice"));
   const [documentNumber, setDocumentNumber] = useState(
@@ -346,6 +464,8 @@ export function DocumentForm({
   const [partyId, setPartyId] = useState(
     String(field(initial, "partyId", "party_id") ?? parties[0]?.id ?? ""),
   );
+  const [projectId, setProjectId] = useState(String(initialDims.projectId ?? ""));
+  const [contractId, setContractId] = useState(String(initialDims.contractId ?? ""));
   const [documentDate, setDocumentDate] = useState(
     String(
       field(initial, "documentDate", "document_date") ?? new Date().toISOString().slice(0, 10),
@@ -359,8 +479,17 @@ export function DocumentForm({
     String(field(initial, "controlAccountCode", "control_account_code") ?? "131"),
   );
   const [reason, setReason] = useState(String(field(initial, "reason") ?? ""));
+  const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
   const isPurchase = type === "purchase_invoice";
   const activeCategories = isPurchase ? INBOUND_CATEGORIES : OUTBOUND_CATEGORIES;
+  const availableProjects = isPurchase
+    ? projects
+    : projects.filter(
+        (project) => relationId(project, "clientPartyId", "client_party_id") === partyId,
+      );
+  const availableContracts = contracts.filter(
+    (contract) => relationId(contract, "projectId", "project_id") === projectId,
+  );
 
   const [category, setCategory] = useState(
     String(
@@ -392,6 +521,10 @@ export function DocumentForm({
         "0",
     ),
   );
+  const allocationAmountError =
+    existingAllocations.length > 1 && initialNetMinor !== "" && netMinor !== initialNetMinor
+      ? "Hóa đơn có nhiều phân bổ. Hãy chỉnh phân bổ chi tiết trước khi thay đổi thành tiền."
+      : "";
   const [primaryAccountCode, setPrimaryAccountCode] = useState(
     String(
       field(initialLine, "primaryAccountCode", "primary_account_code") ??
@@ -424,6 +557,34 @@ export function DocumentForm({
     }
   }
 
+  function handlePartyChange(value: string) {
+    setPartyId(value);
+    if (!isPurchase) {
+      const projectStillMatches = projects.some(
+        (project) =>
+          relationId(project, "id") === projectId &&
+          relationId(project, "clientPartyId", "client_party_id") === value,
+      );
+      if (!projectStillMatches) {
+        setProjectId("");
+        setContractId("");
+      }
+    }
+  }
+
+  function handleProjectChange(value: string) {
+    setProjectId(value);
+    if (
+      !contracts.some(
+        (contract) =>
+          relationId(contract, "id") === contractId &&
+          relationId(contract, "projectId", "project_id") === value,
+      )
+    ) {
+      setContractId("");
+    }
+  }
+
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
     const item = activeCategories.find(
@@ -436,7 +597,13 @@ export function DocumentForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (dueDateError) return;
+    if (dueDateError || allocationAmountError) return;
+    const allocationDimensions = canonicalRelationshipDimensions(
+      initialDims,
+      { category },
+      projectId,
+      contractId,
+    );
     const payload: Row = {
       type,
       documentNumber,
@@ -454,6 +621,7 @@ export function DocumentForm({
       reason: reason || null,
       lines: [
         {
+          ...(initialLine ?? {}),
           lineNumber: 1,
           description: lineDescription,
           quantity: quantity || "1",
@@ -464,8 +632,27 @@ export function DocumentForm({
           primaryAccountCode,
           taxAccountCode: taxAccountCode || undefined,
           taxCode: taxCode || undefined,
-          dimensions: { category },
+          dimensions: { ...((initialLine?.dimensions as Row | undefined) ?? {}), category },
+          allocations: existingAllocations.length
+            ? existingAllocations.map((allocation) => ({
+                ...allocation,
+                ...(existingAllocations.length === 1 ? { amountMinor: netMinor || "0" } : {}),
+                dimensions: canonicalRelationshipDimensions(
+                  allocation.dimensions as Row | undefined,
+                  allocationDimensions,
+                  projectId,
+                  contractId,
+                ),
+              }))
+            : [
+                {
+                  id: crypto.randomUUID(),
+                  amountMinor: netMinor || "0",
+                  dimensions: allocationDimensions,
+                },
+              ],
         },
+        ...remainingLines,
       ],
     };
     onSubmit(payload);
@@ -537,20 +724,20 @@ export function DocumentForm({
               required
             />
           ) : (
-            <Select value={partyId} onValueChange={setPartyId}>
+            <Select value={partyId} onValueChange={handlePartyChange}>
               <SelectTrigger>
                 <SelectValue>
                   {(() => {
                     const match = parties.find((p) => String(p.id) === partyId);
                     if (!match) return partyId || "Chọn khách hàng";
-                    return String(field(match, "displayName", "name") ?? match.id);
+                    return partyName(match);
                   })()}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {parties.map((p) => {
-                    const nameStr = String(field(p, "displayName", "name") ?? p.id);
+                    const nameStr = partyName(p);
                     return (
                       <SelectItem key={String(p.id)} value={String(p.id)}>
                         {nameStr}
@@ -561,7 +748,19 @@ export function DocumentForm({
               </SelectContent>
             </Select>
           )}
+          {!isPurchase && parties.length === 0 ? (
+            <FieldError>Chưa có khách hàng active trong danh mục đối tác.</FieldError>
+          ) : null}
         </Field>
+        <RelationshipFields
+          projects={availableProjects}
+          contracts={availableContracts}
+          projectId={projectId}
+          contractId={contractId}
+          onProjectChange={handleProjectChange}
+          onContractChange={setContractId}
+          projectRequired={!isPurchase}
+        />
         <TextField
           label="Ngày hóa đơn"
           type="date"
@@ -688,7 +887,18 @@ export function DocumentForm({
         </Field>
       </FieldSet>
 
-      <Button type="submit" disabled={busy || Boolean(dueDateError)} className="self-end">
+      {allocationAmountError ? <FieldError>{allocationAmountError}</FieldError> : null}
+
+      <Button
+        type="submit"
+        disabled={
+          busy ||
+          Boolean(dueDateError) ||
+          Boolean(allocationAmountError) ||
+          (!isPurchase && !projectId)
+        }
+        className="self-end"
+      >
         {busy ? "Đang lưu…" : submitLabel}
       </Button>
     </form>
@@ -700,12 +910,20 @@ export function ExpenseForm({
   onSubmit,
   initial,
   parties = [],
+  payees = parties,
+  employees = [],
+  projects = [],
+  contracts = [],
   submitLabel = "Lưu chi phí nháp",
 }: {
   busy: boolean;
   onSubmit: (body: Row) => void;
   initial?: Row;
   parties?: readonly Row[];
+  payees?: readonly Row[];
+  employees?: readonly Row[];
+  projects?: readonly Row[];
+  contracts?: readonly Row[];
   submitLabel?: string;
 }) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
@@ -713,7 +931,11 @@ export function ExpenseForm({
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
-  const initialDims = (initialLine?.dimensions as Record<string, string> | undefined) ?? {};
+  const remainingLines = Array.isArray(initial?.lines) ? (initial.lines.slice(1) as Row[]) : [];
+  const { dimensions: initialDims } = relationshipDimensions(initialLine);
+  const existingAllocations = Array.isArray(initialLine?.allocations)
+    ? (initialLine.allocations as Row[])
+    : [];
 
   const [expenseClass, setExpenseClass] = useState(
     String(field(initial, "expenseClass", "expense_class") ?? "non_documented"),
@@ -722,10 +944,16 @@ export function ExpenseForm({
     String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
   );
   const [payeePartyId, setPayeePartyId] = useState(
-    String(field(initial, "payeePartyId", "payee_party_id") ?? parties[0]?.id ?? ""),
+    String(field(initial, "payeePartyId", "payee_party_id") ?? ""),
   );
   const [employeePartyId, setEmployeePartyId] = useState(
     String(field(initial, "employeePartyId", "employee_party_id") ?? ""),
+  );
+  const [projectId, setProjectId] = useState(String(initialDims.projectId ?? ""));
+  const [contractId, setContractId] = useState(String(initialDims.contractId ?? ""));
+  const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
+  const availableContracts = contracts.filter(
+    (contract) => relationId(contract, "projectId", "project_id") === projectId,
   );
   const [expenseDate, setExpenseDate] = useState(
     String(field(initial, "expenseDate", "expense_date") ?? new Date().toISOString().slice(0, 10)),
@@ -755,6 +983,10 @@ export function ExpenseForm({
   const [counterAccountCode, setCounterAccountCode] = useState(
     String(field(initial, "counterAccountCode", "counter_account_code") ?? "111-CASH"),
   );
+  const allocationAmountError =
+    existingAllocations.length > 1 && initialNetMinor !== "" && netMinor !== initialNetMinor
+      ? "Chi phí có nhiều phân bổ. Hãy chỉnh phân bổ chi tiết trước khi thay đổi thành tiền."
+      : "";
   const [postingAccountCode, setPostingAccountCode] = useState(
     String(field(initialLine, "postingAccountCode", "posting_account_code") ?? "642-OPEX"),
   );
@@ -813,10 +1045,17 @@ export function ExpenseForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (allocationAmountError) return;
+    const allocationDimensions = canonicalRelationshipDimensions(
+      initialDims,
+      { category, fundingSource: counterAccountCode },
+      projectId,
+      contractId,
+    );
     const payload: Row = {
       expenseClass,
       category,
-      payeePartyId: payeePartyId || null,
+      payeePartyId: payees.some((payee) => String(payee.id) === payeePartyId) ? payeePartyId : null,
       employeePartyId: employeePartyId || null,
       expenseDate,
       businessPurpose,
@@ -827,6 +1066,7 @@ export function ExpenseForm({
       counterAccountCode,
       lines: [
         {
+          ...(initialLine ?? {}),
           lineNumber: 1,
           description: businessPurpose || getCategoryName(category) || "Chi phí doanh nghiệp",
           postingAccountCode,
@@ -835,15 +1075,27 @@ export function ExpenseForm({
           netMinor: netMinor || "0",
           vatMinor: vatMinor || "0",
           grossMinor: grossMinor || "0",
-          dimensions: { category },
-          allocations: [
-            {
-              id: crypto.randomUUID(),
-              amountMinor: netMinor || "0",
-              dimensions: { category, fundingSource: counterAccountCode },
-            },
-          ],
+          dimensions: { ...((initialLine?.dimensions as Row | undefined) ?? {}), category },
+          allocations: existingAllocations.length
+            ? existingAllocations.map((allocation) => ({
+                ...allocation,
+                ...(existingAllocations.length === 1 ? { amountMinor: netMinor || "0" } : {}),
+                dimensions: canonicalRelationshipDimensions(
+                  allocation.dimensions as Row | undefined,
+                  allocationDimensions,
+                  projectId,
+                  contractId,
+                ),
+              }))
+            : [
+                {
+                  id: crypto.randomUUID(),
+                  amountMinor: netMinor || "0",
+                  dimensions: allocationDimensions,
+                },
+              ],
         },
+        ...remainingLines,
       ],
     };
     onSubmit(payload);
@@ -874,6 +1126,25 @@ export function ExpenseForm({
             </SelectContent>
           </Select>
         </Field>
+        <RelationshipFields
+          projects={projects}
+          contracts={availableContracts}
+          projectId={projectId}
+          contractId={contractId}
+          onProjectChange={(value) => {
+            setProjectId(value);
+            if (
+              !contracts.some(
+                (contract) =>
+                  relationId(contract, "id") === contractId &&
+                  relationId(contract, "projectId", "project_id") === value,
+              )
+            ) {
+              setContractId("");
+            }
+          }}
+          onContractChange={setContractId}
+        />
         <Field>
           <FieldLabel>Danh mục nghiệp vụ / Dịch vụ</FieldLabel>
           <Select value={category} onValueChange={handleCategoryChange}>
@@ -898,30 +1169,38 @@ export function ExpenseForm({
           </Select>
         </Field>
         <ComboboxInput
-          label="Đối tác thụ hưởng (Gõ để tìm gợi ý hoặc tự do nhập mới)"
+          label="Đối tác thụ hưởng"
           value={payeePartyId}
           onChange={setPayeePartyId}
-          options={parties}
-          placeholder="Gõ tên để tìm gợi ý hoặc nhập mới..."
+          options={payees}
+          placeholder="Gõ tên nhà cung cấp hoặc đối tác..."
+          error={
+            payees.length === 0 ? "Chưa có nhà cung cấp active trong danh mục đối tác." : undefined
+          }
         />
         <Field>
           <FieldLabel>Nhân viên thực hiện</FieldLabel>
-          {parties.length > 0 ? (
-            <Select value={employeePartyId} onValueChange={setEmployeePartyId}>
-              <SelectTrigger>
+          {employees.length > 0 ? (
+            <Select
+              value={employeePartyId || "__none__"}
+              onValueChange={(selected) =>
+                setEmployeePartyId(selected === "__none__" ? "" : selected)
+              }
+            >
+              <SelectTrigger aria-label="Nhân viên thực hiện">
                 <SelectValue>
                   {(() => {
-                    const match = parties.find((p) => String(p.id) === employeePartyId);
+                    const match = employees.find((p) => String(p.id) === employeePartyId);
                     if (!match) return employeePartyId || "-- Không chọn --";
-                    return String(field(match, "displayName", "name") ?? match.id);
+                    return partyName(match);
                   })()}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="">-- Không chọn --</SelectItem>
-                  {parties.map((p) => {
-                    const nameStr = String(field(p, "displayName", "name") ?? p.id);
+                  <SelectItem value="__none__">-- Không chọn --</SelectItem>
+                  {employees.map((p) => {
+                    const nameStr = partyName(p);
                     return (
                       <SelectItem key={String(p.id)} value={String(p.id)}>
                         {nameStr}
@@ -932,7 +1211,7 @@ export function ExpenseForm({
               </SelectContent>
             </Select>
           ) : (
-            <Input value={employeePartyId} onChange={(e) => setEmployeePartyId(e.target.value)} />
+            <Input value="Chưa có nhân viên trong danh mục nhân sự" disabled />
           )}
         </Field>
         <TextField
@@ -1033,7 +1312,8 @@ export function ExpenseForm({
         </Field>
       </FieldSet>
 
-      <Button type="submit" disabled={busy} className="self-end">
+      {allocationAmountError ? <FieldError>{allocationAmountError}</FieldError> : null}
+      <Button type="submit" disabled={busy || Boolean(allocationAmountError)} className="self-end">
         {busy ? "Đang lưu…" : submitLabel}
       </Button>
     </form>

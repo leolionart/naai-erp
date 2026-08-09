@@ -212,6 +212,7 @@ export const expenseState = pgEnum("expense_state", [
   "approved",
   "rejected",
   "posted",
+  "reversed",
 ]);
 export const eligibilityState = pgEnum("eligibility_state", [
   "unreviewed",
@@ -451,12 +452,22 @@ export const organizations = pgTable(
   {
     id: text("id").primaryKey(),
     legalName: text("legal_name").notNull(),
+    taxId: text("tax_id"),
+    registeredAddress: text("registered_address"),
     baseCurrency: text("base_currency").notNull(),
     timezone: text("timezone").notNull(),
     ...auditColumns,
   },
   (table) => [
     check("organizations_legal_name_not_blank", sql`btrim(${table.legalName}) <> ''`),
+    check(
+      "organizations_tax_id_not_blank",
+      sql`${table.taxId} is null or btrim(${table.taxId}) <> ''`,
+    ),
+    check(
+      "organizations_registered_address_not_blank",
+      sql`${table.registeredAddress} is null or btrim(${table.registeredAddress}) <> ''`,
+    ),
     check("organizations_currency_iso3", sql`${table.baseCurrency} ~ '^[A-Z]{3}$'`),
     check("organizations_timezone_not_blank", sql`btrim(${table.timezone}) <> ''`),
   ],
@@ -808,7 +819,12 @@ export const parties = pgTable(
       .references(() => organizations.id),
     id: text("id").notNull(),
     displayName: text("display_name").notNull(),
+    legalName: text("legal_name"),
     normalizedTaxId: text("normalized_tax_id"),
+    registeredAddress: text("registered_address"),
+    email: text("email"),
+    phone: text("phone"),
+    website: text("website"),
     status: partyStatus("status").notNull().default("active"),
     ...auditColumns,
   },
@@ -818,6 +834,23 @@ export const parties = pgTable(
       .on(table.organizationId, table.normalizedTaxId)
       .where(sql`${table.normalizedTaxId} is not null`),
     check("parties_name_not_blank", sql`btrim(${table.displayName}) <> ''`),
+    check(
+      "parties_legal_name_not_blank",
+      sql`${table.legalName} is null or btrim(${table.legalName}) <> ''`,
+    ),
+    check(
+      "parties_registered_address_not_blank",
+      sql`${table.registeredAddress} is null or btrim(${table.registeredAddress}) <> ''`,
+    ),
+    check(
+      "parties_email_valid",
+      sql`${table.email} is null or ${table.email} ~* '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'`,
+    ),
+    check("parties_phone_not_blank", sql`${table.phone} is null or btrim(${table.phone}) <> ''`),
+    check(
+      "parties_website_valid",
+      sql`${table.website} is null or ${table.website} ~* '^https?://[^[:space:]]+$'`,
+    ),
   ],
 );
 
@@ -2136,6 +2169,7 @@ export const accountingWorkflowPolicies = pgTable(
     organizationId: text("organization_id")
       .primaryKey()
       .references(() => organizations.id),
+    operatingMode: text("operating_mode").notNull().default("controlled"),
     allowSelfApproval: boolean("allow_self_approval").notNull().default(false),
     selfApprovalMaxMinor: bigint("self_approval_max_minor", { mode: "bigint" }),
     softLockPostingRoles: jsonb("soft_lock_posting_roles")
@@ -2146,6 +2180,10 @@ export const accountingWorkflowPolicies = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    check(
+      "workflow_policy_operating_mode",
+      sql`${table.operatingMode} in ('controlled', 'owner_final')`,
+    ),
     check(
       "workflow_policy_self_approval_threshold",
       sql`(not ${table.allowSelfApproval} and ${table.selfApprovalMaxMinor} is null) or (${table.allowSelfApproval} and ${table.selfApprovalMaxMinor} is not null and ${table.selfApprovalMaxMinor} >= 0)`,
@@ -2311,19 +2349,12 @@ export const commercialDocuments = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("commercial_documents_number_unique").on(
-      table.organizationId,
-      table.type,
-      table.series,
-      table.fiscalYear,
-      table.documentNumber,
-    ),
-    unique("commercial_documents_party_reference_unique").on(
-      table.organizationId,
-      table.type,
-      table.partyId,
-      table.documentNumber,
-    ),
+    uniqueIndex("commercial_documents_number_active_unique")
+      .on(table.organizationId, table.type, table.series, table.fiscalYear, table.documentNumber)
+      .where(sql`${table.state} <> 'cancelled'`),
+    uniqueIndex("commercial_documents_party_reference_active_unique")
+      .on(table.organizationId, table.type, table.partyId, table.documentNumber)
+      .where(sql`${table.state} <> 'cancelled'`),
     foreignKey({
       columns: [table.organizationId, table.partyId],
       foreignColumns: [parties.organizationId, parties.id],
@@ -2383,6 +2414,19 @@ export const commercialDocumentLines = pgTable(
     primaryAccountCode: text("primary_account_code").notNull(),
     taxAccountCode: text("tax_account_code"),
     taxCode: text("tax_code"),
+    managementState: managementValidityState("management_state").notNull().default("unreviewed"),
+    citState: eligibilityState("cit_state").notNull().default("unreviewed"),
+    vatState: eligibilityState("vat_state").notNull().default("unreviewed"),
+    citEligibleMinor: bigint("cit_eligible_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    vatEligibleMinor: bigint("vat_eligible_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewReason: text("review_reason"),
+    reviewReference: text("review_reference"),
     dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -2416,6 +2460,14 @@ export const commercialDocumentLines = pgTable(
     check(
       "commercial_document_lines_tax_account",
       sql`(${table.taxMinor} = 0 and ${table.taxAccountCode} is null) or (${table.taxMinor} > 0 and ${table.taxAccountCode} is not null)`,
+    ),
+    check(
+      "commercial_document_lines_eligible_limits",
+      sql`${table.citEligibleMinor} >= 0 and ${table.citEligibleMinor} <= ${table.grossMinor} and ${table.vatEligibleMinor} >= 0 and ${table.vatEligibleMinor} <= ${table.taxMinor}`,
+    ),
+    check(
+      "commercial_document_lines_review_metadata",
+      sql`(${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.reviewReason} is null and ${table.reviewReference} is null) or (${table.reviewedBy} is not null and ${table.reviewedAt} is not null and ${table.reviewReason} is not null and btrim(${table.reviewReason}) <> '')`,
     ),
   ],
 );
@@ -2581,6 +2633,33 @@ export const expenseCategories = pgTable(
     check("expense_categories_code_not_blank", sql`btrim(${table.code}) <> ''`),
     check("expense_categories_name_not_blank", sql`btrim(${table.name}) <> ''`),
     check("expense_categories_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const purchaseProducts = pgTable(
+  "purchase_products",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    vatRatePercent: integer("vat_rate_percent").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull().default("master-data"),
+    updatedBy: text("updated_by").notNull().default("master-data"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.code] }),
+    check("purchase_products_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("purchase_products_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("purchase_products_vat_rate", sql`${table.vatRatePercent} in (8, 10)`),
+    check("purchase_products_version_positive", sql`${table.version} > 0`),
+    index("purchase_products_active_name_idx").on(table.organizationId, table.isActive, table.name),
   ],
 );
 
@@ -5062,6 +5141,7 @@ export const schema = {
   overheadAllocationRuns,
   overheadAllocationSplits,
   expenseCategories,
+  purchaseProducts,
   resourceVersions,
   apiIdempotencyRecords,
   resourceAuditEvents,

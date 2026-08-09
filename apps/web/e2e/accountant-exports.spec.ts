@@ -28,6 +28,52 @@ test("@desktop browses accountant exports and distinguishes review_required from
   await expect(page.getByRole("link", { name: "Mở chi tiết" })).toBeVisible();
 });
 
+test("@desktop downloads sales purchase and management workbooks for one selected period", async ({
+  page,
+}) => {
+  await authenticate(page);
+  await page.route("**/api/v1/organizations/naai/accountant-exports", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ data: { items: [] } }),
+    }),
+  );
+  const requested: string[] = [];
+  await page.route("**/api/v1/organizations/naai/accounting-list-exports/**", (route) => {
+    const url = new URL(route.request().url());
+    requested.push(`${url.pathname}?${url.searchParams}`);
+    const name = url.pathname.split("/").at(-1) ?? "workbook";
+    return route.fulfill({
+      status: 200,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      headers: { "content-disposition": `attachment; filename="${name}.xlsx"` },
+      body: Buffer.from([80, 75, 3, 4]),
+    });
+  });
+
+  await page.goto("http://localhost:3000/reports/accountant-exports");
+  await page.getByLabel("Từ ngày").fill("2026-01-01");
+  await page.getByLabel("Đến ngày").fill("2026-08-09");
+  await expect(page.getByText("Form-78 là lớp dữ liệu hóa đơn điện tử gốc")).toBeVisible();
+  await expect(page.getByText(/Payroll\/bonus chưa được hỗ trợ/)).toBeVisible();
+
+  for (const [buttonName, filename] of [
+    ["Tải Hóa đơn bán ra", "sales-invoices.xlsx"],
+    ["Tải Hóa đơn mua vào & chi phí", "purchase-invoices-expenses.xlsx"],
+    ["Tải Workbook quản trị tổng hợp", "management-workbook.xlsx"],
+  ] as const) {
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: buttonName }).click();
+    expect((await download).suggestedFilename()).toBe(filename);
+  }
+
+  expect(requested).toEqual([
+    "/dev-api/api/v1/organizations/naai/accounting-list-exports/sales-invoices?startsOn=2026-01-01&endsOn=2026-08-09",
+    "/dev-api/api/v1/organizations/naai/accounting-list-exports/purchase-invoices-expenses?startsOn=2026-01-01&endsOn=2026-08-09",
+    "/dev-api/api/v1/organizations/naai/accounting-list-exports/management-workbook?startsOn=2026-01-01&endsOn=2026-08-09",
+  ]);
+});
+
 test("@desktop creates an XLSX export from the listing dialog", async ({ page }) => {
   const snapshot = {
     schemaVersion: 1,

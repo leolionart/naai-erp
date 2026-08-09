@@ -98,6 +98,83 @@ describeIntegration("ERP-300 commercial documents", () => {
     ],
   } as const;
 
+  it("validates sales customer project and optional contract relationships before create", async () => {
+    const linked = {
+      ...sales,
+      id: "sales-linked-relationships",
+      documentNumber: "SI-2026-LINKED",
+      netMinor: "1000",
+      taxMinor: "0",
+      grossMinor: "1000",
+      lines: [
+        {
+          ...sales.lines[0],
+          netMinor: "1000",
+          taxMinor: "0",
+          grossMinor: "1000",
+          unitPriceMinor: "1000",
+          taxAccountCode: undefined,
+          allocations: [
+            {
+              id: "linked-a",
+              amountMinor: "1000",
+              dimensions: { projectId: "A", contractId: "CONTRACT-A" },
+            },
+          ],
+        },
+      ],
+    };
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(integrationToken, "sales-linked-create"),
+      payload: linked,
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const listing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents?projectId=A`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(
+      listing.json().data.items.find((item: { id: string }) => item.id === linked.id),
+    ).toMatchObject({ projectIds: ["A"], contractIds: ["CONTRACT-A"] });
+
+    const wrongCustomer = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(integrationToken, "sales-wrong-customer"),
+      payload: {
+        ...linked,
+        id: "sales-wrong-customer",
+        documentNumber: "SI-2026-WRONG-CUSTOMER",
+        partyId: "SUPPLIER-A",
+      },
+    });
+    expect(wrongCustomer.statusCode, wrongCustomer.body).toBe(422);
+    expect(wrongCustomer.json().error.code).toBe("PROJECT_CUSTOMER_MISMATCH");
+
+    const wrongContract = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(integrationToken, "sales-wrong-contract"),
+      payload: {
+        ...linked,
+        id: "sales-wrong-contract",
+        documentNumber: "SI-2026-WRONG-CONTRACT",
+        lines: linked.lines.map((line) => ({
+          ...line,
+          allocations: line.allocations.map((allocation) => ({
+            ...allocation,
+            dimensions: { projectId: "A", contractId: "CONTRACT-B" },
+          })),
+        })),
+      },
+    });
+    expect(wrongContract.statusCode, wrongContract.body).toBe(422);
+    expect(wrongContract.json().error.code).toBe("CONTRACT_PROJECT_MISMATCH");
+  });
+
   it("issues sales and posts purchase documents into exact balanced linked journals", async () => {
     const create = await app.inject({
       method: "POST",
@@ -255,6 +332,71 @@ describeIntegration("ERP-300 commercial documents", () => {
     ]);
   });
 
+  it("persists owner-final CIT and VAT decisions for a documented purchase invoice", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies
+       (organization_id,operating_mode,allow_self_approval,self_approval_max_minor,soft_lock_posting_roles,updated_by)
+       values($1,'owner_final',false,null,'["owner","finance_admin"]','owner-final-test')
+       on conflict(organization_id) do update set operating_mode='owner_final',updated_by='owner-final-test',updated_at=now()`,
+      [org],
+    );
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(integrationToken, "owner-final-purchase-create"),
+      payload: {
+        ...sales,
+        id: "purchase-owner-final",
+        type: "purchase_invoice",
+        documentNumber: "INV-OWNER-FINAL",
+        series: undefined,
+        partyId: "SUPPLIER-A",
+        controlAccountCode: "331-AP",
+        netMinor: "1000",
+        taxMinor: "100",
+        grossMinor: "1100",
+        lines: [
+          {
+            description: "Documented operating cost",
+            quantity: "1",
+            unitPriceMinor: "1000",
+            netMinor: "1000",
+            taxMinor: "100",
+            grossMinor: "1100",
+            primaryAccountCode: "632-COST",
+            taxAccountCode: "1331-VAT-IN",
+            taxCode: "VAT10",
+            allocations: [
+              { id: "owner-final-a", amountMinor: "1000", dimensions: { projectId: "A" } },
+            ],
+          },
+        ],
+      },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const persisted = await pool.query(
+      `select management_state::text,cit_state::text,vat_state::text,
+              cit_eligible_minor::text,vat_eligible_minor::text,reviewed_by,review_reason,review_reference
+         from commercial_document_lines
+        where organization_id=$1 and document_id='purchase-owner-final' and line_number=1`,
+      [org],
+    );
+    expect(persisted.rows[0]).toEqual({
+      management_state: "valid",
+      cit_state: "eligible",
+      vat_state: "eligible",
+      cit_eligible_minor: "1000",
+      vat_eligible_minor: "100",
+      reviewed_by: integrationUser,
+      review_reason: "Resolved when the purchase invoice was recorded",
+      review_reference: "owner_final",
+    });
+    await pool.query(
+      "update accounting_workflow_policies set operating_mode='controlled' where organization_id=$1",
+      [org],
+    );
+  });
+
   it("filters documents by project allocation without leaking sibling projects", async () => {
     const projectA = await app.inject({
       method: "GET",
@@ -267,7 +409,7 @@ describeIntegration("ERP-300 commercial documents", () => {
         .json()
         .data.items.map((item: { id: string }) => item.id)
         .sort(),
-    ).toEqual(["purchase-001", "sales-001", "sales-over-cap"]);
+    ).toEqual(["purchase-001", "sales-001", "sales-linked-relationships", "sales-over-cap"]);
     expect(
       projectA
         .json()
@@ -492,6 +634,97 @@ describeIntegration("ERP-300 commercial documents", () => {
     });
     expect(rejected.statusCode).toBe(409);
     expect(rejected.json().error.code).toBe("CREDIT_EXCEEDS_REMAINING");
+  });
+
+  it("dry-runs and commits an idempotent relationship backfill through reverse replacement", async () => {
+    await pool.query(
+      `insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency)
+       values($1,'CONTRACT-A-BACKFILL','A','CONTRACT-A-BACKFILL','2026-01-01',30000000,'VND')`,
+      [org],
+    );
+    const original = {
+      ...sales,
+      id: "sales-relationship-backfill",
+      documentNumber: "SI-REL-BACKFILL",
+      netMinor: "1000",
+      taxMinor: "0",
+      grossMinor: "1000",
+      externalReference: { system: "relationship-test", externalId: "sales-backfill-1" },
+      lines: [
+        {
+          ...sales.lines[0],
+          unitPriceMinor: "1000",
+          netMinor: "1000",
+          taxMinor: "0",
+          grossMinor: "1000",
+          taxAccountCode: undefined,
+          allocations: [{ id: "backfill-a", amountMinor: "1000", dimensions: { projectId: "A" } }],
+        },
+      ],
+    };
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(integrationToken, "relationship-original-create"),
+      payload: original,
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    await command(original.id, "validate", integrationToken, "relationship-original-validate");
+    expect(
+      (await command(original.id, "issue", financeToken, "relationship-original-issue")).statusCode,
+    ).toBe(201);
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/${original.id}`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    const replacement = {
+      ...original,
+      id: "sales-relationship-backfill-r1",
+      lines: original.lines.map((line) => ({
+        ...line,
+        allocations: line.allocations.map((allocation) => ({
+          ...allocation,
+          dimensions: { projectId: "A", contractId: "CONTRACT-A-BACKFILL" },
+        })),
+      })),
+    };
+    const body = { replacement, reason: "Explicit reviewed contract mapping" };
+    const dryRun = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents/${original.id}/relationship-backfill/dry-run`,
+      headers: { authorization: `Bearer ${financeToken}`, "if-match": detail.json().data.version },
+      payload: body,
+    });
+    expect(dryRun.statusCode, dryRun.body).toBe(201);
+    const commitRequest = () =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${org}/commercial-documents/${original.id}/relationship-backfill/commit`,
+        headers: {
+          ...headers(financeToken, "relationship-backfill-commit"),
+          "if-match": detail.json().data.version,
+        },
+        payload: { ...body, planHash: dryRun.json().data.planHash },
+      });
+    const committed = await commitRequest();
+    expect(committed.statusCode, committed.body).toBe(201);
+    expect(committed.json().data).toMatchObject({
+      state: "cancelled",
+      replacementDocumentId: replacement.id,
+      idempotencyReplayed: false,
+    });
+    expect((await commitRequest()).json().data.idempotencyReplayed).toBe(true);
+    const replacementDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/${replacement.id}`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(replacementDetail.json().data).toMatchObject({
+      document_number: original.documentNumber,
+      state: "draft",
+      externalReference: expect.objectContaining({ externalId: "sales-backfill-1" }),
+    });
   });
 
   it("enforces lifecycle, organization scope, allocation totals and final immutability", async () => {

@@ -5,7 +5,14 @@ import { Pencil, Plus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -114,9 +121,11 @@ export function ExpenseCategoryPolicyWorkspace() {
           Cấu hình nguồn tiền mặc định cho từng danh mục. Từng giao dịch vẫn có thể chọn lại nguồn
           thanh toán.
         </CardDescription>
-        <Button size="sm" className="w-fit" onClick={() => setEditing(null)}>
-          <Plus data-icon="inline-start" /> Thêm chính sách
-        </Button>
+        <CardAction>
+          <Button size="sm" onClick={() => setEditing(null)}>
+            <Plus data-icon="inline-start" /> Thêm chính sách
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {error ? (

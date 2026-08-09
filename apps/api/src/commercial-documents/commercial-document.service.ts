@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgCommercialDocumentStore } from "./pg-commercial-document.store.js";
@@ -98,6 +98,43 @@ export class CommercialDocumentService {
     if (!item) throw new Error("RESOURCE_NOT_FOUND");
     return this.envelope(context, item);
   }
+  async relationshipBackfillInventory(context: CommercialDocumentContext) {
+    return this.envelope(context, {
+      items: await this.store.relationshipBackfillInventory(context.organizationId),
+    });
+  }
+  async dryRunRelationshipBackfill(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    replacement: CreateCommercialDocumentInput,
+    reason: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    const existing = await this.store.get(context.organizationId, id);
+    if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+    if (String(existing.version) !== expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!["issued", "posted", "partially_paid", "paid"].includes(existing.state))
+      throw new Error("INVALID_DOCUMENT_TRANSITION");
+    const normalized = this.normalizeRelationships(replacement);
+    this.validate(normalized);
+    await this.store.validateRelationships?.(context.organizationId, normalized);
+    const planHash = createHash("sha256")
+      .update(
+        JSON.stringify({ id, expectedVersion, replacement: normalized, reason: reason.trim() }),
+      )
+      .digest("hex");
+    return this.envelope(context, {
+      dryRun: true,
+      planHash,
+      originalId: id,
+      originalState: existing.state,
+      replacement: normalized,
+      effects: ["reverse_original_journal", "cancel_original", "create_replacement_draft"],
+    });
+  }
   async update(
     context: CommercialDocumentContext,
     id: string,
@@ -114,8 +151,9 @@ export class CommercialDocumentService {
     if (existing.state !== "draft") throw new Error("INVALID_STATE_TRANSITION");
     if (existing.version.toString() !== expectedVersion) throw new Error("VERSION_CONFLICT");
 
-    const merged = this.mergeDocument(existing, input);
+    const merged = this.normalizeRelationships(this.mergeDocument(existing, input));
     this.validate(merged);
+    await this.store.validateRelationships?.(context.organizationId, merged);
 
     return this.envelope(
       context,
@@ -244,8 +282,10 @@ export class CommercialDocumentService {
   ) {
     if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    this.validate(input);
-    return this.envelope(context, await this.store.create(context, input, idempotencyKey));
+    const normalized = this.normalizeRelationships(input);
+    this.validate(normalized);
+    await this.store.validateRelationships?.(context.organizationId, normalized);
+    return this.envelope(context, await this.store.create(context, normalized, idempotencyKey));
   }
   validatePortableInput(input: CreateCommercialDocumentInput) {
     this.validate(input);
@@ -262,18 +302,60 @@ export class CommercialDocumentService {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!expectedVersion) throw new Error("VERSION_CONFLICT");
     if (!reason.trim()) throw new Error("VALIDATION_FAILED");
-    this.validate(input);
+    const normalized = this.normalizeRelationships(input);
+    this.validate(normalized);
+    await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(
       context,
       await this.store.reverseReplace(
         context,
         id,
         expectedVersion,
-        input,
+        normalized,
         reason.trim(),
         idempotencyKey,
       ),
     );
+  }
+  async commitRelationshipBackfill(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    replacement: CreateCommercialDocumentInput,
+    reason: string,
+    planHash: string,
+    idempotencyKey?: string,
+  ) {
+    const normalized = this.normalizeRelationships(replacement);
+    const expectedPlanHash = createHash("sha256")
+      .update(
+        JSON.stringify({ id, expectedVersion, replacement: normalized, reason: reason.trim() }),
+      )
+      .digest("hex");
+    if (expectedPlanHash !== planHash) throw new Error("RELATIONSHIP_BACKFILL_PLAN_MISMATCH");
+    return this.reverseReplace(context, id, expectedVersion, normalized, reason, idempotencyKey);
+  }
+  private normalizeRelationships(
+    input: CreateCommercialDocumentInput,
+  ): CreateCommercialDocumentInput {
+    return {
+      ...input,
+      lines: input.lines.map((line) => ({
+        ...line,
+        allocations: line.allocations.map((allocation) => ({
+          ...allocation,
+          dimensions: {
+            ...allocation.dimensions,
+            ...(line.dimensions?.projectId && !allocation.dimensions.projectId
+              ? { projectId: line.dimensions.projectId }
+              : {}),
+            ...(line.dimensions?.contractId && !allocation.dimensions.contractId
+              ? { contractId: line.dimensions.contractId }
+              : {}),
+          },
+        })),
+      })),
+    };
   }
   async transition(
     context: CommercialDocumentContext,
@@ -357,13 +439,14 @@ export class CommercialDocumentService {
         lineTax > 0n &&
         line.allocations.some(
           (allocation) =>
+            allocation.dimensions.taxState !== undefined &&
             ![
               "unreviewed",
               "eligible",
               "partially_eligible",
               "ineligible",
               "accountant_override",
-            ].includes(allocation.dimensions.taxState ?? ""),
+            ].includes(allocation.dimensions.taxState),
         )
       )
         throw new Error("PURCHASE_TAX_REVIEW_REQUIRED");

@@ -212,7 +212,10 @@ const expenseCategoryRules: readonly Readonly<{
   { code: "SPORTS_RECREATION", label: "Thể thao và phúc lợi", patterns: ["vnb sports", "hinoko"] },
 ];
 
-const inferExpenseCategory = (expenseType: string, note: string): ExpenseCategoryInference => {
+export const inferExpenseCategory = (
+  expenseType: string,
+  note: string,
+): ExpenseCategoryInference => {
   const originalType = expenseType.toLocaleLowerCase("vi");
   const originalNote = note.toLocaleLowerCase("vi");
   if (originalType.includes("thưởng") || originalNote.includes("thưởng"))
@@ -233,6 +236,29 @@ const inferExpenseCategory = (expenseType: string, note: string): ExpenseCategor
   }
   return { code: "OTHER_OPERATING", label: "Chi phí vận hành khác", source: "fallback" };
 };
+
+const declaredExpenseCategories: Record<string, { code: string; label: string }> = {
+  PAYROLL: { code: "SALARY", label: "Chi phí Lương & Thưởng nhân sự" },
+  BONUS: { code: "SALARY", label: "Chi phí Lương & Thưởng nhân sự" },
+  MEALS_ENTERTAINMENT: { code: "MEAL", label: "Chi phí Ăn uống / Tiếp khách" },
+  EV_BATTERY_CHARGING: { code: "VEHICLE_RENTAL", label: "Chi phí Thuê xe / Thuê pin sạc" },
+  INTERNET_TELECOM: { code: "INTERNET_TELECOM", label: "Chi phí Internet / Điện thoại" },
+  ELECTRICITY_UTILITIES: { code: "ELECTRICITY_WATER", label: "Chi phí Điện / Nước" },
+  ELECTRONICS_EQUIPMENT: { code: "ELECTRONIC_EQUIP", label: "Chi phí Thiết bị điện tử" },
+  TAXES_FEES: { code: "TAX", label: "Chi phí Thuế & Phí nhà nước" },
+  OFFICE_FURNISHINGS: { code: "DECORATION", label: "Chi phí Trang trí văn phòng" },
+  DOMAIN_SOFTWARE: { code: "DOMAIN_HOSTING", label: "Chi phí Tên miền / Hosting" },
+  CLOUD_DIGITAL_SERVICES: { code: "SERVER_CLOUD", label: "Chi phí Máy chủ / Cloud Services" },
+  DEPOSIT_REFUND: { code: "DEPOSIT_REFUND", label: "Chi phí Hoàn tiền cọc / Đặt cọc" },
+  CASH_TRANSFER: { code: "OTHER_EXPENSE", label: "Chi phí mua vào khác" },
+  TRAVEL_TRANSPORT: { code: "OTHER_EXPENSE", label: "Chi phí mua vào khác" },
+  HEALTH_WELLNESS: { code: "OTHER_EXPENSE", label: "Chi phí mua vào khác" },
+  SPORTS_RECREATION: { code: "OTHER_EXPENSE", label: "Chi phí mua vào khác" },
+  OTHER_OPERATING: { code: "OTHER_EXPENSE", label: "Chi phí mua vào khác" },
+};
+
+export const declaredExpenseCategory = (category: ExpenseCategoryInference) =>
+  declaredExpenseCategories[category.code] ?? category;
 
 const inferSupplier = (
   personnel: string,
@@ -820,8 +846,9 @@ export async function buildWorkbookImportPayload(
       const tax = parseMoney(row.getCell(7).value);
       const sourceExpenseType = textValue(row.getCell(9).value);
       const note = textValue(row.getCell(14).value);
-      const category = inferExpenseCategory(sourceExpenseType, note);
-      const supplier = inferSupplier(textValue(row.getCell(10).value), note, category.code);
+      const inferredCategory = inferExpenseCategory(sourceExpenseType, note);
+      const category = declaredExpenseCategory(inferredCategory);
+      const supplier = inferSupplier(textValue(row.getCell(10).value), note, inferredCategory.code);
       const type = sourceExpenseType || category.label;
       reviewSources.push({
         workbook: "finance",
@@ -898,9 +925,9 @@ export async function buildWorkbookImportPayload(
           sourceExpenseType,
           supplierDisplayName: supplier.name,
           supplierInferenceSource: supplier.source,
-          categoryCode: category.code,
-          categoryLabel: category.label,
-          categoryInferenceSource: category.source,
+          categoryCode: inferredCategory.code,
+          categoryLabel: inferredCategory.label,
+          categoryInferenceSource: inferredCategory.source,
         },
         legacyControlTreatment: {
           sourceSheet: "Chi phí",

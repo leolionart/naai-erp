@@ -26,6 +26,7 @@ describe("typed admin navigation", () => {
     expect(findNavigationItem("payables")?.href).toBe("/payables");
     expect(findNavigationItem("debt")?.href).toBeUndefined();
     expect(findNavigationItem("master-data")?.href).toBe("/settings/master-data");
+    expect(findNavigationItem("purchase-products")?.href).toBe("/settings/purchase-products");
     expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
     expect(findNavigationItem("portable-data-package")?.href).toBe("/settings/data-package");
     expect(findNavigationItem("executive-metrics")?.href).toBe("/reports/executive-metrics");

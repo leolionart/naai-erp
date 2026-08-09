@@ -81,6 +81,23 @@ export class ReportExportController {
       .header("x-content-sha256", file.sha256)
       .send(file.content);
   }
+  @Get("accounting-list-exports/management-workbook") async managementWorkbookExport(
+    @Param("organizationId") o: string,
+    @Query() q: Record<string, unknown>,
+    @Res() reply: FastifyReply,
+    @Headers("authorization") a?: string,
+    @Headers("x-correlation-id") c?: string,
+  ) {
+    const file = await this.s.exportManagementWorkbook(
+      await this.c(o, a, c),
+      this.s.parseManagementExport(q),
+    );
+    return reply
+      .header("content-type", file.mediaType)
+      .header("content-disposition", `attachment; filename="${file.filename}"`)
+      .header("x-content-sha256", file.sha256)
+      .send(file.content);
+  }
   @Get("accountant-exports/:id") async ge(
     @Param("organizationId") o: string,
     @Param("id") id: string,

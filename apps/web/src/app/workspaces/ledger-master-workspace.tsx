@@ -11,6 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -294,7 +303,29 @@ export function LedgerMasterWorkspace({
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
-        <CardAction>
+        <CardAction className="flex items-center gap-2">
+          {section === "accounts" && (
+            <CreateAccountDialog
+              onCreate={(data) =>
+                run(async () => {
+                  await request("master-data/accounts", { method: "POST", body: { data } });
+                  await loadAccounts();
+                })
+              }
+              busy={busy}
+            />
+          )}
+          {section === "journals" && (
+            <CreateJournalDialog
+              onCreate={(body) =>
+                run(async () => {
+                  await request("journals", { method: "POST", body });
+                  await loadJournals();
+                })
+              }
+              busy={busy}
+            />
+          )}
           <Button variant="outline" type="button" onClick={loadCurrent} disabled={busy}>
             {busy ? "Đang tải…" : "Tải dữ liệu"}
           </Button>
@@ -337,12 +368,6 @@ export function LedgerMasterWorkspace({
             selected={selectedJournal}
             busy={busy}
             onSelect={setSelectedJournal}
-            onCreate={(body) =>
-              run(async () => {
-                await request("journals", { method: "POST", body });
-                await loadJournals();
-              })
-            }
             onAction={journalAction}
           />
         ) : section === "reports" ? (
@@ -360,12 +385,6 @@ export function LedgerMasterWorkspace({
             selected={selectedAccount}
             busy={busy}
             onSelect={setSelectedAccount}
-            onCreate={(data) =>
-              run(async () => {
-                await request("master-data/accounts", { method: "POST", body: { data } });
-                await loadAccounts();
-              })
-            }
             onDeactivate={deactivateAccount}
           />
         ) : (
@@ -388,97 +407,16 @@ function JournalSection({
   selected,
   busy,
   onSelect,
-  onCreate,
   onAction,
 }: {
   journals: ApiRow[];
   selected?: ApiRow;
   busy: boolean;
   onSelect: (row: ApiRow) => void;
-  onCreate: (body: ApiRow) => void;
   onAction: (action: "approve" | "post" | "reverse") => void;
 }) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    id: "",
-    date: TODAY,
-    description: "",
-    currency: "VND",
-    debitAccount: "",
-    creditAccount: "",
-    amount: "",
-  });
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!/^\d+$/.test(form.amount) || BigInt(form.amount) <= 0n) return;
-    onCreate({
-      ...(form.id.trim() ? { id: form.id.trim() } : {}),
-      journalDate: form.date,
-      description: form.description,
-      currency: form.currency,
-      lines: [
-        { accountCode: form.debitAccount, debitMinor: form.amount },
-        { accountCode: form.creditAccount, creditMinor: form.amount },
-      ],
-    });
-  }
   return (
     <div>
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setShowForm((value) => !value)}>
-          + Bút toán nháp
-        </Button>
-      </div>
-      {showForm ? (
-        <form className="flex flex-col gap-4" onSubmit={submit}>
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <LabeledField label="ID tùy chọn">
-              <Input
-                value={form.id}
-                onChange={(e) => setForm((v) => ({ ...v, id: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Ngày hạch toán">
-              <Input
-                type="date"
-                required
-                value={form.date}
-                onChange={(e) => setForm((v) => ({ ...v, date: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Diễn giải">
-              <Input
-                required
-                value={form.description}
-                onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Tài khoản Nợ">
-              <Input
-                required
-                value={form.debitAccount}
-                onChange={(e) => setForm((v) => ({ ...v, debitAccount: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Tài khoản Có">
-              <Input
-                required
-                value={form.creditAccount}
-                onChange={(e) => setForm((v) => ({ ...v, creditAccount: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Số tiền minor units">
-              <Input
-                required
-                inputMode="numeric"
-                value={form.amount}
-                onChange={(e) => setForm((v) => ({ ...v, amount: e.target.value }))}
-              />
-            </LabeledField>
-          </FieldGroup>
-          <Button disabled={busy}>Lưu bản nháp</Button>
-        </form>
-      ) : null}
       <SimpleTable
         columns={["id", "journalDate", "description", "state"]}
         rows={journals}
@@ -602,68 +540,16 @@ function AccountSection({
   selected,
   busy,
   onSelect,
-  onCreate,
   onDeactivate,
 }: {
   accounts: ApiRow[];
   selected?: ApiRow;
   busy: boolean;
   onSelect: (row: ApiRow) => void;
-  onCreate: (data: ApiRow) => void;
   onDeactivate: () => void;
 }) {
-  const [form, setForm] = useState({ code: "", name: "", rootType: "expense" });
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    onCreate({
-      code: form.code,
-      name: form.name,
-      root_type: form.rootType,
-      is_control_account: false,
-      allow_manual_posting: true,
-      is_active: true,
-    });
-  }
   return (
     <div>
-      <form className="flex flex-col gap-4" onSubmit={submit}>
-        <FieldGroup className="grid gap-4 md:grid-cols-3">
-          <LabeledField label="Mã tài khoản">
-            <Input
-              required
-              value={form.code}
-              onChange={(e) => setForm((v) => ({ ...v, code: e.target.value }))}
-            />
-          </LabeledField>
-          <LabeledField label="Tên tài khoản">
-            <Input
-              required
-              value={form.name}
-              onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
-            />
-          </LabeledField>
-          <LabeledField label="Nhóm">
-            <Select
-              value={form.rootType}
-              onValueChange={(value) => setForm((v) => ({ ...v, rootType: value }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="asset">Tài sản</SelectItem>
-                  <SelectItem value="liability">Nợ phải trả</SelectItem>
-                  <SelectItem value="equity">Vốn chủ</SelectItem>
-                  <SelectItem value="revenue">Doanh thu</SelectItem>
-                  <SelectItem value="expense">Chi phí</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </LabeledField>
-        </FieldGroup>
-        <Button disabled={busy}>Tạo tài khoản</Button>
-      </form>
       <SimpleTable
         columns={["code", "name", "root_type", "is_active"]}
         rows={accounts}
@@ -800,5 +686,182 @@ function SimpleTable({
         </Empty>
       )}
     </div>
+  );
+}
+
+function CreateJournalDialog({
+  onCreate,
+  busy,
+}: {
+  onCreate: (body: ApiRow) => void;
+  busy: boolean;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    id: "",
+    date: TODAY,
+    description: "",
+    currency: "VND",
+    debitAccount: "",
+    creditAccount: "",
+    amount: "",
+  });
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!/^\d+$/.test(form.amount) || BigInt(form.amount) <= 0n) return;
+    onCreate({
+      ...(form.id.trim() ? { id: form.id.trim() } : {}),
+      journalDate: form.date,
+      description: form.description,
+      currency: form.currency,
+      lines: [
+        { accountCode: form.debitAccount, debitMinor: form.amount },
+        { accountCode: form.creditAccount, creditMinor: form.amount },
+      ],
+    });
+    setShowForm(false);
+  }
+  return (
+    <Dialog open={showForm} onOpenChange={setShowForm}>
+      <DialogTrigger asChild>
+        <Button type="button">+ Bút toán nháp</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[700px]">
+        <DialogHeader>
+          <DialogTitle>Tạo bút toán nháp</DialogTitle>
+          <DialogDescription>
+            Nhập thông tin bút toán mới. Bút toán sẽ ở trạng thái nháp (draft) chờ duyệt.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <FieldGroup className="grid gap-4 md:grid-cols-3">
+            <LabeledField label="ID tùy chọn">
+              <Input
+                value={form.id}
+                onChange={(e) => setForm((v) => ({ ...v, id: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Ngày hạch toán">
+              <Input
+                type="date"
+                required
+                value={form.date}
+                onChange={(e) => setForm((v) => ({ ...v, date: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Diễn giải">
+              <Input
+                required
+                value={form.description}
+                onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Tài khoản Nợ">
+              <Input
+                required
+                value={form.debitAccount}
+                onChange={(e) => setForm((v) => ({ ...v, debitAccount: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Tài khoản Có">
+              <Input
+                required
+                value={form.creditAccount}
+                onChange={(e) => setForm((v) => ({ ...v, creditAccount: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Số tiền minor units">
+              <Input
+                required
+                inputMode="numeric"
+                value={form.amount}
+                onChange={(e) => setForm((v) => ({ ...v, amount: e.target.value }))}
+              />
+            </LabeledField>
+          </FieldGroup>
+          <DialogFooter>
+            <Button disabled={busy}>Lưu bản nháp</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateAccountDialog({
+  onCreate,
+  busy,
+}: {
+  onCreate: (data: ApiRow) => void;
+  busy: boolean;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ code: "", name: "", rootType: "expense" });
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    onCreate({
+      code: form.code,
+      name: form.name,
+      root_type: form.rootType,
+      is_control_account: false,
+      allow_manual_posting: true,
+      is_active: true,
+    });
+    setShowForm(false);
+  }
+  return (
+    <Dialog open={showForm} onOpenChange={setShowForm}>
+      <DialogTrigger asChild>
+        <Button type="button">+ Tạo tài khoản</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Tạo tài khoản mới</DialogTitle>
+          <DialogDescription>
+            Thêm một tài khoản mới vào hệ thống tài khoản (COA).
+          </DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <FieldGroup className="grid gap-4">
+            <LabeledField label="Mã tài khoản">
+              <Input
+                required
+                value={form.code}
+                onChange={(e) => setForm((v) => ({ ...v, code: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Tên tài khoản">
+              <Input
+                required
+                value={form.name}
+                onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
+              />
+            </LabeledField>
+            <LabeledField label="Nhóm">
+              <Select
+                value={form.rootType}
+                onValueChange={(value) => setForm((v) => ({ ...v, rootType: value }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="asset">Tài sản</SelectItem>
+                    <SelectItem value="liability">Nợ phải trả</SelectItem>
+                    <SelectItem value="equity">Vốn chủ</SelectItem>
+                    <SelectItem value="revenue">Doanh thu</SelectItem>
+                    <SelectItem value="expense">Chi phí</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </LabeledField>
+          </FieldGroup>
+          <DialogFooter>
+            <Button disabled={busy}>Tạo tài khoản</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

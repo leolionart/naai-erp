@@ -40,6 +40,79 @@ export class PgWorkforceStore {
       };
     });
   }
+  async updateWorker(
+    c: WorkforceContext,
+    id: string,
+    i: Record<string, unknown>,
+    key: string,
+    deactivate = false,
+  ) {
+    return this.mutate(
+      c,
+      key,
+      deactivate ? "workforce:deactivate" : "workforce:update",
+      { id, i },
+      async (q) => {
+        const current = await q.query<{
+          kind: string;
+          starts_on: string;
+          ends_on: string | null;
+          active: boolean;
+          version: string;
+        }>(
+          `select kind,starts_on::text,ends_on::text,active,version::text
+           from workforce_profiles where organization_id=$1 and id=$2 for update`,
+          [c.organizationId, id],
+        );
+        const before = current.rows[0];
+        if (!before) throw new Error("RESOURCE_NOT_FOUND");
+        if (before.version !== String(i.expectedResourceVersion))
+          throw new Error("VERSION_CONFLICT");
+        const employmentKind = String(i.employmentKind ?? before.kind);
+        const endsOn = i.endsOn === undefined ? before.ends_on : i.endsOn;
+        if (endsOn && String(endsOn) < before.starts_on) throw new Error("VALIDATION_FAILED");
+        const version = (BigInt(before.version) + 1n).toString();
+        const resource = (
+          await q.query(
+            `update workforce_profiles
+              set kind=$3,ends_on=$4,active=$5,version=$6,updated_by=$7,updated_at=now()
+            where organization_id=$1 and id=$2
+            returning id,party_id "workerPartyId",user_id "userId",kind "employmentKind",
+              starts_on::text "startsOn",ends_on::text "endsOn",
+              case when active then 'active' else 'inactive' end status,
+              version::text "resourceVersion"`,
+            [
+              c.organizationId,
+              id,
+              employmentKind,
+              endsOn ?? null,
+              deactivate ? false : before.active,
+              version,
+              c.actorId,
+            ],
+          )
+        ).rows[0];
+        const auditEventId = randomUUID();
+        await q.query(
+          `insert into resource_audit_events
+          (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'workforce_profile',$3,$4,$5,$6,$7,$8,$9)`,
+          [
+            c.organizationId,
+            auditEventId,
+            id,
+            version,
+            deactivate ? "deactivate" : "update",
+            c.actorId,
+            c.correlationId,
+            before,
+            { ...resource, reason: i.reason },
+          ],
+        );
+        return { resource, mutation: { ...this.meta(c, version), auditEventId } };
+      },
+    );
+  }
   async listTimesheets(org: string, query: Record<string, string | undefined>) {
     const p: unknown[] = [org];
     let w = "organization_id=$1";

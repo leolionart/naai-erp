@@ -26,10 +26,20 @@ type StoredExpense = {
  * Classes without business evidence start ineligible; every other class remains
  * unreviewed until the accountant records an evidence-backed decision.
  */
-function expenseClassToTaxState(expenseClass: string): { citState: string; vatState: string } {
+function expenseClassToTaxState(
+  expenseClass: string,
+  operatingMode: string | null,
+  vatMinor: string,
+): { managementState: string; citState: string; vatState: string } {
   if (["non_documented", "owner_personal", "petty_cash"].includes(expenseClass))
-    return { citState: "ineligible", vatState: "ineligible" };
-  return { citState: "unreviewed", vatState: "unreviewed" };
+    return { managementState: "invalid", citState: "ineligible", vatState: "ineligible" };
+  if (operatingMode === "owner_final")
+    return {
+      managementState: "valid",
+      citState: "eligible",
+      vatState: BigInt(vatMinor) > 0n ? "eligible" : "ineligible",
+    };
+  return { managementState: "unreviewed", citState: "unreviewed", vatState: "unreviewed" };
 }
 
 const NEXT: Record<string, Record<string, string>> = {
@@ -46,12 +56,104 @@ const NEXT: Record<string, Record<string, string>> = {
 @Injectable()
 export class PgExpenseStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+  private async operatingMode(c: PoolClient, organizationId: string) {
+    const result = await c.query<{ operating_mode: string }>(
+      "select operating_mode from accounting_workflow_policies where organization_id=$1",
+      [organizationId],
+    );
+    return result.rows[0]?.operating_mode ?? null;
+  }
+
+  async validateRelationships(organizationId: string, input: CreateExpenseInput) {
+    const relationships = input.lines.flatMap((line) => {
+      const lineProjectId = line.dimensions?.projectId;
+      const lineContractId = line.dimensions?.contractId;
+      return [
+        { projectId: lineProjectId, contractId: lineContractId },
+        ...line.allocations.map((allocation) => ({
+          projectId: allocation.dimensions.projectId ?? lineProjectId,
+          contractId: allocation.dimensions.contractId ?? lineContractId,
+        })),
+      ];
+    });
+    const unique = new Map<
+      string,
+      { projectId: string | undefined; contractId: string | undefined }
+    >();
+    for (const relationship of relationships) {
+      if (!relationship.projectId && !relationship.contractId) continue;
+      if (relationship.contractId && !relationship.projectId)
+        throw new Error("EXPENSE_CONTRACT_PROJECT_REQUIRED");
+      unique.set(`${relationship.projectId ?? ""}:${relationship.contractId ?? ""}`, relationship);
+    }
+    for (const { projectId, contractId } of unique.values()) {
+      const project = await this.pool.query<{ state: string }>(
+        "select state::text from projects where organization_id=$1 and id=$2",
+        [organizationId, projectId],
+      );
+      if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
+      if (project.rows[0].state === "closed") throw new Error("PROJECT_CLOSED");
+      if (contractId) {
+        const contract = await this.pool.query(
+          "select 1 from contracts where organization_id=$1 and id=$2 and project_id=$3",
+          [organizationId, contractId, projectId],
+        );
+        if (!contract.rows[0]) throw new Error("CONTRACT_PROJECT_MISMATCH");
+      }
+    }
+  }
+
+  async relationshipBackfillInventory(organizationId: string) {
+    const result = await this.pool.query(
+      `select e.id,e.expense_class::text "expenseClass",e.state::text,
+              e.payee_party_id "payeePartyId",e.version::text "resourceVersion",
+              coalesce((select jsonb_agg(distinct a.dimensions->>'projectId')
+                from expense_allocations a
+               where a.organization_id=e.organization_id and a.expense_id=e.id
+                 and a.dimensions ? 'projectId'),'[]'::jsonb) "projectIds",
+              coalesce((select jsonb_agg(distinct a.dimensions->>'contractId')
+                from expense_allocations a
+               where a.organization_id=e.organization_id and a.expense_id=e.id
+                 and a.dimensions ? 'contractId'),'[]'::jsonb) "contractIds"
+         from expenses e
+        where e.organization_id=$1 and e.state='posted'
+        order by e.expense_date,e.id`,
+      [organizationId],
+    );
+    return result.rows.map((row) => ({
+      ...row,
+      needsPayee: !row.payeePartyId,
+      needsProject: row.projectIds.length === 0,
+      needsContract: row.contractIds.length === 0,
+    }));
+  }
   async list(
     org: string,
     filters: { state?: string; expenseClass?: string; payeePartyId?: string },
   ) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
+       coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
+         from (
+           select l2.dimensions->>'projectId' project_id
+             from expense_lines l2
+            where l2.organization_id=e.organization_id and l2.expense_id=e.id
+           union
+           select a2.dimensions->>'projectId'
+             from expense_allocations a2
+            where a2.organization_id=e.organization_id and a2.expense_id=e.id
+         ) relationship where relationship.project_id is not null),'[]'::jsonb) "projectIds",
+       coalesce((select jsonb_agg(distinct relationship.contract_id order by relationship.contract_id)
+         from (
+           select l2.dimensions->>'contractId' contract_id
+             from expense_lines l2
+            where l2.organization_id=e.organization_id and l2.expense_id=e.id
+           union
+           select a2.dimensions->>'contractId'
+             from expense_allocations a2
+            where a2.organization_id=e.organization_id and a2.expense_id=e.id
+         ) relationship where relationship.contract_id is not null),'[]'::jsonb) "contractIds",
        (select coalesce(l.dimensions->>'category',l.expense_category_code) from expense_lines l
         where l.organization_id=e.organization_id and l.expense_id=e.id
         order by l.line_number limit 1) category
@@ -216,7 +318,13 @@ export class PgExpenseStore {
                 ],
               );
               for (const [index, line] of input.lines.entries()) {
-                const taxState = expenseClassToTaxState(input.expenseClass);
+                const taxState = expenseClassToTaxState(
+                  input.expenseClass,
+                  await this.operatingMode(c, context.organizationId),
+                  line.vatMinor,
+                );
+                const citState = line.citState ?? taxState.citState;
+                const vatState = line.vatState ?? taxState.vatState;
                 const fundingTreatment = await this.categoryTreatment(
                   c,
                   context.organizationId,
@@ -236,13 +344,13 @@ export class PgExpenseStore {
                     line.expenseCategoryCode ?? null,
                     fundingTreatment,
                     line.vatAccountCode ?? null,
-                    line.managementState ?? "unreviewed",
-                    line.citState ?? taxState.citState,
-                    line.vatState ?? taxState.vatState,
-                    taxState.citState === "eligible"
+                    line.managementState ?? taxState.managementState,
+                    citState,
+                    vatState,
+                    citState === "eligible"
                       ? (line.citEligibleMinor ?? line.netMinor)
                       : (line.citEligibleMinor ?? "0"),
-                    taxState.vatState === "eligible"
+                    vatState === "eligible"
                       ? (line.vatEligibleMinor ?? line.vatMinor)
                       : (line.vatEligibleMinor ?? "0"),
                     line.dimensions ?? {},
@@ -388,7 +496,13 @@ export class PgExpenseStore {
         ],
       );
       for (const [index, line] of input.lines.entries()) {
-        const taxState = expenseClassToTaxState(input.expenseClass);
+        const taxState = expenseClassToTaxState(
+          input.expenseClass,
+          await this.operatingMode(c, context.organizationId),
+          line.vatMinor,
+        );
+        const citState = line.citState ?? taxState.citState;
+        const vatState = line.vatState ?? taxState.vatState;
         const fundingTreatment = await this.categoryTreatment(
           c,
           context.organizationId,
@@ -408,13 +522,13 @@ export class PgExpenseStore {
             line.expenseCategoryCode ?? null,
             fundingTreatment,
             line.vatAccountCode ?? null,
-            line.managementState ?? "unreviewed",
-            line.citState ?? taxState.citState,
-            line.vatState ?? taxState.vatState,
-            taxState.citState === "eligible"
+            line.managementState ?? taxState.managementState,
+            citState,
+            vatState,
+            citState === "eligible"
               ? (line.citEligibleMinor ?? line.netMinor)
               : (line.citEligibleMinor ?? "0"),
-            taxState.vatState === "eligible"
+            vatState === "eligible"
               ? (line.vatEligibleMinor ?? line.vatMinor)
               : (line.vatEligibleMinor ?? "0"),
             line.dimensions ?? {},
@@ -659,7 +773,13 @@ export class PgExpenseStore {
       );
 
       for (const [index, line] of merged.lines.entries()) {
-        const taxState = expenseClassToTaxState(merged.expenseClass);
+        const taxState = expenseClassToTaxState(
+          merged.expenseClass,
+          await this.operatingMode(c, context.organizationId),
+          line.vatMinor,
+        );
+        const citState = line.citState ?? taxState.citState;
+        const vatState = line.vatState ?? taxState.vatState;
         const fundingTreatment = await this.categoryTreatment(
           c,
           context.organizationId,
@@ -679,13 +799,13 @@ export class PgExpenseStore {
             line.expenseCategoryCode ?? null,
             fundingTreatment,
             line.vatAccountCode ?? null,
-            line.managementState ?? "unreviewed",
-            line.citState ?? taxState.citState,
-            line.vatState ?? taxState.vatState,
-            taxState.citState === "eligible"
+            line.managementState ?? taxState.managementState,
+            citState,
+            vatState,
+            citState === "eligible"
               ? (line.citEligibleMinor ?? line.netMinor)
               : (line.citEligibleMinor ?? "0"),
-            taxState.vatState === "eligible"
+            vatState === "eligible"
               ? (line.vatEligibleMinor ?? line.vatMinor)
               : (line.vatEligibleMinor ?? "0"),
             line.dimensions ?? {},
@@ -1106,6 +1226,12 @@ export class PgExpenseStore {
       if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
       if (original.state !== "posted" || !original.journal_id)
         throw new Error("INVALID_EXPENSE_TRANSITION");
+      const reconciliation = await c.query(
+        `select 1 from reconciliation_allocations
+          where organization_id=$1 and expense_id=$2 limit 1`,
+        [context.organizationId, id],
+      );
+      if (reconciliation.rows[0]) throw new Error("INVALID_EXPENSE_TRANSITION");
       if ((input.id ?? "") === id) throw new Error("VALIDATION_FAILED");
       await this.period(c, context, input.expenseDate);
       const journal = await c.query<{ state: string; currency: string }>(
@@ -1163,7 +1289,13 @@ export class PgExpenseStore {
         ],
       );
       for (const [index, line] of input.lines.entries()) {
-        const taxState = expenseClassToTaxState(input.expenseClass);
+        const taxState = expenseClassToTaxState(
+          input.expenseClass,
+          await this.operatingMode(c, context.organizationId),
+          line.vatMinor,
+        );
+        const citState = line.citState ?? taxState.citState;
+        const vatState = line.vatState ?? taxState.vatState;
         const fundingTreatment = await this.categoryTreatment(
           c,
           context.organizationId,
@@ -1184,11 +1316,11 @@ export class PgExpenseStore {
             line.expenseCategoryCode ?? null,
             fundingTreatment,
             line.vatAccountCode ?? null,
-            line.managementState ?? "unreviewed",
-            line.citState ?? taxState.citState,
-            line.vatState ?? taxState.vatState,
-            line.citEligibleMinor ?? (taxState.citState === "eligible" ? line.netMinor : "0"),
-            line.vatEligibleMinor ?? (taxState.vatState === "eligible" ? line.vatMinor : "0"),
+            line.managementState ?? taxState.managementState,
+            citState,
+            vatState,
+            line.citEligibleMinor ?? (citState === "eligible" ? line.netMinor : "0"),
+            line.vatEligibleMinor ?? (vatState === "eligible" ? line.vatMinor : "0"),
             line.dimensions ?? {},
           ],
         );
@@ -1205,9 +1337,15 @@ export class PgExpenseStore {
             ],
           );
       }
+      await c.query(
+        `update external_references set expense_id=$3,synced_at=now()
+          where organization_id=$1 and expense_id=$2`,
+        [context.organizationId, id, replacementId],
+      );
       const version = (BigInt(original.version) + 1n).toString();
       await c.query(
-        `update expenses set version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        `update expenses set state='reversed',version=version+1,updated_at=now()
+          where organization_id=$1 and id=$2`,
         [context.organizationId, id],
       );
       const audit = randomUUID();
@@ -1222,12 +1360,18 @@ export class PgExpenseStore {
           context.actorId,
           context.correlationId,
           { state: "posted", journalId: original.journal_id },
-          { state: "posted_reversed", reversalJournalId, replacementId, reason },
+          {
+            state: "reversed",
+            reversalJournalId,
+            replacementId,
+            externalReferenceTransferred: true,
+            reason,
+          },
         ],
       );
       const response = {
         expenseId: id,
-        state: "posted",
+        state: "reversed",
         resourceVersion: version,
         reversalJournalId,
         replacementExpenseId: replacementId,

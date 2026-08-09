@@ -1,14 +1,14 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-09T16:20:00+07:00
+updated_at: 2026-08-09T10:48:16+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: in_progress
 development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G14
-current_task: ERP-841
+current_gate: G23
+current_task: ERP-858
 
 tasks:
   - id: ERP-000
@@ -357,6 +357,7 @@ tasks:
       - packages/database/src/schema.integration.test.ts
       - db/migrations/
       - apps/api/src/commercial-documents/
+      - apps/api/src/api-exception.filter.ts
       - apps/cli/src/
       - docs/api/openapi-v1.json
       - docs/testing/test-catalog.yaml
@@ -1051,9 +1052,9 @@ tasks:
       - docs/implementation/evidence/ERP-840/
 
   - id: ERP-841
-    title: Complete contract revenue debt and fully-loaded demo coverage
+    title: Complete contract revenue debt and management demo coverage
     phase: P10
-    status: in_progress
+    status: done
     dependencies: [ERP-840]
     business_rules:
       [
@@ -1086,6 +1087,9 @@ tasks:
       [
         T-INT-ERP-841-001,
         T-E2E-ERP-841-002,
+        T-E2E-ERP-841-003,
+        T-CONTRACT-ERP-841-004,
+        T-CLI-ERP-841-005,
         T-INT-ERP-841-004,
         T-E2E-ERP-841-005,
         T-UNIT-ERP-841-006,
@@ -1106,10 +1110,18 @@ tasks:
         T-API-ERP-841-022,
         T-CLI-ERP-841-023,
         T-E2E-ERP-841-024,
+        T-E2E-ERP-841-025,
+        T-API-ERP-841-026,
+        T-E2E-ERP-841-027,
+        T-API-ERP-841-028,
+        T-CLI-ERP-841-029,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root
     started_at: 2026-08-07T22:08:42+07:00
+    review_completed_at: 2026-08-09T10:02:00+07:00
+    completed_at: 2026-08-09T10:02:00+07:00
+    completion_basis: reviewed_code_accounting_fixes_fresh_database_and_focused_gate_evidence
     planned_files:
       - scripts/seed-local-demo.mjs
       - apps/api/src/project-costs/
@@ -1313,6 +1325,158 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-854/
 
+  - id: ERP-855
+    title: Purchase product VAT catalog and API
+    phase: P12
+    status: done
+    dependencies: [ERP-841]
+    business_rules:
+      [BR-PRD-001, BR-TAX-001, BR-AI-001, BR-AI-002, BR-AI-003, BR-ORG-001, BR-AUD-001]
+    tests: [T-DB-ERP-855-001, T-API-ERP-855-002, T-CLI-ERP-855-003]
+    evidence: docs/implementation/evidence/ERP-855/
+    agent: codex-root
+    started_at: 2026-08-09T10:02:00+07:00
+    review_completed_at: 2026-08-09T10:07:00+07:00
+    completed_at: 2026-08-09T10:07:00+07:00
+    completion_basis: fresh_database_api_cli_and_repository_quality_gates
+    planned_files:
+      - packages/database/src/schema.ts
+      - db/migrations/0040_purchase_products_vat_rates.sql
+      - apps/api/src/master-data/resource-registry.ts
+      - apps/api/src/master-data/resource-registry.test.ts
+      - apps/api/src/master-data/master-data.service.ts
+      - apps/api/src/master-data/master-data.service.test.ts
+      - apps/api/src/master-data/master-data.integration.test.ts
+      - apps/api/src/api-exception.filter.ts
+      - apps/cli/src/main.test.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-855/
+
+  - id: ERP-856
+    title: Purchase product VAT catalog administration UI
+    phase: P12
+    status: done
+    dependencies: [ERP-855]
+    business_rules: [BR-PRD-001, BR-UI-003, BR-AI-001]
+    tests: [T-UNIT-ERP-856-001, T-E2E-ERP-856-002]
+    evidence: docs/implementation/evidence/ERP-856/
+    agent: codex-root
+    started_at: 2026-08-09T10:20:00+07:00
+    review_completed_at: 2026-08-09T10:24:00+07:00
+    completed_at: 2026-08-09T10:24:00+07:00
+    resumed_for_local_runtime_at: 2026-08-09T10:29:00+07:00
+    local_runtime_verified_at: 2026-08-09T10:32:00+07:00
+    completion_basis: navigation_unit_web_typecheck_and_rendered_playwright_crud_evidence
+    planned_files:
+      - apps/web/src/lib/navigation.ts
+      - apps/web/src/lib/navigation.test.ts
+      - apps/web/src/app/(app)/settings/purchase-products/page.tsx
+      - apps/web/src/app/workspaces/purchase-product-workspace.tsx
+      - apps/web/e2e/purchase-products.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-856/
+
+  - id: ERP-857
+    title: Accountant workbook parity and management export
+    phase: P12
+    status: done
+    dependencies: [ERP-851]
+    business_rules:
+      [
+        BR-EXPOR-001,
+        BR-EXPOR-003,
+        BR-TAX-003,
+        BR-ORG-001,
+        BR-PTY-001,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AUD-001,
+      ]
+    tests:
+      [
+        T-UNIT-ERP-857-001,
+        T-UNIT-ERP-857-002,
+        T-INT-ERP-857-003,
+        T-UNIT-ERP-857-004,
+        T-INT-ERP-857-005,
+        T-INT-ERP-857-006,
+      ]
+    evidence: docs/implementation/evidence/ERP-857/
+    agent: codex-team
+    started_at: 2026-08-09T10:30:00+07:00
+    completed_at: 2026-08-09T10:48:16+07:00
+    planned_files:
+      - apps/api/src/report-exports/accounting-list-workbook.ts
+      - apps/api/src/report-exports/accounting-list-workbook.test.ts
+      - apps/api/src/report-exports/management-workbook.ts
+      - apps/api/src/report-exports/management-workbook.test.ts
+      - apps/api/src/report-exports/management-workbook.integration.test.ts
+      - apps/api/src/master-data/resource-registry.ts
+      - apps/api/src/master-data/accountant-identity-metadata.integration.test.ts
+      - apps/api/src/workforce/
+      - apps/cli/src/
+      - apps/web/src/app/workspaces/report-export-workspaces.tsx
+      - packages/database/src/schema.ts
+      - db/migrations/0041_accountant_identity_metadata.sql
+      - docs/api/openapi-v1.json
+      - docs/api/accounting-list-exports.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-857/
+
+  - id: ERP-858
+    title: Owner-final single-user expense and tax workflow
+    phase: P12
+    status: in_progress
+    dependencies: [ERP-857]
+    business_rules:
+      [
+        BR-WFL-001,
+        BR-WFL-002,
+        BR-TAX-001,
+        BR-TAX-002,
+        BR-TAX-003,
+        BR-TAX-004,
+        BR-TAX-005,
+        BR-INV-002,
+        BR-EXP-001,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AUD-001,
+        BR-ORG-001,
+      ]
+    tests:
+      [
+        T-DB-ERP-858-001,
+        T-API-ERP-858-002,
+        T-INT-ERP-858-003,
+        T-INT-ERP-858-004,
+        T-CLI-ERP-858-005,
+        T-E2E-ERP-858-006,
+      ]
+    evidence: docs/implementation/evidence/ERP-858/
+    agent: codex-team
+    started_at: 2026-08-09T11:05:00+07:00
+    planned_files:
+      - packages/database/src/schema.ts
+      - db/migrations/0042_owner_final_tax_workflow.sql
+      - apps/api/src/master-data/
+      - apps/api/src/expenses/
+      - apps/api/src/commercial-documents/
+      - apps/api/src/financial-statements/
+      - apps/cli/src/
+      - apps/web/src/app/workspaces/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-858/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1334,6 +1498,10 @@ gates:
   G17: [ERP-852]
   G18: [ERP-853]
   G19: [ERP-854]
+  G20: [ERP-855]
+  G21: [ERP-856]
+  G22: [ERP-857]
+  G23: [ERP-858]
 
 gate_status:
   G0: done
@@ -1350,9 +1518,13 @@ gate_status:
   G11: done
   G12: done
   G13: done
-  G14: in_progress
+  G14: done
   G15: done
   G16: done
   G17: done
   G18: done
   G19: blocked
+  G20: done
+  G21: done
+  G22: done
+  G23: in_progress

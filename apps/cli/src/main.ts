@@ -314,264 +314,295 @@ if (!resource || (!discovery && (!organizationId || !token))) {
           throw new Error("--line-number must be a positive integer");
         }
       }
+      if (
+        ["commercial-document-relationship-backfill", "expense-relationship-backfill"].includes(
+          resource,
+        )
+      ) {
+        if (!["inventory", "dry-run", "commit"].includes(action))
+          throw new Error(`${resource} supports only inventory, dry-run, and commit actions`);
+        if (action === "inventory") {
+          if (values.key || values.version || values.data || values.file)
+            throw new Error(`${resource} inventory does not accept record mapping options`);
+        } else {
+          if (!values.key || !values.version || (!values.data && !values.file))
+            throw new Error(
+              `${resource} ${action} requires --key, --version, and an explicit JSON mapping via --file or --data`,
+            );
+          if (action === "commit" && !values["idempotency-key"])
+            throw new Error(`${resource} commit requires --idempotency-key`);
+        }
+      }
       const payload = values.data
         ? JSON.parse(values.data)
-        : resource === "bank-imports" && values.file
-          ? {
-              schemaVersion: 1,
-              financialAccountId: bankAccountId,
-              adapterId: values.adapter ?? "generic-csv",
-              adapterVersion: bankAdapterVersion,
-              filename: basename(values.file),
-              csvText: await readFile(values.file, "utf8"),
-              ...(values.mapping ? { columnMapping: JSON.parse(values.mapping) } : {}),
-            }
-          : resource === "reports"
-            ? { from: values.from, to: values.to, accountCode: values.account }
-            : resource === "ar-aging" || resource === "ap-aging"
-              ? {
-                  asOf: values["as-of"],
-                  ...(values.party ? { partyId: values.party } : {}),
-                  ...(values.account ? { accountCode: values.account } : {}),
-                  ...(values.bucket ? { bucket: values.bucket } : {}),
-                  ...(values["payment-status"] ? { paymentStatus: values["payment-status"] } : {}),
-                  ...(values["include-settled"] ? { includeSettled: true } : {}),
-                  ...(values.cursor ? { cursor: values.cursor } : {}),
-                  ...(values.limit ? { limit: values.limit } : {}),
-                }
-              : resource === "statement-sessions"
+        : ["commercial-document-relationship-backfill", "expense-relationship-backfill"].includes(
+              resource,
+            ) && values.file
+          ? JSON.parse(await readFile(values.file, "utf8"))
+          : resource === "bank-imports" && values.file
+            ? {
+                schemaVersion: 1,
+                financialAccountId: bankAccountId,
+                adapterId: values.adapter ?? "generic-csv",
+                adapterVersion: bankAdapterVersion,
+                filename: basename(values.file),
+                csvText: await readFile(values.file, "utf8"),
+                ...(values.mapping ? { columnMapping: JSON.parse(values.mapping) } : {}),
+              }
+            : resource === "reports"
+              ? { from: values.from, to: values.to, accountCode: values.account }
+              : resource === "ar-aging" || resource === "ap-aging"
                 ? {
-                    ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
-                    ...(values.from ? { periodStart: values.from } : {}),
-                    ...(values.to ? { periodEnd: values.to } : {}),
-                    ...(values.status ? { state: values.status } : {}),
+                    asOf: values["as-of"],
+                    ...(values.party ? { partyId: values.party } : {}),
+                    ...(values.account ? { accountCode: values.account } : {}),
+                    ...(values.bucket ? { bucket: values.bucket } : {}),
+                    ...(values["payment-status"]
+                      ? { paymentStatus: values["payment-status"] }
+                      : {}),
+                    ...(values["include-settled"] ? { includeSettled: true } : {}),
                     ...(values.cursor ? { cursor: values.cursor } : {}),
                     ...(values.limit ? { limit: values.limit } : {}),
                   }
-                : [
-                      "workers",
-                      "timesheets",
-                      "cost-rates",
-                      "capacity-versions",
-                      "time-summary",
-                    ].includes(resource)
+                : resource === "statement-sessions"
                   ? {
-                      ...(values["worker-id"] ? { workerId: values["worker-id"] } : {}),
-                      ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
-                      ...(values.from ? { from: values.from } : {}),
-                      ...(values.to ? { to: values.to } : {}),
+                      ...(values["account-id"] ? { financialAccountId: values["account-id"] } : {}),
+                      ...(values.from ? { periodStart: values.from } : {}),
+                      ...(values.to ? { periodEnd: values.to } : {}),
                       ...(values.status ? { state: values.status } : {}),
-                      ...(values.billable !== undefined ? { billable: values.billable } : {}),
-                      ...(values.classification
-                        ? { workClassification: values.classification }
-                        : {}),
                       ...(values.cursor ? { cursor: values.cursor } : {}),
                       ...(values.limit ? { limit: values.limit } : {}),
                     }
-                  : ["project-costs", "project-cost-sources", "direct-cost-allocations"].includes(
-                        resource,
-                      )
+                  : [
+                        "workers",
+                        "timesheets",
+                        "cost-rates",
+                        "capacity-versions",
+                        "time-summary",
+                      ].includes(resource)
                     ? {
+                        ...(values["worker-id"] ? { workerId: values["worker-id"] } : {}),
                         ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
-                        ...(values.basis ? { basis: values.basis } : {}),
-                        ...(values["cost-class"] ? { costClass: values["cost-class"] } : {}),
-                        ...(values.disposition ? { disposition: values.disposition } : {}),
-                        ...(values.status ? { state: values.status } : {}),
                         ...(values.from ? { from: values.from } : {}),
                         ...(values.to ? { to: values.to } : {}),
+                        ...(values.status ? { state: values.status } : {}),
+                        ...(values.billable !== undefined ? { billable: values.billable } : {}),
+                        ...(values.classification
+                          ? { workClassification: values.classification }
+                          : {}),
                         ...(values.cursor ? { cursor: values.cursor } : {}),
                         ...(values.limit ? { limit: values.limit } : {}),
                       }
-                    : [
-                          "project-budgets",
-                          "scope-changes",
-                          "recognition-policies",
-                          "milestone-acceptances",
-                          "revenue-recognition-events",
-                          "project-revenue-axes",
-                        ].includes(resource)
+                    : ["project-costs", "project-cost-sources", "direct-cost-allocations"].includes(
+                          resource,
+                        )
                       ? {
                           ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
-                          ...(values["as-of"] ? { asOf: values["as-of"] } : {}),
+                          ...(values.basis ? { basis: values.basis } : {}),
+                          ...(values["cost-class"] ? { costClass: values["cost-class"] } : {}),
+                          ...(values.disposition ? { disposition: values.disposition } : {}),
                           ...(values.status ? { state: values.status } : {}),
                           ...(values.from ? { from: values.from } : {}),
                           ...(values.to ? { to: values.to } : {}),
+                          ...(values.cursor ? { cursor: values.cursor } : {}),
+                          ...(values.limit ? { limit: values.limit } : {}),
                         }
-                      : ["overhead-policies", "overhead-source-pools", "overhead-runs"].includes(
-                            resource,
-                          )
+                      : [
+                            "project-budgets",
+                            "scope-changes",
+                            "recognition-policies",
+                            "milestone-acceptances",
+                            "revenue-recognition-events",
+                            "project-revenue-axes",
+                          ].includes(resource)
                         ? {
-                            ...(values.from ? { periodStart: values.from } : {}),
-                            ...(values.to ? { periodEnd: values.to } : {}),
+                            ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
+                            ...(values["as-of"] ? { asOf: values["as-of"] } : {}),
                             ...(values.status ? { state: values.status } : {}),
+                            ...(values.from ? { from: values.from } : {}),
+                            ...(values.to ? { to: values.to } : {}),
                           }
-                        : resource === "project-profitability"
+                        : ["overhead-policies", "overhead-source-pools", "overhead-runs"].includes(
+                              resource,
+                            )
                           ? {
-                              ...(values.from ? { startsOn: values.from } : {}),
-                              ...(values.to ? { endsOn: values.to } : {}),
-                              ...(values["project-id"] ? { projectId: values["project-id"] } : {}),
-                              ...(values.party ? { clientId: values.party } : {}),
-                              ...(values["service-line"]
-                                ? { serviceLineCode: values["service-line"] }
-                                : {}),
-                              ...(values["account-owner"]
-                                ? { accountOwnerId: values["account-owner"] }
-                                : {}),
-                              ...(values["group-by"] ? { groupBy: values["group-by"] } : {}),
-                              ...(values["confidence-code"]
-                                ? { confidenceCode: values["confidence-code"] }
-                                : {}),
+                              ...(values.from ? { periodStart: values.from } : {}),
+                              ...(values.to ? { periodEnd: values.to } : {}),
+                              ...(values.status ? { state: values.status } : {}),
                             }
-                          : [
-                                "financial-statements",
-                                "financial-statement-drilldown",
-                                "vat-reconciliation",
-                                "expense-exceptions",
-                              ].includes(resource)
+                          : resource === "project-profitability"
                             ? {
                                 ...(values.from ? { startsOn: values.from } : {}),
                                 ...(values.to ? { endsOn: values.to } : {}),
-                                ...(values["as-of"] ? { asOfInstant: values["as-of"] } : {}),
-                                ...(values.basis ? { basis: values.basis } : {}),
-                                ...(values.framework ? { framework: values.framework } : {}),
-                                ...(values["mapping-version-id"]
-                                  ? { mappingVersionId: values["mapping-version-id"] }
-                                  : {}),
                                 ...(values["project-id"]
                                   ? { projectId: values["project-id"] }
                                   : {}),
                                 ...(values.party ? { clientId: values.party } : {}),
-                                ...(values["cost-center"]
-                                  ? { costCenter: values["cost-center"] }
-                                  : {}),
                                 ...(values["service-line"]
-                                  ? { serviceLine: values["service-line"] }
+                                  ? { serviceLineCode: values["service-line"] }
                                   : {}),
-                                ...(values["line-code"] ? { lineCode: values["line-code"] } : {}),
-                                ...(values.status ? { state: values.status } : {}),
+                                ...(values["account-owner"]
+                                  ? { accountOwnerId: values["account-owner"] }
+                                  : {}),
+                                ...(values["group-by"] ? { groupBy: values["group-by"] } : {}),
+                                ...(values["confidence-code"]
+                                  ? { confidenceCode: values["confidence-code"] }
+                                  : {}),
                               }
-                            : resource === "financial-source-resolver"
+                            : [
+                                  "financial-statements",
+                                  "financial-statement-drilldown",
+                                  "vat-reconciliation",
+                                  "expense-exceptions",
+                                ].includes(resource)
                               ? {
-                                  ...(values["journal-id"]
-                                    ? { journalId: values["journal-id"] }
+                                  ...(values.from ? { startsOn: values.from } : {}),
+                                  ...(values.to ? { endsOn: values.to } : {}),
+                                  ...(values["as-of"] ? { asOfInstant: values["as-of"] } : {}),
+                                  ...(values.basis ? { basis: values.basis } : {}),
+                                  ...(values.framework ? { framework: values.framework } : {}),
+                                  ...(values["mapping-version-id"]
+                                    ? { mappingVersionId: values["mapping-version-id"] }
                                     : {}),
-                                  ...(values["line-number"]
-                                    ? { lineNumber: values["line-number"] }
+                                  ...(values["project-id"]
+                                    ? { projectId: values["project-id"] }
                                     : {}),
+                                  ...(values.party ? { clientId: values.party } : {}),
+                                  ...(values["cost-center"]
+                                    ? { costCenter: values["cost-center"] }
+                                    : {}),
+                                  ...(values["service-line"]
+                                    ? { serviceLine: values["service-line"] }
+                                    : {}),
+                                  ...(values["line-code"] ? { lineCode: values["line-code"] } : {}),
+                                  ...(values.status ? { state: values.status } : {}),
                                 }
-                              : resource === "report-snapshots"
-                                ? action === "create"
-                                  ? {
-                                      reportKind: values["report-kind"],
-                                      period: {
-                                        ...(values.from ? { startsOn: values.from } : {}),
-                                        ...(values.to ? { endsOn: values.to } : {}),
-                                        asOfDate: values["as-of"],
-                                      },
-                                      ...(values.dimensions
-                                        ? { dimensions: JSON.parse(values.dimensions) }
-                                        : {}),
-                                      accountingBasis: values.basis,
-                                      ...(values.framework ? { framework: values.framework } : {}),
-                                      formulaVersions: values["formula-versions"]
-                                        ? JSON.parse(values["formula-versions"])
-                                        : {},
-                                      request: values.request ? JSON.parse(values.request) : {},
-                                    }
-                                  : action === "get" && values["snapshot-version"]
-                                    ? { version: values["snapshot-version"] }
-                                    : undefined
-                                : resource === "accountant-exports"
+                              : resource === "financial-source-resolver"
+                                ? {
+                                    ...(values["journal-id"]
+                                      ? { journalId: values["journal-id"] }
+                                      : {}),
+                                    ...(values["line-number"]
+                                      ? { lineNumber: values["line-number"] }
+                                      : {}),
+                                  }
+                                : resource === "report-snapshots"
                                   ? action === "create"
                                     ? {
-                                        snapshotId: values["snapshot-id"],
-                                        snapshotVersion: Number(values["snapshot-version"]),
-                                        format: values.format,
                                         reportKind: values["report-kind"],
+                                        period: {
+                                          ...(values.from ? { startsOn: values.from } : {}),
+                                          ...(values.to ? { endsOn: values.to } : {}),
+                                          asOfDate: values["as-of"],
+                                        },
+                                        ...(values.dimensions
+                                          ? { dimensions: JSON.parse(values.dimensions) }
+                                          : {}),
+                                        accountingBasis: values.basis,
+                                        ...(values.framework
+                                          ? { framework: values.framework }
+                                          : {}),
+                                        formulaVersions: values["formula-versions"]
+                                          ? JSON.parse(values["formula-versions"])
+                                          : {},
+                                        request: values.request ? JSON.parse(values.request) : {},
                                       }
                                     : action === "get" && values["snapshot-version"]
                                       ? { version: values["snapshot-version"] }
                                       : undefined
-                                  : resource === "executive-metrics"
-                                    ? {
-                                        ...(values.from ? { startsOn: values.from } : {}),
-                                        ...(values.to ? { endsOn: values.to } : {}),
-                                        ...(values["as-of"]
-                                          ? { asOfInstant: values["as-of"] }
-                                          : {}),
-                                        ...(values.framework
-                                          ? { framework: values.framework }
-                                          : {}),
-                                        ...(values["project-id"]
-                                          ? { projectId: values["project-id"] }
-                                          : {}),
-                                        ...(values.party ? { clientId: values.party } : {}),
-                                        ...(values["cost-center"]
-                                          ? { costCenter: values["cost-center"] }
-                                          : {}),
-                                        ...(values["service-line"]
-                                          ? { serviceLine: values["service-line"] }
-                                          : {}),
-                                        ...(values["team-id"] ? { teamId: values["team-id"] } : {}),
-                                        ...(values["account-owner"]
-                                          ? { ownerId: values["account-owner"] }
-                                          : {}),
-                                      }
-                                    : resource === "roi-input-facts"
+                                  : resource === "accountant-exports"
+                                    ? action === "create"
                                       ? {
-                                          ...(values["definition-id"]
-                                            ? { definitionId: values["definition-id"] }
+                                          snapshotId: values["snapshot-id"],
+                                          snapshotVersion: Number(values["snapshot-version"]),
+                                          format: values.format,
+                                          reportKind: values["report-kind"],
+                                        }
+                                      : action === "get" && values["snapshot-version"]
+                                        ? { version: values["snapshot-version"] }
+                                        : undefined
+                                    : resource === "executive-metrics"
+                                      ? {
+                                          ...(values.from ? { startsOn: values.from } : {}),
+                                          ...(values.to ? { endsOn: values.to } : {}),
+                                          ...(values["as-of"]
+                                            ? { asOfInstant: values["as-of"] }
                                             : {}),
-                                          ...(values["review-state"]
-                                            ? { reviewState: values["review-state"] }
+                                          ...(values.framework
+                                            ? { framework: values.framework }
+                                            : {}),
+                                          ...(values["project-id"]
+                                            ? { projectId: values["project-id"] }
+                                            : {}),
+                                          ...(values.party ? { clientId: values.party } : {}),
+                                          ...(values["cost-center"]
+                                            ? { costCenter: values["cost-center"] }
+                                            : {}),
+                                          ...(values["service-line"]
+                                            ? { serviceLine: values["service-line"] }
+                                            : {}),
+                                          ...(values["team-id"]
+                                            ? { teamId: values["team-id"] }
+                                            : {}),
+                                          ...(values["account-owner"]
+                                            ? { ownerId: values["account-owner"] }
                                             : {}),
                                         }
-                                      : resource === "executive-metric-policies" ||
-                                          resource === "roi-definitions"
-                                        ? action === "get" && values.version
-                                          ? { version: values.version }
-                                          : undefined
-                                        : resource === "financial-statement-mappings"
-                                          ? {
-                                              ...(values.framework
-                                                ? { framework: values.framework }
-                                                : {}),
-                                              ...(values.status ? { state: values.status } : {}),
-                                              ...(values["as-of"]
-                                                ? { effectiveOn: values["as-of"] }
-                                                : {}),
-                                            }
-                                          : resource === "performance-comparisons"
+                                      : resource === "roi-input-facts"
+                                        ? {
+                                            ...(values["definition-id"]
+                                              ? { definitionId: values["definition-id"] }
+                                              : {}),
+                                            ...(values["review-state"]
+                                              ? { reviewState: values["review-state"] }
+                                              : {}),
+                                          }
+                                        : resource === "executive-metric-policies" ||
+                                            resource === "roi-definitions"
+                                          ? action === "get" && values.version
+                                            ? { version: values.version }
+                                            : undefined
+                                          : resource === "financial-statement-mappings"
                                             ? {
-                                                periodId: values["period-id"],
-                                                periodBasis: values["period-basis"],
-                                                actualBasis: values.basis,
-                                                asOfInstant: values["as-of"],
-                                                ...(values["forecast-version-id"]
-                                                  ? {
-                                                      forecastVersionId:
-                                                        values["forecast-version-id"],
-                                                    }
+                                                ...(values.framework
+                                                  ? { framework: values.framework }
                                                   : {}),
-                                                ...(values["team-id"]
-                                                  ? { teamId: values["team-id"] }
-                                                  : {}),
-                                                ...(values["service-line"]
-                                                  ? { serviceLineCode: values["service-line"] }
-                                                  : {}),
-                                                ...(values["account-owner"]
-                                                  ? { ownerId: values["account-owner"] }
+                                                ...(values.status ? { state: values.status } : {}),
+                                                ...(values["as-of"]
+                                                  ? { effectiveOn: values["as-of"] }
                                                   : {}),
                                               }
-                                            : resource.startsWith("bank-")
+                                            : resource === "performance-comparisons"
                                               ? {
-                                                  ...(values["account-id"]
-                                                    ? { financialAccountId: values["account-id"] }
+                                                  periodId: values["period-id"],
+                                                  periodBasis: values["period-basis"],
+                                                  actualBasis: values.basis,
+                                                  asOfInstant: values["as-of"],
+                                                  ...(values["forecast-version-id"]
+                                                    ? {
+                                                        forecastVersionId:
+                                                          values["forecast-version-id"],
+                                                      }
                                                     : {}),
-                                                  ...(values.from ? { from: values.from } : {}),
-                                                  ...(values.to ? { to: values.to } : {}),
+                                                  ...(values["team-id"]
+                                                    ? { teamId: values["team-id"] }
+                                                    : {}),
+                                                  ...(values["service-line"]
+                                                    ? { serviceLineCode: values["service-line"] }
+                                                    : {}),
+                                                  ...(values["account-owner"]
+                                                    ? { ownerId: values["account-owner"] }
+                                                    : {}),
                                                 }
-                                              : undefined;
+                                              : resource.startsWith("bank-")
+                                                ? {
+                                                    ...(values["account-id"]
+                                                      ? { financialAccountId: values["account-id"] }
+                                                      : {}),
+                                                    ...(values.from ? { from: values.from } : {}),
+                                                    ...(values.to ? { to: values.to } : {}),
+                                                  }
+                                                : undefined;
       const requestPayload =
         resource === "operating-dashboard"
           ? {

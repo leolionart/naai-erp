@@ -19,7 +19,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -193,12 +200,9 @@ export function OverheadQueueWorkspace({ kind }: Readonly<{ kind: Kind }>) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap justify-between gap-2">
         <Nav />
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setFilters(true)}>
-            Bộ lọc
-          </Button>
-          <Button onClick={() => setDialog(true)}>Tạo {kind}</Button>
-        </div>
+        <Button variant="outline" onClick={() => setFilters(true)}>
+          Bộ lọc
+        </Button>
       </div>
       <Card>
         <CardHeader>
@@ -206,6 +210,9 @@ export function OverheadQueueWorkspace({ kind }: Readonly<{ kind: Kind }>) {
           <CardDescription>
             Queue riêng; complex run review nằm trên dedicated page.
           </CardDescription>
+          <CardAction>
+            <Button onClick={() => setDialog(true)}>Tạo {kind}</Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <FinancialDataTable rows={rows} columns={columns} rowKey={(r) => r.id} />

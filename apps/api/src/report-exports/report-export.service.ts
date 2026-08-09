@@ -5,6 +5,7 @@ import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   REPORT_EXPORT_STORE,
   type ExportInput,
+  type ManagementWorkbookQuery,
   type ReportExportContext,
   type ReportExportStore,
   type SnapshotInput,
@@ -93,6 +94,13 @@ export class ReportExportService {
       invoicePresence: invoicePresence as "all" | "present" | "missing",
     };
   }
+  parseManagementExport(input: Record<string, unknown>): ManagementWorkbookQuery {
+    const startsOn = String(input.startsOn ?? "");
+    const endsOn = String(input.endsOn ?? "");
+    if (!DATE.test(startsOn) || !DATE.test(endsOn) || startsOn > endsOn)
+      throw new Error("VALIDATION_FAILED");
+    return { startsOn, endsOn };
+  }
   listSnapshots(c: ReportExportContext) {
     return this.store.listSnapshots(c).then((x) => this.envelope(c, x));
   }
@@ -133,6 +141,10 @@ export class ReportExportService {
   ) {
     if (!c.roles.some((r) => EXPORT_ROLES.has(r))) throw new Error("FORBIDDEN");
     return this.store.exportPurchaseInvoicesExpenses(c, filters);
+  }
+  exportManagementWorkbook(c: ReportExportContext, filters: ManagementWorkbookQuery) {
+    if (!c.roles.some((r) => EXPORT_ROLES.has(r))) throw new Error("FORBIDDEN");
+    return this.store.exportManagementWorkbook(c, filters);
   }
   async supersede(
     c: ReportExportContext,

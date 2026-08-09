@@ -851,9 +851,17 @@ export class WorkbookImportService {
 
           // Insert expense line
           await client.query(
-            `insert into expense_lines (organization_id, expense_id, line_number, description, net_minor, vat_minor, gross_minor, posting_account_code, vat_account_code, created_at)
-             values ($1, $2, 1, $3, $4, $5, $6, '642', case when $5::bigint > 0 then '1331' else null end, now())`,
-            [organizationId, exp.id, exp.businessPurpose, netMinor, taxMinor, grossMinor],
+            `insert into expense_lines (organization_id, expense_id, line_number, description, net_minor, vat_minor, gross_minor, posting_account_code, vat_account_code, dimensions, created_at)
+             values ($1, $2, 1, $3, $4, $5, $6, '642', case when $5::bigint > 0 then '1331' else null end, jsonb_build_object('category',$7::text), now())`,
+            [
+              organizationId,
+              exp.id,
+              exp.businessPurpose,
+              netMinor,
+              taxMinor,
+              grossMinor,
+              exp.categoryCode,
+            ],
           );
 
           // DR Expense Account 642 (or 632 if project-linked)

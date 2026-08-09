@@ -49,7 +49,8 @@ cases pass and its exact-commit evidence is recorded.
 - Containers run non-root and contain no source secrets.
 - Every main push runs a lightweight packaging-contract check and then publishes `main` and
   immutable `sha-<12>` images whose OCI revision equals the commit. The full quality, database and
-  browser suites remain in the separate CI workflow and do not block image publication.
+  browser suites remain in the separate CI workflow, run for pull requests or manual dispatch, and
+  do not consume a second runner on routine `main` pushes.
 - Workbook inventory accounts for every sheet/header/row.
 - Dry-run performs zero mutations; commit is retry-idempotent and reconciles source controls exactly.
 
@@ -134,11 +135,29 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
 - Production login accepts the server-only username/password configured in the deployment
   environment and returns an existing organization-scoped API credential only after successful
   authentication. Login secrets must not use public browser environment variables.
-- Project management offers a URL-restorable Kanban view with all lifecycle columns; dragging a card
-  or selecting its status sends the canonical project PATCH and moves the card only when the update
-  succeeds.
+- Project management defaults to all lifecycle states and offers a URL-restorable Kanban view with
+  all lifecycle columns; dragging a card sends the canonical project PATCH and moves the card only
+  when the update succeeds.
 
 ## 5. Evidence
+
+### ERP-855 — Purchase product VAT catalog
+
+- Empty-database migration creates an organization-scoped purchase-product catalog.
+- API and CLI create, list, read, update and deactivate products through the shared master-data
+  contract with audit, idempotency and resource versions.
+- VAT rates other than 8% or 10% return a structured validation error and create no product.
+
+### ERP-858 — Owner-final single-user expense workflow
+
+- Organization policy is readable and writable through REST and the first-party CLI with audit,
+  organization isolation and idempotency.
+- Owner-final defaults persist management, CIT and VAT decisions on documented expense and purchase
+  invoice lines; explicit overrides and non-documented/fixed-asset boundaries remain intact.
+- Financial statements and dashboard taxable-profit/VAT controls read persisted line decisions and
+  do not hardcode purchase invoices as unreviewed.
+- Legacy finalization supports deterministic dry-run, explicit commit and retry idempotency with
+  exact record and money controls.
 
 Each task evidence folder records:
 

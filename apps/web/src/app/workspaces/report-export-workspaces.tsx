@@ -61,6 +61,40 @@ import {
 import { useAuthenticatedApiClient } from "@/lib/api";
 
 type Format = "csv" | "xlsx";
+type DirectWorkbookKind = "sales" | "purchase" | "management";
+const currentYear = new Date().getFullYear();
+const directWorkbookOptions: readonly {
+  kind: DirectWorkbookKind;
+  title: string;
+  description: string;
+  path: string;
+  fallbackName: string;
+}[] = [
+  {
+    kind: "sales",
+    title: "Hóa đơn bán ra",
+    description:
+      "BRTT78 giữ dữ liệu hóa đơn điện tử gốc; Bảng kê bán ra chuẩn hóa theo dòng để kế toán kiểm tra.",
+    path: "accounting-list-exports/sales-invoices",
+    fallbackName: "hoa-don-ban-ra",
+  },
+  {
+    kind: "purchase",
+    title: "Hóa đơn mua vào & chi phí",
+    description:
+      "MVTT78 chỉ chứa hóa đơn điện tử; bảng chuẩn hóa vẫn giữ riêng các chi phí không có hóa đơn.",
+    path: "accounting-list-exports/purchase-invoices-expenses",
+    fallbackName: "hoa-don-mua-vao-chi-phi",
+  },
+  {
+    kind: "management",
+    title: "Workbook quản trị tổng hợp",
+    description:
+      "Tổng hợp doanh thu, công nợ, chi phí và chỉ số theo kỳ. Payroll/bonus chưa được hỗ trợ sẽ được công khai trong sheet Controls.",
+    path: "accounting-list-exports/management-workbook",
+    fallbackName: "quan-tri-tong-hop",
+  },
+];
 const reportLabels: Record<AccountantReportKindContract, string> = {
   profit_and_loss: "Báo cáo kết quả kinh doanh",
   balance_sheet: "Bảng cân đối kế toán",
@@ -215,12 +249,16 @@ function SourceDialog({
 }
 
 export function AccountantExportListWorkspace() {
-  const { client, hydrated, hasToken } = useApi();
+  const { client, connection, token, hydrated, hasToken } = useApi();
   const [exports, setExports] = useState<readonly AccountantExportContract[]>([demoExport]);
   const [fallback, setFallback] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [format, setFormat] = useState<"all" | Format>("all");
+  const [startsOn, setStartsOn] = useState(`${currentYear}-01-01`);
+  const [endsOn, setEndsOn] = useState(`${currentYear}-12-31`);
+  const [downloading, setDownloading] = useState<DirectWorkbookKind>();
+  const [downloadError, setDownloadError] = useState("");
   useEffect(() => {
     if (!hydrated || !hasToken) return;
     void client
@@ -232,6 +270,45 @@ export function AccountantExportListWorkspace() {
       .catch(() => undefined);
   }, [client, hasToken, hydrated]);
   const visible = format === "all" ? exports : exports.filter((item) => item.format === format);
+  async function downloadDirectWorkbook(option: (typeof directWorkbookOptions)[number]) {
+    setDownloading(option.kind);
+    setDownloadError("");
+    try {
+      if (!startsOn || !endsOn || startsOn > endsOn)
+        throw new Error("Khoảng thời gian xuất dữ liệu không hợp lệ.");
+      const query = new URLSearchParams({ startsOn, endsOn });
+      const response = await fetch(
+        `${connection.baseUrl}/api/v1/organizations/${encodeURIComponent(connection.organizationId)}/${option.path}?${query}`,
+        {
+          headers: {
+            accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ...(token ? { authorization: `Bearer ${token}` } : {}),
+            "x-correlation-id": crypto.randomUUID(),
+          },
+        },
+      );
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => undefined)) as
+          { error?: { message?: string } } | undefined;
+        throw new Error(
+          payload?.error?.message ?? `Không thể tải workbook (HTTP ${response.status}).`,
+        );
+      }
+      const disposition = response.headers.get("content-disposition");
+      const serverFilename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download =
+        serverFilename ?? `naai-erp-${option.fallbackName}-${startsOn}_${endsOn}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch (cause) {
+      setDownloadError(cause instanceof Error ? cause.message : "Không thể tải workbook.");
+    } finally {
+      setDownloading(undefined);
+    }
+  }
   return (
     <ModulePage
       title="Xuất dữ liệu kế toán"
@@ -240,6 +317,69 @@ export function AccountantExportListWorkspace() {
     >
       <div className="flex flex-col gap-6">
         <PreviewAlert fallback={fallback} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Tải nhanh dữ liệu theo kỳ</CardTitle>
+            <CardDescription>
+              Chọn khoảng thời gian một lần rồi tải đúng workbook cần gửi kế toán hoặc dùng để kiểm
+              kê nội bộ.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            <FieldGroup className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="direct-export-starts-on">Từ ngày</FieldLabel>
+                <Input
+                  id="direct-export-starts-on"
+                  type="date"
+                  value={startsOn}
+                  onChange={(event) => setStartsOn(event.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="direct-export-ends-on">Đến ngày</FieldLabel>
+                <Input
+                  id="direct-export-ends-on"
+                  type="date"
+                  value={endsOn}
+                  onChange={(event) => setEndsOn(event.target.value)}
+                />
+              </Field>
+            </FieldGroup>
+            <div className="grid gap-4 lg:grid-cols-3">
+              {directWorkbookOptions.map((option) => (
+                <Card key={option.kind} className="h-full shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">{option.title}</CardTitle>
+                    <CardDescription>{option.description}</CardDescription>
+                  </CardHeader>
+                  <CardFooter className="mt-auto">
+                    <Button
+                      className="w-full"
+                      variant={option.kind === "management" ? "default" : "outline"}
+                      disabled={!hasToken || downloading != null}
+                      onClick={() => void downloadDirectWorkbook(option)}
+                    >
+                      <Download data-icon="inline-start" />
+                      {downloading === option.kind ? "Đang tải…" : `Tải ${option.title}`}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Form-78 là lớp dữ liệu hóa đơn điện tử gốc; các sheet Bảng kê là dữ liệu đã chuẩn hóa
+              để đối chiếu. Workbook quản trị không tự tạo dữ liệu lương hoặc thưởng khi hệ thống
+              chưa có resource chuẩn.
+            </p>
+            {downloadError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Không thể tải workbook</AlertTitle>
+                <AlertDescription>{downloadError}</AlertDescription>
+              </Alert>
+            ) : null}
+          </CardContent>
+        </Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm text-muted-foreground">{visible.length} gói xuất</p>

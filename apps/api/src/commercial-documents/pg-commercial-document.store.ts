@@ -25,6 +25,70 @@ type StoredDocument = {
   version: string;
 };
 
+type PurchaseLineTaxDecision = Readonly<{
+  managementState: string;
+  citState: string;
+  vatState: string;
+  citEligibleMinor: string;
+  vatEligibleMinor: string;
+  reviewed: boolean;
+}>;
+
+function purchaseLineTaxDecision(
+  input: CreateCommercialDocumentInput,
+  line: CreateCommercialDocumentInput["lines"][number],
+  operatingMode: string | null,
+): PurchaseLineTaxDecision {
+  if (input.type !== "purchase_invoice")
+    return {
+      managementState: "unreviewed",
+      citState: "unreviewed",
+      vatState: "unreviewed",
+      citEligibleMinor: "0",
+      vatEligibleMinor: "0",
+      reviewed: false,
+    };
+
+  const explicit = line.allocations.some(
+    (allocation) => allocation.dimensions.taxState !== undefined,
+  );
+  let vatEligible = 0n;
+  if (explicit && BigInt(line.taxMinor) > 0n) {
+    let allocatedTax = 0n;
+    for (const [index, allocation] of line.allocations.entries()) {
+      const tax =
+        index === line.allocations.length - 1
+          ? BigInt(line.taxMinor) - allocatedTax
+          : (BigInt(line.taxMinor) * BigInt(allocation.amountMinor)) / BigInt(line.netMinor);
+      allocatedTax += tax;
+      const state = allocation.dimensions.taxState;
+      if (["eligible", "accountant_override"].includes(state ?? "")) vatEligible += tax;
+      else if (state === "partially_eligible") {
+        const requested = BigInt(allocation.dimensions.vatEligibleMinor ?? "0");
+        vatEligible += requested > tax ? tax : requested;
+      }
+    }
+  }
+
+  const ownerFinal = operatingMode === "owner_final";
+  const vatMinor = BigInt(line.taxMinor);
+  if (!explicit && ownerFinal) vatEligible = vatMinor;
+  const vatState =
+    vatMinor === 0n || vatEligible === 0n
+      ? "ineligible"
+      : vatEligible === vatMinor
+        ? "eligible"
+        : "partially_eligible";
+  return {
+    managementState: ownerFinal ? "valid" : "unreviewed",
+    citState: ownerFinal ? "eligible" : "unreviewed",
+    vatState: explicit || ownerFinal ? vatState : "unreviewed",
+    citEligibleMinor: ownerFinal ? line.netMinor : "0",
+    vatEligibleMinor: explicit || ownerFinal ? vatEligible.toString() : "0",
+    reviewed: explicit || ownerFinal,
+  };
+}
+
 const NEXT: Record<CommercialDocumentType, Record<string, Record<string, string>>> = {
   sales_invoice: {
     draft: { validate: "validated", cancel: "cancelled" },
@@ -45,6 +109,141 @@ const NEXT: Record<CommercialDocumentType, Record<string, Record<string, string>
 @Injectable()
 export class PgCommercialDocumentStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+  private async operatingMode(client: PoolClient, organizationId: string) {
+    const result = await client.query<{ operating_mode: string }>(
+      "select operating_mode from accounting_workflow_policies where organization_id=$1",
+      [organizationId],
+    );
+    return result.rows[0]?.operating_mode ?? null;
+  }
+
+  private async insertDocumentLine(
+    client: PoolClient,
+    context: CommercialDocumentContext,
+    documentId: string,
+    lineNumber: number,
+    input: CreateCommercialDocumentInput,
+    line: CreateCommercialDocumentInput["lines"][number],
+    operatingMode: string | null,
+  ) {
+    const tax = purchaseLineTaxDecision(input, line, operatingMode);
+    await client.query(
+      `insert into commercial_document_lines
+       (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
+        primary_account_code,tax_account_code,tax_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,
+        reviewed_by,reviewed_at,review_reason,review_reference,dimensions)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+        case when $19::text is null then null else now() end,$20,$21,$22)`,
+      [
+        context.organizationId,
+        documentId,
+        lineNumber,
+        line.originalLineNumber ?? null,
+        line.description,
+        line.quantity,
+        line.unitPriceMinor,
+        line.netMinor,
+        line.taxMinor,
+        line.grossMinor,
+        line.primaryAccountCode,
+        line.taxAccountCode ?? null,
+        line.taxCode ?? null,
+        tax.managementState,
+        tax.citState,
+        tax.vatState,
+        tax.citEligibleMinor,
+        tax.vatEligibleMinor,
+        tax.reviewed ? context.actorId : null,
+        tax.reviewed ? "Resolved when the purchase invoice was recorded" : null,
+        tax.reviewed
+          ? operatingMode === "owner_final"
+            ? "owner_final"
+            : "explicit_tax_state"
+          : null,
+        line.dimensions ?? {},
+      ],
+    );
+  }
+
+  async validateRelationships(organizationId: string, input: CreateCommercialDocumentInput) {
+    if (
+      input.type === "sales_invoice" &&
+      input.lines.some((line) =>
+        line.allocations.some(
+          (allocation) => !(allocation.dimensions.projectId ?? line.dimensions?.projectId),
+        ),
+      )
+    )
+      throw new Error("DOCUMENT_PROJECT_REQUIRED");
+    const relationships = input.lines.flatMap((line) => {
+      const lineProjectId = line.dimensions?.projectId;
+      const lineContractId = line.dimensions?.contractId;
+      return [
+        { projectId: lineProjectId, contractId: lineContractId },
+        ...line.allocations.map((allocation) => ({
+          projectId: allocation.dimensions.projectId ?? lineProjectId,
+          contractId: allocation.dimensions.contractId ?? lineContractId,
+        })),
+      ];
+    });
+
+    const unique = new Map<
+      string,
+      { projectId: string | undefined; contractId: string | undefined }
+    >();
+    for (const relationship of relationships) {
+      if (!relationship.projectId && !relationship.contractId) continue;
+      if (relationship.contractId && !relationship.projectId)
+        throw new Error("DOCUMENT_CONTRACT_PROJECT_REQUIRED");
+      unique.set(`${relationship.projectId ?? ""}:${relationship.contractId ?? ""}`, relationship);
+    }
+
+    for (const { projectId, contractId } of unique.values()) {
+      const project = await this.pool.query<{ client_party_id: string; state: string }>(
+        "select client_party_id,state::text from projects where organization_id=$1 and id=$2",
+        [organizationId, projectId],
+      );
+      if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
+      if (project.rows[0].state === "closed") throw new Error("PROJECT_CLOSED");
+      if (
+        ["sales_invoice", "credit_note"].includes(input.type) &&
+        project.rows[0].client_party_id !== input.partyId
+      )
+        throw new Error("PROJECT_CUSTOMER_MISMATCH");
+      if (contractId) {
+        const contract = await this.pool.query(
+          "select 1 from contracts where organization_id=$1 and id=$2 and project_id=$3",
+          [organizationId, contractId, projectId],
+        );
+        if (!contract.rows[0]) throw new Error("CONTRACT_PROJECT_MISMATCH");
+      }
+    }
+  }
+
+  async relationshipBackfillInventory(organizationId: string) {
+    const result = await this.pool.query(
+      `select d.id,d.type::text,d.state::text,d.document_number "documentNumber",
+              d.party_id "partyId",d.version::text "resourceVersion",
+              coalesce((select jsonb_agg(distinct a.dimensions->>'projectId')
+                from commercial_document_allocations a
+               where a.organization_id=d.organization_id and a.document_id=d.id
+                 and a.dimensions ? 'projectId'),'[]'::jsonb) "projectIds",
+              coalesce((select jsonb_agg(distinct a.dimensions->>'contractId')
+                from commercial_document_allocations a
+               where a.organization_id=d.organization_id and a.document_id=d.id
+                 and a.dimensions ? 'contractId'),'[]'::jsonb) "contractIds"
+         from commercial_documents d
+        where d.organization_id=$1 and d.state in ('issued','posted','partially_paid','paid')
+        order by d.document_date,d.id`,
+      [organizationId],
+    );
+    return result.rows.map((row) => ({
+      ...row,
+      needsProject: row.type === "sales_invoice" && row.projectIds.length === 0,
+      needsContract: row.type === "sales_invoice" && row.contractIds.length === 0,
+    }));
+  }
 
   async updateCategory(
     context: CommercialDocumentContext,
@@ -126,6 +325,26 @@ export class PgCommercialDocumentStore {
   ) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+       coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
+         from (
+           select l2.dimensions->>'projectId' project_id
+             from commercial_document_lines l2
+            where l2.organization_id=d.organization_id and l2.document_id=d.id
+           union
+           select a2.dimensions->>'projectId'
+             from commercial_document_allocations a2
+            where a2.organization_id=d.organization_id and a2.document_id=d.id
+         ) relationship where relationship.project_id is not null),'[]'::jsonb) "projectIds",
+       coalesce((select jsonb_agg(distinct relationship.contract_id order by relationship.contract_id)
+         from (
+           select l2.dimensions->>'contractId' contract_id
+             from commercial_document_lines l2
+            where l2.organization_id=d.organization_id and l2.document_id=d.id
+           union
+           select a2.dimensions->>'contractId'
+             from commercial_document_allocations a2
+            where a2.organization_id=d.organization_id and a2.document_id=d.id
+         ) relationship where relationship.contract_id is not null),'[]'::jsonb) "contractIds",
        coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null),'[]') lines
        from commercial_documents d left join commercial_document_lines l
          on l.organization_id=d.organization_id and l.document_id=d.id
@@ -275,28 +494,16 @@ export class PgCommercialDocumentStore {
                   newVersion,
                 ],
               );
+              const operatingMode = await this.operatingMode(client, context.organizationId);
               for (const [lineIndex, line] of input.lines.entries()) {
-                await client.query(
-                  `insert into commercial_document_lines
-                   (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
-                    primary_account_code,tax_account_code,tax_code,dimensions)
-                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-                  [
-                    context.organizationId,
-                    docId,
-                    lineIndex + 1,
-                    line.originalLineNumber ?? null,
-                    line.description,
-                    line.quantity,
-                    line.unitPriceMinor,
-                    line.netMinor,
-                    line.taxMinor,
-                    line.grossMinor,
-                    line.primaryAccountCode,
-                    line.taxAccountCode ?? null,
-                    line.taxCode ?? null,
-                    line.dimensions ?? {},
-                  ],
+                await this.insertDocumentLine(
+                  client,
+                  context,
+                  docId,
+                  lineIndex + 1,
+                  input,
+                  line,
+                  operatingMode,
                 );
                 for (const [allocationIndex, allocation] of line.allocations.entries()) {
                   await client.query(
@@ -463,28 +670,16 @@ export class PgCommercialDocumentStore {
           context.actorId,
         ],
       );
+      const operatingMode = await this.operatingMode(client, context.organizationId);
       for (const [lineIndex, line] of input.lines.entries()) {
-        await client.query(
-          `insert into commercial_document_lines
-           (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
-            primary_account_code,tax_account_code,tax_code,dimensions)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-          [
-            context.organizationId,
-            id,
-            lineIndex + 1,
-            line.originalLineNumber ?? null,
-            line.description,
-            line.quantity,
-            line.unitPriceMinor,
-            line.netMinor,
-            line.taxMinor,
-            line.grossMinor,
-            line.primaryAccountCode,
-            line.taxAccountCode ?? null,
-            line.taxCode ?? null,
-            line.dimensions ?? {},
-          ],
+        await this.insertDocumentLine(
+          client,
+          context,
+          id,
+          lineIndex + 1,
+          input,
+          line,
+          operatingMode,
         );
         for (const [allocationIndex, allocation] of line.allocations.entries())
           await client.query(
@@ -501,7 +696,6 @@ export class PgCommercialDocumentStore {
             ],
           );
       }
-
       if (input.externalReference) {
         await client.query(
           `insert into external_references
@@ -758,28 +952,16 @@ export class PgCommercialDocumentStore {
         ],
       );
 
+      const operatingMode = await this.operatingMode(client, context.organizationId);
       for (const [lineIndex, line] of merged.lines.entries()) {
-        await client.query(
-          `insert into commercial_document_lines
-           (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
-            primary_account_code,tax_account_code,tax_code,dimensions)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-          [
-            context.organizationId,
-            id,
-            lineIndex + 1,
-            line.originalLineNumber ?? null,
-            line.description,
-            line.quantity,
-            line.unitPriceMinor,
-            line.netMinor,
-            line.taxMinor,
-            line.grossMinor,
-            line.primaryAccountCode,
-            line.taxAccountCode ?? null,
-            line.taxCode ?? null,
-            line.dimensions ?? {},
-          ],
+        await this.insertDocumentLine(
+          client,
+          context,
+          id,
+          lineIndex + 1,
+          merged,
+          line,
+          operatingMode,
         );
         for (const [allocationIndex, allocation] of line.allocations.entries()) {
           await client.query(
@@ -1017,11 +1199,14 @@ export class PgCommercialDocumentStore {
       const original = found.rows[0];
       if (!original) throw new Error("RESOURCE_NOT_FOUND");
       if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
-      if (
-        !original.journal_id ||
-        !["issued", "posted", "partially_paid", "paid"].includes(original.state)
-      )
+      if (!original.journal_id || !["issued", "posted"].includes(original.state))
         throw new Error("INVALID_DOCUMENT_TRANSITION");
+      const reconciliation = await client.query(
+        `select 1 from reconciliation_allocations
+          where organization_id=$1 and commercial_document_id=$2 limit 1`,
+        [context.organizationId, id],
+      );
+      if (reconciliation.rows[0]) throw new Error("INVALID_DOCUMENT_TRANSITION");
       if ((input.id ?? "") === id) throw new Error("VALIDATION_FAILED");
       await this.assertPostingPeriod(client, context, input.documentDate);
       const journal = await client.query<{ state: string; currency: string; version: string }>(
@@ -1055,8 +1240,9 @@ export class PgCommercialDocumentStore {
         [context.organizationId, original.journal_id],
       );
       await client.query(
-        `update commercial_documents set state='cancelled',version=version+1,updated_at=now(),reason=$3 where organization_id=$1 and id=$2`,
-        [context.organizationId, id, reason],
+        `update commercial_documents set state='cancelled',version=version+1,updated_at=now()
+          where organization_id=$1 and id=$2`,
+        [context.organizationId, id],
       );
       const replacementId = input.id ?? randomUUID();
       await client.query(
@@ -1079,30 +1265,20 @@ export class PgCommercialDocumentStore {
           input.grossMinor,
           input.controlAccountCode,
           input.originalDocumentId ?? null,
-          input.reason ?? reason,
+          input.type === "credit_note" ? (input.reason ?? reason) : null,
           context.actorId,
         ],
       );
+      const operatingMode = await this.operatingMode(client, context.organizationId);
       for (const [lineIndex, line] of input.lines.entries()) {
-        await client.query(
-          `insert into commercial_document_lines(organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code,dimensions)
-           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-          [
-            context.organizationId,
-            replacementId,
-            lineIndex + 1,
-            line.originalLineNumber ?? null,
-            line.description,
-            line.quantity,
-            line.unitPriceMinor,
-            line.netMinor,
-            line.taxMinor,
-            line.grossMinor,
-            line.primaryAccountCode,
-            line.taxAccountCode ?? null,
-            line.taxCode ?? null,
-            line.dimensions ?? {},
-          ],
+        await this.insertDocumentLine(
+          client,
+          context,
+          replacementId,
+          lineIndex + 1,
+          input,
+          line,
+          operatingMode,
         );
         for (const [allocationIndex, allocation] of line.allocations.entries())
           await client.query(
@@ -1117,6 +1293,11 @@ export class PgCommercialDocumentStore {
             ],
           );
       }
+      await client.query(
+        `update external_references set document_id=$3,synced_at=now()
+          where organization_id=$1 and document_id=$2`,
+        [context.organizationId, id, replacementId],
+      );
       const auditEventId = randomUUID();
       await client.query(
         `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
@@ -1129,7 +1310,13 @@ export class PgCommercialDocumentStore {
           context.actorId,
           context.correlationId,
           { state: original.state, journalId: original.journal_id },
-          { state: "cancelled", reversalJournalId, replacementId, reason },
+          {
+            state: "cancelled",
+            reversalJournalId,
+            replacementId,
+            externalReferenceTransferred: true,
+            reason,
+          },
         ],
       );
       const response = {
@@ -1285,6 +1472,7 @@ export class PgCommercialDocumentStore {
       currency: string;
       net_minor: string;
       tax_minor: string;
+      vat_state: string;
       state: string;
     }>(
       `select type,party_id,currency,net_minor::text,tax_minor::text,state from commercial_documents
@@ -1367,7 +1555,7 @@ export class PgCommercialDocumentStore {
       tax_account_code: string | null;
       dimensions: Record<string, string>;
     }>(
-      `select line_number,description,net_minor::text,tax_minor::text,primary_account_code,tax_account_code,dimensions
+      `select line_number,description,net_minor::text,tax_minor::text,vat_state::text,primary_account_code,tax_account_code,dimensions
        from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number`,
       [context.organizationId, document.id],
     );
@@ -1423,7 +1611,10 @@ export class PgCommercialDocumentStore {
             });
         } else if (document.type === "purchase_invoice") {
           const taxState = allocation.dimensions.taxState;
-          const taxIsDeductible = ["eligible", "accountant_override"].includes(taxState ?? "");
+          const taxIsDeductible =
+            taxState === undefined
+              ? line.vat_state === "eligible"
+              : ["eligible", "accountant_override"].includes(taxState);
           journalLines.push({
             account: line.primary_account_code,
             debit: net + (taxIsDeductible ? 0n : tax),

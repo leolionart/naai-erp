@@ -50,4 +50,43 @@ describe("WorkforceService", () => {
       ),
     ).rejects.toThrow("VALIDATION_FAILED");
   });
+  it("updates and deactivates workers with versioned reasoned mutations", async () => {
+    const store = { updateWorker: vi.fn().mockResolvedValue({ resource: { id: "w" } }) };
+    const service = new WorkforceService(store as never, {} as never);
+    await service.updateWorker(
+      context,
+      "w",
+      {
+        schemaVersion: 1,
+        expectedResourceVersion: "1",
+        reason: "Correct payroll classification",
+        employmentKind: "contractor",
+        endsOn: "2026-12-31",
+      },
+      "worker-update",
+    );
+    await service.updateWorker(
+      context,
+      "w",
+      { schemaVersion: 1, expectedResourceVersion: "2", reason: "Employment ended" },
+      "worker-deactivate",
+      true,
+    );
+    expect(store.updateWorker).toHaveBeenNthCalledWith(
+      1,
+      context,
+      "w",
+      expect.objectContaining({ employmentKind: "contractor" }),
+      "worker-update",
+      false,
+    );
+    expect(store.updateWorker).toHaveBeenNthCalledWith(
+      2,
+      context,
+      "w",
+      expect.objectContaining({ reason: "Employment ended" }),
+      "worker-deactivate",
+      true,
+    );
+  });
 });

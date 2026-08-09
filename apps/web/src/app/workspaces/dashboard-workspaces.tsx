@@ -56,22 +56,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
+import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
 
 const ExecutiveTrendChart = dynamic(() => import("@/components/dashboard/executive-trend-chart"), {
   loading: () => <Skeleton className="h-48 w-full" />,
   ssr: false,
 });
-
-const MonthlyCategoryStackedChart = dynamic(
-  () =>
-    import("@/components/dashboard/monthly-category-stacked-chart").then(
-      (mod) => mod.MonthlyCategoryStackedChart,
-    ),
-  {
-    loading: () => <Skeleton className="h-48 w-full" />,
-    ssr: false,
-  },
-);
 
 type DashboardData = Readonly<{
   executive?: ExecutiveMetricsContract;
@@ -176,6 +166,7 @@ type OperatingDashboardWire = Readonly<{
     cashOnHandMinor: string;
     cashAndBankMinor: string;
     ownerPayableMinor: string;
+    ownerOperatingPayableMinor?: string;
     netAvailableCashMinor: string;
     actualOwnerPaidCompanyCostMinor?: string;
     netCompanyFundsMinor?: string;
@@ -786,10 +777,86 @@ function useDashboardData() {
   };
 }
 
+type ExpenseOverviewRow = Record<string, unknown> & {
+  __sourceKind: "documents" | "expenses";
+  __invoicePresence: "present" | "missing";
+};
+
+function useExpenseOverviewRows(search: URLSearchParams) {
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
+  const [rows, setRows] = useState<readonly ExpenseOverviewRow[]>([]);
+  const [error, setError] = useState("");
+  const key = search.toString();
+  useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    const source = new URLSearchParams(key);
+    const shared = new URLSearchParams({ limit: "500" });
+    for (const name of ["startsOn", "endsOn", "state"] as const) {
+      const value = source.get(name);
+      if (value) shared.set(name, value);
+    }
+    const documents = new URLSearchParams(shared);
+    documents.set("type", "purchase_invoice");
+    let active = true;
+    setError("");
+    void Promise.all([
+      client.data<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(
+        `commercial-documents?${documents}`,
+      ),
+      client.data<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(
+        `expenses?${shared}`,
+      ),
+    ])
+      .then(([documentPayload, expensePayload]) => {
+        if (!active) return;
+        const startsOn = source.get("startsOn");
+        const endsOn = source.get("endsOn");
+        const inPeriod = (row: Record<string, unknown>) => {
+          const date = String(
+            row.documentDate ?? row.document_date ?? row.expenseDate ?? row.expense_date ?? "",
+          );
+          if (startsOn && date && date < startsOn) return false;
+          if (endsOn && date && date > endsOn) return false;
+          return true;
+        };
+        const documentRows = (
+          Array.isArray(documentPayload) ? documentPayload : (documentPayload.items ?? [])
+        ).filter(inPeriod);
+        const expenseRows = (
+          Array.isArray(expensePayload) ? expensePayload : (expensePayload.items ?? [])
+        ).filter(inPeriod);
+        setRows([
+          ...documentRows.map((row) => ({
+            ...row,
+            __sourceKind: "documents" as const,
+            __invoicePresence: "present" as const,
+          })),
+          ...expenseRows.map((row) => ({
+            ...row,
+            __sourceKind: "expenses" as const,
+            __invoicePresence: "missing" as const,
+          })),
+        ]);
+      })
+      .catch((cause) => {
+        if (!active) return;
+        setRows([]);
+        setError(
+          cause instanceof Error ? cause.message : "Không thể tải overview chi phí canonical.",
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [client, hasToken, hydrated, key]);
+  return { rows, error };
+}
+
 export function ExecutiveDashboardWorkspace() {
   const router = useRouter();
   const pathname = usePathname();
   const { data, loading, error, search } = useDashboardData();
+  const expenseOverview = useExpenseOverviewRows(search);
   const [filters, setFilters] = useState(false);
   const [preview, setPreview] = useState<Preview>();
   const currentBasis = search.get("actualBasis") ?? "invoiced";
@@ -799,6 +866,11 @@ export function ExecutiveDashboardWorkspace() {
     router.replace(`${pathname}?${next.toString()}`);
   };
   const q = search.toString();
+  const expenseHref = new URLSearchParams({ invoiceStatus: "all" });
+  for (const name of ["startsOn", "endsOn", "state"] as const) {
+    const value = search.get(name);
+    if (value) expenseHref.set(name, value);
+  }
   const executive = data.executive;
   const performance = data.performance;
   const operating = data.operating;
@@ -830,9 +902,10 @@ export function ExecutiveDashboardWorkspace() {
       ? "N/A"
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
     : fallbackDso;
-  const ownerPayableMinor = operating?.financials.ownerPayableMinor ?? "0";
-  const ownerPaidClassificationStatus =
-    operating?.financials.ownerPaidClassificationStatus ?? "unconfigured";
+  const ownerPayableMinor =
+    operating?.financials.ownerOperatingPayableMinor ??
+    operating?.financials.ownerPayableMinor ??
+    "0";
   const taxableProfitMinor =
     profitAndLoss == null || taxExpenses == null
       ? undefined
@@ -909,44 +982,6 @@ export function ExecutiveDashboardWorkspace() {
   const displayedChartPoints: readonly Readonly<{ label: string; valueMinor: string }>[] =
     chartPoints.length ? chartPoints : comparisonPoints;
 
-  const categoryData = operating?.sourceControls?.expenseCategories ?? [];
-  const periods = new Set<string>();
-  for (const row of filteredMonthly) periods.add(row.period);
-  for (const cat of categoryData) {
-    for (const amt of cat.monthlyAmounts) {
-      if (amt.period >= startsOnMonth && amt.period <= endsOnMonth) {
-        periods.add(amt.period);
-      }
-    }
-  }
-  const allPeriods = [...periods].sort();
-
-  const expensePoints = allPeriods.map((period) => {
-    const row = filteredMonthly.find((r) => r.period === period);
-    const rowExpense = BigInt(row?.expenseMinor ?? "0");
-    const categories: Record<string, bigint> = {};
-    let assignedMinor = 0n;
-
-    for (const cat of categoryData) {
-      const amtStr = cat.monthlyAmounts.find((a) => a.period === period)?.amountMinor;
-      if (amtStr) {
-        const amt = BigInt(amtStr);
-        const catName = cat.category || "Khác";
-        categories[catName] = (categories[catName] || 0n) + amt;
-        assignedMinor += amt;
-      }
-    }
-
-    const totalMinor = rowExpense > assignedMinor ? rowExpense : assignedMinor;
-    if (assignedMinor < totalMinor) {
-      categories["Chưa phân bổ"] = totalMinor - assignedMinor;
-    }
-
-    return {
-      month: period,
-      categories,
-    };
-  });
   return (
     <ModulePage
       title="Tổng quan điều hành"
@@ -1085,51 +1120,18 @@ export function ExecutiveDashboardWorkspace() {
                 provisional={usingOperatingFallback}
               />
               <MetricCard
-                title="Số dư ngân hàng khả dụng"
-                value={money(operating?.financials.bankAvailableMinor, operating?.currency)}
-                description="Số dư tài khoản ngân hàng công ty sau mọi khoản thu, chi và rút tiền"
-                href={`/reports/financial-statements/cash-flow/current?${q}`}
-                status="Tiền của công ty"
-              />
-              <MetricCard
-                title="Quỹ tiền mặt công ty"
-                value={money(operating?.financials.cashOnHandMinor, operating?.currency)}
-                description="Tiền mặt thực tế doanh nghiệp đang nắm giữ"
-                href={`/banking?${q}`}
-                status="Tiền của công ty"
-              />
-              <MetricCard
-                title="Tổng tiền công ty thực tế"
+                title="Tiền công ty hiện có"
                 value={money(operating?.financials.cashAndBankMinor, operating?.currency)}
-                description="Tổng số dư vật lý tại ngân hàng và quỹ tiền mặt; không trừ hóa đơn chỉ theo dõi cho thuế"
+                description={`Tổng tiền thuộc tài khoản và quỹ công ty: Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt ${money(operating?.financials.cashOnHandMinor, operating?.currency)}.`}
                 href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                status="Số dư quỹ thực tế"
+                status="Tiền của công ty"
               />
               <MetricCard
-                title="Quỹ thuần sau chi hộ thực tế"
-                value={money(
-                  operating?.financials.netCompanyFundsMinor,
-                  operating?.currency ?? executive?.currency,
-                )}
-                description="Chỉ trừ lương, domain, server/VPS và chi phí công ty thực tế do chủ doanh nghiệp trả; không trừ điện, nước, internet, ăn uống chỉ lưu cho thuế"
-                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                status={
-                  ownerPaidClassificationStatus === "ready"
-                    ? "Đã phân loại đủ"
-                    : `${operating?.financials.unclassifiedOwnerPaidCount ?? 0} khoản chưa phân loại · ${money(operating?.financials.unclassifiedOwnerPaidMinor, operating?.currency)}`
-                }
-                provisional={ownerPaidClassificationStatus !== "ready"}
-              />
-              <MetricCard
-                title="Chi phí công ty thực tế do chủ chi hộ"
-                value={money(
-                  operating?.financials.actualOwnerPaidCompanyCostMinor,
-                  operating?.currency ?? executive?.currency,
-                )}
-                description={`Chỉ gồm danh mục owner_paid_company_cost. Tổng TK 3388 theo sổ hiện tại: ${money(ownerPayableMinor, operating?.currency ?? executive?.currency)}.`}
-                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                status={ownerPaidClassificationStatus}
-                provisional={ownerPaidClassificationStatus !== "ready"}
+                title="Công ty đang nợ chủ doanh nghiệp"
+                value={money(ownerPayableMinor, operating?.currency ?? executive?.currency)}
+                description="Chi phí/lỗ vận hành chủ đã dùng tiền cá nhân gánh thay, trừ tiền công ty đã rút hoặc chi để hoàn trả chủ. Không gồm tài sản, thiết bị, vốn góp hay khoản vay của chủ."
+                href={`/dashboard/finance-review?${q}`}
+                status="Nghĩa vụ với chủ"
               />
               <MetricCard
                 title="Runway"
@@ -1236,12 +1238,16 @@ export function ExecutiveDashboardWorkspace() {
             )}
           </CardContent>
         </Card>
-        <MonthlyCategoryStackedChart
-          title="Thống kê chi phí"
-          description="Dữ liệu chi phí phân bổ theo tháng từ nguồn Operating Dashboard."
-          points={expensePoints}
+        {expenseOverview.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Không thể tải thống kê chi phí</AlertTitle>
+            <AlertDescription>{expenseOverview.error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <ExpenseOverviewChart
+          rows={expenseOverview.rows}
           currency={operating?.currency ?? data.projects?.currency ?? "VND"}
-          href="/expenses?invoiceStatus=present"
+          href={`/expenses?${expenseHref}`}
         />
       </div>
       <PreviewDialog preview={preview} onClose={() => setPreview(undefined)} />

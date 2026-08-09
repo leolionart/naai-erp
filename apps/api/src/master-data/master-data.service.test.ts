@@ -75,6 +75,42 @@ describe("AI-native master data service", () => {
     ).rejects.toThrow("IDEMPOTENCY_KEY_REQUIRED");
   });
 
+  it("accepts only 8% or 10% VAT for purchase products", async () => {
+    const { service, store } = serviceWithStore();
+    const context = {
+      organizationId: "org-a",
+      actorId: "u1",
+      roles: ["integration"],
+      correlationId: "c1",
+    };
+    await expect(
+      service.mutate(
+        "create",
+        "purchase-products",
+        undefined,
+        context,
+        { data: { code: "HOSTING", name: "Hosting", vat_rate_percent: 5 } },
+        "idem-invalid-vat",
+      ),
+    ).rejects.toThrow("PURCHASE_PRODUCT_VAT_RATE_INVALID");
+    await service.mutate(
+      "create",
+      "purchase-products",
+      undefined,
+      context,
+      { data: { code: "HOSTING", name: "Hosting", vat_rate_percent: 8 } },
+      "idem-valid-vat",
+    );
+    expect(store.mutate).toHaveBeenLastCalledWith(
+      "create",
+      "purchase-products",
+      context,
+      undefined,
+      { data: { code: "HOSTING", name: "Hosting", vat_rate_percent: 8 } },
+      "idem-valid-vat",
+    );
+  });
+
   it("restricts hard delete to projects with idempotency, If-Match and a reason", async () => {
     const { service, store } = serviceWithStore();
     const context = {

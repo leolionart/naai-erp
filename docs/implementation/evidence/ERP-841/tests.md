@@ -1,5 +1,81 @@
 # ERP-841 tests
 
+## Relationship backfill API and CLI
+
+- `T-API-ERP-841-028` covers inventory `projectIds`/`contractIds`, zero-mutation dry-run,
+  deterministic plan hashing, version conflicts and idempotent reverse/replacement commit.
+- `T-CLI-ERP-841-029` covers both CLI resources and requires explicit JSON, key and version; commit
+  additionally requires an idempotency key.
+- Production verification was read-only inventory/audit only; no commit endpoint was invoked.
+
+## Final review gate — 2026-08-09
+
+- Fresh PostgreSQL database migrated through all 40 migrations: passed.
+- Commercial document, expense, master-data and operating-dashboard integration suites on the fresh
+  database: 24/24 passed after correcting the bank fixture to satisfy canonical bank metadata.
+- API unit suite: 121 passed, 92 skipped integration cases when no database was supplied.
+- Web unit suite: 47/47 passed; API and web typecheck passed.
+- CLI suite: 129 passed, 1 skipped; relationship-backfill focused CLI suite: 128/128 passed.
+- Focused Kanban and relationship-aware Playwright regressions passed.
+- Documentation verification and `git diff --check`: passed.
+- Review fixes reject reversal of settled/reconciled sources, preserve cancelled/reversed history,
+  keep Kanban state unchanged until PATCH succeeds and prevent allocation-total corruption.
+- Local runtime used Node 26 although the repository declares Node 22–24; commands completed with an
+  engine warning and this environment mismatch remains recorded as a non-product risk.
+
+## Relationship-complete revenue and expense drafts
+
+- `T-API-ERP-841-026` runs the commercial-document and expense unit/integration suites. Its focused
+  regressions prove sales customer/project agreement, optional contract ownership, rejection of
+  missing, closed or mismatched relationships, expense supplier independence, allocation inheritance
+  from line dimensions and preservation when a draft PATCH omits lines.
+- `T-E2E-ERP-841-027` runs focused desktop Chromium journeys matching `relationship-aware`. Revenue
+  must select a client, then a client-owned project, then an optional project-owned contract. Expense
+  keeps supplier/payee independent while selecting an optional receiving project and contract. Both
+  journeys assert canonical allocation IDs and `dimensions.projectId`/`dimensions.contractId` in the
+  submitted payload and preserved values on edit.
+- Final verification on 2026-08-09 passed API and web typecheck, 18/18 web Vitest files with 47/47
+  tests, and the relationship API suite with 4/4 files and 39/39 tests against local PostgreSQL 16.
+  The focused desktop Chromium relationship journeys passed 2/2. Documentation verification and
+  `git diff --check` also passed.
+- Live production-backed localhost readback opened both create dialogs without submitting records.
+  Revenue showed named customers, customer-owned project choices and the dependent contract field;
+  selecting `OCD 2026 services` retained the selected customer relationship. Expense showed the
+  complete optional receiving-project list while supplier/payee remained a separate field.
+
+## Operational project editor
+
+- `pnpm --filter @naai-erp/web typecheck`: passed on 2026-08-09.
+- `pnpm --filter @naai-erp/web test`: passed, 18 files and 43 tests.
+- `pnpm --filter @naai-erp/web test:e2e -- business-directory.spec.ts`: passed, 5/5 desktop Chromium
+  tests. The project editor regression verifies the lifecycle dropdown, `250.000.000` display,
+  multiline operating note, and a mocked PATCH payload containing `state: on_hold` and
+  `budget_minor: 36000000` after entering `36.000.000`.
+- `pnpm test:docs`: passed; 11 ADRs, 12 rule references and 27 AI relationship resources verified.
+- `git diff --check`: passed before the evidence update and rerun after it.
+- Focused development-proxy tests passed, 7/7 across the proxy and shared API client. Coverage proves
+  project PATCH is disabled by default, requires the explicit development flag, accepts only an
+  existing project route, rejects other master-data resources and forwards `If-Match` plus the
+  idempotency key.
+- `T-E2E-ERP-841-025` covers URL-restored Kanban mode, lifecycle columns, native drag-and-drop,
+  canonical PATCH payload and post-save column movement.
+- Full `business-directory.spec.ts` execution passed 6/6 desktop Chromium tests after the Kanban
+  addition. Web typecheck, 45 unit tests, documentation verification and `git diff --check` also
+  passed. Live browser readback showed 40 production projects in Kanban: 34 completed, 6 closed and
+  zero active.
+- Focused expense-dialog E2E passed with isolated API fixtures. It verifies the dialog opens from the
+  list, supplier and employee names are visible while their canonical IDs are submitted, and saving
+  closes the dialog without navigating to a separate creation page. The development proxy suite
+  passed 5/5, including disabled-by-default and idempotent expense POST forwarding.
+- Revenue-dialog E2E verifies the create action stays on the list, opens the dialog and renders the
+  client business name without exposing its raw party key. The proxy suite also covers the exact,
+  explicitly enabled commercial-document POST route.
+- Live production-backed localhost readback on 2026-08-09 opened **Tạo hóa đơn bán ra** from
+  `/documents` without navigation, showed the **Tạo hóa đơn** dialog and rendered client names such
+  as `CÔNG TY CỔ PHẦN TƯ VẤN QUẢN LÝ OCD`, `CÔNG TY CỔ PHẦN BM WINDOWS` and `Phygital LABS`.
+  No invoice was submitted during this verification. Final web Vitest passed 18/18 files and 47/47
+  tests; web typecheck, documentation verification and `git diff --check` also passed.
+
 ## Project default service line
 
 ```text
@@ -52,9 +128,19 @@ desktop dark-mode and mobile overflow assertions.
 pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank cash owner payable and accounting profit"
 ```
 
-Result: `1 passed` on 2026-08-07. The API fixtures provide separate bank, cash, owner-payable,
-net-cash and canonical P&L values. The dashboard displays those exact values and replaces unavailable
-CIT totals with an explicit missing-data state rather than a hardcoded amount.
+Result: `1 passed` on 2026-08-09. The API fixtures provide distinct bank, cash, owner-payable,
+net-cash and canonical P&L values. The dashboard consolidates bank and cash into one company-funds
+card and displays owner payable separately from the approved `owner_current` ledger mapping. It does
+not show a hypothetical balance after settling that liability.
+
+The regression fixture additionally proves that owner-funded equipment increases the statutory
+owner-current balance but not the management owner-obligation card, while a posted Dr Owner Current / Cr
+company bank withdrawal reduces the management obligation as a repayment.
+
+The focused PostgreSQL operating-dashboard integration test also passed `1/1` on 2026-08-09. It
+proves that an unclassified legacy expense posted against the mapped owner-current account is
+reported as review-required, while net company funds follows the posted owner liability rather than
+the cumulative `owner_paid_company_cost` category total.
 
 Live local readback at the active `2026-08-07` cutoff returned:
 
@@ -70,6 +156,24 @@ Live local readback at the active `2026-08-07` cutoff returned:
 Additional gates:
 
 - `pnpm --filter @naai-erp/web typecheck`: passed.
+
+## Production bank-ledger correction — 2026-08-09
+
+- Posted nine owner-repayment journals totaling VND 287,320,000 as Dr `3388-OWNER` / Cr
+  `112-BANK`; all nine are balanced and `posted`.
+- Reconciled eight positive bank transactions totaling VND 118,558,950 to issued sales invoices as
+  Dr `112-BANK` / Cr `131-AR`; seven invoices are `paid` and invoice 8 is `partially_paid` with VND
+  2,100,000 remaining.
+- Created audited clearing account `3389-BANK-CLEAR` and posted 33 unresolved positive bank
+  transactions totaling VND 281,712,775 as Dr `112-BANK` / Cr clearing without changing revenue.
+- Final production `112-BANK` readback: VND 400,271,725 debit, VND 321,938,065 credit and VND
+  78,333,660 closing debit balance.
+- Final transaction states: eight `reconciled`, 37 reviewed/ignored with explicit journal references,
+  zero remaining `imported` rows. Trial Balance period debit and credit both equal VND 1,428,364,203;
+  closing debit and credit both equal VND 700,547,188; difference is zero.
+- Temporary self-approval was capped first at VND 100,000,000 for owner repayments and then VND
+  60,000,000 for clearing journals. It was restored to `false` with a null ceiling after posting;
+  final policy resource version is 6.
 - `pnpm --filter @naai-erp/web exec playwright test e2e/admin-navigation.spec.ts --workers=1`:
   4/4 passed across desktop and mobile.
 - `pnpm --filter @naai-erp/web test`: 25/25 passed; production web build completed with all 48
@@ -77,9 +181,34 @@ Additional gates:
 - `pnpm test:docs`: passed.
 - `git diff --check`: passed.
 
+Shared expense overview evidence on 2026-08-09:
+
+- `pnpm --filter @naai-erp/web typecheck`: passed.
+- `pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/focused-record-chart.test.ts`: passed, 1 file and 3 tests.
+- Focused desktop Chromium E2E passed for shared Dashboard/Expense Management data: canonical domain and cloud categories, exact VND 15,000,000 total, `invoiceStatus=all` drill-down and no synthetic `Chưa phân bổ` label.
+- In-app Browser selection returned `No browser is available`; repository Playwright supplied rendered evidence.
+
+Shared table column-control evidence on 2026-08-09:
+
+- `pnpm --filter @naai-erp/web typecheck`: passed.
+- `pnpm --filter @naai-erp/web test`: passed, 18 files and 47 tests.
+- `NEXT_PUBLIC_API_URL=http://localhost:3001 NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION=1 pnpm exec playwright test --project=desktop-chromium --grep 'column visibility'`: passed, 1 test. The regression proves the shared toolbar exposes search plus the outline column menu, filters and restores rows, opens the checkbox menu and preserves hidden columns after reload.
+- `git diff --check -- apps/web/src/components/ui/table.tsx apps/web/e2e/focused-records.spec.ts`: passed.
+- The in-app Browser runtime returned `No browser is available`; repository Playwright supplied the rendered interaction evidence.
+
+Expense category recovery evidence on 2026-08-09:
+
+- Dry-run classified 245 records before mutation: 124 expenses and 121 purchase invoices.
+- Commit used category-only REST mutations with stable idempotency keys and returned 245 assignments across 12 declared ERP categories.
+- Live API readback: 124/124 expenses categorized and 190/190 purchase-invoice lines categorized. Only the declared category codes remain active; 12 temporary workbook-inference category masters/dimensions were deactivated after remapping.
+- `pnpm --filter @naai-erp/cli typecheck`: passed.
+- `pnpm --filter @naai-erp/api typecheck`: passed.
+- `pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/focused-record-chart.test.ts`: passed, 1 file and 3 tests.
+- `git diff --check`: passed.
+
 # Project directory filters
 
-- `T-UNIT-ERP-841-016` covers the default active state, retained text search, overlapping date
+- `T-UNIT-ERP-841-016` covers the default all-state view, retained text search, overlapping date
   intervals, excluded non-overlapping intervals and open-ended projects. Focused Vitest execution
   passed: 1 file, 3 tests.
 - `T-E2E-ERP-841-017` opens the project directory with `state`, `startsOn` and `endsOn` URL

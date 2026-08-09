@@ -4,14 +4,15 @@
   `project_cost_items` from posted expense, purchase, timesheet or reclassification sources. Direct
   cost display now reads posted purchase allocations canonically, but overhead pools still cannot be
   seeded without forbidden business-table SQL.
-- Consequently the dashboard must continue describing its profit number as ledger profit until a
-  posted overhead allocation run exists; ERP-841 must not be marked done before that gap is closed or
-  the fully-loaded card is changed to a truthful non-fully-loaded label.
+- The dashboard truthfully describes its profit number as ledger profit. A canonical source
+  materialization workflow and posted overhead demo remain a future enhancement; no current card
+  claims that the demo profit is fully loaded.
 - The web project budget create form still lacks the scope-change inputs required for a revision; the
   existing approved demo baseline is read-only safe.
-- Commercial invoice allocations still persist project attribution in `dimensions.projectId`; they
-  do not persist canonical `contractId` or `milestoneId`. The issue gate prevents aggregate project
-  over-invoicing but cannot report exactly which contract or milestone an allocation consumed.
+- Commercial invoice and expense allocations persist canonical project attribution and may persist
+  an explicitly selected contract in `dimensions.contractId`. The issue gate still enforces capacity
+  at aggregate project level; it does not calculate per-contract consumption, and `milestoneId`
+  remains unavailable. Clients must not infer either relationship from names, dates or amounts.
 - The added salary, freelance and contract-dev records are direct-cost and expense examples only.
   Shared payroll remains on operating expense and is not presented as project cost until a canonical
   overhead allocation run exists, preventing double counting or a false fully-loaded claim.
@@ -51,3 +52,24 @@
   extended whenever a new canonical project relationship is introduced. Referenced projects remain
   close/correct candidates, not delete candidates, and deletion may never cascade into posted
   accounting or retained audit history.
+- In-app Browser visual readback was unavailable for the shared table control in this session.
+  Focused desktop Chromium E2E passed with mocked API data; live `/banking` visual readback remains
+  dependent on an available browser session and configured local API upstream.
+- Category recovery uses the existing deterministic workbook inference rules. Fifty-seven of 245
+  records lacked a more specific declared category and were assigned `OTHER_EXPENSE`; those records remain
+  candidates for accountant review and more precise manual category correction.
+- The management dashboard metric is narrower than the statutory owner-current liability: it tracks
+  owner-borne operating cost less posted repayments and excludes assets/financing. Purchase invoices
+  still do not carry a first-class funding-treatment snapshot, so exact supplier-invoice attribution
+  remains a separate API/data-model follow-up.
+- Four `Tiền cá nhân` bank withdrawals totaling VND 52,000,000 were posted as owner repayments and
+  linked by explicit source references. Their bank rows are no longer left `imported` or eligible for
+  a second reconciliation effect.
+- Production bank cash is now complete in the posted ledger, but VND 281,712,775 remains in
+  `3389-BANK-CLEAR` pending source-by-source classification. Clearing intentionally preserves the
+  physical bank balance without recognizing revenue, owner funding, interest or internal transfers
+  prematurely.
+- Backfill is intentionally reviewed one record at a time. It must not automatically infer projects
+  for 121 purchase invoices or 124 expenses, nor treat 18 likely and one ambiguous invoice/expense
+  matches as canonical relationships. The VIOD sales invoice customer/project ownership conflict must
+  be corrected in project master data before any contract backfill.

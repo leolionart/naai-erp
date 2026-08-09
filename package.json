@@ -13,6 +13,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
     "dev:preview": "turbo run dev --parallel --filter=@naai-erp/web --filter=@naai-erp/api",
+    "dev:prod-data": "node scripts/dev-web-production-data.mjs",
     "cli": "pnpm --filter @naai-erp/cli dev --",
     "lint": "eslint . && turbo run lint",
     "format": "prettier --write \"**/*.{json,yaml,yml,ts,tsx,js,mjs,css}\"",

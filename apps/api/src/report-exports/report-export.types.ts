@@ -2,6 +2,7 @@ import type { JournalActorContext } from "../journals/journal.types.js";
 import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
 
 export type ReportExportContext = JournalActorContext;
+export type ManagementWorkbookQuery = Readonly<{ startsOn: string; endsOn: string }>;
 export type ReportKind =
   | "profit_and_loss"
   | "balance_sheet"
@@ -50,6 +51,10 @@ export type ReportExportStore = Readonly<{
   exportPurchaseInvoicesExpenses(
     c: ReportExportContext,
     filters: FilteredDocumentExportQueryContract,
+  ): Promise<{ content: Buffer; mediaType: string; filename: string; sha256: string }>;
+  exportManagementWorkbook(
+    c: ReportExportContext,
+    filters: ManagementWorkbookQuery,
   ): Promise<{ content: Buffer; mediaType: string; filename: string; sha256: string }>;
 }>;
 export const REPORT_EXPORT_STORE = Symbol("REPORT_EXPORT_STORE");

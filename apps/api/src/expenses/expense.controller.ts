@@ -38,6 +38,13 @@ export class ExpenseController {
       ...(payeePartyId ? { payeePartyId } : {}),
     });
   }
+  @Get("relationship-backfill/inventory") async relationshipBackfillInventory(
+    @Param("organizationId") org: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.relationshipBackfillInventory(await this.context(org, auth, corr));
+  }
   @Get(":id") async get(
     @Param("organizationId") org: string,
     @Param("id") id: string,
@@ -108,6 +115,59 @@ export class ExpenseController {
     @Headers("idempotency-key") key?: string,
   ) {
     return this.service.review(await this.context(org, auth, corr), id, input, key);
+  }
+  @Post(":id/reverse-replace") async reverseReplace(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: { replacement: CreateExpenseInput; reason: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.reverseReplace(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input.replacement,
+      input.reason ?? "",
+      key,
+    );
+  }
+  @Post(":id/relationship-backfill/dry-run") async dryRunRelationshipBackfill(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: { replacement: CreateExpenseInput; reason: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.dryRunRelationshipBackfill(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input.replacement,
+      input.reason ?? "",
+    );
+  }
+  @Post(":id/relationship-backfill/commit") async commitRelationshipBackfill(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: { replacement: CreateExpenseInput; reason: string; planHash: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.commitRelationshipBackfill(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input.replacement,
+      input.reason ?? "",
+      input.planHash ?? "",
+      key,
+    );
   }
   @Post(":id/:action") async transition(
     @Param("organizationId") org: string,

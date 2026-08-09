@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx src/main.ts",
     "migrate:workbook-expenses": "tsx src/migrate-workbook-expenses.ts",
+    "backfill:expense-categories": "tsx src/backfill-expense-categories.ts",
     "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

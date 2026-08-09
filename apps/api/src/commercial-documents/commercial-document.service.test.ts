@@ -68,10 +68,25 @@ describe("ERP-300 CommercialDocumentService", () => {
   });
 
   it("creates an exact allocated document with idempotency", async () => {
-    const store = { create: vi.fn().mockResolvedValue({ documentId: "sales-1", state: "draft" }) };
+    const store = {
+      validateRelationships: vi.fn().mockResolvedValue(undefined),
+      create: vi.fn().mockResolvedValue({ documentId: "sales-1", state: "draft" }),
+    };
     const service = new CommercialDocumentService(store as never, {} as never);
     const result = await service.create(context, sales, "idem-1");
+    expect(store.validateRelationships).toHaveBeenCalledWith("org-a", sales);
     expect(result.data).toMatchObject({ documentId: "sales-1", state: "draft" });
+  });
+  it("rejects a sales project or contract relationship rejected by the store", async () => {
+    const store = {
+      validateRelationships: vi.fn().mockRejectedValue(new Error("PROJECT_CUSTOMER_MISMATCH")),
+      create: vi.fn(),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    await expect(service.create(context, sales, "relationship-1")).rejects.toThrow(
+      "PROJECT_CUSTOMER_MISMATCH",
+    );
+    expect(store.create).not.toHaveBeenCalled();
   });
   it("keeps purchase VAT unreviewed while an imported invoice remains a draft", async () => {
     const store = {
@@ -188,6 +203,7 @@ describe("ERP-300 CommercialDocumentService", () => {
       };
       const store = {
         get: vi.fn().mockResolvedValue(existing),
+        validateRelationships: vi.fn().mockResolvedValue(undefined),
         update: vi.fn().mockResolvedValue({ documentId: "sales-1", version: "2" }),
       };
       const service = new CommercialDocumentService(store as never, {} as never);
@@ -204,6 +220,20 @@ describe("ERP-300 CommercialDocumentService", () => {
           externalReference: expect.objectContaining({ system: "sys-1", externalId: "ext-1" }),
         }),
         "idem-2",
+      );
+      expect(store.validateRelationships).toHaveBeenCalledWith(
+        "org-a",
+        expect.objectContaining({
+          lines: [
+            expect.objectContaining({
+              dimensions: { projectId: "p-a" },
+              allocations: [
+                expect.objectContaining({ dimensions: { projectId: "p-a" } }),
+                expect.objectContaining({ dimensions: { projectId: "p-b" } }),
+              ],
+            }),
+          ],
+        }),
       );
       expect(result.data).toEqual({ documentId: "sales-1", version: "2" });
     });

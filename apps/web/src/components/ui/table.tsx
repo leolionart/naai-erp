@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Columns3 } from "lucide-react";
+import { ChevronDown, Columns3 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,12 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const STORAGE_PREFIX = "naai-erp-table-columns-v1";
@@ -27,6 +29,8 @@ function Table({
   const [columns, setColumns] = React.useState<readonly string[]>([]);
   const [hidden, setHidden] = React.useState<ReadonlySet<number>>(new Set());
   const [loadedKey, setLoadedKey] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const deferredSearch = React.useDeferredValue(search);
   const storageKey = React.useMemo(() => {
     if (!columns.length) return "";
     const identity = columnVisibilityKey ?? `${pathname}:${columns.join("|")}`;
@@ -69,6 +73,15 @@ function Table({
       window.localStorage.setItem(storageKey, JSON.stringify([...hidden]));
   }, [hidden, loadedKey, props.children, storageKey]);
 
+  React.useEffect(() => {
+    const query = deferredSearch.trim().toLocaleLowerCase("vi");
+    const rows = tableRef.current?.tBodies[0]?.rows ?? [];
+    for (const row of rows) {
+      const content = row.textContent?.toLocaleLowerCase("vi") ?? "";
+      row.style.display = !query || content.includes(query) ? "" : "none";
+    }
+  }, [deferredSearch, props.children]);
+
   function setColumn(index: number, visible: boolean) {
     setHidden((current) => {
       const next = new Set(current);
@@ -79,39 +92,48 @@ function Table({
   }
 
   return (
-    <div data-slot="configurable-table" className="w-full space-y-2">
+    <div data-slot="configurable-table" className="flex w-full flex-col gap-2">
       {columns.length > 1 ? (
-        <div className="flex justify-end px-1">
+        <div data-slot="table-toolbar" className="flex items-center gap-2 px-1">
+          <Input
+            aria-label="Tìm kiếm trong bảng"
+            className="max-w-sm"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm kiếm trong bảng..."
+            type="search"
+            value={search}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Columns3 data-icon="inline-start" /> Cột hiển thị
+              <Button className="ml-auto" variant="outline" size="sm">
+                <Columns3 data-icon="inline-start" />
+                Cột hiển thị
+                <ChevronDown data-icon="inline-end" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-56">
               <DropdownMenuLabel>Bật/tắt cột</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {columns.map((label, index) => (
-                <DropdownMenuCheckboxItem
-                  key={`${label}-${index}`}
-                  checked={!hidden.has(index)}
-                  onCheckedChange={(checked) => setColumn(index, checked === true)}
-                >
-                  {label}
-                </DropdownMenuCheckboxItem>
-              ))}
+              <DropdownMenuGroup>
+                {columns.map((label, index) => (
+                  <DropdownMenuCheckboxItem
+                    key={`${label}-${index}`}
+                    checked={!hidden.has(index)}
+                    onCheckedChange={(checked) => setColumn(index, checked === true)}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       ) : null}
-      <div
-        data-slot="table-container"
-        className="relative w-full overflow-x-auto border-t sm:border-t-0"
-      >
+      <div data-slot="table-container" className="relative w-full overflow-x-auto">
         <table
           ref={tableRef}
           data-slot="table"
-          className={cn("w-full min-w-[700px] sm:min-w-full caption-bottom text-sm", className)}
+          className={cn("w-full min-w-[700px] caption-bottom text-sm sm:min-w-full", className)}
           {...props}
         />
       </div>

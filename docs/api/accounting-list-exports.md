@@ -23,8 +23,10 @@ or amount values are never used to merge or deduplicate records.
 
 ## Workbook format
 
-Both endpoints return XLSX attachments and an `X-Content-Sha256` response header. Money cells carry
-exact minor-unit strings and must not be converted to binary floating point.
+Both endpoints return XLSX attachments and an `X-Content-Sha256` response header. Canonical machine
+sheets keep exact minor-unit strings. Presentation sheets use typed Excel integers only while the
+amount remains within Excel/JavaScript's exact integer range; generation fails explicitly instead
+of silently rounding an unsafe amount.
 
 - `Summary`: applied filters, record counts and exact net, tax and gross controls.
 - `Records`: one canonical document or expense per row with source type, stable ID, party/project,
@@ -43,16 +45,22 @@ The CLI refuses to write without explicit `--output`. JSON written to stdout rep
 path, byte size, content type, filename and SHA-256 when supplied by the API.
 ## Workbook layout
 
-Both endpoints return a workbook with five sheets:
+Both endpoints return a workbook with six sheets:
 
-1. `Bảng kê bán ra` or `Bảng kê mua vào`: accountant-readable inspection schedule modelled after
+1. `BRTT78` or `MVTT78`: a Form-78-compatible source schedule with the 21 accountant columns for
+   invoice identity, seller, buyer, tax controls, currency, e-invoice state, quarter and month. It
+   contains invoice records only; a non-invoice expense is never presented as an electronic
+   invoice. Net, VAT and gross controls use `SUBTOTAL` so filtered totals remain auditable.
+   Metadata not exposed by the canonical API remains blank and carries a cell note explaining that
+   NAAI ERP did not infer it.
+2. `Bảng kê bán ra` or `Bảng kê mua vào`: accountant-readable inspection schedule modelled after
    the Vietnamese VAT invoice schedule. It contains the organization and period header, invoice
    identity, counterparty and tax ID, item description, pre-tax amount, VAT rate, VAT amount, gross
    amount, lifecycle state and formula totals.
-2. `Summary`: export identity, organization and record counts.
-3. `Records`: canonical document/expense headers, stable IDs and lifecycle fields.
-4. `Lines`: canonical lines, accounts, tax codes and dimensions.
-5. `Filters`: the exact request filters used to generate the workbook.
+3. `Summary`: export identity, organization and record counts.
+4. `Records`: canonical document/expense headers, stable IDs and lifecycle fields.
+5. `Lines`: canonical lines, accounts, tax codes and dimensions.
+6. `Filters`: the exact request filters used to generate the workbook.
 
 The presentation schedule uses typed Excel dates and numbers. A non-invoice expense keeps blank
 series/number/date fields and is labelled `Chi phí không có hóa đơn`; export never manufactures an

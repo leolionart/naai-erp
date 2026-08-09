@@ -1,5 +1,5 @@
 "use client";
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -20,7 +20,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -249,7 +256,6 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
         <Button variant="outline" asChild>
           <Link href="/scope-changes">Scope changes</Link>
         </Button>
-        <Button onClick={() => setDialog(true)}>Tạo budget version</Button>
       </div>
       <RevenueAxesCards axes={axes} />
       <Card>
@@ -258,6 +264,9 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
           <CardDescription>
             Approved version không bị rewrite; scope change tạo delta riêng.
           </CardDescription>
+          <CardAction>
+            <Button onClick={() => setDialog(true)}>Tạo budget version</Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <FinancialDataTable rows={rows} columns={columns} rowKey={(r) => r.id} />
@@ -346,17 +355,20 @@ function Queue<Row extends { id: string; state: string }>({
   description,
   rows,
   columns,
+  action,
 }: Readonly<{
   title: string;
   description: string;
   rows: readonly Row[];
   columns: readonly FinancialColumn<Row>[];
+  action?: ReactNode;
 }>) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
+        {action ? <CardAction>{action}</CardAction> : null}
       </CardHeader>
       <CardContent>
         <FinancialDataTable rows={rows} columns={columns} rowKey={(r) => r.id} />
@@ -500,13 +512,11 @@ export function MilestoneAcceptanceWorkspace() {
   }
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setDialog(true)}>Ghi nhận acceptance</Button>
-      </div>
       <Queue
         title="Milestone acceptance"
         description="Evidence bắt buộc trước recognition."
         rows={rows}
+        action={<Button onClick={() => setDialog(true)}>Ghi nhận acceptance</Button>}
         columns={[
           { id: "milestone", header: "Milestone", cell: (r) => r.milestoneId },
           { id: "accepted", header: "Accepted on", cell: (r) => r.acceptedOn ?? "—" },

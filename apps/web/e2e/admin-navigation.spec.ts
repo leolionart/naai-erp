@@ -15,12 +15,14 @@ async function expectDocumentCreateForm(page: Page) {
   await expect(page).toHaveURL(/\/documents(?:\?.*)?$/);
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý doanh thu" })).toBeVisible();
-  await page.getByRole("link", { name: "Tạo hóa đơn bán ra", exact: true }).click();
-  await expect(page).toHaveURL(/\/documents\/new$/);
+  await page.getByRole("button", { name: "Tạo hóa đơn bán ra", exact: true }).click();
+  await expect(page).toHaveURL(/\/documents(?:\?.*)?$/);
+  const dialog = page.getByRole("dialog", { name: "Tạo hóa đơn" });
+  await expect(dialog).toBeVisible();
   await expect(
-    page.getByText("Số hóa đơn", { exact: true }).locator("..").locator("input"),
+    dialog.getByText("Số hóa đơn", { exact: true }).locator("..").locator("input"),
   ).toBeVisible();
-  await expect(page.getByText("Khách hàng (Bắt buộc chọn từ danh sách)")).toBeVisible();
+  await expect(dialog.getByText("Khách hàng (Bắt buộc chọn từ danh sách)")).toBeVisible();
 }
 
 test("@desktop dashboard navigates to documents and opens the create form", async ({ page }) => {

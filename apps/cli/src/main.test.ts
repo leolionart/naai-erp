@@ -54,6 +54,74 @@ async function invoke(args: string[]) {
 }
 
 describe("ERP-640 CLI executable", () => {
+  it("manages purchase product VAT through the generic master-data REST contract", async () => {
+    const created = await invoke([
+      "purchase-products",
+      "create",
+      "--data",
+      JSON.stringify({
+        data: { code: "HOSTING", name: "Dịch vụ hosting", vat_rate_percent: 8 },
+      }),
+      "--idempotency-key",
+      "purchase-product-create",
+    ]);
+    expect(created.requestedUrl).toBe("/api/v1/organizations/org-a/master-data/purchase-products");
+    expect(JSON.parse(created.requestBody)).toEqual({
+      data: { code: "HOSTING", name: "Dịch vụ hosting", vat_rate_percent: 8 },
+    });
+    expect((await invoke(["purchase-products", "list"])).requestedUrl).toBe(
+      "/api/v1/organizations/org-a/master-data/purchase-products",
+    );
+  });
+
+  it("exposes relationship backfill inventory, dry-run, and commit as explicit REST actions", async () => {
+    const inventory = await invoke(["commercial-document-relationship-backfill", "inventory"]);
+    expect(inventory.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/commercial-documents/relationship-backfill/inventory",
+    );
+
+    const dryRunPayload = JSON.stringify({
+      replacement: { schemaVersion: 1, lines: [] },
+      reason: "Attach reviewed project and contract relationships",
+    });
+    const dryRun = await invoke([
+      "commercial-document-relationship-backfill",
+      "dry-run",
+      "--key",
+      "document-1",
+      "--version",
+      "2",
+      "--data",
+      dryRunPayload,
+    ]);
+    expect(dryRun.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/commercial-documents/document-1/relationship-backfill/dry-run",
+    );
+    expect(JSON.parse(dryRun.requestBody)).toEqual(JSON.parse(dryRunPayload));
+
+    const commitPayload = JSON.stringify({
+      replacement: { schemaVersion: 1, lines: [] },
+      reason: "Attach reviewed project and contract relationships",
+      planHash: "a".repeat(64),
+    });
+    const commit = await invoke([
+      "expense-relationship-backfill",
+      "commit",
+      "--key",
+      "expense-1",
+      "--version",
+      "3",
+      "--idempotency-key",
+      "expense-relationship-backfill-1",
+      "--data",
+      commitPayload,
+    ]);
+    expect(commit.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/expenses/expense-1/relationship-backfill/commit",
+    );
+    expect(JSON.parse(commit.requestBody)).toEqual(JSON.parse(commitPayload));
+  });
+
   it("requires explicit backup evidence before routing a local organization reset", async () => {
     const result = await invoke([
       "portable-data-reset",

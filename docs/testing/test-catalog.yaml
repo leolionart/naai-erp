@@ -10,6 +10,46 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-UNIT-ERP-856-001
+    task: ERP-856
+    rules: [BR-PRD-001, BR-UI-003]
+    title: Administration navigation exposes the purchase-product VAT workspace
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/lib/navigation.test.ts
+    blocking_gate: G21
+
+  - id: T-E2E-ERP-856-002
+    task: ERP-856
+    rules: [BR-PRD-001, BR-UI-003, BR-AI-001]
+    title: Purchase product screen lists creates and deactivates VAT-classified products through REST
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/purchase-products.spec.ts --project=desktop-chromium
+    blocking_gate: G21
+
+  - id: T-DB-ERP-855-001
+    task: ERP-855
+    rules: [BR-PRD-001, BR-TAX-001, BR-ORG-001]
+    title: Purchase products are organization scoped and constrained to VAT rates 8 or 10
+    layer: integration
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp_erp855_test pnpm db:migrate
+    blocking_gate: G20
+
+  - id: T-API-ERP-855-002
+    task: ERP-855
+    rules: [BR-PRD-001, BR-AI-001, BR-AI-002, BR-AI-003, BR-AUD-001]
+    title: Versioned API creates lists updates and deactivates purchase products with structured VAT validation
+    layer: api
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/master-data/master-data.integration.test.ts
+    blocking_gate: G20
+
+  - id: T-CLI-ERP-855-003
+    task: ERP-855
+    rules: [BR-PRD-001, BR-AI-001]
+    title: First-party CLI routes purchase product CRUD through the generic master-data REST contract
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
+    blocking_gate: G20
+
   - id: T-CONTRACT-ERP-140-001
     aliases: [T-AI-001]
     task: ERP-140
@@ -1099,7 +1139,7 @@ tests:
   - id: T-E2E-ERP-841-002
     task: ERP-841
     rules: [BR-KPI-005, BR-UI-001, BR-RPT-003, BR-TAX-003, BR-TAX-004]
-    title: Dashboard shows ledger-derived bank cash owner payable net cash and accounting profit without hardcoded amounts
+    title: Dashboard consolidates company funds and separates owner-borne operating loss from assets funding and posted repayments without duplicate headline metrics
     layer: e2e
     command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank cash owner payable and accounting profit"
     blocking_gate: G14
@@ -1331,7 +1371,7 @@ tests:
   - id: T-UNIT-ERP-841-016
     task: ERP-841
     rules: [BR-PRJ-002, BR-UI-003]
-    title: Project directory defaults to active state and matches overlapping or open-ended execution periods while retaining text search
+    title: Project directory defaults to all states and matches overlapping or open-ended execution periods while retaining text search
     layer: unit
     command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/business-directory-filters.test.ts
     blocking_gate: G14
@@ -1399,6 +1439,142 @@ tests:
     layer: e2e
     command: pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --grep "unreferenced operational project"
     blocking_gate: G14
+
+  - id: T-E2E-ERP-841-025
+    task: ERP-841
+    rules: [BR-PRJ-001, BR-PRJ-002, BR-UI-003, BR-ORG-001]
+    title: Project Kanban restores from the URL and moves one project through the canonical lifecycle PATCH
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --grep "project Kanban"
+    blocking_gate: G14
+
+  - id: T-API-ERP-841-026
+    task: ERP-841
+    rules: [BR-AI-005, BR-REV-001, BR-EXP-002, BR-PRJ-001, BR-DIM-001, BR-ORG-001]
+    title: Commercial documents and expenses validate canonical project-contract relationships and preserve omitted draft allocations
+    layer: api
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts src/commercial-documents/commercial-document.integration.test.ts src/expenses/expense.service.test.ts src/expenses/expense.integration.test.ts
+    blocking_gate: G14
+
+  - id: T-E2E-ERP-841-027
+    task: ERP-841
+    rules: [BR-REV-001, BR-EXP-002, BR-PRJ-001, BR-DIM-001, BR-UI-003]
+    title: Revenue and expense create-edit dialogs persist customer project contract supplier and allocation relationships
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --project=desktop-chromium --grep "relationship-aware"
+    blocking_gate: G14
+
+  - id: T-API-ERP-841-028
+    task: ERP-841
+    rules: [BR-AI-002, BR-AI-005, BR-INV-001, BR-EXP-002, BR-LED-003, BR-ORG-001]
+    title: Relationship backfill inventory dry-run and idempotent commit preserve final history through reverse replacement
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.integration.test.ts src/expenses/expense.integration.test.ts
+    blocking_gate: G14
+
+  - id: T-CLI-ERP-841-029
+    task: ERP-841
+    rules: [BR-AI-001, BR-AI-002, BR-AI-005]
+    title: First-party CLI routes explicit relationship inventory dry-run and commit operations with version and idempotency controls
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts --testNamePattern "relationship backfill"
+    blocking_gate: G14
+
+  - id: T-UNIT-ERP-857-001
+    task: ERP-857
+    rules: [BR-EXPOR-001, BR-EXPOR-003, BR-TAX-003, BR-ORG-001]
+    title: Filtered accountant workbooks include exact 21-column Form-78 invoice schedules with auditable subtotal controls and reject unsafe integer rounding
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/report-exports/accounting-list-workbook.test.ts
+    blocking_gate: G22
+
+  - id: T-UNIT-ERP-857-002
+    task: ERP-857
+    rules: [BR-AI-001, BR-AI-002, BR-AUD-001, BR-ORG-001]
+    title: Worker update and deactivate require version reason idempotency and expose CLI REST parity
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/workforce/workforce.service.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts --testNamePattern "updates and deactivates workers"
+    blocking_gate: G22
+
+  - id: T-INT-ERP-857-003
+    task: ERP-857
+    rules: [BR-AI-001, BR-AI-002, BR-AUD-001, BR-ORG-001]
+    title: PostgreSQL worker correction updates employment fields then deactivates once with audit and idempotent replay
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/workforce/worker-update.integration.test.ts
+    blocking_gate: G22
+
+  - id: T-UNIT-ERP-857-004
+    task: ERP-857
+    rules: [BR-EXPOR-001, BR-EXPOR-003, BR-TAX-003, BR-ORG-001]
+    title: Management workbook separates revenue axes and exports receivables expenses monthly metrics plans categories and explicit scope controls
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/report-exports/management-workbook.test.ts src/report-exports/report-export.service.test.ts
+    blocking_gate: G22
+
+  - id: T-INT-ERP-857-005
+    task: ERP-857
+    rules: [BR-EXPOR-001, BR-EXPOR-003, BR-TAX-003, BR-ORG-001]
+    title: PostgreSQL management workbook endpoint derives issued posted and reconciled records through the canonical report store
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/report-exports/management-workbook.integration.test.ts
+    blocking_gate: G22
+
+  - id: T-INT-ERP-857-006
+    task: ERP-857
+    rules: [BR-PTY-001, BR-AI-001, BR-AI-002, BR-ORG-001]
+    title: Organization and party accountant identity metadata validates and persists legal tax address and contact fields
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/master-data/accountant-identity-metadata.integration.test.ts
+    blocking_gate: G22
+
+  - id: T-DB-ERP-858-001
+    task: ERP-858
+    rules: [BR-TAX-002, BR-TAX-005, BR-ORG-001]
+    title: Owner-final policy and persisted purchase-line tax decisions migrate cleanly without silently finalizing legacy rows
+    layer: database
+    command: pnpm --filter @naai-erp/database db:check && pnpm --filter @naai-erp/database typecheck
+    blocking_gate: G23
+
+  - id: T-API-ERP-858-002
+    task: ERP-858
+    rules: [BR-TAX-005, BR-AI-001, BR-AI-002, BR-AUD-001, BR-ORG-001]
+    title: Organization operating mode is available through the audited master-data REST contract
+    layer: contract
+    command: pnpm --filter @naai-erp/api exec vitest run src/master-data/resource-registry.test.ts src/master-data/master-data.service.test.ts
+    blocking_gate: G23
+
+  - id: T-INT-ERP-858-003
+    task: ERP-858
+    rules: [BR-EXP-001, BR-TAX-002, BR-TAX-005, BR-ORG-001]
+    title: Owner-final defaults documented expenses while preserving explicit overrides and undocumented exceptions
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts
+    blocking_gate: G23
+
+  - id: T-INT-ERP-858-004
+    task: ERP-858
+    rules: [BR-INV-002, BR-TAX-002, BR-TAX-003, BR-TAX-004, BR-TAX-005]
+    title: Purchase invoices persist owner-final CIT and VAT decisions and financial reports consume those decisions without hardcoded unreviewed states
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.integration.test.ts src/financial-statements/financial-statement.integration.test.ts
+    blocking_gate: G23
+
+  - id: T-CLI-ERP-858-005
+    task: ERP-858
+    rules: [BR-TAX-005, BR-AI-001]
+    title: First-party CLI reads and updates the owner-final policy through the generic master-data REST client
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts
+    blocking_gate: G23
+
+  - id: T-E2E-ERP-858-006
+    task: ERP-858
+    rules: [BR-TAX-005, BR-UI-003]
+    title: Settings UI enables owner-final mode and persists it through the canonical API
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/expense-category-policies.spec.ts --project=desktop-chromium
+    blocking_gate: G23
 
 golden_fixtures:
   - GF-LEDGER-001

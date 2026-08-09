@@ -42,7 +42,11 @@ const invoice = {
         {
           id: "allocation-1",
           amountMinor: "10000000",
-          dimensions: { costCenter: "DELIVERY", projectId: "project-720" },
+          dimensions: {
+            costCenter: "DELIVERY",
+            projectId: "project-720",
+            contractId: "contract-720",
+          },
         },
       ],
     },
@@ -98,7 +102,11 @@ const expense = {
         {
           id: "allocation-2",
           amountMinor: "2000000",
-          dimensions: { costCenter: "ADMIN", projectId: "project-720" },
+          dimensions: {
+            costCenter: "ADMIN",
+            projectId: "project-720",
+            contractId: "contract-720",
+          },
         },
       ],
     },
@@ -139,6 +147,50 @@ async function install(
         items: [
           { id: "client-720", name: "Khách hàng 720" },
           { id: "supplier-720", name: "Nhà cung cấp 720" },
+          { id: "employee-720", display_name: "Nguyễn Nhân Viên" },
+        ],
+      }),
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/master-data/party-roles**",
+    (route) =>
+      reply(route, {
+        items: [
+          { partyId: "client-720", role: "client" },
+          { partyId: "supplier-720", role: "supplier" },
+          { partyId: "employee-720", role: "employee" },
+        ],
+      }),
+  );
+  await page.route("http://localhost:3001/api/v1/organizations/naai/time/workers**", (route) =>
+    reply(route, {
+      items: [
+        {
+          id: "worker-720",
+          workerPartyId: "employee-720",
+          employmentKind: "employee",
+          status: "active",
+        },
+      ],
+    }),
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/master-data/projects**",
+    (route) =>
+      reply(route, {
+        items: [
+          { id: "project-720", name: "Dự án khách hàng 720", client_party_id: "client-720" },
+          { id: "project-other", name: "Dự án khách hàng khác", client_party_id: "client-other" },
+        ],
+      }),
+  );
+  await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/master-data/contracts**",
+    (route) =>
+      reply(route, {
+        items: [
+          { id: "contract-720", name: "Hợp đồng dự án 720", project_id: "project-720" },
+          { id: "contract-other", name: "Hợp đồng dự án khác", project_id: "project-other" },
         ],
       }),
   );
@@ -165,8 +217,12 @@ async function install(
         const body = route.request().postDataJSON() as typeof invoice;
         if (body.lines[0]?.allocations?.[0]?.dimensions) {
           expect(body.lines[0].allocations[0].dimensions).toMatchObject({
+            costCenter: "DELIVERY",
             projectId: "project-720",
+            contractId: "contract-720",
           });
+          expect(body.lines[0].allocations[0].id).toBe("allocation-1");
+          expect(body.lines[0].allocations[0].amountMinor).toBe(body.lines[0].netMinor);
           expect(body.lines[0].allocations[0].dimensions).not.toHaveProperty("project");
         }
         currentInvoice = { ...currentInvoice, ...body, resourceVersion: "2" };
@@ -205,12 +261,24 @@ async function install(
       expect(route.request().headers()["if-match"]).toBe("1");
       const body = route.request().postDataJSON() as typeof expense;
       expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({ projectId: "project-720" });
+      expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({
+        costCenter: "ADMIN",
+        contractId: "contract-720",
+      });
+      expect(body.lines[0]?.allocations[0]?.id).toBe("allocation-2");
+      expect(body.lines[0]?.allocations[0]?.amountMinor).toBe(body.lines[0]?.netMinor);
       expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("project");
       currentExpense = { ...currentExpense, ...body, resourceVersion: "2" };
       return reply(route, { expenseId: currentExpense.id, resourceVersion: "2" });
     }
-    if (route.request().method() === "POST" && url.pathname.endsWith("/expenses"))
+    if (route.request().method() === "POST" && url.pathname.endsWith("/expenses")) {
+      const body = route.request().postDataJSON() as typeof expense;
+      expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({
+        projectId: "project-720",
+        contractId: "contract-720",
+      });
       return reply(route, currentExpense);
+    }
     if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
     return reply(route, { items: [currentExpense] });
   });
@@ -253,6 +321,29 @@ test("@desktop T-E2E-ERP-841-003 revenue category chart defaults management to i
   await expect(action).not.toBeVisible();
 });
 
+test("@desktop relationship-aware revenue filters projects and contracts from the named customer", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/documents");
+  await expect(page.getByRole("columnheader", { name: "Khách hàng / Nhà cung cấp" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Dự án / Hợp đồng" })).toBeVisible();
+  await expect(page.getByText("Dự án khách hàng 720", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Hợp đồng dự án 720", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Tạo hóa đơn bán ra" }).click();
+  const dialog = page.getByRole("dialog", { name: "Tạo hóa đơn" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Khách hàng 720", { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByText("client-720", { exact: true })).toHaveCount(0);
+  await dialog.getByLabel("Dự án").click();
+  await expect(page.getByRole("option", { name: "Dự án khách hàng 720" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Dự án khách hàng khác" })).toHaveCount(0);
+  await page.getByRole("option", { name: "Dự án khách hàng 720" }).click();
+  await dialog.getByLabel("Hợp đồng").click();
+  await expect(page.getByRole("option", { name: "Hợp đồng dự án 720" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Hợp đồng dự án khác" })).toHaveCount(0);
+});
+
 test("@desktop expense category chart defaults management to purchase invoices and every non-invoice expense", async ({
   page,
 }) => {
@@ -261,6 +352,8 @@ test("@desktop expense category chart defaults management to purchase invoices a
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý chi phí" })).toBeVisible();
   await expect(page.getByText("PINV-720")).toBeVisible();
   await expect(page.getByText("Phí vận hành")).toBeVisible();
+  await expect(page.getByText("Nhà cung cấp 720", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Dự án khách hàng 720", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Chi phí Tên miền / Hosting", { exact: true }).first()).toBeVisible();
   await expect(
     page.getByText("Chủ doanh nghiệp chi hộ (TK 3388 — không trừ quỹ công ty)"),
@@ -268,7 +361,7 @@ test("@desktop expense category chart defaults management to purchase invoices a
   await expect(page.getByText("Quỹ tiền mặt công ty (TK 111)")).toBeVisible();
   const filterButton = page.getByRole("button", { name: "Bộ lọc" });
   const exportButton = page.getByRole("button", { name: "Xuất danh sách XLSX" });
-  const createButton = page.getByRole("link", { name: "Tạo chi phí" });
+  const createButton = page.getByRole("button", { name: "Tạo chi phí" });
   for (const control of [filterButton, exportButton, createButton])
     await expect(control).toHaveAttribute("data-size", "sm");
   const actionHeights = await Promise.all(
@@ -317,7 +410,16 @@ test("@desktop posted expense category metadata persists through Quick View", as
 test("@desktop table column visibility persists in application configuration", async ({ page }) => {
   await install(page);
   await page.goto("http://localhost:3000/documents");
-  await page.getByRole("button", { name: "Cột hiển thị" }).click();
+  const tableSearch = page.getByRole("searchbox", { name: "Tìm kiếm trong bảng" });
+  const columnButton = page.getByRole("button", { name: "Cột hiển thị" });
+  await expect(tableSearch).toBeVisible();
+  await expect(columnButton).toHaveAttribute("data-size", "sm");
+  await tableSearch.fill("INV-720");
+  await expect(page.getByText("INV-720")).toBeVisible();
+  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeHidden();
+  await tableSearch.clear();
+  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
+  await columnButton.click();
   await page.getByRole("menuitemcheckbox", { name: "Đối tượng" }).click();
   await expect(page.getByRole("columnheader", { name: "Đối tượng" })).toBeHidden();
   await page.reload();
@@ -407,16 +509,30 @@ test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable 
   page,
 }) => {
   await install(page);
-  await page.goto("http://localhost:3000/expenses/new");
-  await expect(page.getByText(/Chính sách danh mục: tax_only_non_cash/)).toBeVisible();
-  await page.getByRole("combobox").first().click();
+  await page.goto("http://localhost:3000/expenses");
+  await page.getByRole("button", { name: "Tạo chi phí" }).click();
+  const dialog = page.getByRole("dialog", { name: "Tạo chi phí" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Đối tác thụ hưởng").fill("Nhà cung cấp");
+  await dialog.getByText("Nhà cung cấp 720", { exact: true }).click();
+  await expect(dialog.getByLabel("Đối tác thụ hưởng")).toHaveValue("Nhà cung cấp 720");
+  await expect(dialog.getByLabel("Nhân viên thực hiện")).toContainText("-- Không chọn --");
+  await dialog.getByLabel("Nhân viên thực hiện").click();
+  await page.getByRole("option", { name: "Nguyễn Nhân Viên" }).click();
+  await expect(dialog.getByLabel("Nhân viên thực hiện")).toContainText("Nguyễn Nhân Viên");
+  await dialog.getByLabel("Dự án").click();
+  await page.getByRole("option", { name: "Dự án khách hàng 720" }).click();
+  await dialog.getByLabel("Hợp đồng").click();
+  await page.getByRole("option", { name: "Hợp đồng dự án 720" }).click();
+  await expect(dialog.getByText(/Chính sách danh mục: tax_only_non_cash/)).toBeVisible();
+  await dialog.getByRole("combobox").first().click();
   await page.getByRole("option", { name: "Chi phí không hóa đơn" }).click();
-  await page.getByLabel("Mục đích chi / Diễn giải").fill("Phí vận hành");
-  await page.getByLabel("Tiền gốc chưa VAT (VNĐ)").fill("2000000");
-  await page.getByRole("button", { name: "Lưu chi phí nháp" }).click();
-  await expect(page).toHaveURL(/\/expenses\/expense-720$/, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "Chi tiết chi phí" })).toBeVisible();
-  await expect(page.getByText("2.000.000 ₫").first()).toBeVisible();
+  await dialog.getByLabel("Mục đích chi / Diễn giải").fill("Phí vận hành");
+  await dialog.getByLabel("Tiền gốc chưa VAT (VNĐ)").fill("2000000");
+  await dialog.getByRole("button", { name: "Lưu chi phí nháp" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(/\/expenses$/);
+  await expect(page.getByText("Phí vận hành").first()).toBeVisible();
 });
 
 test("@desktop edits a draft invoice through PATCH and reloads the new resource version", async ({
@@ -430,6 +546,21 @@ test("@desktop edits a draft invoice through PATCH and reloads the new resource 
   await dialog.getByRole("button", { name: "Lưu thay đổi hóa đơn" }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByText("INV-720-EDITED", { exact: true })).toBeVisible();
+});
+
+test("@desktop relationship-aware expense edit preserves allocation IDs and dimensions", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/expenses");
+  const expenseRow = page.getByRole("row").filter({ hasText: "Phí vận hành" });
+  await expenseRow.getByRole("button", { name: "Xem" }).click();
+  const dialog = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
+  await expect(dialog.getByLabel("Dự án")).toContainText("Dự án khách hàng 720");
+  await expect(dialog.getByLabel("Hợp đồng")).toContainText("Hợp đồng dự án 720");
+  await dialog.getByLabel("Tiền gốc chưa VAT (VNĐ)").fill("2.500.000");
+  await dialog.getByRole("button", { name: "Cập nhật thông tin chi phí" }).click();
+  await expect(dialog.getByLabel("Dự án")).toContainText("Dự án khách hàng 720");
 });
 
 test("@desktop blocks an invoice due date before its document date", async ({ page }) => {

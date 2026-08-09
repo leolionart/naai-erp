@@ -224,6 +224,14 @@ export const adminNavigation = [
         status: "available",
       },
       {
+        key: "purchase-products",
+        label: "Sản phẩm mua vào & VAT",
+        href: "/settings/purchase-products",
+        description: "Quản lý sản phẩm mua vào áp dụng VAT 8% hoặc 10%.",
+        icon: "folder",
+        status: "available",
+      },
+      {
         key: "portable-data-package",
         label: "Sao lưu & nhập lại ERP",
         href: "/settings/data-package",

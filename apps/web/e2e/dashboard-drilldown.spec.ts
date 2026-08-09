@@ -12,6 +12,32 @@ const reply = (route: Route, data: unknown) =>
 async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
   await page.route(
+    "http://localhost:3001/api/v1/organizations/naai/commercial-documents**",
+    (route) =>
+      reply(route, {
+        items: [
+          {
+            id: "purchase-700",
+            type: "purchase_invoice",
+            documentDate: "2026-08-10",
+            lines: [{ gross_minor: "12000000", dimensions: { category: "DOMAIN_HOSTING" } }],
+          },
+        ],
+      }),
+  );
+  await page.route("http://localhost:3001/api/v1/organizations/naai/expenses**", (route) =>
+    reply(route, {
+      items: [
+        {
+          id: "expense-700",
+          expense_date: "2026-08-12",
+          gross_minor: "3000000",
+          category: "SERVER_CLOUD",
+        },
+      ],
+    }),
+  );
+  await page.route(
     "http://localhost:3001/api/v1/organizations/naai/master-data/dimensions**",
     (route) =>
       reply(route, {
@@ -415,6 +441,7 @@ async function installOperatingDashboard(page: Page) {
           cashOnHandMinor: "7000000",
           cashAndBankMinor: "620000000",
           ownerPayableMinor: "30000000",
+          ownerOperatingPayableMinor: "30000000",
           netAvailableCashMinor: "590000000",
           actualOwnerPaidCompanyCostMinor: "12000000",
           netCompanyFundsMinor: "608000000",
@@ -536,6 +563,22 @@ test("@desktop uses operating dashboard read model instead of provisional fallba
   await expect(page.getByRole("img", { name: "Xu hướng doanh thu tương tác" })).toBeVisible();
 });
 
+test("@desktop dashboard and expense management share the canonical expense overview", async ({
+  page,
+}) => {
+  await install(page);
+  await installOperatingDashboard(page);
+  await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
+  const overview = page
+    .getByRole("link", { name: /Tỷ trọng chi phí từng danh mục theo tháng/ })
+    .last();
+  await expect(overview).toHaveAttribute("href", /invoiceStatus=all/);
+  await expect(page.getByText("Chi phí Tên miền / Hosting", { exact: true })).toBeVisible();
+  await expect(page.getByText("Chi phí Máy chủ / Cloud Services", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tổng: 15.000.000 ₫")).toBeVisible();
+  await expect(page.getByText("Chưa phân bổ", { exact: true })).toHaveCount(0);
+});
+
 test("@desktop shows ledger-derived bank cash owner payable and accounting profit", async ({
   page,
 }) => {
@@ -543,22 +586,16 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
   await installOperatingDashboard(page);
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
 
-  const bankCard = page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ });
-  await expect(bankCard).toContainText("613.000.000 ₫");
-  const cashCard = page.getByRole("link", { name: /Quỹ tiền mặt công ty/ });
-  await expect(cashCard).toContainText("7.000.000 ₫");
-  const totalCashCard = page.getByRole("link", { name: /Tổng tiền công ty thực tế/ });
-  await expect(totalCashCard).toContainText("620.000.000 ₫");
-  await expect(totalCashCard).toContainText("không trừ hóa đơn chỉ theo dõi cho thuế");
-  const netFundsCard = page.getByRole("link", { name: /Quỹ thuần sau chi hộ thực tế/ });
-  await expect(netFundsCard).toContainText("608.000.000 ₫");
-  await expect(netFundsCard).toContainText("lương, domain, server/VPS");
-  await expect(netFundsCard).toContainText("2 khoản chưa phân loại");
-  const ownerPaidCard = page.getByRole("link", {
-    name: /Chi phí công ty thực tế do chủ chi hộ/,
-  });
-  await expect(ownerPaidCard).toContainText("12.000.000 ₫");
-  await expect(ownerPaidCard).toContainText("Tổng TK 3388 theo sổ hiện tại: 30.000.000 ₫");
+  const companyFundsCard = page.getByRole("link", { name: /Tiền công ty hiện có/ });
+  await expect(companyFundsCard).toContainText("620.000.000 ₫");
+  await expect(companyFundsCard).toContainText("Ngân hàng 613.000.000 ₫");
+  await expect(companyFundsCard).toContainText("tiền mặt 7.000.000 ₫");
+  await expect(page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Quỹ tiền mặt công ty/ })).toHaveCount(0);
+  const ownerPayableCard = page.getByRole("link", { name: /Công ty đang nợ chủ doanh nghiệp/ });
+  await expect(ownerPayableCard).toContainText("30.000.000 ₫");
+  await expect(ownerPayableCard).toContainText("Không gồm tài sản, thiết bị");
+  await expect(page.getByRole("link", { name: /Tiền thuần sau nghĩa vụ với chủ/ })).toHaveCount(0);
   const taxableProfitCard = page.getByRole("link", {
     name: /Lợi nhuận tính thuế TNDN tạm tính/,
   });

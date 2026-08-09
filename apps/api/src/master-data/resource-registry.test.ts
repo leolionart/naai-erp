@@ -26,9 +26,29 @@ describe("master-data resource registry", () => {
     expect(() => resourceDefinition("pg_catalog")).toThrow("Unknown master-data resource");
     expect(MASTER_DATA_RESOURCES["tax-code-versions"].mutableColumns).not.toContain("rate");
     expect(MASTER_DATA_RESOURCES["party-roles"].keyColumns).toEqual(["party_id", "role"]);
+    expect(MASTER_DATA_RESOURCES.organizations.mutableColumns).toEqual(
+      expect.arrayContaining(["tax_id", "registered_address"]),
+    );
+    expect(MASTER_DATA_RESOURCES.parties.writableColumns).toEqual(
+      expect.arrayContaining(["legal_name", "registered_address", "email", "phone", "website"]),
+    );
+    expect(MASTER_DATA_RESOURCES.parties.mutableColumns).toEqual(
+      expect.arrayContaining(["legal_name", "registered_address", "email", "phone", "website"]),
+    );
     expect(MASTER_DATA_RESOURCES.projects.mutableColumns).toContain("client_party_id");
     expect(MASTER_DATA_RESOURCES.projects.writableColumns).toContain("default_service_line_code");
     expect(MASTER_DATA_RESOURCES.projects.mutableColumns).toContain("default_service_line_code");
+    expect(MASTER_DATA_RESOURCES["purchase-products"]).toMatchObject({
+      table: "purchase_products",
+      writableColumns: ["code", "name", "vat_rate_percent", "is_active"],
+      mutableColumns: ["name", "vat_rate_percent", "is_active"],
+      deactivate: { column: "is_active", value: false },
+      versionColumn: "version",
+    });
+    expect(MASTER_DATA_RESOURCES["accounting-workflow-policy"]).toMatchObject({
+      writableColumns: expect.arrayContaining(["operating_mode"]),
+      mutableColumns: expect.arrayContaining(["operating_mode"]),
+    });
   });
 
   it("allows hard delete only for projects and enumerates every reference blocker", () => {
