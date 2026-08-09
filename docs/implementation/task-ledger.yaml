@@ -1601,6 +1601,23 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-864/
 
+  - id: ERP-865
+    title: Rewrite project README for solopreneur ERP positioning and Compose deployment
+    phase: P12
+    status: done
+    dependencies: [ERP-862]
+    business_rules: [BR-AI-001, BR-WFL-001, BR-MVP-005]
+    tests: [T-DOC-001, T-MVP-CMP-001]
+    evidence: docs/implementation/evidence/ERP-865/
+    agent: codex-readme
+    started_at: 2026-08-09T15:40:00+07:00
+    completed_at: 2026-08-09T15:44:40+07:00
+    completion_basis: rewritten_readme_docs_gate_and_compose_contract_validation
+    planned_files:
+      - README.md
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-865/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1632,6 +1649,7 @@ gates:
   G27: [ERP-862]
   G28: [ERP-863]
   G29: [ERP-864]
+  G30: [ERP-865]
 
 gate_status:
   G0: done
@@ -1664,3 +1682,4 @@ gate_status:
   G27: done
   G28: blocked
   G29: in_progress
+  G30: done
