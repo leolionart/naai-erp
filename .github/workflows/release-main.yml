@@ -3,6 +3,20 @@ name: Release main images
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "db/migrations/**"
+      - "docker/**"
+      - "deploy/**"
+      - "compose*.yaml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "tsconfig*.json"
+      - "scripts/release-images.json"
+      - "docs/api/openapi-v1.json"
 
 permissions:
   contents: read

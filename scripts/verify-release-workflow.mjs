@@ -48,6 +48,16 @@ assert.deepEqual(actualNames, new Set(expectedImages.keys()), "release image set
 
 const requiredWorkflowPatterns = [
   [/push:\s*\n\s*branches:\s*\[main\]/, "workflow must run on main pushes"],
+  [/paths:\s*\n(?:\s*-\s*"[^"]+"\s*\n)+/, "workflow must filter release-relevant paths"],
+  [/"apps\/\*\*"/, "application code changes must trigger image publication"],
+  [/"packages\/\*\*"/, "shared package changes must trigger image publication"],
+  [/"db\/migrations\/\*\*"/, "database migrations must trigger image publication"],
+  [/"docker\/\*\*"/, "Docker packaging changes must trigger image publication"],
+  [/"pnpm-lock\.yaml"/, "dependency lock changes must trigger image publication"],
+  [
+    /"docs\/api\/openapi-v1\.json"/,
+    "the OpenAPI artifact copied into the API image must trigger publication",
+  ],
   [/packages:\s*write/, "workflow must be allowed to publish packages"],
   [/node scripts\/verify-release-workflow\.mjs/, "release must verify its image contract"],
   [/node scripts\/verify-compose\.mjs/, "release must validate the Compose packaging contract"],
