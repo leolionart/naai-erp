@@ -98,6 +98,25 @@ export class ExpenseService {
       items: await this.store.relationshipBackfillInventory(context.organizationId),
     });
   }
+  async dryRunTaxFinalization(context: ExpenseContext, reason: string) {
+    if (!context.roles.some((role) => TAX_REVIEW.has(role))) throw new Error("FORBIDDEN");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    return this.envelope(context, await this.store.dryRunTaxFinalization(context, reason.trim()));
+  }
+  async commitTaxFinalization(
+    context: ExpenseContext,
+    reason: string,
+    planHash: string,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => TAX_REVIEW.has(role))) throw new Error("FORBIDDEN");
+    if (!reason.trim() || !planHash) throw new Error("VALIDATION_FAILED");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    return this.envelope(
+      context,
+      await this.store.commitTaxFinalization(context, reason.trim(), planHash, key),
+    );
+  }
   async dryRunRelationshipBackfill(
     context: ExpenseContext,
     id: string,

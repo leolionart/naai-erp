@@ -762,4 +762,67 @@ describeIntegration("ERP-310 expense workflow", () => {
       }
     }
   });
+
+  it("finalizes legacy expense and purchase tax states with deterministic idempotent controls", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies(organization_id,operating_mode,allow_self_approval,self_approval_max_minor,updated_by) values($1,'owner_final',false,null,'accountant') on conflict(organization_id) do update set operating_mode='owner_final'`,
+      [organizationId],
+    );
+    for (const sql of [
+      `insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_by,approved_at,approval_reason,posted_by,posted_at) values ($1,'tax-exp-j','2026-08-01','Expense','VND','posted',2,'maker','accountant',now(),'Legacy fixture','accountant',now()),($1,'tax-doc-j','2026-08-02','Purchase','VND','posted',2,'maker','accountant',now(),'Legacy fixture','accountant',now())`,
+      `insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,version,created_by) values ($1,'tax-prepaid','prepaid_asset','posted','2026-08-01','Prepaid','VND',1000,100,1100,'331-AP','tax-exp-j',2,'maker')`,
+      `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state) values ($1,'tax-prepaid',1,'Prepaid',1000,100,1100,'642-OPEX','1331-VAT','valid','unreviewed','unreviewed')`,
+      `insert into commercial_documents(organization_id,id,type,state,document_number,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,version,created_by) values ($1,'tax-purchase','purchase_invoice','posted','TAX-LEGACY',2026,'SUP-01','2026-08-02','2026-08-02','VND',2000,200,2200,'331-AP','tax-doc-j',2,'maker')`,
+      `insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,management_state,cit_state,vat_state) values ($1,'tax-purchase',1,'Service',1,2000,2000,200,2200,'642-OPEX','1331-VAT','valid','unreviewed','unreviewed')`,
+      `insert into commercial_document_allocations(organization_id,document_id,line_number,allocation_number,amount_minor,dimensions) values ($1,'tax-purchase',1,1,2000,'{"projectId":"A"}')`,
+      `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,description) values ($1,'tax-doc-j',1,'642-OPEX',2000,'Cost'),($1,'tax-doc-j',2,'1331-VAT',200,'VAT')`,
+      `insert into journal_lines(organization_id,journal_id,line_number,account_code,credit_minor,description) values ($1,'tax-doc-j',3,'331-AP',2200,'AP')`,
+    ])
+      await pool.query(sql, [organizationId]);
+    const reason = "Finalize legacy owner records";
+    const dry = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses/tax-finalization/dry-run`,
+      headers: { authorization: `Bearer ${accountantToken}` },
+      payload: { reason },
+    });
+    expect(dry.statusCode, dry.body).toBe(201);
+    expect(dry.json().data).toMatchObject({
+      recordCount: 2,
+      lineCount: 2,
+      citEligibleMinor: "2000",
+      vatEligibleMinor: "200",
+    });
+    const commit = () =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${organizationId}/expenses/tax-finalization/commit`,
+        headers: headers(accountantToken, "tax-finalize"),
+        payload: { reason, planHash: dry.json().data.planHash },
+      });
+    expect((await commit()).json().data.idempotencyReplayed).toBe(false);
+    expect((await commit()).json().data.idempotencyReplayed).toBe(true);
+    const rows = await pool.query(
+      `select 'expense' source,management_state::text,cit_state::text,vat_state::text,cit_eligible_minor::text,vat_eligible_minor::text from expense_lines where organization_id=$1 and expense_id='tax-prepaid' union all select 'purchase',management_state::text,cit_state::text,vat_state::text,cit_eligible_minor::text,vat_eligible_minor::text from commercial_document_lines where organization_id=$1 and document_id='tax-purchase' order by source`,
+      [organizationId],
+    );
+    expect(rows.rows).toEqual([
+      {
+        source: "expense",
+        management_state: "valid",
+        cit_state: "ineligible",
+        vat_state: "ineligible",
+        cit_eligible_minor: "0",
+        vat_eligible_minor: "0",
+      },
+      {
+        source: "purchase",
+        management_state: "valid",
+        cit_state: "eligible",
+        vat_state: "eligible",
+        cit_eligible_minor: "2000",
+        vat_eligible_minor: "200",
+      },
+    ]);
+  });
 });

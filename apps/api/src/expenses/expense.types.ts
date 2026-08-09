@@ -64,3 +64,4 @@ export type ExpenseReviewInput = Readonly<{
 export type ExpenseCategoryInput = Readonly<{
   category: string;
 }>;
+export type TaxFinalizationInput = Readonly<{ reason: string; planHash?: string }>;

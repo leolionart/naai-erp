@@ -388,7 +388,13 @@ async function install(page: Page, requestedUrls: string[] = []) {
   );
 }
 
-async function installOperatingDashboard(page: Page) {
+async function installOperatingDashboard(
+  page: Page,
+  ownerBalances: { ownerPayableMinor: string; ownerOperatingPayableMinor: string } = {
+    ownerPayableMinor: "30000000",
+    ownerOperatingPayableMinor: "30000000",
+  },
+) {
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/operating-dashboard**",
     (route) =>
@@ -440,8 +446,7 @@ async function installOperatingDashboard(page: Page) {
           bankAvailableMinor: "613000000",
           cashOnHandMinor: "7000000",
           cashAndBankMinor: "620000000",
-          ownerPayableMinor: "30000000",
-          ownerOperatingPayableMinor: "30000000",
+          ...ownerBalances,
           netAvailableCashMinor: "590000000",
           actualOwnerPaidCompanyCostMinor: "12000000",
           netCompanyFundsMinor: "608000000",
@@ -592,9 +597,14 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
   await expect(companyFundsCard).toContainText("tiền mặt 7.000.000 ₫");
   await expect(page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Quỹ tiền mặt công ty/ })).toHaveCount(0);
-  const ownerPayableCard = page.getByRole("link", { name: /Công ty đang nợ chủ doanh nghiệp/ });
+  const ownerPayableCard = page.getByRole("link", {
+    name: /Nghĩa vụ vận hành với chủ doanh nghiệp/,
+  });
   await expect(ownerPayableCard).toContainText("30.000.000 ₫");
   await expect(ownerPayableCard).toContainText("Không gồm tài sản, thiết bị");
+  await expect(
+    page.getByRole("link", { name: /Số dư Owner Current trên Balance Sheet/ }),
+  ).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Tiền thuần sau nghĩa vụ với chủ/ })).toHaveCount(0);
   const taxableProfitCard = page.getByRole("link", {
     name: /Lợi nhuận tính thuế TNDN tạm tính/,
@@ -615,6 +625,30 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
   await expect(page.getByRole("link", { name: /Chi phí CIT chờ review/ })).toContainText(
     "25.000.000 ₫",
   );
+});
+
+test("@desktop separates zero operating owner obligation from Balance Sheet owner current", async ({
+  page,
+}) => {
+  await install(page);
+  await installOperatingDashboard(page, {
+    ownerPayableMinor: "30000000",
+    ownerOperatingPayableMinor: "0",
+  });
+  await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
+
+  const operatingObligation = page.getByRole("link", {
+    name: /Nghĩa vụ vận hành với chủ doanh nghiệp/,
+  });
+  await expect(operatingObligation).toContainText("0 ₫");
+  await expect(operatingObligation).toContainText(
+    "có thể bằng 0 dù Balance Sheet vẫn còn số dư Owner Current 30.000.000 ₫",
+  );
+  const ownerCurrent = page.getByRole("link", {
+    name: /Số dư Owner Current trên Balance Sheet/,
+  });
+  await expect(ownerCurrent).toContainText("30.000.000 ₫");
+  await expect(ownerCurrent).toContainText("nghĩa vụ vận hành hiện là 0 ₫");
 });
 
 test("@desktop selects the latest source-control period and invoiced basis by default", async ({

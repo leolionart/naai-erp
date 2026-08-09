@@ -902,10 +902,12 @@ export function ExecutiveDashboardWorkspace() {
       ? "N/A"
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
     : fallbackDso;
-  const ownerPayableMinor =
-    operating?.financials.ownerOperatingPayableMinor ??
-    operating?.financials.ownerPayableMinor ??
-    "0";
+  const ownerCurrentBalanceMinor = operating?.financials.ownerPayableMinor ?? "0";
+  const ownerOperatingObligationMinor =
+    operating?.financials.ownerOperatingPayableMinor ?? ownerCurrentBalanceMinor;
+  const showSeparateOwnerCurrentBalance =
+    ownerOperatingObligationMinor !== ownerCurrentBalanceMinor;
+  const ownerOperatingDescription = `Chi phí/lỗ vận hành chủ đã dùng tiền cá nhân gánh thay, sau các khoản hoàn trả đã ghi sổ. Không gồm tài sản, thiết bị, vốn góp hay khoản vay của chủ.${showSeparateOwnerCurrentBalance ? ` Số này có thể bằng 0 dù Balance Sheet vẫn còn số dư Owner Current ${money(ownerCurrentBalanceMinor, operating?.currency ?? executive?.currency)}.` : ""}`;
   const taxableProfitMinor =
     profitAndLoss == null || taxExpenses == null
       ? undefined
@@ -1127,12 +1129,27 @@ export function ExecutiveDashboardWorkspace() {
                 status="Tiền của công ty"
               />
               <MetricCard
-                title="Công ty đang nợ chủ doanh nghiệp"
-                value={money(ownerPayableMinor, operating?.currency ?? executive?.currency)}
-                description="Chi phí/lỗ vận hành chủ đã dùng tiền cá nhân gánh thay, trừ tiền công ty đã rút hoặc chi để hoàn trả chủ. Không gồm tài sản, thiết bị, vốn góp hay khoản vay của chủ."
+                title="Nghĩa vụ vận hành với chủ doanh nghiệp"
+                value={money(
+                  ownerOperatingObligationMinor,
+                  operating?.currency ?? executive?.currency,
+                )}
+                description={ownerOperatingDescription}
                 href={`/dashboard/finance-review?${q}`}
-                status="Nghĩa vụ với chủ"
+                status="Nguồn: chi phí vận hành đã post"
               />
+              {showSeparateOwnerCurrentBalance ? (
+                <MetricCard
+                  title="Số dư Owner Current trên Balance Sheet"
+                  value={money(
+                    ownerCurrentBalanceMinor,
+                    operating?.currency ?? executive?.currency,
+                  )}
+                  description={`Toàn bộ số dư tài khoản Owner Current theo mapping Balance Sheet đã duyệt. Bao gồm các khoản ngoài nghĩa vụ vận hành; nghĩa vụ vận hành hiện là ${money(ownerOperatingObligationMinor, operating?.currency ?? executive?.currency)}.`}
+                  href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                  status="Nguồn: sổ cái Balance Sheet"
+                />
+              ) : null}
               <MetricCard
                 title="Runway"
                 value={months(executive?.runwayMonthsThousandths)}

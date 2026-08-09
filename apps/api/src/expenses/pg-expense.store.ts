@@ -20,6 +20,22 @@ type StoredExpense = {
   evidence_checklist: Record<string, boolean>;
 };
 
+type TaxFinalizationItem = {
+  sourceType: "expense" | "purchase_invoice";
+  sourceId: string;
+  lineNumber: number;
+  priorManagementState: string;
+  priorCitState: string;
+  priorVatState: string;
+  managementState: string;
+  citState: string;
+  citEligibleMinor: string;
+  vatState: string;
+  vatEligibleMinor: string;
+  netMinor: string;
+  vatMinor: string;
+};
+
 /**
  * Derive CIT and VAT eligibility state from expense class at insert time.
  * Tax eligibility is independent from management booking and funding source.
@@ -63,6 +79,228 @@ export class PgExpenseStore {
       [organizationId],
     );
     return result.rows[0]?.operating_mode ?? null;
+  }
+
+  private async taxFinalizationPlan(c: PoolClient, organizationId: string) {
+    const policy = await this.operatingMode(c, organizationId);
+    if (policy !== "owner_final") throw new Error("OWNER_FINAL_POLICY_REQUIRED");
+    const rows = await c.query<{
+      source_type: "expense" | "purchase_invoice";
+      source_id: string;
+      line_number: number;
+      management_state: string;
+      cit_state: string;
+      vat_state: string;
+      net_minor: string;
+      tax_minor: string;
+      primary_account_code: string;
+      vat_account_code: string | null;
+      expense_class: string | null;
+      journal_id: string;
+      root_type: string | null;
+      dimensions: Record<string, string> | null;
+      allocation_tax: Record<string, string>[] | null;
+    }>(
+      `
+      select 'expense'::text source_type,e.id source_id,l.line_number,l.management_state::text,l.cit_state::text,l.vat_state::text,
+             l.net_minor::text,l.vat_minor::text tax_minor,l.posting_account_code primary_account_code,
+             l.vat_account_code,e.expense_class::text,e.journal_id,a.root_type::text,l.dimensions,
+             null::jsonb allocation_tax
+        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+        left join accounts a on a.organization_id=l.organization_id and a.code=l.posting_account_code
+       where e.organization_id=$1 and e.state='posted'
+         and (l.management_state='unreviewed' or l.cit_state='unreviewed' or l.vat_state='unreviewed')
+      union all
+      select 'purchase_invoice',d.id,l.line_number,l.management_state::text,l.cit_state::text,l.vat_state::text,
+             l.net_minor::text,l.tax_minor::text,l.primary_account_code,l.tax_account_code,null,d.journal_id,
+             a.root_type::text,l.dimensions,
+             coalesce((select jsonb_agg(x.dimensions order by x.allocation_number)
+                         from commercial_document_allocations x
+                        where x.organization_id=l.organization_id and x.document_id=l.document_id
+                          and x.line_number=l.line_number),'[]'::jsonb)
+        from commercial_documents d join commercial_document_lines l
+          on l.organization_id=d.organization_id and l.document_id=d.id
+        left join accounts a on a.organization_id=l.organization_id and a.code=l.primary_account_code
+       where d.organization_id=$1 and d.type='purchase_invoice' and d.state in ('posted','partially_paid','paid')
+         and (l.management_state='unreviewed' or l.cit_state='unreviewed' or l.vat_state='unreviewed')
+       order by source_type,source_id,line_number`,
+      [organizationId],
+    );
+    const items: TaxFinalizationItem[] = [];
+    for (const row of rows.rows) {
+      const excludedClass =
+        row.source_type === "expense" &&
+        [
+          "non_documented",
+          "owner_personal",
+          "petty_cash",
+          "prepaid",
+          "prepaid_asset",
+          "fixed_asset",
+        ].includes(row.expense_class ?? "");
+      const citEligible = !excludedClass && row.root_type !== "asset";
+      const managementState =
+        row.source_type === "expense" &&
+        ["non_documented", "owner_personal", "petty_cash"].includes(row.expense_class ?? "")
+          ? "invalid"
+          : "valid";
+      let explicitVatMinor = 0n;
+      let explicitVatSeen = false;
+      for (const dimensions of row.allocation_tax ?? []) {
+        if (dimensions.taxState !== undefined) explicitVatSeen = true;
+        if (["eligible", "accountant_override"].includes(dimensions.taxState ?? ""))
+          explicitVatMinor = BigInt(row.tax_minor);
+        else if (dimensions.taxState === "partially_eligible")
+          explicitVatMinor += BigInt(dimensions.vatEligibleMinor ?? "0");
+      }
+      const journalVat =
+        row.vat_account_code && BigInt(row.tax_minor) > 0n
+          ? await c.query<{ debit: string }>(
+              `select coalesce(sum(debit_minor),0)::text debit from journal_lines
+              where organization_id=$1 and journal_id=$2 and account_code=$3`,
+              [organizationId, row.journal_id, row.vat_account_code],
+            )
+          : { rows: [{ debit: "0" }] };
+      const journalEligible = BigInt(journalVat.rows[0]?.debit ?? "0") >= BigInt(row.tax_minor);
+      const vatEligibleMinor =
+        row.source_type === "purchase_invoice" && explicitVatSeen
+          ? explicitVatMinor > BigInt(row.tax_minor)
+            ? BigInt(row.tax_minor)
+            : explicitVatMinor
+          : journalEligible
+            ? BigInt(row.tax_minor)
+            : 0n;
+      items.push({
+        sourceType: row.source_type,
+        sourceId: row.source_id,
+        lineNumber: row.line_number,
+        priorCitState: row.cit_state,
+        priorVatState: row.vat_state,
+        priorManagementState: row.management_state,
+        managementState,
+        citState: citEligible ? "eligible" : "ineligible",
+        citEligibleMinor: citEligible ? row.net_minor : "0",
+        vatState:
+          vatEligibleMinor === 0n
+            ? "ineligible"
+            : vatEligibleMinor === BigInt(row.tax_minor)
+              ? "eligible"
+              : "partially_eligible",
+        vatEligibleMinor: vatEligibleMinor.toString(),
+        netMinor: row.net_minor,
+        vatMinor: row.tax_minor,
+      });
+    }
+    return items;
+  }
+
+  async dryRunTaxFinalization(context: ExpenseContext, reason: string) {
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin isolation level repeatable read");
+      const items = await this.taxFinalizationPlan(c, context.organizationId);
+      const planHash = createHash("sha256").update(JSON.stringify({ reason, items })).digest("hex");
+      await c.query("rollback");
+      return this.taxFinalizationResult(items, planHash, true);
+    } finally {
+      c.release();
+    }
+  }
+
+  async commitTaxFinalization(
+    context: ExpenseContext,
+    reason: string,
+    planHash: string,
+    key: string,
+  ) {
+    const hash = createHash("sha256").update(JSON.stringify({ reason, planHash })).digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const items = await this.taxFinalizationPlan(c, context.organizationId);
+      const currentHash = createHash("sha256")
+        .update(JSON.stringify({ reason, items }))
+        .digest("hex");
+      if (currentHash !== planHash) throw new Error("TAX_FINALIZATION_PLAN_MISMATCH");
+      await c.query("select set_config('app.tax_finalization','on',true)");
+      for (const item of items) {
+        const table = item.sourceType === "expense" ? "expense_lines" : "commercial_document_lines";
+        const idColumn = item.sourceType === "expense" ? "expense_id" : "document_id";
+        await c.query(
+          `update ${table} set
+             management_state=case when management_state='unreviewed' then $4::management_validity_state else management_state end,
+             cit_state=case when cit_state='unreviewed' then $5::eligibility_state else cit_state end,
+             cit_eligible_minor=case when cit_state='unreviewed' then $6 else cit_eligible_minor end,
+             vat_state=case when vat_state='unreviewed' then $7::eligibility_state else vat_state end,
+             vat_eligible_minor=case when vat_state='unreviewed' then $8 else vat_eligible_minor end,
+             reviewed_by=$9,reviewed_at=now(),review_reason=$10,review_reference='owner_final_legacy'
+           where organization_id=$1 and ${idColumn}=$2 and line_number=$3`,
+          [
+            context.organizationId,
+            item.sourceId,
+            item.lineNumber,
+            item.managementState,
+            item.citState,
+            item.citEligibleMinor,
+            item.vatState,
+            item.vatEligibleMinor,
+            context.actorId,
+            reason,
+          ],
+        );
+      }
+      const expenseIds = [
+        ...new Set(
+          items.filter((item) => item.sourceType === "expense").map((item) => item.sourceId),
+        ),
+      ];
+      for (const id of expenseIds) await this.refreshSummary(c, context.organizationId, id);
+      const auditId = randomUUID();
+      const result = {
+        ...this.taxFinalizationResult(items, planHash, false),
+        auditEventId: auditId,
+        idempotencyReplayed: false,
+      };
+      await c.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)
+         values($1,$2,'tax_finalization',$3,1,'commit',$4,$5,$6)`,
+        [
+          context.organizationId,
+          auditId,
+          planHash,
+          context.actorId,
+          context.correlationId,
+          { reason, ...result },
+        ],
+      );
+      await this.save(c, context.organizationId, key, "tax-finalization:commit", hash, result);
+      await c.query("commit");
+      return result;
+    } catch (error) {
+      await c.query("rollback");
+      throw error;
+    } finally {
+      c.release();
+    }
+  }
+
+  private taxFinalizationResult(items: TaxFinalizationItem[], planHash: string, dryRun: boolean) {
+    const sum = (field: "citEligibleMinor" | "vatEligibleMinor") =>
+      items.reduce((total, item) => total + BigInt(item[field]), 0n).toString();
+    return {
+      dryRun,
+      planHash,
+      recordCount: new Set(items.map((x) => `${x.sourceType}:${x.sourceId}`)).size,
+      lineCount: items.length,
+      citEligibleMinor: sum("citEligibleMinor"),
+      vatEligibleMinor: sum("vatEligibleMinor"),
+      items,
+    };
   }
 
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {

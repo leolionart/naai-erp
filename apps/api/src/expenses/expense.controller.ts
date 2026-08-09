@@ -16,6 +16,7 @@ import type {
   CreateExpenseInput,
   ExpenseCategoryInput,
   ExpenseReviewInput,
+  TaxFinalizationInput,
 } from "./expense.types.js";
 
 @Controller("api/v1/organizations/:organizationId/expenses")
@@ -37,6 +38,31 @@ export class ExpenseController {
       ...(expenseClass ? { expenseClass } : {}),
       ...(payeePartyId ? { payeePartyId } : {}),
     });
+  }
+  @Post("tax-finalization/dry-run") async dryRunTaxFinalization(
+    @Param("organizationId") org: string,
+    @Body() input: TaxFinalizationInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.dryRunTaxFinalization(
+      await this.context(org, auth, corr),
+      input.reason ?? "",
+    );
+  }
+  @Post("tax-finalization/commit") async commitTaxFinalization(
+    @Param("organizationId") org: string,
+    @Body() input: TaxFinalizationInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.commitTaxFinalization(
+      await this.context(org, auth, corr),
+      input.reason ?? "",
+      input.planHash ?? "",
+      key,
+    );
   }
   @Get("relationship-backfill/inventory") async relationshipBackfillInventory(
     @Param("organizationId") org: string,
