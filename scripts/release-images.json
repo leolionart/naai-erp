@@ -1,6 +1,7 @@
 {
   "registry": "ghcr.io",
   "namespace": "leolionart",
+  "releaseSetVersion": 1,
   "images": [
     {
       "name": "naai-erp-api",

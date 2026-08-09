@@ -65,6 +65,8 @@ jobs:
               - 'tsconfig*.json'
             worker:
               - 'apps/worker/**'
+              - 'packages/contracts/**'
+              - 'packages/domain/**'
               - 'docker/Dockerfile.worker'
               - 'package.json'
               - 'pnpm-lock.yaml'
