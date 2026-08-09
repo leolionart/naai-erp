@@ -432,8 +432,8 @@ export function FocusedRecordListWorkspace({
   function apply(form: FormData) {
     const query = new URLSearchParams();
     for (const name of kind === "documents"
-      ? ["invoiceStatus", "type", "state", "partyId", "projectId", "startsOn", "endsOn"]
-      : ["invoiceStatus", "class", "state", "payeePartyId", "startsOn", "endsOn"]) {
+      ? ["invoiceStatus", "type", "state", "startsOn", "endsOn", "categoryId"]
+      : ["invoiceStatus", "class", "state", "startsOn", "endsOn", "categoryId"]) {
       const value = String(form.get(name) ?? "").trim();
       if (value && value !== "all") query.set(name, value);
     }
