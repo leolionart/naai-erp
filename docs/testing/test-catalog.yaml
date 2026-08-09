@@ -1752,6 +1752,30 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G38
 
+  - id: T-UNIT-ERP-874-001
+    task: ERP-874
+    rules: [BR-UI-001]
+    title: Dashboard preserves explicit historical cutoff and clamps report query ends deterministically
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/dashboard-workspaces.test.ts
+    blocking_gate: G39
+
+  - id: T-UNIT-ERP-874-002
+    task: ERP-874
+    rules: [BR-AI-005, BR-MIG-002, BR-ORG-001]
+    title: Workbook mapping uses reviewed exact customer and service-line aliases without fuzzy guessing
+    layer: unit
+    command: pnpm --filter @naai-erp/cli exec vitest run src/import-workbooks.real.test.ts
+    blocking_gate: G39
+
+  - id: T-INT-ERP-874-003
+    task: ERP-874
+    rules: [BR-PRJ-001, BR-MIG-002, BR-ORG-001]
+    title: Project import validates and persists an active organization service-line fallback
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/workbook-imports/workbook-import.integration.test.ts
+    blocking_gate: G39
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

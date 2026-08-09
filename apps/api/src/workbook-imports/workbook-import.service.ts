@@ -247,6 +247,21 @@ export class WorkbookImportService {
     // Local structural and domain checks
     const partyIds = new Set<string>();
     const projectIds = new Set<string>();
+    const requestedServiceLineCodes = new Set(
+      payload.projects
+        .flatMap((project) => [project.defaultServiceLineCode, project.default_service_line_code])
+        .filter((code): code is string => typeof code === "string" && code.trim().length > 0)
+        .map((code) => code.trim()),
+    );
+    const activeServiceLineCodes = new Set<string>();
+    if (requestedServiceLineCodes.size > 0) {
+      const result = await this.pool.query<{ code: string }>(
+        `select code from dimension_values
+         where organization_id=$1 and kind='service_line' and is_active=true and code=any($2::text[])`,
+        [organizationId, [...requestedServiceLineCodes]],
+      );
+      for (const row of result.rows) activeServiceLineCodes.add(row.code);
+    }
 
     for (const party of payload.parties) {
       if (!party.id || !party.displayName) {
@@ -263,6 +278,32 @@ export class WorkbookImportService {
         errors.push(
           `Project "${project.name}" references unknown client party ID "${project.clientPartyId}"`,
         );
+      }
+      const camelCode = project.defaultServiceLineCode?.trim() || null;
+      const snakeCode = project.default_service_line_code?.trim() || null;
+      if (camelCode && snakeCode && camelCode !== snakeCode) {
+        const message = `Project "${project.name}" has conflicting default service line codes "${camelCode}" and "${snakeCode}"`;
+        errors.push(message);
+        runtimeIssues.push({
+          severity: "error",
+          workbook: "projects",
+          sheet: "Projects",
+          field: "default_service_line_code",
+          message,
+        });
+      } else {
+        const code = camelCode ?? snakeCode;
+        if (code && !activeServiceLineCodes.has(code)) {
+          const message = `Project "${project.name}" references unknown or inactive service line code "${code}"`;
+          errors.push(message);
+          runtimeIssues.push({
+            severity: "error",
+            workbook: "projects",
+            sheet: "Projects",
+            field: "default_service_line_code",
+            message,
+          });
+        }
       }
       projectIds.add(project.id);
     }
@@ -648,9 +689,13 @@ export class WorkbookImportService {
 
       // 2.2 Projects
       for (const project of payload.projects) {
+        const defaultServiceLineCode =
+          project.defaultServiceLineCode?.trim() ||
+          project.default_service_line_code?.trim() ||
+          null;
         const prjResult = await client.query(
-          `insert into projects (organization_id, id, code, name, client_party_id, owner_user_id, contract_type, currency, budget_minor, starts_on, ends_on, state, created_at, updated_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), now())
+          `insert into projects (organization_id, id, code, name, client_party_id, owner_user_id, contract_type, currency, budget_minor, starts_on, ends_on, state, default_service_line_code, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now(), now())
            on conflict (organization_id, id) do nothing`,
           [
             organizationId,
@@ -665,6 +710,7 @@ export class WorkbookImportService {
             project.startsOn,
             project.endsOn,
             project.state,
+            defaultServiceLineCode,
           ],
         );
         if (prjResult.rowCount && prjResult.rowCount > 0) {

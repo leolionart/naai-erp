@@ -145,6 +145,51 @@ const normalizeForInference = (value: string) =>
     .replace(/Đ/g, "D")
     .toLocaleLowerCase("vi");
 
+const compactIdentity = (value: string) =>
+  normalizeForInference(value)
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+
+const reviewedPartyIdentityAliases = new Map<string, string>([
+  ["wata tech", "watatek"],
+  ["watatek", "watatek"],
+]);
+
+export const canonicalPartyIdentityKey = (name: string) => {
+  const normalized = normalizeForInference(name).trim().replace(/\s+/g, " ");
+  return reviewedPartyIdentityAliases.get(normalized) ?? normalized;
+};
+
+const reviewedServiceLineAliases = new Map<string, string>([
+  ["web", "WEB"],
+  ["website", "WEB"],
+  ["webapp", "WEB"],
+  ["webapplication", "WEB"],
+  ["websitedesign", "WEB"],
+  ["webdevelopment", "WEB"],
+  ["websitedevelopment", "WEB"],
+  ["thietkewebsite", "WEB"],
+  ["phattrienwebsite", "WEB"],
+  ["thietkephattrienwebsite", "WEB"],
+]);
+
+export const inferReviewedProjectServiceLine = (
+  labels: readonly string[],
+): Readonly<{ code: string | null; reviewFlag: string | null }> => {
+  const nonblank = labels.map((label) => label.trim()).filter(Boolean);
+  const matches = new Set(
+    nonblank
+      .map((label) => reviewedServiceLineAliases.get(compactIdentity(label)))
+      .filter((code): code is string => Boolean(code)),
+  );
+  if (matches.size === 1) return { code: [...matches][0]!, reviewFlag: null };
+  if (matches.size > 1) return { code: null, reviewFlag: "ambiguous_service_line" };
+  return {
+    code: null,
+    reviewFlag: nonblank.length > 0 ? "unmapped_service_line" : "missing_service_line",
+  };
+};
+
 const expenseCategoryRules: readonly Readonly<{
   code: string;
   label: string;
@@ -487,7 +532,8 @@ export async function buildWorkbookImportPayload(
 
   const party = (name: string, role: "client" | "supplier") => {
     const normalized = name.trim() || (role === "client" ? "Generic Client" : "Generic Supplier");
-    const id = `party-${createHash("sha256").update(normalized.toLocaleLowerCase("vi")).digest("hex").slice(0, 24)}`;
+    const identityKey = canonicalPartyIdentityKey(normalized);
+    const id = `party-${createHash("sha256").update(identityKey).digest("hex").slice(0, 24)}`;
     const current = parties.get(id);
     if (current && !current.roles.includes(role)) current.roles.push(role);
     else if (!current)
@@ -586,6 +632,9 @@ export async function buildWorkbookImportPayload(
               message: "missing project cost mapped explicitly to zero",
             });
           const sourceStage = textValue(row.getCell(4).value);
+          const sourceProjectType = textValue(row.getCell(11).value);
+          const sourcePackage = textValue(row.getCell(12).value);
+          const serviceLine = inferReviewedProjectServiceLine([sourceProjectType, sourcePackage]);
           const project = {
             id,
             code: `IMP${id.slice(-17).toUpperCase()}`,
@@ -604,6 +653,7 @@ export async function buildWorkbookImportPayload(
                   ? "closed"
                   : "active",
             sourceStage,
+            ...(serviceLine.code ? { defaultServiceLineCode: serviceLine.code } : {}),
             sourceRowIndex: rowNumber,
             sourceMetadata: {
               groupChat: textValue(row.getCell(2).value),
@@ -611,8 +661,11 @@ export async function buildWorkbookImportPayload(
               taskDone: textValue(row.getCell(7).value),
               projectTimeDays: textValue(row.getCell(9).value),
               workloadHours: textValue(row.getCell(10).value),
-              projectType: textValue(row.getCell(11).value),
-              package: textValue(row.getCell(12).value),
+              projectType: sourceProjectType,
+              package: sourcePackage,
+              serviceLineMapping: serviceLine.code
+                ? { code: serviceLine.code, source: "reviewed_exact_alias_v1" }
+                : { code: null, reviewFlag: serviceLine.reviewFlag },
               projectLink: textValue(row.getCell(13).value),
               notes: textValue(row.getCell(14).value),
               ctvRefCost: textValue(row.getCell(15).value),
@@ -1090,6 +1143,11 @@ export async function buildWorkbookImportPayload(
     if (source.kind === "project") {
       if (mapped?.clientPartyId === genericClientId) flags.push("generic_client");
       if (mapped?.budgetMinor === "0" && !source.rawData.projectCost) flags.push("missing_budget");
+      const serviceLine = inferReviewedProjectServiceLine([
+        textValue(source.rawData.projectType as ExcelJS.CellValue),
+        textValue(source.rawData.package as ExcelJS.CellValue),
+      ]);
+      if (serviceLine.reviewFlag) flags.push(serviceLine.reviewFlag);
     } else if (source.kind === "sales") {
       if (mapped?.partyId === genericClientId) flags.push("generic_client");
       if (!mapped?.projectId) flags.push("missing_project");
@@ -1126,7 +1184,7 @@ export async function buildWorkbookImportPayload(
   });
 
   return {
-    mappingVersion: 3,
+    mappingVersion: 4,
     sources,
     inventory,
     issues,

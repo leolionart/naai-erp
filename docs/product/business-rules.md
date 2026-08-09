@@ -1018,6 +1018,13 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 ### BR-MIG-002 — Dry-run import
 
 - Dry run produces deterministic rejects, duplicate warnings and financial control totals without mutating production.
+- Reviewed customer aliases may collapse to one stable active-party identity only through an explicit,
+  versioned alias map. Import never fuzzy-matches unrelated customer names or conflicting tax identities.
+- Project service labels are translated to canonical active `service_line` codes only through reviewed
+  exact aliases. Missing, ambiguous or unsupported labels remain explicit review flags and never receive
+  an invented dimension.
+- A project import carrying a service-line code validates organization scope and active master data before
+  any mutation, then persists the code as the project's reporting fallback.
 
 ### BR-MIG-003 — Parallel reconciliation
 

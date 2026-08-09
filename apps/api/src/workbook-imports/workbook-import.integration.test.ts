@@ -47,6 +47,13 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
         ('org-import', '642', 'Opex Management', 'expense', false, true),
         ('org-import', '632', 'Direct Cost Services', 'expense', false, true)
       on conflict do nothing;
+
+      insert into dimension_values (organization_id, kind, code, name, is_active)
+      values
+        ('org-import', 'service_line', 'WEB_APP', 'Web applications', true),
+        ('org-import', 'service_line', 'INACTIVE_SERVICE', 'Inactive service', false)
+      on conflict (organization_id, kind, code) do update set
+        name=excluded.name,is_active=excluded.is_active;
     `);
 
     const tokenHash = createHash("sha256").update(importToken).digest("hex");
@@ -137,6 +144,7 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
         startsOn: "2025-01-01",
         endsOn: null,
         state: "active" as const,
+        defaultServiceLineCode: "WEB_APP",
       },
     ],
     salesInvoices: [
@@ -473,6 +481,43 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
     ]);
   });
 
+  it("rejects an inactive project service line before any import mutation", async () => {
+    const invalidServiceLine = {
+      ...payload,
+      projects: [
+        {
+          ...payload.projects[0],
+          defaultServiceLineCode: undefined,
+          default_service_line_code: "INACTIVE_SERVICE",
+        },
+      ],
+    };
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-import/workbook-imports/commit",
+      headers: { authorization: `Bearer ${importToken}` },
+      payload: invalidServiceLine,
+    });
+    expect(res.statusCode, res.payload).toBe(201);
+    const data = JSON.parse(res.payload).data;
+    expect(data.valid).toBe(false);
+    expect(data.errors).toContain(
+      'Project "Project One" references unknown or inactive service line code "INACTIVE_SERVICE"',
+    );
+    expect(data.issues).toContainEqual({
+      severity: "error",
+      workbook: "projects",
+      sheet: "Projects",
+      field: "default_service_line_code",
+      message:
+        'Project "Project One" references unknown or inactive service line code "INACTIVE_SERVICE"',
+    });
+    const projects = await pool.query(
+      "select count(*) from projects where organization_id='org-import' and id='prj-project-1'",
+    );
+    expect(projects.rows[0].count).toBe("0");
+  });
+
   it("successful commit writes all entities and balanced journal entries", async () => {
     const res = await app.inject({
       method: "POST",
@@ -497,9 +542,10 @@ describeIntegration("ERP-740 Workbook Import API Integration", () => {
 
     // Verify projects created
     const projects = await pool.query(
-      "select id, name from projects where organization_id='org-import' and id='prj-project-1'",
+      "select id, name, default_service_line_code from projects where organization_id='org-import' and id='prj-project-1'",
     );
     expect(projects.rows).toHaveLength(1);
+    expect(projects.rows[0].default_service_line_code).toBe("WEB_APP");
 
     // Verify sales invoice commercial document
     const doc = await pool.query(

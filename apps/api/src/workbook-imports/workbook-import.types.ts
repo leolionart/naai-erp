@@ -18,6 +18,10 @@ export interface ImportProjectInput {
   startsOn: string;
   endsOn: string | null;
   state: "planned" | "active" | "on_hold" | "completed" | "closed";
+  /** Canonical JSON property used by first-party clients. */
+  defaultServiceLineCode?: string | null;
+  /** Backward-compatible workbook field name. */
+  default_service_line_code?: string | null;
 }
 
 export interface ImportSalesInvoiceInput {

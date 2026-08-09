@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildWorkbookImportPayload } from "./import-workbooks.js";
+import {
+  buildWorkbookImportPayload,
+  canonicalPartyIdentityKey,
+  inferReviewedProjectServiceLine,
+} from "./import-workbooks.js";
 import { workbookExpenseMigrationErrors } from "./workbook-expense-migration.js";
 
 const projectPath = process.env.ERP740_PROJECT_WORKBOOK;
@@ -12,11 +16,45 @@ const countBy = <T>(items: readonly T[], key: (item: T) => string) =>
     return counts;
   }, {});
 
+describe("ERP-874 deterministic workbook relationship mapping", () => {
+  it("deduplicates reviewed active-customer spelling variants without fuzzy name matching", () => {
+    expect(canonicalPartyIdentityKey("WATA Tech")).toBe(canonicalPartyIdentityKey("WATAtek"));
+    expect(canonicalPartyIdentityKey("VIOD")).not.toBe(canonicalPartyIdentityKey("OCD"));
+  });
+
+  it("maps reviewed unambiguous web labels and explicitly flags unsupported service labels", () => {
+    const reviewedWebLabels = [
+      "Web",
+      "Website",
+      "Web app",
+      "Web application",
+      "Website design",
+      "Web development",
+      "Website development",
+      "Thiết kế website",
+      "Phát triển website",
+      "Thiết kế phát triển website",
+      "  WEBSITE  ",
+    ];
+    expect(reviewedWebLabels.map((label) => inferReviewedProjectServiceLine([label]))).toEqual(
+      reviewedWebLabels.map(() => ({ code: "WEB", reviewFlag: null })),
+    );
+    expect(inferReviewedProjectServiceLine(["Branding"])).toEqual({
+      code: null,
+      reviewFlag: "unmapped_service_line",
+    });
+    expect(inferReviewedProjectServiceLine([])).toEqual({
+      code: null,
+      reviewFlag: "missing_service_line",
+    });
+  });
+});
+
 describeReal("ERP-740 real workbook controls", () => {
   it("extracts exact detail and Tỷ suất lợi nhuận control totals", async () => {
     const payload = await buildWorkbookImportPayload(projectPath, financePath);
     expect(workbookExpenseMigrationErrors(payload.expenses)).toEqual([]);
-    expect(payload.mappingVersion).toBe(3);
+    expect(payload.mappingVersion).toBe(4);
     const sales = payload.salesInvoices
       .filter((item) => String(item.documentDate).startsWith("2025"))
       .reduce((sum, item) => sum + BigInt(String(item.netMinor)), 0n);

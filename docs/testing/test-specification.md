@@ -134,6 +134,15 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-873-002`: an owner-paid company-cost row shows meaningful expense information and links
   to the canonical expense detail while retaining journal drill-down.
 
+### ERP-874 — Deterministic import mapping and dashboard cutoff
+
+- `T-UNIT-ERP-874-001`: an explicit dashboard `asOfDate` remains unchanged when it precedes the
+  selected period end; report queries clamp their effective end and future cutoffs clamp to today.
+- `T-UNIT-ERP-874-002`: reviewed customer aliases deduplicate WATA Tech/WATAtek, unrelated names stay
+  distinct, reviewed web labels map to `WEB`, and missing/unmapped labels retain explicit flags.
+- `T-INT-ERP-874-003`: workbook import accepts only active organization service-line codes, rejects
+  invalid codes before mutation and persists the valid project reporting fallback.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

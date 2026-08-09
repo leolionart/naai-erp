@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T07:05:00+07:00
+updated_at: 2026-08-10T07:46:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
@@ -8,7 +8,7 @@ project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
 current_gate: G39
-current_task: ERP-874
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -1840,13 +1840,15 @@ tasks:
   - id: ERP-874
     title: Deterministic active-customer and service-line import mapping
     phase: P13
-    status: in_progress
+    status: done
     dependencies: [ERP-873]
     business_rules: [BR-AI-005, BR-PRJ-001, BR-UI-001, BR-MIG-002, BR-ORG-001]
     tests: [T-UNIT-ERP-874-001, T-UNIT-ERP-874-002, T-INT-ERP-874-003]
     evidence: docs/implementation/evidence/ERP-874/
     agent: codex-team
     started_at: 2026-08-10T07:05:00+07:00
+    completed_at: 2026-08-10T07:46:00+07:00
+    completion_basis: reviewed_alias_mapping_active_service_line_validation_cutoff_regressions_and_full_repository_gate
     parallel_file_ownership:
       dashboard: apps/web/src/app/workspaces/dashboard-workspaces.tsx, apps/web/src/app/workspaces/dashboard-workspaces.test.ts
       importer: apps/cli/src/import-workbooks.ts, apps/cli/src/import-workbooks.real.test.ts
@@ -1944,4 +1946,4 @@ gate_status:
   G36: done
   G37: done
   G38: done
-  G39: in_progress
+  G39: done
