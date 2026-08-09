@@ -184,8 +184,8 @@ function tagRow(
 function queryFor(kind: Kind, params: URLSearchParams) {
   const query = new URLSearchParams();
   for (const key of kind === "documents"
-    ? ["type", "state", "partyId", "projectId", "startsOn", "endsOn"]
-    : ["state", "class", "payeePartyId", "startsOn", "endsOn"]) {
+    ? ["type", "state", "partyId", "projectId", "startsOn", "endsOn", "categoryId"]
+    : ["state", "class", "payeePartyId", "startsOn", "endsOn", "categoryId"]) {
     const value = params.get(key);
     if (value) query.set(key, value);
   }
@@ -335,6 +335,12 @@ export function FocusedRecordListWorkspace({
             String(
               row.partyId ?? row.party_id ?? row.payeePartyId ?? row.payee_party_id ?? "",
             ).trim() === initialPartyId.trim(),
+        );
+      }
+      const categoryId = sourceParams.get("categoryId");
+      if (categoryId) {
+        rawItems = rawItems.filter(
+          (row) => String(row.categoryId ?? row.category_id ?? "").trim() === categoryId.trim(),
         );
       }
       rawItems.sort((left, right) =>
@@ -1091,6 +1097,24 @@ function FilterPopover({
                         defaultValue={params.get("projectId") ?? ""}
                       />
                     </Field>
+                    <Field>
+                      <FieldLabel>Nghiệp vụ</FieldLabel>
+                      <Select name="categoryId" defaultValue={params.get("categoryId") ?? "all"}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="all">Tất cả</SelectItem>
+                            {OUTBOUND_CATEGORIES.map((cat) => (
+                              <SelectItem key={cat.code} value={cat.code}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
                   </>
                 ) : null}
               </>
@@ -1121,6 +1145,24 @@ function FilterPopover({
                     name="payeePartyId"
                     defaultValue={params.get("payeePartyId") ?? ""}
                   />
+                </Field>
+                <Field>
+                  <FieldLabel>Nghiệp vụ</FieldLabel>
+                  <Select name="categoryId" defaultValue={params.get("categoryId") ?? "all"}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        {INBOUND_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.code} value={cat.code}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </Field>
               </>
             )}
