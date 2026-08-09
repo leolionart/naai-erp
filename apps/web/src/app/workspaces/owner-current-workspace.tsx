@@ -36,6 +36,19 @@ type OwnerCurrentMovement = Readonly<{
   companyFundsDeltaMinor: string;
   runningOwnerBalanceMinor: string;
   ownerAccountCodes: readonly string[];
+  sources: readonly Readonly<{
+    sourceType: "expense" | "purchase_invoice";
+    sourceId: string;
+    title: string;
+    detail: string | null;
+    sourceHref: string;
+    expenseClass: string | null;
+    category: string | null;
+    citState: string | null;
+    vatState: string | null;
+    grossMinor: string;
+    payeeName: string | null;
+  }>[];
 }>;
 
 type OwnerCurrentResponse = Readonly<{
@@ -94,17 +107,62 @@ export function OwnerCurrentWorkspace() {
     {
       id: "description",
       header: "Bút toán / cơ sở",
-      cell: (row) => (
-        <div className="flex min-w-64 flex-col gap-1">
-          <Link
-            className="font-medium hover:underline"
-            href={`/accounting/journals?journalId=${encodeURIComponent(row.journalId)}`}
-          >
-            {row.description}
-          </Link>
-          <span className="font-mono text-xs text-muted-foreground">{row.journalId}</span>
-        </div>
-      ),
+      cell: (row) => {
+        const sources = row.sources ?? [];
+        return (
+          <div className="flex min-w-72 flex-col gap-1.5">
+            {sources.length ? (
+              <>
+                {sources.map((source) => (
+                  <div
+                    className="flex flex-col gap-1"
+                    key={`${source.sourceType}:${source.sourceId}`}
+                  >
+                    <Link className="font-medium hover:underline" href={source.sourceHref}>
+                      {source.title || row.description}
+                    </Link>
+                    {source.detail && source.detail !== source.title ? (
+                      <span className="text-xs text-muted-foreground">{source.detail}</span>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {source.payeeName ? <span>{source.payeeName}</span> : null}
+                      {source.category ? (
+                        <Badge variant="secondary">{source.category}</Badge>
+                      ) : null}
+                      {source.expenseClass ? (
+                        <Badge variant="outline">{source.expenseClass}</Badge>
+                      ) : null}
+                      {source.citState ? (
+                        <Badge variant="outline">TNDN: {source.citState}</Badge>
+                      ) : null}
+                      {source.vatState ? (
+                        <Badge variant="outline">VAT: {source.vatState}</Badge>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+                <Link
+                  className="text-xs text-muted-foreground hover:underline"
+                  href={`/accounting/journals?journalId=${encodeURIComponent(row.journalId)}`}
+                >
+                  Xem bút toán {row.journalId}
+                </Link>
+              </>
+            ) : (
+              <>
+                <span className="text-xs font-medium text-amber-700">Chưa liên kết chi phí</span>
+                <Link
+                  className="font-medium hover:underline"
+                  href={`/accounting/journals?journalId=${encodeURIComponent(row.journalId)}`}
+                >
+                  {row.description}
+                </Link>
+                <span className="font-mono text-xs text-muted-foreground">{row.journalId}</span>
+              </>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "type",

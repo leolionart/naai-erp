@@ -13,6 +13,7 @@ const rows = [
     companyFundsDeltaMinor: "-45000000",
     runningOwnerBalanceMinor: "10000000",
     ownerAccountCodes: ["3388-OWNER"],
+    sources: [],
   },
   {
     journalId: "expense",
@@ -25,6 +26,7 @@ const rows = [
     companyFundsDeltaMinor: "0",
     runningOwnerBalanceMinor: "20000000",
     ownerAccountCodes: ["3388-OWNER"],
+    sources: [],
   },
 ];
 

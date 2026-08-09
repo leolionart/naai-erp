@@ -21,6 +21,33 @@ test("@desktop owner current menu exposes withdrawal evidence and running balanc
           },
           items: [
             {
+              journalId: "owner-expense-domain",
+              date: "2025-02-15",
+              description: "Expense expense-domain",
+              currency: "VND",
+              state: "posted",
+              movementType: "owner_paid_company_cost",
+              ownerDeltaMinor: "100000000",
+              companyFundsDeltaMinor: "0",
+              runningOwnerBalanceMinor: "100000000",
+              ownerAccountCodes: ["3388-OWNER"],
+              sources: [
+                {
+                  sourceType: "expense",
+                  sourceId: "expense-domain",
+                  title: "Gia hạn tên miền naai.studio",
+                  detail: "Tên miền .studio một năm",
+                  sourceHref: "/expenses/expense-domain",
+                  expenseClass: "invoice_backed",
+                  category: "DOMAIN",
+                  citState: "eligible",
+                  vatState: "eligible",
+                  grossMinor: "1200000",
+                  payeeName: "Nhà cung cấp tên miền",
+                },
+              ],
+            },
+            {
               journalId: "owner-withdrawal-45m",
               date: "2025-02-25",
               description: "Rút tiền mặt sử dụng",
@@ -31,6 +58,7 @@ test("@desktop owner current menu exposes withdrawal evidence and running balanc
               companyFundsDeltaMinor: "-45000000",
               runningOwnerBalanceMinor: "55000000",
               ownerAccountCodes: ["3388-OWNER"],
+              sources: [],
             },
           ],
         },
@@ -43,6 +71,13 @@ test("@desktop owner current menu exposes withdrawal evidence and running balanc
     page.getByRole("heading", { level: 1, name: "Đối chiếu công nợ chủ" }),
   ).toBeVisible();
   await expect(page.getByText("Rút tiền mặt sử dụng", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Gia hạn tên miền naai.studio" })).toHaveAttribute(
+    "href",
+    "/expenses/expense-domain",
+  );
+  await expect(page.getByText("Nhà cung cấp tên miền", { exact: true })).toBeVisible();
+  await expect(page.getByText("DOMAIN", { exact: true })).toBeVisible();
+  await expect(page.getByText("TNDN: eligible", { exact: true })).toBeVisible();
   await expect(page.getByText("45.000.000 ₫", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Rút tiền mặt sử dụng" })).toHaveAttribute(
     "href",

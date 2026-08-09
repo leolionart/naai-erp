@@ -127,6 +127,13 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-871-002`: the banking menu exposes owner-current movements, running balance, journal
   drill-down and an explicit warning when recorded repayments/withdrawals are missing.
 
+### ERP-873 — Owner-current expense traceability
+
+- `T-API-ERP-873-001`: owner-current rows joined to an expense return canonical expense identity,
+  purpose, class, category and tax states without changing signed balance calculations.
+- `T-E2E-ERP-873-002`: an owner-paid company-cost row shows meaningful expense information and links
+  to the canonical expense detail while retaining journal drill-down.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

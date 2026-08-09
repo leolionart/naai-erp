@@ -579,6 +579,10 @@ Branches: `ignored`, `needs_review`.
   must not classify either direction as revenue or expense without canonical reconciliation data.
 - A bank-to-cash or cash-to-bank internal transfer appears once in the cash-fund history through its
   cash-account leg and remains P&L-neutral.
+- Company cash physically held by the owner remains a company `cash` financial account backed by an
+  asset ledger account. A withdrawal from company bank into that custody fund is an internal
+  bank-to-cash transfer; it does not increase or decrease Owner Current merely because the owner is
+  the custodian.
 
 ### BR-BNK-003 — Internal transfer
 
@@ -592,6 +596,9 @@ Branches: `ignored`, `needs_review`.
   Balance Sheet `owner_current` mapping, posted/reversed journals and organization financial accounts.
 - Every row shows the journal, signed owner-liability effect, signed company-funds effect and running
   owner-current balance. The totals must reconcile exactly to the mapped ledger balance.
+- When a movement originates from an expense, the read model exposes the canonical expense ID,
+  business purpose, expense class, category and tax-review states. The UI links to the expense detail
+  instead of forcing the owner to infer the purchase from a generic journal description.
 - A company payment to the owner is identified only when the same journal debits Owner Current and
   credits a configured company bank/cash account. The UI does not guess whether the payment is a
   reimbursement, withdrawal, owner loan settlement or equity movement without canonical metadata.

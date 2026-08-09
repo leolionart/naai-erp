@@ -89,4 +89,44 @@ describe("ERP-400 banking service", () => {
       subject.transitionTransaction(context, "txn-1", "ignore", { reason: " " }, "key"),
     ).rejects.toThrow("VALIDATION_FAILED");
   });
+
+  it("preserves canonical expense traceability in owner-current read models", async () => {
+    const { subject, store } = fixture();
+    store.listOwnerCurrentMovements.mockResolvedValue({
+      summary: { closingBalanceMinor: "1200000" },
+      items: [
+        {
+          journalId: "journal-expense-1",
+          ownerDeltaMinor: "1200000",
+          sources: [
+            {
+              sourceType: "expense",
+              sourceId: "expense-1",
+              title: "Gia hạn tên miền",
+              category: "DOMAIN",
+              citState: "eligible",
+              vatState: "eligible",
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await subject.listOwnerCurrentMovements(context);
+
+    expect(result.data).toMatchObject({
+      summary: { closingBalanceMinor: "1200000" },
+      items: [
+        {
+          sources: [
+            {
+              sourceId: "expense-1",
+              title: "Gia hạn tên miền",
+              category: "DOMAIN",
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

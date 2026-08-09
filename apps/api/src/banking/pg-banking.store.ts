@@ -614,6 +614,7 @@ export class PgBankingStore implements BankingStore {
       company_funds_delta_minor: string;
       owner_account_codes: string[];
       counterpart_lines: unknown[];
+      sources: unknown[];
     }>(
       `with selected_mapping as (
          select id,version
@@ -632,6 +633,7 @@ export class PgBankingStore implements BankingStore {
          where organization_id=$1 and status='active' and kind in ('bank','cash')
        )
        select j.id journal_id,j.journal_date::text,j.description,j.currency,j.state,j.reversal_of_id,
+         coalesce(source_refs.sources,'[]'::jsonb) sources,
          sum(case when l.account_code in (select account_code from owner_accounts)
            then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else 0 end)::text owner_delta_minor,
          sum(case when l.account_code in (select account_code from company_funds_accounts)
@@ -650,8 +652,48 @@ export class PgBankingStore implements BankingStore {
        from journal_entries j
        join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
        join accounts a on a.organization_id=l.organization_id and a.code=l.account_code
+       left join lateral (
+         select coalesce(jsonb_agg(source order by source->>'sourceType',source->>'sourceId'),'[]'::jsonb) sources
+         from (
+           select jsonb_build_object(
+             'sourceType','expense','sourceId',e.id,'title',e.business_purpose,
+             'detail',(select string_agg(el.description,' · ' order by el.line_number)
+               from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id),
+             'grossMinor',e.gross_minor::text,'sourceHref','/expenses/' || e.id,
+             'expenseClass',e.expense_class::text,
+             'category',(select coalesce(el.dimensions->>'category',el.expense_category_code)
+               from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id
+               order by el.line_number limit 1),
+             'citState',e.cit_state::text,'vatState',e.vat_state::text,
+             'payeeName',p.display_name
+           ) source
+           from expenses e
+           left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id
+           where e.organization_id=j.organization_id
+             and e.journal_id=coalesce(j.reversal_of_id,j.id)
+           union all
+           select jsonb_build_object(
+             'sourceType','purchase_invoice','sourceId',d.id,'title',d.document_number,
+             'detail',(select string_agg(dl.description,' · ' order by dl.line_number)
+               from commercial_document_lines dl
+               where dl.organization_id=d.organization_id and dl.document_id=d.id),
+             'grossMinor',d.gross_minor::text,'sourceHref','/documents/' || d.id,
+             'expenseClass',null,'category',null,
+             'citState',(select min(dl.cit_state::text) from commercial_document_lines dl
+               where dl.organization_id=d.organization_id and dl.document_id=d.id),
+             'vatState',(select min(dl.vat_state::text) from commercial_document_lines dl
+               where dl.organization_id=d.organization_id and dl.document_id=d.id),
+             'payeeName',p.display_name
+           ) source
+           from commercial_documents d
+           left join parties p on p.organization_id=d.organization_id and p.id=d.party_id
+           where d.organization_id=j.organization_id and d.type='purchase_invoice'
+             and d.journal_id=coalesce(j.reversal_of_id,j.id)
+         ) canonical_sources
+       ) source_refs on true
        where j.organization_id=$1 and j.state in ('posted','reversed')
-       group by j.id,j.journal_date,j.description,j.currency,j.state,j.reversal_of_id
+       group by j.id,j.journal_date,j.description,j.currency,j.state,j.reversal_of_id,
+         source_refs.sources
        having bool_or(l.account_code in (select account_code from owner_accounts))
        order by j.journal_date,j.id`,
       [organizationId],
@@ -686,6 +728,7 @@ export class PgBankingStore implements BankingStore {
         runningOwnerBalanceMinor: running.toString(),
         ownerAccountCodes: row.owner_account_codes ?? [],
         counterpartLines: row.counterpart_lines ?? [],
+        sources: row.sources ?? [],
       };
     });
     return {

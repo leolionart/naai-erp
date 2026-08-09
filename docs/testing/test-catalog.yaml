@@ -1728,6 +1728,30 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G36
 
+  - id: T-OPS-ERP-872-001
+    task: ERP-872
+    rules: [BR-BNK-002, BR-BNK-003, BR-AI-006, BR-LED-001]
+    title: Owner-custody withdrawals materialize as balanced P&L-neutral bank-to-cash transfers
+    layer: operations
+    command: docs/implementation/evidence/ERP-872/tests.md
+    blocking_gate: G37
+
+  - id: T-API-ERP-873-001
+    task: ERP-873
+    rules: [BR-BNK-004, BR-ORG-001]
+    title: Owner-current movements expose canonical expense traceability without changing balances
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/banking/banking.service.test.ts
+    blocking_gate: G38
+
+  - id: T-E2E-ERP-873-002
+    task: ERP-873
+    rules: [BR-BNK-004, BR-UI-003, BR-UI-004]
+    title: Owner-current expense rows show purpose category tax states and expense drill-down
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G38
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

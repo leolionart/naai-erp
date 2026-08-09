@@ -1,14 +1,14 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T05:55:00+07:00
+updated_at: 2026-08-10T07:05:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
-development_completed_at: 2026-08-10T05:55:00+07:00
+development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
-project_completed_at: 2026-08-10T05:55:00+07:00
+project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G36
-current_task: null
+current_gate: G39
+current_task: ERP-874
 
 tasks:
   - id: ERP-000
@@ -1796,6 +1796,72 @@ tasks:
       - docs/testing/
       - docs/implementation/evidence/ERP-871/
 
+  - id: ERP-872
+    title: Restore owner-custody cash withdrawals as canonical internal transfers
+    phase: P13
+    status: done
+    dependencies: [ERP-871]
+    business_rules: [BR-BNK-002, BR-BNK-003, BR-AI-006, BR-LED-001]
+    tests: [T-OPS-ERP-872-001]
+    evidence: docs/implementation/evidence/ERP-872/
+    agent: codex-root
+    started_at: 2026-08-10T06:05:00+07:00
+    completed_at: 2026-08-10T06:12:00+07:00
+    completion_basis: production_canonical_api_dry_run_idempotent_import_internal_transfer_posting_and_ui_readback
+    planned_files:
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-872/
+
+  - id: ERP-873
+    title: Owner-current expense traceability
+    phase: P13
+    status: done
+    dependencies: [ERP-871]
+    business_rules: [BR-BNK-004, BR-ORG-001, BR-UI-003, BR-UI-004]
+    tests: [T-API-ERP-873-001, T-E2E-ERP-873-002]
+    evidence: docs/implementation/evidence/ERP-873/
+    agent: codex-root
+    started_at: 2026-08-10T06:28:00+07:00
+    completed_at: 2026-08-10T06:36:00+07:00
+    completion_basis: canonical_expense_and_purchase_invoice_traceability_sql_readback_api_web_tests_and_browser_qa
+    planned_files:
+      - apps/api/src/banking/pg-banking.store.ts
+      - apps/api/src/banking/banking.service.test.ts
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/e2e/owner-current.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-873/
+
+  - id: ERP-874
+    title: Deterministic active-customer and service-line import mapping
+    phase: P13
+    status: in_progress
+    dependencies: [ERP-873]
+    business_rules: [BR-AI-005, BR-PRJ-001, BR-UI-001, BR-MIG-002, BR-ORG-001]
+    tests: [T-UNIT-ERP-874-001, T-UNIT-ERP-874-002, T-INT-ERP-874-003]
+    evidence: docs/implementation/evidence/ERP-874/
+    agent: codex-team
+    started_at: 2026-08-10T07:05:00+07:00
+    parallel_file_ownership:
+      dashboard: apps/web/src/app/workspaces/dashboard-workspaces.tsx, apps/web/src/app/workspaces/dashboard-workspaces.test.ts
+      importer: apps/cli/src/import-workbooks.ts, apps/cli/src/import-workbooks.real.test.ts
+      coordinator: docs/
+    planned_files:
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/src/app/workspaces/dashboard-workspaces.test.ts
+      - apps/cli/src/import-workbooks.ts
+      - apps/cli/src/import-workbooks.real.test.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-874/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1834,6 +1900,9 @@ gates:
   G34: [ERP-869]
   G35: [ERP-870]
   G36: [ERP-871]
+  G37: [ERP-872]
+  G38: [ERP-873]
+  G39: [ERP-874]
 
 gate_status:
   G0: done
@@ -1873,3 +1942,6 @@ gate_status:
   G34: done
   G35: done
   G36: done
+  G37: done
+  G38: done
+  G39: in_progress
