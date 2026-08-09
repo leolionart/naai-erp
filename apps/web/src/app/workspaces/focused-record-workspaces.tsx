@@ -350,7 +350,7 @@ export function FocusedRecordListWorkspace({
               );
             });
           }
-          return false;
+          return String(row.category ?? "").trim() === categoryId.trim();
         });
       }
       rawItems.sort((left, right) =>
