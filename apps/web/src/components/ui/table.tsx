@@ -104,7 +104,10 @@ function Table({
           </DropdownMenu>
         </div>
       ) : null}
-      <div data-slot="table-container" className="relative w-full overflow-x-auto border-t sm:border-t-0">
+      <div
+        data-slot="table-container"
+        className="relative w-full overflow-x-auto border-t sm:border-t-0"
+      >
         <table
           ref={tableRef}
           data-slot="table"
