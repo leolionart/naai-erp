@@ -335,17 +335,19 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
   and collection facts dated after that cutoff are excluded rather than mixed into the result.
 - Cash receipt does not automatically create revenue.
 - Invoice before delivery may create deferred revenue/contract liability.
-- Commercial-document line/allocation dimensions retain canonical `projectId` and may retain the
-  selected canonical `contractId`. A sales invoice requires project attribution; every selected
-  project must belong to the invoice customer, and an optional contract must belong to that project.
-  Contract selection is explicit rather than inferred from names, dates or amounts. Milestone
+- The project is the single user-facing commercial contract for invoice and expense attribution.
+  Commercial-document line/allocation dimensions retain canonical `projectId`; create and edit
+  workflows remove stale user-supplied `contractId` dimensions rather than asking users to maintain
+  the same relationship twice. Legacy contract rows remain a compatibility/read-model source for
+  commercial value and milestones until those fields are migrated onto projects. Milestone
   attribution is not yet persisted, so the system must not claim milestone-level invoice-cap
   enforcement or drill-down.
 - Sales-invoice creation opens in context from revenue management. Customer choices are limited to
   client-role parties and shown by business name while the REST payload retains the canonical party
-  ID. Selecting a customer limits the project choices to that customer's projects; selecting a
-  project limits optional contract choices to that project. Direct `/documents/new` navigation
-  resolves to the same dialog workflow.
+  ID. The project selector reads the canonical project master list. Selecting a project sets its
+  linked customer on a sales invoice, so project and customer cannot silently diverge. The selected
+  project is the canonical contract relationship and no separate contract selector is exposed.
+  Direct `/documents/new` navigation resolves to the same dialog workflow.
 
 ### BR-REV-002 — Milestone recognition
 
@@ -398,17 +400,17 @@ Document type and accounting treatment are independent.
   parties and displayed by business name while the payload retains the canonical party ID. Employee
   attribution uses active workforce profiles mapped to party names; when workforce data is absent,
   the UI states that explicitly instead of exposing arbitrary party identifiers.
-- A direct expense may optionally select the project receiving the cost and then an optional
-  contract belonging to that project. The supplier/payee remains independent from the receiving
-  project's customer. Draft edits preserve existing allocation IDs, dimensions and relationship
-  metadata unless the user explicitly replaces the allocation.
+- A direct expense may optionally select the project receiving the cost. That project is also the
+  user-facing commercial contract, so no separate contract selector is exposed. The supplier/payee
+  remains independent from the receiving project's customer. Draft edits preserve existing
+  allocation IDs and unrelated dimensions while canonicalizing the relationship to `projectId`.
 - A draft created in error may be discarded before submission. Discard requires write authorization,
   optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
   submitted, approved or posted expenses cannot be deleted.
 - Posted expenses may receive an audited, idempotent `dimensions.category` metadata correction when
   the category is active organization master data. This operation never changes amounts, tax states,
   allocations, funding treatment, journal linkage or any other posted financial field.
-- A posted expense missing project/contract relationships is corrected only through relationship
+- A posted expense missing its project relationship is corrected only through relationship
   backfill dry-run and reverse/replacement. The original becomes reversed and the replacement remains
   draft for normal review/posting; amount, evidence and accounting history are not rewritten.
 
@@ -596,8 +598,9 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
 - The directory offers both card and Kanban views. Kanban shows all canonical lifecycle columns and
   allows an authorized user to move one project between states through the same organization-scoped,
   audited project update service used by the form, CLI and API. Failed updates restore the prior
-  column. Kanban cards stay focused on project identity and profile navigation; precise non-drag
-  state changes remain available in the project editor.
+  column. Drag-and-drop is the only inline state control in Kanban; cards contain no duplicate state
+  dropdown and stay focused on project identity and profile navigation. Precise non-drag state
+  changes remain available in the project editor.
 
 ### BR-TIM-001 — Timesheet lifecycle
 

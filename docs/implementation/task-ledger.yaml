@@ -1,14 +1,14 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-09T10:48:16+07:00
+updated_at: 2026-08-09T15:55:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: in_progress
 development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G23
-current_task: ERP-858
+current_gate: G25
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -1431,7 +1431,7 @@ tasks:
   - id: ERP-858
     title: Owner-final single-user expense and tax workflow
     phase: P12
-    status: in_progress
+    status: done
     dependencies: [ERP-857]
     business_rules:
       [
@@ -1462,6 +1462,7 @@ tasks:
     evidence: docs/implementation/evidence/ERP-858/
     agent: codex-team
     started_at: 2026-08-09T11:05:00+07:00
+    completed_at: 2026-08-09T15:15:00+07:00
     planned_files:
       - packages/database/src/schema.ts
       - db/migrations/0042_owner_final_tax_workflow.sql
@@ -1476,6 +1477,48 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/testing/test-specification.md
       - docs/implementation/evidence/ERP-858/
+
+  - id: ERP-859
+    title: Make project the user-facing commercial contract
+    phase: P12
+    status: done
+    dependencies: [ERP-858]
+    business_rules: [BR-REV-001, BR-EXP-002, BR-PRJ-001, BR-UI-003]
+    tests: [T-E2E-ERP-859-001]
+    evidence: docs/implementation/evidence/ERP-859/
+    agent: codex-team
+    started_at: 2026-08-09T15:15:00+07:00
+    completed_at: 2026-08-09T15:30:00+07:00
+    planned_files:
+      - apps/web/src/components/forms/document-expense-forms.tsx
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/src/app/workspaces/business-directory-workspace.tsx
+      - apps/web/e2e/focused-records.spec.ts
+      - apps/web/e2e/business-directory.spec.ts
+      - apps/web/playwright.config.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-859/
+
+  - id: ERP-860
+    title: Make Kanban drag-and-drop the only inline project state control
+    phase: P12
+    status: done
+    dependencies: [ERP-859]
+    business_rules: [BR-PRJ-001, BR-PRJ-002, BR-UI-003]
+    tests: [T-E2E-ERP-860-001]
+    evidence: docs/implementation/evidence/ERP-860/
+    agent: codex-team
+    started_at: 2026-08-09T15:45:00+07:00
+    completed_at: 2026-08-09T15:55:00+07:00
+    planned_files:
+      - apps/web/src/app/workspaces/business-directory-workspace.tsx
+      - apps/web/e2e/business-directory.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-860/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -1502,6 +1545,8 @@ gates:
   G21: [ERP-856]
   G22: [ERP-857]
   G23: [ERP-858]
+  G24: [ERP-859]
+  G25: [ERP-860]
 
 gate_status:
   G0: done
@@ -1527,4 +1572,6 @@ gate_status:
   G20: done
   G21: done
   G22: done
-  G23: in_progress
+  G23: done
+  G24: done
+  G25: done

@@ -120,129 +120,106 @@ async function install(
   let currentInvoice = { ...invoice };
   let currentExpense = { ...expense };
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp720-token"));
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/master-data/expense-categories**",
-    (route) =>
-      reply(route, {
-        items: [
-          {
-            code: "MEAL",
-            name: "Chi phí ăn uống / Tiếp khách",
-            isActive: true,
-            fundingTreatment: "tax_only_non_cash",
-          },
-          {
-            code: "DOMAIN_HOSTING",
-            name: "Chi phí Tên miền / Hosting",
-            isActive: true,
-            fundingTreatment: "owner_paid_company_cost",
-          },
-        ],
-      }),
+  await page.route("**/api/v1/organizations/naai/master-data/expense-categories**", (route) =>
+    reply(route, {
+      items: [
+        {
+          code: "MEAL",
+          name: "Chi phí ăn uống / Tiếp khách",
+          isActive: true,
+          fundingTreatment: "tax_only_non_cash",
+        },
+        {
+          code: "DOMAIN_HOSTING",
+          name: "Chi phí Tên miền / Hosting",
+          isActive: true,
+          fundingTreatment: "owner_paid_company_cost",
+        },
+      ],
+    }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/master-data/parties**",
-    (route) =>
-      reply(route, {
-        items: [
-          { id: "client-720", name: "Khách hàng 720" },
-          { id: "supplier-720", name: "Nhà cung cấp 720" },
-          { id: "employee-720", display_name: "Nguyễn Nhân Viên" },
-        ],
-      }),
+  await page.route("**/api/v1/organizations/naai/master-data/parties**", (route) =>
+    reply(route, {
+      items: [
+        { id: "client-720", name: "Khách hàng 720" },
+        { id: "supplier-720", name: "Nhà cung cấp 720" },
+        { id: "employee-720", display_name: "Nguyễn Nhân Viên" },
+      ],
+    }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/master-data/party-roles**",
-    (route) =>
-      reply(route, {
-        items: [
-          { partyId: "client-720", role: "client" },
-          { partyId: "supplier-720", role: "supplier" },
-          { partyId: "employee-720", role: "employee" },
-        ],
-      }),
+  await page.route("**/api/v1/organizations/naai/master-data/party-roles**", (route) =>
+    reply(route, {
+      items: [
+        { party_id: "client-720", role: "client" },
+        { party_id: "supplier-720", role: "supplier" },
+        { party_id: "employee-720", role: "employee" },
+      ],
+    }),
   );
-  await page.route("http://localhost:3001/api/v1/organizations/naai/time/workers**", (route) =>
+  await page.route("**/api/v1/organizations/naai/time/workers**", (route) =>
     reply(route, {
       items: [
         {
           id: "worker-720",
-          workerPartyId: "employee-720",
+          worker_party_id: "employee-720",
           employmentKind: "employee",
           status: "active",
         },
       ],
     }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/master-data/projects**",
-    (route) =>
-      reply(route, {
-        items: [
-          { id: "project-720", name: "Dự án khách hàng 720", client_party_id: "client-720" },
-          { id: "project-other", name: "Dự án khách hàng khác", client_party_id: "client-other" },
-        ],
-      }),
+  await page.route("**/api/v1/organizations/naai/master-data/projects**", (route) =>
+    reply(route, {
+      items: [
+        { id: "project-720", name: "Dự án khách hàng 720", client_party_id: "client-720" },
+        { id: "project-other", name: "Dự án khách hàng khác", client_party_id: "client-other" },
+      ],
+    }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/master-data/contracts**",
-    (route) =>
-      reply(route, {
-        items: [
-          { id: "contract-720", name: "Hợp đồng dự án 720", project_id: "project-720" },
-          { id: "contract-other", name: "Hợp đồng dự án khác", project_id: "project-other" },
-        ],
-      }),
+  await page.route("**/api/v1/organizations/naai/accounting-list-exports/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      headers: {
+        "content-disposition": `attachment; filename="${route.request().url().includes("sales-invoices") ? "naai-erp-doanh-thu-2026-08-01_2026-08-31.xlsx" : "naai-erp-chi-phi-2026-08-01_2026-08-31.xlsx"}"`,
+      },
+      body: Buffer.from([80, 75, 3, 4]),
+    }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/**",
-    (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers: {
-          "content-disposition": `attachment; filename="${route.request().url().includes("sales-invoices") ? "naai-erp-doanh-thu-2026-08-01_2026-08-31.xlsx" : "naai-erp-chi-phi-2026-08-01_2026-08-31.xlsx"}"`,
-        },
-        body: Buffer.from([80, 75, 3, 4]),
-      }),
-  );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/commercial-documents**",
-    async (route) => {
-      const url = new URL(route.request().url());
-      if (route.request().method() === "PATCH" && url.pathname.endsWith("/invoice-720")) {
-        if (patchFailure?.kind === "documents")
-          return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
-        expect(route.request().headers()["if-match"]).toBe("1");
-        const body = route.request().postDataJSON() as typeof invoice;
-        if (body.lines[0]?.allocations?.[0]?.dimensions) {
-          expect(body.lines[0].allocations[0].dimensions).toMatchObject({
-            costCenter: "DELIVERY",
-            projectId: "project-720",
-            contractId: "contract-720",
-          });
-          expect(body.lines[0].allocations[0].id).toBe("allocation-1");
-          expect(body.lines[0].allocations[0].amountMinor).toBe(body.lines[0].netMinor);
-          expect(body.lines[0].allocations[0].dimensions).not.toHaveProperty("project");
-        }
-        currentInvoice = { ...currentInvoice, ...body, resourceVersion: "2" };
-        return reply(route, { documentId: currentInvoice.id, resourceVersion: "2" });
+  await page.route("**/api/v1/organizations/naai/commercial-documents**", async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === "PATCH" && url.pathname.endsWith("/invoice-720")) {
+      if (patchFailure?.kind === "documents")
+        return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
+      expect(route.request().headers()["if-match"]).toBe("1");
+      const body = route.request().postDataJSON() as typeof invoice;
+      if (body.lines[0]?.allocations?.[0]?.dimensions) {
+        expect(body.lines[0].allocations[0].dimensions).toMatchObject({
+          costCenter: "DELIVERY",
+          projectId: "project-720",
+        });
+        expect(body.lines[0].allocations[0].dimensions).not.toHaveProperty("contractId");
+        expect(body.lines[0].allocations[0].id).toBe("allocation-1");
+        expect(body.lines[0].allocations[0].amountMinor).toBe(body.lines[0].netMinor);
+        expect(body.lines[0].allocations[0].dimensions).not.toHaveProperty("project");
       }
-      if (route.request().method() === "POST" && url.pathname.endsWith("/commercial-documents"))
-        return reply(route, currentInvoice);
-      if (url.pathname.endsWith("/invoice-720")) return reply(route, currentInvoice);
-      const type = url.searchParams.get("type");
-      return reply(route, {
-        items:
-          type === "purchase_invoice"
-            ? [purchaseInvoice]
-            : type === "sales_invoice"
-              ? [currentInvoice]
-              : [currentInvoice, purchaseInvoice],
-      });
-    },
-  );
-  await page.route("http://localhost:3001/api/v1/organizations/naai/expenses**", async (route) => {
+      currentInvoice = { ...currentInvoice, ...body, resourceVersion: "2" };
+      return reply(route, { documentId: currentInvoice.id, resourceVersion: "2" });
+    }
+    if (route.request().method() === "POST" && url.pathname.endsWith("/commercial-documents"))
+      return reply(route, currentInvoice);
+    if (url.pathname.endsWith("/invoice-720")) return reply(route, currentInvoice);
+    const type = url.searchParams.get("type");
+    return reply(route, {
+      items:
+        type === "purchase_invoice"
+          ? [purchaseInvoice]
+          : type === "sales_invoice"
+            ? [currentInvoice]
+            : [currentInvoice, purchaseInvoice],
+    });
+  });
+  await page.route("**/api/v1/organizations/naai/expenses**", async (route) => {
     const url = new URL(route.request().url());
     if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720/category")) {
       const body = route.request().postDataJSON() as { category: string };
@@ -263,8 +240,8 @@ async function install(
       expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({ projectId: "project-720" });
       expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({
         costCenter: "ADMIN",
-        contractId: "contract-720",
       });
+      expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("contractId");
       expect(body.lines[0]?.allocations[0]?.id).toBe("allocation-2");
       expect(body.lines[0]?.allocations[0]?.amountMinor).toBe(body.lines[0]?.netMinor);
       expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("project");
@@ -275,16 +252,15 @@ async function install(
       const body = route.request().postDataJSON() as typeof expense;
       expect(body.lines[0]?.allocations[0]?.dimensions).toMatchObject({
         projectId: "project-720",
-        contractId: "contract-720",
       });
+      expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("contractId");
       return reply(route, currentExpense);
     }
     if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
     return reply(route, { items: [currentExpense] });
   });
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/revenue-recognition-events**",
-    (route) => reply(route, { items: [recognition] }),
+  await page.route("**/api/v1/organizations/naai/revenue-recognition-events**", (route) =>
+    reply(route, { items: [recognition] }),
   );
 }
 
@@ -321,15 +297,14 @@ test("@desktop T-E2E-ERP-841-003 revenue category chart defaults management to i
   await expect(action).not.toBeVisible();
 });
 
-test("@desktop relationship-aware revenue filters projects and contracts from the named customer", async ({
+test("@desktop relationship-aware revenue selects the canonical customer from the project", async ({
   page,
 }) => {
   await install(page);
   await page.goto("http://localhost:3000/documents");
   await expect(page.getByRole("columnheader", { name: "Khách hàng / Nhà cung cấp" })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "Dự án / Hợp đồng" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Dự án" })).toBeVisible();
   await expect(page.getByText("Dự án khách hàng 720", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Hợp đồng dự án 720", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Tạo hóa đơn bán ra" }).click();
   const dialog = page.getByRole("dialog", { name: "Tạo hóa đơn" });
   await expect(dialog).toBeVisible();
@@ -337,11 +312,10 @@ test("@desktop relationship-aware revenue filters projects and contracts from th
   await expect(dialog.getByText("client-720", { exact: true })).toHaveCount(0);
   await dialog.getByLabel("Dự án").click();
   await expect(page.getByRole("option", { name: "Dự án khách hàng 720" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Dự án khách hàng khác" })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: "Dự án khách hàng khác" })).toBeVisible();
   await page.getByRole("option", { name: "Dự án khách hàng 720" }).click();
-  await dialog.getByLabel("Hợp đồng").click();
-  await expect(page.getByRole("option", { name: "Hợp đồng dự án 720" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Hợp đồng dự án khác" })).toHaveCount(0);
+  await expect(dialog.getByLabel("Khách hàng")).toContainText("Khách hàng 720");
+  await expect(dialog.getByLabel("Hợp đồng")).toHaveCount(0);
 });
 
 test("@desktop expense category chart defaults management to purchase invoices and every non-invoice expense", async ({
@@ -489,9 +463,9 @@ test("@desktop shows export loading and structured failure without disturbing th
   page,
 }) => {
   await install(page);
-  await page.unroute("http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/**");
+  await page.unroute("**/api/v1/organizations/naai/accounting-list-exports/**");
   await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/accounting-list-exports/sales-invoices**",
+    "**/api/v1/organizations/naai/accounting-list-exports/sales-invoices**",
     async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 150));
       await fail(route, 422, "EXPORT_FILTER_INVALID", "Khoảng ngày export không hợp lệ");
@@ -522,8 +496,7 @@ test("@desktop T-MVP-UI-002 creates a non-invoice expense then opens its stable 
   await expect(dialog.getByLabel("Nhân viên thực hiện")).toContainText("Nguyễn Nhân Viên");
   await dialog.getByLabel("Dự án").click();
   await page.getByRole("option", { name: "Dự án khách hàng 720" }).click();
-  await dialog.getByLabel("Hợp đồng").click();
-  await page.getByRole("option", { name: "Hợp đồng dự án 720" }).click();
+  await expect(dialog.getByLabel("Hợp đồng")).toHaveCount(0);
   await expect(dialog.getByText(/Chính sách danh mục: tax_only_non_cash/)).toBeVisible();
   await dialog.getByRole("combobox").first().click();
   await page.getByRole("option", { name: "Chi phí không hóa đơn" }).click();
@@ -557,7 +530,7 @@ test("@desktop relationship-aware expense edit preserves allocation IDs and dime
   await expenseRow.getByRole("button", { name: "Xem" }).click();
   const dialog = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
   await expect(dialog.getByLabel("Dự án")).toContainText("Dự án khách hàng 720");
-  await expect(dialog.getByLabel("Hợp đồng")).toContainText("Hợp đồng dự án 720");
+  await expect(dialog.getByLabel("Hợp đồng")).toHaveCount(0);
   await dialog.getByLabel("Tiền gốc chưa VAT (VNĐ)").fill("2.500.000");
   await dialog.getByRole("button", { name: "Cập nhật thông tin chi phí" }).click();
   await expect(dialog.getByLabel("Dự án")).toContainText("Dự án khách hàng 720");

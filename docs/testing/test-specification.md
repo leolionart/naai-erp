@@ -137,7 +137,7 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
   authentication. Login secrets must not use public browser environment variables.
 - Project management defaults to all lifecycle states and offers a URL-restorable Kanban view with
   all lifecycle columns; dragging a card sends the canonical project PATCH and moves the card only
-  when the update succeeds.
+  when the update succeeds. Kanban cards expose no redundant state dropdown.
 
 ## 5. Evidence
 
@@ -158,6 +158,16 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
   do not hardcode purchase invoices as unreviewed.
 - Legacy finalization supports deterministic dry-run, explicit commit and retry idempotency with
   exact record and money controls.
+
+### ERP-859 — Project is the user-facing commercial contract
+
+- Invoice and expense create/edit dialogs load projects from canonical project master data and do
+  not expose a separate contract selector.
+- Selecting a project on a sales invoice derives the linked customer from that project.
+- The project profile presents the single legacy contract's reference, signed date and commercial
+  value as project facts, while keeping approved budget distinct from contract value.
+- Multiple legacy contract rows are surfaced as a data-quality warning instead of being silently
+  treated as one contract.
 
 Each task evidence folder records:
 

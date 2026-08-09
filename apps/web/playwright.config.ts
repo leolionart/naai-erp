@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 3000;
+const port = Number(process.env.PLAYWRIGHT_PORT ?? "3000");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -28,12 +28,14 @@ export default defineConfig({
       use: { ...devices["Pixel 7"] },
     },
   ],
-  webServer: {
-    command: `pnpm dev --hostname 127.0.0.1 --port ${port}`,
-    url: `http://127.0.0.1:${port}/health`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
+    ? undefined
+    : {
+        command: `pnpm dev --hostname 127.0.0.1 --port ${port}`,
+        url: `http://127.0.0.1:${port}/health`,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        stdout: "pipe",
+        stderr: "pipe",
+      },
 });

@@ -71,33 +71,26 @@ function canonicalRelationshipDimensions(
   base: Row | undefined,
   common: Record<string, unknown>,
   projectId: string,
-  contractId: string,
 ) {
   const dimensions: Record<string, unknown> = { ...(base ?? {}), ...common };
   delete dimensions.project;
   delete dimensions.contract;
+  delete dimensions.contractId;
+  delete dimensions.contract_id;
   if (projectId) dimensions.projectId = projectId;
   else delete dimensions.projectId;
-  if (contractId) dimensions.contractId = contractId;
-  else delete dimensions.contractId;
   return dimensions;
 }
 
 function RelationshipFields({
   projects,
-  contracts,
   projectId,
-  contractId,
   onProjectChange,
-  onContractChange,
   projectRequired,
 }: {
   projects: readonly Row[];
-  contracts: readonly Row[];
   projectId: string;
-  contractId: string;
   onProjectChange(value: string): void;
-  onContractChange(value: string): void;
   projectRequired?: boolean;
 }) {
   return (
@@ -127,28 +120,6 @@ function RelationshipFields({
         {projectRequired && projects.length === 0 ? (
           <FieldError>Khách hàng này chưa có dự án để liên kết.</FieldError>
         ) : null}
-      </Field>
-      <Field>
-        <FieldLabel>Hợp đồng thuộc dự án</FieldLabel>
-        <Select
-          value={contractId || "__none__"}
-          onValueChange={(value) => onContractChange(value === "__none__" ? "" : value)}
-          disabled={!projectId}
-        >
-          <SelectTrigger aria-label="Hợp đồng">
-            <SelectValue placeholder={projectId ? "Chọn hợp đồng" : "Chọn dự án trước"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="__none__">-- Không chọn hợp đồng --</SelectItem>
-              {contracts.map((contract) => (
-                <SelectItem key={relationId(contract, "id")} value={relationId(contract, "id")}>
-                  {optionName(contract)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
       </Field>
     </>
   );
@@ -433,7 +404,6 @@ export function DocumentForm({
   initial,
   parties = [],
   projects = [],
-  contracts = [],
   submitLabel = "Lưu hóa đơn nháp",
 }: {
   busy: boolean;
@@ -441,7 +411,6 @@ export function DocumentForm({
   initial?: Row;
   parties?: readonly Row[];
   projects?: readonly Row[];
-  contracts?: readonly Row[];
   submitLabel?: string;
 }) {
   const initialLine = Array.isArray(initial?.lines)
@@ -465,7 +434,6 @@ export function DocumentForm({
     String(field(initial, "partyId", "party_id") ?? parties[0]?.id ?? ""),
   );
   const [projectId, setProjectId] = useState(String(initialDims.projectId ?? ""));
-  const [contractId, setContractId] = useState(String(initialDims.contractId ?? ""));
   const [documentDate, setDocumentDate] = useState(
     String(
       field(initial, "documentDate", "document_date") ?? new Date().toISOString().slice(0, 10),
@@ -482,14 +450,7 @@ export function DocumentForm({
   const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
   const isPurchase = type === "purchase_invoice";
   const activeCategories = isPurchase ? INBOUND_CATEGORIES : OUTBOUND_CATEGORIES;
-  const availableProjects = isPurchase
-    ? projects
-    : projects.filter(
-        (project) => relationId(project, "clientPartyId", "client_party_id") === partyId,
-      );
-  const availableContracts = contracts.filter(
-    (contract) => relationId(contract, "projectId", "project_id") === projectId,
-  );
+  const availableProjects = projects;
 
   const [category, setCategory] = useState(
     String(
@@ -567,21 +528,18 @@ export function DocumentForm({
       );
       if (!projectStillMatches) {
         setProjectId("");
-        setContractId("");
       }
     }
   }
 
   function handleProjectChange(value: string) {
     setProjectId(value);
-    if (
-      !contracts.some(
-        (contract) =>
-          relationId(contract, "id") === contractId &&
-          relationId(contract, "projectId", "project_id") === value,
-      )
-    ) {
-      setContractId("");
+    if (!isPurchase && value) {
+      const project = projects.find((candidate) => relationId(candidate, "id") === value);
+      const projectCustomerId = project
+        ? relationId(project, "clientPartyId", "client_party_id")
+        : "";
+      if (projectCustomerId) setPartyId(projectCustomerId);
     }
   }
 
@@ -602,7 +560,6 @@ export function DocumentForm({
       initialDims,
       { category },
       projectId,
-      contractId,
     );
     const payload: Row = {
       type,
@@ -641,7 +598,6 @@ export function DocumentForm({
                   allocation.dimensions as Row | undefined,
                   allocationDimensions,
                   projectId,
-                  contractId,
                 ),
               }))
             : [
@@ -725,7 +681,7 @@ export function DocumentForm({
             />
           ) : (
             <Select value={partyId} onValueChange={handlePartyChange}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Khách hàng">
                 <SelectValue>
                   {(() => {
                     const match = parties.find((p) => String(p.id) === partyId);
@@ -754,11 +710,8 @@ export function DocumentForm({
         </Field>
         <RelationshipFields
           projects={availableProjects}
-          contracts={availableContracts}
           projectId={projectId}
-          contractId={contractId}
           onProjectChange={handleProjectChange}
-          onContractChange={setContractId}
           projectRequired={!isPurchase}
         />
         <TextField
@@ -913,7 +866,6 @@ export function ExpenseForm({
   payees = parties,
   employees = [],
   projects = [],
-  contracts = [],
   submitLabel = "Lưu chi phí nháp",
 }: {
   busy: boolean;
@@ -923,7 +875,6 @@ export function ExpenseForm({
   payees?: readonly Row[];
   employees?: readonly Row[];
   projects?: readonly Row[];
-  contracts?: readonly Row[];
   submitLabel?: string;
 }) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
@@ -950,11 +901,7 @@ export function ExpenseForm({
     String(field(initial, "employeePartyId", "employee_party_id") ?? ""),
   );
   const [projectId, setProjectId] = useState(String(initialDims.projectId ?? ""));
-  const [contractId, setContractId] = useState(String(initialDims.contractId ?? ""));
   const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
-  const availableContracts = contracts.filter(
-    (contract) => relationId(contract, "projectId", "project_id") === projectId,
-  );
   const [expenseDate, setExpenseDate] = useState(
     String(field(initial, "expenseDate", "expense_date") ?? new Date().toISOString().slice(0, 10)),
   );
@@ -1050,7 +997,6 @@ export function ExpenseForm({
       initialDims,
       { category, fundingSource: counterAccountCode },
       projectId,
-      contractId,
     );
     const payload: Row = {
       expenseClass,
@@ -1084,7 +1030,6 @@ export function ExpenseForm({
                   allocation.dimensions as Row | undefined,
                   allocationDimensions,
                   projectId,
-                  contractId,
                 ),
               }))
             : [
@@ -1128,22 +1073,8 @@ export function ExpenseForm({
         </Field>
         <RelationshipFields
           projects={projects}
-          contracts={availableContracts}
           projectId={projectId}
-          contractId={contractId}
-          onProjectChange={(value) => {
-            setProjectId(value);
-            if (
-              !contracts.some(
-                (contract) =>
-                  relationId(contract, "id") === contractId &&
-                  relationId(contract, "projectId", "project_id") === value,
-              )
-            ) {
-              setContractId("");
-            }
-          }}
-          onContractChange={setContractId}
+          onProjectChange={setProjectId}
         />
         <Field>
           <FieldLabel>Danh mục nghiệp vụ / Dịch vụ</FieldLabel>

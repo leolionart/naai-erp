@@ -77,11 +77,53 @@ test("@desktop project profile embeds invoice, budget and cost workspaces", asyn
       ),
     });
   });
+  await page.route("**/api/v1/organizations/naai/master-data/contracts?limit=200", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        envelope({
+          items: [
+            {
+              id: "contract-website-a",
+              project_id: "website-a",
+              reference: "NAAI/2026/WEB-A",
+              signed_on: "2026-07-25",
+              value_minor: "300000000",
+              currency: "VND",
+            },
+          ],
+        }),
+      ),
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/master-data/milestones?limit=500", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        envelope({
+          items: [
+            {
+              id: "milestone-website-a",
+              contract_id: "contract-website-a",
+              name: "Nghiệm thu giao diện",
+              due_on: "2026-09-15",
+              amount_minor: "120000000",
+            },
+          ],
+        }),
+      ),
+    }),
+  );
 
   await page.goto("http://localhost:3000/projects/website-a");
   await expect(page.getByText("Website khách hàng A", { exact: true })).toBeVisible();
   await expect(page.getByText("250.000.000 ₫", { exact: true })).toBeVisible();
   await expect(page.getByText("client-a", { exact: true })).toBeVisible();
+  await expect(page.getByText("NAAI/2026/WEB-A", { exact: true })).toBeVisible();
+  await expect(page.getByText("300.000.000 ₫", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tiến độ & mốc bàn giao", { exact: true })).toBeVisible();
+  await expect(page.getByText("Nghiệm thu giao diện", { exact: true })).toBeVisible();
+  await expect(page.getByText("Hợp đồng & Mốc thực hiện", { exact: true })).toHaveCount(0);
   await expect(
     page.getByText("1. Hóa đơn Dự án (Bán ra & Mua vào)", { exact: true }),
   ).toBeVisible();
@@ -303,8 +345,13 @@ test("@desktop project Kanban moves a project between lifecycle columns", async 
   await expect(page.getByTestId("project-kanban-column-completed")).toContainText("Dự án đang làm");
 
   rejectNextUpdate = true;
-  await page.getByLabel("Chuyển trạng thái Dự án đã xong").click();
-  await page.getByRole("option", { name: "Đang triển khai" }).click();
+  const rejectedTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await page
+    .getByTestId("project-kanban-card-project-completed")
+    .dispatchEvent("dragstart", { dataTransfer: rejectedTransfer });
+  await page
+    .getByTestId("project-kanban-column-active")
+    .dispatchEvent("drop", { dataTransfer: rejectedTransfer });
   await expect(page.getByTestId("project-kanban-column-completed")).toContainText("Dự án đã xong");
   await expect(page.getByText("Không thể cập nhật dự án")).toBeVisible();
 });

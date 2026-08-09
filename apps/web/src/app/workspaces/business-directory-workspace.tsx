@@ -415,26 +415,6 @@ function ProjectKanban({
                         ) : null}
                       </CardHeader>
                       <CardContent className="pt-0">
-                        <div className="mb-2">
-                          <Select
-                            value={value(project, "state")}
-                            onValueChange={(nextState) => void onStateChange(project, nextState)}
-                            disabled={Boolean(updatingProjectId)}
-                          >
-                            <SelectTrigger aria-label={`Chuyển trạng thái ${title}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {PROJECT_STATES.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        </div>
                         <Button asChild size="sm" variant="outline" className="w-full">
                           <Link href={`/projects/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
                         </Button>
@@ -631,6 +611,7 @@ export function BusinessRecordWorkspace({
   const clientName = clientParty
     ? String(clientParty.display_name || clientParty.name || value(record, "client_party_id"))
     : value(record, "client_party_id");
+  const primaryContract = projectContracts.length === 1 ? projectContracts[0] : undefined;
 
   async function deleteProject() {
     if (customer || !deleteReason.trim()) return;
@@ -701,6 +682,25 @@ export function BusinessRecordWorkspace({
               <Fact label="Khách hàng" value={clientName} />
               <Fact label="Loại hợp đồng" value={value(record, "contract_type")} />
               <Fact
+                label="Số hợp đồng"
+                value={primaryContract ? value(primaryContract, "reference") : "Chưa cập nhật"}
+              />
+              <Fact
+                label="Ngày ký"
+                value={primaryContract ? dateOnly(value(primaryContract, "signed_on")) : "—"}
+              />
+              <Fact
+                label="Giá trị hợp đồng"
+                value={
+                  primaryContract
+                    ? money(
+                        value(primaryContract, "value_minor"),
+                        value(primaryContract, "currency"),
+                      )
+                    : "—"
+                }
+              />
+              <Fact
                 label="Mảng dịch vụ"
                 value={value(record, "default_service_line_code") || "Chưa phân loại"}
               />
@@ -735,7 +735,7 @@ export function BusinessRecordWorkspace({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">1. Danh sách Dự án của Khách hàng</CardTitle>
               <CardDescription className="text-xs">
-                Tất cả các dự án / hợp đồng dịch vụ đã ký kết với khách hàng {projectName}.
+                Tất cả các dự án dịch vụ đã ký kết với khách hàng {projectName}.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -817,49 +817,48 @@ export function BusinessRecordWorkspace({
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Hợp đồng & Mốc thực hiện</CardTitle>
+              <CardTitle className="text-lg">Tiến độ & mốc bàn giao</CardTitle>
               <CardDescription className="text-xs">
-                Giá trị hợp đồng và các mốc bàn giao dùng cho backlog, nghiệm thu và ghi nhận doanh
-                thu.
+                Dự án đại diện cho hợp đồng thương mại; các mốc dùng cho backlog, nghiệm thu và ghi
+                nhận doanh thu.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {projectContracts.length ? (
-                projectContracts.map((contract) => (
-                  <div key={value(contract, "id")} className="rounded-lg border p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">{value(contract, "reference")}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Ký ngày {dateOnly(value(contract, "signed_on"))}
-                        </p>
-                      </div>
-                      <strong>
-                        {money(value(contract, "value_minor"), value(contract, "currency"))}
-                      </strong>
+              {projectContracts.length > 1 ? (
+                <Alert variant="destructive">
+                  <AlertTitle>Dữ liệu hợp đồng cần hợp nhất</AlertTitle>
+                  <AlertDescription>
+                    Dự án đang có {projectContracts.length} bản ghi hợp đồng cũ. Hãy hợp nhất về một
+                    bản ghi trước khi dùng giá trị thương mại để quản trị.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {projectMilestones.length ? (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {projectMilestones.map((milestone) => (
+                    <div
+                      key={value(milestone, "id")}
+                      className="rounded-md bg-muted/30 p-3 text-sm"
+                    >
+                      <p className="font-medium">{value(milestone, "name")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Hạn {dateOnly(value(milestone, "due_on"))} ·{" "}
+                        {money(
+                          value(milestone, "amount_minor"),
+                          primaryContract
+                            ? value(primaryContract, "currency")
+                            : value(record, "currency"),
+                        )}
+                      </p>
                     </div>
-                    <div className="mt-3 grid gap-2 md:grid-cols-2">
-                      {projectMilestones
-                        .filter(
-                          (milestone) => value(milestone, "contract_id") === value(contract, "id"),
-                        )
-                        .map((milestone) => (
-                          <div
-                            key={value(milestone, "id")}
-                            className="rounded-md bg-muted/30 p-3 text-sm"
-                          >
-                            <p className="font-medium">{value(milestone, "name")}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Hạn {dateOnly(value(milestone, "due_on"))} ·{" "}
-                              {money(value(milestone, "amount_minor"), value(contract, "currency"))}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Chưa có hợp đồng liên kết.</p>
+                <p className="text-sm text-muted-foreground">
+                  {projectContracts.length
+                    ? "Chưa cập nhật mốc thực hiện cho dự án."
+                    : "Chưa cập nhật thông tin hợp đồng và mốc thực hiện cho dự án."}
+                </p>
               )}
             </CardContent>
           </Card>

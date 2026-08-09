@@ -1576,6 +1576,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/expense-category-policies.spec.ts --project=desktop-chromium
     blocking_gate: G23
 
+  - id: T-E2E-ERP-859-001
+    task: ERP-859
+    rules: [BR-REV-001, BR-EXP-002, BR-PRJ-001, BR-UI-003]
+    title: Invoice and expense dialogs use the canonical project list, derive the sales customer and expose no duplicate contract selector
+    layer: e2e
+    command: PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts e2e/business-directory.spec.ts --project=desktop-chromium --grep "relationship-aware|project profile"
+    blocking_gate: G24
+
+  - id: T-E2E-ERP-860-001
+    task: ERP-860
+    rules: [BR-PRJ-001, BR-PRJ-002, BR-UI-003]
+    title: Project Kanban changes lifecycle only by drag-and-drop and restores the prior column when PATCH fails
+    layer: e2e
+    command: PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --grep "project Kanban"
+    blocking_gate: G25
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
