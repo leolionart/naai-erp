@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-09T17:05:00+07:00
+updated_at: 2026-08-09T17:20:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: in_progress
 development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G29
+current_gate: G31
 current_task: null
 
 tasks:
@@ -1620,6 +1620,22 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-865/
 
+  - id: ERP-866
+    title: Restore production environment login configuration
+    phase: P12
+    status: done
+    dependencies: [ERP-862, ERP-864]
+    business_rules: [BR-SEC-001, BR-SEC-002, BR-OPS-001]
+    tests: []
+    evidence: docs/implementation/evidence/ERP-866/
+    agent: codex-root
+    started_at: 2026-08-09T17:12:00+07:00
+    completed_at: 2026-08-09T17:20:00+07:00
+    planned_files:
+      - compose.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-866/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1652,6 +1668,7 @@ gates:
   G28: [ERP-863]
   G29: [ERP-864]
   G30: [ERP-865]
+  G31: [ERP-866]
 
 gate_status:
   G0: done
@@ -1685,3 +1702,4 @@ gate_status:
   G28: done
   G29: done
   G30: done
+  G31: done

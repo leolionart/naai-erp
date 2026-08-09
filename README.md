@@ -83,13 +83,36 @@ Repository chính thức: <https://github.com/leolionart/naai-erp>
 
 Yêu cầu: Docker Engine có Compose v2 và quyền pull image từ `ghcr.io/leolionart` nếu package không công khai.
 
-### 1. Tạo cấu hình triển khai
+Không cần clone source code để chạy bản phát hành. Máy chủ chỉ cần hai file trong cùng một thư mục:
 
-```bash
-cp deploy/env/.env.example .env.production
+```text
+naai-erp/
+├── compose.yaml
+└── .env.production
 ```
 
-Cập nhật ít nhất các giá trị sau trong `.env.production`:
+### 1. Tải file Compose và mẫu cấu hình
+
+```bash
+mkdir -p naai-erp && cd naai-erp
+
+# Thay giá trị này bằng Git tag hoặc full commit SHA đã phát hành.
+export NAAI_ERP_REF="FULL_GIT_SHA_OR_TAG"
+
+curl -fsSL \
+  "https://raw.githubusercontent.com/leolionart/naai-erp/${NAAI_ERP_REF}/compose.yaml" \
+  -o compose.yaml
+
+curl -fsSL \
+  "https://raw.githubusercontent.com/leolionart/naai-erp/${NAAI_ERP_REF}/deploy/env/.env.example" \
+  -o .env.production
+```
+
+Không nên dùng `main` làm `NAAI_ERP_REF` cho production vì nội dung Compose có thể thay đổi. Git ref của `compose.yaml` nên tương ứng với release chứa image được chọn trong `IMAGE_TAG`.
+
+### 2. Điền `.env.production`
+
+Mở `.env.production` bằng trình soạn thảo trên máy chủ và cập nhật ít nhất các giá trị sau:
 
 ```dotenv
 POSTGRES_PASSWORD=<mat-khau-postgres-manh>
@@ -107,7 +130,14 @@ IMAGE_TAG=sha-<12-ky-tu-dau-cua-commit>
 
 Không commit file `.env.production`. Bốn service `migrate`, `api`, `worker`, `web` phải dùng cùng một `IMAGE_TAG`; môi trường production nên dùng tag bất biến `sha-*` thay vì `main` hoặc `latest`.
 
-### 2. Pull image và khởi động
+Kiểm tra Compose đã đọc đúng file cấu hình trước khi chạy:
+
+```bash
+docker compose --env-file .env.production config --quiet
+docker compose --env-file .env.production config --images
+```
+
+### 3. Pull image và khởi động
 
 ```bash
 docker compose --env-file .env.production pull
@@ -116,7 +146,7 @@ docker compose --env-file .env.production up -d --wait
 
 Compose sẽ khởi động PostgreSQL, chạy migration một lần, sau đó mới bật API, worker và web theo healthcheck.
 
-### 3. Kiểm tra trạng thái
+### 4. Kiểm tra trạng thái
 
 ```bash
 docker compose --env-file .env.production ps -a
@@ -134,6 +164,13 @@ Mặc định:
 
 <details>
 <summary><strong>Build image trực tiếp từ source</strong></summary>
+
+Chỉ quy trình này mới cần clone repository vì Docker phải đọc source code và các Dockerfile:
+
+```bash
+git clone https://github.com/leolionart/naai-erp.git
+cd naai-erp
+```
 
 ```bash
 POSTGRES_PASSWORD=local-only docker compose \
