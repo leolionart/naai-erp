@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { selectReleaseImages } from "./select-release-images.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const manifestPath = resolve(root, "scripts/release-images.json");
@@ -46,6 +47,27 @@ for (const image of manifest.images) {
 }
 assert.deepEqual(actualNames, new Set(expectedImages.keys()), "release image set is incomplete");
 
+assert.deepEqual(
+  selectReleaseImages(manifest, { web: true }).include.map((image) => image.name),
+  ["naai-erp-web"],
+  "web-only changes must publish only the web image",
+);
+assert.deepEqual(
+  selectReleaseImages(manifest, { migrate: true }).include.map((image) => image.name),
+  ["naai-erp-migrate"],
+  "database-only changes must publish only the migrate image",
+);
+assert.equal(
+  selectReleaseImages(manifest, {}).include.length,
+  0,
+  "non-runtime changes must produce an empty image matrix",
+);
+assert.equal(
+  selectReleaseImages(manifest, { manifest: true }).include.length,
+  4,
+  "release manifest or Docker topology changes must publish every image",
+);
+
 const requiredWorkflowPatterns = [
   [/push:\s*\n\s*branches:\s*\[main\]/, "workflow must run on main pushes"],
   [/paths:\s*\n(?:\s*-\s*"[^"]+"\s*\n)+/, "workflow must filter release-relevant paths"],
@@ -58,6 +80,26 @@ const requiredWorkflowPatterns = [
     /"docs\/api\/openapi-v1\.json"/,
     "the OpenAPI artifact copied into the API image must trigger publication",
   ],
+  [/uses:\s*dorny\/paths-filter@v3/, "release must detect affected images before publishing"],
+  [/node scripts\/select-release-images\.mjs/, "dynamic matrix must use the tested selector"],
+  [/id:\s*changes/, "affected-image detection must expose stable outputs"],
+  [
+    /API_CHANGED:\s*\$\{\{\s*steps\.changes\.outputs\.api\s*\}\}/,
+    "API changes must feed the dynamic matrix",
+  ],
+  [
+    /WEB_CHANGED:\s*\$\{\{\s*steps\.changes\.outputs\.web\s*\}\}/,
+    "web changes must feed the dynamic matrix",
+  ],
+  [
+    /WORKER_CHANGED:\s*\$\{\{\s*steps\.changes\.outputs\.worker\s*\}\}/,
+    "worker changes must feed the dynamic matrix",
+  ],
+  [
+    /MIGRATE_CHANGED:\s*\$\{\{\s*steps\.changes\.outputs\.migrate\s*\}\}/,
+    "migration changes must feed the dynamic matrix",
+  ],
+  [/if:\s*needs\.checks\.outputs\.has_images == 'true'/, "publish must skip an empty image matrix"],
   [/packages:\s*write/, "workflow must be allowed to publish packages"],
   [/node scripts\/verify-release-workflow\.mjs/, "release must verify its image contract"],
   [/node scripts\/verify-compose\.mjs/, "release must validate the Compose packaging contract"],

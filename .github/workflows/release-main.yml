@@ -33,8 +33,54 @@ jobs:
     outputs:
       matrix: ${{ steps.release.outputs.matrix }}
       short_sha: ${{ steps.release.outputs.short_sha }}
+      has_images: ${{ steps.release.outputs.has_images }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Detect affected images
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'apps/api/**'
+              - 'packages/contracts/**'
+              - 'packages/domain/**'
+              - 'docker/Dockerfile.api'
+              - 'docs/api/openapi-v1.json'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'tsconfig*.json'
+            web:
+              - 'apps/web/**'
+              - 'packages/contracts/**'
+              - 'docker/Dockerfile.web'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'tsconfig*.json'
+            worker:
+              - 'apps/worker/**'
+              - 'docker/Dockerfile.worker'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'tsconfig*.json'
+            migrate:
+              - 'packages/database/**'
+              - 'db/migrations/**'
+              - 'docker/Dockerfile.migrate'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig*.json'
+            manifest:
+              - 'scripts/release-images.json'
       - name: Verify release and Compose contracts
         run: |
           node scripts/verify-release-workflow.mjs
@@ -42,13 +88,21 @@ jobs:
       - name: Prepare release matrix
         id: release
         shell: bash
+        env:
+          API_CHANGED: ${{ steps.changes.outputs.api }}
+          WEB_CHANGED: ${{ steps.changes.outputs.web }}
+          WORKER_CHANGED: ${{ steps.changes.outputs.worker }}
+          MIGRATE_CHANGED: ${{ steps.changes.outputs.migrate }}
+          MANIFEST_CHANGED: ${{ steps.changes.outputs.manifest }}
         run: |
-          echo "matrix=$(node -e "const m=require('./scripts/release-images.json'); process.stdout.write(JSON.stringify({include:m.images}))")" >> "$GITHUB_OUTPUT"
+          echo "matrix=$(RELEASE_MANIFEST="$(cat scripts/release-images.json)" node scripts/select-release-images.mjs)" >> "$GITHUB_OUTPUT"
+          if [[ "$MANIFEST_CHANGED" == "true" || "$API_CHANGED" == "true" || "$WEB_CHANGED" == "true" || "$WORKER_CHANGED" == "true" || "$MIGRATE_CHANGED" == "true" ]]; then echo "has_images=true" >> "$GITHUB_OUTPUT"; else echo "has_images=false" >> "$GITHUB_OUTPUT"; fi
           echo "short_sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
   publish:
     name: Publish ${{ matrix.name }}
     needs: checks
+    if: needs.checks.outputs.has_images == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
