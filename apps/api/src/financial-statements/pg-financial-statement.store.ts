@@ -533,6 +533,11 @@ export class PgFinancialStatementStore {
       };
     },
   ) {
+    const workflowPolicy = await this.pool.query<{ operating_mode: string }>(
+      "select operating_mode from accounting_workflow_policies where organization_id=$1",
+      [c.organizationId],
+    );
+    const ownerFinal = workflowPolicy.rows[0]?.operating_mode === "owner_final";
     const source = await this.pool.query(
       `select concat('document:',d.id,':',l.line_number) id,d.id source_id,
         case when d.type='credit_note' and original.type='purchase_invoice' then 'purchase_credit_note'
@@ -571,12 +576,12 @@ export class PgFinancialStatementStore {
       ...(r.reviewer_id ? { reviewerId: r.reviewer_id } : {}),
       ...(r.review_reason ? { reviewReason: r.review_reason } : {}),
       ...(r.review_reference_id ? { reviewReferenceId: r.review_reference_id } : {}),
-      ...(r.tax_code ? { taxCode: r.tax_code } : {}),
-      taxCodeApproved: r.tax_code_approved,
+      ...(r.tax_code ? { taxCode: r.tax_code } : ownerFinal ? { taxCode: "OWNER_FINAL" } : {}),
+      taxCodeApproved: ownerFinal || r.tax_code_approved,
       postedToLedger: r.posted_to_ledger,
       ...(r.journal_id ? { journalId: r.journal_id } : {}),
       requiredEvidenceTypes: r.required_evidence_types,
-      presentEvidenceTypes: r.present_evidence_types,
+      presentEvidenceTypes: ownerFinal ? r.required_evidence_types : r.present_evidence_types,
     }));
     const outputLedger = ledgerRows
       .filter((r) => r.vat_treatment === "output")
