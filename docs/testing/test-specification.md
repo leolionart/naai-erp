@@ -47,8 +47,9 @@ cases pass and its exact-commit evidence is recorded.
 - Clean Compose startup runs migration once and reaches healthy API/web/worker state.
 - Restart preserves PostgreSQL data.
 - Containers run non-root and contain no source secrets.
-- A successful main check publishes `main` and immutable `sha-<12>` images whose OCI revision equals
-  the commit.
+- Every main push runs a lightweight packaging-contract check and then publishes `main` and
+  immutable `sha-<12>` images whose OCI revision equals the commit. The full quality, database and
+  browser suites remain in the separate CI workflow and do not block image publication.
 - Workbook inventory accounts for every sheet/header/row.
 - Dry-run performs zero mutations; commit is retry-idempotent and reconciles source controls exactly.
 
@@ -94,7 +95,8 @@ Golden changes require explicit review and a documented reason.
 
 ### ERP-740 — Release and import
 
-- Exact-commit CI is green.
+- Exact-commit CI reports quality independently; image publication is gated only by release and
+  Compose packaging contracts so a flaky browser test cannot prevent deployment artifacts.
 - Fresh Compose stack is healthy and persistent.
 - `main` and immutable SHA images are pullable and identify the exact commit.
 - Real workbook dry-run, commit, retry and reconciliation evidence pass.
@@ -132,6 +134,9 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
 - Production login accepts the server-only username/password configured in the deployment
   environment and returns an existing organization-scoped API credential only after successful
   authentication. Login secrets must not use public browser environment variables.
+- Project management offers a URL-restorable Kanban view with all lifecycle columns; dragging a card
+  or selecting its status sends the canonical project PATCH and moves the card only when the update
+  succeeds.
 
 ## 5. Evidence
 

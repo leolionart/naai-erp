@@ -5,7 +5,6 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const manifestPath = resolve(root, "scripts/release-images.json");
 const workflowPath = resolve(root, ".github/workflows/release-main.yml");
-const ciWorkflowPath = resolve(root, ".github/workflows/ci.yml");
 const apiDockerfilePath = resolve(root, "docker/Dockerfile.api");
 const expectedImages = new Map([
   ["naai-erp-api", "docker/Dockerfile.api"],
@@ -16,7 +15,6 @@ const expectedImages = new Map([
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const workflow = await readFile(workflowPath, "utf8");
-const ciWorkflow = await readFile(ciWorkflowPath, "utf8");
 const apiDockerfile = await readFile(apiDockerfilePath, "utf8");
 
 assert.equal(manifest.registry, "ghcr.io", "release registry must be GHCR");
@@ -51,11 +49,8 @@ assert.deepEqual(actualNames, new Set(expectedImages.keys()), "release image set
 const requiredWorkflowPatterns = [
   [/push:\s*\n\s*branches:\s*\[main\]/, "workflow must run on main pushes"],
   [/packages:\s*write/, "workflow must be allowed to publish packages"],
-  [/run:\s*pnpm check/, "release must run the repository quality gate"],
-  [/run:\s*pnpm db:check/, "release must check database metadata"],
-  [/run:\s*pnpm db:migrate/, "release must test migrations"],
-  [/RUN_DB_INTEGRATION:\s*["']1["']/, "release must run database integration tests"],
-  [/run:\s*pnpm test:e2e/, "release must run browser end-to-end tests"],
+  [/node scripts\/verify-release-workflow\.mjs/, "release must verify its image contract"],
+  [/node scripts\/verify-compose\.mjs/, "release must validate the Compose packaging contract"],
   [/needs:\s*checks/, "image publication must depend on checks"],
   [/uses:\s*docker\/login-action@v3/, "workflow must authenticate to GHCR"],
   [/uses:\s*docker\/build-push-action@v6/, "workflow must use Buildx image publication"],
@@ -89,19 +84,12 @@ assert.match(
   "build matrix must come from the verified release manifest",
 );
 assert.doesNotMatch(workflow, /nclamvn/i, "workflow must not publish to the obsolete namespace");
-
-for (const [name, dockerfile] of expectedImages) {
-  assert.match(ciWorkflow, new RegExp(`name:\\s*${name}`), `CI must build ${name}`);
-  assert.match(
-    ciWorkflow,
-    new RegExp(`dockerfile:\\s*${dockerfile.replaceAll("/", "\\/")}`),
-    `CI must use ${dockerfile}`,
-  );
-}
-assert.match(
-  ciWorkflow,
-  /uses:\s*docker\/build-push-action@v6/,
-  "CI must build images with Buildx",
+assert.doesNotMatch(workflow, /pnpm check/, "release must not duplicate the full CI quality gate");
+assert.doesNotMatch(workflow, /test:e2e/, "release must not duplicate browser E2E tests");
+assert.doesNotMatch(
+  workflow,
+  /RUN_DB_INTEGRATION/,
+  "release must not duplicate DB integration tests",
 );
 assert.match(
   apiDockerfile,

@@ -1,5 +1,9 @@
 # ERP-740 Tests
 
+- 2026-08-09 release regression: verified the image workflow no longer duplicates `pnpm check`,
+  PostgreSQL integration or Playwright E2E; it still validates the four-image manifest, Compose
+  contract, multi-architecture publication, immutable SHA tags, OCI provenance and SBOM.
+
 - Compose contract passed.
 - Four local images built non-root; persistence sentinel survived stack recreation.
 - Release workflow verifier and `actionlint` passed.
