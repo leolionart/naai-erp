@@ -19,7 +19,7 @@ RUN pnpm --filter @naai-erp/contracts build \
  && pnpm --filter @naai-erp/domain build \
  && pnpm --filter @naai-erp/api build \
  && pnpm --filter @naai-erp/api deploy --prod --legacy /out/api \
- && node -e "for (const name of ['contracts','domain']) { const file='/out/api/node_modules/@naai-erp/'+name+'/package.json'; const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync(file)); pkg.exports='./dist/index.js'; fs.writeFileSync(file, JSON.stringify(pkg,null,2)+'\n'); }"
+ && node -e "for (const name of ['contracts','domain']) { const file='/out/api/node_modules/@naai-erp/'+name+'/package.json'; const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync(file)); pkg.exports=name==='contracts'?{'.':'./dist/index.js','./session-cookie':'./dist/session-cookie.js'}:'./dist/index.js'; fs.writeFileSync(file, JSON.stringify(pkg,null,2)+'\n'); }"
 
 FROM node:22.21.1-bookworm-slim AS runtime
 ARG VCS_REF=unknown
