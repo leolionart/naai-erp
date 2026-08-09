@@ -339,9 +339,19 @@ export function FocusedRecordListWorkspace({
       }
       const categoryId = sourceParams.get("categoryId");
       if (categoryId) {
-        rawItems = rawItems.filter(
-          (row) => String(row.categoryId ?? row.category_id ?? "").trim() === categoryId.trim(),
-        );
+        rawItems = rawItems.filter((row) => {
+          if (Array.isArray(row.lines)) {
+            return (row.lines as Row[]).some((l) => {
+              const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
+              return (
+                String(
+                  l.expenseCategoryCode ?? l.expense_category_code ?? dims.category ?? "",
+                ).trim() === categoryId.trim()
+              );
+            });
+          }
+          return false;
+        });
       }
       rawItems.sort((left, right) =>
         text(right, "documentDate", "expenseDate", "effectiveOn", "createdAt").localeCompare(
@@ -1082,22 +1092,6 @@ function FilterPopover({
                       </Select>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="filter-party">Party ID</FieldLabel>
-                      <Input
-                        id="filter-party"
-                        name="partyId"
-                        defaultValue={params.get("partyId") ?? ""}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="filter-project">Dự án ID</FieldLabel>
-                      <Input
-                        id="filter-project"
-                        name="projectId"
-                        defaultValue={params.get("projectId") ?? ""}
-                      />
-                    </Field>
-                    <Field>
                       <FieldLabel>Nghiệp vụ</FieldLabel>
                       <Select name="categoryId" defaultValue={params.get("categoryId") ?? "all"}>
                         <SelectTrigger>
@@ -1137,14 +1131,6 @@ function FilterPopover({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="filter-payee">Payee ID</FieldLabel>
-                  <Input
-                    id="filter-payee"
-                    name="payeePartyId"
-                    defaultValue={params.get("payeePartyId") ?? ""}
-                  />
                 </Field>
                 <Field>
                   <FieldLabel>Nghiệp vụ</FieldLabel>
