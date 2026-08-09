@@ -235,7 +235,7 @@ function periodRange(anchorMonth: string, kind: PeriodKind) {
   return { label: anchorMonth, startsOn: `${anchorMonth}-01`, endsOn: monthEnd(anchorMonth) };
 }
 
-function resolvedDashboardSearch(
+export function resolvedDashboardSearch(
   input: URLSearchParams,
   sourceControls?: OperatingDashboardWire["sourceControls"],
 ) {
@@ -281,11 +281,12 @@ function resolvedDashboardSearch(
   }
 
   // Resolve asOfDate: check asOfDate, then asOfInstant (set by PeriodRangeNavigator),
-  // fallback to endsOn. Ensure asOf >= endsOn so the backend doesn't reject the request.
+  // fallback to endsOn. An explicit cutoff may be earlier than the selected period end;
+  // individual report queries clamp their end date to that cutoff.
   const rawAsOfInstant = search.get("asOfInstant");
   const asOfFromInstant = rawAsOfInstant ? rawAsOfInstant.slice(0, 10) : undefined;
   let asOfDate = search.get("asOfDate") ?? asOfFromInstant ?? endsOn;
-  if (!ISO_DATE.test(asOfDate) || asOfDate < endsOn) asOfDate = endsOn;
+  if (!ISO_DATE.test(asOfDate)) asOfDate = endsOn;
   const today = new Date().toISOString().slice(0, 10);
   // Never send a future asOf — clamp to today
   if (asOfDate > today) asOfDate = today;
@@ -297,7 +298,7 @@ function resolvedDashboardSearch(
   return search;
 }
 
-function reportQuery(search: URLSearchParams) {
+export function reportQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
   const startsOn = search.get("startsOn") ?? "2025-01-01";
   const endsOn = effectiveEndsOn(search);
@@ -312,7 +313,7 @@ function reportQuery(search: URLSearchParams) {
   return query;
 }
 
-function effectiveEndsOn(search: URLSearchParams) {
+export function effectiveEndsOn(search: URLSearchParams) {
   const endsOn = search.get("endsOn") ?? "2025-12-31";
   const asOfDate = search.get("asOfDate") ?? endsOn;
   return endsOn > asOfDate ? asOfDate : endsOn;
@@ -332,7 +333,7 @@ function performanceQuery(search: URLSearchParams) {
   return query;
 }
 
-function actualSummaryQuery(search: URLSearchParams) {
+export function actualSummaryQuery(search: URLSearchParams) {
   const query = new URLSearchParams({
     actualBasis: search.get("actualBasis") ?? "invoiced",
     from: search.get("startsOn") ?? "2025-01-01",
@@ -345,7 +346,7 @@ function actualSummaryQuery(search: URLSearchParams) {
   return query;
 }
 
-function projectQuery(search: URLSearchParams) {
+export function projectQuery(search: URLSearchParams) {
   const query = new URLSearchParams();
   const startsOn = search.get("startsOn") ?? "2025-01-01";
   const endsOn = effectiveEndsOn(search);
