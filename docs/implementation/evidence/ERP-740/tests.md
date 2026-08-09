@@ -5,6 +5,8 @@
   contract, multi-architecture publication, immutable SHA tags, OCI provenance and SBOM.
 - Verified `.github/workflows/ci.yml` no longer runs `quality` on a direct `main` push; CI remains
   available for pull requests and explicit manual dispatch.
+- Verified the release contract requires `latest`, `main` and immutable SHA tags, while the remote
+  Compose contract resolves all four application images to `latest` by default.
 
 - Compose contract passed.
 - Four local images built non-root; persistence sentinel survived stack recreation.

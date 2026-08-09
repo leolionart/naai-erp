@@ -42,10 +42,10 @@ for (const name of ["postgres", "migrate", "api", "worker", "web"]) {
 }
 
 const expectedRemoteImages = {
-  migrate: "ghcr.io/leolionart/naai-erp-migrate:main",
-  api: "ghcr.io/leolionart/naai-erp-api:main",
-  worker: "ghcr.io/leolionart/naai-erp-worker:main",
-  web: "ghcr.io/leolionart/naai-erp-web:main",
+  migrate: "ghcr.io/leolionart/naai-erp-migrate:latest",
+  api: "ghcr.io/leolionart/naai-erp-api:latest",
+  worker: "ghcr.io/leolionart/naai-erp-worker:latest",
+  web: "ghcr.io/leolionart/naai-erp-web:latest",
 };
 for (const [name, image] of Object.entries(expectedRemoteImages)) {
   if (remoteRendered.services?.[name]?.image !== image) {

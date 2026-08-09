@@ -62,6 +62,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
+            ghcr.io/leolionart/${{ matrix.name }}:latest
             ghcr.io/leolionart/${{ matrix.name }}:main
             ghcr.io/leolionart/${{ matrix.name }}:sha-${{ needs.checks.outputs.short_sha }}
           labels: |

@@ -56,6 +56,7 @@ const requiredWorkflowPatterns = [
   [/uses:\s*docker\/build-push-action@v6/, "workflow must use Buildx image publication"],
   [/platforms:\s*linux\/amd64,linux\/arm64/, "release must publish amd64 and arm64 images"],
   [/push:\s*true/, "workflow must push built images"],
+  [/\$\{\{\s*matrix\.name\s*\}\}:latest/, "release must publish the Watchtower latest tag"],
   [/sha-\$\{\{\s*needs\.checks\.outputs\.short_sha\s*\}\}/, "immutable tags must use sha-<12>"],
   [
     /org\.opencontainers\.image\.revision=\$\{\{\s*github\.sha\s*\}\}/,
