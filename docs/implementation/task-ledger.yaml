@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-09T16:18:00+07:00
+updated_at: 2026-08-09T17:05:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: in_progress
 development_completed_at: 2026-08-07T20:49:00+07:00
@@ -8,7 +8,7 @@ project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
 current_gate: G29
-current_task: ERP-864
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -1574,14 +1574,14 @@ tasks:
   - id: ERP-863
     title: Discard provisional inferred 2024 payroll drafts
     phase: P12
-    status: blocked
+    status: done
     dependencies: [ERP-862]
     business_rules: [BR-EXP-001, BR-AUD-001]
     tests: []
     evidence: docs/implementation/evidence/ERP-863/
     agent: codex-root
     started_at: 2026-08-09T16:05:00+07:00
-    blocked_reason: Production API and the direct internal Caddy route both return HTTP 502, so the required version readback and audited draft discard cannot run safely.
+    completed_at: 2026-08-09T17:05:00+07:00
     planned_files:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-863/
@@ -1589,13 +1589,14 @@ tasks:
   - id: ERP-864
     title: Restore production API package subpath exports
     phase: P12
-    status: in_progress
+    status: done
     dependencies: [ERP-862]
     business_rules: [BR-OPS-001, BR-SEC-001]
     tests: []
     evidence: docs/implementation/evidence/ERP-864/
     agent: codex-root
     started_at: 2026-08-09T16:18:00+07:00
+    completed_at: 2026-08-09T16:55:00+07:00
     planned_files:
       - docker/Dockerfile.api
       - docs/implementation/task-ledger.yaml
@@ -1611,8 +1612,9 @@ tasks:
     evidence: docs/implementation/evidence/ERP-865/
     agent: codex-readme
     started_at: 2026-08-09T15:40:00+07:00
-    completed_at: 2026-08-09T15:44:40+07:00
-    completion_basis: rewritten_readme_docs_gate_and_compose_contract_validation
+    resumed_at: 2026-08-09T15:50:00+07:00
+    completed_at: 2026-08-09T15:52:01+07:00
+    completion_basis: rewritten_readme_standalone_deployment_guidance_docs_gate_and_compose_contract_validation
     planned_files:
       - README.md
       - docs/implementation/task-ledger.yaml
@@ -1680,6 +1682,6 @@ gate_status:
   G25: done
   G26: done
   G27: done
-  G28: blocked
-  G29: in_progress
+  G28: done
+  G29: done
   G30: done

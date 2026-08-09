@@ -2,6 +2,6 @@
 
 - [x] Exact twelve draft targets were identified.
 - [x] No posted expense or journal was included.
-- [ ] Current versions were read from production.
-- [ ] Draft discard operations completed and were read back.
-
+- [x] Current versions were read from production.
+- [x] All twelve draft discard operations completed with audit/outbox evidence.
+- [x] Final list readback contains none of the target IDs.

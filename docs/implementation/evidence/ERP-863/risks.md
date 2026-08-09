@@ -1,6 +1,6 @@
 # ERP-863 risks
 
-- Retrying DELETE without a successful version readback could target stale resource versions.
-- Restarting or changing production infrastructure was not authorized by this data-cleanup request.
-- The twelve drafts remain recoverable and unchanged until production API service is restored.
-
+- Draft discard removes the source rows and retains the action in audit/outbox history; restoring the
+  drafts would require recreating them rather than changing a lifecycle state back.
+- The deleted rows were provisional estimates without payroll or transfer evidence and had never
+  affected posted journals or official reports.

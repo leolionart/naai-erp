@@ -3,7 +3,9 @@
 Targeted exactly twelve provisional inferred payroll drafts:
 `expense-inferred-payroll-2024-01` through `expense-inferred-payroll-2024-12`.
 
-The discard was not executed because both the public production API and the direct internal Caddy
-route returned HTTP 502. Safe deletion requires reading each current draft/version immediately
-before calling the audited, idempotent expense DELETE operation.
+After ERP-864 restored the production API, all twelve records were read back as exact provisional
+`payroll_personnel` drafts from `erp851-inferred-payroll-history`, with total gross
+`187,000,000` VND. Each was discarded through the versioned, idempotent expense DELETE operation.
 
+Final list readback contains zero of the twelve target IDs. Posted expenses and journals were not
+changed.
