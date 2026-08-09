@@ -7,7 +7,7 @@ development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G25
+current_gate: G27
 current_task: null
 
 tasks:
@@ -1520,6 +1520,57 @@ tasks:
       - docs/testing/test-specification.md
       - docs/implementation/evidence/ERP-860/
 
+  - id: ERP-861
+    title: Simplify owner liquidity metrics and finalize owner-paid classification
+    phase: P12
+    status: done
+    dependencies: [ERP-860]
+    business_rules: [BR-EXP-004, BR-KPI-005, BR-UI-001]
+    tests: [T-E2E-ERP-861-001]
+    evidence: docs/implementation/evidence/ERP-861/
+    agent: codex-team
+    started_at: 2026-08-09T11:45:00+07:00
+    completed_at: 2026-08-09T12:10:00+07:00
+    planned_files:
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/e2e/dashboard-drilldown.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-861/
+
+  - id: ERP-862
+    title: Persistent encrypted production login session
+    phase: P12
+    status: done
+    dependencies: [ERP-861]
+    business_rules: [BR-SEC-001, BR-SEC-002, BR-AI-002, BR-ORG-001]
+    tests: [T-UNIT-ERP-862-001, T-API-ERP-862-002, T-E2E-ERP-862-003]
+    evidence: docs/implementation/evidence/ERP-862/
+    agent: codex-team
+    started_at: 2026-08-09T12:11:00+07:00
+    completed_at: 2026-08-09T12:18:35+07:00
+    completion_basis: Encrypted 30-day HttpOnly browser session, server-side API cookie authentication, stable deploy secret contract, regression coverage, and full repository gate passed.
+    parallel_file_ownership:
+      web_session: apps/web/src/app/auth/, apps/web/src/components/login-form.tsx, apps/web/src/components/authentication-gate.tsx, apps/web/src/components/layout/app-navigation.tsx
+      api_cookie_auth: apps/api/src/auth/, apps/api/src/bootstrap.ts
+      coordinator: packages/contracts/src/session-cookie.ts, apps/web/src/lib/api/, compose.yaml, deploy/, docs/
+    planned_files:
+      - packages/contracts/src/session-cookie.ts
+      - packages/contracts/src/session-cookie.test.ts
+      - apps/web/src/app/auth/session/
+      - apps/web/src/components/login-form.tsx
+      - apps/web/src/components/authentication-gate.tsx
+      - apps/web/src/components/layout/app-navigation.tsx
+      - apps/web/src/lib/api/
+      - apps/api/src/auth/
+      - apps/api/src/bootstrap.ts
+      - compose.yaml
+      - deploy/env/.env.example
+      - docs/runbooks/docker-compose-release.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-862/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1547,6 +1598,8 @@ gates:
   G23: [ERP-858]
   G24: [ERP-859]
   G25: [ERP-860]
+  G26: [ERP-861]
+  G27: [ERP-862]
 
 gate_status:
   G0: done
@@ -1575,3 +1628,5 @@ gate_status:
   G23: done
   G24: done
   G25: done
+  G26: done
+  G27: done

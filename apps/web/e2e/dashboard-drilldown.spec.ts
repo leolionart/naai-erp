@@ -11,21 +11,19 @@ const reply = (route: Route, data: unknown) =>
 
 async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/commercial-documents**",
-    (route) =>
-      reply(route, {
-        items: [
-          {
-            id: "purchase-700",
-            type: "purchase_invoice",
-            documentDate: "2026-08-10",
-            lines: [{ gross_minor: "12000000", dimensions: { category: "DOMAIN_HOSTING" } }],
-          },
-        ],
-      }),
+  await page.route("**/api/v1/organizations/naai/commercial-documents**", (route) =>
+    reply(route, {
+      items: [
+        {
+          id: "purchase-700",
+          type: "purchase_invoice",
+          documentDate: "2026-08-10",
+          lines: [{ gross_minor: "12000000", dimensions: { category: "DOMAIN_HOSTING" } }],
+        },
+      ],
+    }),
   );
-  await page.route("http://localhost:3001/api/v1/organizations/naai/expenses**", (route) =>
+  await page.route("**/api/v1/organizations/naai/expenses**", (route) =>
     reply(route, {
       items: [
         {
@@ -37,79 +35,73 @@ async function install(page: Page, requestedUrls: string[] = []) {
       ],
     }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/master-data/dimensions**",
-    (route) =>
-      reply(route, {
-        items: [{ kind: "service_line", code: "web-app", name: "Web app", is_active: true }],
-      }),
+  await page.route("**/api/v1/organizations/naai/master-data/dimensions**", (route) =>
+    reply(route, {
+      items: [{ kind: "service_line", code: "web-app", name: "Web app", is_active: true }],
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/reports/tax/expense-exceptions**", (route) =>
+    reply(route, {
+      schemaVersion: 1,
+      organizationId: "naai",
+      currency: "VND",
+      startsOn: "2026-01-01",
+      endsOn: "2026-08-31",
+      formulaVersion: "tax-expense-review-v1",
+      status: "review_required",
+      accountingBookedMinor: "30000000",
+      citBasisMinor: "30000000",
+      citEligibleMinor: "0",
+      citIneligibleMinor: "5000000",
+      citUnreviewedMinor: "25000000",
+      vatBasisMinor: "0",
+      vatEligibleMinor: "0",
+      vatIneligibleMinor: "0",
+      vatUnreviewedMinor: "0",
+      missingEvidenceItemIds: [],
+      unreviewedItemIds: ["expense-700"],
+      sourceIds: ["expense-700"],
+      confidenceFlags: [
+        {
+          code: "tax_expense_unreviewed",
+          severity: "warning",
+          itemIds: ["expense-700"],
+        },
+      ],
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/reports/tax/vat-reconciliation**", (route) =>
+    reply(route, {
+      schemaVersion: 1,
+      organizationId: "naai",
+      currency: "VND",
+      startsOn: "2026-01-01",
+      endsOn: "2026-08-31",
+      formulaVersion: "vat-reconciliation-v1",
+      policyId: "vat-policy-700",
+      policyVersion: 1,
+      status: "ready",
+      outputVatMinor: "21000000",
+      inputVatMinor: "6000000",
+      eligibleInputVatMinor: "6000000",
+      ineligibleInputVatMinor: "0",
+      unreviewedInputVatMinor: "0",
+      netVatPayableMinor: "15000000",
+      outputVatLedgerMinor: "21000000",
+      inputVatLedgerMinor: "6000000",
+      outputDifferenceMinor: "0",
+      inputDifferenceMinor: "0",
+      missingEvidenceItemIds: [],
+      unreconciledItemIds: [],
+      invalidTaxCodeItemIds: [],
+      unreviewedItemIds: [],
+      sourceIds: ["sale-700", "purchase-700"],
+      journalIds: ["sale-journal-700", "purchase-journal-700"],
+      confidenceFlags: [],
+    }),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/tax/expense-exceptions**",
-    (route) =>
-      reply(route, {
-        schemaVersion: 1,
-        organizationId: "naai",
-        currency: "VND",
-        startsOn: "2026-01-01",
-        endsOn: "2026-08-31",
-        formulaVersion: "tax-expense-review-v1",
-        status: "review_required",
-        accountingBookedMinor: "30000000",
-        citBasisMinor: "30000000",
-        citEligibleMinor: "0",
-        citIneligibleMinor: "5000000",
-        citUnreviewedMinor: "25000000",
-        vatBasisMinor: "0",
-        vatEligibleMinor: "0",
-        vatIneligibleMinor: "0",
-        vatUnreviewedMinor: "0",
-        missingEvidenceItemIds: [],
-        unreviewedItemIds: ["expense-700"],
-        sourceIds: ["expense-700"],
-        confidenceFlags: [
-          {
-            code: "tax_expense_unreviewed",
-            severity: "warning",
-            itemIds: ["expense-700"],
-          },
-        ],
-      }),
-  );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/tax/vat-reconciliation**",
-    (route) =>
-      reply(route, {
-        schemaVersion: 1,
-        organizationId: "naai",
-        currency: "VND",
-        startsOn: "2026-01-01",
-        endsOn: "2026-08-31",
-        formulaVersion: "vat-reconciliation-v1",
-        policyId: "vat-policy-700",
-        policyVersion: 1,
-        status: "ready",
-        outputVatMinor: "21000000",
-        inputVatMinor: "6000000",
-        eligibleInputVatMinor: "6000000",
-        ineligibleInputVatMinor: "0",
-        unreviewedInputVatMinor: "0",
-        netVatPayableMinor: "15000000",
-        outputVatLedgerMinor: "21000000",
-        inputVatLedgerMinor: "6000000",
-        outputDifferenceMinor: "0",
-        inputDifferenceMinor: "0",
-        missingEvidenceItemIds: [],
-        unreconciledItemIds: [],
-        invalidTaxCodeItemIds: [],
-        unreviewedItemIds: [],
-        sourceIds: ["sale-700", "purchase-700"],
-        journalIds: ["sale-journal-700", "purchase-journal-700"],
-        confidenceFlags: [],
-      }),
-  );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/profit-and-loss**",
+    "**/api/v1/organizations/naai/reports/financial-statements/profit-and-loss**",
     (route) =>
       reply(route, {
         schemaVersion: 1,
@@ -151,7 +143,7 @@ async function install(page: Page, requestedUrls: string[] = []) {
       }),
   );
   await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/financial-statements/balance-sheet**",
+    "**/api/v1/organizations/naai/reports/financial-statements/balance-sheet**",
     (route) =>
       reply(route, {
         schemaVersion: 1,
@@ -208,169 +200,158 @@ async function install(page: Page, requestedUrls: string[] = []) {
         },
       }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
-    (route) => {
-      requestedUrls.push(route.request().url());
-      reply(route, {
-        schemaVersion: 1,
-        organizationId: "naai",
-        currency: "VND",
-        period: { startsOn: "2026-08-01", endsOn: "2026-08-31", asOfDate: "2026-08-31" },
-        dimensions: {},
-        formulaVersion: "executive-metrics-v1",
-        policyVersionId: "policy-700",
-        sourceBoundary: {
-          ledgerCutoffFingerprint: "fingerprint-erp700",
-          sourceIds: ["journal-700", "cash-ledger-700"],
+  await page.route("**/api/v1/organizations/naai/reports/executive-metrics**", (route) => {
+    requestedUrls.push(route.request().url());
+    reply(route, {
+      schemaVersion: 1,
+      organizationId: "naai",
+      currency: "VND",
+      period: { startsOn: "2026-08-01", endsOn: "2026-08-31", asOfDate: "2026-08-31" },
+      dimensions: {},
+      formulaVersion: "executive-metrics-v1",
+      policyVersionId: "policy-700",
+      sourceBoundary: {
+        ledgerCutoffFingerprint: "fingerprint-erp700",
+        sourceIds: ["journal-700", "cash-ledger-700"],
+      },
+      ros: {
+        status: "available",
+        formulaVersion: "signed-revenue-profitability-v1",
+        numeratorMinor: "38000000",
+        denominatorMinor: "100000000",
+        valueBps: 3800,
+      },
+      grossMargin: {
+        status: "available",
+        formulaVersion: "signed-revenue-profitability-v1",
+        numeratorMinor: "60000000",
+        denominatorMinor: "100000000",
+        valueBps: 6000,
+      },
+      operatingMargin: {
+        status: "available",
+        formulaVersion: "signed-revenue-profitability-v1",
+        numeratorMinor: "40000000",
+        denominatorMinor: "100000000",
+        valueBps: 4000,
+      },
+      netMargin: {
+        status: "available",
+        formulaVersion: "signed-revenue-profitability-v1",
+        numeratorMinor: "38000000",
+        denominatorMinor: "100000000",
+        valueBps: 3800,
+      },
+      roe: {
+        status: "available",
+        formulaVersion: "positive-average-return-v1",
+        numeratorMinor: "38000000",
+        denominatorMinor: "500000000",
+        valueBps: 760,
+      },
+      roa: {
+        status: "available",
+        formulaVersion: "positive-average-return-v1",
+        numeratorMinor: "38000000",
+        denominatorMinor: "620000000",
+        valueBps: 613,
+      },
+      accumulatedLossMinor: "0",
+      contributedCapitalMinor: "1000000000",
+      ownerLoansMinor: "30000000",
+      equityConsumed: {
+        status: "available",
+        formulaVersion: "accumulated-loss-over-contributed-capital-v1",
+        numeratorMinor: "420000000",
+        denominatorMinor: "1000000000",
+        valueBps: 4200,
+      },
+      runwayMonthsThousandths: "4250",
+      runwayFormulaVersion: "unrestricted-cash-over-reviewed-net-burn-v1",
+      runwayStatus: "available",
+      roi: [],
+      burnFormulaVersion: "signed-average-operating-cash-flow-v1",
+      averageOperatingNetCashFlowMinor: "-10000000",
+      netBurnMinor: "10000000",
+      unrestrictedCashMinor: "42500000",
+      restrictedCashMinor: "0",
+      equityRollForward: {
+        controlVersion: "equity-roll-forward-control-v1",
+        openingEquityMinor: "1000000000",
+        contributionsMinor: "0",
+        withdrawalsMinor: "0",
+        profitOrLossMinor: "0",
+        reviewedAdjustmentsMinor: "0",
+        expectedClosingEquityMinor: "1000000000",
+        actualClosingEquityMinor: "1000000000",
+        differenceMinor: "0",
+        status: "tied_out",
+      },
+    });
+  });
+  await page.route("**/api/v1/organizations/naai/reports/performance-comparisons**", (route) => {
+    requestedUrls.push(route.request().url());
+    reply(route, {
+      currency: "VND",
+      formulaVersion: "performance-comparison-v1",
+      period: {
+        id: "CAL-2026-08",
+        label: "Tháng 8",
+        startsOn: "2026-08-01",
+        endsOn: "2026-08-31",
+      },
+      sourceIds: ["recognition-700", "target-700"],
+      confidenceFlags: [
+        {
+          code: "missing_forecast",
+          severity: "warning",
+          reason: "Forecast đang chờ publish",
+          sourceIds: ["forecast-draft-700"],
         },
-        ros: {
-          status: "available",
-          formulaVersion: "signed-revenue-profitability-v1",
-          numeratorMinor: "38000000",
-          denominatorMinor: "100000000",
-          valueBps: 3800,
-        },
-        grossMargin: {
-          status: "available",
-          formulaVersion: "signed-revenue-profitability-v1",
-          numeratorMinor: "60000000",
-          denominatorMinor: "100000000",
-          valueBps: 6000,
-        },
-        operatingMargin: {
-          status: "available",
-          formulaVersion: "signed-revenue-profitability-v1",
-          numeratorMinor: "40000000",
-          denominatorMinor: "100000000",
-          valueBps: 4000,
-        },
-        netMargin: {
-          status: "available",
-          formulaVersion: "signed-revenue-profitability-v1",
-          numeratorMinor: "38000000",
-          denominatorMinor: "100000000",
-          valueBps: 3800,
-        },
-        roe: {
-          status: "available",
-          formulaVersion: "positive-average-return-v1",
-          numeratorMinor: "38000000",
-          denominatorMinor: "500000000",
-          valueBps: 760,
-        },
-        roa: {
-          status: "available",
-          formulaVersion: "positive-average-return-v1",
-          numeratorMinor: "38000000",
-          denominatorMinor: "620000000",
-          valueBps: 613,
-        },
-        accumulatedLossMinor: "0",
-        contributedCapitalMinor: "1000000000",
-        ownerLoansMinor: "30000000",
-        equityConsumed: {
-          status: "available",
-          formulaVersion: "accumulated-loss-over-contributed-capital-v1",
-          numeratorMinor: "420000000",
-          denominatorMinor: "1000000000",
-          valueBps: 4200,
-        },
-        runwayMonthsThousandths: "4250",
-        runwayFormulaVersion: "unrestricted-cash-over-reviewed-net-burn-v1",
-        runwayStatus: "available",
-        roi: [],
-        burnFormulaVersion: "signed-average-operating-cash-flow-v1",
-        averageOperatingNetCashFlowMinor: "-10000000",
-        netBurnMinor: "10000000",
-        unrestrictedCashMinor: "42500000",
-        restrictedCashMinor: "0",
-        equityRollForward: {
-          controlVersion: "equity-roll-forward-control-v1",
-          openingEquityMinor: "1000000000",
-          contributionsMinor: "0",
-          withdrawalsMinor: "0",
-          profitOrLossMinor: "0",
-          reviewedAdjustmentsMinor: "0",
-          expectedClosingEquityMinor: "1000000000",
-          actualClosingEquityMinor: "1000000000",
-          differenceMinor: "0",
-          status: "tied_out",
-        },
-      });
-    },
-  );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/performance-comparisons**",
-    (route) => {
-      requestedUrls.push(route.request().url());
-      reply(route, {
-        currency: "VND",
+      ],
+      actualVsFullTarget: {
+        status: "available",
         formulaVersion: "performance-comparison-v1",
-        period: {
-          id: "CAL-2026-08",
-          label: "Tháng 8",
-          startsOn: "2026-08-01",
-          endsOn: "2026-08-31",
+        numeratorMinor: "100000000",
+        denominatorMinor: "120000000",
+        varianceMinor: "-20000000",
+        ratioBps: 8333,
+        numeratorSourceIds: ["recognition-700"],
+        denominatorSourceIds: ["target-700"],
+      },
+      actualVsRetainedForecast: { status: "available", denominatorMinor: "110000000" },
+      monthOverMonth: { denominatorMinor: "90000000" },
+    });
+  });
+  await page.route("**/api/v1/organizations/naai/planning-actual-facts/summary**", (route) => {
+    requestedUrls.push(route.request().url());
+    const url = new URL(route.request().url());
+    reply(route, {
+      actualBasis: url.searchParams.get("actualBasis") ?? "invoiced",
+      from: url.searchParams.get("from"),
+      to: url.searchParams.get("to"),
+      currency: "VND",
+      amountMinor: "100000000",
+      factCount: 3,
+      sourceIds: ["actual-jan", "actual-feb", "actual-mar"],
+    });
+  });
+  await page.route("**/api/v1/organizations/naai/reports/project-profitability**", (route) =>
+    reply(route, {
+      currency: "VND",
+      items: [
+        {
+          projectId: "project-700",
+          confidenceCodes: ["budget_overrun"],
+          confidenceFlags: [
+            { code: "budget_overrun", severity: "critical", sourceIds: ["budget-700"] },
+          ],
         },
-        sourceIds: ["recognition-700", "target-700"],
-        confidenceFlags: [
-          {
-            code: "missing_forecast",
-            severity: "warning",
-            reason: "Forecast đang chờ publish",
-            sourceIds: ["forecast-draft-700"],
-          },
-        ],
-        actualVsFullTarget: {
-          status: "available",
-          formulaVersion: "performance-comparison-v1",
-          numeratorMinor: "100000000",
-          denominatorMinor: "120000000",
-          varianceMinor: "-20000000",
-          ratioBps: 8333,
-          numeratorSourceIds: ["recognition-700"],
-          denominatorSourceIds: ["target-700"],
-        },
-        actualVsRetainedForecast: { status: "available", denominatorMinor: "110000000" },
-        monthOverMonth: { denominatorMinor: "90000000" },
-      });
-    },
+      ],
+      totals: { fullyLoadedProfitMinor: "40000000" },
+    }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/planning-actual-facts/summary**",
-    (route) => {
-      requestedUrls.push(route.request().url());
-      const url = new URL(route.request().url());
-      reply(route, {
-        actualBasis: url.searchParams.get("actualBasis") ?? "invoiced",
-        from: url.searchParams.get("from"),
-        to: url.searchParams.get("to"),
-        currency: "VND",
-        amountMinor: "100000000",
-        factCount: 3,
-        sourceIds: ["actual-jan", "actual-feb", "actual-mar"],
-      });
-    },
-  );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/project-profitability**",
-    (route) =>
-      reply(route, {
-        currency: "VND",
-        items: [
-          {
-            projectId: "project-700",
-            confidenceCodes: ["budget_overrun"],
-            confidenceFlags: [
-              { code: "budget_overrun", severity: "critical", sourceIds: ["budget-700"] },
-            ],
-          },
-        ],
-        totals: { fullyLoadedProfitMinor: "40000000" },
-      }),
-  );
-  await page.route("http://localhost:3001/api/v1/organizations/naai/reports/ar-aging**", (route) =>
+  await page.route("**/api/v1/organizations/naai/reports/ar-aging**", (route) =>
     reply(route, {
       asOf: "2026-08-31",
       baseCurrency: "VND",
@@ -382,9 +363,8 @@ async function install(page: Page, requestedUrls: string[] = []) {
       controlTies: [],
     }),
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/operating-dashboard**",
-    (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+  await page.route("**/api/v1/organizations/naai/reports/operating-dashboard**", (route) =>
+    route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
   );
 }
 
@@ -395,120 +375,116 @@ async function installOperatingDashboard(
     ownerOperatingPayableMinor: "30000000",
   },
 ) {
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/operating-dashboard**",
-    (route) =>
-      reply(route, {
-        schemaVersion: 1,
-        asOf: "2026-08-31",
-        currency: "VND",
-        backlog: {
-          projectCount: 2,
-          contractedMinor: "300000000",
-          invoicedMinor: "180000000",
-          remainingMinor: "120000000",
-          projects: [],
+  await page.route("**/api/v1/organizations/naai/reports/operating-dashboard**", (route) =>
+    reply(route, {
+      schemaVersion: 1,
+      asOf: "2026-08-31",
+      currency: "VND",
+      backlog: {
+        projectCount: 2,
+        contractedMinor: "300000000",
+        invoicedMinor: "180000000",
+        remainingMinor: "120000000",
+        projects: [],
+      },
+      collections: {
+        receivablesMinor: "45000000",
+        creditSalesMinor: "270000000",
+        dsoDays: 15,
+        overdueMinor: "25000000",
+        dueWithin7DaysMinor: "5000000",
+        dueWithin30DaysMinor: "10000000",
+        laterMinor: "5000000",
+      },
+      projectBurn: [
+        {
+          projectId: "project-700",
+          code: "WEB-700",
+          name: "Web App 700",
+          actualCostMinor: "60000000",
+          budgetCostMinor: "100000000",
+          burnBps: 6000,
+          estimateAtCompletionMinor: "100000000",
+          eacMethod: "approved-direct-cost-budget",
         },
-        collections: {
-          receivablesMinor: "45000000",
-          creditSalesMinor: "270000000",
-          dsoDays: 15,
-          overdueMinor: "25000000",
-          dueWithin7DaysMinor: "5000000",
-          dueWithin30DaysMinor: "10000000",
-          laterMinor: "5000000",
-        },
-        projectBurn: [
+      ],
+      clientConcentration: {
+        totalRevenueMinor: "180000000",
+        topClientShareBps: 6500,
+        topThreeShareBps: 10000,
+        clients: [{ clientId: "client-700", clientName: "NAAI Client", revenueMinor: "117000000" }],
+      },
+      financials: {
+        revenueMinor: "180000000",
+        expenseMinor: "80000000",
+        netProfitMinor: "100000000",
+        unrestrictedCashMinor: "75000000",
+        bankAvailableMinor: "613000000",
+        cashOnHandMinor: "7000000",
+        cashAndBankMinor: "620000000",
+        ...ownerBalances,
+        netAvailableCashMinor: "590000000",
+        actualOwnerPaidCompanyCostMinor: "12000000",
+        netCompanyFundsMinor: "590000000",
+        ownerPaidClassificationStatus: "review_required",
+        unclassifiedOwnerPaidCount: 2,
+        unclassifiedOwnerPaidMinor: "3000000",
+        corporateIncomeTaxRateBps: 2000,
+        rosBps: 5556,
+        recognitionEventCount: 0,
+        approvedBudgetCount: 0,
+        postedOverheadRunCount: 0,
+        source: "posted_ledger",
+      },
+      dataQuality: {
+        pendingCount: 2,
+        byFlag: [{ flag: "missing_project", count: 2 }],
+        rows: [],
+      },
+      sourceControls: {
+        accountingStatus: "unconfirmed_non_canonical",
+        rowCount: 2,
+        byKind: [{ kind: "profitability_control", count: 2 }],
+        monthly: [
           {
-            projectId: "project-700",
-            code: "WEB-700",
-            name: "Web App 700",
-            actualCostMinor: "60000000",
-            budgetCostMinor: "100000000",
-            burnBps: 6000,
-            estimateAtCompletionMinor: "100000000",
-            eacMethod: "approved-direct-cost-budget",
+            id: "profit-2024-12",
+            kind: "profitability_control",
+            period: "2024-12",
+            revenueMinor: "70000000",
+            receivedMinor: "60000000",
+            expenseMinor: "45000000",
+            profitMinor: "25000000",
+          },
+          {
+            id: "profit-2025-01",
+            kind: "profitability_control",
+            period: "2025-01",
+            revenueMinor: "80000000",
+            receivedMinor: "70000000",
+            expenseMinor: "50000000",
+            profitMinor: "30000000",
+          },
+          {
+            id: "profit-2025-02",
+            kind: "profitability_control",
+            period: "2025-02",
+            revenueMinor: "95000000",
+            receivedMinor: "85000000",
+            expenseMinor: "55000000",
+            profitMinor: "40000000",
+          },
+          {
+            id: "profit-2025-03",
+            kind: "profitability_control",
+            period: "2025-03",
+            revenueMinor: "105000000",
+            receivedMinor: "90000000",
+            expenseMinor: "60000000",
+            profitMinor: "45000000",
           },
         ],
-        clientConcentration: {
-          totalRevenueMinor: "180000000",
-          topClientShareBps: 6500,
-          topThreeShareBps: 10000,
-          clients: [
-            { clientId: "client-700", clientName: "NAAI Client", revenueMinor: "117000000" },
-          ],
-        },
-        financials: {
-          revenueMinor: "180000000",
-          expenseMinor: "80000000",
-          netProfitMinor: "100000000",
-          unrestrictedCashMinor: "75000000",
-          bankAvailableMinor: "613000000",
-          cashOnHandMinor: "7000000",
-          cashAndBankMinor: "620000000",
-          ...ownerBalances,
-          netAvailableCashMinor: "590000000",
-          actualOwnerPaidCompanyCostMinor: "12000000",
-          netCompanyFundsMinor: "608000000",
-          ownerPaidClassificationStatus: "review_required",
-          unclassifiedOwnerPaidCount: 2,
-          unclassifiedOwnerPaidMinor: "3000000",
-          corporateIncomeTaxRateBps: 2000,
-          rosBps: 5556,
-          recognitionEventCount: 0,
-          approvedBudgetCount: 0,
-          postedOverheadRunCount: 0,
-          source: "posted_ledger",
-        },
-        dataQuality: {
-          pendingCount: 2,
-          byFlag: [{ flag: "missing_project", count: 2 }],
-          rows: [],
-        },
-        sourceControls: {
-          accountingStatus: "unconfirmed_non_canonical",
-          rowCount: 2,
-          byKind: [{ kind: "profitability_control", count: 2 }],
-          monthly: [
-            {
-              id: "profit-2024-12",
-              kind: "profitability_control",
-              period: "2024-12",
-              revenueMinor: "70000000",
-              receivedMinor: "60000000",
-              expenseMinor: "45000000",
-              profitMinor: "25000000",
-            },
-            {
-              id: "profit-2025-01",
-              kind: "profitability_control",
-              period: "2025-01",
-              revenueMinor: "80000000",
-              receivedMinor: "70000000",
-              expenseMinor: "50000000",
-              profitMinor: "30000000",
-            },
-            {
-              id: "profit-2025-02",
-              kind: "profitability_control",
-              period: "2025-02",
-              revenueMinor: "95000000",
-              receivedMinor: "85000000",
-              expenseMinor: "55000000",
-              profitMinor: "40000000",
-            },
-            {
-              id: "profit-2025-03",
-              kind: "profitability_control",
-              period: "2025-03",
-              revenueMinor: "105000000",
-              receivedMinor: "90000000",
-              expenseMinor: "60000000",
-              profitMinor: "45000000",
-            },
-          ],
-        },
-      }),
+      },
+    }),
   );
 }
 
@@ -598,14 +574,18 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
   await expect(page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Quỹ tiền mặt công ty/ })).toHaveCount(0);
   const ownerPayableCard = page.getByRole("link", {
-    name: /Nghĩa vụ vận hành với chủ doanh nghiệp/,
+    name: /Công ty đang nợ chủ doanh nghiệp/,
   });
   await expect(ownerPayableCard).toContainText("30.000.000 ₫");
-  await expect(ownerPayableCard).toContainText("Không gồm tài sản, thiết bị");
+  await expect(ownerPayableCard).toContainText("Owner Current trên Balance Sheet");
   await expect(
     page.getByRole("link", { name: /Số dư Owner Current trên Balance Sheet/ }),
   ).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /Tiền thuần sau nghĩa vụ với chủ/ })).toHaveCount(0);
+  const netFundsCard = page.getByRole("link", { name: /Tiền ròng thực còn/ });
+  await expect(netFundsCard).toContainText("590.000.000 ₫");
+  await expect(netFundsCard).toContainText("620.000.000 ₫");
+  await expect(netFundsCard).toContainText("30.000.000 ₫");
+  await expect(page.getByRole("link", { name: /^Runway/ })).toHaveCount(0);
   const taxableProfitCard = page.getByRole("link", {
     name: /Lợi nhuận tính thuế TNDN tạm tính/,
   });
@@ -627,7 +607,7 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
   );
 });
 
-test("@desktop separates zero operating owner obligation from Balance Sheet owner current", async ({
+test("@desktop uses Owner Current as the single owner obligation even when the legacy operating split is zero", async ({
   page,
 }) => {
   await install(page);
@@ -637,18 +617,12 @@ test("@desktop separates zero operating owner obligation from Balance Sheet owne
   });
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
 
-  const operatingObligation = page.getByRole("link", {
-    name: /Nghĩa vụ vận hành với chủ doanh nghiệp/,
-  });
-  await expect(operatingObligation).toContainText("0 ₫");
-  await expect(operatingObligation).toContainText(
-    "có thể bằng 0 dù Balance Sheet vẫn còn số dư Owner Current 30.000.000 ₫",
-  );
-  const ownerCurrent = page.getByRole("link", {
-    name: /Số dư Owner Current trên Balance Sheet/,
-  });
+  const ownerCurrent = page.getByRole("link", { name: /Công ty đang nợ chủ doanh nghiệp/ });
   await expect(ownerCurrent).toContainText("30.000.000 ₫");
-  await expect(ownerCurrent).toContainText("nghĩa vụ vận hành hiện là 0 ₫");
+  await expect(page.getByRole("link", { name: /Tiền ròng thực còn/ })).toContainText(
+    "590.000.000 ₫",
+  );
+  await expect(page.getByText("Nghĩa vụ vận hành với chủ doanh nghiệp")).toHaveCount(0);
 });
 
 test("@desktop selects the latest source-control period and invoiced basis by default", async ({
@@ -713,9 +687,8 @@ test("@desktop surfaces executive metrics API failure without hiding other dashb
 }) => {
   await install(page);
   await installOperatingDashboard(page);
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/executive-metrics**",
-    (route) => route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+  await page.route("**/api/v1/organizations/naai/reports/executive-metrics**", (route) =>
+    route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
   );
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
 

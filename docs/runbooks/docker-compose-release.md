@@ -38,6 +38,12 @@ their real values, or use an API token that is not backed by an active organizat
 RBAC roles. The login route exchanges a valid username/password for that existing token; it does not
 bypass API authorization.
 
+`SESSION_SECRET` encrypts the web login cookie and must be injected into both the API and web
+containers. Keep the same strong value during normal application upgrades: changing or omitting it
+invalidates all existing browser sessions and requires users to sign in again. Rotate it only as an
+intentional security operation. The browser receives an encrypted `HttpOnly`, `Secure`, same-site
+cookie; the underlying API token is never returned to or stored by browser JavaScript.
+
 ## Build locally
 
 ```bash

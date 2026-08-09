@@ -3,11 +3,14 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./api-exception.filter.js";
 import multipart from "@fastify/multipart";
+import { authenticateApiSession, SessionAuthenticationError } from "./auth/session-cookie-auth.js";
 
 type BootstrapEnvironment = Readonly<{
   NODE_ENV?: string;
   WEB_ORIGIN?: string;
   API_BODY_LIMIT_BYTES?: string;
+  SESSION_SECRET?: string;
+  APP_BASE_URL?: string;
 }>;
 
 export function apiBodyLimit(environment: BootstrapEnvironment = process.env): number {
@@ -50,6 +53,22 @@ export async function createApp(
     },
   );
   const origin = webOrigin(environment);
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook("onRequest", async (request, reply) => {
+      try {
+        authenticateApiSession(request, environment);
+      } catch (error) {
+        if (!(error instanceof SessionAuthenticationError)) throw error;
+        await reply.status(error.statusCode).send({
+          error: {
+            code: error.code,
+            message: error.code,
+          },
+        });
+      }
+    });
   await app.register(multipart as never, {
     limits: { fileSize: apiBodyLimit(environment), files: 1 },
   });

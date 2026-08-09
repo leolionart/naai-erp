@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("@desktop login block stores the API session and supports dark mode", async ({ page }) => {
+test("@desktop login block receives a cookie session and supports dark mode", async ({ page }) => {
   await page.route("**/auth/session", async (route) => {
     const request = route.request();
     expect(request.method()).toBe("POST");
@@ -8,7 +8,10 @@ test("@desktop login block stores the API session and supports dark mode", async
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ organizationId: "naai", apiToken: "e2e-session-token" }),
+      headers: {
+        "set-cookie": "__Host-naai_erp_session=encrypted; Path=/; HttpOnly; Secure; SameSite=Lax",
+      },
+      body: JSON.stringify({ organizationId: "naai" }),
     });
   });
   await page.goto("http://localhost:3000/login");
@@ -27,7 +30,7 @@ test("@desktop login block stores the API session and supports dark mode", async
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem("naai-erp-admin-token")))
-    .toBe("e2e-session-token");
+    .toBeNull();
 });
 
 test("@mobile login block stays within the viewport", async ({ page }) => {

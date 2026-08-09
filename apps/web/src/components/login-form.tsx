@@ -6,12 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  API_TOKEN_KEY,
-  DEFAULT_API_CONNECTION,
-  saveApiToken,
-  saveConnectionSettings,
-} from "@/lib/api";
+import { DEFAULT_API_CONNECTION, saveConnectionSettings } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 function safeNext(value: string | null) {
@@ -39,9 +34,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
       const result = (await response.json()) as {
         error?: string;
         organizationId?: string;
-        apiToken?: string;
       };
-      if (!response.ok || !result.organizationId || !result.apiToken) {
+      if (!response.ok || !result.organizationId) {
         throw new Error(result.error || "Không thể đăng nhập.");
       }
       saveConnectionSettings(window.localStorage, {
@@ -49,11 +43,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         baseUrl: DEFAULT_API_CONNECTION.baseUrl,
         organizationId: result.organizationId,
       });
-      const token = saveApiToken(window.sessionStorage, result.apiToken);
-      if (!token) throw new Error("Access token is required");
       router.replace(safeNext(search.get("next")));
     } catch (caught) {
-      window.sessionStorage.removeItem(API_TOKEN_KEY);
       setError(caught instanceof Error ? caught.message : "Không thể đăng nhập.");
     } finally {
       setSubmitting(false);

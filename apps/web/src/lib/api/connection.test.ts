@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   API_CONNECTION_SETTINGS_KEY,
   API_TOKEN_KEY,
+  COOKIE_SESSION_SENTINEL,
   loadApiToken,
   loadConnectionSettings,
   organizationApiRoot,
@@ -22,6 +23,7 @@ function memoryStorage(): StorageLike {
 }
 
 describe("ERP-345 versioned API connection settings", () => {
+  afterEach(() => vi.unstubAllEnvs());
   it("uses the public same-origin API in production browsers without breaking local development", () => {
     expect(
       resolveDefaultApiBaseUrl({
@@ -87,5 +89,10 @@ describe("ERP-345 versioned API connection settings", () => {
 
     expect(loadConnectionSettings(storage, liveProductionData, true)).toEqual(liveProductionData);
     expect(storage.getItem(API_CONNECTION_SETTINGS_KEY)).toBeNull();
+  });
+
+  it("uses a non-secret cookie-session sentinel when production storage is empty", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(loadApiToken(memoryStorage())).toBe(COOKIE_SESSION_SENTINEL);
   });
 });

@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { API_TOKEN_KEY } from "@/lib/api";
 
-export function requiresInteractiveLogin(nodeEnv: string | undefined, storedToken: string | null) {
-  return nodeEnv === "production" && !storedToken?.trim();
+export function requiresInteractiveLogin(nodeEnv: string | undefined, sessionIsValid: boolean) {
+  return nodeEnv === "production" && !sessionIsValid;
 }
 
 export function AuthenticationGate({ children }: Readonly<{ children: ReactNode }>) {
@@ -13,13 +12,30 @@ export function AuthenticationGate({ children }: Readonly<{ children: ReactNode 
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    const token = window.sessionStorage.getItem(API_TOKEN_KEY);
-    if (requiresInteractiveLogin(process.env.NODE_ENV, token)) {
-      const next = `${window.location.pathname}${window.location.search}`;
-      router.replace(`/login?next=${encodeURIComponent(next)}`);
-      return;
+    let active = true;
+    async function verifySession() {
+      if (process.env.NODE_ENV !== "production") {
+        if (active) setAuthorized(true);
+        return;
+      }
+      try {
+        const response = await fetch("/auth/session", { cache: "no-store" });
+        if (response.ok) {
+          if (active) setAuthorized(true);
+          return;
+        }
+      } catch {
+        // A failed session check uses the same safe redirect as an expired session.
+      }
+      if (active) {
+        const next = `${window.location.pathname}${window.location.search}`;
+        router.replace(`/login?next=${encodeURIComponent(next)}`);
+      }
     }
-    setAuthorized(true);
+    void verifySession();
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   if (!authorized) {

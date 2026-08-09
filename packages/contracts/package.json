@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./session-cookie": "./src/session-cookie.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",

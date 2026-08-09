@@ -496,6 +496,10 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   policy changes never rewrite historical management balances.
 - `owner_paid_company_cost` requires an owner-current/payable counter account. It does not change
   physical bank/cash, but posted amounts reduce net company funds and increase the owner liability.
+- In approved `owner_final` mode, a legacy posted expense whose funding snapshot is null and whose
+  counter account is mapped to the reviewed Owner Current line is classified deterministically as
+  `owner_paid_company_cost` for management reporting. It must not remain in the unclassified queue,
+  and the compatibility classification must not edit or reverse its posted journal.
 - `tax_only_non_cash` remains available for VAT/CIT evidence and tax reporting but does not reduce
   management net company funds.
 - Official dashboard balances include posted records only and disclose uncategorized or unreviewed
@@ -715,16 +719,12 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - The executive dashboard presents company bank and cash as one company-funds card with a visible
   component breakdown. It does not repeat bank, cash, their total or a hypothetical post-owner-
   settlement balance as separate headline cards when those cards answer the same liquidity question.
-- The management owner-obligation card measures operating cost or loss borne personally by the owner,
-  less posted repayments from company bank or cash. It excludes asset/equipment purchases, owner
-  funding, owner loans, equity contributions and personal spending. The statutory Balance Sheet keeps
-  reporting the complete approved `owner_current` balance independently.
-- A repayment reduces this management obligation only through a posted owner-current debit paired
-  with a company bank/cash credit. Imported bank withdrawals that are not yet classified and posted
-  remain outside the official metric and are disclosed for review rather than silently deducted.
-- Company funds and the management owner obligation are displayed separately. The dashboard does not subtract
-  the owner obligation from physical company funds because the liability is not itself a completed
-  cash payment.
+- The executive dashboard uses the complete positive closing `owner_current` Balance Sheet balance as
+  the single amount that the company owes the owner. It does not display a second, potentially zero,
+  operating-owner obligation beside the statutory owner balance.
+- The three liquidity controls are shown together: mapped company cash and bank, company amount owed
+  to the owner, and net company funds after that owner obligation. Net company funds equals mapped
+  cash and bank less the positive closing owner-current liability.
 
 ## 9. Reports and exports
 
@@ -735,7 +735,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Financial cards must not fall back to embedded demo amounts. When a canonical API value is
   unavailable, the UI displays an explicit missing-data or review-required state.
 - The executive dashboard prioritizes owner-actionable controls: collectible receivables, bank and
-  cash position, owner-adjusted net cash, runway, VAT payable and provisional CIT. Detailed contract,
+  cash position, owner-adjusted net cash, VAT payable and provisional CIT. Runway remains available
+  in dedicated cash-flow/performance reporting but is not a dashboard headline because the owner
+  evaluates operating duration directly from the displayed money position. Detailed contract,
   invoice, project-margin and profitability ratios remain on their dedicated workspaces.
 
 ### BR-UI-002 — Review and replay UX
@@ -884,6 +886,12 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 
 - Secrets are never stored in source or plaintext business records.
 - Salary/cost rate, evidence and exports use least privilege.
+- Production login uses an encrypted, versioned `HttpOnly` session cookie with an explicit expiry.
+  The API credential is never returned to or persisted by browser JavaScript.
+- The session encryption secret is server-only, shared by web and API and remains stable across
+  application updates. Rotating it intentionally invalidates existing sessions.
+- Cookie-authenticated financial mutations require a same-origin request and organization match.
+  Existing first-party CLI and integration Bearer authentication remains supported.
 
 ### BR-OPS-001 — Observability
 

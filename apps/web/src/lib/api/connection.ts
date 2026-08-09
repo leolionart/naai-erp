@@ -1,5 +1,6 @@
 export const API_CONNECTION_SETTINGS_KEY = "naai-erp-admin-settings-v2";
 export const API_TOKEN_KEY = "naai-erp-admin-token";
+export const COOKIE_SESSION_SENTINEL = "cookie-session";
 
 export type ApiConnectionSettingsV1 = Readonly<{
   version: 1;
@@ -94,6 +95,7 @@ export function saveConnectionSettings(storage: StorageLike, settings: ApiConnec
 export function loadApiToken(storage: StorageLike): string {
   const token = storage.getItem(API_TOKEN_KEY)?.trim() ?? "";
   if (!token) {
+    if (process.env.NODE_ENV === "production") return COOKIE_SESSION_SENTINEL;
     return LOCAL_DEVELOPMENT_TOKEN;
   }
   return token;

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { POST } from "./route";
+import { openPersistentSession, SESSION_COOKIE_NAME } from "@naai-erp/contracts/session-cookie";
+import { DELETE, GET, POST } from "./route";
 
 const originalEnvironment = process.env;
 
@@ -19,6 +20,7 @@ describe("POST /auth/session", () => {
       NAAI_ERP_LOGIN_PASSWORD: "correct horse battery staple",
       NAAI_ERP_LOGIN_ORGANIZATION: "naai",
       NAAI_ERP_LOGIN_API_TOKEN: "owner-api-token",
+      SESSION_SECRET: "test-session-secret-that-is-at-least-32-characters",
     };
   });
 
@@ -26,14 +28,22 @@ describe("POST /auth/session", () => {
     process.env = originalEnvironment;
   });
 
-  it("returns the organization and API credential after a valid login", async () => {
+  it("returns only the organization and stores the API credential in an encrypted cookie", async () => {
     const response = await POST(
       request({ username: "owner", password: "correct horse battery staple" }),
     );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toEqual({ organizationId: "naai" });
+    const cookie = response.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain(`${SESSION_COOKIE_NAME}=`);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=lax");
+    expect(cookie).not.toContain("owner-api-token");
+    const sealed = cookie.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`))?.[1];
+    expect(openPersistentSession(sealed ?? "", process.env.SESSION_SECRET ?? "")).toMatchObject({
       organizationId: "naai",
       apiToken: "owner-api-token",
     });
@@ -51,5 +61,42 @@ describe("POST /auth/session", () => {
     const response = await POST(request({ username: "owner", password: "anything" }));
 
     expect(response.status).toBe(503);
+  });
+
+  it("fails closed when the session encryption secret is missing", async () => {
+    delete process.env.SESSION_SECRET;
+    const response = await POST(
+      request({ username: "owner", password: "correct horse battery staple" }),
+    );
+    expect(response.status).toBe(503);
+  });
+
+  it("restores an encrypted session without disclosing its API token", async () => {
+    const login = await POST(
+      request({ username: "owner", password: "correct horse battery staple" }),
+    );
+    const cookie = login.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
+    const response = await GET(
+      new Request("http://localhost/auth/session", { headers: { cookie } }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ organizationId: "naai" });
+  });
+
+  it("rejects and clears an invalid session", async () => {
+    const response = await GET(
+      new Request("http://localhost/auth/session", {
+        headers: { cookie: `${SESSION_COOKIE_NAME}=invalid` },
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("clears the session on logout", async () => {
+    const response = await DELETE();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
   });
 });

@@ -35,6 +35,7 @@ describe("ERP-345 API client", () => {
       "http://localhost:3001/api/v1/organizations/org-naai/journals",
       expect.objectContaining({
         method: "POST",
+        credentials: "same-origin",
         headers: expect.objectContaining({
           authorization: "Bearer token-1",
           "idempotency-key": "idem-1",

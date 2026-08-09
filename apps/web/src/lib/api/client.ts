@@ -41,6 +41,7 @@ export function createApiClient(input: {
     try {
       response = await fetcher(url, {
         method,
+        credentials: "same-origin",
         headers: {
           accept: "application/json",
           ...(options.body === undefined ? {} : { "content-type": "application/json" }),

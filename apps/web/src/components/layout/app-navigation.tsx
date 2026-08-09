@@ -50,7 +50,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { API_TOKEN_KEY } from "@/lib/api";
 import { adminNavigation, isNavigationAvailable, type NavigationIcon } from "@/lib/navigation";
 
 const icons = {
@@ -71,9 +70,13 @@ function NavigationUser() {
   const { setTheme } = useTheme();
   const { isMobile } = useSidebar();
 
-  function logout() {
-    window.sessionStorage.removeItem(API_TOKEN_KEY);
-    router.push("/login");
+  async function logout() {
+    try {
+      await fetch("/auth/session", { method: "DELETE" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
   }
 
   return (
@@ -110,7 +113,7 @@ function NavigationUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={logout}>
+            <DropdownMenuItem onSelect={() => void logout()}>
               <LogOutIcon />
               Đăng xuất
             </DropdownMenuItem>

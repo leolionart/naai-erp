@@ -10,6 +10,30 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-UNIT-ERP-862-001
+    task: ERP-862
+    rules: [BR-SEC-002]
+    title: Encrypted persistent sessions reject tampering and expiry without exposing API credentials
+    layer: unit
+    command: pnpm --filter @naai-erp/contracts exec vitest run src/session-cookie.test.ts
+    blocking_gate: G27
+
+  - id: T-API-ERP-862-002
+    task: ERP-862
+    rules: [BR-SEC-001, BR-SEC-002, BR-AI-002, BR-ORG-001]
+    title: Web session routes and API cookie authentication preserve organization and CSRF controls
+    layer: api
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/auth/session/route.test.ts src/components/authentication-gate.test.ts && pnpm --filter @naai-erp/api exec vitest run src/auth/session-cookie-auth.test.ts src/bootstrap.test.ts
+    blocking_gate: G27
+
+  - id: T-E2E-ERP-862-003
+    task: ERP-862
+    rules: [BR-SEC-002, BR-UI-003]
+    title: Production login receives an HttpOnly cookie and never stores the API token in browser storage
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/login-theme.spec.ts --project=desktop-chromium
+    blocking_gate: G27
+
   - id: T-UNIT-ERP-856-001
     task: ERP-856
     rules: [BR-PRD-001, BR-UI-003]
@@ -1591,6 +1615,14 @@ tests:
     layer: e2e
     command: PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --grep "project Kanban"
     blocking_gate: G25
+
+  - id: T-E2E-ERP-861-001
+    task: ERP-861
+    rules: [BR-EXP-004, BR-KPI-005, BR-UI-001]
+    title: Dashboard presents one owner liability and exact net company funds while owner-final legacy expenses leave no unclassified owner-paid balance
+    layer: e2e
+    command: PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_OUTPUT_DIR=/tmp/naai-erp-owner-liquidity pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --grep "ledger-derived bank|single owner obligation"
+    blocking_gate: G26
 
 golden_fixtures:
   - GF-LEDGER-001

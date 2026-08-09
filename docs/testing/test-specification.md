@@ -141,6 +141,16 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
 
 ## 5. Evidence
 
+### ERP-862 — Persistent production login
+
+- A valid production login sets a 30-day encrypted `HttpOnly`, `Secure`, same-site cookie and does
+  not return or persist the API token in browser JavaScript.
+- Refresh, a new tab and an application container update retain the session when the same
+  `SESSION_SECRET` is supplied to web and API.
+- Tampered, expired or cross-organization cookies fail closed. Cookie-authenticated mutations reject
+  a foreign Origin; normal CLI Bearer authentication remains unchanged.
+- Logout clears the cookie and a deliberate secret rotation invalidates all existing sessions.
+
 ### ERP-855 — Purchase product VAT catalog
 
 - Empty-database migration creates an organization-scoped purchase-product catalog.
@@ -168,6 +178,18 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
   value as project facts, while keeping approved budget distinct from contract value.
 - Multiple legacy contract rows are surfaced as a data-quality warning instead of being silently
   treated as one contract.
+
+### ERP-861 — Owner liquidity and owner-paid classification
+
+- The executive dashboard shows one company cash-and-bank amount, one complete Owner Current
+  liability and one net-company-funds amount calculated as cash and bank less that liability.
+- It does not show a separate zero operating-owner obligation or duplicate Owner Current card.
+- It does not show a Runway headline card; the dashboard leaves operating-duration judgment to the
+  owner from the displayed cash position.
+- In approved `owner_final` mode, legacy posted expenses credited to the reviewed owner-current
+  account are included in owner-paid company cost and do not remain in the unclassified queue.
+- Dashboard amounts come from the operating-dashboard API/read model; the UI contains no demo or
+  hardcoded financial totals.
 
 Each task evidence folder records:
 
