@@ -45,6 +45,7 @@ import { ProjectBudgetWorkspace } from "./project-revenue-workspaces";
 import { ProjectCostsWorkspace } from "./project-cost-workspaces";
 import { FocusedRecordListWorkspace } from "./focused-record-workspaces";
 import { projectMatchesDirectoryFilters } from "./business-directory-filters";
+import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 
 type DirectoryKind = "customers" | "projects";
 type Row = Record<string, unknown>;
@@ -153,15 +154,21 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          className="sm:max-w-sm"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={kind === "customers" ? "Tìm khách hàng…" : "Tìm dự án…"}
-          aria-label={kind === "customers" ? "Tìm khách hàng" : "Tìm dự án"}
-        />
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="secondary" className="text-xs font-normal">
+            {filtered.length} bản ghi
+          </Badge>
+          <PeriodRangeNavigator />
+          <Input
+            className="w-48 sm:w-64"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={kind === "customers" ? "Tìm khách hàng…" : "Tìm dự án…"}
+            aria-label={kind === "customers" ? "Tìm khách hàng" : "Tìm dự án"}
+          />
+        </div>
+        <div className="flex max-w-full flex-wrap justify-end gap-2">
           {kind === "projects" ? (
             <ProjectFilterPopover
               open={filterOpen}

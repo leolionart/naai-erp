@@ -71,4 +71,21 @@ describe("ERP-345 versioned API connection settings", () => {
     saveApiToken(storage, "");
     expect(storage.getItem(API_TOKEN_KEY)).toBeNull();
   });
+
+  it("can force the environment connection and clear a stale browser override", () => {
+    const storage = memoryStorage();
+    saveConnectionSettings(storage, {
+      version: 1,
+      baseUrl: "http://localhost:3001",
+      organizationId: "naai",
+    });
+    const liveProductionData = {
+      version: 1 as const,
+      baseUrl: "http://localhost:3000/dev-api",
+      organizationId: "naai",
+    };
+
+    expect(loadConnectionSettings(storage, liveProductionData, true)).toEqual(liveProductionData);
+    expect(storage.getItem(API_CONNECTION_SETTINGS_KEY)).toBeNull();
+  });
 });

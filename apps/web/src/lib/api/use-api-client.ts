@@ -15,7 +15,13 @@ export function useAuthenticatedApiClient() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setConnection(loadConnectionSettings(window.localStorage));
+    setConnection(
+      loadConnectionSettings(
+        window.localStorage,
+        DEFAULT_API_CONNECTION,
+        process.env.NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION === "1",
+      ),
+    );
     const storedToken = loadApiToken(window.sessionStorage);
     setToken(storedToken);
     setHydrated(true);

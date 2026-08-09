@@ -78,7 +78,9 @@ suite("ERP-853 empty organization restore", () => {
       method: "POST",
       url: `/api/v1/organizations/${source}/portable-data-packages/exports`,
       headers: { authorization: `Bearer ${sourceToken}`, "idempotency-key": `export-${suffix}` },
-      payload: { asOf: "2026-08-08" },
+      // Keep the export cutoff after fixture creation so this integration test
+      // does not start exporting an empty package when the calendar advances.
+      payload: { asOf: "2099-12-31" },
     });
     expect(exported.statusCode, exported.body).toBe(201);
     expect(exported.json().data.manifest.sheets).toEqual(

@@ -81,7 +81,7 @@ function Table({
   return (
     <div data-slot="configurable-table" className="w-full space-y-2">
       {columns.length > 1 ? (
-        <div className="flex justify-end">
+        <div className="flex justify-end px-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -104,11 +104,11 @@ function Table({
           </DropdownMenu>
         </div>
       ) : null}
-      <div data-slot="table-container" className="relative w-full overflow-x-auto">
+      <div data-slot="table-container" className="relative w-full overflow-x-auto border-t sm:border-t-0">
         <table
           ref={tableRef}
           data-slot="table"
-          className={cn("w-full caption-bottom text-sm", className)}
+          className={cn("w-full min-w-[700px] sm:min-w-full caption-bottom text-sm", className)}
           {...props}
         />
       </div>

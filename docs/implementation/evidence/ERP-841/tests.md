@@ -263,3 +263,22 @@ Banking naming-alignment evidence on 2026-08-08:
 - `T-E2E-ERP-841-024` targets the admin confirmation flow and verifies its reason and current version.
 - ERP-841 remains `in_progress`; the coordinating agent records pass results after concurrent
   implementation settles.
+- `pnpm --filter @naai-erp/web typecheck` — passed after dashboard card/footer and project-pipeline layout changes.
+- `git diff --check` — passed.
+- `apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts` now proves that an
+  uncategorized line without the owner-paid funding treatment does not create an owner-paid
+  classification warning.
+- `pnpm --filter @naai-erp/api test -- src/operating-dashboard/operating-dashboard.integration.test.ts`
+  — passed; Vitest executed 34 files / 119 tests with 30 files / 89 tests skipped by environment gates.
+- `pnpm --filter @naai-erp/web typecheck` — passed after separating review and import-backlog alerts.
+- `pnpm test:docs` — passed: 11 accepted ADRs, 12 rule references and 27 AI relationship resources.
+- `pnpm --filter @naai-erp/web test -- 'src/app/dev-api/[...path]/route.test.ts'` — passed as
+  part of the 18-file / 42-test web suite. Coverage proves server-only bearer forwarding, exact
+  organization locking and production-runtime rejection.
+- Live local proxy readback against `https://erp.naai.studio` returned HTTP 200 with 81 parties,
+  59 party roles, 16 client roles and 40 projects; a POST to the same proxy returned HTTP 405.
+- `http://localhost:3000/projects` returned HTTP 200 after switching the local web process to the
+  server-side production read proxy.
+- Regression follow-up: the live-data mode now clears stale `naai-erp-admin-settings-v2` browser
+  connection overrides. The web suite passed 18 files / 43 tests, and the running Customers page
+  read both `parties` and `party-roles` through `/dev-api` with HTTP 200 after the full reload.

@@ -13,10 +13,7 @@ import type {
   VatReconciliationContract,
 } from "@naai-erp/contracts";
 import { ArrowRight, Filter, ListChecks } from "lucide-react";
-import type {
-  ProjectProfitabilityReport,
-  ProjectProfitabilitySummary,
-} from "@/lib/api/project-profitability";
+import type { ProjectProfitabilityReport } from "@/lib/api/project-profitability";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -125,6 +122,11 @@ type OperatingProjectWire = Readonly<{
   code?: string;
   name?: string;
   clientName?: string;
+  state?: string;
+  startsOn?: string;
+  endsOn?: string | null;
+  contractedMinor?: string;
+  invoicedMinor?: string;
   actualCostMinor?: string;
   budgetCostMinor?: string;
   burnBps?: number | null;
@@ -209,11 +211,6 @@ type OperatingDashboardWire = Readonly<{
     }>[];
   }>;
 }>;
-function isOperatingProject(
-  project: OperatingProjectWire | ProjectProfitabilitySummary,
-): project is OperatingProjectWire {
-  return "estimateAtCompletionMinor" in project;
-}
 type Preview = Readonly<{
   title: string;
   description: string;
@@ -387,11 +384,6 @@ function sumMinor(values: readonly (string | null | undefined)[]) {
   return values.reduce<bigint>((total, value) => total + BigInt(value ?? "0"), 0n).toString();
 }
 
-function percent(numerator: bigint, denominator: bigint) {
-  if (denominator <= 0n) return "N/A";
-  return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(Number((numerator * 1000n) / denominator) / 10)}%`;
-}
-
 function daysBetween(startsOn: string, endsOn: string) {
   const start = Date.parse(`${startsOn}T00:00:00Z`);
   const end = Date.parse(`${endsOn}T00:00:00Z`);
@@ -450,29 +442,33 @@ function MetricCard({
   const formattedStatus = formatStatusBadge(status);
 
   const cardElement = (
-    <Card className="group relative flex h-full flex-col justify-between transition-all hover:border-primary/50 hover:bg-accent/30 active:scale-[0.99] cursor-pointer">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="transition-colors group-hover:text-primary">{title}</CardTitle>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {provisional ? (
-              <Badge variant="secondary" className="text-xs font-normal">
-                Tạm tính
-              </Badge>
-            ) : null}
-            {formattedStatus ? (
-              <Badge variant="outline" className="text-xs font-normal">
-                {formattedStatus}
-              </Badge>
-            ) : null}
-            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover:translate-x-0.5 group-hover:text-primary group-hover:opacity-100" />
-          </div>
-        </div>
-        <CardDescription className="min-h-[2.25rem] line-clamp-2">{description}</CardDescription>
+    <Card className="group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden transition-all hover:border-primary/50 hover:bg-accent/30 active:scale-[0.99]">
+      <CardHeader className="gap-2 pb-2">
+        <CardTitle className="line-clamp-2 min-h-10 text-base leading-5 transition-colors group-hover:text-primary">
+          {title}
+        </CardTitle>
+        <CardDescription className="line-clamp-2 min-h-10">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="pb-4 pt-0">
+      <CardContent className="mt-auto pb-4 pt-0">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
       </CardContent>
+      <CardFooter className="min-h-10 min-w-0 gap-1.5 overflow-hidden pb-4 pt-0">
+        {provisional ? (
+          <Badge variant="secondary" className="shrink-0 text-xs font-normal">
+            Tạm tính
+          </Badge>
+        ) : null}
+        {formattedStatus ? (
+          <Badge
+            variant="outline"
+            className="min-w-0 max-w-full truncate text-xs font-normal"
+            title={formattedStatus}
+          >
+            {formattedStatus}
+          </Badge>
+        ) : null}
+        <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground opacity-50 transition-all group-hover:translate-x-0.5 group-hover:text-primary group-hover:opacity-100" />
+      </CardFooter>
     </Card>
   );
 
@@ -851,16 +847,19 @@ export function ExecutiveDashboardWorkspace() {
             BigInt(operating.financials.corporateIncomeTaxRateBps)) /
           10_000n
         ).toString();
-  const fallbackProjectRisks = [...projects]
-    .filter((item) => BigInt(item.overrunAmountMinor ?? "0") > 0n || item.confidenceCodes.length)
-    .sort((a, b) =>
-      BigInt(a.overrunAmountMinor ?? "0") > BigInt(b.overrunAmountMinor ?? "0") ? -1 : 1,
+  const projectPipelineRows = [...(operating?.backlog.projects ?? [])]
+    .filter(
+      (project) =>
+        BigInt(project.contractedMinor ?? "0") !== 0n ||
+        BigInt(project.invoicedMinor ?? "0") !== 0n ||
+        BigInt(project.backlogMinor ?? "0") !== 0n,
     )
-    .slice(0, 5);
-  const projectBurnRows = operating?.projectBurn.slice(0, 5);
-  const hasProjectBurnRows = operating
-    ? Boolean(projectBurnRows?.length)
-    : fallbackProjectRisks.length > 0;
+    .sort((left, right) => {
+      const leftActivity = BigInt(left.invoicedMinor ?? "0") + BigInt(left.backlogMinor ?? "0");
+      const rightActivity = BigInt(right.invoicedMinor ?? "0") + BigInt(right.backlogMinor ?? "0");
+      return leftActivity === rightActivity ? 0 : leftActivity > rightActivity ? -1 : 1;
+    })
+    .slice(0, 6);
   const flaggedPerformance =
     performance?.confidenceFlags.filter(
       (f) => (f.severity as string) === "critical" || !f.code.startsWith("missing_"),
@@ -868,8 +867,8 @@ export function ExecutiveDashboardWorkspace() {
   const flagged =
     flaggedPerformance +
     (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
-    (data.aging?.exceptions.length ?? 0) +
-    (operating?.dataQuality.pendingCount ?? 0);
+    (data.aging?.exceptions.length ?? 0);
+  const pendingImportRows = operating?.dataQuality.pendingCount ?? 0;
   const sourceMonthly = operating?.sourceControls?.monthly ?? [];
   const startsOnMonth = (search.get("startsOn") ?? "2025-01-01").slice(0, 7);
   const endsOnMonth = (search.get("endsOn") ?? "2025-12-31").slice(0, 7);
@@ -992,7 +991,16 @@ export function ExecutiveDashboardWorkspace() {
           <Alert>
             <AlertTitle>{flagged} tín hiệu cần rà soát</AlertTitle>
             <AlertDescription>
-              Mở Finance review để xem các ngoại lệ từ báo cáo nguồn và dữ liệu import.
+              Mở Finance review để xem đúng các ngoại lệ kế toán và báo cáo đang được tính ở đây.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {!loading && pendingImportRows > 0 ? (
+          <Alert>
+            <AlertTitle>{pendingImportRows} dòng dữ liệu nguồn đang chờ chuẩn hóa</AlertTitle>
+            <AlertDescription>
+              Đây là backlog import riêng, không được cộng vào số tín hiệu ngoại lệ kế toán phía
+              trên.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -1133,84 +1141,65 @@ export function ExecutiveDashboardWorkspace() {
             </div>
             <Card>
               <CardHeader>
-                <CardTitle>Budget burn & EAC dự án</CardTitle>
+                <CardTitle>Dự án đang tạo doanh thu</CardTitle>
                 <CardDescription>
-                  Các dự án có overrun hoặc cảnh báo chất lượng dữ liệu.
+                  Giá trị hợp đồng, hóa đơn đã xuất và phần doanh thu còn lại theo dữ liệu hiện có.
                 </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
-                {hasProjectBurnRows ? (
+                {projectPipelineRows.length ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Dự án</TableHead>
-                        <TableHead>Budget burn</TableHead>
-                        <TableHead>EAC</TableHead>
-                        <TableHead>Phương pháp</TableHead>
+                        <TableHead>Khách hàng</TableHead>
+                        <TableHead className="text-right">Hợp đồng</TableHead>
+                        <TableHead className="text-right">Đã xuất HĐ</TableHead>
+                        <TableHead className="text-right">Còn lại</TableHead>
                         <TableHead className="text-right">Chi tiết</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(operating ? (projectBurnRows ?? []) : fallbackProjectRisks).map(
-                        (project) => {
-                          const isOperating = isOperatingProject(project);
-                          const projectId = project.projectId ?? "";
-                          const cost = BigInt(
-                            isOperating
-                              ? (project.actualCostMinor ?? "0")
-                              : (project.directCostMinor ?? "0"),
-                          );
-                          const budget = BigInt(project.budgetCostMinor ?? "0");
-                          const eac = isOperating
-                            ? (project.estimateAtCompletionMinor ?? "0")
-                            : (budget + BigInt(project.overrunAmountMinor ?? "0")).toString();
-                          return (
-                            <TableRow key={projectId}>
-                              <TableCell>
-                                {isOperating
-                                  ? (project.name ?? project.code)
-                                  : (project.projectName ?? project.projectCode)}
-                              </TableCell>
-                              <TableCell>
-                                {isOperating && project.burnBps != null
-                                  ? ratio(project.burnBps)
-                                  : percent(cost, budget)}
-                              </TableCell>
-                              <TableCell>
-                                {money(
-                                  eac,
-                                  operating?.currency ??
-                                    (!isOperating ? project.currency : undefined),
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {isOperating ? (
-                                  <Badge variant="outline">
-                                    {project.eacMethod ?? "operating-dashboard"}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary">Fallback</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button asChild size="sm" variant="outline">
-                                  <Link href={`/projects/${encodeURIComponent(projectId)}`}>
-                                    Mở dự án
-                                  </Link>
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        },
-                      )}
+                      {projectPipelineRows.map((project) => {
+                        const projectId = project.projectId ?? "";
+                        return (
+                          <TableRow key={projectId}>
+                            <TableCell className="min-w-48 font-medium">
+                              <div>{project.name ?? project.code ?? "Dự án chưa đặt tên"}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {project.code}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-72 truncate" title={project.clientName}>
+                              {project.clientName ?? "Chưa gán khách hàng"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {money(project.contractedMinor, operating?.currency)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {money(project.invoicedMinor, operating?.currency)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {money(project.backlogMinor, operating?.currency)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button asChild size="sm" variant="outline">
+                                <Link href={`/projects/${encodeURIComponent(projectId)}`}>
+                                  Mở dự án
+                                </Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 ) : (
                   <Empty>
                     <EmptyHeader>
-                      <EmptyTitle>Không có dự án cảnh báo</EmptyTitle>
+                      <EmptyTitle>Chưa có dự án có giá trị thương mại</EmptyTitle>
                       <EmptyDescription>
-                        Chưa phát hiện overrun hoặc thiếu dữ liệu trong kỳ.
+                        Bổ sung hợp đồng hoặc phân bổ hóa đơn vào dự án để theo dõi tại đây.
                       </EmptyDescription>
                     </EmptyHeader>
                   </Empty>

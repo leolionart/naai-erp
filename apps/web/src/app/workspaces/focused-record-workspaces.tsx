@@ -186,10 +186,6 @@ export function FocusedRecordListWorkspace({
     }
     try {
       const sourceParams = new URLSearchParams(key);
-      if (initialProjectId || initialPartyId) {
-        sourceParams.delete("startsOn");
-        sourceParams.delete("endsOn");
-      }
       if (initialProjectId && !sourceParams.has("projectId")) {
         sourceParams.set("projectId", initialProjectId);
       }
@@ -243,7 +239,7 @@ export function FocusedRecordListWorkspace({
       const startsOn = sourceParams.get("startsOn");
       const endsOn = sourceParams.get("endsOn");
       // Do not filter out raw records by time when explicitly looking at a specific Project or Customer profile
-      if ((startsOn || endsOn) && !initialProjectId && !initialPartyId) {
+      if (startsOn || endsOn) {
         rawItems = rawItems.filter((row) => {
           const dateVal = text(row, "documentDate", "expenseDate", "issueDate", "createdAt");
           if (!dateVal) return true;
@@ -464,7 +460,7 @@ export function FocusedRecordListWorkspace({
           <Badge variant="secondary" className="text-xs font-normal">
             {rows.length} bản ghi
           </Badge>
-          {!initialProjectId && !initialPartyId ? <PeriodRangeNavigator /> : null}
+          <PeriodRangeNavigator />
         </div>
         <div className="flex max-w-full flex-wrap justify-end gap-2">
           <FilterPopover
@@ -568,7 +564,9 @@ export function FocusedRecordListWorkspace({
                       <TableCell>
                         {catName ? <Badge variant="secondary">{catName}</Badge> : "—"}
                       </TableCell>
-                      <TableCell className="font-medium">{partyName}</TableCell>
+                      <TableCell className="max-w-[220px] truncate font-medium" title={partyName}>
+                        {partyName}
+                      </TableCell>
                       <TableCell
                         className="max-w-[200px] truncate text-muted-foreground"
                         title={text(row, "businessPurpose", "reason")}

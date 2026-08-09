@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-09T05:07:00+07:00
+updated_at: 2026-08-09T16:20:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: in_progress
 development_completed_at: 2026-08-07T20:49:00+07:00
@@ -1297,6 +1297,22 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-853/
 
+  - id: ERP-854
+    title: Scheduled one-way production to development data refresh
+    phase: P11
+    status: blocked
+    dependencies: [ERP-841, ERP-853]
+    business_rules: [BR-EXPOR-002, BR-MIG-006, BR-OPS-002, BR-ORG-001, BR-AUD-001]
+    tests: []
+    evidence: docs/implementation/evidence/ERP-854/
+    blocked_reason: Production capabilities do not yet expose Full ERP Data Package export/restore operations, and ERP-841 remains in progress. Deploy the compatible application version first, then implement an encrypted blue-green production export to empty development tenant restore with financial control readback.
+    planned_files:
+      - scripts/sync-production-to-development.mjs
+      - docs/runbooks/production-to-development-data-refresh.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-854/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1317,6 +1333,7 @@ gates:
   G16: [ERP-851]
   G17: [ERP-852]
   G18: [ERP-853]
+  G19: [ERP-854]
 
 gate_status:
   G0: done
@@ -1338,3 +1355,4 @@ gate_status:
   G16: done
   G17: done
   G18: done
+  G19: blocked

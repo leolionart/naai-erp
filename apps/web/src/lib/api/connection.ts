@@ -73,7 +73,12 @@ export function parseConnectionSettings(raw: string | null): ApiConnectionSettin
 export function loadConnectionSettings(
   storage: StorageLike,
   fallback: ApiConnectionSettingsV1 = DEFAULT_API_CONNECTION,
+  forceFallback = false,
 ): ApiConnectionSettingsV1 {
+  if (forceFallback) {
+    storage.removeItem(API_CONNECTION_SETTINGS_KEY);
+    return fallback;
+  }
   const parsed = parseConnectionSettings(storage.getItem(API_CONNECTION_SETTINGS_KEY));
   if (parsed) return parsed;
   storage.removeItem(API_CONNECTION_SETTINGS_KEY);

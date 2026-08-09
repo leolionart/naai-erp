@@ -180,8 +180,14 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         }>(
           `select
              coalesce(sum(l.gross_minor) filter (where l.funding_treatment='owner_paid_company_cost'),0)::text owner_paid,
-             count(*) filter (where l.expense_category_code is null)::int unclassified_count,
-             coalesce(sum(l.gross_minor) filter (where l.expense_category_code is null),0)::text unclassified_minor,
+             count(*) filter (
+               where l.expense_category_code is null
+                 and l.funding_treatment='owner_paid_company_cost'
+             )::int unclassified_count,
+             coalesce(sum(l.gross_minor) filter (
+               where l.expense_category_code is null
+                 and l.funding_treatment='owner_paid_company_cost'
+             ),0)::text unclassified_minor,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
            join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id

@@ -146,3 +146,17 @@ be deleted through the organization-scoped application service used by API, CLI 
 optimistic version, reason, idempotency and append-only audit evidence. Any canonical business or
 financial reference blocks deletion with a structured conflict; deletion never cascades into
 accounting or historical records.
+## Dashboard layout follow-up
+
+- Metric-card titles now use the full card width; provisional/review badges sit in a dedicated
+  footer below the primary value and long statuses truncate instead of squeezing titles vertically.
+- The empty `Budget burn & EAC` fallback table was replaced by a commercial project pipeline using
+  actual contracted, invoiced and remaining values from the operating-dashboard read model.
+- Dashboard review signals now exclude workbook-import backlog rows and disclose that backlog as a
+  separate data-normalization count, so the Finance review total matches the exceptions it renders.
+- Owner-paid classification warnings now count only posted lines explicitly carrying the
+  `owner_paid_company_cost` funding treatment; unrelated uncategorized company expenses no longer
+  inflate that warning.
+- Local UI development can use a development-only server-side read proxy to production. It keeps
+  the production API token out of browser code, locks organization scope and exposes only GET/HEAD,
+  so interface work does not need a second database and cannot mutate production financial truth.

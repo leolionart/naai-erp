@@ -160,3 +160,24 @@ November and December. With VND 261,000,000 unrestricted cash at year end, Execu
 a reviewed three-month average burn of VND 24,000,000 and runway of 10.875 months.
 
 The script is for local synthetic data only. Do not run it against staging or production.
+
+## Develop the UI against production data without a second database
+
+For read-only UI work, the local Next.js application can proxy production API reads without
+exposing the production token to the browser. Configure the web process with:
+
+```dotenv
+NEXT_PUBLIC_API_URL=http://localhost:3000/dev-api
+NEXT_PUBLIC_ORGANIZATION_ID=naai
+NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION=1
+NAAI_ERP_DEV_UPSTREAM_BASE_URL=https://erp.naai.studio
+NAAI_ERP_DEV_UPSTREAM_ORGANIZATION=naai
+NAAI_ERP_DEV_UPSTREAM_TOKEN=<server-only production API token>
+```
+
+`NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION=1` clears any previously saved browser API override so an
+old `localhost:3001` setting cannot silently keep the UI on the local database. The `/dev-api` route
+exists only in a development runtime, requires HTTPS upstream, locks requests
+to the configured organization and exports only `GET`/`HEAD`. Mutation methods are unavailable, so
+local UI experiments cannot change production financial data. Load the token from an approved
+credential source into the process environment; never commit it or prefix it with `NEXT_PUBLIC_`.
