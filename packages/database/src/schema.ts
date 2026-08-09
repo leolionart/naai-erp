@@ -2182,7 +2182,7 @@ export const accountingWorkflowPolicies = pgTable(
   (table) => [
     check(
       "workflow_policy_operating_mode",
-      sql`${table.operatingMode} in ('controlled', 'owner_final')`,
+      sql`${table.operatingMode} in ('controlled', 'solopreneur')`,
     ),
     check(
       "workflow_policy_self_approval_threshold",

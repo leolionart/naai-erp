@@ -313,6 +313,7 @@ export function reviewForecastManualAdjustment(
   actorId: string,
   reason: string,
   reviewedAt: string,
+  allowSelfApproval = false,
 ): ForecastComponent {
   if (component.kind !== "manual_adjustment") {
     throw new Error("Only manual forecast adjustments require review");
@@ -320,7 +321,7 @@ export function reviewForecastManualAdjustment(
   if (component.state !== "active" || component.reviewState !== "pending") {
     throw new Error("Only active pending manual adjustment can be reviewed");
   }
-  if (component.createdBy === actorId.trim()) {
+  if (!allowSelfApproval && component.createdBy === actorId.trim()) {
     throw new Error("Forecast manual adjustment requires maker-checker separation");
   }
   return Object.freeze({

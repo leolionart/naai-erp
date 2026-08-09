@@ -10,10 +10,14 @@ const envelope = (data: unknown) => ({
 test("@desktop manages canonical expense category funding policies", async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp-852-token"));
   let operatingMode = "controlled";
+  let selfApproval = false;
   await page.route("**/master-data/accounting-workflow-policy**", async (route) => {
     if (route.request().method() === "PATCH") {
-      const body = route.request().postDataJSON() as { data: { operating_mode: string } };
+      const body = route.request().postDataJSON() as {
+        data: { operating_mode: string; allow_self_approval: boolean };
+      };
       operatingMode = body.data.operating_mode;
+      selfApproval = body.data.allow_self_approval;
       return route.fulfill({
         contentType: "application/json",
         body: JSON.stringify(
@@ -61,13 +65,12 @@ test("@desktop manages canonical expense category funding policies", async ({ pa
   );
 
   await page.goto("http://localhost:3000/settings/master-data");
-  await page.getByLabel("Chế độ vận hành chi phí").click();
-  await page.getByRole("option", { name: "Một chủ sở hữu — dữ liệu nhập là final" }).click();
-  await page.getByRole("button", { name: "Lưu chế độ" }).click();
-  await expect(page.getByLabel("Chế độ vận hành chi phí")).toContainText(
-    "Một chủ sở hữu — dữ liệu nhập là final",
-  );
-  expect(operatingMode).toBe("owner_final");
+  await page.getByLabel("Mô hình doanh nghiệp").click();
+  await page.getByRole("option", { name: "Doanh nghiệp một người" }).click();
+  await page.getByRole("button", { name: "Lưu mô hình" }).click();
+  await expect(page.getByLabel("Mô hình doanh nghiệp")).toContainText("Doanh nghiệp một người");
+  expect(operatingMode).toBe("solopreneur");
+  expect(selfApproval).toBe(false);
   await expect(page.getByText("Chính sách danh mục chi phí", { exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "DOMAIN_HOSTING" })).toBeVisible();
   await expect(page.getByText("Chủ doanh nghiệp chi hộ chi phí thực")).toBeVisible();

@@ -2,6 +2,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type { OverheadContext, OverheadResource } from "./overhead-allocation.types.js";
 const hash = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex");
 const TABLE: Record<OverheadResource, string> = {
@@ -102,8 +106,10 @@ export class PgOverheadAllocationStore {
       if (!x) throw new Error("RESOURCE_NOT_FOUND");
       if (String(x.version) !== i.expectedResourceVersion) throw new Error("VERSION_CONFLICT");
       const target = this.target(r, a, x.state);
-      if (["approve"].includes(a) && x.submitted_by === c.actorId)
-        throw new Error("MAKER_CHECKER_VIOLATION");
+      if (["approve"].includes(a) && x.submitted_by === c.actorId) {
+        const policy = await resolveOrganizationWorkflowPolicy(c.organizationId, q);
+        if (!canSelfApprove({ policy, roles: c.roles })) throw new Error("MAKER_CHECKER_VIOLATION");
+      }
       if (r === "overhead-allocation-policies" && a === "approve")
         await this.approvePolicy(q, c.organizationId, x);
       if (r === "overhead-allocation-runs" && ["approve", "post", "reverse"].includes(a))

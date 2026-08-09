@@ -14,6 +14,16 @@ import {
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const WRITE = new Set(["owner", "finance_admin", "accountant", "integration"]);
 const APPROVE = new Set(["owner", "finance_admin", "accountant", "approver"]);
+const POLICY_SEMANTICS = new Set([
+  "contributed_capital",
+  "retained_earnings",
+  "unrestricted_cash",
+  "restricted_cash",
+  "reviewed_equity_adjustment",
+  "other_equity",
+  "owner_withdrawal",
+  "owner_loan",
+]);
 @Injectable()
 export class ExecutiveMetricService {
   constructor(
@@ -89,7 +99,39 @@ export class ExecutiveMetricService {
       !m.length
     )
       throw new Error("VALIDATION_FAILED");
-    return i as PolicyInput;
+    const mappingKeys = new Set<string>();
+    const accountCodes = new Set<string>();
+    const mappings: PolicyInput["mappings"][number][] = [];
+    for (let index = 0; index < m.length; index += 1) {
+      const mapping = m[index];
+      if (!mapping || typeof mapping !== "object" || Array.isArray(mapping))
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_INVALID`);
+      const value = mapping as Record<string, unknown>;
+      const semantic = String(value.semantic ?? "");
+      const accountCode = String(value.accountCode ?? "").trim();
+      if (!POLICY_SEMANTICS.has(semantic))
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_SEMANTIC_INVALID`);
+      if (!accountCode)
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_ACCOUNT_CODE_REQUIRED`);
+      if (value.sign !== undefined && value.sign !== 1 && value.sign !== -1)
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_SIGN_INVALID`);
+      if (value.notes !== undefined && typeof value.notes !== "string")
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_NOTES_INVALID`);
+      const mappingKey = `${semantic}:${accountCode}`;
+      if (mappingKeys.has(mappingKey))
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_DUPLICATE`);
+      if (accountCodes.has(accountCode))
+        throw new Error(`EXECUTIVE_METRIC_POLICY_MAPPINGS_${index}_ACCOUNT_CODE_DUPLICATE`);
+      mappingKeys.add(mappingKey);
+      accountCodes.add(accountCode);
+      mappings.push({
+        semantic: semantic as PolicyInput["mappings"][number]["semantic"],
+        accountCode,
+        ...(value.sign === undefined ? {} : { sign: value.sign as -1 | 1 }),
+        ...(value.notes === undefined ? {} : { notes: value.notes as string }),
+      });
+    }
+    return { ...(i as PolicyInput), mappings };
   }
   parseDefinition(i: Record<string, unknown>): RoiDefinitionInput {
     const p = i.includedCostPolicy as Record<string, unknown>;

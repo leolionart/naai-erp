@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentContext,
@@ -70,9 +74,9 @@ function purchaseLineTaxDecision(
     }
   }
 
-  const ownerFinal = operatingMode === "owner_final";
+  const solopreneur = operatingMode === "solopreneur";
   const vatMinor = BigInt(line.taxMinor);
-  if (!explicit && ownerFinal) vatEligible = vatMinor;
+  if (!explicit && solopreneur) vatEligible = vatMinor;
   const vatState =
     vatMinor === 0n || vatEligible === 0n
       ? "ineligible"
@@ -80,12 +84,12 @@ function purchaseLineTaxDecision(
         ? "eligible"
         : "partially_eligible";
   return {
-    managementState: ownerFinal ? "valid" : "unreviewed",
-    citState: ownerFinal ? "eligible" : "unreviewed",
-    vatState: explicit || ownerFinal ? vatState : "unreviewed",
-    citEligibleMinor: ownerFinal ? line.netMinor : "0",
-    vatEligibleMinor: explicit || ownerFinal ? vatEligible.toString() : "0",
-    reviewed: explicit || ownerFinal,
+    managementState: solopreneur ? "valid" : "unreviewed",
+    citState: solopreneur ? "eligible" : "unreviewed",
+    vatState: explicit || solopreneur ? vatState : "unreviewed",
+    citEligibleMinor: solopreneur ? line.netMinor : "0",
+    vatEligibleMinor: explicit || solopreneur ? vatEligible.toString() : "0",
+    reviewed: explicit || solopreneur,
   };
 }
 
@@ -111,11 +115,7 @@ export class PgCommercialDocumentStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
   private async operatingMode(client: PoolClient, organizationId: string) {
-    const result = await client.query<{ operating_mode: string }>(
-      "select operating_mode from accounting_workflow_policies where organization_id=$1",
-      [organizationId],
-    );
-    return result.rows[0]?.operating_mode ?? null;
+    return (await resolveOrganizationWorkflowPolicy(organizationId, client)).operatingMode;
   }
 
   private async insertDocumentLine(
@@ -165,8 +165,8 @@ export class PgCommercialDocumentStore {
         tax.reviewed ? context.actorId : null,
         tax.reviewed ? "Resolved when the purchase invoice was recorded" : null,
         tax.reviewed
-          ? operatingMode === "owner_final"
-            ? "owner_final"
+          ? operatingMode === "solopreneur"
+            ? "solopreneur_policy"
             : "explicit_tax_state"
           : null,
         line.dimensions ?? {},
@@ -1084,7 +1084,7 @@ export class PgCommercialDocumentStore {
       const next = NEXT[document.type][document.state]?.[action];
       if (!next) throw new Error("INVALID_DOCUMENT_TRANSITION");
       if (action === "approve" && document.created_by === context.actorId)
-        await this.assertSelfApproval(client, context.organizationId, BigInt(document.gross_minor));
+        await this.assertSelfApproval(client, context, BigInt(document.gross_minor));
       let journalId: string | undefined;
       if (action === "issue" || action === "post") {
         if (document.type === "sales_invoice")
@@ -1438,18 +1438,13 @@ export class PgCommercialDocumentStore {
       [organizationId, key, operation, hash, response],
     );
   }
-  private async assertSelfApproval(client: PoolClient, organizationId: string, total: bigint) {
-    const policy = await client.query<{
-      allow_self_approval: boolean;
-      self_approval_max_minor: string | null;
-    }>(
-      "select allow_self_approval,self_approval_max_minor from accounting_workflow_policies where organization_id=$1",
-      [organizationId],
-    );
-    if (
-      !policy.rows[0]?.allow_self_approval ||
-      total > BigInt(policy.rows[0].self_approval_max_minor ?? "-1")
-    )
+  private async assertSelfApproval(
+    client: PoolClient,
+    context: CommercialDocumentContext,
+    total: bigint,
+  ) {
+    const policy = await resolveOrganizationWorkflowPolicy(context.organizationId, client);
+    if (!canSelfApprove({ policy, roles: context.roles, amountMinor: total }))
       throw new Error("MAKER_CHECKER_VIOLATION");
   }
   private async assertPostingPeriod(

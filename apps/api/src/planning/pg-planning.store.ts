@@ -16,6 +16,10 @@ import {
 import pg, { type PoolClient } from "pg";
 import type { PlanningContext, PlanningResource } from "./planning.types.js";
 import { PgForecastComponentStore } from "../forecast-components/pg-forecast-component.store.js";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 
 const TABLE: Record<PlanningResource, string> = {
   "revenue-targets": "revenue_target_versions",
@@ -205,8 +209,10 @@ export class PgPlanningStore {
         existing = (await this.existing(q, c.organizationId, resource)).filter(
           (version) => version.id !== id,
         );
-      if (action === "publish" && raw.created_by === c.actorId)
-        throw new Error("MAKER_CHECKER_VIOLATION");
+      if (action === "publish" && raw.created_by === c.actorId) {
+        const policy = await resolveOrganizationWorkflowPolicy(c.organizationId, q);
+        if (!canSelfApprove({ policy, roles: c.roles })) throw new Error("MAKER_CHECKER_VIOLATION");
+      }
       let compositionSnapshot: unknown;
       if (resource === "forecast-versions" && action === "publish") {
         const components = (

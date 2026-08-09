@@ -22,10 +22,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthenticatedApiClient } from "@/lib/api";
 
-type Mode = "controlled" | "owner_final";
+export type BusinessMode = "controlled" | "solopreneur";
+
 type WorkflowPolicy = Readonly<{
   organizationId: string;
-  operatingMode: Mode;
+  businessMode: BusinessMode;
 }>;
 
 function resourceKey(organizationId: string) {
@@ -35,10 +36,10 @@ function resourceKey(organizationId: string) {
     .replace(/=+$/, "");
 }
 
-export function OwnerFinalPolicyWorkspace() {
+export function BusinessModeWorkspace() {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [policy, setPolicy] = useState<WorkflowPolicy>();
-  const [mode, setMode] = useState<Mode>("controlled");
+  const [mode, setMode] = useState<BusinessMode>("controlled");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +47,7 @@ export function OwnerFinalPolicyWorkspace() {
   const load = useCallback(async () => {
     if (!hydrated) return;
     if (!hasToken) {
-      setError("Cần API token để quản lý chế độ vận hành.");
+      setError("Cần API token để quản lý mô hình doanh nghiệp.");
       setLoading(false);
       return;
     }
@@ -64,12 +65,14 @@ export function OwnerFinalPolicyWorkspace() {
       }
       const next = {
         organizationId: String(row.organization_id ?? row.organizationId ?? ""),
-        operatingMode: String(row.operating_mode ?? row.operatingMode ?? "controlled") as Mode,
+        businessMode: String(
+          row.operating_mode ?? row.operatingMode ?? "controlled",
+        ) as BusinessMode,
       };
       setPolicy(next);
-      setMode(next.operatingMode);
+      setMode(next.businessMode);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể tải chế độ vận hành.");
+      setError(cause instanceof Error ? cause.message : "Không thể tải mô hình doanh nghiệp.");
     } finally {
       setLoading(false);
     }
@@ -89,7 +92,11 @@ export function OwnerFinalPolicyWorkspace() {
           method: policy ? "PATCH" : "POST",
           body: {
             data: policy
-              ? { operating_mode: mode }
+              ? {
+                  operating_mode: mode,
+                  allow_self_approval: false,
+                  self_approval_max_minor: null,
+                }
               : {
                   operating_mode: mode,
                   allow_self_approval: false,
@@ -101,7 +108,7 @@ export function OwnerFinalPolicyWorkspace() {
       );
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể lưu chế độ vận hành.");
+      setError(cause instanceof Error ? cause.message : "Không thể lưu mô hình doanh nghiệp.");
     } finally {
       setBusy(false);
     }
@@ -110,19 +117,19 @@ export function OwnerFinalPolicyWorkspace() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Chế độ vận hành chi phí</CardTitle>
+        <CardTitle>Mô hình doanh nghiệp</CardTitle>
         <CardDescription>
-          Owner-final dành cho doanh nghiệp một người: chi phí có chứng từ được ghi nhận là đã xác
-          nhận quản trị và thuế ngay khi nhập. Chi cá nhân, thiếu chứng từ và tài sản vẫn theo quy
-          tắc riêng.
+          Doanh nghiệp một người cho phép chủ doanh nghiệp tự khai báo và tự duyệt nghiệp vụ; mọi
+          thao tác vẫn được phân quyền, lưu vết và kiểm tra theo quy tắc kế toán. Dữ liệu thiếu
+          chứng từ hoặc có ngoại lệ vẫn phải được rà soát.
         </CardDescription>
         <CardAction>
           <Button
             size="sm"
             onClick={save}
-            disabled={loading || busy || mode === policy?.operatingMode}
+            disabled={loading || busy || mode === policy?.businessMode}
           >
-            {busy ? "Đang lưu…" : "Lưu chế độ"}
+            {busy ? "Đang lưu…" : "Lưu mô hình"}
           </Button>
         </CardAction>
       </CardHeader>
@@ -136,14 +143,14 @@ export function OwnerFinalPolicyWorkspace() {
         {loading ? (
           <Skeleton className="h-10 w-full" />
         ) : (
-          <Select value={mode} onValueChange={(value) => setMode(value as Mode)}>
-            <SelectTrigger aria-label="Chế độ vận hành chi phí" className="w-full sm:w-80">
+          <Select value={mode} onValueChange={(value) => setMode(value as BusinessMode)}>
+            <SelectTrigger aria-label="Mô hình doanh nghiệp" className="w-full sm:w-80">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="controlled">Kiểm soát nhiều bước</SelectItem>
-                <SelectItem value="owner_final">Một chủ sở hữu — dữ liệu nhập là final</SelectItem>
+                <SelectItem value="controlled">Doanh nghiệp có phân quyền</SelectItem>
+                <SelectItem value="solopreneur">Doanh nghiệp một người</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>

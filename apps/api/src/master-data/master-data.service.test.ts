@@ -124,7 +124,7 @@ describe("AI-native master data service", () => {
       "accounting-workflow-policy",
       "encoded-org-key",
       context,
-      { data: { operating_mode: "owner_final", updated_by: "spoofed" } },
+      { data: { operating_mode: "solopreneur", updated_by: "spoofed" } },
       "owner-final-policy",
     );
     expect(store.mutate).toHaveBeenCalledWith(
@@ -132,7 +132,7 @@ describe("AI-native master data service", () => {
       "accounting-workflow-policy",
       context,
       "encoded-org-key",
-      { data: { operating_mode: "owner_final", updated_by: "owner-a" } },
+      { data: { operating_mode: "solopreneur", updated_by: "owner-a" } },
       "owner-final-policy",
     );
   });

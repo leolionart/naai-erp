@@ -184,9 +184,9 @@ suite("operating dashboard PostgreSQL API", () => {
     await pool.query(
       `insert into accounting_workflow_policies
        (organization_id,operating_mode,allow_self_approval,soft_lock_posting_roles,updated_by)
-       values($1,'owner_final',false,'["owner","finance_admin"]',$2)
+       values($1,'solopreneur',false,'["owner","finance_admin"]',$2)
        on conflict(organization_id) do update
-       set operating_mode='owner_final',updated_by=excluded.updated_by,updated_at=now()`,
+       set operating_mode='solopreneur',updated_by=excluded.updated_by,updated_at=now()`,
       [org, owner],
     );
 

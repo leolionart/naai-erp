@@ -120,9 +120,12 @@ import { PortableDataImportService } from "./portable-data-packages/portable-dat
 import { PORTABLE_DATA_IMPORT_STORE } from "./portable-data-packages/portable-data-import.types.js";
 import { PgPortableDataImportStore } from "./portable-data-packages/pg-portable-data-import.store.js";
 import { PortableCanonicalMutationAdapter } from "./portable-data-packages/portable-canonical-mutation.adapter.js";
+import { OrganizationWorkflowPolicyService } from "./workflow-policy/organization-workflow-policy.service.js";
+import { OrganizationWorkflowPolicyController } from "./workflow-policy/organization-workflow-policy.controller.js";
 
 @Module({
   controllers: [
+    OrganizationWorkflowPolicyController,
     HealthController,
     MasterDataController,
     JournalController,
@@ -162,6 +165,7 @@ import { PortableCanonicalMutationAdapter } from "./portable-data-packages/porta
   ],
   providers: [
     DatabaseReadinessService,
+    OrganizationWorkflowPolicyService,
     MasterDataService,
     PgMasterDataStore,
     JournalService,

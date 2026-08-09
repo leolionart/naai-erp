@@ -336,8 +336,8 @@ describeIntegration("ERP-300 commercial documents", () => {
     await pool.query(
       `insert into accounting_workflow_policies
        (organization_id,operating_mode,allow_self_approval,self_approval_max_minor,soft_lock_posting_roles,updated_by)
-       values($1,'owner_final',false,null,'["owner","finance_admin"]','owner-final-test')
-       on conflict(organization_id) do update set operating_mode='owner_final',updated_by='owner-final-test',updated_at=now()`,
+       values($1,'solopreneur',false,null,'["owner","finance_admin"]','owner-final-test')
+       on conflict(organization_id) do update set operating_mode='solopreneur',updated_by='owner-final-test',updated_at=now()`,
       [org],
     );
     const response = await app.inject({
@@ -389,7 +389,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       vat_eligible_minor: "100",
       reviewed_by: integrationUser,
       review_reason: "Resolved when the purchase invoice was recorded",
-      review_reference: "owner_final",
+      review_reference: "solopreneur",
     });
     expect(
       (

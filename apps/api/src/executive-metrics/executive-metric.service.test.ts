@@ -44,6 +44,54 @@ describe("ERP-640 executive metric service", () => {
       data: { id: "p", version: 1 },
     });
   });
+  it("accepts owner-loan mappings and returns field-specific mapping validation errors", () => {
+    const service = new ExecutiveMetricService({} as never, {} as never);
+    const base = {
+      effectiveFrom: "2026-01-01",
+      formulaVersion: "executive-metrics-v1",
+      formulaPolicy: {
+        averageBurnMonths: 3,
+        equityConsumedDenominator: "contributed_capital",
+        runwayCashSemantic: "unrestricted_cash",
+        runwayFlowClass: "operating",
+        signedRevenueDenominator: true,
+      },
+      changeReason: "Map reviewed owner funding separately from contributed capital",
+    };
+    expect(
+      service.parsePolicy({
+        ...base,
+        mappings: [{ semantic: "owner_loan", accountCode: "3388-OWNER" }],
+      }).mappings,
+    ).toEqual([{ semantic: "owner_loan", accountCode: "3388-OWNER" }]);
+    expect(() =>
+      service.parsePolicy({
+        ...base,
+        mappings: [{ semantic: "owner_payable", accountCode: "3388-OWNER" }],
+      }),
+    ).toThrow("EXECUTIVE_METRIC_POLICY_MAPPINGS_0_SEMANTIC_INVALID");
+    expect(() =>
+      service.parsePolicy({
+        ...base,
+        mappings: [{ semantic: "owner_loan", accountCode: " " }],
+      }),
+    ).toThrow("EXECUTIVE_METRIC_POLICY_MAPPINGS_0_ACCOUNT_CODE_REQUIRED");
+    expect(() =>
+      service.parsePolicy({
+        ...base,
+        mappings: [
+          { semantic: "owner_loan", accountCode: "3388-OWNER" },
+          { semantic: "contributed_capital", accountCode: "3388-OWNER" },
+        ],
+      }),
+    ).toThrow("EXECUTIVE_METRIC_POLICY_MAPPINGS_1_ACCOUNT_CODE_DUPLICATE");
+    expect(() =>
+      service.parsePolicy({
+        ...base,
+        mappings: [{ semantic: "owner_loan", accountCode: "3388-OWNER", sign: 0 }],
+      }),
+    ).toThrow("EXECUTIVE_METRIC_POLICY_MAPPINGS_0_SIGN_INVALID");
+  });
   it("keeps ROI facts nonnegative and purpose specific", () => {
     const service = new ExecutiveMetricService({} as never, {} as never);
     expect(() =>

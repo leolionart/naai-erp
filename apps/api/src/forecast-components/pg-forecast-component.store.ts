@@ -11,6 +11,10 @@ import {
   type ForecastCompositionContext,
 } from "@naai-erp/domain";
 import pg, { type PoolClient } from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type { ForecastComponentContext } from "./forecast-component.types.js";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -218,11 +222,19 @@ export class PgForecastComponentStore {
           throw new Error("VERSION_CONFLICT");
         const now = new Date().toISOString(),
           current = this.domain(raw);
+        const policy = await resolveOrganizationWorkflowPolicy(c.organizationId, q);
+        const allowSelfApproval = canSelfApprove({ policy, roles: c.roles });
         let next: ForecastComponent;
         try {
           next =
             action === "review"
-              ? reviewForecastManualAdjustment(current, c.actorId, String(input.reason), now)
+              ? reviewForecastManualAdjustment(
+                  current,
+                  c.actorId,
+                  String(input.reason),
+                  now,
+                  allowSelfApproval,
+                )
               : excludeForecastComponent(current, c.actorId, String(input.reason), now);
         } catch (error) {
           if (error instanceof Error && error.message.includes("maker-checker"))

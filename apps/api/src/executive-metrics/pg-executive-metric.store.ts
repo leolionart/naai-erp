@@ -6,6 +6,10 @@ import {
   FINANCIAL_STATEMENT_STORE,
   type FinancialStatementStore,
 } from "../financial-statements/financial-statement.types.js";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type {
   ExecutiveMetricContext,
   ExecutiveMetricQuery,
@@ -13,6 +17,7 @@ import type {
   RoiDefinitionInput,
   RoiFactInput,
 } from "./executive-metric.types.js";
+
 const jsonMoney = (v: unknown): unknown =>
   typeof v === "bigint"
     ? v.toString()
@@ -127,14 +132,20 @@ export class PgExecutiveMetricStore {
       k,
       { id, v, r },
       async (x) => {
+        const workflow = await resolveOrganizationWorkflowPolicy(c.organizationId, x);
         const draft = await x.query<{ created_by: string }>(
           `select created_by from executive_metric_policy_versions where organization_id=$1 and id=$2 and version=$3 and state='draft' for update`,
           [c.organizationId, id, v],
         );
-        if (draft.rows[0]?.created_by === c.actorId) throw new Error("MAKER_CHECKER_VIOLATION");
+        const solopreneurSelfApproval = canSelfApprove({
+          policy: workflow,
+          roles: c.roles,
+        });
+        if (draft.rows[0]?.created_by === c.actorId && !solopreneurSelfApproval)
+          throw new Error("MAKER_CHECKER_VIOLATION");
         const u = await x.query(
-          `update executive_metric_policy_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5 where organization_id=$1 and id=$2 and version=$3 and state='draft' and created_by<>$4 returning id,version,state,approved_at`,
-          [c.organizationId, id, v, c.actorId, r.trim()],
+          `update executive_metric_policy_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5 where organization_id=$1 and id=$2 and version=$3 and state='draft' and (created_by<>$4 or $6::boolean) returning id,version,state,approved_at`,
+          [c.organizationId, id, v, c.actorId, r.trim(), solopreneurSelfApproval],
         );
         if (!u.rows[0]) throw new Error("INVALID_STATE_TRANSITION");
         return u.rows[0];
@@ -195,10 +206,13 @@ export class PgExecutiveMetricStore {
         `select created_by from roi_definition_versions where organization_id=$1 and id=$2 and version=$3 and state='draft' for update`,
         [c.organizationId, id, v],
       );
-      if (draft.rows[0]?.created_by === c.actorId) throw new Error("MAKER_CHECKER_VIOLATION");
+      const policy = await resolveOrganizationWorkflowPolicy(c.organizationId, x);
+      const selfApproval = canSelfApprove({ policy, roles: c.roles });
+      if (draft.rows[0]?.created_by === c.actorId && !selfApproval)
+        throw new Error("MAKER_CHECKER_VIOLATION");
       const u = await x.query(
-        `update roi_definition_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5 where organization_id=$1 and id=$2 and version=$3 and state='draft' and created_by<>$4 returning id,version,state,approved_at`,
-        [c.organizationId, id, v, c.actorId, r.trim()],
+        `update roi_definition_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5 where organization_id=$1 and id=$2 and version=$3 and state='draft' and (created_by<>$4 or $6::boolean) returning id,version,state,approved_at`,
+        [c.organizationId, id, v, c.actorId, r.trim(), selfApproval],
       );
       if (!u.rows[0]) throw new Error("INVALID_STATE_TRANSITION");
       return u.rows[0];

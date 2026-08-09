@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type { CreateExpenseInput, ExpenseContext, ExpenseReviewInput } from "./expense.types.js";
 
 type StoredExpense = {
@@ -49,7 +53,7 @@ function expenseClassToTaxState(
 ): { managementState: string; citState: string; vatState: string } {
   if (["non_documented", "owner_personal", "petty_cash"].includes(expenseClass))
     return { managementState: "invalid", citState: "ineligible", vatState: "ineligible" };
-  if (operatingMode === "owner_final")
+  if (operatingMode === "solopreneur")
     return {
       managementState: "valid",
       citState: "eligible",
@@ -74,16 +78,12 @@ export class PgExpenseStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
   private async operatingMode(c: PoolClient, organizationId: string) {
-    const result = await c.query<{ operating_mode: string }>(
-      "select operating_mode from accounting_workflow_policies where organization_id=$1",
-      [organizationId],
-    );
-    return result.rows[0]?.operating_mode ?? null;
+    return (await resolveOrganizationWorkflowPolicy(organizationId, c)).operatingMode;
   }
 
   private async taxFinalizationPlan(c: PoolClient, organizationId: string) {
     const policy = await this.operatingMode(c, organizationId);
-    if (policy !== "owner_final") throw new Error("OWNER_FINAL_POLICY_REQUIRED");
+    if (policy !== "solopreneur") throw new Error("SOLOPRENEUR_POLICY_REQUIRED");
     const rows = await c.query<{
       source_type: "expense" | "purchase_invoice";
       source_id: string;
@@ -238,7 +238,7 @@ export class PgExpenseStore {
              cit_eligible_minor=case when cit_state='unreviewed' then $6 else cit_eligible_minor end,
              vat_state=case when vat_state='unreviewed' then $7::eligibility_state else vat_state end,
              vat_eligible_minor=case when vat_state='unreviewed' then $8 else vat_eligible_minor end,
-             reviewed_by=$9,reviewed_at=now(),review_reason=$10,review_reference='owner_final_legacy'
+             reviewed_by=$9,reviewed_at=now(),review_reason=$10,review_reference='solopreneur_policy'
            where organization_id=$1 and ${idColumn}=$2 and line_number=$3`,
           [
             context.organizationId,
@@ -1349,7 +1349,7 @@ export class PgExpenseStore {
       if (!next) throw new Error("INVALID_EXPENSE_TRANSITION");
       if (action === "approve") {
         if (e.created_by === context.actorId)
-          await this.selfApproval(c, context.organizationId, BigInt(e.gross_minor));
+          await this.selfApproval(c, context, BigInt(e.gross_minor));
         await this.assertReviewReady(c, context.organizationId, e);
       }
       let journalId: string | undefined;
@@ -1799,18 +1799,9 @@ export class PgExpenseStore {
     );
     return journalId;
   }
-  private async selfApproval(c: PoolClient, org: string, total: bigint) {
-    const p = await c.query<{
-      allow_self_approval: boolean;
-      self_approval_max_minor: string | null;
-    }>(
-      "select allow_self_approval,self_approval_max_minor from accounting_workflow_policies where organization_id=$1",
-      [org],
-    );
-    if (
-      !p.rows[0]?.allow_self_approval ||
-      total > BigInt(p.rows[0].self_approval_max_minor ?? "-1")
-    )
+  private async selfApproval(c: PoolClient, context: ExpenseContext, total: bigint) {
+    const policy = await resolveOrganizationWorkflowPolicy(context.organizationId, c);
+    if (!canSelfApprove({ policy, roles: context.roles, amountMinor: total }))
       throw new Error("MAKER_CHECKER_VIOLATION");
   }
   private async period(c: PoolClient, context: ExpenseContext, date: string) {

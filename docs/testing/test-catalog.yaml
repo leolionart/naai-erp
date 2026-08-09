@@ -1555,7 +1555,7 @@ tests:
   - id: T-DB-ERP-858-001
     task: ERP-858
     rules: [BR-TAX-002, BR-TAX-005, BR-ORG-001]
-    title: Owner-final policy and persisted purchase-line tax decisions migrate cleanly without silently finalizing legacy rows
+    title: Solopreneur policy and persisted purchase-line tax decisions migrate cleanly without silently finalizing legacy rows
     layer: database
     command: pnpm --filter @naai-erp/database db:check && pnpm --filter @naai-erp/database typecheck
     blocking_gate: G23
@@ -1571,7 +1571,7 @@ tests:
   - id: T-INT-ERP-858-003
     task: ERP-858
     rules: [BR-EXP-001, BR-TAX-002, BR-TAX-005, BR-ORG-001]
-    title: Owner-final defaults documented expenses while preserving explicit overrides and undocumented exceptions
+    title: Solopreneur defaults documented expenses while preserving explicit overrides and undocumented exceptions
     layer: integration
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts
     blocking_gate: G23

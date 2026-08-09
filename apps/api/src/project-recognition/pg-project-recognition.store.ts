@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type {
   ProjectRecognitionContext,
   RecognitionResource,
@@ -140,8 +144,10 @@ export class PgProjectRecognitionStore {
       if (!current) throw new Error("RESOURCE_NOT_FOUND");
       if (current.version !== input.expectedResourceVersion) throw new Error("VERSION_CONFLICT");
       const target = this.target(resource, action, current.state);
-      if (["approve", "accept"].includes(action) && current.submitted_by === c.actorId)
-        throw new Error("MAKER_CHECKER_VIOLATION");
+      if (["approve", "accept"].includes(action) && current.submitted_by === c.actorId) {
+        const policy = await resolveOrganizationWorkflowPolicy(c.organizationId, q);
+        if (!canSelfApprove({ policy, roles: c.roles })) throw new Error("MAKER_CHECKER_VIOLATION");
+      }
       if (resource === "project-budgets" && action === "approve")
         await this.validateBudgetApproval(q, c.organizationId, id);
       if (resource === "recognition-policies" && action === "approve")

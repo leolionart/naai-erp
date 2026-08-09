@@ -25,7 +25,7 @@ Repository chính thức: <https://github.com/leolionart/naai-erp>
 
 - Quản lý chi phí có hóa đơn, không hóa đơn, hoàn ứng, phí ngân hàng, trả trước và tài sản cố định.
 - Theo dõi độc lập tính hợp lệ quản trị, khả năng khấu trừ VAT và khả năng khấu trừ CIT.
-- Hỗ trợ chính sách `owner_final` cho doanh nghiệp một người.
+- Hỗ trợ mô hình `solopreneur` cho doanh nghiệp một người, trong đó chủ doanh nghiệp có thể tự duyệt nhưng mọi thao tác vẫn được lưu vết.
 - Phân loại khoản chủ sở hữu trả thay, vốn chủ đưa vào, hoàn trả và rút tiền mà không ghi nhận trùng doanh thu hoặc chi phí.
 
 </details>

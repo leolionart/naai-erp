@@ -250,7 +250,15 @@ Cr Bank/AP                      1,100,000
 ### BR-WFL-001 — Maker/checker
 
 - Submitter cannot approve above configured threshold.
-- Small-team and Solopreneur (doanh nghiệp một người) self-approval may be configured but is clearly audited. Người dùng duy nhất có quyền quản trị được phép tự khai báo và tự duyệt mọi chứng từ.
+- `controlled` mode uses maker-checker, with optional bounded self-approval configured by amount.
+- `solopreneur` mode allows the authenticated organization `owner` to create and approve the same
+  resource across journals, commercial documents, expenses, financial mappings, executive metrics,
+  ROI definitions, planning, forecast adjustments, project recognition and overhead allocation.
+- Solopreneur self-approval always records actor, reason, timestamp, resource version and audit event.
+  It never bypasses RBAC, idempotency, period locks, balanced-journal validation, evidence checks,
+  tax eligibility rules or immutable posted history.
+- `NAAI_ERP_SOLOPRENEUR=true` bootstraps the login organization only when its workflow policy is
+  missing. The persisted organization policy remains the runtime source of truth.
 
 ### BR-WFL-002 — State transition integrity
 
@@ -450,15 +458,15 @@ Override requires reviewer, reason, timestamp and reference/evidence.
 - Taxable profit and accounting profit are distinct. Purchase invoices without CIT review remain
   unreviewed rather than being assumed deductible merely because an invoice exists.
 
-### BR-TAX-005 — Owner-final tax workflow
+### BR-TAX-005 — Solopreneur tax workflow
 
-- An organization operated by one owner may enable the versioned `owner_final` workflow policy.
-- In `owner_final` mode, documented operating-expense and purchase-invoice lines default to
+- An organization operated by one owner may enable the versioned `solopreneur` workflow policy.
+- In `solopreneur` mode, documented operating-expense and purchase-invoice lines default to
   management-valid and CIT-eligible. Input VAT defaults to eligible only when the line contains VAT
   and the required source-document evidence; explicit line classifications always take precedence.
 - Non-documented and owner-personal spending remain tax-ineligible. Fixed assets and prepaid costs
   retain their capitalization or amortization treatment and never become immediate operating expense
-  merely because `owner_final` is enabled.
+  merely because `solopreneur` is enabled.
 - Resolved management, CIT and VAT states and eligible amounts are persisted on the source line with
   actor, policy version and reason. Reports never reinterpret historical lines from the current
   organization setting.
@@ -496,7 +504,7 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   policy changes never rewrite historical management balances.
 - `owner_paid_company_cost` requires an owner-current/payable counter account. It does not change
   physical bank/cash, but posted amounts reduce net company funds and increase the owner liability.
-- In approved `owner_final` mode, a legacy posted expense whose funding snapshot is null and whose
+- In approved `solopreneur` mode, a legacy posted expense whose funding snapshot is null and whose
   counter account is mapped to the reviewed Owner Current line is classified deterministically as
   `owner_paid_company_cost` for management reporting. It must not remain in the unclassified queue,
   and the compatibility classification must not edit or reverse its posted journal.
@@ -725,6 +733,15 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - The three liquidity controls are shown together: mapped company cash and bank, company amount owed
   to the owner, and net company funds after that owner obligation. Net company funds equals mapped
   cash and bank less the positive closing owner-current liability.
+- Executive metrics require an approved, organization-scoped policy covering the complete requested
+  period. The policy maps each semantic to a real chart-of-accounts code; `owner_loan` remains a
+  liability semantic and never increases contributed capital.
+- Policy versions use maker-checker approval, except the organization owner may self-approve in
+  `solopreneur` mode; the self-approval remains explicitly audited. A report must fail
+  with an actionable missing-policy state when coverage is absent; the UI must never replace that
+  failure with fixture metrics.
+- Purpose-specific ROI is displayed only from approved definitions and reviewed benefit/cost facts.
+  An empty ROI source set is shown as not configured, never as a fabricated project or campaign.
 
 ## 9. Reports and exports
 

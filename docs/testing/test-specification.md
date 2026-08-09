@@ -73,6 +73,25 @@ The repository currently maintains these reviewed fixtures:
 Expected results are maintained independently of production code and use exact strings/minor units.
 Golden changes require explicit review and a documented reason.
 
+### ERP-867 — Executive metrics production readiness
+
+- `T-UNIT-ERP-867-001`: policy parsing accepts `owner_loan` and rejects unsupported semantics,
+  blank account codes, invalid signs and duplicate account mappings with stable indexed errors.
+- `T-E2E-ERP-867-001`: all executive metric routes render canonical API values and keep filters and
+  source drill-down usable.
+- `T-E2E-ERP-867-002`: a missing policy/API failure renders an actionable empty state and no
+  development fixture values.
+- `T-E2E-ERP-867-003`: an approved policy with no reviewed ROI facts renders “Chưa cấu hình ROI”.
+
+### ERP-868 — Organization-wide solopreneur mode
+
+- `T-UNIT-ERP-868-001`: the centralized resolver derives solopreneur capabilities and allows
+  self-approval only for an authenticated `owner`; controlled mode retains configured thresholds.
+- `T-INT-ERP-868-001`: migration converts legacy `owner_final` rows to `solopreneur`; startup env
+  bootstraps a missing policy without overwriting an existing controlled organization.
+- `T-E2E-ERP-868-001`: settings displays “Doanh nghiệp một người”, persists `solopreneur`, and the
+  same owner can approve executive policy while controlled mode retains independent-approval copy.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion
@@ -158,11 +177,11 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
   contract with audit, idempotency and resource versions.
 - VAT rates other than 8% or 10% return a structured validation error and create no product.
 
-### ERP-858 — Owner-final single-user expense workflow
+### ERP-858 — Solopreneur single-user expense workflow
 
 - Organization policy is readable and writable through REST and the first-party CLI with audit,
   organization isolation and idempotency.
-- Owner-final defaults persist management, CIT and VAT decisions on documented expense and purchase
+- Solopreneur defaults persist management, CIT and VAT decisions on documented expense and purchase
   invoice lines; explicit overrides and non-documented/fixed-asset boundaries remain intact.
 - Financial statements and dashboard taxable-profit/VAT controls read persisted line decisions and
   do not hardcode purchase invoices as unreviewed.
@@ -186,7 +205,7 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
 - It does not show a separate zero operating-owner obligation or duplicate Owner Current card.
 - It does not show a Runway headline card; the dashboard leaves operating-duration judgment to the
   owner from the displayed cash position.
-- In approved `owner_final` mode, legacy posted expenses credited to the reviewed owner-current
+- In approved `solopreneur` mode, legacy posted expenses credited to the reviewed owner-current
   account are included in owner-paid company cost and do not remain in the unclassified queue.
 - Dashboard amounts come from the operating-dashboard API/read model; the UI contains no demo or
   hardcoded financial totals.

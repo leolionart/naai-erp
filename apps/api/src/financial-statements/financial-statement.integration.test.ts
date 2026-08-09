@@ -198,13 +198,13 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
              ('org-erp630','purchase-credit-doc','credit_note','captured','PC-630','PC',2026,'supplier630','2026-08-18','2026-08-18','VND',20,2,22,'331-AP',null,'purchase-doc','maker');
       insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
       values ('org-erp630','sale-doc',1,'Sale',1,100,100,10,110,'511-REV','3331-VAT','VAT10O','unreviewed','unreviewed','unreviewed',0,0,null,null,null,null),
-             ('org-erp630','purchase-doc',1,'Purchase',1,80,80,8,88,'642-OPEX','1331-VAT','VAT10I','valid','eligible','eligible',80,8,'owner630',now(),'Owner-final source decision','owner_final');
+             ('org-erp630','purchase-doc',1,'Purchase',1,80,80,8,88,'642-OPEX','1331-VAT','VAT10I','valid','eligible','eligible',80,8,'owner630',now(),'Solopreneur source decision','solopreneur_policy');
       insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code)
       values ('org-erp630','purchase-credit-doc',1,'Purchase credit',1,20,20,2,22,'642-OPEX','1331-VAT','VAT10I');
       insert into expenses(organization_id,id,expense_class,state,payee_party_id,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,journal_id,created_by)
       values ('org-erp630','expense630','invoice_backed','posted','supplier630','2026-08-16','Operations','VND',50,5,55,'331-AP','eligible','eligible','vat-expense','maker');
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
-      values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'owner630',now(),'Owner-final persisted source decision','owner_final');
+      values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'owner630',now(),'Solopreneur persisted source decision','solopreneur_policy');
       insert into evidence_records(organization_id,id,subject_type,subject_id,evidence_type,current_version,created_by)
       values ('org-erp630','evidence-sale-630','commercial_document','sale-doc','invoice',1,'maker');
       insert into evidence_versions(organization_id,evidence_id,version_number,status,review_state,object_bucket,object_key,original_filename,declared_media_type,detected_media_type,byte_size,sha256,source,uploaded_by)

@@ -29,7 +29,8 @@ export type PolicyInput = Readonly<{
       | "restricted_cash"
       | "reviewed_equity_adjustment"
       | "other_equity"
-      | "owner_withdrawal";
+      | "owner_withdrawal"
+      | "owner_loan";
     accountCode: string;
     sign?: -1 | 1;
     notes?: string;

@@ -309,6 +309,13 @@
       "when": 1786259400000,
       "tag": "0043_audited_final_tax_review",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1786261200000,
+      "tag": "0044_solopreneur_workflow_mode",
+      "breakpoints": true
     }
   ]
 }

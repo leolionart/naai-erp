@@ -7,8 +7,8 @@ development_completed_at: 2026-08-07T20:49:00+07:00
 project_status: in_progress
 project_completed_at: 2026-08-07T21:50:53+07:00
 
-current_gate: G31
-current_task: null
+current_gate: G33
+current_task: ERP-868
 
 tasks:
   - id: ERP-000
@@ -1429,7 +1429,7 @@ tasks:
       - docs/implementation/evidence/ERP-857/
 
   - id: ERP-858
-    title: Owner-final single-user expense and tax workflow
+    title: Solopreneur single-user expense and tax workflow
     phase: P12
     status: done
     dependencies: [ERP-857]
@@ -1636,6 +1636,58 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-866/
 
+  - id: ERP-867
+    title: Complete API-backed executive metrics and organization policy configuration
+    phase: P12
+    status: done
+    dependencies: [ERP-866]
+    business_rules: [BR-KPI-003, BR-KPI-004, BR-KPI-005, BR-UI-001, BR-UI-003, BR-AI-001]
+    tests: [T-UNIT-ERP-867-001, T-E2E-ERP-867-001, T-E2E-ERP-867-002, T-E2E-ERP-867-003]
+    evidence: docs/implementation/evidence/ERP-867/
+    agent: codex-root
+    started_at: 2026-08-09T18:39:31+07:00
+    completed_at: 2026-08-09T18:48:00+07:00
+    completion_basis: api_contract_validation_truthful_ui_policy_settings_and_focused_quality_gates
+    planned_files:
+      - apps/api/src/executive-metrics/
+      - apps/api/test/executive-metrics/
+      - apps/web/src/app/workspaces/executive-metrics-workspaces.tsx
+      - apps/web/src/app/(app)/settings/
+      - apps/web/e2e/executive-metrics.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-867/
+
+  - id: ERP-868
+    title: Standardize organization-wide solopreneur operating mode and self-approval behavior
+    phase: P12
+    status: review
+    dependencies: [ERP-867]
+    business_rules: [BR-KPI-005, BR-WFL-001, BR-WFL-002, BR-SEC-002, BR-UI-003]
+    tests: [T-UNIT-ERP-868-001, T-INT-ERP-868-001, T-E2E-ERP-868-001]
+    evidence: docs/implementation/evidence/ERP-868/
+    agent: codex-root
+    started_at: 2026-08-09T18:55:00+07:00
+    review_at: 2026-08-09T19:22:00+07:00
+    planned_files:
+      - apps/api/src/workflow-policy/
+      - apps/api/src/executive-metrics/
+      - apps/api/src/journals/
+      - apps/api/src/commercial-documents/
+      - apps/api/src/expenses/
+      - apps/api/src/planning/
+      - apps/api/src/project-recognition/
+      - apps/api/src/workforce/
+      - apps/web/src/app/workspaces/
+      - packages/database/src/schema.ts
+      - db/migrations/
+      - compose.yaml
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-868/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1669,6 +1721,8 @@ gates:
   G29: [ERP-864]
   G30: [ERP-865]
   G31: [ERP-866]
+  G32: [ERP-867]
+  G33: [ERP-868]
 
 gate_status:
   G0: done
@@ -1703,3 +1757,5 @@ gate_status:
   G29: done
   G30: done
   G31: done
+  G32: done
+  G33: in_progress

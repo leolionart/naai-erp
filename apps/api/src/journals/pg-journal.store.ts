@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type { CreateJournalInput, JournalActorContext } from "./journal.types.js";
 
 @Injectable()
@@ -243,16 +247,14 @@ export class PgJournalStore {
       );
       const selfApproval = current.created_by === context.actorId;
       if (selfApproval) {
-        const policy = await client.query<{
-          allow_self_approval: boolean;
-          self_approval_max_minor: string | null;
-        }>(
-          "select allow_self_approval,self_approval_max_minor from accounting_workflow_policies where organization_id=$1",
-          [context.organizationId],
-        );
-        const allowed = policy.rows[0]?.allow_self_approval ?? false;
-        const maximum = BigInt(policy.rows[0]?.self_approval_max_minor ?? "-1");
-        if (!allowed || BigInt(totals.rows[0]!.total_minor) > maximum)
+        const policy = await resolveOrganizationWorkflowPolicy(context.organizationId, client);
+        if (
+          !canSelfApprove({
+            policy,
+            roles: context.roles,
+            amountMinor: BigInt(totals.rows[0]!.total_minor),
+          })
+        )
           throw new Error("MAKER_CHECKER_VIOLATION");
       }
       const updated = await client.query<{ version: string }>(

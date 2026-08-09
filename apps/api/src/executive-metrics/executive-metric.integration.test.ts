@@ -9,6 +9,7 @@ suite("ERP-640 executive metric policy persistence", () => {
   let app: Awaited<ReturnType<typeof createApp>>;
   const maker = "erp640-maker",
     approver = "erp640-approver",
+    owner = "erp640-owner",
     h = (token = maker) => ({
       authorization: `Bearer ${token}`,
       "idempotency-key": crypto.randomUUID(),
@@ -47,14 +48,51 @@ suite("ERP-640 executive metric policy persistence", () => {
        ('org-erp640','expense',1,'642-OPEX',20,null,'Expense','{}'),('org-erp640','expense',2,'111-CASH',null,20,'Payment','{}');`,
     );
     await pool.query(
-      `insert into api_credentials(organization_id,id,actor_id,token_hash,roles)values('org-erp640','m','maker',$1,'["finance_admin"]'),('org-erp640','a','approver',$2,'["approver"]')`,
+      `insert into api_credentials(organization_id,id,actor_id,token_hash,roles)values('org-erp640','m','maker',$1,'["finance_admin"]'),('org-erp640','a','approver',$2,'["approver"]'),('org-erp640','o','owner',$3,'["owner"]')`,
       [
         createHash("sha256").update(maker).digest("hex"),
         createHash("sha256").update(approver).digest("hex"),
+        createHash("sha256").update(owner).digest("hex"),
       ],
     );
     app = await createApp();
     await app.init();
+  });
+  it("allows the owner to self-approve policy in owner-final mode", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies(organization_id,operating_mode,allow_self_approval,updated_by)
+       values('org-erp640','solopreneur',false,'owner')
+       on conflict(organization_id) do update set operating_mode='solopreneur',updated_by='owner',updated_at=now()`,
+    );
+    const body = {
+      id: "erp640-owner-policy",
+      effectiveFrom: "2026-01-01",
+      formulaVersion: "executive-metrics-v1",
+      formulaPolicy: {
+        averageBurnMonths: 3,
+        equityConsumedDenominator: "contributed_capital",
+        runwayCashSemantic: "unrestricted_cash",
+        runwayFlowClass: "operating",
+        signedRevenueDenominator: true,
+      },
+      changeReason: "Solopreneur policy",
+      mappings: [{ semantic: "unrestricted_cash", accountCode: "111-CASH" }],
+    };
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-erp640/executive-metric-policies",
+      headers: h(owner),
+      payload: body,
+    });
+    expect(created.statusCode).toBe(201);
+    const approved = await app.inject({
+      method: "POST",
+      url: "/api/v1/organizations/org-erp640/executive-metric-policies/erp640-owner-policy/versions/1/approve",
+      headers: h(owner),
+      payload: { reason: "Owner reviewed canonical mappings" },
+    });
+    expect(approved.statusCode).toBe(201);
+    expect(approved.json().data).toMatchObject({ state: "approved" });
   });
   afterAll(async () => {
     if (app) await app.close();

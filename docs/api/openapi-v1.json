@@ -2625,6 +2625,50 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/organization-workflow-policy": {
+      "get": {
+        "operationId": "getOrganizationWorkflowPolicy",
+        "tags": ["organization-policy"],
+        "summary": "Read the organization operating mode and derived workflow capabilities",
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "responses": {
+          "200": {
+            "description": "Organization workflow capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["apiVersion", "requestId", "organizationId", "data"],
+                  "properties": {
+                    "apiVersion": { "const": "v1" },
+                    "requestId": { "type": "string" },
+                    "organizationId": { "type": "string" },
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "operatingMode",
+                        "ownerCanSelfApprove",
+                        "requiresDistinctApprover",
+                        "documentedTaxDefaultsFinal"
+                      ],
+                      "properties": {
+                        "operatingMode": {
+                          "type": "string",
+                          "enum": ["controlled", "solopreneur"]
+                        },
+                        "ownerCanSelfApprove": { "type": "boolean" },
+                        "requiresDistinctApprover": { "type": "boolean" },
+                        "documentedTaxDefaultsFinal": { "type": "boolean" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/executive-metric-policies": {
       "get": {
         "operationId": "listExecutiveMetricPolicies",
@@ -3933,6 +3977,35 @@
       }
     },
     "schemas": {
+      "OrganizationWorkflowPolicy": {
+        "type": "object",
+        "description": "Organization-scoped operating model. NAAI_ERP_SOLOPRENEUR only bootstraps this record when it is missing; this persisted policy is the runtime source of truth.",
+        "required": [
+          "organization_id",
+          "operating_mode",
+          "allow_self_approval",
+          "soft_lock_posting_roles"
+        ],
+        "properties": {
+          "organization_id": { "type": "string" },
+          "operating_mode": {
+            "type": "string",
+            "enum": ["controlled", "solopreneur"]
+          },
+          "allow_self_approval": {
+            "type": "boolean",
+            "description": "Bounded self-approval for controlled mode. Solopreneur owner authority is derived from operating_mode and RBAC instead."
+          },
+          "self_approval_max_minor": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]+$"
+          },
+          "soft_lock_posting_roles": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
       "PortableSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
       "RelationshipBackfillCandidate": {
         "type": "object",
@@ -5209,10 +5282,11 @@
                     "restricted_cash",
                     "reviewed_equity_adjustment",
                     "other_equity",
-                    "owner_withdrawal"
+                    "owner_withdrawal",
+                    "owner_loan"
                   ]
                 },
-                "accountCode": { "type": "string" },
+                "accountCode": { "type": "string", "minLength": 1 },
                 "sign": { "type": "integer", "enum": [-1, 1] },
                 "notes": { "type": "string" }
               }

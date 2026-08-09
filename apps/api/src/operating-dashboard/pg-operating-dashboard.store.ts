@@ -255,18 +255,18 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                   or (
                     l.funding_treatment is null
                     and e.counter_account_code in (select account_code from owner_accounts)
-                    and (select operating_mode from workflow_policy)='owner_final'
+                    and (select operating_mode from workflow_policy)='solopreneur'
                   )
              ),0)::text owner_paid,
              count(*) filter (
                where l.funding_treatment is null
                  and e.counter_account_code in (select account_code from owner_accounts)
-                 and coalesce((select operating_mode from workflow_policy),'controlled')<>'owner_final'
+                 and coalesce((select operating_mode from workflow_policy),'controlled')<>'solopreneur'
              )::int unclassified_count,
              coalesce(sum(l.gross_minor) filter (
                where l.funding_treatment is null
                  and e.counter_account_code in (select account_code from owner_accounts)
-                 and coalesce((select operating_mode from workflow_policy),'controlled')<>'owner_final'
+                 and coalesce((select operating_mode from workflow_policy),'controlled')<>'solopreneur'
              ),0)::text unclassified_minor,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e

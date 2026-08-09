@@ -94,131 +94,6 @@ const pages = [
   },
 ] as const;
 
-const metrics: Record<ExecutiveMetricKind, readonly Metric[]> = {
-  equity: [
-    {
-      code: "accumulated_loss",
-      label: "Lỗ lũy kế",
-      value: "Chưa có dữ liệu",
-      formula: "max(0, -retained earnings)",
-      status: "ready",
-      source: "Bảng cân đối · 421",
-    },
-    {
-      code: "contributed_capital",
-      label: "Vốn góp",
-      value: "Chưa có dữ liệu",
-      formula: "Approved contributed-capital mapping",
-      status: "ready",
-      source: "Bảng cân đối · 411",
-    },
-    {
-      code: "equity_consumed",
-      label: "Equity Consumed",
-      value: "Chưa có dữ liệu",
-      formula: "Accumulated loss / contributed capital",
-      status: "review",
-      source: "Policy EQ-2026.1",
-    },
-    {
-      code: "owner_loans",
-      label: "Chi hộ từ chủ sở hữu",
-      value: "Chưa có dữ liệu",
-      formula: "Lấy từ API chỉ số điều hành",
-      status: "ready",
-      source: "Sổ cái · TK 3388 (Khoản chi hộ)",
-    },
-  ],
-  liquidity: [
-    {
-      code: "unrestricted_cash",
-      label: "Tiền khả dụng",
-      value: "Chưa có dữ liệu",
-      formula: "Cash less restricted balances",
-      status: "ready",
-      source: "Ledger cash mapping",
-    },
-    {
-      code: "average_burn",
-      label: "Net operating burn bình quân",
-      value: "Chưa có dữ liệu",
-      formula: "Reviewed operating cash outflow / 3 months",
-      status: "ready",
-      source: "Direct cash flow",
-    },
-    {
-      code: "runway",
-      label: "Runway",
-      value: "Chưa có dữ liệu",
-      formula: "Unrestricted cash / average burn",
-      status: "review",
-      source: "Policy LIQ-2026.1",
-    },
-  ],
-  profitability: [
-    {
-      code: "gross_margin",
-      label: "Gross margin",
-      value: "Chưa có dữ liệu",
-      formula: "Gross profit / net accrual revenue",
-      status: "ready",
-      source: "P&L",
-    },
-    {
-      code: "operating_margin",
-      label: "Operating margin",
-      value: "Chưa có dữ liệu",
-      formula: "Operating profit / net accrual revenue",
-      status: "ready",
-      source: "P&L",
-    },
-    {
-      code: "ros",
-      label: "ROS",
-      value: "Chưa có dữ liệu",
-      formula: "Net profit / net accrual revenue",
-      status: "ready",
-      source: "P&L",
-    },
-  ],
-  returns: [
-    {
-      code: "roe",
-      label: "ROE",
-      value: "Chưa có dữ liệu",
-      formula: "Net profit / average opening-closing equity",
-      status: "ready",
-      source: "P&L + Balance Sheet",
-    },
-    {
-      code: "roa",
-      label: "ROA",
-      value: "Chưa có dữ liệu",
-      formula: "Net profit / average opening-closing assets",
-      status: "ready",
-      source: "P&L + Balance Sheet",
-    },
-  ],
-  roi: [
-    {
-      code: "project_roi",
-      label: "ROI dự án Web App A",
-      value: "Chưa có dữ liệu",
-      formula: "Project return / reviewed project investment",
-      status: "ready",
-      source: "ROI definition PROJECT-01",
-    },
-    {
-      code: "marketing_roi",
-      label: "ROI chiến dịch Q3",
-      value: "Chưa có dữ liệu",
-      formula: "Incremental marketing return / campaign spend",
-      status: "review",
-      source: "ROI definition MKT-02",
-    },
-  ],
-};
-
 function useClient() {
   const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
   const [token, setToken] = useState("");
@@ -423,14 +298,16 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
   const [source, setSource] = useState<Metric | null>(null);
   const [report, setReport] = useState<ExecutiveMetricsContract | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [startsOn, setStartsOn] = useState(searchParams.get("startsOn") ?? "2026-01-01");
-  const [endsOn, setEndsOn] = useState(searchParams.get("endsOn") ?? "2026-08-31");
+  const currentDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  const currentYearStart = `${currentDate.slice(0, 4)}-01-01`;
+  const [startsOn, setStartsOn] = useState(searchParams.get("startsOn") ?? currentYearStart);
+  const [endsOn, setEndsOn] = useState(searchParams.get("endsOn") ?? currentDate);
   const [serviceLine, setServiceLine] = useState(searchParams.get("serviceLineCode") ?? "");
   const queryKey = searchParams.toString();
   useEffect(() => {
     const query = new URLSearchParams(queryKey);
-    const periodEnd = query.get("endsOn") ?? "2026-08-31";
-    if (!query.has("startsOn")) query.set("startsOn", "2026-01-01");
+    const periodEnd = query.get("endsOn") ?? currentDate;
+    if (!query.has("startsOn")) query.set("startsOn", currentYearStart);
     if (!query.has("endsOn")) query.set("endsOn", periodEnd);
     if (!query.has("asOfInstant")) query.set("asOfInstant", `${periodEnd}T16:59:59.999Z`);
     if (!query.has("framework")) query.set("framework", "TT133");
@@ -450,8 +327,8 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
         }
       });
     return () => controller.abort();
-  }, [client, queryKey]);
-  const rows = report ? reportMetrics(report, kind) : metrics[kind];
+  }, [client, currentDate, currentYearStart, queryKey]);
+  const rows = report ? reportMetrics(report, kind) : [];
   const columns = useMemo<readonly FinancialColumn<Metric>[]>(
     () => [
       {
@@ -516,9 +393,11 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
               {startsOn}–{endsOn}
             </Badge>
             <Badge variant="secondary">
-              {report?.formulaVersion ? "Số liệu dồn tích chuẩn" : "Đang chờ API"}
+              {report?.formulaVersion ? "Số liệu dồn tích chuẩn" : "Chưa có báo cáo"}
             </Badge>
-            <Badge variant="outline">{report ? "Dữ liệu hệ thống" : "Dữ liệu phát triển"}</Badge>
+            <Badge variant="outline">
+              {report ? "Dữ liệu hệ thống" : "Không dùng dữ liệu mẫu"}
+            </Badge>
             {serviceLine ? <Badge variant="outline">Service line: {serviceLine}</Badge> : null}
           </div>
           <Button variant="outline" onClick={() => setFilterOpen(true)}>
@@ -530,8 +409,13 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
           <Alert variant="destructive">
             <AlertTriangle />
             <AlertTitle>Chưa tải được dữ liệu hệ thống</AlertTitle>
-            <AlertDescription>
-              {loadError}. Giao diện đang hiển thị fixture phát triển để kiểm tra luồng tương tác.
+            <AlertDescription className="flex flex-col items-start gap-3">
+              <span>
+                {loadError}. Không có số liệu mẫu nào được dùng thay cho dữ liệu hệ thống.
+              </span>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/settings/executive-metrics">Kiểm tra policy và mapping</Link>
+              </Button>
             </AlertDescription>
           </Alert>
         ) : null}
@@ -541,6 +425,16 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
             <AlertTitle>Có chỉ số cần review</AlertTitle>
             <AlertDescription>
               Kiểm tra policy, mapping và nguồn trước khi dùng cho quyết định vốn hoặc đầu tư.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {report && kind === "roi" && rows.length === 0 ? (
+          <Alert>
+            <Info />
+            <AlertTitle>Chưa cấu hình ROI</AlertTitle>
+            <AlertDescription>
+              Tạo định nghĩa ROI và duyệt các dữ kiện lợi ích/chi phí có nguồn xác thực trước khi hệ
+              thống tính chỉ số.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -652,7 +546,10 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
             <div>
               <strong>Cutoff</strong>
               <p className="text-muted-foreground">
-                2026-08-31T16:59:59.999Z · fingerprint demo-erp640
+                {report?.period.asOfDate ?? "Chưa có cutoff từ API"}
+                {report?.sourceBoundary.ledgerCutoffFingerprint
+                  ? ` · ${report.sourceBoundary.ledgerCutoffFingerprint}`
+                  : ""}
               </p>
             </div>
           </div>

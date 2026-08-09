@@ -529,12 +529,14 @@ export function approveTimeAdjustment(
   adjustmentId: string,
   rates: readonly LaborCostRateVersion[],
   approverId: string,
+  allowSelfApproval = false,
 ): Timesheet {
   const adjustment = sheet.adjustments.find((candidate) => candidate.id === adjustmentId);
   if (!adjustment) throw new Error("Adjustment not found");
   if (adjustment.state !== "submitted")
     throw new Error("Only submitted adjustment can be approved");
-  if (adjustment.createdBy === approverId) throw new Error("TIMESHEET_MAKER_CHECKER_VIOLATION");
+  if (!allowSelfApproval && adjustment.createdBy === approverId)
+    throw new Error("TIMESHEET_MAKER_CHECKER_VIOLATION");
   const rate = resolveEffectiveCostRate(
     rates,
     sheet.organizationId,

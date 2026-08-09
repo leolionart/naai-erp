@@ -204,6 +204,12 @@ describe("NAAI ERP JSON-first CLI client", () => {
       fetchFn,
     );
 
+    await client.request("organization-workflow-policy", "list");
+    expect(fetchFn).toHaveBeenLastCalledWith(
+      "http://api/api/v1/organizations/org-a/organization-workflow-policy",
+      expect.objectContaining({ method: "GET" }),
+    );
+
     await client.request("executive-metric-policies", "list");
     expect(fetchFn).toHaveBeenLastCalledWith(
       "http://api/api/v1/organizations/org-a/executive-metric-policies",

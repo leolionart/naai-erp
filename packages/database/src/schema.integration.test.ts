@@ -48,6 +48,19 @@ describeDatabase("ERP-100 database tenant constraints", () => {
     ).rejects.toMatchObject({ code: "23503" });
   });
 
+  it("accepts canonical solopreneur workflow mode and rejects the legacy mode", async () => {
+    await pool!.query(
+      `insert into accounting_workflow_policies
+       (organization_id,operating_mode,allow_self_approval,self_approval_max_minor,updated_by)
+       values ('org-a','solopreneur',false,null,'user-a')`,
+    );
+    await expect(
+      pool!.query(
+        "update accounting_workflow_policies set operating_mode='solopreneur' where organization_id='org-a'",
+      ),
+    ).rejects.toMatchObject({ code: "23514" });
+  });
+
   it("round-trips exchange rates as exact decimal strings", async () => {
     const result = await pool!.query<{ rate: string }>(`
       insert into exchange_rates

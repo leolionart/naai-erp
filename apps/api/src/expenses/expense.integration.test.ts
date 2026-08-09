@@ -90,8 +90,8 @@ describeIntegration("ERP-310 expense workflow", () => {
     await pool.query(
       `insert into accounting_workflow_policies
         (organization_id,allow_self_approval,self_approval_max_minor,operating_mode,updated_by)
-       values($1,false,null,'owner_final','owner')
-       on conflict(organization_id) do update set operating_mode='owner_final',updated_by='owner'`,
+       values($1,false,null,'solopreneur','owner')
+       on conflict(organization_id) do update set operating_mode='solopreneur',updated_by='owner'`,
       [organizationId],
     );
     const payload = {
@@ -765,7 +765,7 @@ describeIntegration("ERP-310 expense workflow", () => {
 
   it("finalizes legacy expense and purchase tax states with deterministic idempotent controls", async () => {
     await pool.query(
-      `insert into accounting_workflow_policies(organization_id,operating_mode,allow_self_approval,self_approval_max_minor,updated_by) values($1,'owner_final',false,null,'accountant') on conflict(organization_id) do update set operating_mode='owner_final'`,
+      `insert into accounting_workflow_policies(organization_id,operating_mode,allow_self_approval,self_approval_max_minor,updated_by) values($1,'solopreneur',false,null,'accountant') on conflict(organization_id) do update set operating_mode='solopreneur'`,
       [organizationId],
     );
     for (const sql of [

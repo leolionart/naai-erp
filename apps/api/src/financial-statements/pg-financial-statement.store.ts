@@ -12,6 +12,10 @@ import {
   type ProfitAndLossSection,
 } from "@naai-erp/domain";
 import pg from "pg";
+import {
+  canSelfApprove,
+  resolveOrganizationWorkflowPolicy,
+} from "../workflow-policy/organization-workflow-policy.service.js";
 import type {
   DrilldownQuery,
   FinancialStatementContext,
@@ -214,10 +218,12 @@ export class PgFinancialStatementStore {
         await client.query("rollback");
         return { ...replay.rows[0].response_body, idempotencyReplayed: true };
       }
+      const workflowPolicy = await resolveOrganizationWorkflowPolicy(c.organizationId, client);
+      const selfApproval = canSelfApprove({ policy: workflowPolicy, roles: c.roles });
       const updated = await client.query(
         `update financial_statement_mapping_versions set state='approved',approved_by=$4,approved_at=now(),updated_at=now(),change_reason=change_reason||E'\nApproval: '||$5
-         where organization_id=$1 and id=$2 and version=$3 and state='draft' and created_by<>$4 returning id,version,state,approved_at`,
-        [c.organizationId, id, version, c.actorId, reason.trim()],
+         where organization_id=$1 and id=$2 and version=$3 and state='draft' and (created_by<>$4 or $6::boolean) returning id,version,state,approved_at`,
+        [c.organizationId, id, version, c.actorId, reason.trim(), selfApproval],
       );
       if (!updated.rows[0]) throw new Error("INVALID_STATE_TRANSITION");
       const response = {
@@ -533,11 +539,6 @@ export class PgFinancialStatementStore {
       };
     },
   ) {
-    const workflowPolicy = await this.pool.query<{ operating_mode: string }>(
-      "select operating_mode from accounting_workflow_policies where organization_id=$1",
-      [c.organizationId],
-    );
-    const ownerFinal = workflowPolicy.rows[0]?.operating_mode === "owner_final";
     const source = await this.pool.query(
       `select concat('document:',d.id,':',l.line_number) id,d.id source_id,
         case when d.type='credit_note' and original.type='purchase_invoice' then 'purchase_credit_note'
@@ -576,12 +577,12 @@ export class PgFinancialStatementStore {
       ...(r.reviewer_id ? { reviewerId: r.reviewer_id } : {}),
       ...(r.review_reason ? { reviewReason: r.review_reason } : {}),
       ...(r.review_reference_id ? { reviewReferenceId: r.review_reference_id } : {}),
-      ...(r.tax_code ? { taxCode: r.tax_code } : ownerFinal ? { taxCode: "OWNER_FINAL" } : {}),
-      taxCodeApproved: ownerFinal || r.tax_code_approved,
+      ...(r.tax_code ? { taxCode: r.tax_code } : {}),
+      taxCodeApproved: r.tax_code_approved,
       postedToLedger: r.posted_to_ledger,
       ...(r.journal_id ? { journalId: r.journal_id } : {}),
       requiredEvidenceTypes: r.required_evidence_types,
-      presentEvidenceTypes: ownerFinal ? r.required_evidence_types : r.present_evidence_types,
+      presentEvidenceTypes: r.present_evidence_types,
     }));
     const outputLedger = ledgerRows
       .filter((r) => r.vat_treatment === "output")
@@ -691,7 +692,7 @@ export class PgFinancialStatementStore {
         l.line_number,l.description,l.net_minor::text booked_net_minor,l.vat_minor::text booked_vat_minor,l.gross_minor::text booked_gross_minor,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
         l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions,
-        (l.review_reference in ('owner_final','owner_final_legacy')
+        (l.review_reference in ('solopreneur_policy','owner_final','owner_final_legacy')
           or exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id)
           or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id)) source_evidence_present
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
@@ -704,7 +705,7 @@ export class PgFinancialStatementStore {
         l.line_number,l.description,l.net_minor::text,l.tax_minor::text,l.gross_minor::text,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
         l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.primary_account_code,l.tax_account_code,l.dimensions,
-        (l.review_reference in ('owner_final','owner_final_legacy')
+        (l.review_reference in ('solopreneur_policy','owner_final','owner_final_legacy')
           or exists(select 1 from evidence_records r where r.organization_id=d.organization_id and r.subject_type='commercial_document' and r.subject_id=d.id)
           or exists(select 1 from external_references xr where xr.organization_id=d.organization_id and xr.document_id=d.id)) source_evidence_present
        from commercial_documents d
