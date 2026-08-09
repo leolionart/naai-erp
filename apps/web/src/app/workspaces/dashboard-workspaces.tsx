@@ -1132,7 +1132,7 @@ export function ExecutiveDashboardWorkspace() {
                 title="Công ty đang nợ chủ doanh nghiệp"
                 value={money(ownerCurrentBalanceMinor, operating?.currency ?? executive?.currency)}
                 description="Số dư có của Owner Current trên Balance Sheet: tiền chủ đã nộp hoặc chi thay cho công ty, sau các khoản công ty đã hoàn lại hoặc chủ đã rút."
-                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                href="/banking/owner-current"
                 status="Nguồn: sổ cái Owner Current"
               />
               <MetricCard
