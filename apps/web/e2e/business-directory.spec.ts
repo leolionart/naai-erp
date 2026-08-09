@@ -85,6 +85,57 @@ test("@desktop project profile embeds invoice, budget and cost workspaces", asyn
   await expect(editor.getByLabel("ID người phụ trách")).toHaveValue("owner-a");
 });
 
+test("@desktop unreferenced operational project can be deleted with an audited reason", async ({
+  page,
+}) => {
+  await authenticate(page);
+  let deleted = false;
+  await page.route("**/api/v1/organizations/naai/master-data/projects/*", async (route) => {
+    if (route.request().method() === "DELETE") {
+      expect(route.request().headers()["if-match"]).toBe("3");
+      expect(route.request().postDataJSON()).toEqual({ reason: "Bản ghi nhập trùng" });
+      deleted = true;
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(envelope({ deleted: true, id: "duplicate-project" })),
+      });
+    }
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        envelope({
+          id: "duplicate-project",
+          code: "DUPLICATE",
+          name: "Dự án nhập trùng",
+          client_party_id: "client-a",
+          owner_user_id: "owner-a",
+          contract_type: "fixed_fee",
+          currency: "VND",
+          budget_minor: "0",
+          starts_on: "2026-08-01",
+          ends_on: null,
+          state: "closed",
+          resource_version: "3",
+        }),
+      ),
+    });
+  });
+  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(envelope({ items: [] })),
+    }),
+  );
+
+  await page.goto("http://localhost:3000/projects/duplicate-project");
+  await page.getByRole("button", { name: "Xóa dự án" }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "Xóa dự án vận hành?" });
+  await confirmation.getByLabel("Lý do xóa").fill("Bản ghi nhập trùng");
+  await confirmation.getByRole("button", { name: "Xóa dự án" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  expect(deleted).toBe(true);
+});
+
 test("@desktop directory create action opens an in-context dialog", async ({ page }) => {
   await authenticate(page);
   await page.route("**/api/v1/organizations/naai/master-data/parties?limit=100", (route) =>

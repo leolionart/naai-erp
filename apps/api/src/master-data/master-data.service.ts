@@ -61,11 +61,48 @@ export class MasterDataService {
   ): Promise<ApiEnvelope<Record<string, unknown>>> {
     const data = await this.store.get(resource, context.organizationId, key);
     if (!data) throw new Error("RESOURCE_NOT_FOUND");
+    const resourceVersion = await this.store.getVersion(resource, context.organizationId, key);
     return {
       apiVersion: API_VERSION,
       requestId: context.correlationId,
       organizationId: context.organizationId,
-      data,
+      data: { ...data, resource_version: resourceVersion },
+    };
+  }
+
+  async delete(
+    resource: string,
+    key: string,
+    context: ActorContext,
+    reason: string | undefined,
+    expectedVersion: string | undefined,
+    idempotencyKey: string | undefined,
+  ): Promise<ApiEnvelope<{ resource: Record<string, unknown>; mutation: MutationMetadata }>> {
+    if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (resource !== "projects") throw new Error("PROJECT_DELETE_NOT_ALLOWED");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("IF_MATCH_REQUIRED");
+    if (!reason?.trim()) throw new Error("DELETE_REASON_REQUIRED");
+    const result = await this.store.deleteProject(
+      context,
+      key,
+      { expectedVersion, reason: reason.trim() },
+      idempotencyKey,
+    );
+    return {
+      apiVersion: API_VERSION,
+      requestId: context.correlationId,
+      organizationId: context.organizationId,
+      data: {
+        resource: result.data,
+        mutation: {
+          resourceVersion: result.resourceVersion,
+          auditEventId: result.auditEventId,
+          correlationId: context.correlationId,
+          idempotencyReplayed: result.idempotencyReplayed,
+          nextActions: result.nextActions,
+        },
+      },
     };
   }
 

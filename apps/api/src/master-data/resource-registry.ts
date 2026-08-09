@@ -6,7 +6,34 @@ export type ResourceDefinition = Readonly<{
   mutableColumns: readonly string[];
   deactivate?: Readonly<{ column: string; value: string | boolean }>;
   versionColumn?: string;
+  deletePolicy?: Readonly<{
+    relationalReferences: readonly Readonly<{ table: string; column: string }>[];
+    dimensionReferences: readonly string[];
+  }>;
 }>;
+
+export const PROJECT_DELETE_RELATIONAL_REFERENCES = [
+  { table: "timesheet_entries", column: "project_id" },
+  { table: "project_cost_items", column: "project_id" },
+  { table: "direct_cost_allocation_splits", column: "project_id" },
+  { table: "contracts", column: "project_id" },
+  { table: "scope_changes", column: "project_id" },
+  { table: "project_budget_versions", column: "project_id" },
+  { table: "revenue_recognition_policies", column: "project_id" },
+  { table: "revenue_recognition_events", column: "project_id" },
+  { table: "overhead_allocation_splits", column: "project_id" },
+] as const;
+
+export const PROJECT_DELETE_DIMENSION_REFERENCES = [
+  "journal_lines",
+  "commercial_document_lines",
+  "commercial_document_allocations",
+  "expense_lines",
+  "expense_allocations",
+  "forecast_components",
+  "planning_actual_facts",
+  "roi_input_facts",
+] as const;
 
 export const MASTER_DATA_RESOURCES = {
   organizations: {
@@ -187,6 +214,10 @@ export const MASTER_DATA_RESOURCES = {
       "ends_on",
       "state",
     ],
+    deletePolicy: {
+      relationalReferences: PROJECT_DELETE_RELATIONAL_REFERENCES,
+      dimensionReferences: PROJECT_DELETE_DIMENSION_REFERENCES,
+    },
   },
   contracts: {
     table: "contracts",

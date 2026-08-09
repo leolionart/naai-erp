@@ -94,3 +94,16 @@
   `dimensions.category` is absent: passed against a freshly migrated PostgreSQL integration database.
 - Missing chart category data is labeled explicitly as revenue or expense unclassified and is never
   silently assigned to a configured business category: passed by focused web unit proof.
+
+## Operational project correction
+
+- Operational project attributes remain editable; accounting immutability is limited to posted or
+  issued financial history and its audit chain: documented and covered by the project master-data
+  create/update contract.
+- An unreferenced project requires organization write authority, current resource version, nonblank
+  reason and idempotency for deletion; prior state and reason remain in audit: covered by
+  `T-UNIT-ERP-841-021` and `T-API-ERP-841-022`.
+- Canonically referenced projects return a structured conflict without cascading history removal:
+  covered by `T-API-ERP-841-022`.
+- First-party CLI and project admin UI use the same guarded REST deletion contract: covered by
+  `T-CLI-ERP-841-023` and `T-E2E-ERP-841-024`.

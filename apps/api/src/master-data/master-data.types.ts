@@ -10,6 +10,11 @@ export type MutationInput = Readonly<{
   expectedVersion?: string;
 }>;
 
+export type DeleteInput = Readonly<{
+  expectedVersion: string;
+  reason: string;
+}>;
+
 export type MutationResult = Readonly<{
   data: Readonly<Record<string, unknown>>;
   resourceVersion: string;

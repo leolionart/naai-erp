@@ -507,10 +507,27 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
 
 - Closed project rejects new time/expense/invoice allocations unless approved reopen.
 - Project captures client, contract type, currency, budget, dates and owner.
+- Project identity and operating attributes remain editable through the versioned master-data API,
+  first-party CLI and admin UI while the project exists. The immutability rules for posted journals,
+  issued documents and retained audit history do not make ordinary project master data read-only.
 - A project may declare one default service line through the organization-scoped project master-data
   API and admin UI. The code must reference an active `service_line` dimension in the same
   organization; an assigned dimension cannot be deactivated or deleted until the project reference
   is changed or cleared.
+
+### BR-PRJ-003 — Audited operational project deletion
+
+- A project with no business or financial references may be hard-deleted as an operational-data
+  correction, including removal of a duplicate import. Deletion requires organization-scoped write
+  authorization, an optimistic resource version, a nonblank reason and an idempotency key.
+- The delete records actor, correlation ID, reason, prior state and resulting resource version in the
+  append-only audit trail. An idempotent replay returns the original result without a second effect.
+- A project referenced by contracts, milestones, budgets, documents, expenses, time, project costs,
+  revenue recognition, allocations or other canonical business data cannot be hard-deleted. The API
+  returns a structured conflict so the project can instead be retained, closed or corrected.
+- Deleting an eligible operational project never deletes or rewrites posted accounting entries,
+  issued documents or audit history. Only posted accounting/history carries the strict immutable
+  correction boundary; unrelated operational attributes remain maintainable.
 
 ### BR-PRJ-002 — Project directory filtering
 

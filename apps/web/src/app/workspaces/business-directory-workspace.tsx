@@ -5,6 +5,16 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Filter } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -332,6 +342,7 @@ export function BusinessRecordWorkspace({
   id,
 }: Readonly<{ kind: DirectoryKind; id: string }>) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
+  const router = useRouter();
   const [record, setRecord] = useState<Row>();
   const [error, setError] = useState("");
   const [editor, setEditor] = useState(false);
@@ -339,6 +350,9 @@ export function BusinessRecordWorkspace({
   const [customerProjects, setCustomerProjects] = useState<readonly Row[]>([]);
   const [projectContracts, setProjectContracts] = useState<readonly Row[]>([]);
   const [projectMilestones, setProjectMilestones] = useState<readonly Row[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!hydrated || !hasToken || !id) return;
@@ -407,6 +421,27 @@ export function BusinessRecordWorkspace({
     ? String(clientParty.display_name || clientParty.name || value(record, "client_party_id"))
     : value(record, "client_party_id");
 
+  async function deleteProject() {
+    if (customer || !deleteReason.trim()) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await client.data(`master-data/projects/${masterDataKey(id)}`, {
+        method: "DELETE",
+        expectedVersion: value(record!, "resource_version"),
+        idempotencyKey: `delete-project-${id}`,
+        body: { reason: deleteReason.trim() },
+      });
+      router.push("/projects");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể xóa dự án.");
+      setDeleteOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const rawName = customer ? value(record, "display_name") : value(record, "name");
   let projectName = rawName;
   let projectNote = value(record, "notes") || value(record, "description");
@@ -429,6 +464,11 @@ export function BusinessRecordWorkspace({
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              {!customer ? (
+                <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+                  Xóa dự án
+                </Button>
+              ) : null}
               <Button variant="outline" size="sm" onClick={() => setEditor(true)}>
                 Chỉnh sửa thông tin
               </Button>
@@ -661,6 +701,41 @@ export function BusinessRecordWorkspace({
           setRecord(await client.data<Row>(`master-data/${resource}/${masterDataKey(id)}`));
         }}
       />
+      {!customer ? (
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xóa dự án vận hành?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Dự án chỉ được xóa khi không có chứng từ, timesheet, phân bổ, ngân sách hoặc bút
+                toán tham chiếu. Lịch sử audit của thao tác xóa vẫn được giữ lại.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Field>
+              <FieldLabel htmlFor="project-delete-reason">Lý do xóa</FieldLabel>
+              <Input
+                id="project-delete-reason"
+                value={deleteReason}
+                onChange={(event) => setDeleteReason(event.target.value)}
+                placeholder="Ví dụ: Bản ghi nhập trùng"
+              />
+            </Field>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Giữ lại</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deleting || !deleteReason.trim()}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void deleteProject();
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Đang xóa…" : "Xóa dự án"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </div>
   );
 }

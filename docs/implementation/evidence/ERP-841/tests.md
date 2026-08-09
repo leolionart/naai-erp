@@ -250,3 +250,16 @@ Banking naming-alignment evidence on 2026-08-08:
   absent and list/detail category readback must agree.
 - ERP-841 remains `in_progress`; this focused change does not close the existing fully-loaded
   profitability acceptance gap.
+
+## Operational project mutability and deletion
+
+- `T-UNIT-ERP-841-021` targets service guardrails: project-only deletion with mandatory reason,
+  optimistic version and idempotency.
+- `T-API-ERP-841-022` targets PostgreSQL/API behavior: one audited deletion and idempotent replay for
+  an unreferenced project, `PROJECT_DELETE_REFERENCED` for a referenced project, and a precondition
+  error when the version is missing.
+- `T-CLI-ERP-841-023` targets the REST client `DELETE` request with `If-Match`, stable
+  `idempotency-key` and reason body.
+- `T-E2E-ERP-841-024` targets the admin confirmation flow and verifies its reason and current version.
+- ERP-841 remains `in_progress`; the coordinating agent records pass results after concurrent
+  implementation settles.

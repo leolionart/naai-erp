@@ -6,12 +6,20 @@ function serviceWithStore(overrides: Record<string, unknown> = {}) {
     authenticate: vi.fn().mockResolvedValue({ actorId: "ai-1", roles: ["integration"] }),
     list: vi.fn().mockResolvedValue([{ id: "p1" }]),
     get: vi.fn().mockResolvedValue({ id: "p1" }),
+    getVersion: vi.fn().mockResolvedValue("3"),
     mutate: vi.fn().mockResolvedValue({
       data: { id: "p1" },
       resourceVersion: "1",
       auditEventId: "a1",
       idempotencyReplayed: false,
       nextActions: ["update"],
+    }),
+    deleteProject: vi.fn().mockResolvedValue({
+      data: { id: "p1", deleted: true },
+      resourceVersion: "4",
+      auditEventId: "a2",
+      idempotencyReplayed: false,
+      nextActions: [],
     }),
     ...overrides,
   };
@@ -37,6 +45,13 @@ describe("AI-native master data service", () => {
     expect(store.list).toHaveBeenCalledWith("parties", "org-a", 0, 101);
   });
 
+  it("returns the current resource version with a master-data record", async () => {
+    const { service } = serviceWithStore();
+    const context = await service.authenticate("Bearer secret", "org-a", "corr-1");
+    const result = await service.get("projects", "encoded", context);
+    expect(result.data).toEqual({ id: "p1", resource_version: "3" });
+  });
+
   it("requires write role and idempotency key", async () => {
     const { service } = serviceWithStore();
     const context = {
@@ -58,5 +73,36 @@ describe("AI-native master data service", () => {
         undefined,
       ),
     ).rejects.toThrow("IDEMPOTENCY_KEY_REQUIRED");
+  });
+
+  it("restricts hard delete to projects with idempotency, If-Match and a reason", async () => {
+    const { service, store } = serviceWithStore();
+    const context = {
+      organizationId: "org-a",
+      actorId: "u1",
+      roles: ["finance_admin"],
+      correlationId: "c1",
+    };
+    await expect(
+      service.delete("parties", "key", context, "duplicate", "1", "idem"),
+    ).rejects.toThrow("PROJECT_DELETE_NOT_ALLOWED");
+    await expect(
+      service.delete("projects", "key", context, "duplicate", "1", undefined),
+    ).rejects.toThrow("IDEMPOTENCY_KEY_REQUIRED");
+    await expect(
+      service.delete("projects", "key", context, "duplicate", undefined, "idem"),
+    ).rejects.toThrow("IF_MATCH_REQUIRED");
+    await expect(service.delete("projects", "key", context, "   ", "1", "idem")).rejects.toThrow(
+      "DELETE_REASON_REQUIRED",
+    );
+
+    const result = await service.delete("projects", "key", context, " duplicate ", "3", "idem");
+    expect(store.deleteProject).toHaveBeenCalledWith(
+      context,
+      "key",
+      { expectedVersion: "3", reason: "duplicate" },
+      "idem",
+    );
+    expect(result.data?.mutation.resourceVersion).toBe("4");
   });
 });

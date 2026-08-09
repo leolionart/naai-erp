@@ -352,6 +352,25 @@ describe("ERP-850 portable organization data package CLI", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+
+  it("routes audited deletion of an operational project", async () => {
+    const result = await invoke([
+      "projects",
+      "delete",
+      "--key",
+      "eyJpZCI6ImR1cGxpY2F0ZSJ9",
+      "--version",
+      "3",
+      "--data",
+      '{"reason":"Bản ghi nhập trùng"}',
+      "--idempotency-key",
+      "delete-project-1",
+    ]);
+    expect(result.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/master-data/projects/eyJpZCI6ImR1cGxpY2F0ZSJ9",
+    );
+    expect(JSON.parse(result.requestBody)).toEqual({ reason: "Bản ghi nhập trùng" });
+  });
 });
 
 describe("ERP-740 workbook-import CLI executable", () => {

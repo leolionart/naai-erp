@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import {
   MASTER_DATA_RESOURCES,
+  PROJECT_DELETE_DIMENSION_REFERENCES,
+  PROJECT_DELETE_RELATIONAL_REFERENCES,
   decodeResourceKey,
   encodeResourceKey,
   resourceDefinition,
@@ -27,5 +29,15 @@ describe("master-data resource registry", () => {
     expect(MASTER_DATA_RESOURCES.projects.mutableColumns).toContain("client_party_id");
     expect(MASTER_DATA_RESOURCES.projects.writableColumns).toContain("default_service_line_code");
     expect(MASTER_DATA_RESOURCES.projects.mutableColumns).toContain("default_service_line_code");
+  });
+
+  it("allows hard delete only for projects and enumerates every reference blocker", () => {
+    expect(MASTER_DATA_RESOURCES.projects.deletePolicy).toEqual({
+      relationalReferences: PROJECT_DELETE_RELATIONAL_REFERENCES,
+      dimensionReferences: PROJECT_DELETE_DIMENSION_REFERENCES,
+    });
+    expect(PROJECT_DELETE_RELATIONAL_REFERENCES).toHaveLength(9);
+    expect(PROJECT_DELETE_DIMENSION_REFERENCES).toHaveLength(8);
+    expect("deletePolicy" in MASTER_DATA_RESOURCES.parties).toBe(false);
   });
 });

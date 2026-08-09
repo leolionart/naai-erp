@@ -47,3 +47,7 @@
 - The expense list category fallback regression passed on a freshly migrated PostgreSQL 16 database.
   Dashboard-wide posted-ledger category breakdown remains a separate follow-up because the
   operating-dashboard API currently exposes only monthly totals.
+- Hard deletion is intentionally narrow to unreferenced projects. The reference registry must be
+  extended whenever a new canonical project relationship is introduced. Referenced projects remain
+  close/correct candidates, not delete candidates, and deletion may never cascade into posted
+  accounting or retained audit history.

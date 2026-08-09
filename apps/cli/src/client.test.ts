@@ -1620,4 +1620,36 @@ describe("NAAI ERP JSON-first CLI client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("deletes an operational project through the audited master-data contract", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ apiVersion: "v1", data: { deleted: true } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "projects",
+      "delete",
+      { reason: "Duplicate operational record" },
+      "eyJpZCI6ImR1cGxpY2F0ZSJ9",
+      "3",
+      "delete-project-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/master-data/projects/eyJpZCI6ImR1cGxpY2F0ZSJ9",
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify({ reason: "Duplicate operational record" }),
+        headers: expect.objectContaining({
+          "if-match": "3",
+          "idempotency-key": "delete-project-1",
+        }),
+      }),
+    );
+  });
 });

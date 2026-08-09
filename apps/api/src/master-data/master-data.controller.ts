@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { MasterDataService } from "./master-data.service.js";
 import type { MutationInput } from "./master-data.types.js";
@@ -121,5 +132,27 @@ export class MasterDataController {
   ) {
     const context = await this.context(organizationId, authorization, correlationId);
     return this.service.mutate("deactivate", resource, key, context, input, idempotencyKey);
+  }
+
+  @Delete(":resource/:key")
+  async delete(
+    @Param("organizationId") organizationId: string,
+    @Param("resource") resource: string,
+    @Param("key") key: string,
+    @Body() input: { reason?: string },
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+    @Headers("if-match") expectedVersion?: string,
+  ) {
+    const context = await this.context(organizationId, authorization, correlationId);
+    return this.service.delete(
+      resource,
+      key,
+      context,
+      input.reason,
+      expectedVersion,
+      idempotencyKey,
+    );
   }
 }

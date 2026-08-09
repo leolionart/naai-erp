@@ -2,7 +2,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
 import { decodeResourceKey, encodeResourceKey, resourceDefinition } from "./resource-registry.js";
-import type { ActorContext, MutationInput, MutationResult } from "./master-data.types.js";
+import type {
+  ActorContext,
+  DeleteInput,
+  MutationInput,
+  MutationResult,
+} from "./master-data.types.js";
 
 const quote = (value: string): string => `"${value.replaceAll('"', '""')}"`;
 
@@ -61,6 +66,133 @@ export class PgMasterDataStore {
       [organizationId, ...values],
     );
     return result.rows[0];
+  }
+
+  async getVersion(resource: string, organizationId: string, encodedKey: string): Promise<string> {
+    resourceDefinition(resource);
+    const client = await this.pool.connect();
+    try {
+      return (await this.version(client, organizationId, resource, encodedKey)).toString();
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteProject(
+    context: ActorContext,
+    encodedKey: string,
+    input: DeleteInput,
+    idempotencyKey: string,
+  ): Promise<MutationResult> {
+    const resource = "projects";
+    const definition = resourceDefinition(resource);
+    const key = decodeResourceKey(encodedKey);
+    const projectId = key.id;
+    if (typeof projectId !== "string" || !projectId) {
+      throw new Error("Resource key is missing required fields");
+    }
+    const operation = "projects:delete";
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({ encodedKey, input }))
+      .digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await client.query<{ request_hash: string; response_body: MutationResult }>(
+        "select request_hash, response_body from api_idempotency_records where organization_id=$1 and idempotency_key=$2",
+        [context.organizationId, idempotencyKey],
+      );
+      if (replay.rows[0]) {
+        if (replay.rows[0].request_hash !== requestHash) {
+          throw new Error("Idempotency key was reused with a different request");
+        }
+        await client.query("rollback");
+        return { ...replay.rows[0].response_body, idempotencyReplayed: true };
+      }
+
+      const current = await client.query<Record<string, unknown>>(
+        `select * from ${quote(definition.table)}
+         where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, projectId],
+      );
+      const before = current.rows[0];
+      if (!before) throw new Error("RESOURCE_NOT_FOUND");
+      const currentVersion = await this.version(
+        client,
+        context.organizationId,
+        resource,
+        encodedKey,
+      );
+      if (input.expectedVersion !== currentVersion.toString()) {
+        throw new Error("Resource version conflict");
+      }
+
+      const policy = definition.deletePolicy;
+      if (!policy) throw new Error("PROJECT_DELETE_NOT_ALLOWED");
+      const referenceQueries = [
+        ...policy.relationalReferences.map(
+          ({ table, column }) =>
+            `select 1 from ${quote(table)} where organization_id=$1 and ${quote(column)}=$2`,
+        ),
+        ...policy.dimensionReferences.map(
+          (table) =>
+            `select 1 from ${quote(table)} where organization_id=$1 and dimensions->>'projectId'=$2`,
+        ),
+      ];
+      const referenced = await client.query<{ referenced: boolean }>(
+        `select exists (${referenceQueries.join(" union all ")}) referenced`,
+        [context.organizationId, projectId],
+      );
+      if (referenced.rows[0]?.referenced) throw new Error("PROJECT_DELETE_REFERENCED");
+
+      await client.query("delete from projects where organization_id=$1 and id=$2", [
+        context.organizationId,
+        projectId,
+      ]);
+      const versionResult = await client.query<{ version: string }>(
+        `insert into resource_versions (organization_id,resource_type,resource_key,version)
+         values ($1,$2,$3,$4)
+         on conflict (organization_id,resource_type,resource_key)
+         do update set version=resource_versions.version+1, updated_at=now()
+         returning version`,
+        [context.organizationId, resource, encodedKey, currentVersion + 1n],
+      );
+      const version = BigInt(versionResult.rows[0]!.version);
+      const auditEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events
+          (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values ($1,$2,$3,$4,$5,'delete',$6,$7,$8,null)`,
+        [
+          context.organizationId,
+          auditEventId,
+          resource,
+          encodedKey,
+          version,
+          context.actorId,
+          context.correlationId,
+          { ...before, deletion_reason: input.reason },
+        ],
+      );
+      const response: MutationResult = {
+        data: { ...before, deleted: true },
+        resourceVersion: version.toString(),
+        auditEventId,
+        idempotencyReplayed: false,
+        nextActions: [],
+      };
+      await client.query(
+        "insert into api_idempotency_records (organization_id,idempotency_key,operation,request_hash,response_body) values ($1,$2,$3,$4,$5)",
+        [context.organizationId, idempotencyKey, operation, requestHash, response],
+      );
+      await client.query("commit");
+      return response;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async mutate(

@@ -135,6 +135,35 @@
       },
       "patch": {
         "summary": "Update draft or mutable master data with optimistic version"
+      },
+      "delete": {
+        "summary": "Delete an unreferenced project with If-Match, reason, idempotency and retained audit evidence",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reason"],
+                "properties": { "reason": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}/deactivate": {

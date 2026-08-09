@@ -1065,6 +1065,7 @@ tasks:
         BR-REV-001,
         BR-PRJ-001,
         BR-PRJ-002,
+        BR-PRJ-003,
         BR-PRF-002,
         BR-EXP-001,
         BR-CST-002,
@@ -1101,6 +1102,10 @@ tasks:
         T-UNIT-ERP-841-018,
         T-E2E-ERP-841-019,
         T-INT-ERP-841-020,
+        T-UNIT-ERP-841-021,
+        T-API-ERP-841-022,
+        T-CLI-ERP-841-023,
+        T-E2E-ERP-841-024,
       ]
     evidence: docs/implementation/evidence/ERP-841/
     agent: codex-root

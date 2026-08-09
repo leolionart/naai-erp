@@ -137,3 +137,12 @@ instead of assigning the entire document to the first line. Non-invoice expenses
 canonical category returned by the list API, whose read model falls back from
 `dimensions.category` to `expense_category_code`. Records without either value remain visible under
 the explicit **Doanh thu chưa phân loại** or **Chi phí chưa phân loại** series.
+
+## Operational project mutability boundary
+
+Posted accounting entries, issued financial documents and retained audit history remain immutable,
+but ordinary operational project attributes remain editable. An unreferenced duplicate project can
+be deleted through the organization-scoped application service used by API, CLI and UI, with
+optimistic version, reason, idempotency and append-only audit evidence. Any canonical business or
+financial reference blocks deletion with a structured conflict; deletion never cascades into
+accounting or historical records.

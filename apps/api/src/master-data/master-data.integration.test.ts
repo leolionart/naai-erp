@@ -102,6 +102,95 @@ describeIntegration("ERP-140 API to PostgreSQL", () => {
     expect(audit.rows[0].count).toBe(1);
   });
 
+  it("deletes only an unreferenced project with version, reason, audit and idempotency", async () => {
+    await pool.query(`
+      insert into users(id,email,display_name) values
+        ('project-delete-owner','project-delete-owner@example.test','Project delete owner')
+      on conflict do nothing;
+      insert into organization_memberships(organization_id,user_id) values
+        ('org-api-a','project-delete-owner')
+      on conflict do nothing;
+      insert into parties(organization_id,id,display_name,status) values
+        ('org-api-a','project-delete-client','Project delete client','active')
+      on conflict do nothing;
+      insert into projects
+        (organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
+      values
+        ('org-api-a','project-delete-free','DELETE-FREE','Unreferenced project','project-delete-client','project-delete-owner','fixed_fee','VND',0,'2026-01-01','planned'),
+        ('org-api-a','project-delete-used','DELETE-USED','Referenced project','project-delete-client','project-delete-owner','fixed_fee','VND',0,'2026-01-01','planned')
+      on conflict do nothing;
+      insert into contracts(organization_id,id,project_id,reference,value_minor,currency)
+      values ('org-api-a','project-delete-contract','project-delete-used','DELETE-CONTRACT',0,'VND')
+      on conflict do nothing;
+    `);
+    const freeKey = Buffer.from(JSON.stringify({ id: "project-delete-free" })).toString(
+      "base64url",
+    );
+    const usedKey = Buffer.from(JSON.stringify({ id: "project-delete-used" })).toString(
+      "base64url",
+    );
+    const get = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/org-api-a/master-data/projects/${freeKey}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(get.statusCode).toBe(200);
+    expect(get.json().data.resource_version).toBe("1");
+
+    const missingPrecondition = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/organizations/org-api-a/master-data/projects/${freeKey}`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "project-delete-missing-version",
+      },
+      payload: { reason: "Duplicate import" },
+    });
+    expect(missingPrecondition.statusCode).toBe(428);
+
+    const referenced = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/organizations/org-api-a/master-data/projects/${usedKey}`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "project-delete-referenced",
+        "if-match": "1",
+      },
+      payload: { reason: "Duplicate import" },
+    });
+    expect(referenced.statusCode).toBe(409);
+    expect(referenced.json().error.code).toBe("PROJECT_DELETE_REFERENCED");
+
+    const request = {
+      method: "DELETE" as const,
+      url: `/api/v1/organizations/org-api-a/master-data/projects/${freeKey}`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "project-delete-free",
+        "if-match": "1",
+      },
+      payload: { reason: "Duplicate import" },
+    };
+    const deleted = await app.inject(request);
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json().data.resource.deleted).toBe(true);
+    expect(deleted.json().data.mutation.resourceVersion).toBe("2");
+    const replay = await app.inject(request);
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json().data.mutation.idempotencyReplayed).toBe(true);
+    const persisted = await pool.query(
+      "select 1 from projects where organization_id=$1 and id=$2",
+      ["org-api-a", "project-delete-free"],
+    );
+    expect(persisted.rowCount).toBe(0);
+    const audit = await pool.query<{ action: string; before_state: Record<string, unknown> }>(
+      "select action,before_state from resource_audit_events where organization_id=$1 and resource_type='projects' and resource_key=$2 order by occurred_at desc limit 1",
+      ["org-api-a", freeKey],
+    );
+    expect(audit.rows[0]?.action).toBe("delete");
+    expect(audit.rows[0]?.before_state.deletion_reason).toBe("Duplicate import");
+  });
+
   it("creates and posts a balanced journal atomically with one outbox event", async () => {
     await pool.query(`
       insert into accounts (organization_id,code,name,root_type)
