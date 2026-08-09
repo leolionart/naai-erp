@@ -670,8 +670,8 @@ export function FocusedRecordListWorkspace({
                   <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
                   <TableHead className="w-[180px]">Nguồn thanh toán / Trục</TableHead>
                   <TableHead className="w-[160px]">Danh mục nghiệp vụ</TableHead>
-                  <TableHead>Khách hàng / Nhà cung cấp</TableHead>
-                  <TableHead>Dự án</TableHead>
+                  <TableHead>{kind === "documents" ? "Khách hàng" : "Chi cho ai"}</TableHead>
+                  {kind === "documents" ? <TableHead>Dự án</TableHead> : null}
                   <TableHead>Nội dung / Diễn giải</TableHead>
                   <TableHead className="w-[140px] text-right">Tổng tiền</TableHead>
                   <TableHead className="w-[120px]">Trạng thái</TableHead>
@@ -735,19 +735,19 @@ export function FocusedRecordListWorkspace({
                       <TableCell className="max-w-[220px] truncate font-medium" title={partyName}>
                         {partyName}
                       </TableCell>
-                      <TableCell className="max-w-[260px]" title={relationshipTitle || undefined}>
-                        {projectNames.length ? (
-                          <div className="text-sm">
-                            {projectNames.length ? (
+                      {kind === "documents" ? (
+                        <TableCell className="max-w-[260px]" title={relationshipTitle || undefined}>
+                          {projectNames.length ? (
+                            <div className="text-sm">
                               <span className="truncate font-medium">
                                 {projectNames.join(", ")}
                               </span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Chưa phân bổ</span>
-                        )}
-                      </TableCell>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Chưa phân bổ</span>
+                          )}
+                        </TableCell>
+                      ) : null}
                       <TableCell
                         className="max-w-[200px] truncate text-muted-foreground"
                         title={text(row, "businessPurpose", "reason")}
