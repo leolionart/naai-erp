@@ -204,7 +204,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       insert into expenses(organization_id,id,expense_class,state,payee_party_id,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,journal_id,created_by)
       values ('org-erp630','expense630','invoice_backed','posted','supplier630','2026-08-16','Operations','VND',50,5,55,'331-AP','eligible','eligible','vat-expense','maker');
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
-      values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'approver',now(),'Reviewed','TAX-630');
+      values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'owner630',now(),'Owner-final persisted source decision','owner_final');
       insert into evidence_records(organization_id,id,subject_type,subject_id,evidence_type,current_version,created_by)
       values ('org-erp630','evidence-sale-630','commercial_document','sale-doc','invoice',1,'maker');
       insert into evidence_versions(organization_id,evidence_id,version_number,status,review_state,object_bucket,object_key,original_filename,declared_media_type,detected_media_type,byte_size,sha256,source,uploaded_by)
@@ -433,11 +433,11 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
     });
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data).toMatchObject({
-      status: "review_required",
+      status: "ready",
       accountingBookedMinor: "50",
       citEligibleMinor: "50",
       vatEligibleMinor: "5",
-      missingEvidenceItemIds: ["expense630:1"],
+      missingEvidenceItemIds: [],
       count: 1,
     });
     expect(response.json().data.items[0]).toMatchObject({

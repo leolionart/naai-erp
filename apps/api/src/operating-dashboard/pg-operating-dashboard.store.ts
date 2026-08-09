@@ -244,16 +244,29 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              join financial_statement_mapping_lines ml
                on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
              where ml.statement='balance_sheet' and ml.line_code='owner_current'
+           ), workflow_policy as (
+             select operating_mode
+             from accounting_workflow_policies
+             where organization_id=$1
            )
            select
-             coalesce(sum(l.gross_minor) filter (where l.funding_treatment='owner_paid_company_cost'),0)::text owner_paid,
+             coalesce(sum(l.gross_minor) filter (
+               where l.funding_treatment='owner_paid_company_cost'
+                  or (
+                    l.funding_treatment is null
+                    and e.counter_account_code in (select account_code from owner_accounts)
+                    and (select operating_mode from workflow_policy)='owner_final'
+                  )
+             ),0)::text owner_paid,
              count(*) filter (
                where l.funding_treatment is null
                  and e.counter_account_code in (select account_code from owner_accounts)
+                 and coalesce((select operating_mode from workflow_policy),'controlled')<>'owner_final'
              )::int unclassified_count,
              coalesce(sum(l.gross_minor) filter (
                where l.funding_treatment is null
                  and e.counter_account_code in (select account_code from owner_accounts)
+                 and coalesce((select operating_mode from workflow_policy),'controlled')<>'owner_final'
              ),0)::text unclassified_minor,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e

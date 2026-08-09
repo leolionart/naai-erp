@@ -179,4 +179,30 @@ suite("operating dashboard PostgreSQL API", () => {
     ).rows[0];
     expect(after).toEqual(before);
   });
+
+  it("classifies legacy owner-current expenses as owner-paid in owner-final mode", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies
+       (organization_id,operating_mode,allow_self_approval,soft_lock_posting_roles,updated_by)
+       values($1,'owner_final',false,'["owner","finance_admin"]',$2)
+       on conflict(organization_id) do update
+       set operating_mode='owner_final',updated_by=excluded.updated_by,updated_at=now()`,
+      [org, owner],
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/reports/operating-dashboard?asOf=2026-08-06&startsOn=2026-01-01&endsOn=2026-08-06`,
+      headers: { authorization: `Bearer ${token}`, "x-correlation-id": "owner-final-funding" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.financials).toMatchObject({
+      actualOwnerPaidCompanyCostMinor: "150",
+      unclassifiedOwnerPaidCount: 0,
+      unclassifiedOwnerPaidMinor: "0",
+      ownerPaidClassificationStatus: "ready",
+      ownerOperatingPayableMinor: "310",
+    });
+  });
 });

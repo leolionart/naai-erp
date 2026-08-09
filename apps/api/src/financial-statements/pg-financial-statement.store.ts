@@ -685,7 +685,10 @@ export class PgFinancialStatementStore {
       `select e.id expense_id,e.expense_date::text,e.expense_class::text,e.state::text expense_state,e.currency,e.payee_party_id,e.journal_id,
         l.line_number,l.description,l.net_minor::text booked_net_minor,l.vat_minor::text booked_vat_minor,l.gross_minor::text booked_gross_minor,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
-        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions
+        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions,
+        (l.review_reference in ('owner_final','owner_final_legacy')
+          or exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id)
+          or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id)) source_evidence_present
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
        join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
        where e.organization_id=$1 and e.state='posted'
@@ -695,7 +698,10 @@ export class PgFinancialStatementStore {
        select d.id,d.document_date::text,'invoice_backed',d.state::text,d.currency,d.party_id,d.journal_id,
         l.line_number,l.description,l.net_minor::text,l.tax_minor::text,l.gross_minor::text,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
-        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.primary_account_code,l.tax_account_code,l.dimensions
+        l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.primary_account_code,l.tax_account_code,l.dimensions,
+        (l.review_reference in ('owner_final','owner_final_legacy')
+          or exists(select 1 from evidence_records r where r.organization_id=d.organization_id and r.subject_type='commercial_document' and r.subject_id=d.id)
+          or exists(select 1 from external_references xr where xr.organization_id=d.organization_id and xr.document_id=d.id)) source_evidence_present
        from commercial_documents d
        join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
        join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id
@@ -736,7 +742,7 @@ export class PgFinancialStatementStore {
       ...(row.review_reason ? { reviewReason: row.review_reason } : {}),
       ...(row.review_reference ? { reviewReferenceId: row.review_reference } : {}),
       requiredEvidenceTypes: ["source_document"],
-      presentEvidenceTypes: row.evidence?.length ? ["source_document"] : [],
+      presentEvidenceTypes: row.source_evidence_present ? ["source_document"] : [],
     }));
     const summary = buildTaxExpenseReview({
       organizationId: c.organizationId,
