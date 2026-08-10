@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useMemo, useState, useRef } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +59,13 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { adminNavigation, isNavigationAvailable, type NavigationIcon } from "@/lib/navigation";
+import {
+  adminNavigation,
+  isNavigationAvailable,
+  type NavigationChild,
+  type NavigationIcon,
+  type NavigationItem,
+} from "@/lib/navigation";
 
 const icons = {
   overview: LayoutDashboardIcon,
@@ -140,53 +147,46 @@ function NavigationUser() {
   );
 }
 
-function CollapsedHoverMenu({ item, children, active, isActive, Icon }: any) {
-  const [open, setOpen] = useState(false);
-  const timeoutRef = useRef<any>(null);
+type CollapsedHoverMenuProps = Readonly<{
+  item: NavigationItem;
+  children: readonly NavigationChild[];
+  active: boolean;
+  isActive: (href: string) => boolean;
+  Icon: typeof LayoutDashboardIcon;
+}>;
 
-  const onEnter = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setOpen(true);
-  };
-
-  const onLeave = () => {
-    timeoutRef.current = setTimeout(() => {
-      setOpen(false);
-    }, 150);
-  };
-
+function CollapsedHoverMenu({ item, children, active, isActive, Icon }: CollapsedHoverMenuProps) {
   return (
-    <SidebarMenuItem key={item.key} onMouseEnter={onEnter} onMouseLeave={onLeave}>
-      <DropdownMenu open={open}>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuButton isActive={active} className="pointer-events-none">
+    <SidebarMenuItem>
+      <HoverCard openDelay={100} closeDelay={300}>
+        <HoverCardTrigger asChild>
+          <SidebarMenuButton isActive={active} aria-label={item.label}>
             <Icon />
             <span>{item.label}</span>
           </SidebarMenuButton>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          side="right"
-          align="start"
-          sideOffset={8}
-          onMouseEnter={onEnter}
-          onMouseLeave={onLeave}
-        >
-          <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            {children.map((child: any) => {
+        </HoverCardTrigger>
+        <HoverCardContent side="right" align="start" sideOffset={8} className="w-56 p-1">
+          <div className="px-1.5 py-1 text-sm font-medium">{item.label}</div>
+          <nav className="flex flex-col gap-0.5" aria-label={item.label}>
+            {children.map((child) => {
               const childActive = isActive(child.href);
               return (
-                <DropdownMenuItem key={child.key} asChild>
-                  <Link href={child.href} className={childActive ? "bg-accent" : ""}>
-                    {child.label}
-                  </Link>
-                </DropdownMenuItem>
+                <Link
+                  key={child.key}
+                  href={child.href}
+                  aria-current={childActive ? "page" : undefined}
+                  className={cn(
+                    "rounded-md px-1.5 py-1 text-sm outline-hidden hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+                    childActive && "bg-accent text-accent-foreground",
+                  )}
+                >
+                  {child.label}
+                </Link>
               );
             })}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </nav>
+        </HoverCardContent>
+      </HoverCard>
     </SidebarMenuItem>
   );
 }

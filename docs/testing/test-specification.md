@@ -166,6 +166,15 @@ Golden changes require explicit review and a documented reason.
   `0046_expense_quick_edit_metadata` and permits the audited posted-expense metadata command without
   relaxing amount, tax, account or journal immutability.
 
+### ERP-880 — Stable collapsed-sidebar submenu navigation
+
+- `T-UNIT-ERP-880-001`: collapsed submenu composition uses the shared HoverCard primitive and has
+  no custom pointer timers while retaining named triggers, navigation landmarks and active-link
+  semantics.
+- `T-E2E-ERP-880-002`: after the desktop sidebar is collapsed, hovering a grouped navigation icon
+  opens its submenu and moving the pointer onto a destination keeps the submenu visible long enough
+  to navigate without flicker.
+
 ### ERP-878 — Category-filtered owner-paid expense list
 
 - `T-API-ERP-878-001`: the expense list accepts `fundingTreatment=owner_paid_company_cost`, uses the

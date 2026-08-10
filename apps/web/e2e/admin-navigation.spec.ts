@@ -51,6 +51,24 @@ test("@desktop primary navigation exposes customers and projects", async ({ page
   await expect(page.getByRole("heading", { level: 1, name: "Dự án" })).toBeVisible();
 });
 
+test("@desktop collapsed sidebar keeps a hovered submenu stable while moving into it", async ({
+  page,
+}) => {
+  await expectDashboard(page);
+  await page.getByRole("button", { name: "Mở menu chính" }).click();
+
+  const trigger = page.getByRole("button", { name: "Doanh thu & Chi phí", exact: true });
+  await trigger.hover();
+  const expenseLink = page.getByRole("link", { name: "Quản lý chi phí", exact: true });
+  await expect(expenseLink).toBeVisible();
+
+  await expenseLink.hover();
+  await page.waitForTimeout(400);
+  await expect(expenseLink).toBeVisible();
+  await expenseLink.click();
+  await expect(page).toHaveURL(/\/expenses$/);
+});
+
 test("@mobile Sheet navigation reaches documents and keeps the primary workflow usable", async ({
   page,
 }) => {

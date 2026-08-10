@@ -882,6 +882,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Admin modules use shared semantic tokens and accessible component primitives instead of per-screen raw controls or hard-coded visual rules.
 - Lists, forms, dialogs, feedback, loading and empty states follow one documented composition contract.
 - Responsive behavior preserves navigation and primary workflows without JavaScript-only layout assumptions.
+- Collapsed sidebar submenus use shared accessible overlay/navigation primitives and preserve a
+  stable pointer path from trigger to submenu; custom hover timers and flickering open/close loops
+  are prohibited.
 
 ### BR-RPT-001 — Trial Balance and General Ledger
 
