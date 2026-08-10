@@ -101,3 +101,69 @@ export type BankTransactionBranchRequest = Readonly<{
   schemaVersion: typeof BANKING_CONTRACT_VERSION;
   reason: string;
 }>;
+
+export type OwnerCurrentMovementTypeContract =
+  "owner_paid_company_cost" | "owner_funding" | "company_repayment_to_owner" | "adjustment";
+
+export type OwnerCurrentClassificationBasisContract =
+  | "canonical_owner_paid_source"
+  | "owner_funding_to_company_funds"
+  | "company_funds_repayment_to_owner"
+  | "unresolved_owner_current_movement";
+
+export type OwnerCurrentSourceContract = Readonly<{
+  sourceType: "expense" | "purchase_invoice";
+  sourceId: string;
+  title: string;
+  detail: string | null;
+  sourceHref: string;
+  expenseClass: string | null;
+  category: string | null;
+  fundingTreatments: readonly string[];
+  citState: string | null;
+  vatState: string | null;
+  grossMinor: string;
+  payeeName: string | null;
+}>;
+
+export type OwnerCurrentCounterpartLineContract = Readonly<{
+  accountCode: string;
+  accountName: string;
+  debitMinor: string;
+  creditMinor: string;
+  description: string;
+}>;
+
+export type OwnerCurrentMovementContract = Readonly<{
+  journalId: string;
+  date: string;
+  description: string;
+  currency: string;
+  state: "posted" | "reversed";
+  reversalOfId: string | null;
+  movementType: OwnerCurrentMovementTypeContract;
+  classificationBasis: OwnerCurrentClassificationBasisContract;
+  needsReview: boolean;
+  ownerDeltaMinor: string;
+  companyFundsDeltaMinor: string;
+  runningOwnerBalanceMinor: string;
+  ownerAccountCodes: readonly string[];
+  counterpartLines: readonly OwnerCurrentCounterpartLineContract[];
+  sources: readonly OwnerCurrentSourceContract[];
+}>;
+
+export type OwnerCurrentSummaryContract = Readonly<{
+  increaseMinor: string;
+  decreaseMinor: string;
+  closingBalanceMinor: string;
+  ownerPaidCompanyCostMinor: string;
+  companyRepaymentToOwnerMinor: string;
+  ownerFundingMinor: string;
+  adjustmentMinor: string;
+  needsReviewCount: number;
+}>;
+
+export type OwnerCurrentResponseContract = Readonly<{
+  summary: OwnerCurrentSummaryContract;
+  items: readonly OwnerCurrentMovementContract[];
+}>;

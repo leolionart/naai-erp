@@ -237,4 +237,88 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
     );
     expect(event.rows[0].count).toBe(1);
   });
+
+  it("classifies owner-current movements from canonical evidence and historical company accounts", async () => {
+    await pool.query(`
+      insert into accounts(organization_id,code,name,root_type) values
+        ('org-erp400-a','3388','Owner current','liability');
+      update financial_accounts set status='inactive'
+        where organization_id='org-erp400-a' and id='erp400-bank-1';
+      insert into financial_statement_mapping_versions
+        (organization_id,id,framework,version,effective_from,state,change_reason,created_by,approved_at,approved_by)
+        values('org-erp400-a','erp876-owner-current','TT133',1,'2026-01-01','approved','ERP-876 fixture','finance-user',now(),'finance-user');
+      insert into financial_statement_mapping_lines
+        (organization_id,mapping_id,mapping_version,line_number,statement,line_code,label,account_code,display_order,sign)
+        values('org-erp400-a','erp876-owner-current',1,1,'balance_sheet','owner_current','Owner current','3388',1,1);
+      insert into expense_categories(organization_id,code,name,funding_treatment,created_by,updated_by) values
+        ('org-erp400-a','OWNER-PAID','Owner paid','owner_paid_company_cost','finance-user','finance-user'),
+        ('org-erp400-a','COMPANY-PAID','Company paid','company_funds','finance-user','finance-user');
+      insert into journal_entries
+        (organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by) values
+        ('org-erp400-a','erp876-owner-expense','2026-08-10','Owner paid expense','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
+        ('org-erp400-a','erp876-wrong-funding','2026-08-11','Wrong funding snapshot','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
+        ('org-erp400-a','erp876-repayment','2026-08-12','Repayment through historical bank','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
+        ('org-erp400-a','erp876-funding','2026-08-13','Owner funds company bank','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
+        ('org-erp400-a','erp876-adjustment','2026-08-14','Unresolved owner adjustment','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user');
+      insert into journal_lines
+        (organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
+        ('org-erp400-a','erp876-owner-expense',1,'642',100,null,'Expense','{}'),
+        ('org-erp400-a','erp876-owner-expense',2,'3388',null,100,'Owner current','{}'),
+        ('org-erp400-a','erp876-wrong-funding',1,'642',60,null,'Expense','{}'),
+        ('org-erp400-a','erp876-wrong-funding',2,'3388',null,60,'Owner current','{}'),
+        ('org-erp400-a','erp876-repayment',1,'3388',30,null,'Owner current','{}'),
+        ('org-erp400-a','erp876-repayment',2,'1121',null,30,'Historical bank','{}'),
+        ('org-erp400-a','erp876-funding',1,'1121',80,null,'Historical bank','{}'),
+        ('org-erp400-a','erp876-funding',2,'3388',null,80,'Owner current','{}'),
+        ('org-erp400-a','erp876-adjustment',1,'642',40,null,'Unresolved','{}'),
+        ('org-erp400-a','erp876-adjustment',2,'3388',null,40,'Owner current','{}');
+      insert into expenses
+        (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by) values
+        ('org-erp400-a','erp876-expense-owner','payroll_personnel','posted','2026-08-10','Payroll paid by owner','VND',100,0,100,'3388','erp876-owner-expense','finance-user'),
+        ('org-erp400-a','erp876-expense-company','payroll_personnel','posted','2026-08-11','Payroll marked company funded','VND',60,0,60,'3388','erp876-wrong-funding','finance-user');
+      insert into expense_lines
+        (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions) values
+        ('org-erp400-a','erp876-expense-owner',1,'Payroll',100,0,100,'642','OWNER-PAID','owner_paid_company_cost','{}'),
+        ('org-erp400-a','erp876-expense-company',1,'Payroll',60,0,60,'642','COMPANY-PAID','company_funds','{}');
+    `);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-erp400-a/banking/owner-current-movements",
+      headers: headers(financeToken),
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.summary).toEqual({
+      increaseMinor: "280",
+      decreaseMinor: "30",
+      closingBalanceMinor: "250",
+      ownerPaidCompanyCostMinor: "100",
+      companyRepaymentToOwnerMinor: "30",
+      ownerFundingMinor: "80",
+      adjustmentMinor: "100",
+      needsReviewCount: 2,
+    });
+    const byId = Object.fromEntries(
+      response.json().data.items.map((item: { journalId: string }) => [item.journalId, item]),
+    );
+    expect(byId["erp876-owner-expense"]).toMatchObject({
+      movementType: "owner_paid_company_cost",
+      needsReview: false,
+      sources: [{ fundingTreatments: ["owner_paid_company_cost"] }],
+    });
+    expect(byId["erp876-repayment"]).toMatchObject({
+      movementType: "company_repayment_to_owner",
+      needsReview: false,
+      companyFundsDeltaMinor: "-30",
+    });
+    expect(byId["erp876-funding"]).toMatchObject({
+      movementType: "owner_funding",
+      needsReview: false,
+    });
+    expect(byId["erp876-wrong-funding"]).toMatchObject({
+      movementType: "adjustment",
+      needsReview: true,
+    });
+  });
 });

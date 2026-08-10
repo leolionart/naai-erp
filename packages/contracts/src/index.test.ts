@@ -13,6 +13,7 @@ import {
   type ApiEnvelope,
   type BankStatementImportRequest,
   type BankTransactionContract,
+  type OwnerCurrentResponseContract,
   type MutationMetadata,
   type MatchReconciliationRequest,
   type CreateInternalTransferRequest,
@@ -82,6 +83,24 @@ describe("AI-native API contracts", () => {
     };
     expect(request.schemaVersion).toBe(1);
     expect(transaction.amountMinor).toBe("-125000");
+  });
+
+  it("exports the owner-current repayment contract from the package root", () => {
+    const response: OwnerCurrentResponseContract = {
+      summary: {
+        increaseMinor: "5000000",
+        decreaseMinor: "1000000",
+        closingBalanceMinor: "4000000",
+        ownerPaidCompanyCostMinor: "5000000",
+        companyRepaymentToOwnerMinor: "1000000",
+        ownerFundingMinor: "0",
+        adjustmentMinor: "0",
+        needsReviewCount: 0,
+      },
+      items: [],
+    };
+
+    expect(response.summary.companyRepaymentToOwnerMinor).toBe("1000000");
   });
 
   it("keeps reconciliation scores integer-bps and every money field an exact string", () => {

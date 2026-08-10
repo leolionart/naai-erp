@@ -143,6 +143,13 @@ Golden changes require explicit review and a documented reason.
 - `T-INT-ERP-874-003`: workbook import accepts only active organization service-line codes, rejects
   invalid codes before mutation and persists the valid project reporting fallback.
 
+### ERP-876 — Owner-current source-of-funds and repayment classification
+
+- `T-API-ERP-876-001`: owner-paid payroll and purchase invoices require canonical source evidence;
+  company-funded expenses and unresolved Owner Current credits are not mislabeled as owner-paid.
+- `T-E2E-ERP-876-002`: Owner Current visibly separates owner-paid company costs, company repayments,
+  owner funding and review-required adjustments with truthful source-specific empty states.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

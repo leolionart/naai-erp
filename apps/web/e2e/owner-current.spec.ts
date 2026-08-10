@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("@desktop owner current menu exposes withdrawal evidence and running balance", async ({
+test("@desktop owner current distinguishes owner-paid costs, repayments and review adjustments", async ({
   page,
 }) => {
   await page.addInitScript(() =>
@@ -18,6 +18,11 @@ test("@desktop owner current menu exposes withdrawal evidence and running balanc
             increaseMinor: "100000000",
             decreaseMinor: "45000000",
             closingBalanceMinor: "55000000",
+            ownerPaidCompanyCostMinor: "100000000",
+            companyRepaymentsToOwnerMinor: "45000000",
+            ownerFundingMinor: "0",
+            adjustmentMinor: "0",
+            needsReviewCount: 1,
           },
           items: [
             {
@@ -31,33 +36,52 @@ test("@desktop owner current menu exposes withdrawal evidence and running balanc
               companyFundsDeltaMinor: "0",
               runningOwnerBalanceMinor: "100000000",
               ownerAccountCodes: ["3388-OWNER"],
+              needsReview: false,
+              classificationBasis: "Nguồn chi phí xác nhận là chủ chi hộ",
               sources: [
                 {
                   sourceType: "expense",
                   sourceId: "expense-domain",
-                  title: "Gia hạn tên miền naai.studio",
-                  detail: "Tên miền .studio một năm",
+                  title: "Lương nhân sự tháng 2/2025",
+                  detail: "Chủ thanh toán lương bằng tài khoản cá nhân",
                   sourceHref: "/expenses/expense-domain",
-                  expenseClass: "invoice_backed",
-                  category: "DOMAIN",
+                  expenseClass: "payroll_personnel",
+                  category: "SALARY",
                   citState: "eligible",
-                  vatState: "eligible",
-                  grossMinor: "1200000",
-                  payeeName: "Nhà cung cấp tên miền",
+                  vatState: "ineligible",
+                  grossMinor: "100000000",
+                  payeeName: "Nhân sự công ty",
                 },
               ],
             },
             {
-              journalId: "owner-withdrawal-45m",
+              journalId: "owner-repayment-45m",
               date: "2025-02-25",
-              description: "Rút tiền mặt sử dụng",
+              description: "Công ty hoàn trả tiền chủ đã chi hộ",
               currency: "VND",
               state: "posted",
-              movementType: "company_payment_to_owner",
+              movementType: "company_repayment_to_owner",
               ownerDeltaMinor: "-45000000",
               companyFundsDeltaMinor: "-45000000",
               runningOwnerBalanceMinor: "55000000",
               ownerAccountCodes: ["3388-OWNER"],
+              needsReview: false,
+              classificationBasis: "Owner Current giảm và tiền công ty giảm trong cùng bút toán",
+              sources: [],
+            },
+            {
+              journalId: "owner-adjustment-review",
+              date: "2025-02-26",
+              description: "Điều chỉnh chưa rõ nghiệp vụ",
+              currency: "VND",
+              state: "posted",
+              movementType: "adjustment",
+              ownerDeltaMinor: "0",
+              companyFundsDeltaMinor: "0",
+              runningOwnerBalanceMinor: "55000000",
+              ownerAccountCodes: ["3388-OWNER"],
+              needsReview: true,
+              classificationBasis: "Không đủ đối ứng để xác định nguồn tiền",
               sources: [],
             },
           ],
@@ -70,17 +94,25 @@ test("@desktop owner current menu exposes withdrawal evidence and running balanc
   await expect(
     page.getByRole("heading", { level: 1, name: "Đối chiếu công nợ chủ" }),
   ).toBeVisible();
-  await expect(page.getByText("Rút tiền mặt sử dụng", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Gia hạn tên miền naai.studio" })).toHaveAttribute(
+  await expect(
+    page.getByText("Công ty hoàn trả tiền chủ đã chi hộ", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Lương nhân sự tháng 2/2025" })).toHaveAttribute(
     "href",
     "/expenses/expense-domain",
   );
-  await expect(page.getByText("Nhà cung cấp tên miền", { exact: true })).toBeVisible();
-  await expect(page.getByText("DOMAIN", { exact: true })).toBeVisible();
+  await expect(page.getByText("Nhân sự công ty", { exact: true })).toBeVisible();
+  await expect(page.getByText("SALARY", { exact: true })).toBeVisible();
+  await expect(page.getByText("payroll_personnel", { exact: true })).toBeVisible();
   await expect(page.getByText("TNDN: eligible", { exact: true })).toBeVisible();
   await expect(page.getByText("45.000.000 ₫", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Rút tiền mặt sử dụng" })).toHaveAttribute(
-    "href",
-    "/accounting/journals?journalId=owner-withdrawal-45m",
-  );
+  await expect(page.getByText("Công ty trả nợ chủ", { exact: true })).toBeVisible();
+  await expect(page.getByText("Cần kiểm tra phân loại", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Không đủ đối ứng để xác định nguồn tiền", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Công ty hoàn trả tiền chủ đã chi hộ" }),
+  ).toHaveAttribute("href", "/accounting/journals?journalId=owner-repayment-45m");
+  await expect(page.getByText("Chưa liên kết nguồn chi phí")).toHaveCount(0);
 });

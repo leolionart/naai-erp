@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { BankingService } from "./banking.service.js";
+import { classifyOwnerCurrentMovement } from "./pg-banking.store.js";
 
 const context = {
   organizationId: "org-bank",
@@ -128,5 +129,78 @@ describe("ERP-400 banking service", () => {
         },
       ],
     });
+  });
+});
+
+describe("ERP-876 owner-current classification", () => {
+  it("requires canonical source evidence before calling a credit owner-paid company cost", () => {
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 1_000n,
+        companyFundsDelta: 0n,
+        sources: [],
+      }),
+    ).toMatchObject({
+      movementType: "adjustment",
+      classificationBasis: "unresolved_owner_current_movement",
+      needsReview: true,
+    });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 1_000n,
+        companyFundsDelta: 0n,
+        sources: [{ sourceType: "expense", fundingTreatments: ["company_funds"] }],
+      }),
+    ).toMatchObject({ movementType: "adjustment", needsReview: true });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 1_000n,
+        companyFundsDelta: 0n,
+        sources: [{ sourceType: "expense", fundingTreatments: ["owner_paid_company_cost"] }],
+      }),
+    ).toMatchObject({
+      movementType: "owner_paid_company_cost",
+      classificationBasis: "canonical_owner_paid_source",
+      needsReview: false,
+    });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 1_000n,
+        companyFundsDelta: 0n,
+        sources: [{ sourceType: "purchase_invoice", fundingTreatments: [] }],
+      }),
+    ).toMatchObject({ movementType: "owner_paid_company_cost", needsReview: false });
+  });
+
+  it("distinguishes company repayment and owner funding using both journal legs", () => {
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: -700n,
+        companyFundsDelta: -700n,
+        sources: [],
+      }),
+    ).toMatchObject({
+      movementType: "company_repayment_to_owner",
+      classificationBasis: "company_funds_repayment_to_owner",
+      needsReview: false,
+    });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 900n,
+        companyFundsDelta: 900n,
+        sources: [],
+      }),
+    ).toMatchObject({
+      movementType: "owner_funding",
+      classificationBasis: "owner_funding_to_company_funds",
+      needsReview: false,
+    });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: -700n,
+        companyFundsDelta: 0n,
+        sources: [{ sourceType: "expense", fundingTreatments: ["owner_paid_company_cost"] }],
+      }),
+    ).toMatchObject({ movementType: "adjustment", needsReview: true });
   });
 });

@@ -39,6 +39,65 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 const canonicalText = (value: string | undefined) =>
   value?.normalize("NFKC").trim().replace(/\s+/g, " ") || undefined;
 
+type OwnerCurrentMovementType =
+  "company_repayment_to_owner" | "owner_funding" | "owner_paid_company_cost" | "adjustment";
+
+type OwnerCurrentClassificationBasis =
+  | "canonical_owner_paid_source"
+  | "owner_funding_to_company_funds"
+  | "company_funds_repayment_to_owner"
+  | "unresolved_owner_current_movement";
+
+type OwnerCurrentSource = Readonly<{
+  sourceType?: unknown;
+  fundingTreatments?: unknown;
+}>;
+
+export function classifyOwnerCurrentMovement(input: {
+  ownerDelta: bigint;
+  companyFundsDelta: bigint;
+  sources: readonly OwnerCurrentSource[];
+}): {
+  movementType: OwnerCurrentMovementType;
+  classificationBasis: OwnerCurrentClassificationBasis;
+  needsReview: boolean;
+} {
+  if (input.ownerDelta < 0n && input.companyFundsDelta < 0n) {
+    return {
+      movementType: "company_repayment_to_owner",
+      classificationBasis: "company_funds_repayment_to_owner",
+      needsReview: false,
+    };
+  }
+  if (input.ownerDelta > 0n && input.companyFundsDelta > 0n) {
+    return {
+      movementType: "owner_funding",
+      classificationBasis: "owner_funding_to_company_funds",
+      needsReview: false,
+    };
+  }
+  const hasCanonicalOwnerPaidEvidence = input.sources.some((source) => {
+    if (source.sourceType === "purchase_invoice") return true;
+    return (
+      source.sourceType === "expense" &&
+      Array.isArray(source.fundingTreatments) &&
+      source.fundingTreatments.includes("owner_paid_company_cost")
+    );
+  });
+  if (input.ownerDelta > 0n && hasCanonicalOwnerPaidEvidence) {
+    return {
+      movementType: "owner_paid_company_cost",
+      classificationBasis: "canonical_owner_paid_source",
+      needsReview: false,
+    };
+  }
+  return {
+    movementType: "adjustment",
+    classificationBasis: "unresolved_owner_current_movement",
+    needsReview: true,
+  };
+}
+
 @Injectable()
 export class PgBankingStore implements BankingStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -630,7 +689,7 @@ export class PgBankingStore implements BankingStore {
        ), company_funds_accounts as (
          select distinct ledger_account_code account_code
          from financial_accounts
-         where organization_id=$1 and status='active' and kind in ('bank','cash')
+         where organization_id=$1 and kind in ('bank','cash')
        )
        select j.id journal_id,j.journal_date::text,j.description,j.currency,j.state,j.reversal_of_id,
          coalesce(source_refs.sources,'[]'::jsonb) sources,
@@ -664,6 +723,9 @@ export class PgBankingStore implements BankingStore {
              'category',(select coalesce(el.dimensions->>'category',el.expense_category_code)
                from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id
                order by el.line_number limit 1),
+             'fundingTreatments',(select coalesce(jsonb_agg(distinct el.funding_treatment)
+               filter (where el.funding_treatment is not null),'[]'::jsonb)
+               from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id),
              'citState',e.cit_state::text,'vatState',e.vat_state::text,
              'payeeName',p.display_name
            ) source
@@ -678,7 +740,7 @@ export class PgBankingStore implements BankingStore {
                from commercial_document_lines dl
                where dl.organization_id=d.organization_id and dl.document_id=d.id),
              'grossMinor',d.gross_minor::text,'sourceHref','/documents/' || d.id,
-             'expenseClass',null,'category',null,
+             'expenseClass',null,'category',null,'fundingTreatments','[]'::jsonb,
              'citState',(select min(dl.cit_state::text) from commercial_document_lines dl
                where dl.organization_id=d.organization_id and dl.document_id=d.id),
              'vatState',(select min(dl.vat_state::text) from commercial_document_lines dl
@@ -701,20 +763,31 @@ export class PgBankingStore implements BankingStore {
     let running = 0n;
     let increases = 0n;
     let decreases = 0n;
+    let ownerPaidCompanyCosts = 0n;
+    let companyPaymentsToOwner = 0n;
+    let ownerFunding = 0n;
+    let adjustments = 0n;
+    let needsReviewCount = 0;
     const items = result.rows.map((row) => {
       const ownerDelta = BigInt(row.owner_delta_minor);
       const companyFundsDelta = BigInt(row.company_funds_delta_minor);
+      const sources = Array.isArray(row.sources) ? (row.sources as OwnerCurrentSource[]) : [];
       running += ownerDelta;
       if (ownerDelta > 0n) increases += ownerDelta;
       if (ownerDelta < 0n) decreases += -ownerDelta;
-      const movementType =
-        ownerDelta < 0n && companyFundsDelta < 0n
-          ? "company_payment_to_owner"
-          : ownerDelta > 0n && companyFundsDelta > 0n
-            ? "owner_funding"
-            : ownerDelta > 0n
-              ? "owner_paid_company_cost"
-              : "adjustment";
+      const classification = classifyOwnerCurrentMovement({
+        ownerDelta,
+        companyFundsDelta,
+        sources,
+      });
+      const classifiedAmount = ownerDelta < 0n ? -ownerDelta : ownerDelta;
+      if (classification.movementType === "owner_paid_company_cost")
+        ownerPaidCompanyCosts += classifiedAmount;
+      if (classification.movementType === "company_repayment_to_owner")
+        companyPaymentsToOwner += classifiedAmount;
+      if (classification.movementType === "owner_funding") ownerFunding += classifiedAmount;
+      if (classification.movementType === "adjustment") adjustments += classifiedAmount;
+      if (classification.needsReview) needsReviewCount += 1;
       return {
         journalId: row.journal_id,
         date: row.journal_date,
@@ -722,13 +795,15 @@ export class PgBankingStore implements BankingStore {
         currency: row.currency,
         state: row.state,
         reversalOfId: row.reversal_of_id,
-        movementType,
+        movementType: classification.movementType,
+        classificationBasis: classification.classificationBasis,
+        needsReview: classification.needsReview,
         ownerDeltaMinor: ownerDelta.toString(),
         companyFundsDeltaMinor: companyFundsDelta.toString(),
         runningOwnerBalanceMinor: running.toString(),
         ownerAccountCodes: row.owner_account_codes ?? [],
         counterpartLines: row.counterpart_lines ?? [],
-        sources: row.sources ?? [],
+        sources,
       };
     });
     return {
@@ -736,6 +811,11 @@ export class PgBankingStore implements BankingStore {
         increaseMinor: increases.toString(),
         decreaseMinor: decreases.toString(),
         closingBalanceMinor: running.toString(),
+        ownerPaidCompanyCostMinor: ownerPaidCompanyCosts.toString(),
+        companyRepaymentToOwnerMinor: companyPaymentsToOwner.toString(),
+        ownerFundingMinor: ownerFunding.toString(),
+        adjustmentMinor: adjustments.toString(),
+        needsReviewCount,
       },
       items: items.reverse(),
     };

@@ -1,14 +1,14 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T07:58:00+07:00
+updated_at: 2026-08-10T08:25:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G40
-current_task: null
+current_gate: G42
+current_task: ERP-877
 
 tasks:
   - id: ERP-000
@@ -1881,6 +1881,53 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-875/
 
+  - id: ERP-876
+    title: Owner-current source-of-funds and repayment classification
+    phase: P13
+    status: done
+    dependencies: [ERP-875]
+    business_rules: [BR-BNK-004, BR-EXP-004, BR-AI-006, BR-UI-003, BR-ORG-001]
+    tests: [T-API-ERP-876-001, T-E2E-ERP-876-002]
+    evidence: docs/implementation/evidence/ERP-876/
+    agent: codex-team
+    started_at: 2026-08-10T08:10:00+07:00
+    completed_at: 2026-08-10T08:25:00+07:00
+    completion_basis: canonical_source_classification_fresh_database_contract_web_e2e_and_quality_gates
+    parallel_file_ownership:
+      backend: apps/api/src/banking/
+      web: apps/web/src/app/workspaces/owner-current-workspace.tsx, apps/web/e2e/owner-current.spec.ts
+      coordinator: docs/
+    planned_files:
+      - apps/api/src/banking/pg-banking.store.ts
+      - apps/api/src/banking/banking.service.test.ts
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/e2e/owner-current.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-876/
+
+  - id: ERP-877
+    title: Simplified expense quick-edit metadata and payee workflow
+    phase: P13
+    status: in_progress
+    dependencies: [ERP-876]
+    business_rules: [BR-EXP-001, BR-EXP-002, BR-AI-005, BR-AUD-001, BR-UI-003, BR-UI-004]
+    tests: [T-API-ERP-877-001, T-E2E-ERP-877-002]
+    evidence: docs/implementation/evidence/ERP-877/
+    agent: codex-team
+    started_at: 2026-08-10T09:05:00+07:00
+    planned_files:
+      - apps/api/src/expenses/
+      - apps/web/src/components/forms/document-expense-forms.tsx
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/e2e/
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/api/openapi-v1.json
+      - docs/implementation/evidence/ERP-877/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -1897,6 +1944,7 @@ gates:
   G12: [ERP-830]
   G13: [ERP-840]
   G14: [ERP-841]
+  G42: [ERP-877]
   G15: [ERP-850]
   G16: [ERP-851]
   G17: [ERP-852]
@@ -1923,6 +1971,7 @@ gates:
   G38: [ERP-873]
   G39: [ERP-874]
   G40: [ERP-875]
+  G41: [ERP-876]
 
 gate_status:
   G0: done
@@ -1966,3 +2015,4 @@ gate_status:
   G38: done
   G39: done
   G40: done
+  G41: done

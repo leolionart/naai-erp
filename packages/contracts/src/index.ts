@@ -123,6 +123,13 @@ export {
   type BankTransactionBranchRequest,
   type BankTransactionContract,
   type CreateBankAccountRequest,
+  type OwnerCurrentClassificationBasisContract,
+  type OwnerCurrentCounterpartLineContract,
+  type OwnerCurrentMovementContract,
+  type OwnerCurrentMovementTypeContract,
+  type OwnerCurrentResponseContract,
+  type OwnerCurrentSourceContract,
+  type OwnerCurrentSummaryContract,
 } from "./banking.js";
 export {
   RECONCILIATION_CONTRACT_VERSION,

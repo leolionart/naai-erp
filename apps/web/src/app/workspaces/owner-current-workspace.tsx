@@ -23,7 +23,7 @@ import { useAuthenticatedApiClient } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";
 
 type MovementType =
-  "owner_paid_company_cost" | "owner_funding" | "company_payment_to_owner" | "adjustment";
+  "owner_paid_company_cost" | "owner_funding" | "company_repayment_to_owner" | "adjustment";
 
 type OwnerCurrentMovement = Readonly<{
   journalId: string;
@@ -36,6 +36,8 @@ type OwnerCurrentMovement = Readonly<{
   companyFundsDeltaMinor: string;
   runningOwnerBalanceMinor: string;
   ownerAccountCodes: readonly string[];
+  needsReview: boolean;
+  classificationBasis: string | null;
   sources: readonly Readonly<{
     sourceType: "expense" | "purchase_invoice";
     sourceId: string;
@@ -56,6 +58,11 @@ type OwnerCurrentResponse = Readonly<{
     increaseMinor: string;
     decreaseMinor: string;
     closingBalanceMinor: string;
+    ownerPaidCompanyCostMinor: string;
+    companyRepaymentsToOwnerMinor: string;
+    ownerFundingMinor: string;
+    adjustmentMinor: string;
+    needsReviewCount: number;
   }>;
   items: readonly OwnerCurrentMovement[];
 }>;
@@ -63,7 +70,7 @@ type OwnerCurrentResponse = Readonly<{
 const labels: Record<MovementType, string> = {
   owner_paid_company_cost: "Chủ trả chi phí công ty",
   owner_funding: "Chủ đưa tiền vào công ty",
-  company_payment_to_owner: "Công ty chuyển/rút tiền cho chủ",
+  company_repayment_to_owner: "Công ty trả nợ chủ",
   adjustment: "Điều chỉnh công nợ chủ",
 };
 
@@ -148,9 +155,21 @@ export function OwnerCurrentWorkspace() {
                   Xem bút toán {row.journalId}
                 </Link>
               </>
+            ) : row.movementType === "owner_paid_company_cost" ? (
+              <>
+                <span className="text-xs font-medium text-amber-700">
+                  Chưa liên kết nguồn chi phí
+                </span>
+                <Link
+                  className="font-medium hover:underline"
+                  href={`/accounting/journals?journalId=${encodeURIComponent(row.journalId)}`}
+                >
+                  {row.description}
+                </Link>
+                <span className="font-mono text-xs text-muted-foreground">{row.journalId}</span>
+              </>
             ) : (
               <>
-                <span className="text-xs font-medium text-amber-700">Chưa liên kết chi phí</span>
                 <Link
                   className="font-medium hover:underline"
                   href={`/accounting/journals?journalId=${encodeURIComponent(row.journalId)}`}
@@ -167,7 +186,19 @@ export function OwnerCurrentWorkspace() {
     {
       id: "type",
       header: "Phân loại",
-      cell: (row) => <Badge variant="outline">{labels[row.movementType]}</Badge>,
+      cell: (row) => (
+        <div className="flex min-w-48 flex-col items-start gap-1">
+          <Badge variant={row.needsReview ? "destructive" : "outline"}>
+            {labels[row.movementType]}
+          </Badge>
+          {row.classificationBasis ? (
+            <span className="text-xs text-muted-foreground">{row.classificationBasis}</span>
+          ) : null}
+          {row.needsReview ? (
+            <span className="text-xs font-medium text-destructive">Cần kiểm tra phân loại</span>
+          ) : null}
+        </div>
+      ),
     },
     {
       id: "delta",
@@ -191,20 +222,20 @@ export function OwnerCurrentWorkspace() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardDescription>Tăng công nợ chủ</CardDescription>
+            <CardDescription>Chủ đã chi trả cho công ty</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.increaseMinor ?? "0"} />
+              <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Tiền đã trả/rút cho chủ</CardDescription>
+            <CardDescription>Công ty đã trả nợ chủ</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.decreaseMinor ?? "0"} />
+              <MoneyCell minor={data?.summary.companyRepaymentsToOwnerMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -216,9 +247,17 @@ export function OwnerCurrentWorkspace() {
             </CardTitle>
           </CardHeader>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Khoản cần kiểm tra phân loại</CardDescription>
+            <CardTitle>{data?.summary.needsReviewCount ?? 0}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
-      {data && data.summary.decreaseMinor === "0" && data.summary.closingBalanceMinor !== "0" ? (
+      {data &&
+      data.summary.companyRepaymentsToOwnerMinor === "0" &&
+      data.summary.closingBalanceMinor !== "0" ? (
         <Alert variant="destructive">
           <AlertTitle>Chưa có bút toán giảm công nợ chủ</AlertTitle>
           <AlertDescription>
@@ -250,9 +289,7 @@ export function OwnerCurrentWorkspace() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả biến động</SelectItem>
-                  <SelectItem value="company_payment_to_owner">
-                    Công ty chuyển/rút tiền cho chủ
-                  </SelectItem>
+                  <SelectItem value="company_repayment_to_owner">Công ty trả nợ chủ</SelectItem>
                   <SelectItem value="owner_paid_company_cost">Chủ trả chi phí công ty</SelectItem>
                   <SelectItem value="owner_funding">Chủ đưa tiền vào công ty</SelectItem>
                   <SelectItem value="adjustment">Điều chỉnh khác</SelectItem>

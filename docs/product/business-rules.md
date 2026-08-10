@@ -596,6 +596,17 @@ Branches: `ignored`, `needs_review`.
   Balance Sheet `owner_current` mapping, posted/reversed journals and organization financial accounts.
 - Every row shows the journal, signed owner-liability effect, signed company-funds effect and running
   owner-current balance. The totals must reconcile exactly to the mapped ledger balance.
+- `owner_paid_company_cost` requires canonical expense or purchase-invoice evidence together with an
+  Owner Current credit. Invoice presence and funding source are independent: payroll or another
+  non-invoice company expense may still be owner-paid, while a purchase invoice paid from company
+  funds is not owner-paid.
+- `company_repayment_to_owner` requires the same journal to debit Owner Current and credit a configured
+  company bank/cash account. It reduces the amount owed to the owner and never creates a second expense.
+- Owner Current credits without canonical owner-paid expense evidence, and debits without a company-funds
+  repayment leg, remain explicit review-required adjustments. Classification never relies on description,
+  amount or date similarity.
+- Historical repayment classification includes configured company bank/cash accounts that later became
+  inactive; deactivation does not erase the meaning of posted history.
 - When a movement originates from an expense, the read model exposes the canonical expense ID,
   business purpose, expense class, category and tax-review states. The UI links to the expense detail
   instead of forcing the owner to infer the purchase from a generic journal description.

@@ -1776,6 +1776,22 @@ tests:
     command: pnpm --filter @naai-erp/api exec vitest run src/workbook-imports/workbook-import.integration.test.ts
     blocking_gate: G39
 
+  - id: T-API-ERP-876-001
+    task: ERP-876
+    rules: [BR-BNK-004, BR-EXP-004, BR-AI-006, BR-ORG-001]
+    title: Owner-current classifies owner-paid costs and company repayments from canonical ledger evidence
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/banking/banking.integration.test.ts
+    blocking_gate: G41
+
+  - id: T-E2E-ERP-876-002
+    task: ERP-876
+    rules: [BR-BNK-004, BR-UI-003]
+    title: Owner-current UI separates owner-paid costs repayments funding and unresolved adjustments
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G41
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
