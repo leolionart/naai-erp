@@ -90,16 +90,18 @@ describe("AI-native API contracts", () => {
   it("exports the owner-current repayment contract from the package root", () => {
     const response: OwnerCurrentResponseContract = {
       summary: {
-        increaseMinor: "5000000",
-        decreaseMinor: "1000000",
-        closingBalanceMinor: "4000000",
+        ledgerClosingBalanceMinor: "4000000",
+        confirmedClosingBalanceMinor: "4000000",
+        confirmedIncreaseMinor: "5000000",
+        confirmedDecreaseMinor: "1000000",
         ownerPaidCompanyCostMinor: "5000000",
         companyRepaymentToOwnerMinor: "1000000",
         ownerFundingMinor: "0",
-        adjustmentMinor: "0",
-        needsReviewCount: 0,
+        reviewAdjustmentMinor: "0",
+        reviewItemCount: 0,
       },
-      items: [],
+      confirmedTimeline: [],
+      reviewItems: [],
     };
 
     expect(response.summary.companyRepaymentToOwnerMinor).toBe("1000000");
