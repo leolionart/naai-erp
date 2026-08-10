@@ -1808,6 +1808,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G42
 
+  - id: T-API-ERP-881-001
+    task: ERP-881
+    rules: [BR-BNK-004, BR-EXP-004, BR-AI-006, BR-ORG-001]
+    title: Confirmed owner cash timeline separates proven cash movements from review items
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/banking/banking.integration.test.ts
+    blocking_gate: G45
+
+  - id: T-E2E-ERP-881-002
+    task: ERP-881
+    rules: [BR-BNK-004, BR-UI-003]
+    title: Owner-current UI shows confirmed historical balances and isolates unproven expenses
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G45
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]

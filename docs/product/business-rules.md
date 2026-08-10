@@ -544,10 +544,10 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   policy changes never rewrite historical management balances.
 - `owner_paid_company_cost` requires an owner-current/payable counter account. It does not change
   physical bank/cash, but posted amounts reduce net company funds and increase the owner liability.
-- In approved `solopreneur` mode, a legacy posted expense whose funding snapshot is null resolves its
-  funding treatment from the expense category recorded on that line. Only a category configured as
-  `owner_paid_company_cost`, together with the reviewed Owner Current counter account, enters the
-  owner-paid cost list. The compatibility lookup must not edit or reverse its posted journal.
+- The Owner Current cash timeline uses the immutable funding snapshot when present. For imported
+  legacy expenses whose snapshot is null, it uses the reviewed funding treatment of the canonical
+  category recorded on that historical line. This compatibility rule restores known cash-paid
+  categories without treating every invoice or Owner Current credit as owner-paid.
 - `tax_only_non_cash` remains available for VAT/CIT evidence and tax reporting but does not reduce
   management net company funds.
 - Official dashboard balances include posted records only and disclose uncategorized or unreviewed
@@ -596,18 +596,18 @@ Branches: `ignored`, `needs_review`.
 
 ### BR-BNK-004 — Owner-current reconciliation view
 
-- The banking workspace combines two canonical reads without changing the executive dashboard metric:
-  owner-paid company costs come from the expense list filtered by effective category funding treatment,
-  while repayments, funding and unresolved adjustments come from the Owner Current ledger read model.
+- The banking workspace presents a confirmed owner-cash timeline without changing the executive
+  dashboard metric. Confirmed owner-paid costs, company repayments and owner funding are shown in the
+  main timeline; movements without direct source-of-funds evidence are isolated in a review section.
 - The read-only owner-current ledger view is resolved from the approved Balance Sheet `owner_current`
   mapping, posted/reversed journals and organization financial accounts.
 - Every row shows the journal, signed owner-liability effect, signed company-funds effect and running
   owner-current balance. The totals must reconcile exactly to the mapped ledger balance.
-- `owner_paid_company_cost` requires canonical expense or purchase-invoice evidence together with an
-  Owner Current credit. For legacy expenses with no funding snapshot, the list uses the expense's
-  canonical category and its configured funding treatment; it does not infer owner payment merely
-  from a generic expense journal. Invoice presence and funding source are independent: payroll or
-  another non-invoice company expense may still be owner-paid when its category says so.
+- `owner_paid_company_cost` requires a canonical posted expense whose effective treatment is
+  `owner_paid_company_cost`, together with an Owner Current credit. Effective treatment uses the line
+  snapshot first and the reviewed historical category only when the snapshot is null. Invoice presence
+  and an Owner Current credit alone do not prove actual owner payment; costs whose effective category
+  treatment is company-funded remain review-required.
 - `company_repayment_to_owner` requires the same journal to debit Owner Current and credit a configured
   company bank/cash account. It reduces the amount owed to the owner and never creates a second expense.
 - Owner Current credits without canonical owner-paid expense evidence, and debits without a company-funds
@@ -623,11 +623,13 @@ Branches: `ignored`, `needs_review`.
   reimbursement, withdrawal, owner loan settlement or equity movement without canonical metadata.
 - Missing decrease movements remain visible as a reconciliation warning; they are never fabricated
   from workbook notes or transaction descriptions.
-- The “Chủ đã chi trả cho công ty” list queries canonical posted expenses whose effective funding
-  treatment is `owner_paid_company_cost`. Effective treatment uses the immutable line snapshot when
-  present; legacy null snapshots fall back to the funding treatment configured on the line's canonical
-  category, including category codes stored in legacy dimensions. The list never expands to every
-  expense merely because its journal credited Owner Current.
+- The confirmed timeline contains only actual cash-source movements: an explicitly owner-paid expense,
+  owner funding into configured company bank/cash, or company bank/cash paid or withdrawn to clear
+  Owner Current. A transfer between company bank and company cash remains internal and is excluded.
+- Confirmed running balance is calculated in chronological journal order and represents the balance
+  immediately after each confirmed movement. Review-required entries do not alter that confirmed
+  running balance. The complete ledger closing balance remains separately disclosed and continues to
+  feed the unchanged executive dashboard metric.
 
 ### BR-REC-001 — Candidate matching
 
