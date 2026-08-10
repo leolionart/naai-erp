@@ -36,13 +36,13 @@ export type CustomerServiceSubscriptionContract = Readonly<{
 export type CreateServicePlanRequest = Readonly<{
   schemaVersion: 1;
   id?: string;
-  code: string;
+  code?: string;
   name: string;
-  serviceLineCode: string;
+  serviceLineCode?: string;
   defaultUnitPriceMinor: string;
-  currency: string;
-  recurrence: RecurrenceRuleContract;
-  reason: string;
+  currency?: string;
+  recurrence?: RecurrenceRuleContract;
+  reason?: string;
 }>;
 export type UpdateServicePlanRequest = Readonly<
   Partial<Omit<CreateServicePlanRequest, "schemaVersion" | "id">> & {

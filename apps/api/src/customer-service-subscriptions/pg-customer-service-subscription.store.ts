@@ -66,16 +66,17 @@ export class PgCustomerServiceSubscriptionStore {
   createPlan(c: CustomerSubscriptionContext, i: Record<string, unknown>, k: string) {
     return this.mutate(c, k, "service-plan:create", i, async (q) => {
       const r = i.recurrence as Record<string, unknown>,
-        id = String(i.id ?? randomUUID());
-      await this.serviceLine(q, c.organizationId, i.serviceLineCode);
+        id = String(i.id ?? randomUUID()),
+        code = await this.availablePlanCode(q, c.organizationId, String(i.code)),
+        serviceLineCode = await this.resolveServiceLine(q, c.organizationId, i.serviceLineCode);
       await q.query(
         `insert into service_plans(organization_id,id,code,name,service_line_code,default_unit_price_minor,currency,recurrence_frequency,recurrence_interval,billing_day,created_by,updated_by)values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)`,
         [
           c.organizationId,
           id,
-          i.code,
+          code,
           i.name,
-          i.serviceLineCode,
+          serviceLineCode,
           i.defaultUnitPriceMinor,
           i.currency,
           r.frequency,
@@ -392,6 +393,38 @@ export class PgCustomerServiceSubscriptionStore {
       ).rows[0]
     )
       throw new Error("SERVICE_LINE_NOT_FOUND");
+  }
+  private async resolveServiceLine(q: PoolClient, o: string, requested: unknown) {
+    if (requested !== undefined && String(requested).trim()) {
+      await this.serviceLine(q, o, requested);
+      return String(requested);
+    }
+    const selected = (
+      await q.query<{ code: string }>(
+        `select code from dimension_values where organization_id=$1 and kind='service_line' and is_active
+         order by case code when 'RETAINER_FEE' then 0 when 'SYSTEM_MAINTENANCE' then 1 else 2 end,code limit 1`,
+        [o],
+      )
+    ).rows[0];
+    if (!selected) throw new Error("SERVICE_LINE_REQUIRED");
+    return selected.code;
+  }
+  private async availablePlanCode(q: PoolClient, o: string, base: string) {
+    await q.query("select pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
+      `service-plan-code:${o}`,
+      base,
+    ]);
+    const rows = (
+      await q.query<{ code: string }>(
+        `select code from service_plans where organization_id=$1 and (code=$2 or code like $2 || '-%')`,
+        [o, base],
+      )
+    ).rows;
+    const used = new Set(rows.map((row) => row.code));
+    if (!used.has(base)) return base;
+    let suffix = 2;
+    while (used.has(`${base}-${suffix}`)) suffix += 1;
+    return `${base}-${suffix}`;
   }
   private async relationships(
     q: PoolClient,

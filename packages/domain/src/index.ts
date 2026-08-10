@@ -613,6 +613,7 @@ export {
   assertExactMoney,
   assertRecurrence,
   buildSubscriptionSchedule,
+  servicePlanCodeFromName,
   subscriptionNextActions,
   transitionSubscription,
   type SubscriptionAction,

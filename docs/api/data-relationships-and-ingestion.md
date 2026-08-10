@@ -173,10 +173,14 @@ management data; it does not itself create an invoice, revenue-recognition event
 payment, journal or tax effect.
 
 1. Resolve the customer party and verify its explicit `client` role. Retain `party.id`.
-2. Resolve the canonical service-line dimension code.
+2. Resolve the canonical service-line dimension code when the source supplies one. Quick creation
+   may omit it; the application service then selects an active code using the documented policy
+   order `RETAINER_FEE`, `SYSTEM_MAINTENANCE`, then lexical code order. It never guesses from the
+   plan name.
 3. Lookup the service plan by stable ID or unique code. Create it only from verified plan terms and
    retain `data.id`; a deactivated plan remains readable for history but cannot activate a new
-   subscription.
+   subscription. For quick creation, send `schemaVersion`, `name` and `defaultUnitPriceMinor`; code,
+   currency, recurrence and audit reason receive canonical application-service defaults.
 4. If the subscription belongs to a project/contract, resolve the project and verify
    `project.client_party_id === party.id`. Never infer a project from an invoice, similar name or
    amount. No separate `contractId` is accepted.

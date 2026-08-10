@@ -1047,29 +1047,23 @@ function ServicePlanDialog({
   onSaved(): Promise<void>;
 }) {
   const { client } = useAuthenticatedApiClient();
+  const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     if (open) {
+      setName(initial?.name ?? "");
       setPrice(formatInputMoney(initial?.defaultPriceMinor ?? ""));
       setError("");
     }
   }, [initial, open]);
-  async function submit(formData: FormData) {
+  async function submit() {
     const data = {
       schemaVersion: 1,
-      ...(initial ? {} : { code: String(formData.get("code") ?? "").trim() }),
-      name: String(formData.get("name") ?? "").trim(),
-      serviceLineCode: String(formData.get("service_line_code") ?? "").trim(),
+      name: name.trim(),
       defaultUnitPriceMinor: digitsOnly(price),
-      currency: "VND",
-      recurrence: {
-        frequency: String(formData.get("billing_interval") ?? "month"),
-        interval: Number(formData.get("interval_count") ?? "1"),
-        billingDay: Number(formData.get("billing_day") ?? "1"),
-      },
-      reason: String(formData.get("reason") ?? "").trim(),
+      ...(initial ? { reason: "Cập nhật gói dịch vụ từ giao diện quản trị" } : {}),
     };
     setBusy(true);
     setError("");
@@ -1092,35 +1086,24 @@ function ServicePlanDialog({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{initial ? "Sửa gói dịch vụ" : "Thêm gói dịch vụ"}</DialogTitle>
           <DialogDescription>
-            Thiết lập giá và chu kỳ mặc định khi tạo subscription.
+            {initial
+              ? "Cập nhật tên và giá; mã, dòng dịch vụ và chu kỳ hiện có được giữ nguyên."
+              : "Chỉ cần tên và giá. Mã gói được tự sinh; chu kỳ mặc định là hàng tháng."}
           </DialogDescription>
         </DialogHeader>
         <form action={submit} className="flex flex-col gap-4">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="plan-code">Mã gói</FieldLabel>
-              <Input
-                id="plan-code"
-                name="code"
-                defaultValue={initial?.code}
-                disabled={Boolean(initial)}
-                required
-              />
-            </Field>
-            <Field>
               <FieldLabel htmlFor="plan-name">Tên dịch vụ</FieldLabel>
-              <Input id="plan-name" name="name" defaultValue={initial?.name} required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="plan-service-line">Mã dòng dịch vụ</FieldLabel>
               <Input
-                id="plan-service-line"
-                name="service_line_code"
-                defaultValue={initial?.serviceLineCode}
+                id="plan-name"
+                name="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
                 required
               />
             </Field>
@@ -1133,49 +1116,9 @@ function ServicePlanDialog({
                 onChange={(event) => setPrice(formatInputMoney(event.target.value))}
                 required
               />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field>
-                <FieldLabel>Chu kỳ mặc định</FieldLabel>
-                <Select name="billing_interval" defaultValue={initial?.billingInterval ?? "month"}>
-                  <SelectTrigger aria-label="Chu kỳ mặc định">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {intervalOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-interval-count">Số chu kỳ</FieldLabel>
-                <Input
-                  id="plan-interval-count"
-                  name="interval_count"
-                  inputMode="numeric"
-                  defaultValue={initial?.intervalCount ?? "1"}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-billing-day">Ngày tính phí</FieldLabel>
-                <Input
-                  id="plan-billing-day"
-                  name="billing_day"
-                  inputMode="numeric"
-                  defaultValue={initial?.billingDay ?? "1"}
-                  required
-                />
-              </Field>
-            </div>
-            <Field>
-              <FieldLabel htmlFor="plan-reason">Lý do</FieldLabel>
-              <Textarea id="plan-reason" name="reason" required />
+              <FieldDescription>
+                Đơn vị VND, áp dụng cho mỗi {initial ? "kỳ hiện có" : "tháng"}.
+              </FieldDescription>
             </Field>
           </FieldGroup>
           {error ? (
@@ -1187,7 +1130,7 @@ function ServicePlanDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Hủy
             </Button>
-            <Button type="submit" disabled={busy || !digitsOnly(price)}>
+            <Button type="submit" disabled={busy || !name.trim() || !digitsOnly(price)}>
               {busy ? "Đang lưu…" : "Lưu gói dịch vụ"}
             </Button>
           </DialogFooter>

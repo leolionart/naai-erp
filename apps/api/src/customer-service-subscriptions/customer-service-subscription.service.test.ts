@@ -44,6 +44,30 @@ describe("ERP-870 subscription API service", () => {
       ),
     ).rejects.toThrow("VALIDATION_FAILED");
   });
+  it("accepts the quick-create contract and applies commercial defaults", async () => {
+    const s = store();
+    s.createPlan.mockImplementation(async (_context, input) => input);
+    const service = new CustomerServiceSubscriptionService(s, {} as never);
+    await service.createPlan(
+      context,
+      {
+        schemaVersion: 1,
+        name: "Dịch vụ quản trị website",
+        defaultUnitPriceMinor: "500000",
+      },
+      "quick-plan",
+    );
+    expect(s.createPlan).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({
+        code: "DICH-VU-QUAN-TRI-WEBSITE",
+        currency: "VND",
+        recurrence: { frequency: "month", interval: 1, billingDay: 1 },
+        reason: "Tạo nhanh gói dịch vụ",
+      }),
+      "quick-plan",
+    );
+  });
   it("rejects invalid lifecycle actions before storage", async () => {
     const s = store(),
       service = new CustomerServiceSubscriptionService(s, {} as never);

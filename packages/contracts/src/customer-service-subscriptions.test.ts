@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   CreateCustomerServiceSubscriptionRequest,
+  CreateServicePlanRequest,
   CustomerServiceSubscriptionContract,
   CustomerSubscriptionLifecycleActionRequest,
   SubscriptionSchedulePreviewContract,
@@ -33,6 +34,11 @@ describe("ERP-870 contracts", () => {
     expect(preview.accountingNeutral).toBe(true);
   });
   it("keeps create update and action machine contracts versioned", () => {
+    const quickPlan: CreateServicePlanRequest = {
+      schemaVersion: 1,
+      name: "Dịch vụ quản trị website",
+      defaultUnitPriceMinor: "500000",
+    };
     const create: CreateCustomerServiceSubscriptionRequest = {
       schemaVersion: 1,
       customerPartyId: "client-1",
@@ -54,5 +60,6 @@ describe("ERP-870 contracts", () => {
     };
     expect([create.quantity, create.unitPriceMinor, update.quantity]).toEqual(["2", "900000", "3"]);
     expect(action.effectiveOn).toBe("2026-02-01");
+    expect(quickPlan.name).toBe("Dịch vụ quản trị website");
   });
 });

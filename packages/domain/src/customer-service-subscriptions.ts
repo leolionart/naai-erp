@@ -33,6 +33,19 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MONEY = /^\d+$/;
 const QUANTITY = /^\d+$/;
 
+export function servicePlanCodeFromName(name: string): string {
+  const code = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[Đđ]/g, "D")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+    .replace(/-+$/g, "");
+  return code || "SERVICE-PLAN";
+}
+
 export function assertExactMoney(value: string): bigint {
   if (!MONEY.test(value)) throw new Error("SUBSCRIPTION_MONEY_INVALID");
   return BigInt(value);

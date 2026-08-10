@@ -110,6 +110,27 @@ test("@desktop manages customer subscriptions with canonical relationships and t
   await expect(page.getByText("NAAI Studio", { exact: true })).toBeVisible();
   await expect(page.getByText("12.000.000 ₫", { exact: true }).first()).toBeVisible();
 
+  await page.getByRole("button", { name: "Thêm gói dịch vụ" }).click();
+  const planDialog = page.getByRole("dialog", { name: "Thêm gói dịch vụ" });
+  await expect(planDialog.getByLabel("Mã gói")).toHaveCount(0);
+  await expect(planDialog.getByLabel("Mã dòng dịch vụ")).toHaveCount(0);
+  await expect(planDialog.getByLabel("Lý do")).toHaveCount(0);
+  await planDialog.getByLabel("Tên dịch vụ").fill("Dịch vụ quản trị website");
+  await planDialog.getByLabel("Giá mặc định mỗi kỳ").fill("500000");
+  await planDialog.getByRole("button", { name: "Lưu gói dịch vụ" }).click();
+  await expect
+    .poll(() =>
+      mutations.some(
+        (mutation) =>
+          mutation.url.endsWith("/service-plans") &&
+          mutation.body.name === "Dịch vụ quản trị website" &&
+          mutation.body.defaultUnitPriceMinor === "500000" &&
+          mutation.body.code === undefined &&
+          mutation.body.serviceLineCode === undefined,
+      ),
+    )
+    .toBe(true);
+
   await page.getByLabel("Lọc trạng thái").click();
   await page.getByRole("option", { name: "Đang sử dụng" }).click();
   await expect(page).toHaveURL(/status=active/);
@@ -169,6 +190,8 @@ test("@mobile subscription workspace remains usable without document overflow", 
   await page.goto("http://localhost:3000/subscriptions");
   await expect(page.getByRole("button", { name: "Thêm subscription" })).toBeVisible();
   await expect(page.getByText("Chưa có dịch vụ định kỳ")).toBeVisible();
+  await page.getByRole("button", { name: "Thêm gói dịch vụ" }).click();
+  await expect(page.getByRole("dialog", { name: "Thêm gói dịch vụ" })).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,

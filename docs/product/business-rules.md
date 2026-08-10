@@ -368,6 +368,12 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
 - A service plan is organization-scoped active master data with a stable code, readable name,
   service-line relationship, default exact price/currency and recurrence rule. Deactivation preserves
   historical subscription references and prevents new activation.
+- Quick creation requires only the readable service name and default exact price. The application
+  service derives a stable uppercase ASCII code with deterministic numeric collision suffixes,
+  resolves the active canonical organization service line in policy order (`RETAINER_FEE`, then
+  `SYSTEM_MAINTENANCE`, then the first active code), and defaults to VND billed monthly with
+  interval `1` and billing day `1`. Technical identifiers and audit reason are not exposed as
+  required fields in the quick-create dialog; the versioned API keeps them optional and explicit.
 - A customer service subscription links exactly one client-role party to one service plan and may
   optionally link the project that represents the customer contract. When a project is selected, its
   canonical `client_party_id` must equal the subscription customer; no separate contract ID is

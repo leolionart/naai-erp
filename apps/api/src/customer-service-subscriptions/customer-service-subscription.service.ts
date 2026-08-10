@@ -1,6 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
-import { assertExactMoney, assertRecurrence, buildSubscriptionSchedule } from "@naai-erp/domain";
+import {
+  assertExactMoney,
+  assertRecurrence,
+  buildSubscriptionSchedule,
+  servicePlanCodeFromName,
+} from "@naai-erp/domain";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   CUSTOMER_SUBSCRIPTION_STORE,
@@ -40,11 +45,14 @@ export class CustomerServiceSubscriptionService {
       throw new Error("VALIDATION_FAILED");
   }
   private plan(input: Record<string, unknown>, update = false) {
-    if (input.schemaVersion !== 1 || !String(input.reason ?? "").trim())
-      throw new Error("VALIDATION_FAILED");
-    for (const key of ["code", "name", "serviceLineCode"] as const)
+    if (input.schemaVersion !== 1) throw new Error("VALIDATION_FAILED");
+    if (update && !String(input.reason ?? "").trim()) throw new Error("VALIDATION_FAILED");
+    for (const key of ["name"] as const)
       if (!update || input[key] !== undefined)
         if (!String(input[key] ?? "").trim()) throw new Error("VALIDATION_FAILED");
+    for (const key of ["code", "serviceLineCode"] as const)
+      if (input[key] !== undefined && !String(input[key]).trim())
+        throw new Error("VALIDATION_FAILED");
     if (!update || input.defaultUnitPriceMinor !== undefined)
       assertExactMoney(String(input.defaultUnitPriceMinor));
     if (!update || input.currency !== undefined)
@@ -85,8 +93,15 @@ export class CustomerServiceSubscriptionService {
   }
   async createPlan(c: CustomerSubscriptionContext, i: Record<string, unknown>, k?: string) {
     this.authorize(c, k);
-    this.plan(i);
-    return this.envelope(c, await this.store.createPlan(c, i, k));
+    const input = {
+      ...i,
+      code: String(i.code ?? servicePlanCodeFromName(String(i.name ?? ""))).trim(),
+      currency: String(i.currency ?? "VND"),
+      recurrence: i.recurrence ?? { frequency: "month", interval: 1, billingDay: 1 },
+      reason: String(i.reason ?? "Tạo nhanh gói dịch vụ").trim(),
+    };
+    this.plan(input);
+    return this.envelope(c, await this.store.createPlan(c, input, k));
   }
   async updatePlan(
     c: CustomerSubscriptionContext,

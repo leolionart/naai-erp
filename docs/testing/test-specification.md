@@ -223,8 +223,19 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-884-002`: Owner Current and Dashboard use the same confirmed position, distinguish owner
   custody from personal withdrawal, show unsupported repayment separately and retain statutory ledger
   reconciliation. The production control equation is `165,483,950 - 135,320,000 - 52,000,000 =
-  -21,836,050`; company debt is zero and owner-held company funds are `21,836,050` until the unsupported
+-21,836,050`; company debt is zero and owner-held company funds are `21,836,050` until the unsupported
   `100,000,000` repayment receives canonical evidence.
+
+### ERP-886 — Simplified service-plan quick create
+
+- `T-UNIT-ERP-886-001`: Vietnamese and punctuation-heavy service names produce stable uppercase
+  ASCII plan codes, with a non-empty fallback.
+- `T-API-ERP-886-002`: create accepts only schema version, readable name and exact default price;
+  the canonical service applies VND/monthly defaults, resolves an active organization service line
+  and allocates a unique stable code without returning `SERVICE_LINE_NOT_FOUND` on the happy path.
+- `T-E2E-ERP-886-003`: desktop/mobile quick-create dialogs show aligned name and price controls only,
+  submit the minimal canonical REST payload and do not expose code, service-line, interval count,
+  billing day or reason as required user fields.
 
 ## 4. Active MVP gate
 

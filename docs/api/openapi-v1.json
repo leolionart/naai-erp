@@ -4540,24 +4540,23 @@
       },
       "CreateServicePlanRequest": {
         "type": "object",
-        "required": [
-          "schemaVersion",
-          "code",
-          "name",
-          "serviceLineCode",
-          "defaultUnitPriceMinor",
-          "currency",
-          "recurrence",
-          "reason"
-        ],
+        "required": ["schemaVersion", "name", "defaultUnitPriceMinor"],
         "properties": {
           "schemaVersion": { "const": 1 },
           "id": { "type": "string" },
-          "code": { "type": "string", "minLength": 1 },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional stable code; derived from name with a numeric collision suffix when omitted."
+          },
           "name": { "type": "string", "minLength": 1 },
-          "serviceLineCode": { "type": "string", "minLength": 1 },
+          "serviceLineCode": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional canonical service line; an active organization service line is resolved when omitted."
+          },
           "defaultUnitPriceMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "VND" },
           "recurrence": { "$ref": "#/components/schemas/RecurrenceRule" },
           "reason": { "type": "string", "minLength": 1 }
         },

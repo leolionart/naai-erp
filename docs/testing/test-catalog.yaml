@@ -1888,6 +1888,30 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G48
 
+  - id: T-UNIT-ERP-886-001
+    task: ERP-886
+    rules: [BR-SUB-001]
+    title: Service-plan codes derive deterministically from readable names
+    layer: unit
+    command: pnpm --filter @naai-erp/domain exec vitest run src/customer-service-subscriptions.test.ts
+    blocking_gate: G50
+
+  - id: T-API-ERP-886-002
+    task: ERP-886
+    rules: [BR-SUB-001, BR-AI-001]
+    title: Minimal service-plan create applies canonical defaults and relationships
+    layer: api
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/customer-service-subscriptions/customer-service-subscription.integration.test.ts src/customer-service-subscriptions/customer-service-subscription.service.test.ts
+    blocking_gate: G50
+
+  - id: T-E2E-ERP-886-003
+    task: ERP-886
+    rules: [BR-SUB-001, BR-UI-003, BR-UI-004]
+    title: Service-plan quick create is minimal aligned and responsive
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/customer-subscriptions.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G50
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]

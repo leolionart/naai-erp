@@ -2129,16 +2129,19 @@ tasks:
       - apps/web/src/app/workspaces/dashboard-workspaces.test.ts
       - docs/implementation/evidence/ERP-885/
 
-  - id: ERP-885
+  - id: ERP-886
     title: Simplified service-plan quick create
     phase: P13
-    status: in_progress
-    dependencies: [ERP-884]
+    status: done
+    dependencies: [ERP-885]
     business_rules: [BR-SUB-001, BR-UI-003, BR-UI-004, BR-AI-001]
-    tests: [T-UNIT-ERP-885-001, T-API-ERP-885-002, T-E2E-ERP-885-003]
-    evidence: docs/implementation/evidence/ERP-885/
+    tests: [T-UNIT-ERP-886-001, T-API-ERP-886-002, T-E2E-ERP-886-003]
+    evidence: docs/implementation/evidence/ERP-886/
     agent: codex-service-plan-form
     started_at: 2026-08-10T10:00:00+07:00
+    review_at: 2026-08-10T10:35:00+07:00
+    completed_at: 2026-08-10T10:36:00+07:00
+    completion_basis: minimal_quick_create_contract_collision_safe_code_canonical_service_line_postgresql_integration_and_desktop_mobile_rendered_qa
     planned_files:
       - packages/domain/src/customer-service-subscriptions.ts
       - packages/domain/src/customer-service-subscriptions.test.ts
@@ -2153,7 +2156,7 @@ tasks:
       - docs/product/business-rules.md
       - docs/testing/test-specification.md
       - docs/testing/test-catalog.yaml
-      - docs/implementation/evidence/ERP-885/
+      - docs/implementation/evidence/ERP-886/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -2205,7 +2208,7 @@ gates:
   G47: [ERP-883]
   G48: [ERP-884]
   G49: [ERP-885]
-  G49: [ERP-885]
+  G50: [ERP-886]
 
 gate_status:
   G0: done
@@ -2256,4 +2259,4 @@ gate_status:
   G47: done
   G48: done
   G49: done
-  G49: in_progress
+  G50: done
