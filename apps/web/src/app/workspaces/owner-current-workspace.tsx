@@ -26,6 +26,8 @@ type MovementType =
   "owner_paid_company_cost" | "owner_funding" | "company_repayment_to_owner" | "adjustment";
 
 type OwnerCurrentMovement = Readonly<{
+  recordKind?: "ledger" | "expense";
+  expenseId?: string;
   journalId: string;
   date: string;
   description: string;
@@ -59,7 +61,7 @@ type OwnerCurrentResponse = Readonly<{
     decreaseMinor: string;
     closingBalanceMinor: string;
     ownerPaidCompanyCostMinor: string;
-    companyRepaymentsToOwnerMinor: string;
+    companyRepaymentToOwnerMinor: string;
     ownerFundingMinor: string;
     adjustmentMinor: string;
     needsReviewCount: number;
@@ -67,12 +69,75 @@ type OwnerCurrentResponse = Readonly<{
   items: readonly OwnerCurrentMovement[];
 }>;
 
+type OwnerPaidExpense = Readonly<Record<string, unknown>>;
+
 const labels: Record<MovementType, string> = {
   owner_paid_company_cost: "Chủ trả chi phí công ty",
   owner_funding: "Chủ đưa tiền vào công ty",
   company_repayment_to_owner: "Công ty trả nợ chủ",
   adjustment: "Điều chỉnh công nợ chủ",
 };
+
+const classificationLabels: Record<string, string> = {
+  canonical_owner_paid_source: "Nguồn chi phí xác nhận chủ chi hộ",
+  owner_funding_to_company_funds: "Chủ chuyển tiền vào quỹ/tài khoản công ty",
+  company_funds_repayment_to_owner: "Tiền công ty giảm đồng thời công nợ chủ giảm",
+  unresolved_owner_current_movement: "Chưa đủ đối ứng để phân loại",
+};
+
+function field(row: OwnerPaidExpense, ...names: string[]) {
+  for (const name of names) {
+    const value = row[name];
+    if (value !== undefined && value !== null) return String(value);
+  }
+  return "";
+}
+
+export function toOwnerPaidMovement(expense: OwnerPaidExpense): OwnerCurrentMovement {
+  const expenseId = field(expense, "id");
+  const grossMinor = field(expense, "grossMinor", "gross_minor") || "0";
+  const purpose = field(expense, "businessPurpose", "business_purpose") || `Chi phí ${expenseId}`;
+  return {
+    recordKind: "expense",
+    expenseId,
+    journalId: field(expense, "journalId", "journal_id") || expenseId,
+    date: field(expense, "expenseDate", "expense_date"),
+    description: purpose,
+    currency: field(expense, "currency") || "VND",
+    state: field(expense, "state"),
+    movementType: "owner_paid_company_cost",
+    ownerDeltaMinor: grossMinor,
+    companyFundsDeltaMinor: "0",
+    runningOwnerBalanceMinor: "0",
+    ownerAccountCodes: [],
+    needsReview: false,
+    classificationBasis: "canonical_owner_paid_source",
+    sources: [
+      {
+        sourceType: "expense",
+        sourceId: expenseId,
+        title: purpose,
+        detail: null,
+        sourceHref: `/expenses/${expenseId}`,
+        expenseClass: field(expense, "expenseClass", "expense_class") || null,
+        category: field(expense, "category") || null,
+        citState: field(expense, "citState", "cit_state") || null,
+        vatState: field(expense, "vatState", "vat_state") || null,
+        grossMinor,
+        payeeName: null,
+      },
+    ],
+  };
+}
+
+export function totalOwnerPaidExpenses(expenses: readonly OwnerPaidExpense[]) {
+  return expenses
+    .reduce(
+      (total, expense) => total + BigInt(field(expense, "grossMinor", "gross_minor") || "0"),
+      0n,
+    )
+    .toString();
+}
 
 export function filterOwnerCurrentMovements(
   rows: readonly OwnerCurrentMovement[],
@@ -90,23 +155,45 @@ export function filterOwnerCurrentMovements(
 export function OwnerCurrentWorkspace() {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [data, setData] = useState<OwnerCurrentResponse>();
+  const [ownerPaidExpenses, setOwnerPaidExpenses] = useState<readonly OwnerPaidExpense[]>([]);
   const [error, setError] = useState("");
   const [type, setType] = useState<MovementType | "all">("all");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!hydrated || !hasToken) return;
-    void client
-      .data<OwnerCurrentResponse>("banking/owner-current-movements")
-      .then(setData)
+    void Promise.all([
+      client.data<OwnerCurrentResponse>("banking/owner-current-movements"),
+      client.data<{ items?: readonly OwnerPaidExpense[] } | readonly OwnerPaidExpense[]>(
+        "expenses?state=posted&fundingTreatment=owner_paid_company_cost",
+      ),
+    ])
+      .then(([ledger, expenses]) => {
+        setData(ledger);
+        setOwnerPaidExpenses(
+          Array.isArray(expenses)
+            ? expenses
+            : ((expenses as { items?: readonly OwnerPaidExpense[] }).items ?? []),
+        );
+      })
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : "Không thể tải công nợ chủ."),
       );
   }, [client, hasToken, hydrated]);
 
-  const rows = useMemo(
-    () => filterOwnerCurrentMovements(data?.items ?? [], type, query),
-    [data?.items, query, type],
+  const canonicalOwnerPaidRows = useMemo(
+    () => ownerPaidExpenses.map(toOwnerPaidMovement),
+    [ownerPaidExpenses],
+  );
+  const rows = useMemo(() => {
+    const ledgerRows = (data?.items ?? []).filter(
+      (row) => row.movementType !== "owner_paid_company_cost",
+    );
+    return filterOwnerCurrentMovements([...canonicalOwnerPaidRows, ...ledgerRows], type, query);
+  }, [canonicalOwnerPaidRows, data?.items, query, type]);
+  const ownerPaidSubtotal = useMemo(
+    () => totalOwnerPaidExpenses(ownerPaidExpenses),
+    [ownerPaidExpenses],
   );
 
   const columns: readonly FinancialColumn<OwnerCurrentMovement>[] = [
@@ -192,7 +279,9 @@ export function OwnerCurrentWorkspace() {
             {labels[row.movementType]}
           </Badge>
           {row.classificationBasis ? (
-            <span className="text-xs text-muted-foreground">{row.classificationBasis}</span>
+            <span className="text-xs text-muted-foreground">
+              {classificationLabels[row.classificationBasis] ?? row.classificationBasis}
+            </span>
           ) : null}
           {row.needsReview ? (
             <span className="text-xs font-medium text-destructive">Cần kiểm tra phân loại</span>
@@ -216,7 +305,12 @@ export function OwnerCurrentWorkspace() {
       id: "balance",
       header: "Dư nợ chủ sau bút toán",
       align: "right",
-      cell: (row) => <MoneyCell minor={row.runningOwnerBalanceMinor} />,
+      cell: (row) =>
+        row.recordKind === "expense" ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <MoneyCell minor={row.runningOwnerBalanceMinor} />
+        ),
     },
   ];
 
@@ -227,7 +321,7 @@ export function OwnerCurrentWorkspace() {
           <CardHeader>
             <CardDescription>Chủ đã chi trả cho công ty</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
+              <MoneyCell minor={ownerPaidSubtotal} />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -235,7 +329,7 @@ export function OwnerCurrentWorkspace() {
           <CardHeader>
             <CardDescription>Công ty đã trả nợ chủ</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.companyRepaymentsToOwnerMinor ?? "0"} />
+              <MoneyCell minor={data?.summary.companyRepaymentToOwnerMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -256,7 +350,7 @@ export function OwnerCurrentWorkspace() {
       </div>
 
       {data &&
-      data.summary.companyRepaymentsToOwnerMinor === "0" &&
+      data.summary.companyRepaymentToOwnerMinor === "0" &&
       data.summary.closingBalanceMinor !== "0" ? (
         <Alert variant="destructive">
           <AlertTitle>Chưa có bút toán giảm công nợ chủ</AlertTitle>

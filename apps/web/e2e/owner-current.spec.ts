@@ -19,41 +19,12 @@ test("@desktop owner current distinguishes owner-paid costs, repayments and revi
             decreaseMinor: "45000000",
             closingBalanceMinor: "55000000",
             ownerPaidCompanyCostMinor: "100000000",
-            companyRepaymentsToOwnerMinor: "45000000",
+            companyRepaymentToOwnerMinor: "45000000",
             ownerFundingMinor: "0",
             adjustmentMinor: "0",
             needsReviewCount: 1,
           },
           items: [
-            {
-              journalId: "owner-expense-domain",
-              date: "2025-02-15",
-              description: "Expense expense-domain",
-              currency: "VND",
-              state: "posted",
-              movementType: "owner_paid_company_cost",
-              ownerDeltaMinor: "100000000",
-              companyFundsDeltaMinor: "0",
-              runningOwnerBalanceMinor: "100000000",
-              ownerAccountCodes: ["3388-OWNER"],
-              needsReview: false,
-              classificationBasis: "Nguồn chi phí xác nhận là chủ chi hộ",
-              sources: [
-                {
-                  sourceType: "expense",
-                  sourceId: "expense-domain",
-                  title: "Lương nhân sự tháng 2/2025",
-                  detail: "Chủ thanh toán lương bằng tài khoản cá nhân",
-                  sourceHref: "/expenses/expense-domain",
-                  expenseClass: "payroll_personnel",
-                  category: "SALARY",
-                  citState: "eligible",
-                  vatState: "ineligible",
-                  grossMinor: "100000000",
-                  payeeName: "Nhân sự công ty",
-                },
-              ],
-            },
             {
               journalId: "owner-repayment-45m",
               date: "2025-02-25",
@@ -89,6 +60,35 @@ test("@desktop owner current distinguishes owner-paid costs, repayments and revi
       }),
     }),
   );
+  await page.route(
+    "**/api/v1/organizations/naai/expenses?state=posted&fundingTreatment=owner_paid_company_cost",
+    (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          apiVersion: "v1",
+          requestId: "owner-paid-expenses-e2e",
+          organizationId: "naai",
+          data: {
+            items: [
+              {
+                id: "expense-payroll",
+                expenseDate: "2025-02-15",
+                businessPurpose: "Lương nhân sự tháng 2/2025",
+                currency: "VND",
+                state: "posted",
+                expenseClass: "payroll_personnel",
+                category: "SALARY",
+                citState: "eligible",
+                vatState: "ineligible",
+                grossMinor: "100000000",
+                fundingTreatments: ["owner_paid_company_cost"],
+              },
+            ],
+          },
+        }),
+      }),
+  );
 
   await page.goto("http://localhost:3000/banking/owner-current");
   await expect(
@@ -99,9 +99,8 @@ test("@desktop owner current distinguishes owner-paid costs, repayments and revi
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Lương nhân sự tháng 2/2025" })).toHaveAttribute(
     "href",
-    "/expenses/expense-domain",
+    "/expenses/expense-payroll",
   );
-  await expect(page.getByText("Nhân sự công ty", { exact: true })).toBeVisible();
   await expect(page.getByText("SALARY", { exact: true })).toBeVisible();
   await expect(page.getByText("payroll_personnel", { exact: true })).toBeVisible();
   await expect(page.getByText("TNDN: eligible", { exact: true })).toBeVisible();

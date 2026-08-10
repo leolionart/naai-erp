@@ -145,8 +145,10 @@ Golden changes require explicit review and a documented reason.
 
 ### ERP-876 — Owner-current source-of-funds and repayment classification
 
-- `T-API-ERP-876-001`: owner-paid payroll and purchase invoices require canonical source evidence;
-  company-funded expenses and unresolved Owner Current credits are not mislabeled as owner-paid.
+- `T-API-ERP-876-001`: owner-paid payroll and purchase invoices require canonical source evidence
+  plus a posted Owner Current credit; a legacy expense with no funding snapshot resolves the current
+  configured treatment from its canonical expense category, while other Owner Current credits remain
+  unresolved.
 - `T-E2E-ERP-876-002`: Owner Current visibly separates owner-paid company costs, company repayments,
   owner funding and review-required adjustments with truthful source-specific empty states.
 
@@ -157,6 +159,15 @@ Golden changes require explicit review and a documented reason.
   audit event and leaves amounts, tax states, allocations, accounts and journal linkage unchanged.
 - `T-E2E-ERP-877-002`: Expense Quick View exposes one save action for payee, description and category,
   removes redundant category/update controls and refreshes the row with the saved values.
+
+### ERP-878 — Category-filtered owner-paid expense list
+
+- `T-API-ERP-878-001`: the expense list accepts `fundingTreatment=owner_paid_company_cost`, uses the
+  persisted line snapshot first and falls back to the canonical category mapping for legacy null
+  snapshots, including legacy category codes stored in dimensions.
+- `T-E2E-ERP-878-002`: Owner Current loads the owner-paid section from the filtered expense list while
+  repayments, owner funding and unresolved adjustments remain ledger-derived; executive dashboard
+  metrics and the mapped closing Owner Current balance are unchanged.
 
 ## 4. Active MVP gate
 

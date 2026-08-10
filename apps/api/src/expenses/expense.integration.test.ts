@@ -573,6 +573,54 @@ describeIntegration("ERP-310 expense workflow", () => {
     );
   });
 
+  it("filters legacy null funding snapshots through the reviewed category treatment", async () => {
+    await pool.query(
+      `insert into expense_categories
+        (organization_id,code,name,funding_treatment,created_by,updated_by)
+       values
+        ($1,'LEGACY_OWNER_PAID','Legacy owner paid','owner_paid_company_cost','maker','maker'),
+        ($1,'LEGACY_COMPANY_PAID','Legacy company paid','company_funds','maker','maker')
+       on conflict do nothing`,
+      [organizationId],
+    );
+    await pool.query(
+      `insert into expenses
+        (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,created_by)
+       values
+        ($1,'legacy-owner-paid','payroll_personnel','posted','2026-08-03','Legacy owner payroll','VND',2000,0,2000,'334-EMP','maker'),
+        ($1,'legacy-company-paid','payroll_personnel','posted','2026-08-04','Legacy company payroll','VND',3000,0,3000,'334-EMP','maker')`,
+      [organizationId],
+    );
+    await pool.query(
+      `insert into expense_lines
+        (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,management_state,cit_state,vat_state,dimensions)
+       values
+        ($1,'legacy-owner-paid',1,'Legacy owner payroll',2000,0,2000,'642-OPEX',null,null,'valid','eligible','ineligible','{"category":"LEGACY_OWNER_PAID"}'),
+        ($1,'legacy-company-paid',1,'Legacy company payroll',3000,0,3000,'642-OPEX',null,null,'valid','eligible','ineligible','{"category":"LEGACY_COMPANY_PAID"}')`,
+      [organizationId],
+    );
+
+    const listing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses?state=posted&fundingTreatment=owner_paid_company_cost`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+
+    expect(listing.statusCode, listing.body).toBe(200);
+    expect(listing.json().data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "legacy-owner-paid",
+          category: "LEGACY_OWNER_PAID",
+          fundingTreatments: ["owner_paid_company_cost"],
+        }),
+      ]),
+    );
+    expect(
+      listing.json().data.items.some((item: { id: string }) => item.id === "legacy-company-paid"),
+    ).toBe(false);
+  });
+
   it("discards only a version-matched draft and replays idempotently", async () => {
     const id = "expense-inferred-payroll-2023";
     const created = await app.inject({

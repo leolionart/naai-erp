@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T08:25:00+07:00
+updated_at: 2026-08-10T07:50:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
@@ -1929,6 +1929,30 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/api/openapi-v1.json
       - docs/implementation/evidence/ERP-877/
+
+  - id: ERP-878
+    title: Category-filtered owner-paid expense list
+    phase: P13
+    status: done
+    dependencies: [ERP-877]
+    business_rules: [BR-EXP-004, BR-BNK-004, BR-UI-003, BR-ORG-001]
+    tests: [T-API-ERP-878-001, T-E2E-ERP-878-002]
+    evidence: docs/implementation/evidence/ERP-878/
+    agent: codex-team
+    started_at: 2026-08-10T07:42:55+07:00
+    review_at: 2026-08-10T07:49:00+07:00
+    completed_at: 2026-08-10T07:50:00+07:00
+    completion_basis: production_inventory_category_filtered_expense_api_contract_cli_web_regressions_and_docs_gate
+    planned_files:
+      - apps/api/src/expenses/
+      - packages/contracts/src/
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/e2e/owner-current.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-878/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]

@@ -13,3 +13,20 @@ export type ExpenseCategoryContract = Readonly<{
 }>;
 
 export type OwnerPaidClassificationStatusContract = "ready" | "review_required" | "unconfigured";
+
+export type ExpenseListQueryContract = Readonly<{
+  state?: string;
+  class?: string;
+  payeePartyId?: string;
+  fundingTreatment?: ExpenseFundingTreatmentContract;
+}>;
+
+export type ExpenseListItemProjectionContract = Readonly<{
+  id: string;
+  expense_date: string;
+  gross_minor: string;
+  category: string | null;
+  fundingTreatments: readonly ExpenseFundingTreatmentContract[];
+  projectIds: readonly string[];
+  contractIds: readonly string[];
+}>;

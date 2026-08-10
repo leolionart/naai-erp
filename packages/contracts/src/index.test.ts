@@ -27,6 +27,8 @@ import {
   type TimesheetContract,
   type CreateDirectCostAllocationRequest,
   type DirectCostAllocationContract,
+  type ExpenseListItemProjectionContract,
+  type ExpenseListQueryContract,
   type ProjectCostItemContract,
   type CreateRevenueRecognitionEventRequest,
   type ProjectBudgetVersionContract,
@@ -101,6 +103,24 @@ describe("AI-native API contracts", () => {
     };
 
     expect(response.summary.companyRepaymentToOwnerMinor).toBe("1000000");
+  });
+
+  it("types effective expense list funding filters and projections", () => {
+    const query: ExpenseListQueryContract = {
+      fundingTreatment: "owner_paid_company_cost",
+    };
+    const item: ExpenseListItemProjectionContract = {
+      id: "expense-1",
+      expense_date: "2026-08-09",
+      gross_minor: "1500000",
+      category: "PAYROLL",
+      fundingTreatments: ["owner_paid_company_cost"],
+      projectIds: [],
+      contractIds: [],
+    };
+
+    expect(query.fundingTreatment).toBe("owner_paid_company_cost");
+    expect(item.fundingTreatments).toEqual(["owner_paid_company_cost"]);
   });
 
   it("keeps reconciliation scores integer-bps and every money field an exact string", () => {

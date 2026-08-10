@@ -693,6 +693,7 @@ export class NaaiErpClient {
         : payload;
     const query =
       (isReport ||
+        isExpense ||
         isOutboundEvent ||
         isOutboundEndpoint ||
         isOutboundDelivery ||

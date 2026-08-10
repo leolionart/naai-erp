@@ -373,7 +373,12 @@ export class PgExpenseStore {
   }
   async list(
     org: string,
-    filters: { state?: string; expenseClass?: string; payeePartyId?: string },
+    filters: {
+      state?: string;
+      expenseClass?: string;
+      payeePartyId?: string;
+      fundingTreatment?: string;
+    },
   ) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
@@ -397,11 +402,36 @@ export class PgExpenseStore {
              from expense_allocations a2
             where a2.organization_id=e.organization_id and a2.expense_id=e.id
          ) relationship where relationship.contract_id is not null),'[]'::jsonb) "contractIds",
-       (select coalesce(l.dimensions->>'category',l.expense_category_code) from expense_lines l
+       (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
         where l.organization_id=e.organization_id and l.expense_id=e.id
-        order by l.line_number limit 1) category
-       from expenses e where e.organization_id=$1 and ($2::text is null or e.state::text=$2) and ($3::text is null or e.expense_class::text=$3) and ($4::text is null or e.payee_party_id=$4) order by e.expense_date desc,e.id`,
-      [org, filters.state ?? null, filters.expenseClass ?? null, filters.payeePartyId ?? null],
+        order by l.line_number limit 1) category,
+       coalesce((select jsonb_agg(distinct coalesce(l.funding_treatment,c.funding_treatment)
+                    order by coalesce(l.funding_treatment,c.funding_treatment))
+         from expense_lines l
+         left join expense_categories c
+           on c.organization_id=l.organization_id
+          and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
+        where l.organization_id=e.organization_id and l.expense_id=e.id
+          and coalesce(l.funding_treatment,c.funding_treatment) is not null),'[]'::jsonb) "fundingTreatments"
+       from expenses e where e.organization_id=$1
+       and ($2::text is null or e.state::text=$2)
+       and ($3::text is null or e.expense_class::text=$3)
+       and ($4::text is null or e.payee_party_id=$4)
+       and ($5::text is null or exists(
+         select 1 from expense_lines l
+         left join expense_categories c
+           on c.organization_id=l.organization_id
+          and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
+         where l.organization_id=e.organization_id and l.expense_id=e.id
+           and coalesce(l.funding_treatment,c.funding_treatment)::text=$5
+       )) order by e.expense_date desc,e.id`,
+      [
+        org,
+        filters.state ?? null,
+        filters.expenseClass ?? null,
+        filters.payeePartyId ?? null,
+        filters.fundingTreatment ?? null,
+      ],
     );
     return r.rows;
   }

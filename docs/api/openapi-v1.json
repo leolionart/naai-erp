@@ -943,7 +943,31 @@
     },
     "/api/v1/organizations/{organizationId}/expenses": {
       "get": {
-        "summary": "List organization-scoped expenses with independent management CIT and VAT states"
+        "operationId": "listExpenses",
+        "tags": ["expenses"],
+        "summary": "List organization-scoped expenses with independent management CIT and VAT states",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "class", "in": "query", "schema": { "type": "string" } },
+          { "name": "payeePartyId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "fundingTreatment",
+            "in": "query",
+            "description": "Filters by the effective snapshotted line treatment, falling back to the reviewed expense-category treatment only when the line snapshot is absent.",
+            "schema": { "$ref": "#/components/schemas/ExpenseFundingTreatment" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expenses with effective category and funding-treatment list fields",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExpenseListEnvelope" }
+              }
+            }
+          }
+        }
       },
       "post": {
         "summary": "Create an idempotent expense draft with an independent supplier/payee and optional receiving-project/contract allocations"
@@ -7161,6 +7185,60 @@
               }
             }
           }
+        }
+      },
+      "ExpenseFundingTreatment": {
+        "type": "string",
+        "enum": ["company_funds", "owner_paid_company_cost", "tax_only_non_cash"]
+      },
+      "ExpenseListItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "expense_date",
+          "gross_minor",
+          "category",
+          "fundingTreatments",
+          "projectIds",
+          "contractIds"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "expense_date": { "type": "string", "format": "date" },
+          "gross_minor": { "type": "string", "pattern": "^[0-9]+$" },
+          "category": {
+            "type": ["string", "null"],
+            "description": "Effective first-line category: persisted dimensions.category, otherwise expenseCategoryCode."
+          },
+          "fundingTreatments": {
+            "type": "array",
+            "description": "Distinct effective line treatments: the immutable line snapshot, otherwise the reviewed category treatment.",
+            "items": { "$ref": "#/components/schemas/ExpenseFundingTreatment" }
+          },
+          "projectIds": { "type": "array", "items": { "type": "string" } },
+          "contractIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      },
+      "ExpenseListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ExpenseListItem" }
+          }
+        }
+      },
+      "ExpenseListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/ExpenseListResponse" }
         }
       },
       "OwnerCurrentMovementType": {

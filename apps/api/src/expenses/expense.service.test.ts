@@ -28,6 +28,23 @@ const expense = {
   ],
 } as const;
 describe("ERP-310 ExpenseService", () => {
+  it("delegates a validated funding-treatment list filter", async () => {
+    const store = { list: vi.fn().mockResolvedValue([]) };
+    const service = new ExpenseService(store as never, {} as never);
+    const result = await service.list(context, {
+      state: "posted",
+      fundingTreatment: "owner_paid_company_cost",
+    });
+    expect(store.list).toHaveBeenCalledWith("org-a", {
+      state: "posted",
+      fundingTreatment: "owner_paid_company_cost",
+    });
+    expect(result.data).toEqual({ items: [] });
+    await expect(service.list(context, { fundingTreatment: "description_guess" })).rejects.toThrow(
+      "VALIDATION_FAILED",
+    );
+  });
+
   it("creates a non-invoice expense with VAT forced non-deductible", async () => {
     const store = {
       validateRelationships: vi.fn().mockResolvedValue(undefined),

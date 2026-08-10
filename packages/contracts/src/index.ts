@@ -3,6 +3,8 @@ export {
   EXPENSE_CATEGORY_CONTRACT_VERSION,
   type ExpenseCategoryContract,
   type ExpenseFundingTreatmentContract,
+  type ExpenseListItemProjectionContract,
+  type ExpenseListQueryContract,
   type OwnerPaidClassificationStatusContract,
 } from "./expense-categories.js";
 export {

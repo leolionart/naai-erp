@@ -1792,6 +1792,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G41
 
+  - id: T-API-ERP-878-001
+    task: ERP-878
+    rules: [BR-EXP-004, BR-BNK-004, BR-ORG-001]
+    title: Expense list filters effective owner-paid funding with legacy category fallback
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts
+    blocking_gate: G42
+
+  - id: T-E2E-ERP-878-002
+    task: ERP-878
+    rules: [BR-BNK-004, BR-UI-003]
+    title: Owner-current composes category-filtered owner-paid expenses with ledger repayments
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G42
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]

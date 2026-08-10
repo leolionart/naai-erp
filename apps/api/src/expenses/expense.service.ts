@@ -83,8 +83,20 @@ export class ExpenseService {
   }
   async list(
     context: ExpenseContext,
-    filters: { state?: string; expenseClass?: string; payeePartyId?: string },
+    filters: {
+      state?: string;
+      expenseClass?: string;
+      payeePartyId?: string;
+      fundingTreatment?: string;
+    },
   ) {
+    if (
+      filters.fundingTreatment &&
+      !["company_funds", "owner_paid_company_cost", "tax_only_non_cash"].includes(
+        filters.fundingTreatment,
+      )
+    )
+      throw new Error("VALIDATION_FAILED");
     return this.envelope(context, {
       items: await this.store.list(context.organizationId, filters),
     });

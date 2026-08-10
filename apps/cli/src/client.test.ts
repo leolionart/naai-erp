@@ -692,6 +692,28 @@ describe("NAAI ERP JSON-first CLI client", () => {
     },
   );
 
+  it("passes the reviewed funding-treatment filter to the expense list API", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+
+    await client.request("expenses", "list", {
+      fundingTreatment: "owner_paid_company_cost",
+    });
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/expenses?fundingTreatment=owner_paid_company_cost",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("routes explicit relationship backfill inventory dry-run and commit operations", async () => {
     const fetchFn = vi.fn(() =>
       Promise.resolve(
