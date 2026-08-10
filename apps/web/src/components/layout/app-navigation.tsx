@@ -142,6 +142,7 @@ function NavigationUser() {
 export function AppNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { state } = useSidebar();
 
   const allNavigationHrefs = useMemo(() => {
     const list: string[] = [];
@@ -218,6 +219,41 @@ export function AppNavigation() {
                   if ("children" in item && item.children?.length) {
                     const children = item.children.filter(isNavigationAvailable);
                     const active = children.some((child) => matchesPath(child.href));
+
+                    if (state === "collapsed") {
+                      return (
+                        <SidebarMenuItem key={item.key}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <SidebarMenuButton tooltip={item.label} isActive={active}>
+                                <Icon />
+                                <span>{item.label}</span>
+                              </SidebarMenuButton>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent side="right" align="start" sideOffset={8}>
+                              <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                {children.map((child) => {
+                                  const childActive = isActive(child.href);
+                                  return (
+                                    <DropdownMenuItem key={child.key} asChild>
+                                      <Link
+                                        href={child.href}
+                                        className={childActive ? "bg-accent" : ""}
+                                      >
+                                        {child.label}
+                                      </Link>
+                                    </DropdownMenuItem>
+                                  );
+                                })}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </SidebarMenuItem>
+                      );
+                    }
+
                     return (
                       <Collapsible
                         key={item.key}
