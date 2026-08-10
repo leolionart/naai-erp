@@ -105,6 +105,19 @@ test("@desktop shows monthly expense reports and exact source drill-down", async
     "href",
     "/expenses?startsOn=2026-08-01&endsOn=2026-08-31&payeePartyId=party-host",
   );
+  await expect(page.getByRole("link", { name: /11.000.000/ }).locator("svg")).toHaveCount(0);
+
+  await page.getByRole("radio", { name: "Quý" }).click();
+  await expect(page).toHaveURL(/periodKind=quarter/);
+  await expect(page).toHaveURL(/startsOn=2026-01-01/);
+  await expect(page).toHaveURL(/endsOn=2026-03-31/);
+
+  await page.getByRole("button", { name: "Bộ lọc" }).click();
+  await page.getByLabel("Từ ngày").fill("2026-02-01");
+  await page.getByLabel("Đến ngày").fill("2026-02-28");
+  await page.getByRole("button", { name: "Áp dụng bộ lọc" }).click();
+  await expect(page).toHaveURL(/startsOn=2026-02-01/);
+  await expect(page).toHaveURL(/endsOn=2026-02-28/);
 
   await page.goto(
     "http://localhost:3000/reports/expenses/by-category?startsOn=2026-01-01&endsOn=2026-08-31",
@@ -113,6 +126,8 @@ test("@desktop shows monthly expense reports and exact source drill-down", async
     page.getByRole("heading", { level: 1, name: "Chi theo danh mục và tháng" }),
   ).toBeVisible();
   await expect(page.getByText("Hosting & máy chủ", { exact: true })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Năm" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bộ lọc" })).toBeVisible();
   await expect(page.getByRole("link", { name: /11.000.000/ })).toHaveAttribute(
     "href",
     "/expenses?startsOn=2026-08-01&endsOn=2026-08-31&categoryId=HOSTING",

@@ -207,6 +207,13 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-882-004`: both report pages preserve URL period filters, display monthly totals and all
   dimension rows, and drill down to Expense Management with the exact month and payee/category filter.
 
+### ERP-883 — Expense analysis period and filter parity
+
+- `T-UNIT-ERP-883-001`: expense analysis keeps exact API date-range queries and drill-down links
+  while the table value has no redundant decorative arrow.
+- `T-E2E-ERP-883-002`: both expense analysis pages expose the shared year/quarter/month navigator,
+  a URL-backed custom date filter and responsive controls matching Revenue and Expense Management.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

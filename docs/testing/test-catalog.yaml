@@ -1856,6 +1856,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/expense-breakdown-reports.spec.ts --project=desktop-chromium --project=mobile-chrome
     blocking_gate: G46
 
+  - id: T-UNIT-ERP-883-001
+    task: ERP-883
+    rules: [BR-UI-003, BR-UI-004]
+    title: Expense analysis preserves exact date queries and clean drill-down affordances
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/expense-breakdown-report-workspace.test.ts
+    blocking_gate: G47
+
+  - id: T-E2E-ERP-883-002
+    task: ERP-883
+    rules: [BR-UI-003, BR-UI-004]
+    title: Expense analysis uses shared period navigation and URL-backed custom filters responsively
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/expense-breakdown-reports.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G47
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]

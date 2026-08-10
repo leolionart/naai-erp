@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowRight, CalendarRange, RefreshCw } from "lucide-react";
+import { AlertCircle, ListFilter, RefreshCw } from "lucide-react";
+import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { KpiCard } from "@/components/financial/kpi-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -195,11 +198,10 @@ function CurrencyReport({
                       <TableCell className="text-right tabular-nums" key={month}>
                         {point && BigInt(point.amountMinor) !== 0n ? (
                           <Link
-                            className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                            className="font-medium text-primary hover:underline"
                             href={expenseDrillDownHref(kind, group, month)}
                           >
                             {formatMoney(point.amountMinor, series.currency)}
-                            <ArrowRight className="size-3" />
                           </Link>
                         ) : (
                           "—"
@@ -274,26 +276,56 @@ export function ExpenseBreakdownReportWorkspace({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="pt-6">
-          <form action={applyPeriod} className="flex flex-col gap-3 md:flex-row md:items-end">
-            <CalendarRange className="mb-2 hidden size-5 text-muted-foreground md:block" />
-            <label className="grid gap-1 text-sm">
-              Từ ngày
-              <Input name="startsOn" type="date" defaultValue={query.get("startsOn")!} required />
-            </label>
-            <label className="grid gap-1 text-sm">
-              Đến ngày
-              <Input name="endsOn" type="date" defaultValue={query.get("endsOn")!} required />
-            </label>
-            <Button type="submit">Áp dụng kỳ</Button>
-            <Button type="button" variant="outline" onClick={() => void load()}>
-              <RefreshCw className="size-4" />
-              Làm mới
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PeriodRangeNavigator />
+        <div className="flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button type="button" size="sm" variant="outline">
+                <ListFilter data-icon="inline-start" />
+                Bộ lọc
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))]">
+              <form action={applyPeriod} className="grid gap-4">
+                <div>
+                  <h3 className="font-medium">Bộ lọc kỳ báo cáo</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Chọn khoảng ngày tùy chỉnh. Bộ lọc được giữ trên URL.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="expense-report-starts-on">Từ ngày</Label>
+                    <Input
+                      id="expense-report-starts-on"
+                      name="startsOn"
+                      type="date"
+                      defaultValue={query.get("startsOn")!}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="expense-report-ends-on">Đến ngày</Label>
+                    <Input
+                      id="expense-report-ends-on"
+                      name="endsOn"
+                      type="date"
+                      defaultValue={query.get("endsOn")!}
+                      required
+                    />
+                  </div>
+                </div>
+                <Button type="submit">Áp dụng bộ lọc</Button>
+              </form>
+            </PopoverContent>
+          </Popover>
+          <Button type="button" size="sm" variant="outline" onClick={() => void load()}>
+            <RefreshCw data-icon="inline-start" />
+            Làm mới
+          </Button>
+        </div>
+      </div>
       {loading ? <Skeleton className="h-96 w-full" /> : null}
       {!loading && error ? (
         <Alert variant="destructive">

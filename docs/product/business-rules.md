@@ -887,6 +887,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Collapsed sidebar submenus use shared accessible overlay/navigation primitives and preserve a
   stable pointer path from trigger to submenu; custom hover timers and flickering open/close loops
   are prohibited.
+- Financial analysis pages use the shared URL-backed year/quarter/month navigator and the standard
+  filter popover composition. Drill-down values remain directly clickable without decorative arrow
+  affordances that add visual noise but no distinct action.
 
 ### BR-RPT-001 — Trial Balance and General Ledger
 
