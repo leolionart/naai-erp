@@ -1,4 +1,6 @@
-"use client";
+import { cn } from "@/lib/utils";
+
+("use client");
 
 import { useMemo } from "react";
 import Link from "next/link";
@@ -222,34 +224,30 @@ export function AppNavigation() {
 
                     if (state === "collapsed") {
                       return (
-                        <SidebarMenuItem key={item.key}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <SidebarMenuButton tooltip={item.label} isActive={active}>
-                                <Icon />
-                                <span>{item.label}</span>
-                              </SidebarMenuButton>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent side="right" align="start" sideOffset={8}>
-                              <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuGroup>
-                                {children.map((child) => {
-                                  const childActive = isActive(child.href);
-                                  return (
-                                    <DropdownMenuItem key={child.key} asChild>
-                                      <Link
-                                        href={child.href}
-                                        className={childActive ? "bg-accent" : ""}
-                                      >
-                                        {child.label}
-                                      </Link>
-                                    </DropdownMenuItem>
-                                  );
-                                })}
-                              </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <SidebarMenuItem key={item.key} className="group/collapsed-menu relative">
+                          <SidebarMenuButton isActive={active}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                          <div className="pointer-events-none absolute left-full top-0 z-50 ml-2 hidden w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md group-hover/collapsed-menu:pointer-events-auto group-hover/collapsed-menu:block animate-in fade-in zoom-in-95">
+                            <div className="px-2 py-1.5 text-sm font-semibold">{item.label}</div>
+                            <div className="-mx-1 my-1 h-px bg-muted" />
+                            {children.map((child) => {
+                              const childActive = isActive(child.href);
+                              return (
+                                <Link
+                                  key={child.key}
+                                  href={child.href}
+                                  className={cn(
+                                    "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                                    childActive ? "bg-accent" : "",
+                                  )}
+                                >
+                                  {child.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
                         </SidebarMenuItem>
                       );
                     }
