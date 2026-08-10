@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -140,6 +140,57 @@ function NavigationUser() {
   );
 }
 
+function CollapsedHoverMenu({ item, children, active, isActive, Icon }: any) {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<any>(null);
+
+  const onEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setOpen(true);
+  };
+
+  const onLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setOpen(false);
+    }, 150);
+  };
+
+  return (
+    <SidebarMenuItem key={item.key} onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <DropdownMenu open={open}>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuButton isActive={active} className="pointer-events-none">
+            <Icon />
+            <span>{item.label}</span>
+          </SidebarMenuButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
+        >
+          <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            {children.map((child: any) => {
+              const childActive = isActive(child.href);
+              return (
+                <DropdownMenuItem key={child.key} asChild>
+                  <Link href={child.href} className={childActive ? "bg-accent" : ""}>
+                    {child.label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
+  );
+}
+
 export function AppNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -223,31 +274,14 @@ export function AppNavigation() {
 
                     if (state === "collapsed") {
                       return (
-                        <SidebarMenuItem key={item.key} className="group/collapsed-menu relative">
-                          <SidebarMenuButton isActive={active}>
-                            <Icon />
-                            <span>{item.label}</span>
-                          </SidebarMenuButton>
-                          <div className="pointer-events-none absolute left-full top-0 z-50 ml-2 hidden w-48 rounded-md border bg-popover p-1 text-popover-foreground shadow-md group-hover/collapsed-menu:pointer-events-auto group-hover/collapsed-menu:block animate-in fade-in zoom-in-95">
-                            <div className="px-2 py-1.5 text-sm font-semibold">{item.label}</div>
-                            <div className="-mx-1 my-1 h-px bg-muted" />
-                            {children.map((child) => {
-                              const childActive = isActive(child.href);
-                              return (
-                                <Link
-                                  key={child.key}
-                                  href={child.href}
-                                  className={cn(
-                                    "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                                    childActive ? "bg-accent" : "",
-                                  )}
-                                >
-                                  {child.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </SidebarMenuItem>
+                        <CollapsedHoverMenu
+                          key={item.key}
+                          item={item}
+                          children={children}
+                          active={active}
+                          isActive={isActive}
+                          Icon={Icon}
+                        />
                       );
                     }
 
