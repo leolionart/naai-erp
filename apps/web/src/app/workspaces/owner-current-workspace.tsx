@@ -8,7 +8,6 @@ import {
 } from "@/components/financial/financial-data-table";
 import { MoneyCell } from "@/components/financial/money-cell";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,7 @@ import { useAuthenticatedApiClient } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";
 
 type MovementType =
-  "owner_paid_company_cost" | "owner_funding" | "company_repayment_to_owner" | "adjustment";
+  "owner_paid_company_cost" | "owner_custody_cash" | "owner_personal_withdrawal" | "owner_funding";
 
 type OwnerCurrentMovement = Readonly<{
   journalId: string;
@@ -31,13 +30,17 @@ type OwnerCurrentMovement = Readonly<{
   description: string;
   currency: string;
   state: string;
-  movementType: MovementType;
+  movementType?: MovementType;
+  proposedMovementType?: "company_repayment_to_owner" | null;
+  reviewReason?: string;
   ownerDeltaMinor: string;
   companyFundsDeltaMinor: string;
-  runningOwnerBalanceMinor: string;
+  runningOwnerBalanceMinor?: string;
   ownerAccountCodes: readonly string[];
   needsReview: boolean;
-  classificationBasis: string | null;
+  classificationBasis?: string | null;
+  settlementDeltaMinor?: string;
+  runningConfirmedSettlementBalanceMinor?: string;
   sources: readonly Readonly<{
     sourceType: "expense" | "purchase_invoice";
     sourceId: string;
@@ -55,15 +58,16 @@ type OwnerCurrentMovement = Readonly<{
 
 type OwnerCurrentResponse = Readonly<{
   summary: Readonly<{
-    ledgerClosingBalanceMinor: string;
-    confirmedClosingBalanceMinor: string;
-    confirmedIncreaseMinor: string;
-    confirmedDecreaseMinor: string;
+    statutoryOwnerCurrentBalanceMinor: string;
+    confirmedSettlementBalanceMinor: string;
+    companyOwesOwnerMinor: string;
+    ownerHoldsCompanyFundsMinor: string;
     ownerPaidCompanyCostMinor: string;
-    companyRepaymentToOwnerMinor: string;
+    ownerCustodyCashMinor: string;
+    ownerPersonalWithdrawalMinor: string;
     ownerFundingMinor: string;
-    reviewAdjustmentMinor: string;
-    reviewItemCount: number;
+    reviewMinor: string;
+    reviewCount: number;
   }>;
   confirmedTimeline: readonly OwnerCurrentMovement[];
   reviewItems: readonly OwnerCurrentMovement[];
@@ -71,15 +75,21 @@ type OwnerCurrentResponse = Readonly<{
 
 const labels: Record<MovementType, string> = {
   owner_paid_company_cost: "Chủ trả chi phí công ty",
+  owner_custody_cash: "Tiền công ty chủ đang giữ",
+  owner_personal_withdrawal: "Chủ rút tiền dùng cá nhân",
   owner_funding: "Chủ đưa tiền vào công ty",
-  company_repayment_to_owner: "Công ty trả nợ chủ",
-  adjustment: "Điều chỉnh công nợ chủ",
 };
 
 const classificationLabels: Record<string, string> = {
-  canonical_owner_paid_source: "Nguồn chi phí xác nhận chủ chi hộ",
+  canonical_owner_paid_expense: "Chi phí xác nhận chủ đã thanh toán",
+  canonical_owner_custody_receipt: "Tiền công ty được giao cho chủ giữ",
+  company_funds_withdrawn_by_owner: "Chủ đã rút tiền công ty dùng cá nhân",
   owner_funding_to_company_funds: "Chủ chuyển tiền vào quỹ/tài khoản công ty",
-  company_funds_repayment_to_owner: "Tiền công ty giảm đồng thời công nợ chủ giảm",
+};
+
+const reviewLabels: Record<string, string> = {
+  unsupported_company_repayment: "Chưa đủ bằng chứng xác định khoản hoàn trả cho chủ",
+  missing_source_of_funds_evidence: "Thiếu bằng chứng nguồn tiền thực tế",
   unresolved_owner_current_movement: "Chưa đủ đối ứng để phân loại",
 };
 
@@ -202,7 +212,11 @@ export function OwnerCurrentWorkspace() {
       cell: (row) => (
         <div className="flex min-w-48 flex-col items-start gap-1">
           <Badge variant={row.needsReview ? "destructive" : "outline"}>
-            {labels[row.movementType]}
+            {row.movementType
+              ? labels[row.movementType]
+              : row.proposedMovementType === "company_repayment_to_owner"
+                ? "Đề xuất hoàn trả cho chủ"
+                : "Chưa phân loại"}
           </Badge>
           {row.classificationBasis ? (
             <span className="text-xs text-muted-foreground">
@@ -210,16 +224,18 @@ export function OwnerCurrentWorkspace() {
             </span>
           ) : null}
           {row.needsReview ? (
-            <span className="text-xs font-medium text-destructive">Cần kiểm tra phân loại</span>
+            <span className="text-xs font-medium text-destructive">
+              {reviewLabels[row.reviewReason ?? ""] ?? "Cần kiểm tra phân loại"}
+            </span>
           ) : null}
         </div>
       ),
     },
     {
       id: "delta",
-      header: "Tăng/(giảm) nợ chủ",
+      header: "Tăng/(giảm) quyết toán với chủ",
       align: "right",
-      cell: (row) => <MoneyCell minor={row.ownerDeltaMinor} />,
+      cell: (row) => <MoneyCell minor={row.settlementDeltaMinor ?? row.ownerDeltaMinor} />,
     },
     {
       id: "cash",
@@ -229,13 +245,17 @@ export function OwnerCurrentWorkspace() {
     },
     {
       id: "balance",
-      header: "Dư nợ chủ sau bút toán",
+      header: "Dư quyết toán xác nhận",
       align: "right",
       cell: (row) =>
         row.needsReview ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          <MoneyCell minor={row.runningOwnerBalanceMinor} />
+          <MoneyCell
+            minor={
+              row.runningConfirmedSettlementBalanceMinor ?? row.runningOwnerBalanceMinor ?? "0"
+            }
+          />
         ),
     },
   ];
@@ -245,7 +265,23 @@ export function OwnerCurrentWorkspace() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardDescription>Chủ đã chi trả cho công ty</CardDescription>
+            <CardDescription>Công ty đang nợ chủ</CardDescription>
+            <CardTitle>
+              <MoneyCell minor={data?.summary.companyOwesOwnerMinor ?? "0"} />
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Tiền công ty chủ đang giữ</CardDescription>
+            <CardTitle>
+              <MoneyCell minor={data?.summary.ownerHoldsCompanyFundsMinor ?? "0"} />
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Chủ đã chi phí cho công ty</CardDescription>
             <CardTitle>
               <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
             </CardTitle>
@@ -253,47 +289,19 @@ export function OwnerCurrentWorkspace() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Công ty đã trả nợ chủ</CardDescription>
-            <CardTitle>
-              <MoneyCell minor={data?.summary.companyRepaymentToOwnerMinor ?? "0"} />
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Dư xác nhận theo dòng tiền</CardDescription>
-            <CardTitle>
-              <MoneyCell minor={data?.summary.confirmedClosingBalanceMinor ?? "0"} />
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
             <CardDescription>Khoản cần kiểm tra phân loại</CardDescription>
-            <CardTitle>{data?.summary.reviewItemCount ?? 0}</CardTitle>
+            <CardTitle>{data?.summary.reviewCount ?? 0}</CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      {data &&
-      data.summary.companyRepaymentToOwnerMinor === "0" &&
-      data.summary.confirmedClosingBalanceMinor !== "0" ? (
-        <Alert variant="destructive">
-          <AlertTitle>Chưa có bút toán giảm công nợ chủ</AlertTitle>
-          <AlertDescription>
-            Sổ hiện chỉ có các khoản làm tăng số tiền công ty nợ chủ. Nếu chủ đã rút hoặc nhận tiền
-            từ công ty, các khoản đó chưa được ghi nhận đúng đối ứng Owner Current và tài khoản
-            tiền.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       <Card data-testid="confirmed-owner-current">
         <CardHeader>
-          <CardTitle>Dòng tiền công nợ chủ đã xác nhận</CardTitle>
+          <CardTitle>Dòng quyết toán tiền giữa công ty và chủ đã xác nhận</CardTitle>
           <CardDescription>
-            Chỉ gồm khoản chủ thực tế chi cho công ty, chủ đưa tiền vào công ty và khoản công ty
-            thực tế trả lại chủ. Giá trị dương làm tăng nợ chủ; giá trị âm làm giảm nợ.
+            Phân biệt chi phí chủ đã trả, tiền công ty giao chủ giữ, tiền chủ rút dùng cá nhân và
+            tiền chủ đưa vào công ty. Số dư dương là công ty nợ chủ; số dư âm là chủ đang giữ tiền
+            công ty.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -309,8 +317,11 @@ export function OwnerCurrentWorkspace() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả biến động</SelectItem>
-                  <SelectItem value="company_repayment_to_owner">Công ty trả nợ chủ</SelectItem>
                   <SelectItem value="owner_paid_company_cost">Chủ trả chi phí công ty</SelectItem>
+                  <SelectItem value="owner_custody_cash">Tiền công ty chủ đang giữ</SelectItem>
+                  <SelectItem value="owner_personal_withdrawal">
+                    Chủ rút tiền dùng cá nhân
+                  </SelectItem>
                   <SelectItem value="owner_funding">Chủ đưa tiền vào công ty</SelectItem>
                 </SelectContent>
               </Select>
@@ -339,15 +350,15 @@ export function OwnerCurrentWorkspace() {
 
       <Card data-testid="owner-current-review">
         <CardHeader>
-          <CardTitle>Khoản cần kiểm tra trước khi tính vào công nợ chủ</CardTitle>
+          <CardTitle>Khoản chưa đủ bằng chứng để quyết toán với chủ</CardTitle>
           <CardDescription className="space-y-1">
             <span className="block">
-              Số dư Owner Current trên sổ cái:{" "}
-              <MoneyCell minor={data?.summary.ledgerClosingBalanceMinor ?? "0"} />
+              Số dư Owner Current theo kế toán:{" "}
+              <MoneyCell minor={data?.summary.statutoryOwnerCurrentBalanceMinor ?? "0"} />
             </span>
             <span className="block">
-              Chênh lệch chưa đưa vào dòng tiền xác nhận là khoản đang review:{" "}
-              <MoneyCell minor={data?.summary.reviewAdjustmentMinor ?? "0"} />
+              Khoản chưa đưa vào quyết toán xác nhận đang review:{" "}
+              <MoneyCell minor={data?.summary.reviewMinor ?? "0"} />
             </span>
             <span className="block">
               Các khoản có hóa đơn hoặc bút toán Owner Current nhưng chưa có bằng chứng nguồn tiền

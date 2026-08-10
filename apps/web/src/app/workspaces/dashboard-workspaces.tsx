@@ -166,6 +166,9 @@ type OperatingDashboardWire = Readonly<{
     cashOnHandMinor: string;
     cashAndBankMinor: string;
     ownerPayableMinor: string;
+    companyOwesOwnerMinor?: string;
+    ownerHoldsCompanyFundsMinor?: string;
+    statutoryOwnerCurrentBalanceMinor?: string;
     ownerOperatingPayableMinor?: string;
     netAvailableCashMinor: string;
     actualOwnerPaidCompanyCostMinor?: string;
@@ -216,6 +219,24 @@ const monthEnd = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
 };
+
+export function ownerSettlementDashboardAmounts(financials?: {
+  ownerPayableMinor?: string;
+  companyOwesOwnerMinor?: string;
+  ownerHoldsCompanyFundsMinor?: string;
+}) {
+  const companyOwesOwner = BigInt(
+    financials?.companyOwesOwnerMinor ?? financials?.ownerPayableMinor ?? "0",
+  );
+  const ownerHoldsCompanyFunds = BigInt(financials?.ownerHoldsCompanyFundsMinor ?? "0");
+  return {
+    companyOwesOwnerMinor: (companyOwesOwner > 0n ? companyOwesOwner : 0n).toString(),
+    ownerHoldsCompanyFundsMinor: (ownerHoldsCompanyFunds > 0n
+      ? ownerHoldsCompanyFunds
+      : 0n
+    ).toString(),
+  };
+}
 type PeriodKind = "month" | "quarter" | "year";
 
 function periodRange(anchorMonth: string, kind: PeriodKind) {
@@ -903,11 +924,13 @@ export function ExecutiveDashboardWorkspace() {
       ? "N/A"
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
     : fallbackDso;
-  const ownerCurrentBalanceMinor = operating?.financials.ownerPayableMinor ?? "0";
+  const { companyOwesOwnerMinor, ownerHoldsCompanyFundsMinor } = ownerSettlementDashboardAmounts(
+    operating?.financials,
+  );
   const netCompanyFundsMinor =
     operating?.financials.netCompanyFundsMinor ??
     (
-      BigInt(operating?.financials.cashAndBankMinor ?? "0") - BigInt(ownerCurrentBalanceMinor)
+      BigInt(operating?.financials.cashAndBankMinor ?? "0") - BigInt(companyOwesOwnerMinor)
     ).toString();
   const taxableProfitMinor =
     profitAndLoss == null || taxExpenses == null
@@ -1131,15 +1154,27 @@ export function ExecutiveDashboardWorkspace() {
               />
               <MetricCard
                 title="Công ty đang nợ chủ doanh nghiệp"
-                value={money(ownerCurrentBalanceMinor, operating?.currency ?? executive?.currency)}
-                description="Số dư có của Owner Current trên Balance Sheet: tiền chủ đã nộp hoặc chi thay cho công ty, sau các khoản công ty đã hoàn lại hoặc chủ đã rút."
+                value={money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}
+                description="Số quyết toán dòng tiền đã xác nhận mà công ty còn phải trả chủ. Không hiển thị số âm như một khoản nợ."
                 href="/banking/owner-current"
-                status="Nguồn: sổ cái Owner Current"
+                status="Nguồn: quyết toán đã xác nhận"
               />
+              {BigInt(ownerHoldsCompanyFundsMinor) > 0n ? (
+                <MetricCard
+                  title="Tiền công ty chủ đang giữ"
+                  value={money(
+                    ownerHoldsCompanyFundsMinor,
+                    operating?.currency ?? executive?.currency,
+                  )}
+                  description="Phần tiền công ty đã giao hoặc rút cho chủ giữ vượt quá các khoản công ty còn nợ chủ. Đây là tài sản/tiền công ty, không phải nợ âm."
+                  href="/banking/owner-current"
+                  status="Chủ đang giữ tiền công ty"
+                />
+              ) : null}
               <MetricCard
                 title="Tiền ròng thực còn"
                 value={money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}
-                description={`Tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(ownerCurrentBalanceMinor, operating?.currency ?? executive?.currency)}.`}
+                description={`Tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
                 href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
                 status="Sau nghĩa vụ với chủ"
               />

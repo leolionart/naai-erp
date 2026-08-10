@@ -585,8 +585,9 @@ Branches: `ignored`, `needs_review`.
   cash-account leg and remains P&L-neutral.
 - Company cash physically held by the owner remains a company `cash` financial account backed by an
   asset ledger account. A withdrawal from company bank into that custody fund is an internal
-  bank-to-cash transfer; it does not increase or decrease Owner Current merely because the owner is
-  the custodian.
+  bank-to-cash transfer; it does not change statutory Owner Current merely because the owner is the
+  custodian. It does reduce the confirmed management settlement still payable to the owner because
+  the owner already holds that company cash for future company spending.
 
 ### BR-BNK-003 — Internal transfer
 
@@ -630,6 +631,15 @@ Branches: `ignored`, `needs_review`.
   immediately after each confirmed movement. Review-required entries do not alter that confirmed
   running balance. The complete ledger closing balance remains separately disclosed and continues to
   feed the unchanged executive dashboard metric.
+- The confirmed owner-settlement position equals owner-paid company costs plus owner funding, less
+  company cash held by the owner and evidenced personal owner withdrawals. Timing does not matter:
+  the owner may receive company cash before or after paying company expenses.
+- Invoiced, recognized or collected revenue does not reduce settlement merely because it is revenue.
+  A reduction requires canonical evidence that the cash is held or withdrawn by the owner. Unsupported
+  repayment journals remain in review and do not reduce the confirmed settlement position.
+- A positive confirmed settlement is `Công ty đang nợ chủ`. A negative position is shown separately
+  as company funds currently held by the owner, never as negative company debt. Statutory Owner Current
+  remains visible for accounting reconciliation.
 
 ### BR-REC-001 — Candidate matching
 
@@ -816,9 +826,10 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - The executive dashboard presents company bank and cash as one company-funds card with a visible
   component breakdown. It does not repeat bank, cash, their total or a hypothetical post-owner-
   settlement balance as separate headline cards when those cards answer the same liquidity question.
-- The executive dashboard uses the complete positive closing `owner_current` Balance Sheet balance as
-  the single amount that the company owes the owner. It does not display a second, potentially zero,
-  operating-owner obligation beside the statutory owner balance.
+- The executive dashboard uses the positive confirmed owner-settlement position as the amount the
+  company currently owes the owner. When the position is negative, the debt card is zero and the
+  dashboard separately shows the absolute company funds held by the owner. The statutory
+  `owner_current` Balance Sheet balance remains available through reconciliation drill-down.
 - The three liquidity controls are shown together: mapped company cash and bank, company amount owed
   to the owner, and net company funds after that owner obligation. Net company funds equals mapped
   cash and bank less the positive closing owner-current liability.

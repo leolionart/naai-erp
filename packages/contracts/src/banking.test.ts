@@ -1,69 +1,92 @@
 import { describe, expect, it } from "vitest";
 import type {
-  ConfirmedOwnerCurrentMovementContract,
-  OwnerCurrentResponseContract,
-  OwnerCurrentReviewItemContract,
+  ConfirmedOwnerSettlementMovementContract,
+  OwnerSettlementPositionContract,
+  OwnerSettlementReviewItemContract,
 } from "./banking.js";
 
-describe("ERP-881 owner-current contracts", () => {
-  it("keeps a confirmed cash timeline with its own historical running balance", () => {
-    const repayment: ConfirmedOwnerCurrentMovementContract = {
-      journalId: "journal-repayment-1",
+describe("ERP-883 owner settlement contracts", () => {
+  it("separates statutory Owner Current from the confirmed settlement position", () => {
+    const withdrawal: ConfirmedOwnerSettlementMovementContract = {
+      journalId: "journal-owner-withdrawal-1",
       date: "2026-08-09",
-      description: "Company repays owner",
+      description: "Owner withdrew company cash",
       currency: "VND",
       state: "posted",
       reversalOfId: null,
-      movementType: "company_repayment_to_owner",
-      classificationBasis: "company_funds_repayment_to_owner",
+      movementType: "owner_personal_withdrawal",
+      classificationBasis: "company_funds_withdrawn_by_owner",
       needsReview: false,
       ownerDeltaMinor: "-2500000",
       companyFundsDeltaMinor: "-2500000",
-      runningOwnerBalanceMinor: "7500000",
+      settlementDeltaMinor: "-2500000",
+      runningConfirmedSettlementBalanceMinor: "7500000",
       ownerAccountCodes: ["3388-OWNER"],
       counterpartLines: [],
       sources: [],
     };
-    const response: OwnerCurrentResponseContract = {
+    const position: OwnerSettlementPositionContract = {
       summary: {
-        ledgerClosingBalanceMinor: "8000000",
-        confirmedClosingBalanceMinor: "7500000",
-        confirmedIncreaseMinor: "10000000",
-        confirmedDecreaseMinor: "2500000",
+        statutoryOwnerCurrentBalanceMinor: "8000000",
+        confirmedSettlementBalanceMinor: "7500000",
+        companyOwesOwnerMinor: "7500000",
+        ownerHoldsCompanyFundsMinor: "0",
         ownerPaidCompanyCostMinor: "10000000",
-        companyRepaymentToOwnerMinor: "2500000",
+        ownerCustodyCashMinor: "0",
+        ownerPersonalWithdrawalMinor: "2500000",
         ownerFundingMinor: "0",
-        reviewAdjustmentMinor: "500000",
-        reviewItemCount: 1,
+        reviewMinor: "500000",
+        reviewCount: 1,
       },
-      confirmedTimeline: [repayment],
+      confirmedTimeline: [withdrawal],
       reviewItems: [],
     };
 
-    expect(response.confirmedTimeline[0]?.runningOwnerBalanceMinor).toBe("7500000");
-    expect(response.summary.ledgerClosingBalanceMinor).toBe("8000000");
-    expect(response.summary.confirmedClosingBalanceMinor).toBe("7500000");
+    expect(position.summary.companyOwesOwnerMinor).toBe("7500000");
+    expect(position.summary.statutoryOwnerCurrentBalanceMinor).toBe("8000000");
   });
 
-  it("separates unresolved adjustments from the confirmed running balance", () => {
-    const review: OwnerCurrentReviewItemContract = {
-      journalId: "journal-review-1",
+  it("keeps unsupported generic repayment outside the confirmed timeline", () => {
+    const review: OwnerSettlementReviewItemContract = {
+      journalId: "journal-legacy-repayment-1",
       date: "2026-08-09",
-      description: "Unresolved owner-current movement",
+      description: "Legacy repayment without typed withdrawal evidence",
       currency: "VND",
       state: "posted",
       reversalOfId: null,
-      movementType: "adjustment",
-      classificationBasis: "unresolved_owner_current_movement",
+      proposedMovementType: "company_repayment_to_owner",
+      reviewReason: "unsupported_company_repayment",
       needsReview: true,
-      ownerDeltaMinor: "500000",
-      companyFundsDeltaMinor: "0",
+      ownerDeltaMinor: "-500000",
+      companyFundsDeltaMinor: "-500000",
       ownerAccountCodes: ["3388-OWNER"],
       counterpartLines: [],
       sources: [],
     };
 
     expect(review.needsReview).toBe(true);
-    expect("runningOwnerBalanceMinor" in review).toBe(false);
+    expect("runningConfirmedSettlementBalanceMinor" in review).toBe(false);
+  });
+
+  it("exposes owner-held company funds without a negative company payable", () => {
+    const position: OwnerSettlementPositionContract = {
+      summary: {
+        statutoryOwnerCurrentBalanceMinor: "-3000000",
+        confirmedSettlementBalanceMinor: "-3000000",
+        companyOwesOwnerMinor: "0",
+        ownerHoldsCompanyFundsMinor: "3000000",
+        ownerPaidCompanyCostMinor: "2000000",
+        ownerCustodyCashMinor: "5000000",
+        ownerPersonalWithdrawalMinor: "0",
+        ownerFundingMinor: "0",
+        reviewMinor: "0",
+        reviewCount: 0,
+      },
+      confirmedTimeline: [],
+      reviewItems: [],
+    };
+
+    expect(position.summary.companyOwesOwnerMinor).toBe("0");
+    expect(position.summary.ownerHoldsCompanyFundsMinor).toBe("3000000");
   });
 });

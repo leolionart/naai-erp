@@ -107,7 +107,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       cash,
       cashAndBank,
       ownerCurrent,
-      ownerOperatingPayable,
+      ownerSettlement,
       expenseFunding,
       taxPolicy,
       readiness,
@@ -180,7 +180,13 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
         [org, q.asOf],
       ),
-      this.pool.query<{ amount: string }>(
+      this.pool.query<{
+        settlement: string;
+        company_owes_owner: string;
+        owner_holds_company_funds: string;
+        custody: string;
+        personal_withdrawals: string;
+      }>(
         `with selected_mapping as (
              select id,version
              from financial_statement_mapping_versions
@@ -193,37 +199,49 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              join financial_statement_mapping_lines ml
                on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
              where ml.statement='balance_sheet' and ml.line_code='owner_current'
-           ), cash_accounts as (
-             select distinct ledger_account_code account_code
-             from financial_accounts
-             where organization_id=$1 and status='active' and kind in ('bank','cash')
            ), eligible_owner_expenses as (
              select coalesce(sum(l.gross_minor),0) amount
              from expenses e
              join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+             left join expense_categories c on c.organization_id=l.organization_id
+               and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
              join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
-             join accounts a on a.organization_id=l.organization_id and a.code=l.posting_account_code
              where e.organization_id=$1 and e.state='posted' and j.state in ('posted','reversed')
                and e.expense_date<=$2::date
                and e.counter_account_code in (select account_code from owner_accounts)
-               and a.root_type='expense'
-               and coalesce(l.expense_category_code,l.dimensions->>'category','') not in (
-                 'ELECTRONIC_EQUIP','ELECTRONICS_EQUIPMENT','OFFICE_FURNISHINGS'
-               )
-           ), repayment_movements as (
-             select j.id,
-               coalesce(sum(l.debit_minor) filter (where l.account_code in (select account_code from owner_accounts)),0) owner_debit,
-               coalesce(sum(l.credit_minor) filter (where l.account_code in (select account_code from cash_accounts)),0) company_cash_credit
-             from journal_entries j
-             join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
-             where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date<=$2::date
-             group by j.id
+               and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
+           ), custody as (
+             select coalesce(sum(it.transfer_amount_minor),0) amount
+             from internal_transfers it
+             join internal_transfer_attempts ita on ita.organization_id=it.organization_id
+               and ita.transfer_id=it.id and ita.attempt_number=it.current_attempt_number
+               and ita.state='reconciled'
+             join bank_transactions incoming on incoming.organization_id=ita.organization_id
+               and incoming.id=ita.incoming_transaction_id and incoming.booking_date<=$2::date
+             join financial_accounts fa on fa.organization_id=incoming.organization_id
+               and fa.id=incoming.financial_account_id
+             where it.organization_id=$1 and fa.code='CASH-OWNER-CUSTODY'
+           ), personal_withdrawals as (
+             select coalesce(sum(-bt.amount_minor),0) amount
+             from bank_transactions bt
+             join financial_accounts fa on fa.organization_id=bt.organization_id
+               and fa.id=bt.financial_account_id and fa.kind in ('bank','cash')
+               and fa.code<>'CASH-OWNER-CUSTODY'
+             join journal_entries j on j.organization_id=bt.organization_id
+               and j.id='owner-repayment-bank-' || bt.id
+               and j.state in ('posted','reversed') and j.journal_date<=$2::date
+             where bt.organization_id=$1 and bt.amount_minor<0
+           ), totals as (
+             select (select amount from eligible_owner_expenses)
+               - (select amount from custody)
+               - (select amount from personal_withdrawals) settlement
            )
-           select greatest(
-             (select amount from eligible_owner_expenses) -
-             coalesce((select sum(least(owner_debit,company_cash_credit)) from repayment_movements),0),
-             0
-           )::text amount`,
+           select settlement::text,
+             greatest(settlement,0)::text company_owes_owner,
+             greatest(-settlement,0)::text owner_holds_company_funds,
+             (select amount from custody)::text custody,
+             (select amount from personal_withdrawals)::text personal_withdrawals
+           from totals`,
         [org, q.asOf],
       ),
       this.pool.query<{
@@ -251,12 +269,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            )
            select
              coalesce(sum(l.gross_minor) filter (
-               where l.funding_treatment='owner_paid_company_cost'
-                  or (
-                    l.funding_treatment is null
-                    and e.counter_account_code in (select account_code from owner_accounts)
-                    and (select operating_mode from workflow_policy)='solopreneur'
-                  )
+               where e.counter_account_code in (select account_code from owner_accounts)
+                 and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
              ),0)::text owner_paid,
              count(*) filter (
                where l.funding_treatment is null
@@ -271,6 +285,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
            join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+           left join expense_categories c on c.organization_id=l.organization_id
+             and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
            join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
            where e.organization_id=$1 and e.state='posted' and e.expense_date<=$2::date
              and j.state in ('posted','reversed')`,
@@ -309,7 +325,9 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
     const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
     const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
-    const ownerOperatingPayableMinor = amount(ownerOperatingPayable.rows[0]?.amount);
+    const confirmedOwnerSettlementMinor = amount(ownerSettlement.rows[0]?.settlement);
+    const companyOwesOwnerMinor = amount(ownerSettlement.rows[0]?.company_owes_owner);
+    const ownerHoldsCompanyFundsMinor = amount(ownerSettlement.rows[0]?.owner_holds_company_funds);
     const actualOwnerPaidCompanyCostMinor = amount(expenseFunding.rows[0]?.owner_paid);
     const unclassifiedOwnerPaidCount = expenseFunding.rows[0]?.unclassified_count ?? 0;
     const unclassifiedOwnerPaidMinor = amount(expenseFunding.rows[0]?.unclassified_minor);
@@ -328,11 +346,19 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       bankAvailableMinor: bankAvailableMinor.toString(),
       cashOnHandMinor: cashOnHandMinor.toString(),
       cashAndBankMinor: cashAndBankMinor.toString(),
-      ownerPayableMinor: ownerPayableMinor.toString(),
-      ownerOperatingPayableMinor: ownerOperatingPayableMinor.toString(),
-      netAvailableCashMinor: (cashAndBankMinor - ownerPayableMinor).toString(),
+      ownerPayableMinor: companyOwesOwnerMinor.toString(),
+      statutoryOwnerCurrentBalanceMinor: ownerPayableMinor.toString(),
+      ownerOperatingPayableMinor: companyOwesOwnerMinor.toString(),
+      confirmedOwnerSettlementMinor: confirmedOwnerSettlementMinor.toString(),
+      ownerHoldsCompanyFundsMinor: ownerHoldsCompanyFundsMinor.toString(),
+      ownerSettlementDrilldownHref: "/banking/owner-current",
+      ownerCashCustodyMinor: amount(ownerSettlement.rows[0]?.custody).toString(),
+      ownerPersonalWithdrawalMinor: amount(
+        ownerSettlement.rows[0]?.personal_withdrawals,
+      ).toString(),
+      netAvailableCashMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),
       actualOwnerPaidCompanyCostMinor: actualOwnerPaidCompanyCostMinor.toString(),
-      netCompanyFundsMinor: (cashAndBankMinor - ownerPayableMinor).toString(),
+      netCompanyFundsMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),
       unclassifiedOwnerPaidCount,
       unclassifiedOwnerPaidMinor: unclassifiedOwnerPaidMinor.toString(),
       ownerPaidClassificationStatus,

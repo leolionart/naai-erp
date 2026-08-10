@@ -14,7 +14,8 @@ import {
   type ApiEnvelope,
   type BankStatementImportRequest,
   type BankTransactionContract,
-  type OwnerCurrentResponseContract,
+  type OperatingDashboardOwnerSettlementContract,
+  type OwnerSettlementPositionContract,
   type MutationMetadata,
   type MatchReconciliationRequest,
   type CreateInternalTransferRequest,
@@ -100,24 +101,31 @@ describe("AI-native API contracts", () => {
     expect(transaction.amountMinor).toBe("-125000");
   });
 
-  it("exports the owner-current repayment contract from the package root", () => {
-    const response: OwnerCurrentResponseContract = {
+  it("exports the owner settlement position from the package root", () => {
+    const response: OwnerSettlementPositionContract = {
       summary: {
-        ledgerClosingBalanceMinor: "4000000",
-        confirmedClosingBalanceMinor: "4000000",
-        confirmedIncreaseMinor: "5000000",
-        confirmedDecreaseMinor: "1000000",
+        statutoryOwnerCurrentBalanceMinor: "4500000",
+        confirmedSettlementBalanceMinor: "4000000",
+        companyOwesOwnerMinor: "4000000",
+        ownerHoldsCompanyFundsMinor: "0",
         ownerPaidCompanyCostMinor: "5000000",
-        companyRepaymentToOwnerMinor: "1000000",
+        ownerCustodyCashMinor: "0",
+        ownerPersonalWithdrawalMinor: "1000000",
         ownerFundingMinor: "0",
-        reviewAdjustmentMinor: "0",
-        reviewItemCount: 0,
+        reviewMinor: "500000",
+        reviewCount: 1,
       },
       confirmedTimeline: [],
       reviewItems: [],
     };
+    const dashboard: OperatingDashboardOwnerSettlementContract = {
+      companyOwesOwnerMinor: response.summary.companyOwesOwnerMinor,
+      ownerHoldsCompanyFundsMinor: response.summary.ownerHoldsCompanyFundsMinor,
+      statutoryOwnerCurrentBalanceMinor: response.summary.statutoryOwnerCurrentBalanceMinor,
+      ownerSettlementDrilldownHref: "/banking/owner-current",
+    };
 
-    expect(response.summary.companyRepaymentToOwnerMinor).toBe("1000000");
+    expect(dashboard.companyOwesOwnerMinor).toBe("4000000");
   });
 
   it("types effective expense list funding filters and projections", () => {

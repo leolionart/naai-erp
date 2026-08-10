@@ -131,11 +131,14 @@ suite("operating dashboard PostgreSQL API", () => {
           bankAvailableMinor: "-340",
           cashOnHandMinor: "0",
           cashAndBankMinor: "-340",
-          ownerPayableMinor: "810",
-          ownerOperatingPayableMinor: "310",
-          netAvailableCashMinor: "-1150",
+          ownerPayableMinor: "100",
+          statutoryOwnerCurrentBalanceMinor: "810",
+          ownerOperatingPayableMinor: "100",
+          confirmedOwnerSettlementMinor: "100",
+          ownerHoldsCompanyFundsMinor: "0",
+          netAvailableCashMinor: "-440",
           actualOwnerPaidCompanyCostMinor: "100",
-          netCompanyFundsMinor: "-1150",
+          netCompanyFundsMinor: "-440",
           unclassifiedOwnerPaidCount: 1,
           unclassifiedOwnerPaidMinor: "50",
           ownerPaidClassificationStatus: "review_required",
@@ -198,11 +201,11 @@ suite("operating dashboard PostgreSQL API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.financials).toMatchObject({
-      actualOwnerPaidCompanyCostMinor: "150",
+      actualOwnerPaidCompanyCostMinor: "100",
       unclassifiedOwnerPaidCount: 0,
       unclassifiedOwnerPaidMinor: "0",
       ownerPaidClassificationStatus: "ready",
-      ownerOperatingPayableMinor: "310",
+      ownerOperatingPayableMinor: "100",
     });
   });
 });

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   actualSummaryQuery,
   effectiveEndsOn,
+  ownerSettlementDashboardAmounts,
   projectQuery,
   reportQuery,
   resolvedDashboardSearch,
@@ -12,6 +13,15 @@ afterEach(() => {
 });
 
 describe("dashboard reporting cutoff", () => {
+  it("never renders a negative company debt and separates company funds held by the owner", () => {
+    expect(
+      ownerSettlementDashboardAmounts({
+        ownerPayableMinor: "-21836050",
+        companyOwesOwnerMinor: "0",
+        ownerHoldsCompanyFundsMinor: "21836050",
+      }),
+    ).toEqual({ companyOwesOwnerMinor: "0", ownerHoldsCompanyFundsMinor: "21836050" });
+  });
   it("preserves the explicit historical asOfDate and clamps report ranges to it", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-10T00:00:00.000Z"));

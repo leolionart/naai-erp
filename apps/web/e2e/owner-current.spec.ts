@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("@desktop owner current distinguishes owner-paid costs, repayments and review adjustments", async ({
+test("@desktop owner settlement separates debt, custody, withdrawals and review", async ({
   page,
 }) => {
   await page.addInitScript(() =>
@@ -15,159 +15,122 @@ test("@desktop owner current distinguishes owner-paid costs, repayments and revi
         organizationId: "naai",
         data: {
           summary: {
-            ledgerClosingBalanceMinor: "85500000",
-            confirmedClosingBalanceMinor: "55000000",
-            confirmedIncreaseMinor: "100000000",
-            confirmedDecreaseMinor: "45000000",
-            ownerPaidCompanyCostMinor: "100000000",
-            companyRepaymentToOwnerMinor: "45000000",
+            statutoryOwnerCurrentBalanceMinor: "78163950",
+            confirmedSettlementBalanceMinor: "-21836050",
+            companyOwesOwnerMinor: "0",
+            ownerHoldsCompanyFundsMinor: "21836050",
+            ownerPaidCompanyCostMinor: "165483950",
+            ownerCustodyCashMinor: "135320000",
+            ownerPersonalWithdrawalMinor: "52000000",
             ownerFundingMinor: "0",
-            reviewAdjustmentMinor: "30500000",
-            reviewItemCount: 2,
+            reviewMinor: "100000000",
+            reviewCount: 1,
           },
           confirmedTimeline: [
             {
-              journalId: "owner-payroll-100m",
+              journalId: "owner-personal-withdrawals",
+              date: "2025-11-05",
+              description: "Chủ rút tiền dùng cá nhân",
+              currency: "VND",
+              state: "posted",
+              movementType: "owner_personal_withdrawal",
+              classificationBasis: "company_funds_withdrawn_by_owner",
+              needsReview: false,
+              ownerDeltaMinor: "-52000000",
+              companyFundsDeltaMinor: "-52000000",
+              settlementDeltaMinor: "-52000000",
+              runningConfirmedSettlementBalanceMinor: "-21836050",
+              ownerAccountCodes: ["3388-OWNER"],
+              counterpartLines: [],
+              sources: [],
+            },
+            {
+              journalId: "owner-custody-cash",
+              date: "2025-07-30",
+              description: "Tiền công ty giao chủ giữ",
+              currency: "VND",
+              state: "posted",
+              movementType: "owner_custody_cash",
+              classificationBasis: "canonical_owner_custody_receipt",
+              needsReview: false,
+              ownerDeltaMinor: "-135320000",
+              companyFundsDeltaMinor: "-135320000",
+              settlementDeltaMinor: "-135320000",
+              runningConfirmedSettlementBalanceMinor: "30163950",
+              ownerAccountCodes: ["3388-OWNER"],
+              counterpartLines: [],
+              sources: [],
+            },
+            {
+              journalId: "owner-paid-expenses",
               date: "2025-02-15",
-              description: "Chủ thanh toán lương nhân sự",
+              description: "Chủ thanh toán chi phí công ty",
               currency: "VND",
               state: "posted",
               movementType: "owner_paid_company_cost",
-              ownerDeltaMinor: "100000000",
-              companyFundsDeltaMinor: "0",
-              runningOwnerBalanceMinor: "100000000",
-              ownerAccountCodes: ["3388-OWNER"],
+              classificationBasis: "canonical_owner_paid_expense",
               needsReview: false,
-              classificationBasis: "canonical_owner_paid_source",
+              ownerDeltaMinor: "165483950",
+              companyFundsDeltaMinor: "0",
+              settlementDeltaMinor: "165483950",
+              runningConfirmedSettlementBalanceMinor: "165483950",
+              ownerAccountCodes: ["3388-OWNER"],
+              counterpartLines: [],
               sources: [
                 {
                   sourceType: "expense",
                   sourceId: "expense-payroll",
-                  title: "Lương nhân sự tháng 2/2025",
-                  detail: "Chủ thanh toán bằng tài khoản cá nhân",
+                  title: "Lương và chi phí chủ đã thanh toán",
+                  detail: "Khoản chi có nguồn chủ trả rõ ràng",
                   sourceHref: "/expenses/expense-payroll",
                   expenseClass: "payroll_personnel",
                   category: "SALARY",
                   citState: "eligible",
                   vatState: "ineligible",
-                  grossMinor: "100000000",
+                  grossMinor: "165483950",
                   payeeName: "Nhân sự công ty",
                 },
               ],
             },
-            {
-              journalId: "owner-repayment-45m",
-              date: "2025-02-25",
-              description: "Công ty hoàn trả tiền chủ đã chi hộ",
-              currency: "VND",
-              state: "posted",
-              movementType: "company_repayment_to_owner",
-              ownerDeltaMinor: "-45000000",
-              companyFundsDeltaMinor: "-45000000",
-              runningOwnerBalanceMinor: "55000000",
-              ownerAccountCodes: ["3388-OWNER"],
-              needsReview: false,
-              classificationBasis: "Owner Current giảm và tiền công ty giảm trong cùng bút toán",
-              sources: [],
-            },
           ],
           reviewItems: [
             {
-              journalId: "vehicle-rental-review",
-              date: "2025-02-26",
-              description: "Hóa đơn thuê xe chưa rõ nguồn tiền",
+              journalId: "unsupported-repayment-100m",
+              date: "2026-03-22",
+              description: "Khoản 100 triệu chưa đủ bằng chứng quyết toán",
               currency: "VND",
               state: "posted",
-              movementType: "adjustment",
-              ownerDeltaMinor: "20500000",
-              companyFundsDeltaMinor: "0",
-              runningOwnerBalanceMinor: "",
-              ownerAccountCodes: ["3388-OWNER"],
+              proposedMovementType: "company_repayment_to_owner",
+              reviewReason: "unsupported_company_repayment",
               needsReview: true,
-              classificationBasis: "unresolved_owner_current_movement",
-              sources: [
-                {
-                  sourceType: "purchase_invoice",
-                  sourceId: "vehicle-rental-invoice",
-                  title: "VEHICLE_RENTAL",
-                  detail: "Chỉ có hóa đơn, chưa xác nhận chủ chi",
-                  sourceHref: "/documents/vehicle-rental-invoice",
-                  expenseClass: null,
-                  category: "VEHICLE_RENTAL",
-                  citState: "eligible",
-                  vatState: "eligible",
-                  grossMinor: "20500000",
-                  payeeName: "Đơn vị cho thuê xe",
-                },
-              ],
-            },
-            {
-              journalId: "electricity-review",
-              date: "2025-02-27",
-              description: "Hóa đơn điện chưa rõ nguồn tiền",
-              currency: "VND",
-              state: "posted",
-              movementType: "adjustment",
-              ownerDeltaMinor: "10000000",
+              ownerDeltaMinor: "100000000",
               companyFundsDeltaMinor: "0",
-              runningOwnerBalanceMinor: "",
               ownerAccountCodes: ["3388-OWNER"],
-              needsReview: true,
-              classificationBasis: "unresolved_owner_current_movement",
-              sources: [
-                {
-                  sourceType: "purchase_invoice",
-                  sourceId: "electricity-invoice",
-                  title: "ELECTRICITY",
-                  detail: "Chỉ có hóa đơn, chưa xác nhận chủ chi",
-                  sourceHref: "/documents/electricity-invoice",
-                  expenseClass: null,
-                  category: "ELECTRICITY",
-                  citState: "eligible",
-                  vatState: "eligible",
-                  grossMinor: "10000000",
-                  payeeName: "Công ty điện lực",
-                },
-              ],
+              counterpartLines: [],
+              sources: [],
             },
           ],
         },
       }),
     }),
   );
+
   await page.goto("http://localhost:3000/banking/owner-current");
+  const confirmed = page.getByTestId("confirmed-owner-current");
+  const review = page.getByTestId("owner-current-review");
+
+  await expect(page.getByText("Công ty đang nợ chủ", { exact: true })).toBeVisible();
+  await expect(page.getByText("Tiền công ty chủ đang giữ", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("21.836.050 ₫", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("165.483.950 ₫", { exact: true })).toHaveCount(3);
+  await expect(confirmed.getByText("Tiền công ty chủ đang giữ", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 1, name: "Đối chiếu công nợ chủ" }),
+    confirmed.getByText("Chủ rút tiền dùng cá nhân", { exact: true }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Dư xác nhận theo dòng tiền", { exact: true })).toBeVisible();
-  await expect(page.getByText("Dòng tiền công nợ chủ đã xác nhận", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Số dư Owner Current trên sổ cái:/)).toContainText("85.500.000 ₫");
-  await expect(page.getByText(/Chênh lệch chưa đưa vào dòng tiền xác nhận/)).toContainText(
-    "30.500.000 ₫",
-  );
-  await expect(
-    page.getByText("Công ty hoàn trả tiền chủ đã chi hộ", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Lương nhân sự tháng 2/2025" })).toHaveAttribute(
-    "href",
-    "/expenses/expense-payroll",
-  );
-  await expect(page.getByText("SALARY", { exact: true })).toBeVisible();
-  await expect(page.getByText("payroll_personnel", { exact: true })).toBeVisible();
-  const confirmedSection = page.getByTestId("confirmed-owner-current");
-  const reviewSection = page.getByTestId("owner-current-review");
-  await expect(confirmedSection.getByText("TNDN: eligible", { exact: true })).toBeVisible();
-  await expect(page.getByText("45.000.000 ₫", { exact: true }).first()).toBeVisible();
-  await expect(confirmedSection.getByText("Công ty trả nợ chủ", { exact: true })).toBeVisible();
-  await expect(page.getByText("Cần kiểm tra phân loại", { exact: true })).toHaveCount(2);
-  await expect(confirmedSection.getByText("VEHICLE_RENTAL", { exact: true })).toHaveCount(0);
-  await expect(confirmedSection.getByText("ELECTRICITY", { exact: true })).toHaveCount(0);
-  await expect(reviewSection.getByText("VEHICLE_RENTAL", { exact: true }).first()).toBeVisible();
-  await expect(reviewSection.getByText("ELECTRICITY", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("100.000.000 ₫", { exact: true })).toHaveCount(3);
-  await expect(page.getByText("55.000.000 ₫", { exact: true })).toHaveCount(2);
-  await expect(
-    page.getByRole("link", { name: "Công ty hoàn trả tiền chủ đã chi hộ" }),
-  ).toHaveAttribute("href", "/accounting/journals?journalId=owner-repayment-45m");
-  await expect(page.getByText("Chưa liên kết nguồn chi phí")).toHaveCount(0);
+  await expect(confirmed.getByText("-52.000.000 ₫", { exact: true }).first()).toBeVisible();
+  await expect(confirmed.getByText("-135.320.000 ₫", { exact: true }).first()).toBeVisible();
+  await expect(confirmed.getByText("-21.836.050 ₫", { exact: true })).toBeVisible();
+  await expect(review.getByText("Khoản 100 triệu chưa đủ bằng chứng quyết toán")).toBeVisible();
+  await expect(review.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
+  await expect(review.getByText(/Số dư Owner Current theo kế toán:/)).toContainText("78.163.950 ₫");
 });

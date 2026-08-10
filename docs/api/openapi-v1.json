@@ -1185,17 +1185,17 @@
     },
     "/api/v1/organizations/{organizationId}/banking/owner-current-movements": {
       "get": {
-        "operationId": "listOwnerCurrentMovements",
+        "operationId": "getOwnerSettlementPosition",
         "tags": ["banking"],
         "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
-        "summary": "List the confirmed owner cash timeline separately from owner-current review items",
-        "description": "Resolves the approved TT133 owner_current mapping and returns organization-scoped posted or reversed journal evidence. confirmedTimeline contains only owner-paid company costs, owner funding and company cash/bank repayment to owner; its rows carry the confirmed historical running balance. Unresolved adjustments are returned separately in reviewItems and do not change the confirmed running balance. summary.ledgerClosingBalanceMinor remains the unchanged full mapped-ledger closing balance.",
+        "summary": "Read the confirmed owner settlement position separately from statutory Owner Current",
+        "description": "The confirmed settlement position includes typed owner-paid company costs, owner-custody customer cash, owner personal withdrawals and owner funding. Generic company repayment remains review-required. The statutory Owner Current ledger balance remains separately available for accounting drill-down and does not replace the confirmed settlement formula.",
         "responses": {
           "200": {
-            "description": "Owner-current movement summary and ledger evidence",
+            "description": "Owner settlement position, confirmed timeline, review items and statutory ledger control",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/OwnerCurrentEnvelope" }
+                "schema": { "$ref": "#/components/schemas/OwnerSettlementPositionEnvelope" }
               }
             }
           }
@@ -3611,7 +3611,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Operating dashboard read model with ledger-backed financials, drill-down sources, data-quality flags, and workbook controls"
+            "description": "Operating dashboard read model with ledger-backed financials, confirmed owner settlement, drill-down sources, data-quality flags, and workbook controls",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperatingDashboardEnvelope" }
+              }
+            }
           }
         }
       }
@@ -7295,16 +7300,76 @@
           "data": { "$ref": "#/components/schemas/ExpenseListResponse" }
         }
       },
-      "OwnerCurrentMovementType": {
-        "type": "string",
-        "enum": ["owner_paid_company_cost", "owner_funding", "company_repayment_to_owner"]
+      "OperatingDashboardOwnerSettlement": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "companyOwesOwnerMinor",
+          "ownerHoldsCompanyFundsMinor",
+          "statutoryOwnerCurrentBalanceMinor",
+          "ownerSettlementDrilldownHref"
+        ],
+        "properties": {
+          "companyOwesOwnerMinor": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Primary nonnegative dashboard metric for Công ty đang nợ chủ."
+          },
+          "ownerHoldsCompanyFundsMinor": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Nonnegative opposite settlement position; never inferred by the web client."
+          },
+          "statutoryOwnerCurrentBalanceMinor": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$",
+            "description": "Statutory Owner Current control retained for drill-down, not used as the dashboard payable metric."
+          },
+          "ownerSettlementDrilldownHref": { "type": "string" }
+        }
       },
-      "OwnerCurrentClassificationBasis": {
+      "OperatingDashboardEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "required": ["financials"],
+            "properties": {
+              "financials": {
+                "$ref": "#/components/schemas/OperatingDashboardOwnerSettlement"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "OwnerSettlementMovementType": {
         "type": "string",
         "enum": [
-          "canonical_owner_paid_source",
-          "owner_funding_to_company_funds",
-          "company_funds_repayment_to_owner",
+          "owner_paid_company_cost",
+          "owner_custody_cash",
+          "owner_personal_withdrawal",
+          "owner_funding"
+        ]
+      },
+      "OwnerSettlementClassificationBasis": {
+        "type": "string",
+        "enum": [
+          "canonical_owner_paid_expense",
+          "canonical_owner_custody_receipt",
+          "company_funds_withdrawn_by_owner",
+          "owner_funding_to_company_funds"
+        ]
+      },
+      "OwnerSettlementReviewReason": {
+        "type": "string",
+        "enum": [
+          "unsupported_company_repayment",
+          "missing_source_of_funds_evidence",
           "unresolved_owner_current_movement"
         ]
       },
@@ -7326,7 +7391,17 @@
           "payeeName"
         ],
         "properties": {
-          "sourceType": { "type": "string", "enum": ["expense", "purchase_invoice"] },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "purchase_invoice",
+              "owner_custody_receipt",
+              "bank_transaction",
+              "internal_transfer",
+              "journal"
+            ]
+          },
           "sourceId": { "type": "string" },
           "title": { "type": "string" },
           "detail": { "type": ["string", "null"] },
@@ -7387,7 +7462,7 @@
           }
         }
       },
-      "ConfirmedOwnerCurrentMovement": {
+      "ConfirmedOwnerSettlementMovement": {
         "allOf": [
           { "$ref": "#/components/schemas/OwnerCurrentMovementEvidence" },
           {
@@ -7396,101 +7471,114 @@
               "movementType",
               "classificationBasis",
               "needsReview",
-              "runningOwnerBalanceMinor"
+              "settlementDeltaMinor",
+              "runningConfirmedSettlementBalanceMinor"
             ],
             "properties": {
               "movementType": {
-                "$ref": "#/components/schemas/OwnerCurrentMovementType"
+                "$ref": "#/components/schemas/OwnerSettlementMovementType"
               },
               "classificationBasis": {
-                "type": "string",
-                "enum": [
-                  "canonical_owner_paid_source",
-                  "owner_funding_to_company_funds",
-                  "company_funds_repayment_to_owner"
-                ]
+                "$ref": "#/components/schemas/OwnerSettlementClassificationBasis"
               },
               "needsReview": { "const": false },
-              "runningOwnerBalanceMinor": { "type": "string", "pattern": "^-?[0-9]+$" }
+              "settlementDeltaMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+              "runningConfirmedSettlementBalanceMinor": {
+                "type": "string",
+                "pattern": "^-?[0-9]+$"
+              }
             }
           }
         ],
         "unevaluatedProperties": false
       },
-      "OwnerCurrentReviewItem": {
+      "OwnerSettlementReviewItem": {
         "allOf": [
           { "$ref": "#/components/schemas/OwnerCurrentMovementEvidence" },
           {
             "type": "object",
-            "required": ["movementType", "classificationBasis", "needsReview"],
+            "required": ["proposedMovementType", "reviewReason", "needsReview"],
             "properties": {
-              "movementType": { "const": "adjustment" },
-              "classificationBasis": { "const": "unresolved_owner_current_movement" },
+              "proposedMovementType": {
+                "type": ["string", "null"],
+                "enum": ["company_repayment_to_owner", null]
+              },
+              "reviewReason": { "$ref": "#/components/schemas/OwnerSettlementReviewReason" },
               "needsReview": { "const": true }
             }
           }
         ],
-        "description": "Unresolved ledger movement. It does not participate in the confirmed running balance and therefore has no runningOwnerBalanceMinor.",
+        "description": "Unsupported or unresolved movement. It does not participate in confirmedSettlementBalanceMinor.",
         "unevaluatedProperties": false
       },
-      "OwnerCurrentSummary": {
+      "OwnerSettlementSummary": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "ledgerClosingBalanceMinor",
-          "confirmedClosingBalanceMinor",
-          "confirmedIncreaseMinor",
-          "confirmedDecreaseMinor",
+          "statutoryOwnerCurrentBalanceMinor",
+          "confirmedSettlementBalanceMinor",
+          "companyOwesOwnerMinor",
+          "ownerHoldsCompanyFundsMinor",
           "ownerPaidCompanyCostMinor",
-          "companyRepaymentToOwnerMinor",
+          "ownerCustodyCashMinor",
+          "ownerPersonalWithdrawalMinor",
           "ownerFundingMinor",
-          "reviewAdjustmentMinor",
-          "reviewItemCount"
+          "reviewMinor",
+          "reviewCount"
         ],
         "properties": {
-          "ledgerClosingBalanceMinor": {
+          "statutoryOwnerCurrentBalanceMinor": {
             "type": "string",
             "pattern": "^-?[0-9]+$",
-            "description": "Unchanged closing balance of every mapped posted/reversed Owner Current ledger movement, including review items."
+            "description": "Complete signed balance from the approved statutory Owner Current mapping."
           },
-          "confirmedClosingBalanceMinor": {
+          "confirmedSettlementBalanceMinor": {
             "type": "string",
             "pattern": "^-?[0-9]+$",
-            "description": "Closing balance of confirmedTimeline only."
+            "description": "Signed confirmed settlement balance before nonnegative presentation clamps."
           },
-          "confirmedIncreaseMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "confirmedDecreaseMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "companyOwesOwnerMinor": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "max(confirmedSettlementBalanceMinor, 0)."
+          },
+          "ownerHoldsCompanyFundsMinor": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "max(-confirmedSettlementBalanceMinor, 0)."
+          },
           "ownerPaidCompanyCostMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "companyRepaymentToOwnerMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "ownerCustodyCashMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "ownerPersonalWithdrawalMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "ownerFundingMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "reviewAdjustmentMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
-          "reviewItemCount": { "type": "integer", "minimum": 0 }
+          "reviewMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "reviewCount": { "type": "integer", "minimum": 0 }
         }
       },
-      "OwnerCurrentResponse": {
+      "OwnerSettlementPosition": {
         "type": "object",
         "additionalProperties": false,
         "required": ["summary", "confirmedTimeline", "reviewItems"],
         "properties": {
-          "summary": { "$ref": "#/components/schemas/OwnerCurrentSummary" },
+          "summary": { "$ref": "#/components/schemas/OwnerSettlementSummary" },
           "confirmedTimeline": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/ConfirmedOwnerCurrentMovement" }
+            "items": { "$ref": "#/components/schemas/ConfirmedOwnerSettlementMovement" }
           },
           "reviewItems": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/OwnerCurrentReviewItem" }
+            "items": { "$ref": "#/components/schemas/OwnerSettlementReviewItem" }
           }
         }
       },
-      "OwnerCurrentEnvelope": {
+      "OwnerSettlementPositionEnvelope": {
         "type": "object",
         "required": ["apiVersion", "requestId", "organizationId", "data"],
         "properties": {
           "apiVersion": { "const": "v1" },
           "requestId": { "type": "string" },
           "organizationId": { "type": "string" },
-          "data": { "$ref": "#/components/schemas/OwnerCurrentResponse" }
+          "data": { "$ref": "#/components/schemas/OwnerSettlementPosition" }
         }
       }
     },

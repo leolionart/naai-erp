@@ -214,6 +214,18 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-883-002`: both expense analysis pages expose the shared year/quarter/month navigator,
   a URL-backed custom date filter and responsive controls matching Revenue and Expense Management.
 
+### ERP-884 — Owner settlement from custody cash and evidenced withdrawals
+
+- `T-API-ERP-884-001`: owner settlement adds configured owner-paid costs and owner funding, subtracts
+  reconciled owner-custody cash and evidenced personal withdrawals, keeps unsupported repayment
+  journals in review, and separately returns statutory Owner Current. Dashboard debt is the
+  nonnegative confirmed position and a negative position becomes owner-held company funds.
+- `T-E2E-ERP-884-002`: Owner Current and Dashboard use the same confirmed position, distinguish owner
+  custody from personal withdrawal, show unsupported repayment separately and retain statutory ledger
+  reconciliation. The production control equation is `165,483,950 - 135,320,000 - 52,000,000 =
+  -21,836,050`; company debt is zero and owner-held company funds are `21,836,050` until the unsupported
+  `100,000,000` repayment receives canonical evidence.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

@@ -1,6 +1,6 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T09:02:00+07:00
+updated_at: 2026-08-10T09:16:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
@@ -2082,6 +2082,36 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-883/
 
+  - id: ERP-884
+    title: Owner settlement from paid costs custody cash and evidenced withdrawals
+    phase: P13
+    status: done
+    dependencies: [ERP-883]
+    business_rules: [BR-BNK-003, BR-BNK-004, BR-AI-006, BR-KPI-005, BR-UI-001, BR-ORG-001]
+    tests: [T-API-ERP-884-001, T-E2E-ERP-884-002]
+    evidence: docs/implementation/evidence/ERP-884/
+    agent: codex-team
+    started_at: 2026-08-10T09:10:00+07:00
+    review_at: 2026-08-10T09:15:30+07:00
+    completed_at: 2026-08-10T09:16:00+07:00
+    completion_basis: production_cash_evidence_audit_confirmed_settlement_fresh_database_contract_dashboard_and_rendered_e2e
+    parallel_file_ownership:
+      backend: apps/api/src/banking, apps/api/src/operating-dashboard
+      contract: packages/contracts/src, docs/api/openapi-v1.json
+      web: apps/web/src/app/workspaces/owner-current-workspace.tsx, apps/web/src/app/workspaces/dashboard-workspaces.tsx, related tests
+      coordinator: docs/product, docs/testing, docs/implementation
+    planned_files:
+      - apps/api/src/banking/
+      - apps/api/src/operating-dashboard/
+      - packages/contracts/src/
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-884/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2130,6 +2160,7 @@ gates:
   G45: [ERP-881]
   G46: [ERP-882]
   G47: [ERP-883]
+  G48: [ERP-884]
 
 gate_status:
   G0: done
@@ -2178,3 +2209,4 @@ gate_status:
   G45: done
   G46: done
   G47: done
+  G48: done

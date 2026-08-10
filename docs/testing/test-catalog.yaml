@@ -1872,6 +1872,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/expense-breakdown-reports.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G47
 
+  - id: T-API-ERP-884-001
+    task: ERP-884
+    rules: [BR-BNK-003, BR-BNK-004, BR-AI-006, BR-KPI-005, BR-ORG-001]
+    title: Owner settlement reconciles paid costs custody cash evidenced withdrawals and review items
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/banking/banking.integration.test.ts src/operating-dashboard/operating-dashboard.integration.test.ts
+    blocking_gate: G48
+
+  - id: T-E2E-ERP-884-002
+    task: ERP-884
+    rules: [BR-BNK-004, BR-KPI-005, BR-UI-001]
+    title: Dashboard and owner-current show one confirmed settlement with statutory reconciliation
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G48
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { BankingService } from "./banking.service.js";
-import { classifyOwnerCurrentMovement } from "./pg-banking.store.js";
+import { classifyOwnerCurrentMovement, summarizeOwnerSettlement } from "./pg-banking.store.js";
 
 const context = {
   organizationId: "org-bank",
@@ -133,6 +133,25 @@ describe("ERP-400 banking service", () => {
 });
 
 describe("ERP-876 owner-current classification", () => {
+  it("reconciles the audited production settlement without treating custody as repayment", () => {
+    expect(
+      summarizeOwnerSettlement({
+        statutoryOwnerCurrentBalance: 65_438_650n,
+        ownerPaidCompanyCost: 165_483_950n,
+        ownerCustodyCash: 135_320_000n,
+        ownerPersonalWithdrawal: 52_000_000n,
+        ownerFunding: 0n,
+        review: 87_274_700n,
+        reviewCount: 77,
+      }),
+    ).toMatchObject({
+      confirmedSettlementBalanceMinor: "-21836050",
+      companyOwesOwnerMinor: "0",
+      ownerHoldsCompanyFundsMinor: "21836050",
+      statutoryOwnerCurrentBalanceMinor: "65438650",
+    });
+  });
+
   it("requires canonical source evidence before calling a credit owner-paid company cost", () => {
     expect(
       classifyOwnerCurrentMovement({
@@ -160,7 +179,7 @@ describe("ERP-876 owner-current classification", () => {
       }),
     ).toMatchObject({
       movementType: "owner_paid_company_cost",
-      classificationBasis: "canonical_owner_paid_source",
+      classificationBasis: "canonical_owner_paid_expense",
       needsReview: false,
     });
     expect(
@@ -178,10 +197,11 @@ describe("ERP-876 owner-current classification", () => {
         ownerDelta: -700n,
         companyFundsDelta: -700n,
         sources: [],
+        personalWithdrawal: true,
       }),
     ).toMatchObject({
-      movementType: "company_repayment_to_owner",
-      classificationBasis: "company_funds_repayment_to_owner",
+      movementType: "owner_personal_withdrawal",
+      classificationBasis: "company_funds_withdrawn_by_owner",
       needsReview: false,
     });
     expect(
@@ -219,7 +239,23 @@ describe("ERP-876 owner-current classification", () => {
         companyFundsDelta: 700n,
         reversalOfId: "repayment-original",
         sources: [],
+        personalWithdrawal: true,
       }),
-    ).toMatchObject({ movementType: "company_repayment_to_owner", needsReview: false });
+    ).toMatchObject({ movementType: "owner_personal_withdrawal", needsReview: false });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: -45_000n,
+        companyFundsDelta: -45_000n,
+        custodyTransfer: true,
+        sources: [],
+      }),
+    ).toMatchObject({ movementType: "owner_custody_cash", needsReview: false });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: -100_000n,
+        companyFundsDelta: -100_000n,
+        sources: [],
+      }),
+    ).toMatchObject({ movementType: "adjustment", needsReview: true });
   });
 });

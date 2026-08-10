@@ -40,10 +40,17 @@ const canonicalText = (value: string | undefined) =>
   value?.normalize("NFKC").trim().replace(/\s+/g, " ") || undefined;
 
 type OwnerCurrentMovementType =
-  "company_repayment_to_owner" | "owner_funding" | "owner_paid_company_cost" | "adjustment";
+  | "company_repayment_to_owner"
+  | "owner_custody_cash"
+  | "owner_personal_withdrawal"
+  | "owner_funding"
+  | "owner_paid_company_cost"
+  | "adjustment";
 
 type OwnerCurrentClassificationBasis =
-  | "canonical_owner_paid_source"
+  | "canonical_owner_paid_expense"
+  | "canonical_owner_custody_receipt"
+  | "company_funds_withdrawn_by_owner"
   | "owner_funding_to_company_funds"
   | "company_funds_repayment_to_owner"
   | "unresolved_owner_current_movement";
@@ -53,11 +60,41 @@ type OwnerCurrentSource = Readonly<{
   fundingTreatments?: unknown;
 }>;
 
+export function summarizeOwnerSettlement(input: {
+  statutoryOwnerCurrentBalance: bigint;
+  ownerPaidCompanyCost: bigint;
+  ownerCustodyCash: bigint;
+  ownerPersonalWithdrawal: bigint;
+  ownerFunding: bigint;
+  review: bigint;
+  reviewCount: number;
+}) {
+  const confirmed =
+    input.ownerPaidCompanyCost +
+    input.ownerFunding -
+    input.ownerCustodyCash -
+    input.ownerPersonalWithdrawal;
+  return {
+    statutoryOwnerCurrentBalanceMinor: input.statutoryOwnerCurrentBalance.toString(),
+    confirmedSettlementBalanceMinor: confirmed.toString(),
+    companyOwesOwnerMinor: (confirmed > 0n ? confirmed : 0n).toString(),
+    ownerHoldsCompanyFundsMinor: (confirmed < 0n ? -confirmed : 0n).toString(),
+    ownerPaidCompanyCostMinor: input.ownerPaidCompanyCost.toString(),
+    ownerCustodyCashMinor: input.ownerCustodyCash.toString(),
+    ownerPersonalWithdrawalMinor: input.ownerPersonalWithdrawal.toString(),
+    ownerFundingMinor: input.ownerFunding.toString(),
+    reviewMinor: input.review.toString(),
+    reviewCount: input.reviewCount,
+  };
+}
+
 export function classifyOwnerCurrentMovement(input: {
   ownerDelta: bigint;
   companyFundsDelta: bigint;
   sources: readonly OwnerCurrentSource[];
   reversalOfId?: string | null;
+  custodyTransfer?: boolean;
+  personalWithdrawal?: boolean;
 }): {
   movementType: OwnerCurrentMovementType;
   classificationBasis: OwnerCurrentClassificationBasis;
@@ -66,10 +103,17 @@ export function classifyOwnerCurrentMovement(input: {
   const direction = input.reversalOfId ? -1n : 1n;
   const ownerDelta = input.ownerDelta * direction;
   const companyFundsDelta = input.companyFundsDelta * direction;
-  if (ownerDelta < 0n && companyFundsDelta < 0n) {
+  if (ownerDelta < 0n && companyFundsDelta < 0n && input.custodyTransfer) {
     return {
-      movementType: "company_repayment_to_owner",
-      classificationBasis: "company_funds_repayment_to_owner",
+      movementType: "owner_custody_cash",
+      classificationBasis: "canonical_owner_custody_receipt",
+      needsReview: false,
+    };
+  }
+  if (ownerDelta < 0n && companyFundsDelta < 0n && input.personalWithdrawal) {
+    return {
+      movementType: "owner_personal_withdrawal",
+      classificationBasis: "company_funds_withdrawn_by_owner",
       needsReview: false,
     };
   }
@@ -90,7 +134,7 @@ export function classifyOwnerCurrentMovement(input: {
   if (ownerDelta > 0n && hasCanonicalOwnerPaidEvidence) {
     return {
       movementType: "owner_paid_company_cost",
-      classificationBasis: "canonical_owner_paid_source",
+      classificationBasis: "canonical_owner_paid_expense",
       needsReview: false,
     };
   }
@@ -677,6 +721,10 @@ export class PgBankingStore implements BankingStore {
       owner_account_codes: string[];
       counterpart_lines: unknown[];
       sources: unknown[];
+      custody_transfer_amounts: string[];
+      custody_transfer_ids: string[];
+      personal_withdrawal_minor: string | null;
+      personal_withdrawal_id: string | null;
     }>(
       `with selected_mapping as (
          select id,version
@@ -695,6 +743,10 @@ export class PgBankingStore implements BankingStore {
          where organization_id=$1 and kind in ('bank','cash')
        )
        select j.id journal_id,j.journal_date::text,j.description,j.currency,j.state,j.reversal_of_id,
+         coalesce(movement_evidence.custody_transfer_amounts,array[]::text[]) custody_transfer_amounts,
+         coalesce(movement_evidence.custody_transfer_ids,array[]::text[]) custody_transfer_ids,
+         movement_evidence.personal_withdrawal_minor,
+         movement_evidence.personal_withdrawal_id,
          coalesce(source_refs.sources,'[]'::jsonb) sources,
          sum(case when l.account_code in (select account_code from owner_accounts)
            then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else 0 end)::text owner_delta_minor,
@@ -761,19 +813,68 @@ export class PgBankingStore implements BankingStore {
              and d.journal_id=coalesce(j.reversal_of_id,j.id)
          ) canonical_sources
        ) source_refs on true
+       left join lateral (
+         select
+           (select coalesce(array_agg(distinct it.transfer_amount_minor::text),array[]::text[])
+              from internal_transfers it
+              join internal_transfer_attempts ita
+                on ita.organization_id=it.organization_id and ita.transfer_id=it.id
+               and ita.attempt_number=it.current_attempt_number and ita.state='reconciled'
+              join bank_transactions outgoing
+                on outgoing.organization_id=ita.organization_id and outgoing.id=ita.outgoing_transaction_id
+              join bank_transactions incoming
+                on incoming.organization_id=ita.organization_id and incoming.id=ita.incoming_transaction_id
+              join financial_accounts incoming_account
+                on incoming_account.organization_id=incoming.organization_id
+               and incoming_account.id=incoming.financial_account_id
+             where it.organization_id=j.organization_id
+               and incoming_account.code='CASH-OWNER-CUSTODY'
+               and outgoing.booking_date=j.journal_date
+           ) custody_transfer_amounts,
+           (select coalesce(array_agg(distinct it.id order by it.id),array[]::text[])
+              from internal_transfers it
+              join internal_transfer_attempts ita
+                on ita.organization_id=it.organization_id and ita.transfer_id=it.id
+               and ita.attempt_number=it.current_attempt_number and ita.state='reconciled'
+              join bank_transactions outgoing
+                on outgoing.organization_id=ita.organization_id and outgoing.id=ita.outgoing_transaction_id
+              join bank_transactions incoming
+                on incoming.organization_id=ita.organization_id and incoming.id=ita.incoming_transaction_id
+              join financial_accounts incoming_account
+                on incoming_account.organization_id=incoming.organization_id
+               and incoming_account.id=incoming.financial_account_id
+             where it.organization_id=j.organization_id
+               and incoming_account.code='CASH-OWNER-CUSTODY'
+               and outgoing.booking_date=j.journal_date
+           ) custody_transfer_ids,
+           (select (-bt.amount_minor)::text
+              from bank_transactions bt
+              join financial_accounts fa
+                on fa.organization_id=bt.organization_id and fa.id=bt.financial_account_id
+             where bt.organization_id=j.organization_id and bt.amount_minor<0
+               and fa.kind in ('bank','cash') and fa.code<>'CASH-OWNER-CUSTODY'
+               and j.id='owner-repayment-bank-' || bt.id
+             limit 1) personal_withdrawal_minor,
+           (select bt.id
+              from bank_transactions bt
+             where bt.organization_id=j.organization_id and bt.amount_minor<0
+               and j.id='owner-repayment-bank-' || bt.id
+             limit 1) personal_withdrawal_id
+       ) movement_evidence on true
        where j.organization_id=$1 and j.state in ('posted','reversed')
        group by j.id,j.journal_date,j.description,j.currency,j.state,j.reversal_of_id,
-         source_refs.sources
+         source_refs.sources,movement_evidence.custody_transfer_amounts,
+         movement_evidence.custody_transfer_ids,movement_evidence.personal_withdrawal_minor,
+         movement_evidence.personal_withdrawal_id
        having bool_or(l.account_code in (select account_code from owner_accounts))
        order by j.journal_date,j.id`,
       [organizationId],
     );
     let ledgerClosing = 0n;
     let confirmedRunning = 0n;
-    let confirmedIncreases = 0n;
-    let confirmedDecreases = 0n;
     let ownerPaidCompanyCosts = 0n;
     let companyPaymentsToOwner = 0n;
+    let ownerCashCustody = 0n;
     let ownerFunding = 0n;
     let reviewAdjustments = 0n;
     const confirmedTimeline: Array<Record<string, unknown>> = [];
@@ -782,17 +883,58 @@ export class PgBankingStore implements BankingStore {
       const ownerDelta = BigInt(row.owner_delta_minor);
       const companyFundsDelta = BigInt(row.company_funds_delta_minor);
       const sources = Array.isArray(row.sources) ? (row.sources as OwnerCurrentSource[]) : [];
+      const ownerMagnitude = ownerDelta < 0n ? -ownerDelta : ownerDelta;
+      const custodyTransfer = (row.custody_transfer_amounts ?? []).some(
+        (amount) => BigInt(amount) === ownerMagnitude,
+      );
+      const personalWithdrawal =
+        row.personal_withdrawal_minor !== null &&
+        BigInt(row.personal_withdrawal_minor) === ownerMagnitude;
+      const evidenceSources: Array<Record<string, unknown>> = [...sources];
+      if (custodyTransfer && row.custody_transfer_ids[0])
+        evidenceSources.push({
+          sourceType: "internal_transfer",
+          sourceId: row.custody_transfer_ids[0],
+          title: "Company cash held in owner custody",
+          detail: null,
+          sourceHref: `/banking/internal-transfers/${row.custody_transfer_ids[0]}`,
+          expenseClass: null,
+          category: null,
+          fundingTreatments: [],
+          citState: null,
+          vatState: null,
+          grossMinor: ownerMagnitude.toString(),
+          payeeName: null,
+        });
+      if (personalWithdrawal && row.personal_withdrawal_id)
+        evidenceSources.push({
+          sourceType: "bank_transaction",
+          sourceId: row.personal_withdrawal_id,
+          title: "Owner personal withdrawal",
+          detail: null,
+          sourceHref: `/banking/transactions/${row.personal_withdrawal_id}`,
+          expenseClass: null,
+          category: null,
+          fundingTreatments: [],
+          citState: null,
+          vatState: null,
+          grossMinor: ownerMagnitude.toString(),
+          payeeName: null,
+        });
       ledgerClosing += ownerDelta;
       const classification = classifyOwnerCurrentMovement({
         ownerDelta,
         companyFundsDelta,
-        sources,
+        sources: evidenceSources,
         reversalOfId: row.reversal_of_id,
+        custodyTransfer,
+        personalWithdrawal,
       });
       if (classification.movementType === "owner_paid_company_cost")
         ownerPaidCompanyCosts += ownerDelta;
-      if (classification.movementType === "company_repayment_to_owner")
+      if (classification.movementType === "owner_personal_withdrawal")
         companyPaymentsToOwner += -ownerDelta;
+      if (classification.movementType === "owner_custody_cash") ownerCashCustody += -ownerDelta;
       if (classification.movementType === "owner_funding") ownerFunding += ownerDelta;
       const evidence = {
         journalId: row.journal_id,
@@ -801,9 +943,6 @@ export class PgBankingStore implements BankingStore {
         currency: row.currency,
         state: row.state,
         reversalOfId: row.reversal_of_id,
-        movementType: classification.movementType,
-        classificationBasis: classification.classificationBasis,
-        needsReview: classification.needsReview,
         ownerDeltaMinor: ownerDelta.toString(),
         companyFundsDeltaMinor: companyFundsDelta.toString(),
         ownerAccountCodes: row.owner_account_codes ?? [],
@@ -812,28 +951,40 @@ export class PgBankingStore implements BankingStore {
       };
       if (classification.needsReview) {
         reviewAdjustments += ownerDelta;
-        reviewItems.push(evidence);
+        const repaymentShape = ownerDelta < 0n && companyFundsDelta < 0n;
+        reviewItems.push({
+          ...evidence,
+          proposedMovementType: repaymentShape ? "company_repayment_to_owner" : null,
+          reviewReason: repaymentShape
+            ? "unsupported_company_repayment"
+            : sources.length > 0
+              ? "missing_source_of_funds_evidence"
+              : "unresolved_owner_current_movement",
+          needsReview: true,
+        });
         continue;
       }
       confirmedRunning += ownerDelta;
-      if (ownerDelta > 0n) confirmedIncreases += ownerDelta;
-      if (ownerDelta < 0n) confirmedDecreases += -ownerDelta;
       confirmedTimeline.push({
         ...evidence,
-        runningOwnerBalanceMinor: confirmedRunning.toString(),
+        movementType: classification.movementType,
+        classificationBasis: classification.classificationBasis,
+        needsReview: false,
+        settlementDeltaMinor: ownerDelta.toString(),
+        runningConfirmedSettlementBalanceMinor: confirmedRunning.toString(),
       });
     }
     return {
       summary: {
-        ledgerClosingBalanceMinor: ledgerClosing.toString(),
-        confirmedClosingBalanceMinor: confirmedRunning.toString(),
-        confirmedIncreaseMinor: confirmedIncreases.toString(),
-        confirmedDecreaseMinor: confirmedDecreases.toString(),
-        ownerPaidCompanyCostMinor: ownerPaidCompanyCosts.toString(),
-        companyRepaymentToOwnerMinor: companyPaymentsToOwner.toString(),
-        ownerFundingMinor: ownerFunding.toString(),
-        reviewAdjustmentMinor: reviewAdjustments.toString(),
-        reviewItemCount: reviewItems.length,
+        ...summarizeOwnerSettlement({
+          statutoryOwnerCurrentBalance: ledgerClosing,
+          ownerPaidCompanyCost: ownerPaidCompanyCosts,
+          ownerCustodyCash: ownerCashCustody,
+          ownerPersonalWithdrawal: companyPaymentsToOwner,
+          ownerFunding,
+          review: reviewAdjustments,
+          reviewCount: reviewItems.length,
+        }),
       },
       confirmedTimeline: confirmedTimeline.reverse(),
       reviewItems: reviewItems.reverse(),

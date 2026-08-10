@@ -102,20 +102,28 @@ export type BankTransactionBranchRequest = Readonly<{
   reason: string;
 }>;
 
-export type OwnerCurrentMovementTypeContract =
-  "owner_paid_company_cost" | "owner_funding" | "company_repayment_to_owner";
+export type OwnerSettlementMovementTypeContract =
+  "owner_paid_company_cost" | "owner_custody_cash" | "owner_personal_withdrawal" | "owner_funding";
 
-export type ConfirmedOwnerCurrentMovementTypeContract = OwnerCurrentMovementTypeContract;
-export type OwnerCurrentReviewMovementTypeContract = "adjustment";
+export type OwnerSettlementClassificationBasisContract =
+  | "canonical_owner_paid_expense"
+  | "canonical_owner_custody_receipt"
+  | "company_funds_withdrawn_by_owner"
+  | "owner_funding_to_company_funds";
 
-export type OwnerCurrentClassificationBasisContract =
-  | "canonical_owner_paid_source"
-  | "owner_funding_to_company_funds"
-  | "company_funds_repayment_to_owner"
+export type OwnerSettlementReviewReasonContract =
+  | "unsupported_company_repayment"
+  | "missing_source_of_funds_evidence"
   | "unresolved_owner_current_movement";
 
 export type OwnerCurrentSourceContract = Readonly<{
-  sourceType: "expense" | "purchase_invoice";
+  sourceType:
+    | "expense"
+    | "purchase_invoice"
+    | "owner_custody_receipt"
+    | "bank_transaction"
+    | "internal_transfer"
+    | "journal";
   sourceId: string;
   title: string;
   detail: string | null;
@@ -151,38 +159,37 @@ type OwnerCurrentMovementEvidenceContract = Readonly<{
   sources: readonly OwnerCurrentSourceContract[];
 }>;
 
-export type ConfirmedOwnerCurrentMovementContract = OwnerCurrentMovementEvidenceContract &
+export type ConfirmedOwnerSettlementMovementContract = OwnerCurrentMovementEvidenceContract &
   Readonly<{
-    movementType: ConfirmedOwnerCurrentMovementTypeContract;
-    classificationBasis: Exclude<
-      OwnerCurrentClassificationBasisContract,
-      "unresolved_owner_current_movement"
-    >;
+    movementType: OwnerSettlementMovementTypeContract;
+    classificationBasis: OwnerSettlementClassificationBasisContract;
     needsReview: false;
-    runningOwnerBalanceMinor: string;
+    settlementDeltaMinor: string;
+    runningConfirmedSettlementBalanceMinor: string;
   }>;
 
-export type OwnerCurrentReviewItemContract = OwnerCurrentMovementEvidenceContract &
+export type OwnerSettlementReviewItemContract = OwnerCurrentMovementEvidenceContract &
   Readonly<{
-    movementType: OwnerCurrentReviewMovementTypeContract;
-    classificationBasis: "unresolved_owner_current_movement";
+    proposedMovementType: "company_repayment_to_owner" | null;
+    reviewReason: OwnerSettlementReviewReasonContract;
     needsReview: true;
   }>;
 
-export type OwnerCurrentSummaryContract = Readonly<{
-  ledgerClosingBalanceMinor: string;
-  confirmedClosingBalanceMinor: string;
-  confirmedIncreaseMinor: string;
-  confirmedDecreaseMinor: string;
+export type OwnerSettlementSummaryContract = Readonly<{
+  statutoryOwnerCurrentBalanceMinor: string;
+  confirmedSettlementBalanceMinor: string;
+  companyOwesOwnerMinor: string;
+  ownerHoldsCompanyFundsMinor: string;
   ownerPaidCompanyCostMinor: string;
-  companyRepaymentToOwnerMinor: string;
+  ownerCustodyCashMinor: string;
+  ownerPersonalWithdrawalMinor: string;
   ownerFundingMinor: string;
-  reviewAdjustmentMinor: string;
-  reviewItemCount: number;
+  reviewMinor: string;
+  reviewCount: number;
 }>;
 
-export type OwnerCurrentResponseContract = Readonly<{
-  summary: OwnerCurrentSummaryContract;
-  confirmedTimeline: readonly ConfirmedOwnerCurrentMovementContract[];
-  reviewItems: readonly OwnerCurrentReviewItemContract[];
+export type OwnerSettlementPositionContract = Readonly<{
+  summary: OwnerSettlementSummaryContract;
+  confirmedTimeline: readonly ConfirmedOwnerSettlementMovementContract[];
+  reviewItems: readonly OwnerSettlementReviewItemContract[];
 }>;
