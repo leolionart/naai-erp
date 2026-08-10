@@ -2,6 +2,26 @@ import { describe, expect, it, vi } from "vitest";
 import { NaaiErpClient } from "./client.js";
 
 describe("NAAI ERP JSON-first CLI client", () => {
+  it("reads monthly expense breakdown reports through canonical REST", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.getExpenseBreakdownReport("payee", {
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+    });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/reports/expenses/by-payee?startsOn=2026-01-01&endsOn=2026-12-31",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
   it.each([
     ["openapi", "http://api/api/v1/openapi.json"],
     ["capabilities", "http://api/api/v1/capabilities"],

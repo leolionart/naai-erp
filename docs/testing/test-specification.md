@@ -184,6 +184,29 @@ Golden changes require explicit review and a documented reason.
   repayments, owner funding and unresolved adjustments remain ledger-derived; executive dashboard
   metrics and the mapped closing Owner Current balance are unchanged.
 
+### ERP-881 — Confirmed owner cash timeline
+
+- `T-API-ERP-881-001`: the confirmed timeline uses an expense's persisted funding snapshot first and,
+  only for legacy null snapshots, its reviewed canonical category treatment; strict company bank/cash
+  repayments and owner funding are also confirmed. Invoice-only or company-funded-category costs remain
+  review items. Running balance is chronological and excludes review items, while the complete ledger
+  closing balance remains unchanged and separately disclosed.
+- `T-E2E-ERP-881-002`: the primary Owner Current table shows confirmed cash movements and the balance
+  immediately after each row. Unproven imported expenses appear only in a separate review section and
+  never mix with the confirmed timeline or dashboard metric.
+
+### ERP-882 — Monthly expense analysis
+
+- `T-API-ERP-882-001`: organization-scoped report APIs aggregate posted purchase invoices and posted
+  direct expenses by calendar month, count payees once per source, aggregate category by line, retain
+  explicit unclassified rows and reconcile totals separately for every currency.
+- `T-CONTRACT-ERP-882-002`: the versioned response keeps exact minor-unit strings, date range,
+  dimension identity, currency series, monthly groups and source-count metadata machine-readable.
+- `T-CLI-ERP-882-003`: the first-party CLI reads both report dimensions and drill-down using the same
+  date/currency filters and paths as OpenAPI.
+- `T-E2E-ERP-882-004`: both report pages preserve URL period filters, display monthly totals and all
+  dimension rows, and drill down to Expense Management with the exact month and payee/category filter.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

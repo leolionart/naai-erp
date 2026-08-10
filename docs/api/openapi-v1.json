@@ -1188,8 +1188,8 @@
         "operationId": "listOwnerCurrentMovements",
         "tags": ["banking"],
         "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
-        "summary": "List posted owner-current ledger movements with exact signed deltas and running balance",
-        "description": "Resolves the approved TT133 owner_current mapping and returns organization-scoped posted or reversed journal evidence. Company repayment to owner requires a same-journal Owner Current debit and configured company bank/cash credit. Owner-paid company cost requires a canonical expense or purchase-invoice source. Unresolved movements remain adjustment rows with needsReview=true.",
+        "summary": "List the confirmed owner cash timeline separately from owner-current review items",
+        "description": "Resolves the approved TT133 owner_current mapping and returns organization-scoped posted or reversed journal evidence. confirmedTimeline contains only owner-paid company costs, owner funding and company cash/bank repayment to owner; its rows carry the confirmed historical running balance. Unresolved adjustments are returned separately in reviewItems and do not change the confirmed running balance. summary.ledgerClosingBalanceMinor remains the unchanged full mapped-ledger closing balance.",
         "responses": {
           "200": {
             "description": "Owner-current movement summary and ledger evidence",
@@ -3520,6 +3520,60 @@
                 "schema": { "$ref": "#/components/schemas/AccountantExportEnvelope" }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/expenses/by-payee": {
+      "get": {
+        "operationId": "getMonthlyExpensesByPayee",
+        "tags": ["reports", "expenses"],
+        "summary": "Aggregate posted purchase invoices and posted expenses by payee and month, separated by currency",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Monthly expense series by payee with exact minor strings and reconciliation totals"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/expenses/by-category": {
+      "get": {
+        "operationId": "getMonthlyExpensesByCategory",
+        "tags": ["reports", "expenses"],
+        "summary": "Aggregate posted purchase-invoice and expense lines by category and month, separated by currency",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Monthly expense series by category, including explicit unclassified lines and reconciliation totals"
           }
         }
       }
@@ -7243,12 +7297,7 @@
       },
       "OwnerCurrentMovementType": {
         "type": "string",
-        "enum": [
-          "owner_paid_company_cost",
-          "owner_funding",
-          "company_repayment_to_owner",
-          "adjustment"
-        ]
+        "enum": ["owner_paid_company_cost", "owner_funding", "company_repayment_to_owner"]
       },
       "OwnerCurrentClassificationBasis": {
         "type": "string",
@@ -7303,9 +7352,8 @@
           "description": { "type": "string" }
         }
       },
-      "OwnerCurrentMovement": {
+      "OwnerCurrentMovementEvidence": {
         "type": "object",
-        "additionalProperties": false,
         "required": [
           "journalId",
           "date",
@@ -7313,12 +7361,8 @@
           "currency",
           "state",
           "reversalOfId",
-          "movementType",
-          "classificationBasis",
-          "needsReview",
           "ownerDeltaMinor",
           "companyFundsDeltaMinor",
-          "runningOwnerBalanceMinor",
           "ownerAccountCodes",
           "counterpartLines",
           "sources"
@@ -7330,12 +7374,8 @@
           "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
           "state": { "type": "string", "enum": ["posted", "reversed"] },
           "reversalOfId": { "type": ["string", "null"] },
-          "movementType": { "$ref": "#/components/schemas/OwnerCurrentMovementType" },
-          "classificationBasis": { "$ref": "#/components/schemas/OwnerCurrentClassificationBasis" },
-          "needsReview": { "type": "boolean" },
           "ownerDeltaMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
           "companyFundsDeltaMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
-          "runningOwnerBalanceMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
           "ownerAccountCodes": { "type": "array", "items": { "type": "string" } },
           "counterpartLines": {
             "type": "array",
@@ -7347,39 +7387,99 @@
           }
         }
       },
+      "ConfirmedOwnerCurrentMovement": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OwnerCurrentMovementEvidence" },
+          {
+            "type": "object",
+            "required": [
+              "movementType",
+              "classificationBasis",
+              "needsReview",
+              "runningOwnerBalanceMinor"
+            ],
+            "properties": {
+              "movementType": {
+                "$ref": "#/components/schemas/OwnerCurrentMovementType"
+              },
+              "classificationBasis": {
+                "type": "string",
+                "enum": [
+                  "canonical_owner_paid_source",
+                  "owner_funding_to_company_funds",
+                  "company_funds_repayment_to_owner"
+                ]
+              },
+              "needsReview": { "const": false },
+              "runningOwnerBalanceMinor": { "type": "string", "pattern": "^-?[0-9]+$" }
+            }
+          }
+        ],
+        "unevaluatedProperties": false
+      },
+      "OwnerCurrentReviewItem": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OwnerCurrentMovementEvidence" },
+          {
+            "type": "object",
+            "required": ["movementType", "classificationBasis", "needsReview"],
+            "properties": {
+              "movementType": { "const": "adjustment" },
+              "classificationBasis": { "const": "unresolved_owner_current_movement" },
+              "needsReview": { "const": true }
+            }
+          }
+        ],
+        "description": "Unresolved ledger movement. It does not participate in the confirmed running balance and therefore has no runningOwnerBalanceMinor.",
+        "unevaluatedProperties": false
+      },
       "OwnerCurrentSummary": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "increaseMinor",
-          "decreaseMinor",
-          "closingBalanceMinor",
+          "ledgerClosingBalanceMinor",
+          "confirmedClosingBalanceMinor",
+          "confirmedIncreaseMinor",
+          "confirmedDecreaseMinor",
           "ownerPaidCompanyCostMinor",
           "companyRepaymentToOwnerMinor",
           "ownerFundingMinor",
-          "adjustmentMinor",
-          "needsReviewCount"
+          "reviewAdjustmentMinor",
+          "reviewItemCount"
         ],
         "properties": {
-          "increaseMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "decreaseMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "closingBalanceMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "ledgerClosingBalanceMinor": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$",
+            "description": "Unchanged closing balance of every mapped posted/reversed Owner Current ledger movement, including review items."
+          },
+          "confirmedClosingBalanceMinor": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$",
+            "description": "Closing balance of confirmedTimeline only."
+          },
+          "confirmedIncreaseMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "confirmedDecreaseMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "ownerPaidCompanyCostMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "companyRepaymentToOwnerMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "ownerFundingMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "adjustmentMinor": { "type": "string", "pattern": "^[0-9]+$" },
-          "needsReviewCount": { "type": "integer", "minimum": 0 }
+          "reviewAdjustmentMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "reviewItemCount": { "type": "integer", "minimum": 0 }
         }
       },
       "OwnerCurrentResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["summary", "items"],
+        "required": ["summary", "confirmedTimeline", "reviewItems"],
         "properties": {
           "summary": { "$ref": "#/components/schemas/OwnerCurrentSummary" },
-          "items": {
+          "confirmedTimeline": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/OwnerCurrentMovement" }
+            "items": { "$ref": "#/components/schemas/ConfirmedOwnerCurrentMovement" }
+          },
+          "reviewItems": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OwnerCurrentReviewItem" }
           }
         }
       },

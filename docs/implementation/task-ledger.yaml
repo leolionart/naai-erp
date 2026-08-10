@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T07:50:00+07:00
+updated_at: 2026-08-10T08:34:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G42
+current_gate: null
 current_task: null
 
 tasks:
@@ -1957,13 +1957,16 @@ tasks:
   - id: ERP-879
     title: Register posted-expense metadata migration for production
     phase: P13
-    status: in_progress
+    status: done
     dependencies: [ERP-878]
     business_rules: [BR-EXP-002, BR-AUD-001]
     tests: [T-DB-ERP-879-001, T-API-ERP-877-001]
     evidence: docs/implementation/evidence/ERP-879/
     agent: codex-root
     started_at: 2026-08-10T09:58:00+07:00
+    review_at: 2026-08-10T08:10:00+07:00
+    completed_at: 2026-08-10T08:12:00+07:00
+    completion_basis: production_migration_revision_122d00d_and_idempotent_112_expense_payee_backfill_readback
     planned_files:
       - db/migrations/meta/_journal.json
       - docs/testing/test-specification.md
@@ -1992,6 +1995,69 @@ tasks:
       - docs/testing/test-specification.md
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-880/
+
+  - id: ERP-881
+    title: Confirmed owner cash timeline and historical running balance
+    phase: P13
+    status: done
+    dependencies: [ERP-880]
+    business_rules: [BR-BNK-004, BR-EXP-004, BR-AI-006, BR-UI-003, BR-ORG-001]
+    tests: [T-API-ERP-881-001, T-E2E-ERP-881-002]
+    evidence: docs/implementation/evidence/ERP-881/
+    agent: codex-team
+    started_at: 2026-08-10T08:20:00+07:00
+    review_at: 2026-08-10T08:21:30+07:00
+    completed_at: 2026-08-10T08:22:00+07:00
+    completion_basis: confirmed_cash_timeline_legacy_category_compatibility_fresh_database_contract_and_rendered_e2e
+    parallel_file_ownership:
+      backend: apps/api/src/banking/
+      contract: packages/contracts/src/banking.ts, packages/contracts/src/banking.test.ts, docs/api/openapi-v1.json
+      web: apps/web/src/app/workspaces/owner-current-workspace.tsx, apps/web/src/app/workspaces/owner-current-workspace.test.ts, apps/web/e2e/owner-current.spec.ts
+      coordinator: docs/product, docs/testing, docs/implementation
+    planned_files:
+      - apps/api/src/banking/
+      - packages/contracts/src/banking.ts
+      - packages/contracts/src/banking.test.ts
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/src/app/workspaces/owner-current-workspace.test.ts
+      - apps/web/e2e/owner-current.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-881/
+
+  - id: ERP-882
+    title: Monthly expense analysis by payee and category
+    phase: P13
+    status: done
+    dependencies: [ERP-879, ERP-880]
+    business_rules: [BR-RPT-005, BR-UI-001, BR-UI-003, BR-AI-001, BR-ORG-001]
+    tests: [T-API-ERP-882-001, T-CONTRACT-ERP-882-002, T-CLI-ERP-882-003, T-E2E-ERP-882-004]
+    evidence: docs/implementation/evidence/ERP-882/
+    agent: codex-team
+    started_at: 2026-08-10T08:15:00+07:00
+    review_at: 2026-08-10T08:32:00+07:00
+    completed_at: 2026-08-10T08:34:00+07:00
+    completion_basis: canonical_posted_source_sql_contract_cli_desktop_mobile_e2e_and_live_database_integration
+    parallel_file_ownership:
+      backend: apps/api/src/expense-reports/, packages/contracts/src/expense-reports.ts, packages/contracts/src/expense-reports.test.ts, packages/contracts/src/index.ts, packages/contracts/src/index.test.ts, apps/api/src/app.module.ts, docs/api/openapi-v1.json
+      cli: apps/cli/src/client.ts, apps/cli/src/client.test.ts, apps/cli/src/main.ts, apps/cli/src/main.test.ts
+      web: apps/web/src/app/(app)/reports/expenses/, apps/web/src/app/workspaces/expense-breakdown-report-workspace.tsx, apps/web/src/lib/api/, apps/web/src/lib/navigation.ts, apps/web/src/lib/navigation.test.ts, apps/web/e2e/expense-breakdown-reports.spec.ts
+      coordinator: docs/product, docs/testing, docs/implementation
+    planned_files:
+      - apps/api/src/expense-reports/
+      - packages/contracts/src/expense-reports.ts
+      - apps/cli/src/
+      - apps/web/src/app/(app)/reports/expenses/
+      - apps/web/src/app/workspaces/expense-breakdown-report-workspace.tsx
+      - apps/web/src/lib/navigation.ts
+      - apps/web/e2e/expense-breakdown-reports.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-882/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -2038,6 +2104,8 @@ gates:
   G40: [ERP-875]
   G41: [ERP-876]
   G44: [ERP-880]
+  G45: [ERP-881]
+  G46: [ERP-882]
 
 gate_status:
   G0: done
@@ -2083,3 +2151,5 @@ gate_status:
   G40: done
   G41: done
   G44: done
+  G45: done
+  G46: done

@@ -7,6 +7,7 @@ import {
   PROJECT_COST_CONTRACT_VERSION,
   PROJECT_ECONOMICS_CONTRACT_VERSION,
   PROJECT_PROFITABILITY_CONTRACT_VERSION,
+  EXPENSE_REPORT_CONTRACT_VERSION,
   BANKING_CONTRACT_VERSION,
   INTERNAL_TRANSFER_CONTRACT_VERSION,
   RECONCILIATION_CONTRACT_VERSION,
@@ -34,9 +35,21 @@ import {
   type ProjectBudgetVersionContract,
   type ProjectRevenueAxesContract,
   type ProjectProfitabilityContract,
+  type ExpenseBreakdownReportContract,
 } from "./index.js";
 
 describe("AI-native API contracts", () => {
+  it("exports the monthly expense report contract from the package root", () => {
+    const report: ExpenseBreakdownReportContract = {
+      contractVersion: EXPENSE_REPORT_CONTRACT_VERSION,
+      basis: "posted-expense-sources",
+      dimension: "category",
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+      seriesByCurrency: [],
+    };
+    expect(report.contractVersion).toBe("2026-08-10");
+  });
   it("keeps organization and request context in envelopes", () => {
     const response: ApiEnvelope<{ id: string }> = {
       apiVersion: API_VERSION,

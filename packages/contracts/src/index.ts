@@ -1,5 +1,13 @@
 export const API_VERSION = "v1" as const;
 export {
+  EXPENSE_REPORT_CONTRACT_VERSION,
+  type ExpenseBreakdownReportContract,
+  type ExpenseReportCurrencySeriesContract,
+  type ExpenseReportGroupContract,
+  type ExpenseReportMonthlyValueContract,
+  type ExpenseReportQueryContract,
+} from "./expense-reports.js";
+export {
   EXPENSE_CATEGORY_CONTRACT_VERSION,
   type ExpenseCategoryContract,
   type ExpenseFundingTreatmentContract,

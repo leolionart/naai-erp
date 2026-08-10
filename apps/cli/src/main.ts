@@ -102,7 +102,17 @@ if (!resource || (!discovery && (!organizationId || !token))) {
     ...(token ? { token } : {}),
   });
   try {
-    if (resource === "portable-data-restore") {
+    if (resource === "expense-report-by-payee" || resource === "expense-report-by-category") {
+      if (action !== "get" || !values.from || !values.to)
+        throw new Error(`${resource} get requires --from and --to`);
+      const result = await client.getExpenseBreakdownReport(
+        resource === "expense-report-by-payee" ? "payee" : "category",
+        { startsOn: values.from, endsOn: values.to },
+      );
+      process.stdout.write(
+        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+      );
+    } else if (resource === "portable-data-restore") {
       if (
         action !== "empty" ||
         !values.file ||

@@ -59,6 +59,29 @@ export class NaaiErpClient {
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
+  async getExpenseBreakdownReport(
+    dimension: "payee" | "category",
+    range: Readonly<{ startsOn: string; endsOn: string }>,
+  ): Promise<unknown> {
+    if (!this.options.organizationId || !this.options.token)
+      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    const query = new URLSearchParams(range).toString();
+    const response = await this.fetchFn(
+      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/reports/expenses/by-${dimension}?${query}`,
+      {
+        method: "GET",
+        headers: {
+          authorization: `Bearer ${this.options.token.replace(/^Bearer\s+/i, "")}`,
+          accept: "application/json",
+          "x-correlation-id": randomUUID(),
+        },
+      },
+    );
+    const body: unknown = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(body));
+    return body;
+  }
+
   private portableDataBase() {
     if (!this.options.organizationId || !this.options.token) {
       throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");

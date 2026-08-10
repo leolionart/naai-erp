@@ -187,7 +187,7 @@ function queryFor(kind: Kind, params: URLSearchParams) {
     ? ["type", "state", "partyId", "projectId", "startsOn", "endsOn", "categoryId"]
     : ["state", "class", "payeePartyId", "startsOn", "endsOn", "categoryId"]) {
     const value = params.get(key);
-    if (value) query.set(key, value);
+    if (value && value !== "unclassified") query.set(key, value);
   }
   return query;
 }
@@ -245,8 +245,12 @@ export function FocusedRecordListWorkspace({
       const includePresent = invoiceStatus !== "missing";
       const includeMissing = invoiceStatus !== "present";
       const documentParams = new URLSearchParams(sourceParams);
-      if (kind === "expenses") documentParams.set("type", "purchase_invoice");
-      else if (!new Set(["sales_invoice", "credit_note"]).has(documentParams.get("type") ?? ""))
+      if (kind === "expenses") {
+        documentParams.set("type", "purchase_invoice");
+        const payeePartyId = sourceParams.get("payeePartyId");
+        if (payeePartyId && payeePartyId !== "unclassified")
+          documentParams.set("partyId", payeePartyId);
+      } else if (!new Set(["sales_invoice", "credit_note"]).has(documentParams.get("type") ?? ""))
         documentParams.delete("type");
       const recognitionQuery = new URLSearchParams();
       for (const name of ["projectId", "state"]) {
@@ -336,20 +340,32 @@ export function FocusedRecordListWorkspace({
             ).trim() === initialPartyId.trim(),
         );
       }
+      const payeePartyId = sourceParams.get("payeePartyId");
+      if (kind === "expenses" && payeePartyId) {
+        rawItems = rawItems.filter((row) => {
+          const resolvedPayee = text(
+            row,
+            sourceKind(row) === "expenses" ? "payeePartyId" : "partyId",
+          );
+          return payeePartyId === "unclassified" ? !resolvedPayee : resolvedPayee === payeePartyId;
+        });
+      }
       const categoryId = sourceParams.get("categoryId");
       if (categoryId) {
         rawItems = rawItems.filter((row) => {
           if (Array.isArray(row.lines)) {
-            return (row.lines as Row[]).some((l) => {
+            const lineCategories = (row.lines as Row[]).map((l) => {
               const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
-              return (
-                String(
-                  l.expenseCategoryCode ?? l.expense_category_code ?? dims.category ?? "",
-                ).trim() === categoryId.trim()
-              );
+              return String(
+                l.expenseCategoryCode ?? l.expense_category_code ?? dims.category ?? "",
+              ).trim();
             });
+            return categoryId === "unclassified"
+              ? lineCategories.every((value) => !value)
+              : lineCategories.some((value) => value === categoryId.trim());
           }
-          return String(row.category ?? "").trim() === categoryId.trim();
+          const rowCategory = String(row.category ?? "").trim();
+          return categoryId === "unclassified" ? !rowCategory : rowCategory === categoryId.trim();
         });
       }
       rawItems.sort((left, right) =>

@@ -123,6 +123,9 @@ import { PortableCanonicalMutationAdapter } from "./portable-data-packages/porta
 import { OrganizationWorkflowPolicyService } from "./workflow-policy/organization-workflow-policy.service.js";
 import { OrganizationWorkflowPolicyController } from "./workflow-policy/organization-workflow-policy.controller.js";
 import { CustomerServiceSubscriptionModule } from "./customer-service-subscriptions/customer-service-subscription.module.js";
+import { ExpenseReportController } from "./expense-reports/expense-report.controller.js";
+import { ExpenseReportService } from "./expense-reports/expense-report.service.js";
+import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -164,6 +167,7 @@ import { CustomerServiceSubscriptionModule } from "./customer-service-subscripti
     OperatingDashboardController,
     PortableDataPackageController,
     PortableDataImportController,
+    ExpenseReportController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -177,6 +181,8 @@ import { CustomerServiceSubscriptionModule } from "./customer-service-subscripti
     PgFiscalPeriodStore,
     LedgerReportService,
     PgLedgerReportStore,
+    ExpenseReportService,
+    PgExpenseReportStore,
     CommercialDocumentService,
     PgCommercialDocumentStore,
     ExpenseService,

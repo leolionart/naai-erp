@@ -908,6 +908,20 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Separate operating, investing and financing cash flows.
 - Capital contribution/loan is not revenue; owner withdrawal is not operating expense.
 
+### BR-RPT-005 — Monthly expense analysis by payee and category
+
+- Management expense analysis includes canonical posted purchase invoices and posted direct expense
+  records only. Draft, approved-but-unposted, cancelled and reversed sources are excluded.
+- The payee report counts each source header exactly once and resolves the canonical same-organization
+  party display name. The category report aggregates source lines using the persisted category code;
+  a missing category remains explicitly unclassified and is never inferred from an account code.
+- `startsOn` and `endsOn` are inclusive. Sources are grouped by document/expense date into calendar
+  months (`YYYY-MM`) and every row drills down to the exact source set for that month and dimension.
+- Net, VAT and gross amounts remain exact minor-unit strings. Different source currencies are
+  reported as separate series and are never added together without a reviewed conversion basis.
+- Within each currency and period, the payee total and category total reconcile to the same canonical
+  posted-source population. The API, CLI and UI use one shared read model and organization scope.
+
 ### BR-EXPOR-001 — Accountant export
 
 - Export is reproducible, versioned and audited.

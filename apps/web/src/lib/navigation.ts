@@ -144,6 +144,29 @@ export const adminNavigation = [
         ],
       },
       {
+        key: "expense-reports",
+        label: "Thống kê chi phí",
+        description: "Phân tích chi phí đã ghi sổ theo người nhận, danh mục và từng tháng.",
+        icon: "report",
+        status: "available",
+        children: [
+          {
+            key: "expense-by-payee",
+            label: "Chi cho ai theo tháng",
+            href: "/reports/expenses/by-payee",
+            description: "Tổng hợp chi phí theo người hoặc đơn vị nhận tiền.",
+            status: "available",
+          },
+          {
+            key: "expense-by-category",
+            label: "Chi theo danh mục",
+            href: "/reports/expenses/by-category",
+            description: "Tổng hợp từng danh mục chi phí theo tháng.",
+            status: "available",
+          },
+        ],
+      },
+      {
         key: "financial-statements",
         label: "Báo cáo Thuế & Kế toán",
         description: "Kết quả kinh doanh và dữ liệu xuất cho đơn vị làm dịch vụ kế toán.",

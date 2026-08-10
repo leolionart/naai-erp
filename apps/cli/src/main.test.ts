@@ -58,6 +58,31 @@ async function invoke(args: string[]) {
 }
 
 describe("ERP-640 CLI executable", () => {
+  it("reads both monthly expense breakdown resources", async () => {
+    const payee = await invoke([
+      "expense-report-by-payee",
+      "get",
+      "--from",
+      "2026-01-01",
+      "--to",
+      "2026-12-31",
+    ]);
+    expect(payee.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/reports/expenses/by-payee?startsOn=2026-01-01&endsOn=2026-12-31",
+    );
+    expect(payee.requestMethod).toBe("GET");
+    const category = await invoke([
+      "expense-report-by-category",
+      "get",
+      "--from",
+      "2026-01-01",
+      "--to",
+      "2026-12-31",
+    ]);
+    expect(category.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/reports/expenses/by-category?startsOn=2026-01-01&endsOn=2026-12-31",
+    );
+  });
   it("manages service plans and customer subscriptions through canonical REST routes", async () => {
     const plans = await invoke([
       "service-plans",

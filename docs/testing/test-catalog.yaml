@@ -1824,6 +1824,38 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G45
 
+  - id: T-API-ERP-882-001
+    task: ERP-882
+    rules: [BR-RPT-005, BR-UI-001, BR-ORG-001]
+    title: Monthly expense reports reconcile canonical posted sources by payee and category
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expense-reports/expense-report.integration.test.ts
+    blocking_gate: G46
+
+  - id: T-CONTRACT-ERP-882-002
+    task: ERP-882
+    rules: [BR-RPT-005, BR-AI-001]
+    title: Expense report contract preserves currency series monthly dimensions and exact money
+    layer: contract
+    command: pnpm --filter @naai-erp/contracts exec vitest run src/expense-reports.test.ts
+    blocking_gate: G46
+
+  - id: T-CLI-ERP-882-003
+    task: ERP-882
+    rules: [BR-RPT-005, BR-AI-001]
+    title: CLI exposes both expense dimensions and drilldown through versioned report paths
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts src/main.test.ts
+    blocking_gate: G46
+
+  - id: T-E2E-ERP-882-004
+    task: ERP-882
+    rules: [BR-RPT-005, BR-UI-001, BR-UI-003]
+    title: Expense report pages preserve period filters and exact monthly drilldown
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/expense-breakdown-reports.spec.ts --project=desktop-chromium --project=mobile-chrome
+    blocking_gate: G46
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]
