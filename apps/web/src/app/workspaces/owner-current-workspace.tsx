@@ -26,8 +26,6 @@ type MovementType =
   "owner_paid_company_cost" | "owner_funding" | "company_repayment_to_owner" | "adjustment";
 
 type OwnerCurrentMovement = Readonly<{
-  recordKind?: "ledger" | "expense";
-  expenseId?: string;
   journalId: string;
   date: string;
   description: string;
@@ -57,19 +55,19 @@ type OwnerCurrentMovement = Readonly<{
 
 type OwnerCurrentResponse = Readonly<{
   summary: Readonly<{
-    increaseMinor: string;
-    decreaseMinor: string;
-    closingBalanceMinor: string;
+    ledgerClosingBalanceMinor: string;
+    confirmedClosingBalanceMinor: string;
+    confirmedIncreaseMinor: string;
+    confirmedDecreaseMinor: string;
     ownerPaidCompanyCostMinor: string;
     companyRepaymentToOwnerMinor: string;
     ownerFundingMinor: string;
-    adjustmentMinor: string;
-    needsReviewCount: number;
+    reviewAdjustmentMinor: string;
+    reviewItemCount: number;
   }>;
-  items: readonly OwnerCurrentMovement[];
+  confirmedTimeline: readonly OwnerCurrentMovement[];
+  reviewItems: readonly OwnerCurrentMovement[];
 }>;
-
-type OwnerPaidExpense = Readonly<Record<string, unknown>>;
 
 const labels: Record<MovementType, string> = {
   owner_paid_company_cost: "Chủ trả chi phí công ty",
@@ -84,60 +82,6 @@ const classificationLabels: Record<string, string> = {
   company_funds_repayment_to_owner: "Tiền công ty giảm đồng thời công nợ chủ giảm",
   unresolved_owner_current_movement: "Chưa đủ đối ứng để phân loại",
 };
-
-function field(row: OwnerPaidExpense, ...names: string[]) {
-  for (const name of names) {
-    const value = row[name];
-    if (value !== undefined && value !== null) return String(value);
-  }
-  return "";
-}
-
-export function toOwnerPaidMovement(expense: OwnerPaidExpense): OwnerCurrentMovement {
-  const expenseId = field(expense, "id");
-  const grossMinor = field(expense, "grossMinor", "gross_minor") || "0";
-  const purpose = field(expense, "businessPurpose", "business_purpose") || `Chi phí ${expenseId}`;
-  return {
-    recordKind: "expense",
-    expenseId,
-    journalId: field(expense, "journalId", "journal_id") || expenseId,
-    date: field(expense, "expenseDate", "expense_date"),
-    description: purpose,
-    currency: field(expense, "currency") || "VND",
-    state: field(expense, "state"),
-    movementType: "owner_paid_company_cost",
-    ownerDeltaMinor: grossMinor,
-    companyFundsDeltaMinor: "0",
-    runningOwnerBalanceMinor: "0",
-    ownerAccountCodes: [],
-    needsReview: false,
-    classificationBasis: "canonical_owner_paid_source",
-    sources: [
-      {
-        sourceType: "expense",
-        sourceId: expenseId,
-        title: purpose,
-        detail: null,
-        sourceHref: `/expenses/${expenseId}`,
-        expenseClass: field(expense, "expenseClass", "expense_class") || null,
-        category: field(expense, "category") || null,
-        citState: field(expense, "citState", "cit_state") || null,
-        vatState: field(expense, "vatState", "vat_state") || null,
-        grossMinor,
-        payeeName: null,
-      },
-    ],
-  };
-}
-
-export function totalOwnerPaidExpenses(expenses: readonly OwnerPaidExpense[]) {
-  return expenses
-    .reduce(
-      (total, expense) => total + BigInt(field(expense, "grossMinor", "gross_minor") || "0"),
-      0n,
-    )
-    .toString();
-}
 
 export function filterOwnerCurrentMovements(
   rows: readonly OwnerCurrentMovement[],
@@ -155,45 +99,27 @@ export function filterOwnerCurrentMovements(
 export function OwnerCurrentWorkspace() {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [data, setData] = useState<OwnerCurrentResponse>();
-  const [ownerPaidExpenses, setOwnerPaidExpenses] = useState<readonly OwnerPaidExpense[]>([]);
   const [error, setError] = useState("");
   const [type, setType] = useState<MovementType | "all">("all");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!hydrated || !hasToken) return;
-    void Promise.all([
-      client.data<OwnerCurrentResponse>("banking/owner-current-movements"),
-      client.data<{ items?: readonly OwnerPaidExpense[] } | readonly OwnerPaidExpense[]>(
-        "expenses?state=posted&fundingTreatment=owner_paid_company_cost",
-      ),
-    ])
-      .then(([ledger, expenses]) => {
-        setData(ledger);
-        setOwnerPaidExpenses(
-          Array.isArray(expenses)
-            ? expenses
-            : ((expenses as { items?: readonly OwnerPaidExpense[] }).items ?? []),
-        );
-      })
+    void client
+      .data<OwnerCurrentResponse>("banking/owner-current-movements")
+      .then(setData)
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : "Không thể tải công nợ chủ."),
       );
   }, [client, hasToken, hydrated]);
 
-  const canonicalOwnerPaidRows = useMemo(
-    () => ownerPaidExpenses.map(toOwnerPaidMovement),
-    [ownerPaidExpenses],
+  const rows = useMemo(
+    () => filterOwnerCurrentMovements(data?.confirmedTimeline ?? [], type, query),
+    [data?.confirmedTimeline, query, type],
   );
-  const rows = useMemo(() => {
-    const ledgerRows = (data?.items ?? []).filter(
-      (row) => row.movementType !== "owner_paid_company_cost",
-    );
-    return filterOwnerCurrentMovements([...canonicalOwnerPaidRows, ...ledgerRows], type, query);
-  }, [canonicalOwnerPaidRows, data?.items, query, type]);
-  const ownerPaidSubtotal = useMemo(
-    () => totalOwnerPaidExpenses(ownerPaidExpenses),
-    [ownerPaidExpenses],
+  const reviewRows = useMemo(
+    () => filterOwnerCurrentMovements(data?.reviewItems ?? [], "all", query),
+    [data?.reviewItems, query],
   );
 
   const columns: readonly FinancialColumn<OwnerCurrentMovement>[] = [
@@ -306,7 +232,7 @@ export function OwnerCurrentWorkspace() {
       header: "Dư nợ chủ sau bút toán",
       align: "right",
       cell: (row) =>
-        row.recordKind === "expense" ? (
+        row.needsReview ? (
           <span className="text-muted-foreground">—</span>
         ) : (
           <MoneyCell minor={row.runningOwnerBalanceMinor} />
@@ -321,7 +247,7 @@ export function OwnerCurrentWorkspace() {
           <CardHeader>
             <CardDescription>Chủ đã chi trả cho công ty</CardDescription>
             <CardTitle>
-              <MoneyCell minor={ownerPaidSubtotal} />
+              <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
@@ -335,23 +261,23 @@ export function OwnerCurrentWorkspace() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Dư công nợ chủ hiện tại</CardDescription>
+            <CardDescription>Dư xác nhận theo dòng tiền</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.closingBalanceMinor ?? "0"} />
+              <MoneyCell minor={data?.summary.confirmedClosingBalanceMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Khoản cần kiểm tra phân loại</CardDescription>
-            <CardTitle>{data?.summary.needsReviewCount ?? 0}</CardTitle>
+            <CardTitle>{data?.summary.reviewItemCount ?? 0}</CardTitle>
           </CardHeader>
         </Card>
       </div>
 
       {data &&
       data.summary.companyRepaymentToOwnerMinor === "0" &&
-      data.summary.closingBalanceMinor !== "0" ? (
+      data.summary.confirmedClosingBalanceMinor !== "0" ? (
         <Alert variant="destructive">
           <AlertTitle>Chưa có bút toán giảm công nợ chủ</AlertTitle>
           <AlertDescription>
@@ -362,12 +288,12 @@ export function OwnerCurrentWorkspace() {
         </Alert>
       ) : null}
 
-      <Card>
+      <Card data-testid="confirmed-owner-current">
         <CardHeader>
-          <CardTitle>Cơ sở hình thành công nợ chủ doanh nghiệp</CardTitle>
+          <CardTitle>Dòng tiền công nợ chủ đã xác nhận</CardTitle>
           <CardDescription>
-            Đọc từ sổ cái đã ghi sổ. Giá trị dương làm tăng số công ty nợ chủ; giá trị âm làm giảm
-            số nợ.
+            Chỉ gồm khoản chủ thực tế chi cho công ty, chủ đưa tiền vào công ty và khoản công ty
+            thực tế trả lại chủ. Giá trị dương làm tăng nợ chủ; giá trị âm làm giảm nợ.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -386,7 +312,6 @@ export function OwnerCurrentWorkspace() {
                   <SelectItem value="company_repayment_to_owner">Công ty trả nợ chủ</SelectItem>
                   <SelectItem value="owner_paid_company_cost">Chủ trả chi phí công ty</SelectItem>
                   <SelectItem value="owner_funding">Chủ đưa tiền vào công ty</SelectItem>
-                  <SelectItem value="adjustment">Điều chỉnh khác</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -408,6 +333,36 @@ export function OwnerCurrentWorkspace() {
             loading={!data && !error}
             emptyTitle="Không có khoản phù hợp"
             emptyDescription="Không có bút toán đã ghi sổ phù hợp với bộ lọc. Nếu nguồn tiền có thật nhưng không xuất hiện, cần kiểm tra lại việc ghi nhận hoặc mapping tài khoản Owner Current."
+          />
+        </CardContent>
+      </Card>
+
+      <Card data-testid="owner-current-review">
+        <CardHeader>
+          <CardTitle>Khoản cần kiểm tra trước khi tính vào công nợ chủ</CardTitle>
+          <CardDescription className="space-y-1">
+            <span className="block">
+              Số dư Owner Current trên sổ cái:{" "}
+              <MoneyCell minor={data?.summary.ledgerClosingBalanceMinor ?? "0"} />
+            </span>
+            <span className="block">
+              Chênh lệch chưa đưa vào dòng tiền xác nhận là khoản đang review:{" "}
+              <MoneyCell minor={data?.summary.reviewAdjustmentMinor ?? "0"} />
+            </span>
+            <span className="block">
+              Các khoản có hóa đơn hoặc bút toán Owner Current nhưng chưa có bằng chứng nguồn tiền
+              chủ chi không ảnh hưởng số dư chạy của danh sách đã xác nhận.
+            </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FinancialDataTable
+            rows={reviewRows}
+            columns={columns}
+            rowKey={(row) => `review:${row.journalId}`}
+            loading={!data && !error}
+            emptyTitle="Không có khoản cần kiểm tra"
+            emptyDescription="Tất cả biến động Owner Current hiện đã có đủ cơ sở phân loại."
           />
         </CardContent>
       </Card>

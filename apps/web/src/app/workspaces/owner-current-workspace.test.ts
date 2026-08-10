@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  filterOwnerCurrentMovements,
-  toOwnerPaidMovement,
-  totalOwnerPaidExpenses,
-} from "./owner-current-workspace";
+import { filterOwnerCurrentMovements } from "./owner-current-workspace";
 
 const rows = [
   {
@@ -58,27 +54,5 @@ describe("owner current movement filters", () => {
     expect(filterOwnerCurrentMovements(rows, "company_repayment_to_owner", "")).toEqual([rows[0]]);
     expect(filterOwnerCurrentMovements(rows, "all", "expense")).toEqual([rows[1]]);
     expect(filterOwnerCurrentMovements(rows, "adjustment", "review")).toEqual([rows[2]]);
-  });
-
-  it("builds the owner-paid subtotal and detail link from canonical posted expenses", () => {
-    const expenses = [
-      {
-        id: "payroll-1",
-        expenseDate: "2026-01-31",
-        businessPurpose: "Lương tháng 1",
-        expenseClass: "payroll_personnel",
-        category: "SALARY",
-        grossMinor: "12000000",
-      },
-      { id: "supplier-1", business_purpose: "Hosting", gross_minor: "1000000" },
-    ];
-
-    expect(totalOwnerPaidExpenses(expenses)).toBe("13000000");
-    expect(toOwnerPaidMovement(expenses[0])).toMatchObject({
-      recordKind: "expense",
-      movementType: "owner_paid_company_cost",
-      ownerDeltaMinor: "12000000",
-      sources: [{ sourceHref: "/expenses/payroll-1", expenseClass: "payroll_personnel" }],
-    });
   });
 });

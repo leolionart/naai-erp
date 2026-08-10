@@ -253,13 +253,19 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
       insert into expense_categories(organization_id,code,name,funding_treatment,created_by,updated_by) values
         ('org-erp400-a','OWNER-PAID','Owner paid','owner_paid_company_cost','finance-user','finance-user'),
         ('org-erp400-a','COMPANY-PAID','Company paid','company_funds','finance-user','finance-user');
+      insert into parties(organization_id,id,display_name,status) values
+        ('org-erp400-a','erp876-supplier','ERP-876 supplier','active');
       insert into journal_entries
-        (organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by) values
-        ('org-erp400-a','erp876-owner-expense','2026-08-10','Owner paid expense','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
-        ('org-erp400-a','erp876-wrong-funding','2026-08-11','Wrong funding snapshot','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
-        ('org-erp400-a','erp876-repayment','2026-08-12','Repayment through historical bank','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
-        ('org-erp400-a','erp876-funding','2026-08-13','Owner funds company bank','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user'),
-        ('org-erp400-a','erp876-adjustment','2026-08-14','Unresolved owner adjustment','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user');
+        (organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id) values
+        ('org-erp400-a','erp876-owner-expense','2026-08-10','Owner paid expense','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp876-wrong-funding','2026-08-11','Wrong funding snapshot','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp876-repayment','2026-08-12','Repayment through historical bank','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp876-funding','2026-08-13','Owner funds company bank','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp876-invoice-only','2026-08-14','Invoice without actual-payment evidence','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp876-adjustment','2026-08-15','Unresolved owner adjustment','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp876-owner-expense-reversal','2026-08-16','Reverse owner paid expense','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user','erp876-owner-expense'),
+        ('org-erp400-a','erp881-legacy-owner-paid','2026-08-17','Legacy owner-paid category','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null),
+        ('org-erp400-a','erp881-legacy-company-paid','2026-08-18','Legacy company-paid category','VND','posted',2,'finance-user',now(),'finance-user','fixture',now(),'finance-user',null);
       insert into journal_lines
         (organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
         ('org-erp400-a','erp876-owner-expense',1,'642',100,null,'Expense','{}'),
@@ -270,16 +276,34 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
         ('org-erp400-a','erp876-repayment',2,'1121',null,30,'Historical bank','{}'),
         ('org-erp400-a','erp876-funding',1,'1121',80,null,'Historical bank','{}'),
         ('org-erp400-a','erp876-funding',2,'3388',null,80,'Owner current','{}'),
+        ('org-erp400-a','erp876-invoice-only',1,'642',50,null,'Purchase expense','{}'),
+        ('org-erp400-a','erp876-invoice-only',2,'3388',null,50,'Owner current','{}'),
         ('org-erp400-a','erp876-adjustment',1,'642',40,null,'Unresolved','{}'),
-        ('org-erp400-a','erp876-adjustment',2,'3388',null,40,'Owner current','{}');
+        ('org-erp400-a','erp876-adjustment',2,'3388',null,40,'Owner current','{}'),
+        ('org-erp400-a','erp876-owner-expense-reversal',1,'642',null,100,'Reverse expense','{}'),
+        ('org-erp400-a','erp876-owner-expense-reversal',2,'3388',100,null,'Reverse owner current','{}'),
+        ('org-erp400-a','erp881-legacy-owner-paid',1,'642',25,null,'Legacy owner-paid expense','{}'),
+        ('org-erp400-a','erp881-legacy-owner-paid',2,'3388',null,25,'Owner current','{}'),
+        ('org-erp400-a','erp881-legacy-company-paid',1,'642',35,null,'Legacy company-paid expense','{}'),
+        ('org-erp400-a','erp881-legacy-company-paid',2,'3388',null,35,'Owner current','{}');
       insert into expenses
         (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by) values
         ('org-erp400-a','erp876-expense-owner','payroll_personnel','posted','2026-08-10','Payroll paid by owner','VND',100,0,100,'3388','erp876-owner-expense','finance-user'),
-        ('org-erp400-a','erp876-expense-company','payroll_personnel','posted','2026-08-11','Payroll marked company funded','VND',60,0,60,'3388','erp876-wrong-funding','finance-user');
+        ('org-erp400-a','erp876-expense-company','payroll_personnel','posted','2026-08-11','Payroll marked company funded','VND',60,0,60,'3388','erp876-wrong-funding','finance-user'),
+        ('org-erp400-a','erp881-expense-legacy-owner','payroll_personnel','posted','2026-08-17','Legacy owner-paid category','VND',25,0,25,'3388','erp881-legacy-owner-paid','finance-user'),
+        ('org-erp400-a','erp881-expense-legacy-company','payroll_personnel','posted','2026-08-18','Legacy company-paid category','VND',35,0,35,'3388','erp881-legacy-company-paid','finance-user');
       insert into expense_lines
         (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions) values
         ('org-erp400-a','erp876-expense-owner',1,'Payroll',100,0,100,'642','OWNER-PAID','owner_paid_company_cost','{}'),
-        ('org-erp400-a','erp876-expense-company',1,'Payroll',60,0,60,'642','COMPANY-PAID','company_funds','{}');
+        ('org-erp400-a','erp876-expense-company',1,'Payroll',60,0,60,'642','COMPANY-PAID','company_funds','{}'),
+        ('org-erp400-a','erp881-expense-legacy-owner',1,'Legacy payroll',25,0,25,'642',null,null,'{"category":"OWNER-PAID"}'),
+        ('org-erp400-a','erp881-expense-legacy-company',1,'Legacy payroll',35,0,35,'642',null,null,'{"category":"COMPANY-PAID"}');
+      insert into commercial_documents
+        (organization_id,id,type,state,document_number,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,created_by) values
+        ('org-erp400-a','erp876-purchase-invoice','purchase_invoice','posted','ERP876-PI',2026,'erp876-supplier','2026-08-14','2026-09-14','VND',50,0,50,'3388','erp876-invoice-only','finance-user');
+      insert into commercial_document_lines
+        (organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,dimensions) values
+        ('org-erp400-a','erp876-purchase-invoice',1,'Invoice only',1,50,50,0,50,'642','{}');
     `);
 
     const response = await app.inject({
@@ -290,17 +314,22 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json().data.summary).toEqual({
-      increaseMinor: "280",
-      decreaseMinor: "30",
-      closingBalanceMinor: "250",
-      ownerPaidCompanyCostMinor: "100",
+      ledgerClosingBalanceMinor: "260",
+      confirmedClosingBalanceMinor: "75",
+      confirmedIncreaseMinor: "205",
+      confirmedDecreaseMinor: "130",
+      ownerPaidCompanyCostMinor: "25",
       companyRepaymentToOwnerMinor: "30",
       ownerFundingMinor: "80",
-      adjustmentMinor: "100",
-      needsReviewCount: 2,
+      reviewAdjustmentMinor: "185",
+      reviewItemCount: 4,
     });
+    expect(response.json().data.confirmedTimeline).toHaveLength(5);
+    expect(response.json().data.reviewItems).toHaveLength(4);
     const byId = Object.fromEntries(
-      response.json().data.items.map((item: { journalId: string }) => [item.journalId, item]),
+      [...response.json().data.confirmedTimeline, ...response.json().data.reviewItems].map(
+        (item: { journalId: string }) => [item.journalId, item],
+      ),
     );
     expect(byId["erp876-owner-expense"]).toMatchObject({
       movementType: "owner_paid_company_cost",
@@ -319,6 +348,36 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
     expect(byId["erp876-wrong-funding"]).toMatchObject({
       movementType: "adjustment",
       needsReview: true,
+    });
+    expect(byId["erp876-invoice-only"]).toMatchObject({
+      movementType: "adjustment",
+      needsReview: true,
+      sources: [{ sourceType: "purchase_invoice" }],
+    });
+    expect(byId["erp876-owner-expense-reversal"]).toMatchObject({
+      movementType: "owner_paid_company_cost",
+      needsReview: false,
+      ownerDeltaMinor: "-100",
+      runningOwnerBalanceMinor: "50",
+    });
+    expect(byId["erp876-owner-expense"]).toMatchObject({ runningOwnerBalanceMinor: "100" });
+    expect(byId["erp876-repayment"]).toMatchObject({ runningOwnerBalanceMinor: "70" });
+    expect(byId["erp876-funding"]).toMatchObject({ runningOwnerBalanceMinor: "150" });
+    expect(byId["erp881-legacy-owner-paid"]).toMatchObject({
+      movementType: "owner_paid_company_cost",
+      needsReview: false,
+      runningOwnerBalanceMinor: "75",
+      sources: [
+        {
+          category: "OWNER-PAID",
+          fundingTreatments: ["owner_paid_company_cost"],
+        },
+      ],
+    });
+    expect(byId["erp881-legacy-company-paid"]).toMatchObject({
+      movementType: "adjustment",
+      needsReview: true,
+      sources: [{ category: "COMPANY-PAID", fundingTreatments: ["company_funds"] }],
     });
   });
 });

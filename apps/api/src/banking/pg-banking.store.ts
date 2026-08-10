@@ -57,19 +57,23 @@ export function classifyOwnerCurrentMovement(input: {
   ownerDelta: bigint;
   companyFundsDelta: bigint;
   sources: readonly OwnerCurrentSource[];
+  reversalOfId?: string | null;
 }): {
   movementType: OwnerCurrentMovementType;
   classificationBasis: OwnerCurrentClassificationBasis;
   needsReview: boolean;
 } {
-  if (input.ownerDelta < 0n && input.companyFundsDelta < 0n) {
+  const direction = input.reversalOfId ? -1n : 1n;
+  const ownerDelta = input.ownerDelta * direction;
+  const companyFundsDelta = input.companyFundsDelta * direction;
+  if (ownerDelta < 0n && companyFundsDelta < 0n) {
     return {
       movementType: "company_repayment_to_owner",
       classificationBasis: "company_funds_repayment_to_owner",
       needsReview: false,
     };
   }
-  if (input.ownerDelta > 0n && input.companyFundsDelta > 0n) {
+  if (ownerDelta > 0n && companyFundsDelta > 0n) {
     return {
       movementType: "owner_funding",
       classificationBasis: "owner_funding_to_company_funds",
@@ -77,14 +81,13 @@ export function classifyOwnerCurrentMovement(input: {
     };
   }
   const hasCanonicalOwnerPaidEvidence = input.sources.some((source) => {
-    if (source.sourceType === "purchase_invoice") return true;
     return (
       source.sourceType === "expense" &&
       Array.isArray(source.fundingTreatments) &&
       source.fundingTreatments.includes("owner_paid_company_cost")
     );
   });
-  if (input.ownerDelta > 0n && hasCanonicalOwnerPaidEvidence) {
+  if (ownerDelta > 0n && hasCanonicalOwnerPaidEvidence) {
     return {
       movementType: "owner_paid_company_cost",
       classificationBasis: "canonical_owner_paid_source",
@@ -720,12 +723,17 @@ export class PgBankingStore implements BankingStore {
                from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id),
              'grossMinor',e.gross_minor::text,'sourceHref','/expenses/' || e.id,
              'expenseClass',e.expense_class::text,
-             'category',(select coalesce(el.dimensions->>'category',el.expense_category_code)
+             'category',(select coalesce(el.expense_category_code,el.dimensions->>'category')
                from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id
                order by el.line_number limit 1),
-             'fundingTreatments',(select coalesce(jsonb_agg(distinct el.funding_treatment)
-               filter (where el.funding_treatment is not null),'[]'::jsonb)
-               from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id),
+             'fundingTreatments',(select coalesce(jsonb_agg(distinct
+                 coalesce(el.funding_treatment,ec.funding_treatment))
+               filter (where coalesce(el.funding_treatment,ec.funding_treatment) is not null),'[]'::jsonb)
+               from expense_lines el
+               left join expense_categories ec
+                 on ec.organization_id=el.organization_id
+                and ec.code=coalesce(el.expense_category_code,el.dimensions->>'category')
+               where el.organization_id=e.organization_id and el.expense_id=e.id),
              'citState',e.cit_state::text,'vatState',e.vat_state::text,
              'payeeName',p.display_name
            ) source
@@ -760,35 +768,33 @@ export class PgBankingStore implements BankingStore {
        order by j.journal_date,j.id`,
       [organizationId],
     );
-    let running = 0n;
-    let increases = 0n;
-    let decreases = 0n;
+    let ledgerClosing = 0n;
+    let confirmedRunning = 0n;
+    let confirmedIncreases = 0n;
+    let confirmedDecreases = 0n;
     let ownerPaidCompanyCosts = 0n;
     let companyPaymentsToOwner = 0n;
     let ownerFunding = 0n;
-    let adjustments = 0n;
-    let needsReviewCount = 0;
-    const items = result.rows.map((row) => {
+    let reviewAdjustments = 0n;
+    const confirmedTimeline: Array<Record<string, unknown>> = [];
+    const reviewItems: Array<Record<string, unknown>> = [];
+    for (const row of result.rows) {
       const ownerDelta = BigInt(row.owner_delta_minor);
       const companyFundsDelta = BigInt(row.company_funds_delta_minor);
       const sources = Array.isArray(row.sources) ? (row.sources as OwnerCurrentSource[]) : [];
-      running += ownerDelta;
-      if (ownerDelta > 0n) increases += ownerDelta;
-      if (ownerDelta < 0n) decreases += -ownerDelta;
+      ledgerClosing += ownerDelta;
       const classification = classifyOwnerCurrentMovement({
         ownerDelta,
         companyFundsDelta,
         sources,
+        reversalOfId: row.reversal_of_id,
       });
-      const classifiedAmount = ownerDelta < 0n ? -ownerDelta : ownerDelta;
       if (classification.movementType === "owner_paid_company_cost")
-        ownerPaidCompanyCosts += classifiedAmount;
+        ownerPaidCompanyCosts += ownerDelta;
       if (classification.movementType === "company_repayment_to_owner")
-        companyPaymentsToOwner += classifiedAmount;
-      if (classification.movementType === "owner_funding") ownerFunding += classifiedAmount;
-      if (classification.movementType === "adjustment") adjustments += classifiedAmount;
-      if (classification.needsReview) needsReviewCount += 1;
-      return {
+        companyPaymentsToOwner += -ownerDelta;
+      if (classification.movementType === "owner_funding") ownerFunding += ownerDelta;
+      const evidence = {
         journalId: row.journal_id,
         date: row.journal_date,
         description: row.description,
@@ -800,24 +806,37 @@ export class PgBankingStore implements BankingStore {
         needsReview: classification.needsReview,
         ownerDeltaMinor: ownerDelta.toString(),
         companyFundsDeltaMinor: companyFundsDelta.toString(),
-        runningOwnerBalanceMinor: running.toString(),
         ownerAccountCodes: row.owner_account_codes ?? [],
         counterpartLines: row.counterpart_lines ?? [],
         sources,
       };
-    });
+      if (classification.needsReview) {
+        reviewAdjustments += ownerDelta;
+        reviewItems.push(evidence);
+        continue;
+      }
+      confirmedRunning += ownerDelta;
+      if (ownerDelta > 0n) confirmedIncreases += ownerDelta;
+      if (ownerDelta < 0n) confirmedDecreases += -ownerDelta;
+      confirmedTimeline.push({
+        ...evidence,
+        runningOwnerBalanceMinor: confirmedRunning.toString(),
+      });
+    }
     return {
       summary: {
-        increaseMinor: increases.toString(),
-        decreaseMinor: decreases.toString(),
-        closingBalanceMinor: running.toString(),
+        ledgerClosingBalanceMinor: ledgerClosing.toString(),
+        confirmedClosingBalanceMinor: confirmedRunning.toString(),
+        confirmedIncreaseMinor: confirmedIncreases.toString(),
+        confirmedDecreaseMinor: confirmedDecreases.toString(),
         ownerPaidCompanyCostMinor: ownerPaidCompanyCosts.toString(),
         companyRepaymentToOwnerMinor: companyPaymentsToOwner.toString(),
         ownerFundingMinor: ownerFunding.toString(),
-        adjustmentMinor: adjustments.toString(),
-        needsReviewCount,
+        reviewAdjustmentMinor: reviewAdjustments.toString(),
+        reviewItemCount: reviewItems.length,
       },
-      items: items.reverse(),
+      confirmedTimeline: confirmedTimeline.reverse(),
+      reviewItems: reviewItems.reverse(),
     };
   }
   async getTransaction(organizationId: string, id: string) {

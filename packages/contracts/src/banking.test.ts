@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { OwnerCurrentMovementContract, OwnerCurrentResponseContract } from "./banking.js";
+import type {
+  ConfirmedOwnerCurrentMovementContract,
+  OwnerCurrentResponseContract,
+  OwnerCurrentReviewItemContract,
+} from "./banking.js";
 
-describe("ERP-876 owner-current contracts", () => {
-  it("keeps repayment and owner-paid costs distinct with exact minor-unit strings", () => {
-    const repayment: OwnerCurrentMovementContract = {
+describe("ERP-881 owner-current contracts", () => {
+  it("keeps a confirmed cash timeline with its own historical running balance", () => {
+    const repayment: ConfirmedOwnerCurrentMovementContract = {
       journalId: "journal-repayment-1",
       date: "2026-08-09",
       description: "Company repays owner",
@@ -17,37 +21,32 @@ describe("ERP-876 owner-current contracts", () => {
       companyFundsDeltaMinor: "-2500000",
       runningOwnerBalanceMinor: "7500000",
       ownerAccountCodes: ["3388-OWNER"],
-      counterpartLines: [
-        {
-          accountCode: "1121",
-          accountName: "Company bank",
-          debitMinor: "0",
-          creditMinor: "2500000",
-          description: "Repayment",
-        },
-      ],
+      counterpartLines: [],
       sources: [],
     };
     const response: OwnerCurrentResponseContract = {
       summary: {
-        increaseMinor: "10000000",
-        decreaseMinor: "2500000",
-        closingBalanceMinor: "7500000",
+        ledgerClosingBalanceMinor: "8000000",
+        confirmedClosingBalanceMinor: "7500000",
+        confirmedIncreaseMinor: "10000000",
+        confirmedDecreaseMinor: "2500000",
         ownerPaidCompanyCostMinor: "10000000",
         companyRepaymentToOwnerMinor: "2500000",
         ownerFundingMinor: "0",
-        adjustmentMinor: "0",
-        needsReviewCount: 0,
+        reviewAdjustmentMinor: "500000",
+        reviewItemCount: 1,
       },
-      items: [repayment],
+      confirmedTimeline: [repayment],
+      reviewItems: [],
     };
 
-    expect(response.items[0]?.movementType).toBe("company_repayment_to_owner");
-    expect(response.summary.companyRepaymentToOwnerMinor).toBe("2500000");
+    expect(response.confirmedTimeline[0]?.runningOwnerBalanceMinor).toBe("7500000");
+    expect(response.summary.ledgerClosingBalanceMinor).toBe("8000000");
+    expect(response.summary.confirmedClosingBalanceMinor).toBe("7500000");
   });
 
-  it("makes unresolved classification explicit instead of guessing a source", () => {
-    const movement: OwnerCurrentMovementContract = {
+  it("separates unresolved adjustments from the confirmed running balance", () => {
+    const review: OwnerCurrentReviewItemContract = {
       journalId: "journal-review-1",
       date: "2026-08-09",
       description: "Unresolved owner-current movement",
@@ -59,13 +58,12 @@ describe("ERP-876 owner-current contracts", () => {
       needsReview: true,
       ownerDeltaMinor: "500000",
       companyFundsDeltaMinor: "0",
-      runningOwnerBalanceMinor: "500000",
       ownerAccountCodes: ["3388-OWNER"],
       counterpartLines: [],
       sources: [],
     };
 
-    expect(movement.needsReview).toBe(true);
-    expect(movement.classificationBasis).toBe("unresolved_owner_current_movement");
+    expect(review.needsReview).toBe(true);
+    expect("runningOwnerBalanceMinor" in review).toBe(false);
   });
 });

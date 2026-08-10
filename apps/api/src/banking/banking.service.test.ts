@@ -169,7 +169,7 @@ describe("ERP-876 owner-current classification", () => {
         companyFundsDelta: 0n,
         sources: [{ sourceType: "purchase_invoice", fundingTreatments: [] }],
       }),
-    ).toMatchObject({ movementType: "owner_paid_company_cost", needsReview: false });
+    ).toMatchObject({ movementType: "adjustment", needsReview: true });
   });
 
   it("distinguishes company repayment and owner funding using both journal legs", () => {
@@ -202,5 +202,24 @@ describe("ERP-876 owner-current classification", () => {
         sources: [{ sourceType: "expense", fundingTreatments: ["owner_paid_company_cost"] }],
       }),
     ).toMatchObject({ movementType: "adjustment", needsReview: true });
+  });
+
+  it("classifies reversals from the original direction so confirmed balances negate", () => {
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: -1_000n,
+        companyFundsDelta: 0n,
+        reversalOfId: "owner-paid-original",
+        sources: [{ sourceType: "expense", fundingTreatments: ["owner_paid_company_cost"] }],
+      }),
+    ).toMatchObject({ movementType: "owner_paid_company_cost", needsReview: false });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 700n,
+        companyFundsDelta: 700n,
+        reversalOfId: "repayment-original",
+        sources: [],
+      }),
+    ).toMatchObject({ movementType: "company_repayment_to_owner", needsReview: false });
   });
 });
