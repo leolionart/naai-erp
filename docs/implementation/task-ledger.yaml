@@ -1954,6 +1954,22 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-878/
 
+  - id: ERP-879
+    title: Register posted-expense metadata migration for production
+    phase: P13
+    status: in_progress
+    dependencies: [ERP-878]
+    business_rules: [BR-EXP-002, BR-AUD-001]
+    tests: [T-DB-ERP-879-001, T-API-ERP-877-001]
+    evidence: docs/implementation/evidence/ERP-879/
+    agent: codex-root
+    started_at: 2026-08-10T09:58:00+07:00
+    planned_files:
+      - db/migrations/meta/_journal.json
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-879/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

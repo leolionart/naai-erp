@@ -323,6 +323,13 @@
       "when": 1786263000000,
       "tag": "0045_customer_service_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1786341600000,
+      "tag": "0046_expense_quick_edit_metadata",
+      "breakpoints": true
     }
   ]
 }

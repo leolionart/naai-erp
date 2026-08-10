@@ -160,6 +160,12 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-877-002`: Expense Quick View exposes one save action for payee, description and category,
   removes redundant category/update controls and refreshes the row with the saved values.
 
+### ERP-879 — Production migration registration
+
+- `T-DB-ERP-879-001`: a fresh database migration run includes
+  `0046_expense_quick_edit_metadata` and permits the audited posted-expense metadata command without
+  relaxing amount, tax, account or journal immutability.
+
 ### ERP-878 — Category-filtered owner-paid expense list
 
 - `T-API-ERP-878-001`: the expense list accepts `fundingTreatment=owner_paid_company_cost`, uses the

@@ -1824,6 +1824,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-expense-workspace.spec.ts --project=desktop-chromium
     blocking_gate: G42
 
+  - id: T-DB-ERP-879-001
+    task: ERP-879
+    rules: [BR-EXP-002, BR-AUD-001]
+    title: Migration journal applies posted expense metadata trigger
+    layer: database
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp_erp879_test pnpm db:migrate
+    blocking_gate: G43
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
