@@ -6,6 +6,7 @@ import {
   projectQuery,
   reportQuery,
   resolvedDashboardSearch,
+  shouldShowNetCompanyFunds,
 } from "./dashboard-workspaces";
 
 afterEach(() => {
@@ -21,6 +22,8 @@ describe("dashboard reporting cutoff", () => {
         ownerHoldsCompanyFundsMinor: "21836050",
       }),
     ).toEqual({ companyOwesOwnerMinor: "0", ownerHoldsCompanyFundsMinor: "21836050" });
+    expect(shouldShowNetCompanyFunds("0")).toBe(false);
+    expect(shouldShowNetCompanyFunds("65438650")).toBe(true);
   });
   it("preserves the explicit historical asOfDate and clamps report ranges to it", () => {
     vi.useFakeTimers();

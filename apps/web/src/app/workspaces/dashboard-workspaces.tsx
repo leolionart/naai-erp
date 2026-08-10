@@ -237,6 +237,10 @@ export function ownerSettlementDashboardAmounts(financials?: {
     ).toString(),
   };
 }
+
+export function shouldShowNetCompanyFunds(companyOwesOwnerMinor: string) {
+  return BigInt(companyOwesOwnerMinor) > 0n;
+}
 type PeriodKind = "month" | "quarter" | "year";
 
 function periodRange(anchorMonth: string, kind: PeriodKind) {
@@ -932,6 +936,7 @@ export function ExecutiveDashboardWorkspace() {
     (
       BigInt(operating?.financials.cashAndBankMinor ?? "0") - BigInt(companyOwesOwnerMinor)
     ).toString();
+  const showNetCompanyFunds = shouldShowNetCompanyFunds(companyOwesOwnerMinor);
   const taxableProfitMinor =
     profitAndLoss == null || taxExpenses == null
       ? undefined
@@ -1171,13 +1176,15 @@ export function ExecutiveDashboardWorkspace() {
                   status="Chủ đang giữ tiền công ty"
                 />
               ) : null}
-              <MetricCard
-                title="Tiền ròng thực còn"
-                value={money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}
-                description={`Tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
-                href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                status="Sau nghĩa vụ với chủ"
-              />
+              {showNetCompanyFunds ? (
+                <MetricCard
+                  title="Tiền ròng thực còn"
+                  value={money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}
+                  description={`Tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
+                  href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                  status="Sau nghĩa vụ với chủ"
+                />
+              ) : null}
             </div>
             <Card>
               <CardHeader>
