@@ -26,6 +26,7 @@ export type ExpenseListItemProjectionContract = Readonly<{
   expense_date: string;
   gross_minor: string;
   category: string | null;
+  /** Effective line treatments after applying the legacy category fallback. */
   fundingTreatments: readonly ExpenseFundingTreatmentContract[];
   projectIds: readonly string[];
   contractIds: readonly string[];
