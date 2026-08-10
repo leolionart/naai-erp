@@ -96,6 +96,13 @@ Any implementation that violates an invariant must stop; do not weaken a test to
 - Use tag `release-<YYYYMMDD>-sha-<12-character-sha>` unless the user specifies another version.
 - Include the immutable `sha-<12-character-sha>` image tag and the published image set in the
   release notes. Report the workflow URL, release URL and image tag in the final handoff.
+- Write release notes for product users and business owners. Describe the features delivered, the
+  business behavior or accounting logic that changed, and the practical before/after outcome.
+- Explain important safeguards, limitations or actions users may need to take, using product and
+  business language. Make clear when existing data is unchanged and only future behavior changes.
+- Do not fill release notes with implementation details such as filenames, internal classes, SQL,
+  frameworks, test counts or refactoring mechanics. Include technical detail only when it is an
+  operational requirement for installation, migration, compatibility, rollback or security.
 - Do not create a GitHub release for docs-only pushes or pushes where the image workflow does not
   publish an image.
 
