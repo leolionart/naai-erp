@@ -1,9 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-
-("use client");
-
 import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
