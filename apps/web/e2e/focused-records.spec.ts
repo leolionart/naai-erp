@@ -116,9 +116,14 @@ const expense = {
 async function install(
   page: Page,
   patchFailure?: { kind: "documents" | "expenses"; status: number; code: string; message: string },
+  expenseState: "draft" | "posted" = "draft",
 ) {
   let currentInvoice = { ...invoice };
-  let currentExpense = { ...expense };
+  let currentExpense = {
+    ...expense,
+    state: expenseState as string,
+    payeePartyId: expense.payeePartyId as string | null,
+  };
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp720-token"));
   await page.route("**/api/v1/organizations/naai/master-data/expense-categories**", (route) =>
     reply(route, {
@@ -143,6 +148,7 @@ async function install(
       items: [
         { id: "client-720", name: "Khách hàng 720" },
         { id: "supplier-720", name: "Nhà cung cấp 720" },
+        { id: "supplier-721", name: "Nhà cung cấp hạ tầng 721" },
         { id: "employee-720", display_name: "Nguyễn Nhân Viên" },
       ],
     }),
@@ -152,6 +158,7 @@ async function install(
       items: [
         { party_id: "client-720", role: "client" },
         { party_id: "supplier-720", role: "supplier" },
+        { party_id: "supplier-721", role: "supplier" },
         { party_id: "employee-720", role: "employee" },
       ],
     }),
@@ -221,6 +228,34 @@ async function install(
   });
   await page.route("**/api/v1/organizations/naai/expenses**", async (route) => {
     const url = new URL(route.request().url());
+    if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720/metadata")) {
+      expect(route.request().headers()["if-match"]).toBe("1");
+      const body = route.request().postDataJSON() as {
+        category: string;
+        payeePartyId: string | null;
+        businessPurpose: string;
+      };
+      expect(body).toEqual({
+        category: "DOMAIN_HOSTING",
+        payeePartyId: "supplier-721",
+        businessPurpose: "Gia hạn hạ tầng vận hành",
+      });
+      currentExpense = {
+        ...currentExpense,
+        ...body,
+        resourceVersion: "2",
+        lines: currentExpense.lines.map((line) => ({
+          ...line,
+          description: body.businessPurpose,
+          dimensions: { ...line.allocations[0]?.dimensions, category: body.category },
+        })),
+      };
+      return reply(route, {
+        expenseId: currentExpense.id,
+        resourceVersion: "2",
+        ...body,
+      });
+    }
     if (route.request().method() === "PATCH" && url.pathname.endsWith("/expense-720/category")) {
       const body = route.request().postDataJSON() as { category: string };
       currentExpense = {
@@ -367,18 +402,24 @@ test("@desktop expense category chart defaults management to purchase invoices a
   );
 });
 
-test("@desktop posted expense category metadata persists through Quick View", async ({ page }) => {
-  await install(page);
+test("@desktop T-E2E-ERP-877-002 posted expense metadata uses one clear save action", async ({
+  page,
+}) => {
+  await install(page, undefined, "posted");
   await page.goto("http://localhost:3000/expenses?invoiceStatus=missing");
   await page.getByRole("button", { name: "Xem" }).click();
   const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
-  const categorySelect = quickView.getByRole("combobox").first();
-  await categorySelect.click();
-  await page.getByRole("option", { name: "Chi phí Tên miền / Hosting" }).click();
-  await quickView.getByRole("button", { name: "Lưu danh mục" }).click();
-  await expect(categorySelect).toContainText("Chi phí Tên miền / Hosting");
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("Chi phí Tên miền / Hosting")).toBeVisible();
+  await expect(quickView.getByRole("button", { name: "Lưu danh mục" })).toHaveCount(0);
+  await expect(quickView.getByRole("link", { name: "Mở trang chi tiết" })).toHaveCount(0);
+  await expect(quickView.getByRole("button")).toHaveCount(2); // Save + dialog close.
+  await quickView.getByLabel("Đối tác thụ hưởng").fill("hạ tầng");
+  await quickView.getByText("Nhà cung cấp hạ tầng 721", { exact: true }).click();
+  await quickView.getByLabel("Mục đích chi / Diễn giải").fill("Gia hạn hạ tầng vận hành");
+  await quickView.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(quickView.getByLabel("Mục đích chi / Diễn giải")).toHaveValue(
+    "Gia hạn hạ tầng vận hành",
+  );
+  await expect(quickView.getByText("Giá trị & Hạch toán")).toHaveCount(0);
 });
 
 test("@desktop table column visibility persists in application configuration", async ({ page }) => {

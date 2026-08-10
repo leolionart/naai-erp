@@ -217,7 +217,6 @@ export function FocusedRecordListWorkspace({
   const [quickRecord, setQuickRecord] = useState<Row>();
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
-  const [quickCategory, setQuickCategory] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -509,35 +508,10 @@ export function FocusedRecordListWorkspace({
         __revenueAxis: row.__revenueAxis,
       };
       setQuickRecord(detail);
-      const lines = Array.isArray(detail.lines) ? (detail.lines as Row[]) : [];
-      const dimensions = (lines[0]?.dimensions as Record<string, string> | undefined) ?? {};
-      setQuickCategory(dimensions.category ?? "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
       setQuickLoading(false);
-    }
-  }
-  async function updateRecordCategory() {
-    if (!quickRecord || sourceKind(quickRecord) === "recognition" || !quickCategory) return;
-    setQuickBusy(true);
-    setError("");
-    try {
-      const source = sourceKind(quickRecord);
-      await client.data(
-        `${sourceEndpoint(source)}/${encodeURIComponent(text(quickRecord, "id"))}/category`,
-        {
-          method: "PATCH",
-          idempotencyKey: `category-${text(quickRecord, "id")}-${quickCategory}`,
-          body: { category: quickCategory },
-        },
-      );
-      await openQuickView(quickRecord);
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể cập nhật danh mục.");
-    } finally {
-      setQuickBusy(false);
     }
   }
   async function updateQuickRecord(body: Row) {
@@ -548,15 +522,20 @@ export function FocusedRecordListWorkspace({
     try {
       const source = sourceKind(quickRecord);
       if (source === "recognition") return;
+      const isPostedExpense = source === "expenses" && text(quickRecord, "state") === "posted";
       const updated = await client.data<Row>(
-        `${sourceEndpoint(source)}/${encodeURIComponent(id)}`,
+        `${sourceEndpoint(source)}/${encodeURIComponent(id)}${isPostedExpense ? "/metadata" : ""}`,
         {
           method: "PATCH",
           expectedVersion: text(quickRecord, "resourceVersion", "version"),
+          ...(isPostedExpense
+            ? { idempotencyKey: `expense-metadata-${id}-${crypto.randomUUID()}` }
+            : {}),
           body,
         },
       );
       setQuickRecord({ ...quickRecord, ...body, ...updated });
+      await openQuickView({ ...quickRecord, ...body, ...updated });
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể sửa ${current.singular}.`);
@@ -854,41 +833,6 @@ export function FocusedRecordListWorkspace({
               ) : null}
               {sourceKind(quickRecord) !== "recognition" ? (
                 <>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Danh mục nghiệp vụ</CardTitle>
-                      <CardDescription>
-                        Có thể sửa riêng metadata này kể cả khi hóa đơn đã post.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-3 sm:flex-row">
-                      <Select value={quickCategory} onValueChange={setQuickCategory}>
-                        <SelectTrigger className="sm:max-w-md">
-                          <SelectValue placeholder="Chọn danh mục" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {(sourceKind(quickRecord) === "expenses" ||
-                            text(quickRecord, "type") === "purchase_invoice"
-                              ? INBOUND_CATEGORIES
-                              : OUTBOUND_CATEGORIES
-                            ).map((category) => (
-                              <SelectItem key={category.code} value={category.code}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        disabled={quickBusy || !quickCategory}
-                        onClick={() => void updateRecordCategory()}
-                      >
-                        Lưu danh mục
-                      </Button>
-                    </CardContent>
-                  </Card>
                   {sourceKind(quickRecord) === "documents" ? (
                     <DocumentForm
                       key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
@@ -908,7 +852,12 @@ export function FocusedRecordListWorkspace({
                       payees={payees}
                       employees={employees}
                       projects={projects}
-                      submitLabel="Cập nhật thông tin chi phí"
+                      metadataOnly={text(quickRecord, "state") === "posted"}
+                      submitLabel={
+                        text(quickRecord, "state") === "posted"
+                          ? "Lưu thay đổi"
+                          : "Cập nhật thông tin chi phí"
+                      }
                       onSubmit={(body: Row) => void updateQuickRecord(body)}
                     />
                   )}
@@ -929,21 +878,6 @@ export function FocusedRecordListWorkspace({
                   </Button>
                 </div>
               )}
-              <DialogFooter>
-                <Button asChild variant="outline">
-                  <Link
-                    href={
-                      sourceKind(quickRecord) === "documents"
-                        ? `/documents/${encodeURIComponent(text(quickRecord, "id"))}`
-                        : sourceKind(quickRecord) === "expenses"
-                          ? `/expenses/${encodeURIComponent(text(quickRecord, "id"))}`
-                          : `/revenue-recognition/${encodeURIComponent(text(quickRecord, "id"))}`
-                    }
-                  >
-                    Mở trang chi tiết
-                  </Link>
-                </Button>
-              </DialogFooter>
             </div>
           ) : null}
         </DialogContent>

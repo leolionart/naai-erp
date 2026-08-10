@@ -1792,6 +1792,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
     blocking_gate: G41
 
+  - id: T-API-ERP-877-001
+    task: ERP-877
+    rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]
+    title: Posted expense metadata correction is audited versioned idempotent and financially immutable
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.integration.test.ts
+    blocking_gate: G42
+
+  - id: T-E2E-ERP-877-002
+    task: ERP-877
+    rules: [BR-EXP-002, BR-UI-003, BR-UI-004]
+    title: Expense Quick View uses one save action for payee purpose description and category
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-expense-workspace.spec.ts --project=desktop-chromium
+    blocking_gate: G42
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

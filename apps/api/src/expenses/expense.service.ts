@@ -7,6 +7,7 @@ import type {
   CreateExpenseInput,
   ExpenseCategoryInput,
   ExpenseContext,
+  ExpenseMetadataInput,
   ExpenseReviewInput,
   ExternalReferenceInput,
 } from "./expense.types.js";
@@ -159,6 +160,76 @@ export class ExpenseService {
     const category = input.category?.trim();
     if (!category) throw new Error("VALIDATION_FAILED");
     return this.envelope(context, await this.store.updateCategory(context, id, category, key));
+  }
+  async updateMetadata(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    input: ExpenseMetadataInput,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE.has(role))) throw new Error("FORBIDDEN");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    const hasPayee = Object.prototype.hasOwnProperty.call(input, "payeePartyId");
+    const hasPurpose = Object.prototype.hasOwnProperty.call(input, "businessPurpose");
+    const hasCategory = Object.prototype.hasOwnProperty.call(input, "category");
+    const hasDescriptions = Object.prototype.hasOwnProperty.call(input, "lineDescriptions");
+    if (!hasPayee && !hasPurpose && !hasCategory && !hasDescriptions)
+      throw new Error("VALIDATION_FAILED");
+
+    const payeePartyId =
+      input.payeePartyId === null
+        ? null
+        : input.payeePartyId === undefined
+          ? undefined
+          : input.payeePartyId.trim();
+    const businessPurpose = input.businessPurpose?.trim();
+    const category =
+      input.category === null
+        ? null
+        : input.category === undefined
+          ? undefined
+          : input.category.trim();
+    const lineDescriptions = input.lineDescriptions?.map((line) => ({
+      lineNumber: line.lineNumber,
+      description: line.description?.trim(),
+    }));
+    if (
+      (hasPayee && payeePartyId !== null && !payeePartyId) ||
+      (hasPurpose && !businessPurpose) ||
+      (hasCategory && category !== null && !category) ||
+      (hasDescriptions && (!lineDescriptions || lineDescriptions.length === 0))
+    )
+      throw new Error("VALIDATION_FAILED");
+    const lineNumbers = new Set<number>();
+    for (const line of lineDescriptions ?? []) {
+      if (
+        !Number.isInteger(line.lineNumber) ||
+        line.lineNumber < 1 ||
+        !line.description ||
+        lineNumbers.has(line.lineNumber)
+      )
+        throw new Error("VALIDATION_FAILED");
+      lineNumbers.add(line.lineNumber);
+    }
+    const normalized: ExpenseMetadataInput = {
+      ...(hasPayee ? { payeePartyId: payeePartyId as string | null } : {}),
+      ...(hasPurpose ? { businessPurpose: businessPurpose as string } : {}),
+      ...(hasCategory ? { category: category as string | null } : {}),
+      ...(hasDescriptions
+        ? {
+            lineDescriptions: lineDescriptions as readonly {
+              lineNumber: number;
+              description: string;
+            }[],
+          }
+        : {}),
+    };
+    return this.envelope(
+      context,
+      await this.store.updateMetadata(context, id, expectedVersion, normalized, key),
+    );
   }
   async update(
     context: ExpenseContext,

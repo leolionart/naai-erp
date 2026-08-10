@@ -150,6 +150,14 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-876-002`: Owner Current visibly separates owner-paid company costs, company repayments,
   owner funding and review-required adjustments with truthful source-specific empty states.
 
+### ERP-877 — Simplified expense quick-edit metadata
+
+- `T-API-ERP-877-001`: a versioned, idempotent posted-expense metadata correction updates only the
+  exact active supplier/payee, business purpose, line descriptions and active category, records an
+  audit event and leaves amounts, tax states, allocations, accounts and journal linkage unchanged.
+- `T-E2E-ERP-877-002`: Expense Quick View exposes one save action for payee, description and category,
+  removes redundant category/update controls and refreshes the row with the saved values.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

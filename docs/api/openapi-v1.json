@@ -965,6 +965,42 @@
         "summary": "Update only audited category metadata on an expense, including posted records"
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/metadata": {
+      "patch": {
+        "operationId": "updateExpenseMetadata",
+        "tags": ["expenses"],
+        "summary": "Quick-edit audited expense payee and descriptive metadata, including posted records",
+        "description": "Updates only the exact active supplier payee, business purpose, line descriptions and category metadata. Amounts, accounts, allocations, tax states, funding treatment and journal linkage remain unchanged.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "expenseId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExpenseMetadataCorrection" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Versioned metadata correction with audit and unchanged journal identity",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          },
+          "409": { "description": "Stale resource version or reversed expense" },
+          "422": {
+            "description": "Payee is not an active same-organization supplier, category is inactive, or line does not exist"
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses/relationship-backfill/inventory": {
       "get": {
         "operationId": "inventoryExpenseRelationshipBackfill",
@@ -4673,6 +4709,30 @@
             "items": { "type": "string" }
           }
         }
+      },
+      "ExpenseMetadataCorrection": {
+        "type": "object",
+        "description": "At least one property is required. Null payee or category explicitly clears that descriptive relationship.",
+        "properties": {
+          "payeePartyId": { "type": ["string", "null"], "minLength": 1 },
+          "businessPurpose": { "type": "string", "minLength": 1 },
+          "category": { "type": ["string", "null"], "minLength": 1 },
+          "lineDescriptions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["lineNumber", "description"],
+              "properties": {
+                "lineNumber": { "type": "integer", "minimum": 1 },
+                "description": { "type": "string", "minLength": 1 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "minProperties": 1,
+        "additionalProperties": false
       },
       "PortableSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
       "RelationshipBackfillCandidate": {

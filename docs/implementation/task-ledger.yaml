@@ -8,7 +8,7 @@ project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
 current_gate: G42
-current_task: ERP-877
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -1910,13 +1910,15 @@ tasks:
   - id: ERP-877
     title: Simplified expense quick-edit metadata and payee workflow
     phase: P13
-    status: in_progress
+    status: done
     dependencies: [ERP-876]
     business_rules: [BR-EXP-001, BR-EXP-002, BR-AI-005, BR-AUD-001, BR-UI-003, BR-UI-004]
     tests: [T-API-ERP-877-001, T-E2E-ERP-877-002]
     evidence: docs/implementation/evidence/ERP-877/
     agent: codex-team
     started_at: 2026-08-10T09:05:00+07:00
+    completed_at: 2026-08-10T09:24:00+07:00
+    completion_basis: focused_api_and_e2e_regressions_typechecks_migration_docs_format_and_browser_readback
     planned_files:
       - apps/api/src/expenses/
       - apps/web/src/components/forms/document-expense-forms.tsx

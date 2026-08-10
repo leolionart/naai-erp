@@ -451,9 +451,13 @@ Document type and accounting treatment are independent.
 - A draft created in error may be discarded before submission. Discard requires write authorization,
   optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
   submitted, approved or posted expenses cannot be deleted.
-- Posted expenses may receive an audited, idempotent `dimensions.category` metadata correction when
-  the category is active organization master data. This operation never changes amounts, tax states,
-  allocations, funding treatment, journal linkage or any other posted financial field.
+- Posted expenses may receive one audited, versioned and idempotent metadata correction for the
+  active supplier/payee, business-purpose text, line descriptions and `dimensions.category`.
+  The quick-edit UI presents these fields as one save action instead of separate category and
+  document-update actions. This operation never changes amounts, tax states, allocations, funding
+  treatment, account codes, journal linkage or any other posted financial field. Every correction
+  retains before/after audit evidence; a payee must resolve to one active supplier party in the same
+  organization.
 - A posted expense missing its project relationship is corrected only through relationship
   backfill dry-run and reverse/replacement. The original becomes reversed and the replacement remains
   draft for normal review/posting; amount, evidence and accounting history are not rewritten.

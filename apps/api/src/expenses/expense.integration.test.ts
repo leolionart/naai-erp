@@ -24,7 +24,15 @@ describeIntegration("ERP-310 expense workflow", () => {
       insert into parties (organization_id,id,display_name,status)
       values ('${organizationId}','EMP-01','Employee One','active'),
              ('${organizationId}','SUP-01','Supplier One','active'),
+             ('${organizationId}','SUP-02','Supplier Two','active'),
+             ('${organizationId}','SUP-INACTIVE','Inactive Supplier','inactive'),
              ('${organizationId}','CLIENT-01','Client One','active');
+      insert into party_roles(organization_id,party_id,role)
+      values ('${organizationId}','EMP-01','employee'),
+             ('${organizationId}','SUP-01','supplier'),
+             ('${organizationId}','SUP-02','supplier'),
+             ('${organizationId}','SUP-INACTIVE','supplier'),
+             ('${organizationId}','CLIENT-01','client');
       insert into users(id,email,display_name)
       values ('${organizationId}-owner','${organizationId}@expense.example.com','Expense Owner');
       insert into organization_memberships(organization_id,user_id)
@@ -361,6 +369,94 @@ describeIntegration("ERP-310 expense workflow", () => {
       payload: { category: "INACTIVE" },
     });
     expect(inactive.statusCode).toBeGreaterThanOrEqual(400);
+  });
+
+  it("quick-edits posted payee and descriptions atomically without changing financial facts", async () => {
+    const id = "expense-posted-quick-edit-metadata";
+    await pool.query(
+      `insert into dimension_values(organization_id,kind,code,name,is_active)
+       values($1,'category','WORKSHOP','Workshop',true) on conflict do nothing`,
+      [organizationId],
+    );
+    await pool.query(
+      `insert into expenses
+        (organization_id,id,expense_class,state,payee_party_id,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,version,created_by,posted_by,posted_at,journal_id)
+       values($1,$2,'invoice_backed','posted','SUP-01','2026-08-02','Old purpose','VND',1000,100,1100,'331-AP',2,'maker','accountant',now(),null)`,
+      [organizationId, id],
+    );
+    await pool.query(
+      `insert into expense_lines
+        (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,dimensions)
+       values($1,$2,1,'Old description',1000,100,1100,'642-OPEX','1331-VAT','valid','eligible','eligible','{"projectId":"PROJECT-01"}')`,
+      [organizationId, id],
+    );
+
+    const request = () =>
+      app.inject({
+        method: "PATCH",
+        url: `/api/v1/organizations/${organizationId}/expenses/${id}/metadata`,
+        headers: { ...headers(integrationToken, "posted-expense-metadata"), "if-match": "2" },
+        payload: {
+          payeePartyId: "SUP-02",
+          businessPurpose: "Customer workshop",
+          category: "WORKSHOP",
+          lineDescriptions: [{ lineNumber: 1, description: "Workshop refreshments" }],
+        },
+      });
+    const updated = await request();
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect(updated.json().data).toMatchObject({
+      expenseId: id,
+      state: "posted",
+      payeePartyId: "SUP-02",
+      businessPurpose: "Customer workshop",
+      category: "WORKSHOP",
+      resourceVersion: "3",
+      journalId: null,
+      idempotencyReplayed: false,
+    });
+    const replay = await request();
+    expect(replay.statusCode, replay.body).toBe(200);
+    expect(replay.json().data).toMatchObject({ resourceVersion: "3", idempotencyReplayed: true });
+
+    const readback = await pool.query(
+      `select e.payee_party_id,e.business_purpose,e.net_minor::text,e.vat_minor::text,
+              e.gross_minor::text,e.counter_account_code,e.journal_id,e.version::text,
+              l.description,l.posting_account_code,l.vat_account_code,l.dimensions
+         from expenses e join expense_lines l
+           on l.organization_id=e.organization_id and l.expense_id=e.id
+        where e.organization_id=$1 and e.id=$2`,
+      [organizationId, id],
+    );
+    expect(readback.rows[0]).toMatchObject({
+      payee_party_id: "SUP-02",
+      business_purpose: "Customer workshop",
+      net_minor: "1000",
+      vat_minor: "100",
+      gross_minor: "1100",
+      counter_account_code: "331-AP",
+      journal_id: null,
+      version: "3",
+      description: "Workshop refreshments",
+      posting_account_code: "642-OPEX",
+      vat_account_code: "1331-VAT",
+      dimensions: { projectId: "PROJECT-01", category: "WORKSHOP" },
+    });
+    const audit = await pool.query<{ count: number }>(
+      `select count(*)::int count from resource_audit_events
+       where organization_id=$1 and resource_type='expense' and resource_key=$2 and action='update_metadata'`,
+      [organizationId, id],
+    );
+    expect(audit.rows[0]?.count).toBe(1);
+
+    const inactive = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${organizationId}/expenses/${id}/metadata`,
+      headers: { ...headers(integrationToken, "inactive-payee"), "if-match": "3" },
+      payload: { payeePartyId: "SUP-INACTIVE" },
+    });
+    expect(inactive.statusCode).toBe(422);
+    expect(inactive.json().error.code).toBe("PAYEE_SUPPLIER_NOT_FOUND");
   });
 
   it("manages an organization category and snapshots its treatment on the expense line", async () => {

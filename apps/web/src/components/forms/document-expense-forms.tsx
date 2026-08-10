@@ -867,6 +867,7 @@ export function ExpenseForm({
   employees = [],
   projects = [],
   submitLabel = "Lưu chi phí nháp",
+  metadataOnly = false,
 }: {
   busy: boolean;
   onSubmit: (body: Row) => void;
@@ -876,6 +877,7 @@ export function ExpenseForm({
   employees?: readonly Row[];
   projects?: readonly Row[];
   submitLabel?: string;
+  metadataOnly?: boolean;
 }) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [categoryPolicies, setCategoryPolicies] = useState<readonly ExpenseCategoryPolicy[]>([]);
@@ -992,6 +994,16 @@ export function ExpenseForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (metadataOnly) {
+      onSubmit({
+        category,
+        payeePartyId: payees.some((payee) => String(payee.id) === payeePartyId)
+          ? payeePartyId
+          : null,
+        businessPurpose,
+      });
+      return;
+    }
     if (allocationAmountError) return;
     const allocationDimensions = canonicalRelationshipDimensions(
       initialDims,
@@ -1044,6 +1056,67 @@ export function ExpenseForm({
       ],
     };
     onSubmit(payload);
+  }
+
+  if (metadataOnly) {
+    return (
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <FieldSet className="grid gap-4 sm:grid-cols-2">
+          <FieldLegend className="col-span-full font-semibold">Thông tin quản trị</FieldLegend>
+          <Field>
+            <FieldLabel>Danh mục nghiệp vụ / Dịch vụ</FieldLabel>
+            <Select value={category} onValueChange={handleCategoryChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {(categoryPolicies.length
+                    ? categoryPolicies.map((policy) => ({
+                        code: policy.code,
+                        name: policy.name,
+                      }))
+                    : INBOUND_CATEGORIES
+                  ).map((cat) => (
+                    <SelectItem key={cat.code} value={cat.code}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <ComboboxInput
+            label="Đối tác thụ hưởng"
+            value={payeePartyId}
+            onChange={setPayeePartyId}
+            options={payees}
+            placeholder="Gõ tên nhà cung cấp hoặc đối tác..."
+            error={
+              payees.length === 0
+                ? "Chưa có nhà cung cấp active trong danh mục đối tác."
+                : undefined
+            }
+          />
+          <Field className="col-span-full">
+            <FieldLabel htmlFor="exp-purpose-metadata">Mục đích chi / Diễn giải</FieldLabel>
+            <Textarea
+              id="exp-purpose-metadata"
+              value={businessPurpose}
+              onChange={(event) => setBusinessPurpose(event.target.value)}
+              required
+            />
+          </Field>
+        </FieldSet>
+        <p className="text-sm text-muted-foreground">
+          Các trường quản trị này có thể cập nhật mà không thay đổi số tiền, VAT, nguồn thanh toán
+          hoặc bút toán đã ghi sổ.
+        </p>
+        <Button type="submit" disabled={busy} className="self-end">
+          {busy ? "Đang lưu…" : submitLabel}
+        </Button>
+      </form>
+    );
   }
 
   return (

@@ -289,6 +289,96 @@ describe("ERP-310 ExpenseService", () => {
       );
     });
   });
+  describe("posted expense quick-edit metadata command", () => {
+    it("delegates an audited versioned payee, purpose and line-description correction", async () => {
+      const store = {
+        updateMetadata: vi.fn().mockResolvedValue({
+          expenseId: "e-1",
+          payeePartyId: "SUP-01",
+          businessPurpose: "Client workshop",
+          lineDescriptions: [{ lineNumber: 1, description: "Workshop refreshments" }],
+          resourceVersion: "4",
+          auditEventId: "audit-1",
+        }),
+      };
+      const service = new ExpenseService(store as never, {} as never);
+      const input = {
+        payeePartyId: " SUP-01 ",
+        businessPurpose: " Client workshop ",
+        category: " MEAL ",
+        lineDescriptions: [{ lineNumber: 1, description: " Workshop refreshments " }],
+      };
+
+      const result = await service.updateMetadata(context, "e-1", "3", input, "metadata-1");
+
+      expect(store.updateMetadata).toHaveBeenCalledWith(
+        context,
+        "e-1",
+        "3",
+        {
+          payeePartyId: "SUP-01",
+          businessPurpose: "Client workshop",
+          category: "MEAL",
+          lineDescriptions: [{ lineNumber: 1, description: "Workshop refreshments" }],
+        },
+        "metadata-1",
+      );
+      expect(result.data).toMatchObject({ expenseId: "e-1", resourceVersion: "4" });
+    });
+
+    it("allows an explicit payee clear but rejects empty, blank and duplicate line updates", async () => {
+      const store = { updateMetadata: vi.fn().mockResolvedValue({ expenseId: "e-1" }) };
+      const service = new ExpenseService(store as never, {} as never);
+
+      await service.updateMetadata(context, "e-1", "1", { payeePartyId: null }, "clear-payee");
+      expect(store.updateMetadata).toHaveBeenCalledWith(
+        context,
+        "e-1",
+        "1",
+        { payeePartyId: null },
+        "clear-payee",
+      );
+      await expect(service.updateMetadata(context, "e-1", "1", {}, "empty")).rejects.toThrow(
+        "VALIDATION_FAILED",
+      );
+      await expect(
+        service.updateMetadata(context, "e-1", "1", { businessPurpose: " " }, "blank"),
+      ).rejects.toThrow("VALIDATION_FAILED");
+      await expect(
+        service.updateMetadata(
+          context,
+          "e-1",
+          "1",
+          {
+            lineDescriptions: [
+              { lineNumber: 1, description: "One" },
+              { lineNumber: 1, description: "Duplicate" },
+            ],
+          },
+          "duplicate",
+        ),
+      ).rejects.toThrow("VALIDATION_FAILED");
+    });
+
+    it("requires write permission, resource version and idempotency", async () => {
+      const service = new ExpenseService({} as never, {} as never);
+      await expect(
+        service.updateMetadata(
+          { ...context, roles: ["viewer"] },
+          "e-1",
+          "1",
+          { businessPurpose: "Purpose" },
+          "metadata",
+        ),
+      ).rejects.toThrow("FORBIDDEN");
+      await expect(
+        service.updateMetadata(context, "e-1", "", { businessPurpose: "Purpose" }, "metadata"),
+      ).rejects.toThrow("VERSION_CONFLICT");
+      await expect(
+        service.updateMetadata(context, "e-1", "1", { businessPurpose: "Purpose" }),
+      ).rejects.toThrow("IDEMPOTENCY_KEY_REQUIRED");
+    });
+  });
   it("delegates posted expense reverse_replace as one canonical store transaction", async () => {
     const store = {
       reverseReplace: vi.fn().mockResolvedValue({
