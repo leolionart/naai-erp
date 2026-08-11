@@ -87,12 +87,6 @@ const classificationLabels: Record<string, string> = {
   owner_funding_to_company_funds: "Chủ chuyển tiền vào quỹ/tài khoản công ty",
 };
 
-const reviewLabels: Record<string, string> = {
-  unsupported_company_repayment: "Chưa đủ bằng chứng xác định khoản hoàn trả cho chủ",
-  missing_source_of_funds_evidence: "Thiếu bằng chứng nguồn tiền thực tế",
-  unresolved_owner_current_movement: "Chưa đủ đối ứng để phân loại",
-};
-
 export function filterOwnerCurrentMovements(
   rows: readonly OwnerCurrentMovement[],
   type: MovementType | "all",
@@ -127,11 +121,6 @@ export function OwnerCurrentWorkspace() {
     () => filterOwnerCurrentMovements(data?.confirmedTimeline ?? [], type, query),
     [data?.confirmedTimeline, query, type],
   );
-  const reviewRows = useMemo(
-    () => filterOwnerCurrentMovements(data?.reviewItems ?? [], "all", query),
-    [data?.reviewItems, query],
-  );
-
   const columns: readonly FinancialColumn<OwnerCurrentMovement>[] = [
     { id: "date", header: "Ngày", cell: (row) => formatIsoDate(row.date) },
     {
@@ -223,11 +212,6 @@ export function OwnerCurrentWorkspace() {
               {classificationLabels[row.classificationBasis] ?? row.classificationBasis}
             </span>
           ) : null}
-          {row.needsReview ? (
-            <span className="text-xs font-medium text-destructive">
-              {reviewLabels[row.reviewReason ?? ""] ?? "Cần kiểm tra phân loại"}
-            </span>
-          ) : null}
         </div>
       ),
     },
@@ -262,7 +246,7 @@ export function OwnerCurrentWorkspace() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
             <CardDescription>Công ty đang nợ chủ</CardDescription>
@@ -285,12 +269,6 @@ export function OwnerCurrentWorkspace() {
             <CardTitle>
               <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
             </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Khoản cần kiểm tra phân loại</CardDescription>
-            <CardTitle>{data?.summary.reviewCount ?? 0}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -344,36 +322,6 @@ export function OwnerCurrentWorkspace() {
             loading={!data && !error}
             emptyTitle="Không có khoản phù hợp"
             emptyDescription="Không có bút toán đã ghi sổ phù hợp với bộ lọc. Nếu nguồn tiền có thật nhưng không xuất hiện, cần kiểm tra lại việc ghi nhận hoặc mapping tài khoản Owner Current."
-          />
-        </CardContent>
-      </Card>
-
-      <Card data-testid="owner-current-review">
-        <CardHeader>
-          <CardTitle>Khoản chưa đủ bằng chứng để quyết toán với chủ</CardTitle>
-          <CardDescription className="space-y-1">
-            <span className="block">
-              Số dư Owner Current theo kế toán:{" "}
-              <MoneyCell minor={data?.summary.statutoryOwnerCurrentBalanceMinor ?? "0"} />
-            </span>
-            <span className="block">
-              Khoản chưa đưa vào quyết toán xác nhận đang review:{" "}
-              <MoneyCell minor={data?.summary.reviewMinor ?? "0"} />
-            </span>
-            <span className="block">
-              Các khoản có hóa đơn hoặc bút toán Owner Current nhưng chưa có bằng chứng nguồn tiền
-              chủ chi không ảnh hưởng số dư chạy của danh sách đã xác nhận.
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FinancialDataTable
-            rows={reviewRows}
-            columns={columns}
-            rowKey={(row) => `review:${row.journalId}`}
-            loading={!data && !error}
-            emptyTitle="Không có khoản cần kiểm tra"
-            emptyDescription="Tất cả biến động Owner Current hiện đã có đủ cơ sở phân loại."
           />
         </CardContent>
       </Card>

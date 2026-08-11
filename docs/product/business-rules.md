@@ -603,9 +603,11 @@ Branches: `ignored`, `needs_review`.
 
 ### BR-BNK-004 — Owner-current reconciliation view
 
-- The banking workspace presents a confirmed owner-cash timeline without changing the executive
+- The banking workspace presents only the confirmed owner-cash timeline without changing the executive
   dashboard metric. Confirmed owner-paid costs, company repayments and owner funding are shown in the
-  main timeline; movements without direct source-of-funds evidence are isolated in a review section.
+  main timeline. Movements without direct source-of-funds evidence remain excluded from confirmed owner
+  debt and available through canonical expense or ledger records, but are not rendered as an Owner Current
+  review table or management metric.
 - The read-only owner-current ledger view is resolved from the approved Balance Sheet `owner_current`
   mapping, posted/reversed journals and organization financial accounts.
 - Every row shows the journal, signed owner-liability effect, signed company-funds effect and running

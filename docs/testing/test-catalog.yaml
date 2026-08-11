@@ -1912,6 +1912,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/customer-subscriptions.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G50
 
+  - id: T-E2E-ERP-887-001
+    task: ERP-887
+    rules: [BR-BNK-004, BR-UI-001, BR-UI-004]
+    title: Owner Current UI renders confirmed settlement only and hides unconfirmed review records
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium
+    blocking_gate: G51
+
   - id: T-API-ERP-877-001
     task: ERP-877
     rules: [BR-EXP-002, BR-AI-005, BR-AUD-001, BR-ORG-001]

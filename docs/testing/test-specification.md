@@ -237,6 +237,11 @@ Golden changes require explicit review and a documented reason.
   submit the minimal canonical REST payload and do not expose code, service-line, interval count,
   billing day or reason as required user fields.
 
+### ERP-887 — Remove unconfirmed Owner Current review table
+
+- `T-E2E-ERP-887-001`: Owner Current renders confirmed settlement metrics and movements only; review
+  records returned by the API remain excluded from owner debt and are not shown as a table or metric.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

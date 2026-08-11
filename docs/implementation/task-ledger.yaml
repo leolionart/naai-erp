@@ -2158,6 +2158,27 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-886/
 
+  - id: ERP-887
+    title: Remove unconfirmed owner-current review table from management UI
+    phase: P13
+    status: done
+    dependencies: [ERP-886]
+    business_rules: [BR-BNK-004, BR-UI-001, BR-UI-004]
+    tests: [T-E2E-ERP-887-001]
+    evidence: docs/implementation/evidence/ERP-887/
+    agent: codex-root
+    started_at: 2026-08-11T00:00:00+07:00
+    review_at: 2026-08-11T15:20:00+07:00
+    completed_at: 2026-08-11T15:20:00+07:00
+    completion_basis: confirmed_only_owner_current_ui_e2e_and_rendered_browser_regression
+    planned_files:
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/e2e/owner-current.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-887/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2209,6 +2230,7 @@ gates:
   G48: [ERP-884]
   G49: [ERP-885]
   G50: [ERP-886]
+  G51: [ERP-887]
 
 gate_status:
   G0: done
@@ -2260,3 +2282,4 @@ gate_status:
   G48: done
   G49: done
   G50: done
+  G51: done

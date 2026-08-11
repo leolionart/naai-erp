@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("@desktop owner settlement separates debt, custody, withdrawals and review", async ({
+test("@desktop owner settlement shows confirmed debt custody and withdrawals only", async ({
   page,
 }) => {
   await page.addInitScript(() =>
@@ -117,7 +117,6 @@ test("@desktop owner settlement separates debt, custody, withdrawals and review"
 
   await page.goto("http://localhost:3000/banking/owner-current");
   const confirmed = page.getByTestId("confirmed-owner-current");
-  const review = page.getByTestId("owner-current-review");
 
   await expect(page.getByText("Công ty đang nợ chủ", { exact: true })).toBeVisible();
   await expect(page.getByText("Tiền công ty chủ đang giữ", { exact: true }).first()).toBeVisible();
@@ -130,7 +129,8 @@ test("@desktop owner settlement separates debt, custody, withdrawals and review"
   await expect(confirmed.getByText("-52.000.000 ₫", { exact: true }).first()).toBeVisible();
   await expect(confirmed.getByText("-135.320.000 ₫", { exact: true }).first()).toBeVisible();
   await expect(confirmed.getByText("-21.836.050 ₫", { exact: true })).toBeVisible();
-  await expect(review.getByText("Khoản 100 triệu chưa đủ bằng chứng quyết toán")).toBeVisible();
-  await expect(review.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
-  await expect(review.getByText(/Số dư Owner Current theo kế toán:/)).toContainText("78.163.950 ₫");
+  await expect(page.getByTestId("owner-current-review")).toHaveCount(0);
+  await expect(page.getByText("Khoản chưa đủ bằng chứng để quyết toán với chủ")).toHaveCount(0);
+  await expect(page.getByText("Khoản cần kiểm tra phân loại")).toHaveCount(0);
+  await expect(page.getByText("Khoản 100 triệu chưa đủ bằng chứng quyết toán")).toHaveCount(0);
 });
