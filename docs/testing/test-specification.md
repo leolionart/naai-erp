@@ -493,3 +493,13 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   inside the responsive dialog without causing document-level horizontal overflow.
 - Repository regression gates confirm that the shared component does not change accounting,
   authorization, organization-scope or existing input workflows.
+
+### ERP-910 — Minimal OCR purchase-invoice protocol
+
+- The expense dialog presents the minimal OCR example before the full accounting example.
+- The sequence creates the supplier party and supplier role from a stable tax-ID identity, then
+  creates a purchase invoice with no project allocation and no funding source.
+- Net, VAT and gross controls remain exact and balanced; tax eligibility starts as `unreviewed`.
+  Copy warns n8n operators not to infer tax amounts from gross payment alone.
+- Contract tests assert the absence of invented project/payment relationships. Mobile E2E opens the
+  minimal example and verifies long cURL content remains responsive.

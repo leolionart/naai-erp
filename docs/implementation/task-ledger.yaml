@@ -2719,6 +2719,29 @@ tasks:
       - docs/implementation/evidence/ERP-909/
     notes: Reuse one authenticated automation dialog across every primary business input screen. Each route exposes only relevant create/update examples and relationship lookup guidance for customers, projects, service plans and subscriptions, purchase products, sales/revenue documents, purchase invoices and non-invoice expenses.
 
+  - id: ERP-910
+    title: Minimal OCR purchase-invoice automation example
+    phase: P15
+    status: done
+    dependencies: [ERP-909]
+    business_rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-EXP-002, BR-ORG-001, BR-SEC-001, BR-UI-003]
+    tests: [T-CONTRACT-ERP-910-001, T-E2E-ERP-910-002, T-REG-ERP-910-003]
+    evidence: docs/implementation/evidence/ERP-910/
+    agent: codex-team
+    started_at: 2026-08-11T23:10:00+07:00
+    review_at: 2026-08-11T23:13:00+07:00
+    completed_at: 2026-08-11T23:13:00+07:00
+    completion_basis: minimal_ocr_supplier_invoice_curl_contract_mobile_e2e_and_full_repository_gate
+    planned_files:
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/automation-api-dialog.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-910/
+    notes: Add a second purchase-invoice example tailored to OCR/Paperless input. It creates or reuses a deterministic supplier identity from tax ID, omits project and funding relationships, keeps tax state unreviewed and documents that net and VAT remain mandatory accounting controls rather than guessed values.
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2786,6 +2809,7 @@ gates:
   G64: [ERP-907]
   G65: [ERP-908]
   G66: [ERP-909]
+  G67: [ERP-910]
 
 gate_status:
   G0: done
@@ -2853,3 +2877,4 @@ gate_status:
   G64: done
   G65: done
   G66: done
+  G67: done

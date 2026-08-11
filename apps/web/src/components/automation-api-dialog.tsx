@@ -247,6 +247,71 @@ export function purchaseInvoiceCurl(credential: RevealedCredential) {
   }'`;
 }
 
+export function minimalOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
+  const supplierId = "party-tax-0110660175";
+  const supplier = masterDataCreateCurl(credential, "parties", "n8n-supplier-tax-0110660175-v1", {
+    id: supplierId,
+    display_name: "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
+    legal_name: "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
+    normalized_tax_id: "0110660175",
+    status: "active",
+  });
+  const supplierRole = masterDataCreateCurl(
+    credential,
+    "party-roles",
+    "n8n-supplier-tax-0110660175-role-v1",
+    { party_id: supplierId, role: "supplier" },
+  );
+  const invoice = `curl --request POST \\
+  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents' \\
+  --header 'Authorization: Bearer ${credential.apiToken}' \\
+  --header 'Content-Type: application/json' \\
+  --header 'Idempotency-Key: n8n-paperless-001-k26toh-250571-v1' \\
+  --header 'X-Correlation-Id: n8n-paperless-001-k26toh-250571-v1' \\
+  --data '{
+    "id": "paperless-invoice-001-k26toh-250571",
+    "type": "purchase_invoice",
+    "documentNumber": "00250571",
+    "series": "1K26TOH",
+    "fiscalYear": 2026,
+    "partyId": "${supplierId}",
+    "documentDate": "2026-07-27",
+    "dueDate": "2026-07-27",
+    "currency": "VND",
+    "netMinor": "378334",
+    "taxMinor": "30267",
+    "grossMinor": "408601",
+    "controlAccountCode": "331-AP",
+    "lines": [{
+      "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
+      "quantity": "1",
+      "unitPriceMinor": "378334",
+      "netMinor": "378334",
+      "taxMinor": "30267",
+      "grossMinor": "408601",
+      "primaryAccountCode": "642-COST",
+      "taxAccountCode": "1331-VAT-IN",
+      "taxCode": "VAT8",
+      "allocations": [{
+        "id": "paperless-invoice-001-k26toh-250571-line-1",
+        "amountMinor": "378334",
+        "dimensions": {
+          "category": "BATTERY_RENTAL",
+          "taxState": "unreviewed"
+        }
+      }]
+    }],
+    "externalReference": {
+      "system": "paperless-ngx",
+      "externalId": "246",
+      "canonicalUrl": "https://paperless.example/documents/246",
+      "version": "1",
+      "metadata": { "sourceTitle": "001_K26TOH_250571_9137" }
+    }
+  }'`;
+  return `${supplier}\n\n${supplierRole}\n\n${invoice}`;
+}
+
 export function purchaseProductCurl(credential: RevealedCredential) {
   return `curl --request POST \\
   'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/master-data/purchase-products' \\
@@ -311,6 +376,12 @@ function definitionsFor(
       },
     ],
     expenses: [
+      {
+        title: "Nhập hóa đơn OCR tối giản — không cần dự án",
+        description:
+          "Tạo nhà cung cấp từ mã số thuế rồi tạo hóa đơn không có project/funding. Ví dụ dùng VAT 8%; n8n phải lấy đúng tiền trước thuế và VAT từ hóa đơn hoặc danh mục, không tự đoán từ tổng thanh toán.",
+        value: minimalOcrPurchaseInvoiceCurl(credential),
+      },
       {
         title: "Nhập hóa đơn đầu vào hoàn chỉnh",
         description:

@@ -2221,6 +2221,30 @@ tests:
     command: pnpm check
     blocking_gate: G66
 
+  - id: T-CONTRACT-ERP-910-001
+    task: ERP-910
+    rules: [BR-AI-001, BR-AI-005, BR-EXP-002, BR-ORG-001, BR-SEC-001]
+    title: Minimal OCR cURL creates supplier identity and omits unknown project and funding links
+    layer: contract
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts
+    blocking_gate: G67
+
+  - id: T-E2E-ERP-910-002
+    task: ERP-910
+    rules: [BR-AI-003, BR-AI-005, BR-UI-003]
+    title: Expense dialog exposes the responsive minimal OCR invoice example
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G67
+
+  - id: T-REG-ERP-910-003
+    task: ERP-910
+    rules: [BR-AI-001, BR-EXP-002, BR-ORG-001, BR-SEC-001]
+    title: Minimal OCR example preserves full repository accounting and security gates
+    layer: regression
+    command: pnpm check
+    blocking_gate: G67
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

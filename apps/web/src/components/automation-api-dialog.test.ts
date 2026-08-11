@@ -3,6 +3,7 @@ import {
   customerCurl,
   directExpenseCurl,
   projectCurl,
+  minimalOcrPurchaseInvoiceCurl,
   purchaseInvoiceCurl,
   purchaseProductCurl,
   salesInvoiceCurl,
@@ -43,6 +44,20 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
     expectCommonHeaders(curl);
     expect(curl).toContain("/master-data/purchase-products");
     expect(curl).toContain('"vat_rate_percent": 10');
+  });
+
+  it("builds an OCR-oriented purchase invoice without inventing project or payment links", () => {
+    const curl = minimalOcrPurchaseInvoiceCurl(credential);
+    expectCommonHeaders(curl);
+    expect(curl).toContain("/master-data/parties");
+    expect(curl).toContain("/master-data/party-roles");
+    expect(curl).toContain('"normalized_tax_id": "0110660175"');
+    expect(curl).toContain('"role": "supplier"');
+    expect(curl).toContain('"type": "purchase_invoice"');
+    expect(curl).toContain('"grossMinor": "408601"');
+    expect(curl).toContain('"taxState": "unreviewed"');
+    expect(curl).not.toContain('"projectId"');
+    expect(curl).not.toContain('"fundingSource"');
   });
 
   it.each([

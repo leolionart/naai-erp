@@ -130,6 +130,11 @@ These rules define the active release boundary. Historical rules remain valid fo
 - A customer subscription retains the verified `customerPartyId`, `servicePlanId` and optional
   `projectId`. Revenue uses the customer `partyId` and project allocation; purchase invoices and
   direct expenses use their canonical endpoints and must never duplicate the same business event.
+- The expense protocol also provides a minimal OCR/Paperless sequence for invoices that have no
+  known project or company-payment account. It creates/reuses a deterministic supplier identity from
+  tax ID, omits project and funding relationships, and keeps tax eligibility `unreviewed`. Exact net,
+  VAT and gross controls remain required and must come from invoice extraction or a verified product
+  tax rule; automation must not guess them from the gross total alone.
 
 ### BR-AI-006 — Cash-heavy business activity classification
 
