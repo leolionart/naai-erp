@@ -112,7 +112,8 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      max-parallel: 4
+      # Keep GHCR publication below the secondary-rate-limit burst seen with four simultaneous pushes.
+      max-parallel: 2
       matrix: ${{ fromJSON(needs.checks.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4

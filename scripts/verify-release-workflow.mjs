@@ -19,6 +19,10 @@ const workflow = await readFile(workflowPath, "utf8");
 const apiDockerfile = await readFile(apiDockerfilePath, "utf8");
 
 assert.equal(manifest.registry, "ghcr.io", "release registry must be GHCR");
+assert.ok(
+  manifest.releaseSetVersion >= 2,
+  "release set must include bounded GHCR publication concurrency",
+);
 assert.equal(
   manifest.namespace,
   "leolionart",
@@ -106,6 +110,7 @@ const requiredWorkflowPatterns = [
   [/needs:\s*checks/, "image publication must depend on checks"],
   [/uses:\s*docker\/login-action@v3/, "workflow must authenticate to GHCR"],
   [/uses:\s*docker\/build-push-action@v6/, "workflow must use Buildx image publication"],
+  [/max-parallel:\s*2/, "GHCR publication concurrency must remain bounded"],
   [/platforms:\s*linux\/amd64,linux\/arm64/, "release must publish amd64 and arm64 images"],
   [/push:\s*true/, "workflow must push built images"],
   [/\$\{\{\s*matrix\.name\s*\}\}:latest/, "release must publish the Watchtower latest tag"],

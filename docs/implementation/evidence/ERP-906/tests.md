@@ -1,5 +1,8 @@
 # ERP-906 tests
 
+- `pnpm test:release` — passed after bounding GHCR image publication to two parallel jobs and
+  incrementing the release-set contract to version 2.
+
 - `pnpm db:check` — passed; migration directory valid with 55 entries.
 - Database suite — 17 passed, 20 integration-dependent skipped.
 - API portable/retention scoped suites — 27 passed with expected integration skips.

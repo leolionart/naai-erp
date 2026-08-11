@@ -1,5 +1,9 @@
 # ERP-906 risks and follow-ups
 
+- GHCR may enforce a secondary rate limit during concurrent multi-architecture pushes. The release
+  matrix is bounded to two parallel image publications; increasing it requires a verified registry
+  capacity test.
+
 - Retention runs best-effort after a successful export. A transient pruning failure does not corrupt
   or fail the newly generated workbook; the next successful export retries retention.
 - Existing blobs are pruned when a new export is generated. Installations that stop generating
