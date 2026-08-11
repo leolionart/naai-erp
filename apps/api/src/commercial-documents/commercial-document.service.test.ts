@@ -40,6 +40,22 @@ const sales = {
 } as const;
 
 describe("ERP-300 CommercialDocumentService", () => {
+  it("deletes only a version-matched draft through the audited store command", async () => {
+    const store = {
+      deleteDraft: vi.fn().mockResolvedValue({ documentId: "purchase-test", deleted: true }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    await expect(
+      service.deleteDraft(context, "purchase-test", "1", "Automation test duplicate", "delete-1"),
+    ).resolves.toMatchObject({ data: { documentId: "purchase-test", deleted: true } });
+    expect(store.deleteDraft).toHaveBeenCalledWith(
+      context,
+      "purchase-test",
+      "1",
+      "Automation test duplicate",
+      "delete-1",
+    );
+  });
   it("updates category metadata independently from the final document lifecycle", async () => {
     const store = {
       updateCategory: vi.fn().mockResolvedValue({ documentId: "purchase-1", category: "MEAL" }),

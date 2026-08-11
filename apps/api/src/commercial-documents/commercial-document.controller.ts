@@ -1,16 +1,31 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { CommercialDocumentService } from "./commercial-document.service.js";
+import { QuickPurchaseInvoiceService } from "./quick-purchase-invoice.service.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentCategoryInput,
   CreateCommercialDocumentInput,
+  QuickPurchaseInvoiceInput,
 } from "./commercial-document.types.js";
 
 @Controller("api/v1/organizations/:organizationId/commercial-documents")
 export class CommercialDocumentController {
   constructor(
     @Inject(CommercialDocumentService) private readonly service: CommercialDocumentService,
+    @Inject(QuickPurchaseInvoiceService)
+    private readonly quickPurchaseInvoices: QuickPurchaseInvoiceService,
   ) {}
   private context(organizationId: string, authorization?: string, correlationId?: string) {
     return this.service.authenticate(authorization, organizationId, correlationId ?? randomUUID());
@@ -70,6 +85,24 @@ export class CommercialDocumentController {
       idempotencyKey,
     );
   }
+  @Delete(":id")
+  async deleteDraft(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { reason?: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.deleteDraft(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion,
+      input.reason,
+      idempotencyKey,
+    );
+  }
   @Post()
   async create(
     @Param("organizationId") organizationId: string,
@@ -79,6 +112,20 @@ export class CommercialDocumentController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ) {
     return this.service.create(
+      await this.context(organizationId, authorization, correlationId),
+      input,
+      idempotencyKey,
+    );
+  }
+  @Post("purchase-invoice-ingestion")
+  async createQuickPurchaseInvoice(
+    @Param("organizationId") organizationId: string,
+    @Body() input: QuickPurchaseInvoiceInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.quickPurchaseInvoices.create(
       await this.context(organizationId, authorization, correlationId),
       input,
       idempotencyKey,

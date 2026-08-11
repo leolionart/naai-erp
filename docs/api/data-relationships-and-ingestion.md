@@ -362,6 +362,60 @@ For project-attributed supplier cost, keep the supplier in `partyId` and place t
 project's stable ID in `dimensions.projectId`. An optional `dimensions.contractId` must belong to
 that project. Do not require the project client to equal the supplier.
 
+#### One-call minimal purchase-invoice ingestion
+
+Use this operation when Paperless/n8n or another trusted integration has a basic supplier invoice
+but does not yet have a supplier party ID:
+
+```http
+POST /api/v1/organizations/{organizationId}/commercial-documents/purchase-invoice-ingestion
+Authorization: Bearer <token>
+Idempotency-Key: paperless-246-v1
+X-Correlation-Id: <correlation-id>
+```
+
+The first-party CLI exposes the identical application service:
+
+```bash
+naai-erp quick-purchase-invoices create \
+  --organization naai \
+  --idempotency-key paperless-246-v1 \
+  --data '{"schemaVersion":1,"supplierTaxId":"0110660175","supplierName":"Nhà cung cấp A","documentNumber":"00250571","documentDate":"2026-07-27","category":"Thuê pin và sạc xe điện","description":"Phí dịch vụ tháng 7","grossMinor":"408601"}'
+```
+
+The operation performs one organization-scoped relationship sequence:
+
+1. Normalize `supplierTaxId`, then resolve the same-organization party by that stable tax identity.
+2. Create the supplier party when absent and ensure its explicit `supplier` role.
+3. Resolve the active expense category from the optional OCR category label or description, then
+   apply its reviewed payable/expense account mappings. Exact code/name matches win; a similar label
+   is accepted only when it has one strong, unique match.
+4. Create exactly one canonical `purchase_invoice` and return the supplier and document outcomes.
+
+Retain `data.supplier.partyId`, `data.document.documentId`, `resourceVersion`, `auditEventId` and
+`nextActions`. Retry the exact payload with the exact `Idempotency-Key`; a changed payload under the
+same key is a conflict. The operation does not also create an Expense, does not guess a project or
+payment account, and records gross as management cost with zero input VAT and unreviewed tax state
+until real VAT evidence is supplied. Follow only returned `nextActions`: solopreneur owner policy may
+finish the record as posted or paid atomically, while controlled/integration mode can return a draft.
+
+#### Deleting an accidental draft
+
+An accidental commercial document may be deleted only while its canonical state is `draft`:
+
+```http
+DELETE /api/v1/organizations/{organizationId}/commercial-documents/{documentId}
+If-Match: <resourceVersion>
+Idempotency-Key: <stable-delete-key>
+Content-Type: application/json
+
+{"reason":"Duplicate draft created during corrected import"}
+```
+
+The command is organization-scoped, authorized, version-checked, audited and retry-safe. It rejects
+non-draft records. Issued, posted, partially paid, paid or cancelled history is never hard-deleted;
+use the applicable cancel, credit, reverse or replacement workflow instead.
+
 ### 8.6 Non-invoice expense
 
 Create an expense only after confirming it is not a supplier invoice already represented as a

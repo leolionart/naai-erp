@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Download, ExternalLink, Eye, Filter, Plus } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Eye, Filter, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -217,6 +219,8 @@ export function FocusedRecordListWorkspace({
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
   const [quickRecord, setQuickRecord] = useState<Row>();
+  const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
+  const [deleteInvoiceReason, setDeleteInvoiceReason] = useState("");
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -572,6 +576,39 @@ export function FocusedRecordListWorkspace({
       setQuickBusy(false);
     }
   }
+  const canDeleteQuickPurchaseInvoice =
+    quickRecord !== undefined &&
+    sourceKind(quickRecord) === "documents" &&
+    text(quickRecord, "type") === "purchase_invoice" &&
+    text(quickRecord, "state") === "draft" &&
+    !text(quickRecord, "journalId");
+
+  async function deleteQuickPurchaseInvoice() {
+    if (!quickRecord || !canDeleteQuickPurchaseInvoice || !deleteInvoiceReason.trim()) return;
+    const id = text(quickRecord, "id");
+    setQuickBusy(true);
+    setError("");
+    try {
+      await client.data(`commercial-documents/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        expectedVersion: text(quickRecord, "resourceVersion", "version"),
+        idempotencyKey: `discard-purchase-invoice-${id}-${crypto.randomUUID()}`,
+        body: { reason: deleteInvoiceReason.trim() },
+      });
+      setDeleteInvoiceOpen(false);
+      setDeleteInvoiceReason("");
+      setQuickRecord(undefined);
+      await load();
+      toast.success("Đã xóa hóa đơn mua vào bản nháp.");
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : "Không thể xóa hóa đơn mua vào bản nháp.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
   const points: readonly StackedCategoryPoint[] = buildFocusedRecordChartPoints(
     rows,
     getCategoryName,
@@ -867,16 +904,33 @@ export function FocusedRecordListWorkspace({
               {sourceKind(quickRecord) !== "recognition" ? (
                 <>
                   {sourceKind(quickRecord) === "documents" ? (
-                    <DocumentForm
-                      key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
-                      busy={quickBusy}
-                      initial={quickRecord}
-                      parties={text(quickRecord, "type") === "purchase_invoice" ? payees : clients}
-                      purchaseParties={payees}
-                      projects={projects}
-                      submitLabel="Cập nhật thông tin hóa đơn"
-                      onSubmit={(body: Row) => void updateQuickRecord(body)}
-                    />
+                    <div className="grid gap-4">
+                      <DocumentForm
+                        key={`quick-document-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
+                        busy={quickBusy}
+                        initial={quickRecord}
+                        parties={
+                          text(quickRecord, "type") === "purchase_invoice" ? payees : clients
+                        }
+                        purchaseParties={payees}
+                        projects={projects}
+                        submitLabel="Cập nhật thông tin hóa đơn"
+                        onSubmit={(body: Row) => void updateQuickRecord(body)}
+                      />
+                      {canDeleteQuickPurchaseInvoice ? (
+                        <div className="flex justify-end border-t pt-4">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={quickBusy}
+                            onClick={() => setDeleteInvoiceOpen(true)}
+                          >
+                            <Trash2 data-icon="inline-start" />
+                            Xóa hóa đơn nháp
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     <ExpenseForm
                       key={`quick-expense-${text(quickRecord, "id")}-${text(quickRecord, "resourceVersion", "version")}`}
@@ -915,6 +969,51 @@ export function FocusedRecordListWorkspace({
               )}
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={deleteInvoiceOpen}
+        onOpenChange={(open) => {
+          setDeleteInvoiceOpen(open);
+          if (!open) setDeleteInvoiceReason("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xóa hóa đơn mua vào bản nháp?</DialogTitle>
+            <DialogDescription>
+              Chỉ bản nháp chưa có journal mới được xóa. Thao tác được ghi audit và không thể hoàn
+              tác.
+            </DialogDescription>
+          </DialogHeader>
+          <Field data-invalid={deleteInvoiceReason.length > 0 && !deleteInvoiceReason.trim()}>
+            <FieldLabel htmlFor="delete-purchase-invoice-reason">Lý do xóa</FieldLabel>
+            <Textarea
+              id="delete-purchase-invoice-reason"
+              value={deleteInvoiceReason}
+              onChange={(event) => setDeleteInvoiceReason(event.target.value)}
+              placeholder="Ví dụ: Hóa đơn nhập nhầm hoặc bị trùng"
+              aria-invalid={deleteInvoiceReason.length > 0 && !deleteInvoiceReason.trim()}
+            />
+          </Field>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={quickBusy}
+              onClick={() => setDeleteInvoiceOpen(false)}
+            >
+              Giữ lại
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={quickBusy || !deleteInvoiceReason.trim()}
+              onClick={() => void deleteQuickPurchaseInvoice()}
+            >
+              {quickBusy ? "Đang xóa…" : "Xác nhận xóa"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

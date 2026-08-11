@@ -130,11 +130,20 @@ These rules define the active release boundary. Historical rules remain valid fo
 - A customer subscription retains the verified `customerPartyId`, `servicePlanId` and optional
   `projectId`. Revenue uses the customer `partyId` and project allocation; purchase invoices and
   direct expenses use their canonical endpoints and must never duplicate the same business event.
-- The expense protocol provides separate copyable cURLs for supplier creation, supplier-role
-  assignment and quick invoice creation. The quick path accepts the known date, category,
-  description and gross amount without project or company-payment relationships. Until real VAT is
-  supplied it records the gross amount as management cost, uses zero deductible VAT and keeps tax
-  eligibility `unreviewed`; it must not claim guessed input VAT.
+- The expense protocol provides one copyable quick-ingestion cURL. The backend resolves the supplier
+  by normalized organization-scoped tax ID, creates the party and explicit `supplier` role when
+  absent, then creates the canonical purchase invoice. The caller does not coordinate three HTTP
+  mutations or provide project, payment-account or accounting-account IDs.
+- The quick path accepts supplier tax ID/name, invoice number/date, an optional human-readable
+  category hint, description and gross amount. It resolves an exact active category code/name first,
+  then accepts only one strong deterministic name match from the organization category catalog.
+  Ambiguous or unknown matches fail before supplier mutation. Until real VAT is supplied it records
+  the gross amount as management cost, uses zero deductible VAT and keeps tax eligibility
+  `unreviewed`; it must not claim guessed input VAT.
+- A commercial document may be hard-deleted only while it is an unreferenced `draft` with no journal.
+  Deletion requires organization scope, write authorization, the current resource version, a reason
+  and an idempotency key, and retains an audit record. Posted or otherwise progressed invoices are
+  never hard-deleted; they use the canonical cancel or reversal workflow.
 - Malformed automation payloads return the ERP validation code instead of leaking JavaScript
   property-access errors such as attempting to call `map` on an absent line collection.
 - The expense protocol provides a paste-ready n8n expression object for the staging step before ERP

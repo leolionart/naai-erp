@@ -866,6 +866,117 @@ export class PgCommercialDocumentStore {
     }
   }
 
+  async deleteDraft(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    idempotencyKey: string,
+  ) {
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, reason }))
+      .digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        requestHash,
+      );
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const found = await client.query<{
+        id: string;
+        type: string;
+        state: string;
+        version: string;
+        journal_id: string | null;
+      }>(
+        `select id,type::text,state::text,version::text,journal_id
+           from commercial_documents
+          where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const document = found.rows[0];
+      if (!document) throw new Error("RESOURCE_NOT_FOUND");
+      if (document.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (document.state !== "draft" || document.journal_id)
+        throw new Error("DOCUMENT_DELETE_NOT_ALLOWED");
+      const references = await client.query<{ referenced: boolean }>(
+        `select exists(
+           select 1 from customer_receipt_allocations where organization_id=$1 and sales_invoice_id=$2
+           union all
+           select 1 from reconciliation_candidates where organization_id=$1 and commercial_document_id=$2
+           union all
+           select 1 from reconciliation_allocations where organization_id=$1 and commercial_document_id=$2
+           union all
+           select 1 from commercial_document_events where organization_id=$1 and document_id=$2
+           union all
+           select 1 from commercial_documents where organization_id=$1 and original_document_id=$2
+         ) referenced`,
+        [context.organizationId, id],
+      );
+      if (references.rows[0]?.referenced) throw new Error("DOCUMENT_DELETE_REFERENCED");
+      await client.query(
+        "delete from commercial_document_allocations where organization_id=$1 and document_id=$2",
+        [context.organizationId, id],
+      );
+      await client.query(
+        "delete from commercial_document_lines where organization_id=$1 and document_id=$2",
+        [context.organizationId, id],
+      );
+      await client.query(
+        "delete from external_references where organization_id=$1 and document_id=$2",
+        [context.organizationId, id],
+      );
+      await client.query("delete from commercial_documents where organization_id=$1 and id=$2", [
+        context.organizationId,
+        id,
+      ]);
+      const auditEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events
+         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'commercial_document',$3,$4,'delete_draft',$5,$6,$7,null)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          document.version,
+          context.actorId,
+          context.correlationId,
+          { ...document, deletionReason: reason },
+        ],
+      );
+      const response = {
+        documentId: id,
+        deleted: true,
+        deletedState: "draft",
+        auditEventId,
+        nextActions: [],
+      };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        "commercial-document:delete-draft",
+        requestHash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async update(
     context: CommercialDocumentContext,
     id: string,

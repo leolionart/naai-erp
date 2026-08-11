@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-11T21:53:00+07:00
+updated_at: 2026-08-12T13:55:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G64
+current_gate: G71
 current_task: null
 
 tasks:
@@ -2736,6 +2736,8 @@ tasks:
       - apps/web/src/components/automation-api-dialog.tsx
       - apps/web/src/components/automation-api-dialog.test.ts
       - apps/web/e2e/automation-api-dialog.spec.ts
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/e2e/focused-records.spec.ts
       - docs/product/business-rules.md
       - docs/testing/test-specification.md
       - docs/testing/test-catalog.yaml
@@ -2788,6 +2790,64 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-912/
     notes: Provide separate copyable cURLs for supplier creation, supplier-role assignment and immediate basic OCR invoice ingestion without project or payment-account requirements. Malformed staging payloads return structured validation errors instead of JavaScript property errors.
+
+  - id: ERP-913
+    title: One-call minimal purchase-invoice ingestion with supplier upsert
+    phase: P15
+    status: done
+    dependencies: [ERP-912]
+    business_rules:
+      [
+        BR-MVP-001,
+        BR-MVP-002,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AI-005,
+        BR-ORG-001,
+        BR-INT-001,
+        BR-UI-003,
+      ]
+    tests: [T-API-ERP-913-001, T-CONTRACT-ERP-913-002, T-E2E-ERP-913-003, T-REG-ERP-913-004]
+    evidence: docs/implementation/evidence/ERP-913/
+    agent: codex-team
+    started_at: 2026-08-12T06:01:17+07:00
+    completed_at: 2026-08-12T13:32:00+07:00
+    planned_files:
+      - apps/api/src/commercial-documents/
+      - apps/cli/src/
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/automation-api-dialog.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/api/data-relationships-and-ingestion.md
+      - docs/api/data-relationship-manifest-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-913/
+    notes: Add one idempotent REST and CLI operation that accepts basic OCR invoice fields, resolves an exact or uniquely similar active expense category before mutation, resolves the supplier by normalized tax ID, creates the party and supplier role when absent, and creates the canonical purchase invoice without requiring project or payment-account input. The expense automation dialog exposes one directly copyable cURL for this operation. Expense Quick View exposes audited deletion only for canonical draft purchase invoices that have no journal or downstream reference.
+
+  - id: ERP-914
+    title: Normalize Paperless OCR input in the one-call n8n expression
+    phase: P15
+    status: done
+    dependencies: [ERP-913]
+    business_rules: [BR-AI-003, BR-AI-005, BR-UI-003]
+    tests: [T-UNIT-ERP-914-001, T-E2E-ERP-914-002]
+    evidence: docs/implementation/evidence/ERP-914/
+    agent: codex-root
+    started_at: 2026-08-12T13:45:00+07:00
+    completed_at: 2026-08-12T13:55:00+07:00
+    planned_files:
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/automation-api-dialog.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-914/
+    notes: Replace the intermediate OCR staging expression with one paste-ready HTTP Request JSON expression that normalizes Vietnamese Paperless fields directly into the ERP-913 one-call request body.
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -2859,6 +2919,8 @@ gates:
   G67: [ERP-910]
   G68: [ERP-911]
   G69: [ERP-912]
+  G70: [ERP-913]
+  G71: [ERP-914]
 
 gate_status:
   G0: done
@@ -2929,3 +2991,5 @@ gate_status:
   G67: done
   G68: done
   G69: done
+  G70: done
+  G71: done

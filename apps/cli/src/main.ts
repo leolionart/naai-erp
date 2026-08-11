@@ -280,6 +280,11 @@ if (!resource || (!discovery && (!organizationId || !token))) {
         values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
       );
     } else {
+      if (resource === "quick-purchase-invoices") {
+        if (action !== "create" || !values.data || !values["idempotency-key"]) {
+          throw new Error("quick-purchase-invoices create requires --data and --idempotency-key");
+        }
+      }
       const bankAccountId = values["account-id"] ?? values.key;
       const bankAdapterVersion = Number.parseInt(values["adapter-version"] ?? "1", 10);
       if (resource === "bank-imports" && values.file) {

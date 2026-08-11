@@ -177,6 +177,22 @@ export class CommercialDocumentService {
       await this.store.updateCategory(context, id, category, idempotencyKey),
     );
   }
+  async deleteDraft(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion?: string,
+    reason?: string,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("IF_MATCH_REQUIRED");
+    if (!reason?.trim()) throw new Error("DELETE_REASON_REQUIRED");
+    return this.envelope(
+      context,
+      await this.store.deleteDraft(context, id, expectedVersion, reason.trim(), idempotencyKey),
+    );
+  }
 
   private mergeDocument(
     existing: ExistingDocument,

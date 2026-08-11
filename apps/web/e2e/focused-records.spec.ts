@@ -117,8 +117,17 @@ async function install(
   page: Page,
   patchFailure?: { kind: "documents" | "expenses"; status: number; code: string; message: string },
   expenseState: "draft" | "posted" = "draft",
+  purchaseInvoiceState: "draft" | "posted" = "draft",
+  purchaseInvoiceHasJournal = false,
 ) {
   let currentInvoice = { ...invoice };
+  let currentPurchaseInvoice: typeof purchaseInvoice | undefined = {
+    ...purchaseInvoice,
+    state: purchaseInvoiceState,
+    ...(purchaseInvoiceState === "posted" || purchaseInvoiceHasJournal
+      ? { journalId: "journal-purchase-720" }
+      : {}),
+  };
   let currentExpense = {
     ...expense,
     state: expenseState as string,
@@ -195,6 +204,19 @@ async function install(
   );
   await page.route("**/api/v1/organizations/naai/commercial-documents**", async (route) => {
     const url = new URL(route.request().url());
+    if (route.request().method() === "DELETE" && url.pathname.endsWith("/purchase-720")) {
+      expect(route.request().headers()["if-match"]).toBe("1");
+      expect(route.request().headers()["idempotency-key"]).toMatch(
+        /^discard-purchase-invoice-purchase-720-/,
+      );
+      expect(route.request().postDataJSON()).toEqual({ reason: "Hóa đơn nhập trùng" });
+      currentPurchaseInvoice = undefined;
+      return reply(route, {
+        documentId: "purchase-720",
+        deleted: true,
+        idempotencyReplayed: false,
+      });
+    }
     if (route.request().method() === "PATCH" && url.pathname.endsWith("/invoice-720")) {
       if (patchFailure?.kind === "documents")
         return fail(route, patchFailure.status, patchFailure.code, patchFailure.message);
@@ -216,14 +238,18 @@ async function install(
     if (route.request().method() === "POST" && url.pathname.endsWith("/commercial-documents"))
       return reply(route, currentInvoice);
     if (url.pathname.endsWith("/invoice-720")) return reply(route, currentInvoice);
+    if (url.pathname.endsWith("/purchase-720") && currentPurchaseInvoice)
+      return reply(route, currentPurchaseInvoice);
     const type = url.searchParams.get("type");
     return reply(route, {
       items:
         type === "purchase_invoice"
-          ? [purchaseInvoice]
+          ? currentPurchaseInvoice
+            ? [currentPurchaseInvoice]
+            : []
           : type === "sales_invoice"
             ? [currentInvoice]
-            : [currentInvoice, purchaseInvoice],
+            : [currentInvoice, ...(currentPurchaseInvoice ? [currentPurchaseInvoice] : [])],
     });
   });
   await page.route("**/api/v1/organizations/naai/expenses**", async (route) => {
@@ -400,6 +426,57 @@ test("@desktop expense category chart defaults management to purchase invoices a
     "href",
     "/expenses/expense-720",
   );
+});
+
+test("@desktop deletes only a canonical draft purchase invoice from Expense Management", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=present");
+  const invoiceRow = page.getByRole("row").filter({ hasText: "PINV-720" });
+  await invoiceRow.getByRole("button", { name: "Xem" }).click();
+  const quickView = page.getByRole("dialog", {
+    name: "Chi tiết & Chỉnh sửa hoạt động chi phí",
+  });
+  await quickView.getByRole("button", { name: "Xóa hóa đơn nháp" }).click();
+  const confirmation = page.getByRole("dialog", { name: "Xóa hóa đơn mua vào bản nháp?" });
+  await expect(confirmation.getByRole("button", { name: "Xác nhận xóa" })).toBeDisabled();
+  await confirmation.getByLabel("Lý do xóa").fill("Hóa đơn nhập trùng");
+  await confirmation.getByRole("button", { name: "Xác nhận xóa" }).click();
+  await expect(confirmation).not.toBeVisible();
+  await expect(quickView).not.toBeVisible();
+  await expect(page.getByText("Đã xóa hóa đơn mua vào bản nháp.")).toBeVisible();
+  await expect(page.getByText("PINV-720")).toHaveCount(0);
+});
+
+test("@desktop does not expose draft deletion for a posted purchase invoice", async ({ page }) => {
+  await install(page, undefined, "draft", "posted");
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=present");
+  await page
+    .getByRole("row")
+    .filter({ hasText: "PINV-720" })
+    .getByRole("button", { name: "Xem" })
+    .click();
+  const quickView = page.getByRole("dialog", {
+    name: "Chi tiết & Chỉnh sửa hoạt động chi phí",
+  });
+  await expect(quickView.getByRole("button", { name: "Xóa hóa đơn nháp" })).toHaveCount(0);
+});
+
+test("@desktop does not expose deletion when a draft purchase invoice already has a journal", async ({
+  page,
+}) => {
+  await install(page, undefined, "draft", "draft", true);
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=present");
+  await page
+    .getByRole("row")
+    .filter({ hasText: "PINV-720" })
+    .getByRole("button", { name: "Xem" })
+    .click();
+  const quickView = page.getByRole("dialog", {
+    name: "Chi tiết & Chỉnh sửa hoạt động chi phí",
+  });
+  await expect(quickView.getByRole("button", { name: "Xóa hóa đơn nháp" })).toHaveCount(0);
 });
 
 test("@desktop T-E2E-ERP-877-002 posted expense metadata uses one clear save action", async ({

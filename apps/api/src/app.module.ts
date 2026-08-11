@@ -17,6 +17,7 @@ import { PgLedgerReportStore } from "./ledger-reports/pg-ledger-report.store.js"
 import { CommercialDocumentController } from "./commercial-documents/commercial-document.controller.js";
 import { CommercialDocumentService } from "./commercial-documents/commercial-document.service.js";
 import { PgCommercialDocumentStore } from "./commercial-documents/pg-commercial-document.store.js";
+import { QuickPurchaseInvoiceService } from "./commercial-documents/quick-purchase-invoice.service.js";
 import { ExpenseController } from "./expenses/expense.controller.js";
 import { ExpenseService } from "./expenses/expense.service.js";
 import { PgExpenseStore } from "./expenses/pg-expense.store.js";
@@ -173,6 +174,7 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     ExpenseReportService,
     PgExpenseReportStore,
     CommercialDocumentService,
+    QuickPurchaseInvoiceService,
     PgCommercialDocumentStore,
     ExpenseService,
     PgExpenseStore,

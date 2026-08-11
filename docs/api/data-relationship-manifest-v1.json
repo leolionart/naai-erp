@@ -416,6 +416,54 @@
       "correction": "PATCH draft; cancel before issue; credit or reverse/replace after issue/post"
     },
     {
+      "id": "quick_purchase_invoice_ingestion",
+      "stage": "business_sources",
+      "endpoint": "/commercial-documents/purchase-invoice-ingestion",
+      "method": "POST",
+      "cli": "quick-purchase-invoices create",
+      "scope": "organization",
+      "identifiers": ["supplierTaxId", "externalReference.system+externalReference.externalId"],
+      "dependsOn": ["organization", "account"],
+      "requiredHeaders": ["Authorization", "Idempotency-Key", "X-Correlation-Id"],
+      "relationshipSequence": [
+        "normalize supplierTaxId",
+        "resolve exact or uniquely similar active expense category",
+        "resolve or create same-organization party",
+        "ensure explicit supplier party role",
+        "resolve active category account mappings",
+        "create canonical purchase_invoice"
+      ],
+      "inputRelationshipFields": [
+        "supplierTaxId",
+        "category",
+        "externalReference.system",
+        "externalReference.externalId"
+      ],
+      "responseIds": [
+        "data.supplier.partyId",
+        "data.category.code",
+        "data.document.documentId",
+        "data.document.journalId",
+        "resourceVersion",
+        "auditEventId"
+      ],
+      "idempotency": {
+        "required": true,
+        "sameKeySamePayload": "replay_same_business_effect",
+        "sameKeyChangedPayload": "conflict"
+      },
+      "defaultsAndBoundaries": [
+        "currency defaults to VND",
+        "dueDate defaults to documentDate",
+        "gross is recorded as management cost with zero VAT until real VAT evidence is supplied",
+        "tax eligibility remains unreviewed",
+        "never create a duplicate Expense",
+        "never infer projectId contractId payment account VAT eligibility or tax eligibility"
+      ],
+      "lifecycle": "follow response nextActions; solopreneur owner policy may atomically return posted or paid while controlled mode may return draft",
+      "correction": "DELETE only while draft with If-Match and Idempotency-Key; otherwise cancel credit reverse or replace"
+    },
+    {
       "id": "expense",
       "stage": "business_sources",
       "endpoint": "/expenses",

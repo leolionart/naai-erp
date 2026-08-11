@@ -2301,6 +2301,54 @@ tests:
     command: pnpm check
     blocking_gate: G69
 
+  - id: T-API-ERP-913-001
+    task: ERP-913
+    rules: [BR-MVP-001, BR-MVP-002, BR-AI-002, BR-AI-005, BR-ORG-001, BR-INT-001]
+    title: One-call ingestion resolves or creates the supplier and creates one canonical purchase invoice
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.integration.test.ts
+    blocking_gate: G70
+
+  - id: T-CONTRACT-ERP-913-002
+    task: ERP-913
+    rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-UI-003]
+    title: REST CLI and expense automation expose the same minimal one-call invoice contract
+    layer: contract
+    command: pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/quick-purchase-invoice.service.test.ts && pnpm --filter @naai-erp/cli test && pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts
+    blocking_gate: G70
+
+  - id: T-E2E-ERP-913-003
+    task: ERP-913
+    rules: [BR-AI-003, BR-UI-003]
+    title: Expense dialog copies one ingestion cURL and a safe draft-cleanup cURL responsively
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G70
+
+  - id: T-REG-ERP-913-004
+    task: ERP-913
+    rules: [BR-MVP-001, BR-AI-001, BR-ORG-001, BR-INT-001, BR-UI-003]
+    title: Supplier-aware ingestion and draft cleanup preserve accounting security and repository gates
+    layer: regression
+    command: pnpm check
+    blocking_gate: G70
+
+  - id: T-UNIT-ERP-914-001
+    task: ERP-914
+    rules: [BR-AI-003, BR-AI-005, BR-UI-003]
+    title: Paperless OCR expression normalizes Vietnamese dates amounts and sparse invoice identity into the one-call API body
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts
+    blocking_gate: G71
+
+  - id: T-E2E-ERP-914-002
+    task: ERP-914
+    rules: [BR-AI-003, BR-UI-003]
+    title: Expense automation dialog exposes the normalized one-call n8n expression responsively
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G71
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

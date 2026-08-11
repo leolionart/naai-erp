@@ -252,63 +252,21 @@ export function purchaseInvoiceCurl(credential: RevealedCredential) {
   }'`;
 }
 
-const OCR_SUPPLIER_ID = "party-tax-0110660175";
-
-export function ocrSupplierCurl(credential: RevealedCredential) {
-  return masterDataCreateCurl(credential, "parties", "n8n-supplier-tax-0110660175-v1", {
-    id: OCR_SUPPLIER_ID,
-    display_name: "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
-    legal_name: "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
-    normalized_tax_id: "0110660175",
-    status: "active",
-  });
-}
-
-export function ocrSupplierRoleCurl(credential: RevealedCredential) {
-  return masterDataCreateCurl(credential, "party-roles", "n8n-supplier-tax-0110660175-role-v1", {
-    party_id: OCR_SUPPLIER_ID,
-    role: "supplier",
-  });
-}
-
-export function quickOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
+export function quickOcrPurchaseInvoiceIngestionCurl(credential: RevealedCredential) {
   return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents' \\
+  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/purchase-invoice-ingestion' \\
   --header 'Authorization: Bearer ${credential.apiToken}' \\
   --header 'Content-Type: application/json' \\
   --header 'Idempotency-Key: n8n-paperless-001-k26toh-250571-v1' \\
   --header 'X-Correlation-Id: n8n-paperless-001-k26toh-250571-v1' \\
   --data '{
-    "id": "paperless-invoice-001-k26toh-250571",
-    "type": "purchase_invoice",
+    "supplierTaxId": "0110660175",
+    "supplierName": "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
     "documentNumber": "00250571",
-    "series": "1K26TOH",
-    "fiscalYear": 2026,
-    "partyId": "${OCR_SUPPLIER_ID}",
     "documentDate": "2026-07-27",
-    "dueDate": "2026-07-27",
-    "currency": "VND",
-    "netMinor": "408601",
-    "taxMinor": "0",
+    "category": "Thuê pin và sạc xe điện",
+    "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
     "grossMinor": "408601",
-    "controlAccountCode": "331-AP",
-    "lines": [{
-      "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
-      "quantity": "1",
-      "unitPriceMinor": "408601",
-      "netMinor": "408601",
-      "taxMinor": "0",
-      "grossMinor": "408601",
-      "primaryAccountCode": "642-COST",
-      "allocations": [{
-        "id": "paperless-invoice-001-k26toh-250571-line-1",
-        "amountMinor": "408601",
-        "dimensions": {
-          "category": "BATTERY_RENTAL",
-          "taxState": "unreviewed"
-        }
-      }]
-    }],
     "externalReference": {
       "system": "paperless-ngx",
       "externalId": "246",
@@ -319,6 +277,19 @@ export function quickOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
   }'`;
 }
 
+export function discardDraftPurchaseInvoiceCurl(credential: RevealedCredential) {
+  return `curl --request DELETE \\
+  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/{{$json["data"]["document"]["documentId"]}}' \\
+  --header 'Authorization: Bearer ${credential.apiToken}' \\
+  --header 'Content-Type: application/json' \\
+  --header 'If-Match: {{$json["data"]["document"]["resourceVersion"]}}' \\
+  --header 'Idempotency-Key: discard-paperless-invoice-246-v1' \\
+  --header 'X-Correlation-Id: discard-paperless-invoice-246-v1' \\
+  --data '{
+    "reason": "Xóa hóa đơn nháp tạo dư do workflow n8n nhập nhầm"
+  }'`;
+}
+
 export function n8nOcrMappingExpression() {
   return `{{
   (() => {
@@ -326,113 +297,63 @@ export function n8nOcrMappingExpression() {
     const text = (value) => value == null ? "" : String(value).trim();
     const digits = (value) => text(value).replace(/[^0-9]/g, "");
     const moneyMinor = (value) => {
-      const raw = text(value).replace(/\\s/g, "").replace(/(?:VND|VNĐ|₫)/gi, "");
-      const cleaned = raw.replace(/[^0-9,.-]/g, "");
-      const normalized = /^-?\\d{1,3}([.,]\\d{3})+$/.test(cleaned)
-        ? cleaned.replace(/[.,]/g, "")
-        : cleaned.replace(/,/g, "");
-      return normalized && /^-?\\d+(?:\\.\\d+)?$/.test(normalized)
-        ? String(Math.round(Number(normalized)))
-        : null;
+      const raw = text(value)
+        .replace(/(?:VND|VNĐ|₫)/gi, "")
+        .replace(/\\s/g, "")
+        .replace(/([.,]00)$/, "");
+      const normalized = digits(raw);
+      return normalized || null;
     };
     const isoDate = (value) => {
       const raw = text(value);
-      const parts = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+      const parts = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})(?:[ T].*)?$/);
       if (parts) return parts[3] + "-" + parts[2].padStart(2, "0") + "-" + parts[1].padStart(2, "0");
-      return /^\\d{4}-\\d{2}-\\d{2}$/.test(raw) ? raw : null;
+      const iso = raw.match(/^(\\d{4}-\\d{2}-\\d{2})(?:[ T].*)?$/);
+      return iso ? iso[1] : null;
     };
-    const taxNumber = digits(output["Mã số thuế (Tax code)"]);
-    const documentDate = isoDate(output["Ký ngày"]);
+    const taxNumber = digits(output["Mã số thuế (Tax code)"] ?? output["Mã số thuế"]);
+    const supplierName = text(output["Ký bởi"] ?? output["Tên người bán"] ?? output["Đơn vị bán hàng"]);
+    const documentDate = isoDate(output["Ký ngày"] ?? output["Ngày hóa đơn"] ?? output["Ngày lập"]);
     const content = text($json.content);
-    const invoiceNumber = (content.match(/(?:Số \\(Inv No\\.\\)|Số hóa đơn)[^0-9]*(\\d{6,10})/i) ?? [])[1] ?? null;
-    const tags = Array.isArray($json.tags)
-      ? $json.tags.map((tag) => typeof tag === "object" ? (tag.name ?? tag.id) : tag)
-      : [];
-    const supplierPartyId = taxNumber ? "party-tax-" + taxNumber : null;
+    const invoiceNumber = text(
+      output["Số hóa đơn"] ??
+      output["Số (Inv No.)"] ??
+      output["Invoice No."] ??
+      ((content.match(/(?:Số \\(Inv No\\.\\)|Số hóa đơn|Invoice No\\.)[^0-9]*(\\d{5,12})/i) ?? [])[1])
+    );
     const sourceDocumentId = text($json.id);
-    const invoiceId = sourceDocumentId ? "paperless-invoice-" + sourceDocumentId : null;
     const totalPaymentMinor = moneyMinor(output["Tổng cộng tiền thanh toán"]);
+    const series = text(output["Ký hiệu (Serial)"] ?? output["Ký hiệu"] ?? output["Serial"]).replace(/\\s/g, "");
+    const category = text(output["Hạng mục"] ?? output["Danh mục"] ?? output["Loại chi phí"]);
+    const description = text(output["Tên hàng hóa, dịch vụ"] ?? output["Nội dung"] ?? output["Diễn giải"]);
+    const canonicalUrl = text($json.url ?? $json.canonical_url) ||
+      (sourceDocumentId ? "https://paper.naai.studio/api/documents/" + sourceDocumentId + "/download/" : "");
 
     return {
-      source: {
+      "schemaVersion": 1,
+      "supplierTaxId": taxNumber,
+      ...(supplierName ? { "supplierName": supplierName } : {}),
+      "documentNumber": invoiceNumber,
+      ...(series ? { "series": series } : {}),
+      "documentDate": documentDate,
+      ...(category ? { "category": category } : {}),
+      "description": description,
+      "grossMinor": totalPaymentMinor,
+      "currency": "VND",
+      "externalReference": {
         system: "paperless-ngx",
-        externalId: sourceDocumentId || null,
-        canonicalUrl: text($json.url ?? $json.canonical_url) || null,
-        checksum: text($json.checksum) || null,
+        externalId: sourceDocumentId,
+        ...(canonicalUrl ? { canonicalUrl } : {}),
+        ...(text($json.checksum) ? { checksum: text($json.checksum) } : {}),
         version: "1",
         metadata: {
-          sourceTitle: text($json.title) || null,
-          originalFileName: text($json.original_file_name) || null,
-          archivedFileName: text($json.archived_file_name) || null,
-          createdAt: text($json.created) || null,
-          modifiedAt: text($json.modified) || null,
-          correspondentId: $json.correspondent ?? null,
-          documentTypeId: $json.document_type ?? null,
-          ownerId: $json.owner ?? null,
-          pageCount: $json.page_count ?? $json.custom_fields?.page_count ?? null,
-          tags
+          sourceTitle: text($json.title),
+          originalFileName: text($json.original_file_name),
+          archivedFileName: text($json.archived_file_name),
+          rawCategory: category || null,
+          sourceCreatedAt: text($json.created),
+          sourceModifiedAt: text($json.modified)
         }
-      },
-      supplier: supplierPartyId ? {
-        id: supplierPartyId,
-        display_name: text(output["Ký bởi"]) || null,
-        legal_name: text(output["Ký bởi"]) || null,
-        normalized_tax_id: taxNumber,
-        status: "active"
-      } : null,
-      supplierRole: supplierPartyId ? { party_id: supplierPartyId, role: "supplier" } : null,
-      invoiceCandidate: {
-        id: invoiceId,
-        type: "purchase_invoice",
-        documentNumber: text(output["Số hóa đơn"] ?? output["Số (Inv No.)"]) || invoiceNumber,
-        series: text(output["Ký hiệu (Serial)"] ?? output["Ký hiệu"]).replace(/\\s/g, "") || null,
-        fiscalYear: documentDate ? Number(documentDate.slice(0, 4)) : null,
-        partyId: supplierPartyId,
-        documentDate,
-        dueDate: null,
-        currency: "VND",
-        grossMinor: totalPaymentMinor,
-        netMinor: moneyMinor(output["Tổng tiền chưa thuế"] ?? output["Cộng tiền hàng"]),
-        taxMinor: moneyMinor(output["Tiền thuế GTGT"] ?? output["Thuế GTGT"]),
-        controlAccountCode: "331-AP",
-        lines: [{
-          description: text(output["Tên hàng hóa, dịch vụ"]) || null,
-          quantity: "1",
-          unitPriceMinor: null,
-          netMinor: null,
-          taxMinor: null,
-          grossMinor: totalPaymentMinor,
-          primaryAccountCode: null,
-          taxAccountCode: null,
-          taxCode: null,
-          allocations: [{
-            id: invoiceId ? invoiceId + "-line-1" : null,
-            amountMinor: null,
-            dimensions: {
-              sourceCategoryLabel: text(output["Hạng mục"]) || null,
-              taxState: "unreviewed"
-            }
-          }]
-        }]
-      },
-      ocrMetadata: {
-        signedMonth: text(output["Tháng"]) || null,
-        bankName: text(output["Ngân hàng (Bank)"]) || null,
-        bankAccountNumber: text(output["Số tài khoản (Account number)"]) || null,
-        beneficiary: text(output["Đơn vị thụ hưởng (Beneficiary)"]) || null,
-        rawOutput: output
-      },
-      validation: {
-        readyToPost: false,
-        missingWhenNull: [
-          "invoiceCandidate.documentNumber",
-          "invoiceCandidate.dueDate",
-          "invoiceCandidate.netMinor",
-          "invoiceCandidate.taxMinor",
-          "invoiceCandidate.lines[0].primaryAccountCode",
-          "invoiceCandidate.lines[0].taxCode",
-          "invoiceCandidate.lines[0].allocations[0].amountMinor"
-        ]
       }
     };
   })()
@@ -506,27 +427,21 @@ function definitionsFor(
       {
         title: "Expression n8n: chuẩn hóa toàn bộ dữ liệu OCR",
         description:
-          "Dán nguyên khối vào Edit Fields hoặc JSON Body ở chế độ Expression. Mẫu lấy tối đa field trong $json.output và metadata Paperless, đồng thời chuẩn hóa tiền, ngày và mã số thuế.",
+          "Dán nguyên khối vào JSON Body của HTTP Request ở chế độ Expression. Kết quả là body nhập hóa đơn một-call đã chuẩn hóa tiền, ngày, mã số thuế và tự lấy số hóa đơn từ nội dung khi OCR không tách field riêng.",
         value: n8nOcrMappingExpression(),
         kind: "n8n-expression",
       },
       {
-        title: "1. Tạo nhà cung cấp từ dữ liệu OCR",
+        title: "Nhập nhanh hóa đơn OCR bằng một request",
         description:
-          "Chạy một lần cho mỗi mã số thuế. ID ổn định nên retry bằng cùng Idempotency-Key không tạo trùng.",
-        value: ocrSupplierCurl(credential),
+          "ERP tự tạo hoặc dùng lại nhà cung cấp theo mã số thuế, gán vai trò supplier và nhập hóa đơn tối giản. Không cần dự án hay tài khoản thanh toán.",
+        value: quickOcrPurchaseInvoiceIngestionCurl(credential),
       },
       {
-        title: "2. Gán vai trò nhà cung cấp",
+        title: "Xóa hóa đơn nháp tạo dư",
         description:
-          "Chạy sau khi tạo party để ERP cho phép dùng nhà cung cấp trên hóa đơn đầu vào.",
-        value: ocrSupplierRoleCurl(credential),
-      },
-      {
-        title: "3. Nhập nhanh hóa đơn — ngày, danh mục và tổng tiền",
-        description:
-          "Mẫu chạy ngay sau hai bước nhà cung cấp; không cần dự án hay tài khoản thanh toán. Toàn bộ tổng tiền được ghi nhận là chi phí, VAT bằng 0 và taxState để unreviewed cho tới khi bổ sung số thuế thật.",
-        value: quickOcrPurchaseInvoiceCurl(credential),
+          "Chỉ dùng cho hóa đơn còn ở trạng thái draft và chưa có bút toán. Lấy version hiện tại của hóa đơn để điền vào If-Match; hóa đơn đã ghi sổ phải dùng quy trình hủy hoặc đảo bút toán.",
+        value: discardDraftPurchaseInvoiceCurl(credential),
       },
       {
         title: "Nhập hóa đơn đầu vào hoàn chỉnh",

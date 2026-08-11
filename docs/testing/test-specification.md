@@ -524,3 +524,33 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
 - A staging wrapper accidentally posted to `/commercial-documents` returns `VALIDATION_FAILED`
   rather than `CANNOT_READ_PROPERTIES_OF_UNDEFINED`.
 - Contract, API and E2E tests cover the three independent requests and responsive copy flow.
+
+### ERP-913 — One-call supplier-aware purchase-invoice ingestion
+
+- One organization-scoped POST accepts only the basic supplier and OCR invoice fields, resolves an
+  exact normalized tax ID, creates the supplier party/role if absent and delegates to the canonical
+  purchase-invoice service.
+- The backend derives fiscal year, due date, safe zero-VAT totals and active organization account
+  mappings. It never guesses a project, funding account or deductible VAT claim.
+- Category may be an internal code, an OCR label or omitted when the description provides a strong
+  unique match. Resolution uses only active canonical organization categories; ambiguous or unknown
+  input fails before creating supplier master data.
+- Retry uses the normal commercial-document idempotency and external identity controls. An existing
+  active supplier is reused; an inactive supplier or missing category/account mapping fails clearly.
+- The expense automation dialog exposes one directly copyable ingestion cURL instead of three setup
+  requests, plus a separate cleanup cURL for draft test invoices.
+- Draft deletion requires `If-Match`, reason and idempotency, retains audit evidence and rejects any
+  invoice that has progressed, has a journal or is referenced by another business resource.
+- API/CLI contract, focused unit/integration tests, responsive E2E and the full repository gate cover
+  the one-call ingestion and safe cleanup paths.
+
+### ERP-914 — Paperless OCR expression normalization
+
+- The Expense automation dialog provides one n8n expression object whose result is the exact
+  one-call purchase-invoice request body, not an intermediate supplier/invoice staging structure.
+- Vietnamese formatted amounts such as `408.601`, timestamps such as
+  `27/07/2026 07:22:52`, punctuated tax IDs and sparse invoice-number fields normalize to the API
+  contract. When OCR does not expose the invoice number separately, the expression extracts it from
+  the Paperless document content.
+- A representative Paperless payload regression test proves the normalized date, amount, tax ID,
+  invoice number, category and external reference.

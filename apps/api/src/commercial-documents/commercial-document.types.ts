@@ -63,4 +63,20 @@ export type CommercialDocumentCategoryInput = Readonly<{
   category: string;
 }>;
 
+export type QuickPurchaseInvoiceInput = Readonly<{
+  schemaVersion?: 1;
+  supplierTaxId: string;
+  supplierName?: string;
+  supplierLegalName?: string;
+  documentNumber: string;
+  series?: string;
+  documentDate: string;
+  dueDate?: string;
+  category?: string;
+  description: string;
+  grossMinor: string;
+  currency?: string;
+  externalReference?: ExternalReferenceInput;
+}>;
+
 export type CommercialDocumentContext = JournalActorContext;

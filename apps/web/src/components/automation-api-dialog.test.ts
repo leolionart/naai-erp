@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   customerCurl,
+  discardDraftPurchaseInvoiceCurl,
   directExpenseCurl,
   projectCurl,
   n8nOcrMappingExpression,
-  ocrSupplierCurl,
-  ocrSupplierRoleCurl,
   purchaseInvoiceCurl,
   purchaseProductCurl,
-  quickOcrPurchaseInvoiceCurl,
+  quickOcrPurchaseInvoiceIngestionCurl,
   salesInvoiceCurl,
   servicePlanCurl,
   subscriptionCurl,
@@ -49,25 +48,41 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
     expect(curl).toContain('"vat_rate_percent": 10');
   });
 
-  it("builds separate supplier, role and quick-invoice cURLs for sparse OCR input", () => {
-    const supplier = ocrSupplierCurl(credential);
-    const role = ocrSupplierRoleCurl(credential);
-    const invoice = quickOcrPurchaseInvoiceCurl(credential);
-    for (const curl of [supplier, role, invoice]) expectCommonHeaders(curl);
-    expect(supplier).toContain("/master-data/parties");
-    expect(supplier).toContain('"normalized_tax_id": "0110660175"');
-    expect(role).toContain("/master-data/party-roles");
-    expect(role).toContain('"role": "supplier"');
-    expect(invoice).toContain('"type": "purchase_invoice"');
-    expect(invoice).toContain('"netMinor": "408601"');
-    expect(invoice).toContain('"taxMinor": "0"');
-    expect(invoice).toContain('"grossMinor": "408601"');
-    expect(invoice).toContain('"taxState": "unreviewed"');
-    expect(invoice).not.toContain('"projectId"');
-    expect(invoice).not.toContain('"fundingSource"');
+  it("builds one quick OCR ingestion cURL that resolves the supplier server-side", () => {
+    const curl = quickOcrPurchaseInvoiceIngestionCurl(credential);
+    expectCommonHeaders(curl);
+    expect(curl).toContain("/commercial-documents/purchase-invoice-ingestion");
+    for (const field of [
+      '"supplierTaxId": "0110660175"',
+      '"supplierName"',
+      '"documentNumber": "00250571"',
+      '"documentDate": "2026-07-27"',
+      '"category": "Thuê pin và sạc xe điện"',
+      '"description"',
+      '"grossMinor": "408601"',
+      '"externalReference"',
+    ]) {
+      expect(curl).toContain(field);
+    }
+    expect(curl.match(/curl --request/g)).toHaveLength(1);
+    expect(curl).not.toContain("/master-data/parties");
+    expect(curl).not.toContain("/master-data/party-roles");
+    expect(curl).not.toContain('"projectId"');
+    expect(curl).not.toContain('"fundingSource"');
   });
 
-  it("builds one paste-ready n8n expression that preserves sparse OCR data without guessing", () => {
+  it("builds a versioned idempotent request that only discards a draft invoice", () => {
+    const curl = discardDraftPurchaseInvoiceCurl(credential);
+    expectCommonHeaders(curl);
+    expect(curl).toContain("curl --request DELETE");
+    expect(curl).toContain('/commercial-documents/{{$json["data"]["document"]["documentId"]}}');
+    expect(curl).toContain('If-Match: {{$json["data"]["document"]["resourceVersion"]}}');
+    expect(curl).toContain("Idempotency-Key: discard-paperless-invoice-246-v1");
+    expect(curl).toContain('"reason": "Xóa hóa đơn nháp tạo dư do workflow n8n nhập nhầm"');
+    expect(curl).not.toContain('"state": "posted"');
+  });
+
+  it("builds one paste-ready n8n expression for the one-call invoice body", () => {
     const expression = n8nOcrMappingExpression();
     expect(expression).toMatch(/^\{\{/);
     for (const field of [
@@ -79,17 +94,54 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
       'output["Hạng mục"]',
       'output["Tổng cộng tiền thanh toán"]',
       'output["Ký ngày"]',
-      "supplierPartyId",
-      "invoiceCandidate",
-      "readyToPost: false",
-      "rawOutput: output",
+      '"supplierTaxId"',
+      '"documentNumber"',
+      '"documentDate"',
+      '"grossMinor"',
+      '"externalReference"',
     ]) {
       expect(expression).toContain(field);
     }
     expect(expression).toContain("replace(/[^0-9]/g");
-    expect(expression).toContain("missingWhenNull");
+    expect(expression).toContain("(?:[ T].*)?$");
     expect(expression).not.toContain("projectId");
     expect(expression).not.toContain("fundingSource");
+  });
+
+  it("normalizes the illustrated Paperless OCR payload into the API contract", () => {
+    const expression = n8nOcrMappingExpression();
+    const javascript = expression.slice(2, -2).trim();
+    const evaluate = new Function("$json", `return ${javascript}`) as (
+      input: Record<string, unknown>,
+    ) => Record<string, unknown>;
+
+    expect(
+      evaluate({
+        id: 246,
+        title: "001_K26TOH_250571_9137",
+        content:
+          "HÓA ĐƠN GIÁ TRỊ GIA TĂNG\\nKý hiệu (Serial No.): 1K26TOH\\nSố (Inv No.): 00250571",
+        output: {
+          "Ký bởi": "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
+          "Mã số thuế (Tax code)": "0110660175",
+          "Ký hiệu (Serial)": "1K26TOH",
+          "Ký ngày": "27/07/2026 07:22:52",
+          "Hạng mục": "OTHER_EXPENSE",
+          "Tên hàng hóa, dịch vụ": "Phí dịch vụ trạm sạc tháng 7 năm 2026 cho số khung xe",
+          "Tổng cộng tiền thanh toán": "408.601",
+        },
+      }),
+    ).toMatchObject({
+      supplierTaxId: "0110660175",
+      documentNumber: "00250571",
+      documentDate: "2026-07-27",
+      category: "OTHER_EXPENSE",
+      grossMinor: "408601",
+      externalReference: {
+        externalId: "246",
+        canonicalUrl: "https://paper.naai.studio/api/documents/246/download/",
+      },
+    });
   });
 
   it.each([

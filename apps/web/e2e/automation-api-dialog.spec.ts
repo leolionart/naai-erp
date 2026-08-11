@@ -42,10 +42,18 @@ for (const [route, expected] of contexts) {
     expect(tokenRequests.count).toBe(1);
     await dialog.locator("button[aria-expanded]").first().click();
     await expect(dialog.locator("pre code").first()).toContainText(expected);
+    if (route === "/expenses") {
+      const expression = dialog.locator("pre code").first();
+      await expect(expression).toContainText('"supplierTaxId": taxNumber');
+      await expect(expression).toContainText('"documentDate": documentDate');
+      await expect(expression).toContainText('"grossMinor": totalPaymentMinor');
+      await expect(expression).toContainText("(?:[ T].*)?$");
+      await expect(expression).toContainText("/api/documents/");
+    }
   });
 }
 
-test("@mobile expense dialog remains responsive with a complete invoice example", async ({
+test("@mobile expense dialog remains responsive with one-request OCR ingestion", async ({
   page,
 }) => {
   const tokenRequests = { count: 0 };
@@ -55,13 +63,28 @@ test("@mobile expense dialog remains responsive with a complete invoice example"
   await expect(page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" })).toBeVisible();
   await page.getByRole("button", { name: "Hiện ví dụ có token production" }).click();
   await expect(page.getByText(/Token production đã được ghép/)).toBeVisible();
-  await page.getByRole("button", { name: /Nhập nhanh hóa đơn/ }).click();
+  await page.getByRole("button", { name: /Nhập nhanh hóa đơn OCR bằng một request/ }).click();
   const code = page.locator("pre code").filter({ hasText: "Authorization: Bearer" }).first();
   await expect(code).toContainText("Authorization: Bearer e2e-stable-token");
-  await expect(code).toContainText('"type": "purchase_invoice"');
+  await expect(code).toContainText("/commercial-documents/purchase-invoice-ingestion");
+  await expect(code).toContainText('"supplierTaxId": "0110660175"');
+  await expect(code).toContainText('"category": "Thuê pin và sạc xe điện"');
+  await expect(code).toContainText('"grossMinor": "408601"');
   await expect(code).toContainText('"externalReference"');
-  await expect(code).toContainText('"taxMinor": "0"');
   await expect(code).not.toContainText('"projectId"');
+  await expect(code).not.toContainText('"fundingSource"');
+  await expect(code).not.toContainText("/master-data/parties");
+  await page.getByRole("button", { name: "Xóa hóa đơn nháp tạo dư" }).click();
+  const discardCode = page.locator("pre code").filter({ hasText: "curl --request DELETE" });
+  await expect(discardCode).toContainText('{{$json["data"]["document"]["documentId"]}}');
+  await expect(discardCode).toContainText(
+    'If-Match: {{$json["data"]["document"]["resourceVersion"]}}',
+  );
+  await expect(discardCode).toContainText("Idempotency-Key: discard-paperless-invoice-246-v1");
+  await expect(discardCode).toContainText('"reason": "Xóa hóa đơn nháp tạo dư');
+  await expect(
+    page.getByText(/Chỉ dùng cho hóa đơn còn ở trạng thái draft và chưa có bút toán/),
+  ).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth + 1),
   );

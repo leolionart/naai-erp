@@ -661,6 +661,50 @@ describe("NAAI ERP JSON-first CLI client", () => {
     },
   );
 
+  it("creates a quick purchase invoice through the one-call supplier upsert endpoint", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const payload = {
+      schemaVersion: 1,
+      supplierTaxId: "0110660175",
+      supplierName: "Nhà cung cấp A",
+      documentNumber: "00250571",
+      documentDate: "2026-07-27",
+      category: "BATTERY_RENTAL",
+      description: "Phí dịch vụ tháng 7",
+      grossMinor: "408601",
+    };
+
+    await client.request(
+      "quick-purchase-invoices",
+      "create",
+      payload,
+      undefined,
+      undefined,
+      "paperless-246-v1",
+    );
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/commercial-documents/purchase-invoice-ingestion",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: expect.objectContaining({ "idempotency-key": "paperless-246-v1" }),
+      }),
+    );
+    expect(() => client.request("quick-purchase-invoices", "list")).toThrow(
+      "Unsupported quick-purchase-invoices action: list",
+    );
+  });
+
   it.each(["submit", "mark-evidence-pending", "review", "approve", "reject", "post"])(
     "calls expense %s through the AI-native workflow API",
     async (action) => {

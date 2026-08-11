@@ -58,6 +58,33 @@ async function invoke(args: string[]) {
 }
 
 describe("ERP-640 CLI executable", () => {
+  it("creates a quick purchase invoice with the exact payload and stable retry key", async () => {
+    const payload = {
+      schemaVersion: 1,
+      supplierTaxId: "0110660175",
+      supplierName: "Nhà cung cấp A",
+      documentNumber: "00250571",
+      documentDate: "2026-07-27",
+      category: "BATTERY_RENTAL",
+      description: "Phí dịch vụ tháng 7",
+      grossMinor: "408601",
+    };
+    const result = await invoke([
+      "quick-purchase-invoices",
+      "create",
+      "--data",
+      JSON.stringify(payload),
+      "--idempotency-key",
+      "paperless-246-v1",
+    ]);
+    expect(result.requestedUrl).toBe(
+      "/api/v1/organizations/org-a/commercial-documents/purchase-invoice-ingestion",
+    );
+    expect(result.requestMethod).toBe("POST");
+    expect(JSON.parse(result.requestBody)).toEqual(payload);
+    expect(result.requestHeaders["idempotency-key"]).toBe("paperless-246-v1");
+  });
+
   it("reads both monthly expense breakdown resources", async () => {
     const payee = await invoke([
       "expense-report-by-payee",

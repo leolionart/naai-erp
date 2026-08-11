@@ -864,6 +864,63 @@
       },
       "patch": {
         "summary": "Update an existing draft commercial document, validating customer-project-contract relationships and preserving omitted lines, allocations and external reference"
+      },
+      "delete": {
+        "operationId": "deleteDraftCommercialDocument",
+        "tags": ["commercial-documents"],
+        "summary": "Delete an organization-scoped commercial document only while it remains draft",
+        "description": "Requires the current resource version, an idempotency key and an optional business reason. Issued, posted, paid, cancelled or otherwise non-draft history is rejected and must use the applicable cancel, credit, reversal or replacement workflow.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "documentId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "reason": { "type": "string", "minLength": 1 } },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audited deletion result identifying the removed draft and its former version",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/purchase-invoice-ingestion": {
+      "post": {
+        "operationId": "createQuickPurchaseInvoice",
+        "tags": ["commercial-documents", "purchase-invoices", "ingestion"],
+        "summary": "Create one canonical purchase invoice while resolving or creating its supplier",
+        "description": "One idempotent organization-scoped operation resolves an exact or uniquely similar active expense category, normalizes the supplier tax ID, reuses or creates the supplier party, ensures its supplier role, prioritizes the effective category account mapping with active organization-account fallbacks, and creates the canonical purchase invoice. It does not create a duplicate Expense and does not infer a project, payment account, deductible VAT or tax eligibility. Repeating the exact payload with the same Idempotency-Key returns the same business effect; changing the payload under that key conflicts.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/QuickPurchaseInvoice" },
+        "responses": {
+          "201": {
+            "description": "Supplier resolution and canonical purchase-invoice result. Retain supplier.partyId, document.documentId, resourceVersion, auditEventId and nextActions.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuickPurchaseInvoiceEnvelope" }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category": {
@@ -4917,6 +4974,58 @@
           "data": {}
         }
       },
+      "QuickPurchaseInvoiceSupplierResult": {
+        "type": "object",
+        "required": ["partyId", "disposition", "roleDisposition"],
+        "properties": {
+          "partyId": { "type": "string" },
+          "disposition": {
+            "type": "string",
+            "description": "Whether the supplier party was reused or created."
+          },
+          "roleDisposition": {
+            "type": "string",
+            "description": "Whether the explicit supplier role was reused or created."
+          }
+        }
+      },
+      "QuickPurchaseInvoiceEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "required": ["supplier", "category", "document"],
+            "properties": {
+              "supplier": { "$ref": "#/components/schemas/QuickPurchaseInvoiceSupplierResult" },
+              "category": {
+                "type": "object",
+                "required": ["code", "name", "disposition"],
+                "properties": {
+                  "code": { "type": "string" },
+                  "name": { "type": "string" },
+                  "disposition": { "type": "string", "enum": ["exact", "similarity"] }
+                },
+                "additionalProperties": false
+              },
+              "document": {
+                "type": "object",
+                "required": ["documentId"],
+                "properties": {
+                  "documentId": { "type": "string" },
+                  "state": { "type": "string" },
+                  "journalId": { "type": ["string", "null"] }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
       "FinancialStatementRow": {
         "type": "object",
         "required": [
@@ -7462,6 +7571,59 @@
       }
     },
     "requestBodies": {
+      "QuickPurchaseInvoice": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "supplierTaxId",
+                "documentNumber",
+                "documentDate",
+                "description",
+                "grossMinor"
+              ],
+              "properties": {
+                "schemaVersion": { "const": 1 },
+                "supplierTaxId": {
+                  "type": "string",
+                  "description": "Vietnamese supplier tax ID; punctuation is normalized and the resulting value must contain 10 or 13 digits."
+                },
+                "supplierName": { "type": "string", "minLength": 1 },
+                "supplierLegalName": { "type": "string", "minLength": 1 },
+                "documentNumber": { "type": "string", "minLength": 1 },
+                "series": { "type": "string" },
+                "documentDate": { "type": "string", "format": "date" },
+                "dueDate": { "type": "string", "format": "date" },
+                "category": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Optional active organization expense-category code or human-readable OCR label. Exact code/name matches win; similar labels are accepted only when one strong unique match exists."
+                },
+                "description": { "type": "string", "minLength": 1 },
+                "grossMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "VND" },
+                "externalReference": {
+                  "type": "object",
+                  "required": ["system", "externalId"],
+                  "properties": {
+                    "system": { "type": "string", "minLength": 1 },
+                    "externalId": { "type": "string", "minLength": 1 },
+                    "canonicalUrl": { "type": "string" },
+                    "checksum": { "type": "string" },
+                    "version": { "type": "string" },
+                    "syncedAt": { "type": "string", "format": "date-time" },
+                    "metadata": { "type": "object", "additionalProperties": true }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
       "RelationshipBackfillDryRun": {
         "required": true,
         "content": {

@@ -104,6 +104,77 @@ describeIntegration("ERP-300 commercial documents", () => {
     ],
   } as const;
 
+  it("ingests a minimal purchase invoice in one request and reuses the supplier on retry", async () => {
+    await pool.query(
+      `insert into dimension_values(organization_id,kind,code,name,is_active)
+       values($1,'category','BATTERY_RENTAL','Thuê pin',true)
+       on conflict(organization_id,kind,code) do update set is_active=true`,
+      [org],
+    );
+    const payload = {
+      supplierTaxId: "0110660175",
+      supplierName: "V-GREEN",
+      documentNumber: "00250571",
+      documentDate: "2026-01-27",
+      category: "BATTERY_RENTAL",
+      description: "Phí dịch vụ trạm sạc",
+      grossMinor: "408601",
+      externalReference: { system: "paperless-ngx", externalId: "erp913-paperless-246" },
+    };
+    const request = () =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${org}/commercial-documents/purchase-invoice-ingestion`,
+        headers: headers(integrationToken, "erp913-quick-invoice-1"),
+        payload,
+      });
+
+    const first = await request();
+    expect(first.statusCode).toBe(201);
+    expect(first.json().data).toMatchObject({
+      supplier: {
+        partyId: "party-tax-0110660175",
+        disposition: "created",
+        roleDisposition: "created",
+      },
+      document: { state: "draft" },
+    });
+
+    const replay = await request();
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json().data.document.documentId).toBe(first.json().data.document.documentId);
+    expect(replay.json().data.document.idempotencyReplayed).toBe(true);
+    const counts = await pool.query<{ parties: string; roles: string; documents: string }>(
+      `select
+        (select count(*) from parties where organization_id=$1 and normalized_tax_id='0110660175')::text parties,
+        (select count(*) from party_roles where organization_id=$1 and party_id='party-tax-0110660175' and role='supplier')::text roles,
+        (select count(*) from commercial_documents where organization_id=$1 and document_number='00250571')::text documents`,
+      [org],
+    );
+    expect(counts.rows[0]).toEqual({ parties: "1", roles: "1", documents: "1" });
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/organizations/${org}/commercial-documents/${first.json().data.document.documentId}`,
+      headers: {
+        ...headers(integrationToken, "erp913-delete-quick-invoice-1"),
+        "if-match": first.json().data.document.resourceVersion,
+      },
+      payload: { reason: "Remove duplicate automation test invoice" },
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json().data).toMatchObject({
+      documentId: first.json().data.document.documentId,
+      deleted: true,
+      deletedState: "draft",
+    });
+    const afterDelete = await pool.query<{ count: string }>(
+      "select count(*)::text count from commercial_documents where organization_id=$1 and id=$2",
+      [org, first.json().data.document.documentId],
+    );
+    expect(afterDelete.rows[0]?.count).toBe("0");
+  });
+
   it("saves and issues a valid sales invoice atomically for a solopreneur owner", async () => {
     await pool.query(
       `insert into accounting_workflow_policies
