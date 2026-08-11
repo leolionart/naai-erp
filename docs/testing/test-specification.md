@@ -496,11 +496,10 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
 
 ### ERP-910 — Minimal OCR purchase-invoice protocol
 
-- The expense dialog presents the minimal OCR example before the full accounting example.
-- The sequence creates the supplier party and supplier role from a stable tax-ID identity, then
-  creates a purchase invoice with no project allocation and no funding source.
-- Net, VAT and gross controls remain exact and balanced; tax eligibility starts as `unreviewed`.
-  Copy warns n8n operators not to infer tax amounts from gross payment alone.
+- The expense dialog presents separate supplier, supplier-role and quick-invoice cURLs before the
+  full accounting example so n8n imports one HTTP node at a time.
+- The quick invoice has no project allocation or funding source and records the known gross amount
+  as management cost with zero deductible VAT and tax eligibility `unreviewed`.
 - Contract tests assert the absence of invented project/payment relationships. Mobile E2E opens the
   minimal example and verifies long cURL content remains responsive.
 
@@ -515,3 +514,13 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   VAT, due date, accounts and allocation controls are supplied.
 - Tests protect the paste syntax, mapped field inventory, absence of project/funding guesses and
   responsive rendering alongside existing cURL examples.
+
+### ERP-912 — Safe and immediate n8n invoice handoff
+
+- Every operational request is a separate importable cURL: create supplier, assign supplier role,
+  then create the quick invoice.
+- The quick invoice works with the basic date, description, category and gross amount from OCR; it
+  does not require a project or payment account and does not claim input VAT that was not extracted.
+- A staging wrapper accidentally posted to `/commercial-documents` returns `VALIDATION_FAILED`
+  rather than `CANNOT_READ_PROPERTIES_OF_UNDEFINED`.
+- Contract, API and E2E tests cover the three independent requests and responsive copy flow.

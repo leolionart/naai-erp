@@ -77,6 +77,16 @@ describe("ERP-300 CommercialDocumentService", () => {
     expect(store.validateRelationships).toHaveBeenCalledWith("org-a", sales);
     expect(result.data).toMatchObject({ documentId: "sales-1", state: "draft" });
   });
+  it("rejects an n8n staging object as validation failure instead of throwing a property error", async () => {
+    const service = new CommercialDocumentService({} as never, {} as never);
+    await expect(
+      service.create(
+        context,
+        { source: {}, supplier: {}, invoiceCandidate: {}, validation: {} } as never,
+        "staging-object-1",
+      ),
+    ).rejects.toThrow("VALIDATION_FAILED");
+  });
   it("rejects a sales project or contract relationship rejected by the store", async () => {
     const store = {
       validateRelationships: vi.fn().mockRejectedValue(new Error("PROJECT_CUSTOMER_MISMATCH")),

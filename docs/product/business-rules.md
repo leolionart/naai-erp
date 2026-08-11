@@ -130,11 +130,13 @@ These rules define the active release boundary. Historical rules remain valid fo
 - A customer subscription retains the verified `customerPartyId`, `servicePlanId` and optional
   `projectId`. Revenue uses the customer `partyId` and project allocation; purchase invoices and
   direct expenses use their canonical endpoints and must never duplicate the same business event.
-- The expense protocol also provides a minimal OCR/Paperless sequence for invoices that have no
-  known project or company-payment account. It creates/reuses a deterministic supplier identity from
-  tax ID, omits project and funding relationships, and keeps tax eligibility `unreviewed`. Exact net,
-  VAT and gross controls remain required and must come from invoice extraction or a verified product
-  tax rule; automation must not guess them from the gross total alone.
+- The expense protocol provides separate copyable cURLs for supplier creation, supplier-role
+  assignment and quick invoice creation. The quick path accepts the known date, category,
+  description and gross amount without project or company-payment relationships. Until real VAT is
+  supplied it records the gross amount as management cost, uses zero deductible VAT and keeps tax
+  eligibility `unreviewed`; it must not claim guessed input VAT.
+- Malformed automation payloads return the ERP validation code instead of leaking JavaScript
+  property-access errors such as attempting to call `map` on an absent line collection.
 - The expense protocol provides a paste-ready n8n expression object for the staging step before ERP
   mutation. It maps all available `$json.output` OCR labels and Paperless metadata in one operation,
   normalizes tax ID, VND money and signed date, retains raw OCR output, and explicitly reports fields

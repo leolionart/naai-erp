@@ -7,7 +7,9 @@ import type {
   CommercialDocumentAction,
   CommercialDocumentCategoryInput,
   CommercialDocumentContext,
+  CommercialDocumentLineInput,
   CreateCommercialDocumentInput,
+  DocumentAllocationInput,
   UpdateCommercialDocumentInput,
   ExternalReferenceInput,
 } from "./commercial-document.types.js";
@@ -340,21 +342,25 @@ export class CommercialDocumentService {
   ): CreateCommercialDocumentInput {
     return {
       ...input,
-      lines: input.lines.map((line) => ({
-        ...line,
-        allocations: line.allocations.map((allocation) => ({
-          ...allocation,
-          dimensions: {
-            ...allocation.dimensions,
-            ...(line.dimensions?.projectId && !allocation.dimensions.projectId
-              ? { projectId: line.dimensions.projectId }
-              : {}),
-            ...(line.dimensions?.contractId && !allocation.dimensions.contractId
-              ? { contractId: line.dimensions.contractId }
-              : {}),
-          },
-        })),
-      })),
+      lines: (Array.isArray(input?.lines) ? input.lines : []).map(
+        (line: CommercialDocumentLineInput) => ({
+          ...line,
+          allocations: (Array.isArray(line.allocations) ? line.allocations : []).map(
+            (allocation: DocumentAllocationInput) => ({
+              ...allocation,
+              dimensions: {
+                ...(allocation.dimensions ?? {}),
+                ...(line.dimensions?.projectId && !allocation.dimensions?.projectId
+                  ? { projectId: line.dimensions.projectId }
+                  : {}),
+                ...(line.dimensions?.contractId && !allocation.dimensions?.contractId
+                  ? { contractId: line.dimensions.contractId }
+                  : {}),
+              },
+            }),
+          ),
+        }),
+      ),
     };
   }
   async transition(
@@ -402,6 +408,7 @@ export class CommercialDocumentService {
       !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate) ||
       input.dueDate < input.documentDate ||
       !/^[A-Z]{3}$/.test(input.currency) ||
+      !Array.isArray(input.lines) ||
       input.lines.length === 0 ||
       !Number.isInteger(input.fiscalYear) ||
       input.fiscalYear < 1900 ||
@@ -445,7 +452,7 @@ export class CommercialDocumentService {
         input.type === "purchase_invoice" &&
         lineTax > 0n &&
         line.allocations.some(
-          (allocation) =>
+          (allocation: DocumentAllocationInput) =>
             allocation.dimensions.taxState !== undefined &&
             ![
               "unreviewed",

@@ -2765,6 +2765,30 @@ tasks:
       - docs/implementation/evidence/ERP-911/
     notes: Add a single n8n expression object that maps the maximum available Paperless/OCR fields from $json.output and source metadata, including normalized money, date and tax ID, so operators do not drag fields manually.
 
+  - id: ERP-912
+    title: Separate quick n8n purchase-invoice cURLs
+    phase: P15
+    status: done
+    dependencies: [ERP-911]
+    business_rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-EXP-002, BR-ORG-001, BR-UI-003]
+    tests: [T-API-ERP-912-001, T-CONTRACT-ERP-912-002, T-E2E-ERP-912-003, T-REG-ERP-912-004]
+    evidence: docs/implementation/evidence/ERP-912/
+    agent: codex-team
+    started_at: 2026-08-11T23:45:00+07:00
+    review_at: 2026-08-11T23:57:00+07:00
+    completed_at: 2026-08-11T23:57:00+07:00
+    completion_basis: separate_copyable_supplier_role_and_quick_invoice_curls_structured_validation_regression_e2e_and_full_repository_gate
+    planned_files:
+      - apps/api/src/commercial-documents/
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/automation-api-dialog.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-912/
+    notes: Provide separate copyable cURLs for supplier creation, supplier-role assignment and immediate basic OCR invoice ingestion without project or payment-account requirements. Malformed staging payloads return structured validation errors instead of JavaScript property errors.
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2834,6 +2858,7 @@ gates:
   G66: [ERP-909]
   G67: [ERP-910]
   G68: [ERP-911]
+  G69: [ERP-912]
 
 gate_status:
   G0: done
@@ -2903,3 +2928,4 @@ gate_status:
   G66: done
   G67: done
   G68: done
+  G69: done

@@ -55,12 +55,12 @@ test("@mobile expense dialog remains responsive with a complete invoice example"
   await expect(page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" })).toBeVisible();
   await page.getByRole("button", { name: "Hiện ví dụ có token production" }).click();
   await expect(page.getByText(/Token production đã được ghép/)).toBeVisible();
-  await page.getByRole("button", { name: /Nhập hóa đơn OCR tối giản/ }).click();
+  await page.getByRole("button", { name: /Nhập nhanh hóa đơn/ }).click();
   const code = page.locator("pre code").filter({ hasText: "Authorization: Bearer" }).first();
   await expect(code).toContainText("Authorization: Bearer e2e-stable-token");
   await expect(code).toContainText('"type": "purchase_invoice"');
   await expect(code).toContainText('"externalReference"');
-  await expect(code).toContainText('"normalized_tax_id"');
+  await expect(code).toContainText('"taxMinor": "0"');
   await expect(code).not.toContainText('"projectId"');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth + 1),

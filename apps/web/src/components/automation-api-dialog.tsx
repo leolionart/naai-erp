@@ -252,22 +252,27 @@ export function purchaseInvoiceCurl(credential: RevealedCredential) {
   }'`;
 }
 
-export function minimalOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
-  const supplierId = "party-tax-0110660175";
-  const supplier = masterDataCreateCurl(credential, "parties", "n8n-supplier-tax-0110660175-v1", {
-    id: supplierId,
+const OCR_SUPPLIER_ID = "party-tax-0110660175";
+
+export function ocrSupplierCurl(credential: RevealedCredential) {
+  return masterDataCreateCurl(credential, "parties", "n8n-supplier-tax-0110660175-v1", {
+    id: OCR_SUPPLIER_ID,
     display_name: "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
     legal_name: "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
     normalized_tax_id: "0110660175",
     status: "active",
   });
-  const supplierRole = masterDataCreateCurl(
-    credential,
-    "party-roles",
-    "n8n-supplier-tax-0110660175-role-v1",
-    { party_id: supplierId, role: "supplier" },
-  );
-  const invoice = `curl --request POST \\
+}
+
+export function ocrSupplierRoleCurl(credential: RevealedCredential) {
+  return masterDataCreateCurl(credential, "party-roles", "n8n-supplier-tax-0110660175-role-v1", {
+    party_id: OCR_SUPPLIER_ID,
+    role: "supplier",
+  });
+}
+
+export function quickOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
+  return `curl --request POST \\
   'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents' \\
   --header 'Authorization: Bearer ${credential.apiToken}' \\
   --header 'Content-Type: application/json' \\
@@ -279,27 +284,25 @@ export function minimalOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
     "documentNumber": "00250571",
     "series": "1K26TOH",
     "fiscalYear": 2026,
-    "partyId": "${supplierId}",
+    "partyId": "${OCR_SUPPLIER_ID}",
     "documentDate": "2026-07-27",
     "dueDate": "2026-07-27",
     "currency": "VND",
-    "netMinor": "378334",
-    "taxMinor": "30267",
+    "netMinor": "408601",
+    "taxMinor": "0",
     "grossMinor": "408601",
     "controlAccountCode": "331-AP",
     "lines": [{
       "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
       "quantity": "1",
-      "unitPriceMinor": "378334",
-      "netMinor": "378334",
-      "taxMinor": "30267",
+      "unitPriceMinor": "408601",
+      "netMinor": "408601",
+      "taxMinor": "0",
       "grossMinor": "408601",
       "primaryAccountCode": "642-COST",
-      "taxAccountCode": "1331-VAT-IN",
-      "taxCode": "VAT8",
       "allocations": [{
         "id": "paperless-invoice-001-k26toh-250571-line-1",
-        "amountMinor": "378334",
+        "amountMinor": "408601",
         "dimensions": {
           "category": "BATTERY_RENTAL",
           "taxState": "unreviewed"
@@ -314,7 +317,6 @@ export function minimalOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
       "metadata": { "sourceTitle": "001_K26TOH_250571_9137" }
     }
   }'`;
-  return `${supplier}\n\n${supplierRole}\n\n${invoice}`;
 }
 
 export function n8nOcrMappingExpression() {
@@ -509,10 +511,22 @@ function definitionsFor(
         kind: "n8n-expression",
       },
       {
-        title: "Nhập hóa đơn OCR tối giản — không cần dự án",
+        title: "1. Tạo nhà cung cấp từ dữ liệu OCR",
         description:
-          "Tạo nhà cung cấp từ mã số thuế rồi tạo hóa đơn không có project/funding. Ví dụ dùng VAT 8%; n8n phải lấy đúng tiền trước thuế và VAT từ hóa đơn hoặc danh mục, không tự đoán từ tổng thanh toán.",
-        value: minimalOcrPurchaseInvoiceCurl(credential),
+          "Chạy một lần cho mỗi mã số thuế. ID ổn định nên retry bằng cùng Idempotency-Key không tạo trùng.",
+        value: ocrSupplierCurl(credential),
+      },
+      {
+        title: "2. Gán vai trò nhà cung cấp",
+        description:
+          "Chạy sau khi tạo party để ERP cho phép dùng nhà cung cấp trên hóa đơn đầu vào.",
+        value: ocrSupplierRoleCurl(credential),
+      },
+      {
+        title: "3. Nhập nhanh hóa đơn — ngày, danh mục và tổng tiền",
+        description:
+          "Mẫu chạy ngay sau hai bước nhà cung cấp; không cần dự án hay tài khoản thanh toán. Toàn bộ tổng tiền được ghi nhận là chi phí, VAT bằng 0 và taxState để unreviewed cho tới khi bổ sung số thuế thật.",
+        value: quickOcrPurchaseInvoiceCurl(credential),
       },
       {
         title: "Nhập hóa đơn đầu vào hoàn chỉnh",

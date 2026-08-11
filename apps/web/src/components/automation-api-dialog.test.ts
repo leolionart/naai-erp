@@ -3,10 +3,12 @@ import {
   customerCurl,
   directExpenseCurl,
   projectCurl,
-  minimalOcrPurchaseInvoiceCurl,
   n8nOcrMappingExpression,
+  ocrSupplierCurl,
+  ocrSupplierRoleCurl,
   purchaseInvoiceCurl,
   purchaseProductCurl,
+  quickOcrPurchaseInvoiceCurl,
   salesInvoiceCurl,
   servicePlanCurl,
   subscriptionCurl,
@@ -47,18 +49,22 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
     expect(curl).toContain('"vat_rate_percent": 10');
   });
 
-  it("builds an OCR-oriented purchase invoice without inventing project or payment links", () => {
-    const curl = minimalOcrPurchaseInvoiceCurl(credential);
-    expectCommonHeaders(curl);
-    expect(curl).toContain("/master-data/parties");
-    expect(curl).toContain("/master-data/party-roles");
-    expect(curl).toContain('"normalized_tax_id": "0110660175"');
-    expect(curl).toContain('"role": "supplier"');
-    expect(curl).toContain('"type": "purchase_invoice"');
-    expect(curl).toContain('"grossMinor": "408601"');
-    expect(curl).toContain('"taxState": "unreviewed"');
-    expect(curl).not.toContain('"projectId"');
-    expect(curl).not.toContain('"fundingSource"');
+  it("builds separate supplier, role and quick-invoice cURLs for sparse OCR input", () => {
+    const supplier = ocrSupplierCurl(credential);
+    const role = ocrSupplierRoleCurl(credential);
+    const invoice = quickOcrPurchaseInvoiceCurl(credential);
+    for (const curl of [supplier, role, invoice]) expectCommonHeaders(curl);
+    expect(supplier).toContain("/master-data/parties");
+    expect(supplier).toContain('"normalized_tax_id": "0110660175"');
+    expect(role).toContain("/master-data/party-roles");
+    expect(role).toContain('"role": "supplier"');
+    expect(invoice).toContain('"type": "purchase_invoice"');
+    expect(invoice).toContain('"netMinor": "408601"');
+    expect(invoice).toContain('"taxMinor": "0"');
+    expect(invoice).toContain('"grossMinor": "408601"');
+    expect(invoice).toContain('"taxState": "unreviewed"');
+    expect(invoice).not.toContain('"projectId"');
+    expect(invoice).not.toContain('"fundingSource"');
   });
 
   it("builds one paste-ready n8n expression that preserves sparse OCR data without guessing", () => {

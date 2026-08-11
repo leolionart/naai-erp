@@ -2269,6 +2269,38 @@ tests:
     command: pnpm check
     blocking_gate: G68
 
+  - id: T-API-ERP-912-001
+    task: ERP-912
+    rules: [BR-AI-001, BR-AI-005, BR-EXP-002, BR-ORG-001]
+    title: Malformed staging payload returns validation failure instead of a JavaScript map error
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts
+    blocking_gate: G69
+
+  - id: T-CONTRACT-ERP-912-002
+    task: ERP-912
+    rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-EXP-002]
+    title: Supplier, role and quick invoice are separate importable cURLs with safe accounting defaults
+    layer: contract
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts
+    blocking_gate: G69
+
+  - id: T-E2E-ERP-912-003
+    task: ERP-912
+    rules: [BR-AI-003, BR-UI-003]
+    title: Expense dialog exposes the responsive quick-invoice cURL independently
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G69
+
+  - id: T-REG-ERP-912-004
+    task: ERP-912
+    rules: [BR-AI-001, BR-EXP-002, BR-ORG-001, BR-UI-003]
+    title: Quick invoice automation preserves repository accounting and security gates
+    layer: regression
+    command: pnpm check
+    blocking_gate: G69
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
