@@ -462,3 +462,34 @@ Each task evidence folder records:
 
 Enterprise observability programs, semantic releases, automated deployment, parallel run, formal
 cutover and hypercare are not part of this MVP and require new ledger/catalog entries before work.
+
+### ERP-908 — Automation and AI protocol examples
+
+- The expense page header exposes an `API & tự động hóa` button which opens a responsive dialog.
+- The complete purchase-invoice example posts to the canonical commercial-document endpoint and
+  includes supplier, exact minor-unit totals, VAT accounts, project/category relationships,
+  optional company funding and an external Paperless/n8n identity.
+- The dialog explains that clients follow response `nextActions` and do not blindly replay the
+  controlled lifecycle when solopreneur owner creation already posted the invoice.
+- A production API token is returned only after an authenticated same-origin POST, with private
+  no-store caching. It is never present in source code, the initial HTML or public environment
+  variables.
+- Production-backed native development uses the server-only upstream token injected by the approved
+  launcher or the same macOS Keychain credential; the production runtime never accepts those
+  fallbacks and requires an encrypted session.
+- Copy actions produce complete cURL examples for purchase-invoice ingestion and purchase-product
+  creation. The UI warns operators to store the stable token in an n8n Bearer credential.
+
+### ERP-909 — Contextual automation protocols on every input screen
+
+- Customer, project, subscription, purchase-product, revenue and expense list pages expose the
+  shared `API & tự động hóa` action in their page header.
+- Each page reveals only its own complete production cURL examples after an explicit token action;
+  opening the dialog alone performs no credential request.
+- Contract tests cover organization scope, bearer authentication, idempotency and canonical
+  relationship fields for all supported resources. Customer creation includes the ordered party and
+  `client` role requests; subscription creation references customer, plan and optional project IDs.
+- Desktop E2E covers all six page contexts. Mobile E2E verifies that long invoice cURL content stays
+  inside the responsive dialog without causing document-level horizontal overflow.
+- Repository regression gates confirm that the shared component does not change accounting,
+  authorization, organization-scope or existing input workflows.

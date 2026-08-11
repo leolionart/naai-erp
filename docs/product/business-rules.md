@@ -107,6 +107,29 @@ These rules define the active release boundary. Historical rules remain valid fo
   mapping, reason or version invalidates the plan.
 - Issued/posted document and posted-expense backfills reverse the original accounting effect and
   create a linked replacement draft. They never update allocations or journals in place.
+- The focused expense screen exposes an owner-only automation protocol dialog from its page header.
+  It documents the canonical complete purchase-invoice and purchase-product requests and may reveal
+  the stable API credential already sealed in the authenticated server session only after an
+  explicit same-origin action. The response is never cached, the token is never compiled into the
+  browser bundle or committed to source, and operators are instructed to store it as an n8n
+  credential rather than inside workflow JSON or logs.
+- Production-backed native development may reveal the server-only upstream credential injected by
+  the approved data-source launcher or read the same credential from the operator's macOS Keychain.
+  Production itself still requires a valid encrypted login session; neither path reads a public
+  browser environment variable.
+- Purchase-invoice automation uses `commercial-documents`, not the descriptive expense-metadata
+  correction endpoint. Integrations follow returned `nextActions`; a solopreneur owner create may
+  atomically finish as `posted` or `paid`, while controlled-mode clients must perform only the
+  lifecycle actions permitted by the response.
+- Every primary business input screen exposes the same authenticated `API & tự động hóa` action,
+  but its dialog contains only the protocol examples relevant to that screen: customers, projects,
+  service plans/subscriptions, purchase products, revenue or expenses.
+- Customer creation is ordered as party creation followed by the explicit `client` party role. A
+  project retains that returned party ID as `client_party_id`; it never guesses a customer from a
+  display name.
+- A customer subscription retains the verified `customerPartyId`, `servicePlanId` and optional
+  `projectId`. Revenue uses the customer `partyId` and project allocation; purchase invoices and
+  direct expenses use their canonical endpoints and must never duplicate the same business event.
 
 ### BR-AI-006 — Cash-heavy business activity classification
 

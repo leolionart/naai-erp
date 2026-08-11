@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { ModulePage } from "@/components/layout/module-page";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AutomationApiDialog } from "@/components/automation-api-dialog";
 import { FocusedRecordListWorkspace } from "../../workspaces/focused-record-workspaces";
 
 export default function ExpensesPage() {
@@ -8,6 +9,7 @@ export default function ExpensesPage() {
     <ModulePage
       title="Quản lý chi phí"
       description="Xem toàn bộ hóa đơn mua vào và chi phí chưa có hóa đơn; chỉ lọc khi cần."
+      actions={<AutomationApiDialog resources={["expenses"]} />}
     >
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <FocusedRecordListWorkspace kind="expenses" />

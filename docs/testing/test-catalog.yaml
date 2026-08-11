@@ -2180,6 +2180,47 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/admin-navigation.spec.ts e2e/aging.spec.ts e2e/overhead.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G61
 
+  - id: T-CONTRACT-ERP-908-001
+    task: ERP-908
+    rules:
+      [BR-MVP-001, BR-EXP-002, BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-ORG-001, BR-SEC-001]
+    title: Authenticated protocol examples build complete canonical purchase-invoice and product cURLs
+    layer: contract
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/auth/automation-token/route.test.ts src/components/automation-api-dialog.test.ts
+    blocking_gate: G65
+
+  - id: T-E2E-ERP-908-002
+    task: ERP-908
+    rules: [BR-AI-003, BR-AI-005, BR-UI-003, BR-SEC-001]
+    title: Expense header opens a responsive automation dialog and reveals token only on explicit action
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G65
+
+  - id: T-CONTRACT-ERP-909-001
+    task: ERP-909
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-ORG-001, BR-SEC-001]
+    title: Context-specific cURL builders preserve canonical resources, relationships and idempotency
+    layer: contract
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts src/app/auth/automation-token/route.test.ts
+    blocking_gate: G66
+
+  - id: T-E2E-ERP-909-002
+    task: ERP-909
+    rules: [BR-AI-003, BR-AI-005, BR-UI-003, BR-SEC-001]
+    title: Every primary input page reveals only its contextual automation protocol
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G66
+
+  - id: T-REG-ERP-909-003
+    task: ERP-909
+    rules: [BR-AI-001, BR-AI-005, BR-ORG-001, BR-SEC-001, BR-UI-003]
+    title: Shared automation protocol UI preserves repository quality and security gates
+    layer: regression
+    command: pnpm check
+    blocking_gate: G66
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

@@ -7,6 +7,7 @@ export function ModulePage({
   section,
   sectionHref,
   toolbar,
+  actions,
   hideBreadcrumb,
   children,
 }: Readonly<{
@@ -15,6 +16,7 @@ export function ModulePage({
   section?: string;
   sectionHref?: string;
   toolbar?: ReactNode;
+  actions?: ReactNode;
   hideBreadcrumb?: boolean;
   children: ReactNode;
 }>) {
@@ -34,6 +36,7 @@ export function ModulePage({
         description={description}
         breadcrumbs={breadcrumbs}
         toolbar={toolbar}
+        actions={actions}
       />
       <div className="flex min-w-0 flex-1 flex-col p-4 md:p-6">{children}</div>
     </div>
