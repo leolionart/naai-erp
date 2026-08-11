@@ -26,6 +26,18 @@ export type ImportBankStatementInput = Readonly<{
 
 export type BankTransactionActionInput = Readonly<{ reason: string }>;
 
+export type CreateOwnerCashWithdrawalInput = Readonly<{
+  id?: string;
+  schemaVersion: 1;
+  movementType: "owner_personal_withdrawal";
+  financialAccountId: string;
+  bookingDate: string;
+  amountMinor: string;
+  currency: string;
+  description: string;
+  reason: string;
+}>;
+
 export type BankingStore = Readonly<{
   listAccounts(organizationId: string): Promise<unknown>;
   getAccount(organizationId: string, id: string): Promise<unknown | undefined>;
@@ -53,6 +65,11 @@ export type BankingStore = Readonly<{
     filters: { financialAccountId?: string; state?: string; from?: string; to?: string },
   ): Promise<unknown>;
   listOwnerCurrentMovements(organizationId: string): Promise<unknown>;
+  createOwnerCashWithdrawal(
+    context: BankingContext,
+    input: CreateOwnerCashWithdrawalInput,
+    key: string,
+  ): Promise<unknown>;
   getTransaction(organizationId: string, id: string): Promise<unknown | undefined>;
   transitionTransaction(
     context: BankingContext,

@@ -22,6 +22,13 @@ type ExpenseCategoryPolicy = Readonly<{
   isActive: boolean;
   fundingTreatment: "company_funds" | "owner_paid_company_cost" | "tax_only_non_cash";
 }>;
+type FinancialAccount = Readonly<{
+  id: string;
+  displayName?: string;
+  display_name?: string;
+  currency: string;
+  status: "active" | "inactive";
+}>;
 
 function defaultCounterAccount(treatment: ExpenseCategoryPolicy["fundingTreatment"]) {
   if (treatment === "company_funds") return "112-BANK";
@@ -403,6 +410,7 @@ export function DocumentForm({
   onSubmit,
   initial,
   parties = [],
+  purchaseParties = parties,
   projects = [],
   submitLabel = "Lưu hóa đơn nháp",
 }: {
@@ -410,9 +418,11 @@ export function DocumentForm({
   onSubmit: (body: Row) => void;
   initial?: Row;
   parties?: readonly Row[];
+  purchaseParties?: readonly Row[];
   projects?: readonly Row[];
   submitLabel?: string;
 }) {
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
@@ -443,12 +453,18 @@ export function DocumentForm({
   const dueDateError =
     dueDate && dueDate < documentDate ? "Hạn thanh toán không được trước ngày hóa đơn." : undefined;
   const [currency, setCurrency] = useState(String(field(initial, "currency") ?? "VND"));
+  const initialFunding = field(initial, "fundingSource", "funding_source") as Row | undefined;
+  const [financialAccounts, setFinancialAccounts] = useState<readonly FinancialAccount[]>([]);
+  const [financialAccountId, setFinancialAccountId] = useState(
+    String(field(initialFunding, "financialAccountId", "financial_account_id") ?? ""),
+  );
   const [controlAccountCode, setControlAccountCode] = useState(
     String(field(initial, "controlAccountCode", "control_account_code") ?? "131"),
   );
   const [reason, setReason] = useState(String(field(initial, "reason") ?? ""));
   const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
   const isPurchase = type === "purchase_invoice";
+  const documentParties = isPurchase ? purchaseParties : parties;
   const activeCategories = isPurchase ? INBOUND_CATEGORIES : OUTBOUND_CATEGORIES;
   const availableProjects = projects;
 
@@ -500,6 +516,40 @@ export function DocumentForm({
   const [taxCode, setTaxCode] = useState(
     String(field(initialLine, "taxCode", "tax_code") ?? "VAT10"),
   );
+
+  useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    let cancelled = false;
+    void client
+      .data<readonly FinancialAccount[] | { items?: readonly FinancialAccount[] }>(
+        "banking/accounts",
+      )
+      .then((payload) => {
+        if (cancelled) return;
+        const accounts: readonly FinancialAccount[] = Array.isArray(payload)
+          ? (payload as readonly FinancialAccount[])
+          : ((payload as { items?: readonly FinancialAccount[] }).items ?? []);
+        setFinancialAccounts(accounts.filter((account) => account.status === "active"));
+      })
+      .catch(() => {
+        if (!cancelled) setFinancialAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, hasToken, hydrated]);
+
+  useEffect(() => {
+    if (!isPurchase) return;
+    const selected = financialAccounts.find(
+      (account) => account.id === financialAccountId && account.currency === currency,
+    );
+    if (!selected) {
+      setFinancialAccountId(
+        financialAccounts.find((account) => account.currency === currency)?.id ?? "",
+      );
+    }
+  }, [currency, financialAccountId, financialAccounts, isPurchase]);
 
   function handleTypeChange(newType: string) {
     setType(newType);
@@ -575,6 +625,9 @@ export function DocumentForm({
       taxMinor: taxMinor || "0",
       grossMinor: grossMinor || "0",
       controlAccountCode,
+      ...(isPurchase && financialAccountId
+        ? { fundingSource: { type: "financial_account", financialAccountId } }
+        : {}),
       reason: reason || null,
       lines: [
         {
@@ -675,7 +728,7 @@ export function DocumentForm({
               label=""
               value={partyId}
               onChange={setPartyId}
-              options={parties}
+              options={documentParties}
               placeholder="Gõ tên để tìm gợi ý hoặc nhập mới..."
               required
             />
@@ -684,7 +737,7 @@ export function DocumentForm({
               <SelectTrigger aria-label="Khách hàng">
                 <SelectValue>
                   {(() => {
-                    const match = parties.find((p) => String(p.id) === partyId);
+                    const match = documentParties.find((p) => String(p.id) === partyId);
                     if (!match) return partyId || "Chọn khách hàng";
                     return partyName(match);
                   })()}
@@ -692,7 +745,7 @@ export function DocumentForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {parties.map((p) => {
+                  {documentParties.map((p) => {
                     const nameStr = partyName(p);
                     return (
                       <SelectItem key={String(p.id)} value={String(p.id)}>
@@ -704,7 +757,7 @@ export function DocumentForm({
               </SelectContent>
             </Select>
           )}
-          {!isPurchase && parties.length === 0 ? (
+          {!isPurchase && documentParties.length === 0 ? (
             <FieldError>Chưa có khách hàng active trong danh mục đối tác.</FieldError>
           ) : null}
         </Field>
@@ -745,6 +798,32 @@ export function DocumentForm({
             </SelectContent>
           </Select>
         </Field>
+        {isPurchase ? (
+          <Field>
+            <FieldLabel>Nguồn thanh toán hóa đơn</FieldLabel>
+            <Select value={financialAccountId} onValueChange={setFinancialAccountId}>
+              <SelectTrigger aria-label="Nguồn thanh toán hóa đơn">
+                <SelectValue placeholder="Chọn tài khoản ngân hàng hoặc quỹ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {financialAccounts
+                    .filter((account) => account.currency === currency)
+                    .map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.displayName ?? account.display_name ?? "Tài khoản thanh toán"} ·{" "}
+                        {account.currency}
+                      </SelectItem>
+                    ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Hóa đơn đầu vào thông thường được xem là đã thanh toán bằng tài khoản này khi post và
+              không đi vào danh sách Phải trả freelance.
+            </p>
+          </Field>
+        ) : null}
         <Field>
           <FieldLabel>Tài khoản công nợ</FieldLabel>
           <Select value={controlAccountCode} onValueChange={setControlAccountCode}>
@@ -848,7 +927,8 @@ export function DocumentForm({
           busy ||
           Boolean(dueDateError) ||
           Boolean(allocationAmountError) ||
-          (!isPurchase && !projectId)
+          (!isPurchase && !projectId) ||
+          (isPurchase && !financialAccountId)
         }
         className="self-end"
       >
@@ -865,6 +945,7 @@ export function ExpenseForm({
   parties = [],
   payees = parties,
   employees = [],
+  freelancers = [],
   projects = [],
   submitLabel = "Lưu chi phí nháp",
   metadataOnly = false,
@@ -875,6 +956,7 @@ export function ExpenseForm({
   parties?: readonly Row[];
   payees?: readonly Row[];
   employees?: readonly Row[];
+  freelancers?: readonly Row[];
   projects?: readonly Row[];
   submitLabel?: string;
   metadataOnly?: boolean;
@@ -903,6 +985,13 @@ export function ExpenseForm({
     String(field(initial, "employeePartyId", "employee_party_id") ?? ""),
   );
   const [projectId, setProjectId] = useState(String(initialDims.projectId ?? ""));
+  const [costClass, setCostClass] = useState(
+    String(field(initial, "costClass", "cost_class") ?? "standard"),
+  );
+  const [freelancerPartyId, setFreelancerPartyId] = useState(
+    String(field(initial, "freelancerPartyId", "freelancer_party_id") ?? ""),
+  );
+  const [dueDate, setDueDate] = useState(String(field(initial, "dueDate", "due_date") ?? ""));
   const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
   const [expenseDate, setExpenseDate] = useState(
     String(field(initial, "expenseDate", "expense_date") ?? new Date().toISOString().slice(0, 10)),
@@ -1012,8 +1101,14 @@ export function ExpenseForm({
     );
     const payload: Row = {
       expenseClass,
+      ...(costClass === "freelancer" ? { costClass, freelancerPartyId, dueDate, projectId } : {}),
       category,
-      payeePartyId: payees.some((payee) => String(payee.id) === payeePartyId) ? payeePartyId : null,
+      payeePartyId:
+        costClass === "freelancer"
+          ? freelancerPartyId
+          : payees.some((payee) => String(payee.id) === payeePartyId)
+            ? payeePartyId
+            : null,
       employeePartyId: employeePartyId || null,
       expenseDate,
       businessPurpose,
@@ -1144,10 +1239,29 @@ export function ExpenseForm({
             </SelectContent>
           </Select>
         </Field>
+        <Field>
+          <FieldLabel>Loại chi phí dự án</FieldLabel>
+          <Select value={costClass} onValueChange={setCostClass}>
+            <SelectTrigger aria-label="Loại chi phí dự án">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="standard">Chi phí thông thường</SelectItem>
+                <SelectItem value="freelancer">Chi phí freelance thực tế</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground">
+            Ngân sách freelance trong dự án chỉ là dự kiến. Chỉ lựa chọn này mới ghi nhận chi phí
+            thực tế và phát sinh khoản phải trả khi được post.
+          </p>
+        </Field>
         <RelationshipFields
           projects={projects}
           projectId={projectId}
           onProjectChange={setProjectId}
+          projectRequired={costClass === "freelancer"}
         />
         <Field>
           <FieldLabel>Danh mục nghiệp vụ / Dịch vụ</FieldLabel>
@@ -1172,16 +1286,50 @@ export function ExpenseForm({
             </SelectContent>
           </Select>
         </Field>
-        <ComboboxInput
-          label="Đối tác thụ hưởng"
-          value={payeePartyId}
-          onChange={setPayeePartyId}
-          options={payees}
-          placeholder="Gõ tên nhà cung cấp hoặc đối tác..."
-          error={
-            payees.length === 0 ? "Chưa có nhà cung cấp active trong danh mục đối tác." : undefined
-          }
-        />
+        {costClass === "freelancer" ? (
+          <>
+            <Field>
+              <FieldLabel>Freelancer</FieldLabel>
+              <Select value={freelancerPartyId} onValueChange={setFreelancerPartyId}>
+                <SelectTrigger aria-label="Freelancer">
+                  <SelectValue placeholder="Chọn freelancer đã hoàn thành công việc" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {freelancers.map((freelancer) => (
+                      <SelectItem key={String(freelancer.id)} value={String(freelancer.id)}>
+                        {partyName(freelancer)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {freelancers.length === 0 ? (
+                <FieldError>Chưa có đối tác mang vai trò freelancer.</FieldError>
+              ) : null}
+            </Field>
+            <TextField
+              label="Hạn thanh toán freelancer"
+              type="date"
+              value={dueDate}
+              onChange={setDueDate}
+              required
+            />
+          </>
+        ) : (
+          <ComboboxInput
+            label="Đối tác thụ hưởng"
+            value={payeePartyId}
+            onChange={setPayeePartyId}
+            options={payees}
+            placeholder="Gõ tên nhà cung cấp hoặc đối tác..."
+            error={
+              payees.length === 0
+                ? "Chưa có nhà cung cấp active trong danh mục đối tác."
+                : undefined
+            }
+          />
+        )}
         <Field>
           <FieldLabel>Nhân viên thực hiện</FieldLabel>
           {employees.length > 0 ? (
@@ -1317,7 +1465,15 @@ export function ExpenseForm({
       </FieldSet>
 
       {allocationAmountError ? <FieldError>{allocationAmountError}</FieldError> : null}
-      <Button type="submit" disabled={busy || Boolean(allocationAmountError)} className="self-end">
+      <Button
+        type="submit"
+        disabled={
+          busy ||
+          Boolean(allocationAmountError) ||
+          (costClass === "freelancer" && (!projectId || !freelancerPartyId || !dueDate))
+        }
+        className="self-end"
+      >
         {busy ? "Đang lưu…" : submitLabel}
       </Button>
     </form>

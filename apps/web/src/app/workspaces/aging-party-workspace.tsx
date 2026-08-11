@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
+import { ExternalLinkIcon, HandCoinsIcon, RefreshCwIcon } from "lucide-react";
 import {
   FinancialDataTable,
   type FinancialColumn,
@@ -22,6 +22,7 @@ import {
   type AgingReport,
   type AgingSide,
 } from "@/lib/api";
+import { CustomerReceiptDialog } from "./customer-receipt-dialog";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -67,6 +68,7 @@ export function AgingPartyWorkspace({
   const [report, setReport] = useState<AgingReport>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [receiptDialog, setReceiptDialog] = useState(false);
 
   const load = useCallback(async () => {
     if (!hydrated) return;
@@ -141,6 +143,11 @@ export function AgingPartyWorkspace({
           </p>
         </div>
         <div className="flex gap-2">
+          {side === "ar" && report?.items.some((item) => item.balanceKind === "receivable") ? (
+            <Button onClick={() => setReceiptDialog(true)}>
+              <HandCoinsIcon data-icon="inline-start" /> Ghi nhận đã thu
+            </Button>
+          ) : null}
           <Button variant="outline" asChild>
             <Link href={side === "ar" ? "/receivables" : "/payables"}>Về queue</Link>
           </Button>
@@ -252,6 +259,15 @@ export function AgingPartyWorkspace({
           />
         </CardContent>
       </Card>
+
+      {side === "ar" ? (
+        <CustomerReceiptDialog
+          open={receiptDialog}
+          onOpenChange={setReceiptDialog}
+          invoices={(report?.items ?? []).filter((item) => item.balanceKind === "receivable")}
+          onRecorded={load}
+        />
+      ) : null}
     </div>
   );
 }

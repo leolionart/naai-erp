@@ -210,6 +210,7 @@ export function FocusedRecordListWorkspace({
   const [clients, setClients] = useState<Row[]>([]);
   const [payees, setPayees] = useState<Row[]>([]);
   const [employees, setEmployees] = useState<Row[]>([]);
+  const [freelancers, setFreelancers] = useState<Row[]>([]);
   const [projects, setProjects] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -393,6 +394,12 @@ export function FocusedRecordListWorkspace({
         );
         const supplierParties = listedParties.filter((party) => supplierIds.has(text(party, "id")));
         setPayees(supplierParties);
+        const freelancerIds = new Set(
+          listedRoles
+            .filter((role) => text(role, "role") === "freelancer")
+            .map((role) => text(role, "partyId", "party_id")),
+        );
+        setFreelancers(listedParties.filter((party) => freelancerIds.has(text(party, "id"))));
         const listedWorkers = Array.isArray(workersRes) ? workersRes : (workersRes.items ?? []);
         const employeeIds = new Set(
           listedWorkers
@@ -638,6 +645,7 @@ export function FocusedRecordListWorkspace({
             <DocumentForm
               busy={createBusy}
               parties={clients}
+              purchaseParties={payees}
               projects={projects}
               onSubmit={(body) => void createRecord(body)}
             />
@@ -647,6 +655,7 @@ export function FocusedRecordListWorkspace({
               parties={parties}
               payees={payees}
               employees={employees}
+              freelancers={freelancers}
               projects={projects}
               onSubmit={(body) => void createRecord(body)}
             />
@@ -855,6 +864,7 @@ export function FocusedRecordListWorkspace({
                       busy={quickBusy}
                       initial={quickRecord}
                       parties={text(quickRecord, "type") === "purchase_invoice" ? payees : clients}
+                      purchaseParties={payees}
                       projects={projects}
                       submitLabel="Cập nhật thông tin hóa đơn"
                       onSubmit={(body: Row) => void updateQuickRecord(body)}
@@ -867,6 +877,7 @@ export function FocusedRecordListWorkspace({
                       parties={parties}
                       payees={payees}
                       employees={employees}
+                      freelancers={freelancers}
                       projects={projects}
                       metadataOnly={text(quickRecord, "state") === "posted"}
                       submitLabel={
@@ -1209,6 +1220,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const [clients, setClients] = useState<readonly Row[]>([]);
   const [payees, setPayees] = useState<readonly Row[]>([]);
   const [employees, setEmployees] = useState<readonly Row[]>([]);
+  const [freelancers, setFreelancers] = useState<readonly Row[]>([]);
   const [projects, setProjects] = useState<readonly Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1260,6 +1272,15 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           listedRoles.some(
             (role) =>
               text(role, "role") === "supplier" &&
+              text(role, "partyId", "party_id") === text(party, "id"),
+          ),
+        ),
+      );
+      setFreelancers(
+        listedParties.filter((party) =>
+          listedRoles.some(
+            (role) =>
+              text(role, "role") === "freelancer" &&
               text(role, "partyId", "party_id") === text(party, "id"),
           ),
         ),
@@ -1512,6 +1533,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 busy={busy}
                 initial={record}
                 parties={type === "purchase_invoice" ? payees : clients}
+                purchaseParties={payees}
                 projects={projects}
                 submitLabel="Lưu thay đổi hóa đơn"
                 onSubmit={(body: Row) => void update(body)}
@@ -1524,6 +1546,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                 parties={parties}
                 payees={payees}
                 employees={employees}
+                freelancers={freelancers}
                 projects={projects}
                 submitLabel="Lưu thay đổi chi phí"
                 onSubmit={(body) => void update(body)}

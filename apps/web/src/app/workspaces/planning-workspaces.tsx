@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -51,12 +51,8 @@ import {
   PopoverTitle,
 } from "@/components/ui/popover";
 import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
   planningApi,
-  type ApiConnectionSettingsV1,
+  useAuthenticatedApiClient,
   type ForecastVersion,
   type RevenueTarget,
 } from "@/lib/api";
@@ -65,42 +61,13 @@ type PlanningKind = "targets" | "forecasts";
 type PlanningRow = RevenueTarget | ForecastVersion;
 const today = () => new Date().toISOString().slice(0, 10);
 
-function useClient() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  return useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-}
-
-export function PlanningTabs() {
-  return (
-    <nav aria-label="Khu vực kế hoạch" className="flex flex-wrap gap-2">
-      <Button asChild variant="outline">
-        <Link href="/forecast/targets">Revenue targets</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link href="/forecast/scenarios">Forecast scenarios</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link href="/forecast/composition">Revenue & cash forecast</Link>
-      </Button>
-    </nav>
-  );
-}
-
 function queryPath(kind: PlanningKind, params: URLSearchParams) {
   const base = kind === "targets" ? planningApi.targets : planningApi.forecasts;
   return params.size ? `${base}?${params}` : base;
 }
 
 export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }>) {
-  const client = useClient();
+  const { client, hydrated } = useAuthenticatedApiClient();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,6 +78,7 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError(undefined);
     const query = new URLSearchParams();
@@ -130,7 +98,7 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
     } finally {
       setLoading(false);
     }
-  }, [client, kind, searchParams]);
+  }, [client, hydrated, kind, searchParams]);
   useEffect(() => void load(), [load]);
 
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -223,8 +191,7 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <PlanningTabs />
+      <div className="flex justify-end gap-3">
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setFiltersOpen(true)}>
             Bộ lọc
@@ -477,19 +444,21 @@ export function PlanningDetailWorkspace({
   kind,
   id,
 }: Readonly<{ kind: PlanningKind; id: string }>) {
-  const client = useClient();
+  const { client, hydrated } = useAuthenticatedApiClient();
   const [resource, setResource] = useState<PlanningRow>();
   const [error, setError] = useState<string>();
   const [action, setAction] = useState<"publish" | "supersede">();
   const [reason, setReason] = useState("");
   const path = kind === "targets" ? planningApi.target(id) : planningApi.forecast(id);
   const load = useCallback(async () => {
+    if (!hydrated) return;
+    setError(undefined);
     try {
       setResource(await client.data<PlanningRow>(path));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải version");
     }
-  }, [client, path]);
+  }, [client, hydrated, path]);
   useEffect(() => void load(), [load]);
   async function run() {
     if (!resource || !action) return;
@@ -516,7 +485,6 @@ export function PlanningDetailWorkspace({
   const dangerous = action === "supersede";
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <PlanningTabs />
       <Card>
         <CardHeader>
           <CardTitle>{resource.id}</CardTitle>

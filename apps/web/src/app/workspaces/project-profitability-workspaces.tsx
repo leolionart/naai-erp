@@ -180,32 +180,6 @@ export function ProjectProfitabilityQueueWorkspace() {
       ),
     },
     {
-      id: "contribution",
-      header: "Contribution",
-      align: "right",
-      cell: (row) => (
-        <div>
-          <MoneyCell minor={row.contributionMarginMinor} />
-          <span className="text-xs text-muted-foreground">
-            {percentage(row.contributionMarginBps)}
-          </span>
-        </div>
-      ),
-    },
-    {
-      id: "loaded",
-      header: "Fully loaded",
-      align: "right",
-      cell: (row) => (
-        <div>
-          <MoneyCell minor={row.fullyLoadedProfitMinor} />
-          <span className="text-xs text-muted-foreground">
-            {percentage(row.fullyLoadedMarginBps)}
-          </span>
-        </div>
-      ),
-    },
-    {
       id: "confidence",
       header: "Độ tin cậy",
       cell: (row) => <ConfidenceBadges flags={row.confidenceCodes} />,
@@ -234,12 +208,6 @@ export function ProjectProfitabilityQueueWorkspace() {
   const totalGrossBps = totals
     ? ratioBps(totals.grossMarginMinor, totals.recognizedRevenueMinor)
     : null;
-  const totalContributionBps = totals
-    ? ratioBps(totals.contributionMarginMinor, totals.recognizedRevenueMinor)
-    : null;
-  const totalFullyLoadedBps = totals
-    ? ratioBps(totals.fullyLoadedProfitMinor, totals.recognizedRevenueMinor)
-    : null;
   const flaggedCount = report?.items.filter((item) => item.confidenceCodes.length).length ?? 0;
   return (
     <div className="flex flex-col gap-4">
@@ -254,7 +222,7 @@ export function ProjectProfitabilityQueueWorkspace() {
         </Button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2">
         <KpiCard
           title="Doanh thu ghi nhận"
           period="Không dùng tiền đã thu thay doanh thu"
@@ -266,20 +234,6 @@ export function ProjectProfitabilityQueueWorkspace() {
           period="Sau direct project cost"
           value={totals ? <MoneyCell minor={totals.grossMarginMinor} /> : "—"}
           comparison={totals ? percentage(totalGrossBps) : undefined}
-          loading={loading}
-        />
-        <KpiCard
-          title="Contribution margin"
-          period="Sau variable overhead"
-          value={totals ? <MoneyCell minor={totals.contributionMarginMinor} /> : "—"}
-          comparison={totals ? percentage(totalContributionBps) : undefined}
-          loading={loading}
-        />
-        <KpiCard
-          title="Fully loaded profit"
-          period="Sau fixed overhead"
-          value={totals ? <MoneyCell minor={totals.fullyLoadedProfitMinor} /> : "—"}
-          comparison={totals ? percentage(totalFullyLoadedBps) : undefined}
           loading={loading}
         />
       </div>
@@ -298,8 +252,7 @@ export function ProjectProfitabilityQueueWorkspace() {
         <CardHeader>
           <CardTitle>Profitability theo dự án</CardTitle>
           <CardDescription>
-            Queue so sánh margin; mỗi dự án có dedicated drill-down về revenue, direct cost và
-            overhead.
+            So sánh doanh thu và chi phí thực tế được ghi nhận trực tiếp cho từng dự án.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -515,35 +468,12 @@ export function ProjectProfitabilityDetailWorkspace({
           <Link href={`/reports/project-profitability?${query}`}>Quay lại báo cáo</Link>
         </Button>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2">
         <KpiCard
           title="Lợi nhuận gộp"
           period="Doanh thu − chi phí trực tiếp"
           value={<MoneyCell minor={detail.grossMarginMinor} />}
           comparison={percentage(detail.grossMarginBps)}
-        />
-        <KpiCard
-          title="Lợi nhuận đóng góp"
-          period="Lợi nhuận gộp − biến phí phân bổ"
-          value={<MoneyCell minor={detail.contributionMarginMinor} />}
-          comparison={percentage(detail.contributionMarginBps)}
-        />
-        <KpiCard
-          title="Lợi nhuận ròng"
-          period="Lợi nhuận đóng góp − định phí phân bổ"
-          value={<MoneyCell minor={detail.fullyLoadedProfitMinor} />}
-          comparison={percentage(detail.fullyLoadedMarginBps)}
-        />
-        <KpiCard
-          title="Đơn giá giờ làm thực tế"
-          period={`${formatExactInteger(detail.billableHours)} giờ tính phí · hiệu suất ${percentage(detail.utilizationBps)}`}
-          value={
-            detail.realizedHourlyRateMinor === null ? (
-              "—"
-            ) : (
-              <MoneyCell minor={detail.realizedHourlyRateMinor} />
-            )
-          }
         />
       </div>
       {detail.confidenceDetails.length ? (
@@ -600,35 +530,13 @@ export function ProjectProfitabilityDetailWorkspace({
       />
       <BreakdownTable
         title="Direct project cost"
-        description="Labor theo rate version và freelancer/vendor/tool được gán trực tiếp."
+        description="Chi phí thực tế từ Expense đã chọn trực tiếp dự án."
         rows={detail.directCostBreakdown.map((row, index) => ({
           id: `direct-${row.kind}-${index}`,
-          label:
-            row.kind === "labor"
-              ? "Chi phí nhân sự"
-              : row.kind === "source_linked"
-                ? "Chi phí nguồn gán trực tiếp"
-                : row.kind === "allocated"
-                  ? "Chi phí được phân bổ"
-                  : "Điều chỉnh chi phí",
+          label: "Chi phí thực tế",
           kind: row.kind,
           amountMinor: row.amountMinor,
           sourceId: row.sourceIds.join(", "),
-        }))}
-      />
-      <BreakdownTable
-        title="Overhead allocation"
-        description="Variable và fixed overhead giữ source pool, policy, run và journal drill-down."
-        rows={detail.overheadBreakdown.map((row, index) => ({
-          id: `overhead-${row.costClass}-${index}`,
-          label: row.costClass === "variable" ? "Variable overhead" : "Fixed overhead",
-          kind: "overhead",
-          costClass: row.costClass,
-          amountMinor: row.amountMinor,
-          sourcePoolId: row.sourcePoolIds.join(", "),
-          policyId: row.policyIds.join(", "),
-          runId: row.runIds.join(", "),
-          journalId: row.journalIds.join(", "),
         }))}
       />
       <Card>
@@ -643,7 +551,6 @@ export function ProjectProfitabilityDetailWorkspace({
             rows={[
               { id: "revenue", label: "Recognized revenue", ...detail.glTie.recognizedRevenue },
               { id: "direct", label: "Direct project cost", ...detail.glTie.directProjectCost },
-              { id: "overhead", label: "Allocated overhead", ...detail.glTie.allocatedOverhead },
             ]}
             columns={[
               { id: "control", header: "Control", cell: (row) => row.label },

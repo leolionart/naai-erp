@@ -28,31 +28,23 @@ const source = (projectId: string, clientId = "client-a") => ({
   invoicedRevenueMinor: 90n,
   collectedRevenueMinor: 70n,
   directProjectCostMinor: 40n,
-  variableOverheadMinor: 10n,
-  fixedOverheadMinor: 5n,
   budgetRevenueMinor: 100n,
   budgetCostMinor: 45n,
   unbilledWorkMinor: projectId === "p1" ? 10n : 0n,
   overdueArMinor: 0n,
-  billableMinutes: 60,
-  projectMinutes: 90,
-  availableMinutes: 120,
   missingDimensionSourceIds: projectId === "p1" ? [] : ["missing-1"],
   drilldown: {
     recognitionEventIds: [],
     invoiceIds: [],
     reconciliationIds: [],
-    directCostItemIds: [],
-    overheadAllocationRunIds: [],
-    overheadAllocationSplitIds: [],
-    timesheetIds: [],
+    expenseIds: [],
+    purchaseDocumentIds: [],
     budgetVersionIds: [],
     journalIds: [],
   },
   breakdown: {
     revenueBreakdown: [],
     directCostBreakdown: [],
-    overheadBreakdown: [],
     glTie: {},
   },
 });
@@ -102,7 +94,7 @@ describe("ERP-540 project profitability service", () => {
         recognizedRevenueMinor: "150",
         grossMarginMinor: "70",
         grossMarginBps: 4667,
-        fullyLoadedProfitMinor: "40",
+        directCostMinor: "80",
       }),
     ]);
     const flagged = await service.list(
@@ -126,9 +118,6 @@ describe("ERP-540 project profitability service", () => {
       schemaVersion: 1,
       recognizedRevenueMinor: "100",
       grossMarginMinor: "60",
-      contributionMarginMinor: "50",
-      fullyLoadedProfitMinor: "45",
-      utilizationBps: 5000,
       glTie: {},
     });
   });

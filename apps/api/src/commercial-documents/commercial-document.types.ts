@@ -49,6 +49,7 @@ export type CreateCommercialDocumentInput = Readonly<{
   taxMinor: string;
   grossMinor: string;
   controlAccountCode: string;
+  fundingSource?: Readonly<{ type: "financial_account"; financialAccountId: string }>;
   originalDocumentId?: string;
   migrationSourceExpenseId?: string;
   migrationSourceExpenseDate?: string;

@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET, PATCH, POST } from "./route";
 
+const execFileSyncMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:child_process", () => ({ execFileSync: execFileSyncMock }));
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  execFileSyncMock.mockReset();
 });
 
 function configure() {
@@ -26,6 +31,40 @@ const context = (organizationId: string) => ({
 });
 
 describe("development production-data proxy", () => {
+  it("loads server-only production configuration from Keychain when the managed dev server has no upstream env", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NAAI_ERP_DEV_UPSTREAM_BASE_URL", "");
+    vi.stubEnv("NAAI_ERP_DEV_UPSTREAM_TOKEN", "");
+    vi.stubEnv("NAAI_ERP_DEV_UPSTREAM_ORGANIZATION", "");
+    execFileSyncMock.mockImplementation((_command, args: string[]) =>
+      args.includes("naai-erp-organization") ? "naai\n" : "keychain-server-token\n",
+    );
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { items: [] } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+
+    const response = await GET(
+      new Request("http://localhost:3000/dev-api/api/v1/organizations/naai/revenue-targets"),
+      {
+        params: Promise.resolve({
+          path: ["api", "v1", "organizations", "naai", "revenue-targets"],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetcher).toHaveBeenCalledWith(
+      "https://erp.naai.studio/api/v1/organizations/naai/revenue-targets",
+      expect.objectContaining({
+        headers: expect.objectContaining({ authorization: "Bearer keychain-server-token" }),
+      }),
+    );
+  });
+
   it("proxies an organization-scoped GET with the server-only token", async () => {
     configure();
     const fetcher = vi.fn().mockResolvedValue(

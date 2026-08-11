@@ -1,32 +1,40 @@
+import { execFileSync } from "node:child_process";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function required(name: string, value: string | undefined) {
-  const normalized = value?.trim() ?? "";
-  if (!normalized) throw new Error(`${name} is not configured`);
-  return normalized;
+function keychainValue(service: string, requiredValue = true) {
+  try {
+    return execFileSync("security", ["find-generic-password", "-s", service, "-a", "admin", "-w"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    if (!requiredValue) return "";
+    throw new Error(
+      `NAAI_ERP_DEV_UPSTREAM_TOKEN is not configured and macOS Keychain credential ${service}/admin is unavailable`,
+    );
+  }
 }
 
 function upstreamConfig() {
   if (process.env.NODE_ENV !== "development") {
     throw new Error("Production-data proxy is development-only");
   }
-  const baseUrl = required(
-    "NAAI_ERP_DEV_UPSTREAM_BASE_URL",
-    process.env.NAAI_ERP_DEV_UPSTREAM_BASE_URL,
+  const baseUrl = (
+    process.env.NAAI_ERP_DEV_UPSTREAM_BASE_URL?.trim() || "https://erp.naai.studio"
   ).replace(/\/$/, "");
   if (new URL(baseUrl).protocol !== "https:") {
     throw new Error("Production-data proxy requires HTTPS");
   }
   return Object.freeze({
     baseUrl,
-    token: required("NAAI_ERP_DEV_UPSTREAM_TOKEN", process.env.NAAI_ERP_DEV_UPSTREAM_TOKEN),
-    organizationId: required(
-      "NAAI_ERP_DEV_UPSTREAM_ORGANIZATION",
-      process.env.NAAI_ERP_DEV_UPSTREAM_ORGANIZATION,
-    ),
+    token: process.env.NAAI_ERP_DEV_UPSTREAM_TOKEN?.trim() || keychainValue("naai-erp-api-token"),
+    organizationId:
+      process.env.NAAI_ERP_DEV_UPSTREAM_ORGANIZATION?.trim() ||
+      keychainValue("naai-erp-organization", false) ||
+      "naai",
   });
 }
 

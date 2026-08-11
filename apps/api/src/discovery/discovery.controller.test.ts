@@ -50,13 +50,10 @@ describe("MVP headless API discovery", () => {
       `${organization}/master-data/{resource}`,
       `${organization}/milestone-acceptances`,
       `${organization}/outbound-events/outbox`,
-      `${organization}/overhead-allocation-runs`,
       `${organization}/project-budgets`,
-      `${organization}/project-costs`,
       `${organization}/project-revenue-position/{projectId}`,
       `${organization}/revenue-recognition-events`,
       `${organization}/scope-changes`,
-      `${organization}/time/timesheets`,
     ]) {
       expect(spec.paths, excluded).not.toHaveProperty(excluded);
     }
@@ -106,9 +103,7 @@ describe("MVP headless API discovery", () => {
       ),
     ).toBe(true);
     expect(body.resources).toEqual(expect.arrayContaining(["customers", "projects"]));
-    expect(body.resources).not.toEqual(
-      expect.arrayContaining(["banking", "timesheets", "overhead"]),
-    );
+    expect(body.resources).not.toEqual(expect.arrayContaining(["banking"]));
 
     await app.close();
   });

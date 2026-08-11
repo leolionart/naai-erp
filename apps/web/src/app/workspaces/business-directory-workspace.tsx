@@ -919,8 +919,8 @@ export function BusinessRecordWorkspace({
             <AlertDialogHeader>
               <AlertDialogTitle>Xóa dự án vận hành?</AlertDialogTitle>
               <AlertDialogDescription>
-                Dự án chỉ được xóa khi không có chứng từ, timesheet, phân bổ, ngân sách hoặc bút
-                toán tham chiếu. Lịch sử audit của thao tác xóa vẫn được giữ lại.
+                Dự án chỉ được xóa khi không có chứng từ, chi phí, phân bổ, ngân sách hoặc bút toán
+                tham chiếu. Lịch sử audit của thao tác xóa vẫn được giữ lại.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <Field>

@@ -303,12 +303,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       this.pool.query<{
         recognition_count: number;
         budget_count: number;
-        overhead_count: number;
       }>(
         `select
           (select count(*)::int from revenue_recognition_events where organization_id=$1 and state='posted' and effective_on between $2::date and $3::date) recognition_count,
-          (select count(*)::int from project_budget_versions where organization_id=$1 and state='approved') budget_count,
-          (select count(*)::int from overhead_allocation_runs where organization_id=$1 and state='posted' and period_end>=$2::date and period_start<=$3::date) overhead_count`,
+          (select count(*)::int from project_budget_versions where organization_id=$1 and state='approved') budget_count`,
         [org, q.startsOn, q.endsOn],
       ),
     ]);
@@ -366,7 +364,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
       approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,
-      postedOverheadRunCount: readiness.rows[0]?.overhead_count ?? 0,
       source: "posted_ledger" as const,
       monthly,
     };
@@ -541,8 +538,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           : [],
         reviewFlags: row.reviewFlags,
       }));
-    const payrollRows = result.rows.filter((row) => row.kind === "payroll_master");
-    const bonusRows = result.rows.filter((row) => row.kind === "bonus_control");
     return {
       source: "workbook_import_review_rows",
       accountingStatus: "unconfirmed_non_canonical",
@@ -551,16 +546,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       monthly,
       debt,
       expenseCategories,
-      workforce: {
-        payrollNetMinor: payrollRows
-          .reduce((sum, row) => sum + amount(controlMoney(row.mappedData.payrollNetMinor)), 0n)
-          .toString(),
-        bonusMinor: bonusRows
-          .reduce((sum, row) => sum + amount(controlMoney(row.mappedData.bonusMinor)), 0n)
-          .toString(),
-        payrollRowCount: payrollRows.length,
-        bonusRowCount: bonusRows.length,
-      },
       rows: result.rows.slice(0, q.limit),
     };
   }

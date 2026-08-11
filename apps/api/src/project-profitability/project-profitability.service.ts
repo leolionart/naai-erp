@@ -94,21 +94,13 @@ export class ProjectProfitabilityService {
       collectedRevenueMinor: money(calculated.collectedRevenueMinor),
       directProjectCostMinor: money(calculated.directProjectCostMinor),
       directCostMinor: money(calculated.directProjectCostMinor),
-      variableOverheadMinor: money(calculated.variableOverheadMinor),
-      fixedOverheadMinor: money(calculated.fixedOverheadMinor),
-      fullyLoadedCostMinor: money(calculated.fullyLoadedCostMinor),
       grossMarginMinor: money(calculated.grossMarginMinor),
-      contributionMarginMinor: money(calculated.contributionMarginMinor),
-      fullyLoadedProfitMinor: money(calculated.fullyLoadedProfitMinor),
-      realizedHourlyRateMinor: money(calculated.realizedHourlyRateMinor),
       budgetRevenueMinor: source.budgetRevenueMinor.toString(),
       budgetCostMinor: money(calculated.budgetCostMinor),
       overrunMinor: money(calculated.overrunMinor),
       overrunAmountMinor: money(calculated.overrunMinor),
       unbilledWorkMinor: money(calculated.unbilledWorkMinor),
       overdueArMinor: money(calculated.overdueArMinor),
-      billableHours: calculated.billableMinutes / 60,
-      availableHours: calculated.availableMinutes / 60,
       confidenceFlags,
       confidenceCodes: confidenceFlags.map((flag) => flag.code),
       confidenceDetails: calculated.confidenceFlags.map((flag) => ({
@@ -130,41 +122,18 @@ export class ProjectProfitabilityService {
       );
     const recognized = amount("recognizedRevenueMinor");
     const gross = amount("grossMarginMinor");
-    const contribution = amount("contributionMarginMinor");
-    const fullyLoaded = amount("fullyLoadedProfitMinor");
-    const billableMinutes = items.reduce((sum, item) => sum + item.billableMinutes, 0);
-    const projectMinutes = items.reduce((sum, item) => sum + item.projectMinutes, 0);
-    const availableMinutes = items.reduce((sum, item) => sum + item.availableMinutes, 0);
     return {
       projectCount: items.length,
       recognizedRevenueMinor: recognized.toString(),
       invoicedRevenueMinor: amount("invoicedRevenueMinor").toString(),
       collectedRevenueMinor: amount("collectedRevenueMinor").toString(),
       directCostMinor: amount("directCostMinor").toString(),
-      variableOverheadMinor: amount("variableOverheadMinor").toString(),
-      fixedOverheadMinor: amount("fixedOverheadMinor").toString(),
-      fullyLoadedCostMinor: amount("fullyLoadedCostMinor").toString(),
       grossMarginMinor: gross.toString(),
       grossMarginBps: profitabilityRatioBps(gross, recognized),
-      contributionMarginMinor: contribution.toString(),
-      contributionMarginBps: profitabilityRatioBps(contribution, recognized),
-      fullyLoadedProfitMinor: fullyLoaded.toString(),
-      fullyLoadedMarginBps: profitabilityRatioBps(fullyLoaded, recognized),
       budgetCostMinor: amount("budgetCostMinor").toString(),
       overrunMinor: amount("overrunMinor").toString(),
       unbilledWorkMinor: amount("unbilledWorkMinor").toString(),
       overdueArMinor: amount("overdueArMinor").toString(),
-      billableMinutes,
-      projectMinutes,
-      availableMinutes,
-      realizedHourlyRateMinor:
-        billableMinutes === 0
-          ? null
-          : (
-              (recognized * 60n + BigInt(billableMinutes) / 2n) /
-              BigInt(billableMinutes)
-            ).toString(),
-      utilizationBps: profitabilityRatioBps(BigInt(billableMinutes), BigInt(availableMinutes)),
     };
   }
 
@@ -197,14 +166,7 @@ export class ProjectProfitabilityService {
       .map(([key, rows]) => {
         const revenue = money(rows, "recognizedRevenueMinor");
         const direct = money(rows, "directCostMinor");
-        const variable = money(rows, "variableOverheadMinor");
-        const fixed = money(rows, "fixedOverheadMinor");
         const gross = revenue - direct;
-        const contribution = gross - variable;
-        const fullyLoaded = contribution - fixed;
-        const billableMinutes = rows.reduce((sum, row) => sum + row.billableMinutes, 0);
-        const projectMinutes = rows.reduce((sum, row) => sum + row.projectMinutes, 0);
-        const availableMinutes = rows.reduce((sum, row) => sum + row.availableMinutes, 0);
         return {
           groupBy,
           key,
@@ -215,25 +177,8 @@ export class ProjectProfitabilityService {
           projectCount: rows.length,
           recognizedRevenueMinor: revenue.toString(),
           directCostMinor: direct.toString(),
-          variableOverheadMinor: variable.toString(),
-          fixedOverheadMinor: fixed.toString(),
           grossMarginMinor: gross.toString(),
           grossMarginBps: profitabilityRatioBps(gross, revenue),
-          contributionMarginMinor: contribution.toString(),
-          contributionMarginBps: profitabilityRatioBps(contribution, revenue),
-          fullyLoadedProfitMinor: fullyLoaded.toString(),
-          fullyLoadedMarginBps: profitabilityRatioBps(fullyLoaded, revenue),
-          realizedHourlyRateMinor:
-            billableMinutes === 0
-              ? null
-              : (
-                  (revenue * 60n + BigInt(billableMinutes) / 2n) /
-                  BigInt(billableMinutes)
-                ).toString(),
-          utilizationBps: profitabilityRatioBps(BigInt(billableMinutes), BigInt(availableMinutes)),
-          billableMinutes,
-          projectMinutes,
-          availableMinutes,
         };
       })
       .sort((left, right) => left.key.localeCompare(right.key));

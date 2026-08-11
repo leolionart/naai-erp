@@ -65,8 +65,9 @@ describe("ERP-400 banking admin workspace", () => {
 
   it("renders the operational account and imported transaction surfaces", () => {
     const html = renderToStaticMarkup(<BankingWorkspace />);
-    expect(html).toContain("Tài khoản &amp; Giao dịch");
-    expect(html).toContain("Chuyển tiền nội bộ");
+    expect(html).not.toContain("Điều hướng nghiệp vụ ngân hàng");
+    expect(html).not.toContain("Chuyển tiền nội bộ");
+    expect(html).not.toContain("Kiểm soát sao kê");
     expect(html).toContain("Tài khoản ngân hàng và tiền mặt");
     expect(html).toContain("Lịch sử nộp/rút quỹ tiền mặt");
     expect(html).toContain("Quỹ tiền mặt");

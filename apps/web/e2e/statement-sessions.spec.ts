@@ -81,45 +81,42 @@ async function installApi(page: Page) {
   let current = detail();
   const bodies: Record<string, Record<string, unknown> | undefined> = {};
   const requested: string[] = [];
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/banking/statement-sessions**",
-    async (route) => {
-      const request = route.request(),
-        url = new URL(request.url()),
-        path = url.pathname;
-      requested.push(`${path}${url.search}`);
-      if (request.method() === "GET" && path.endsWith("/statement-sessions"))
-        return reply(route, envelope({ items: [summary()] }));
-      if (request.method() === "POST" && path.endsWith("/statement-sessions")) {
-        bodies.create = request.postDataJSON();
-        return reply(route, envelope({ statementSession: current, mutation: {} }), 201);
-      }
-      if (request.method() === "GET" && path.endsWith("/session-aug"))
-        return reply(route, envelope(current));
-      if (request.method() === "POST" && path.endsWith("/exception-1/approve")) {
-        bodies.exception = request.postDataJSON();
-        current = detail("reviewable", "2");
-        return reply(route, envelope({ statementSession: current, mutation: {} }));
-      }
-      if (request.method() === "POST" && path.endsWith("/session-aug/review")) {
-        bodies.review = request.postDataJSON();
-        current = detail("closable", "3");
-        return reply(route, envelope({ statementSession: current, mutation: {} }));
-      }
-      if (request.method() === "POST" && path.endsWith("/session-aug/close")) {
-        bodies.close = request.postDataJSON();
-        current = detail("closed", "4");
-        return reply(route, envelope({ statementSession: current, mutation: {} }));
-      }
-      return reply(route, { error: { message: path } }, 404);
-    },
-  );
+  await page.route("**/api/v1/organizations/naai/banking/statement-sessions**", async (route) => {
+    const request = route.request(),
+      url = new URL(request.url()),
+      path = url.pathname;
+    requested.push(`${path}${url.search}`);
+    if (request.method() === "GET" && path.endsWith("/statement-sessions"))
+      return reply(route, envelope({ items: [summary()] }));
+    if (request.method() === "POST" && path.endsWith("/statement-sessions")) {
+      bodies.create = request.postDataJSON();
+      return reply(route, envelope({ statementSession: current, mutation: {} }), 201);
+    }
+    if (request.method() === "GET" && path.endsWith("/session-aug"))
+      return reply(route, envelope(current));
+    if (request.method() === "POST" && path.endsWith("/exception-1/approve")) {
+      bodies.exception = request.postDataJSON();
+      current = detail("reviewable", "2");
+      return reply(route, envelope({ statementSession: current, mutation: {} }));
+    }
+    if (request.method() === "POST" && path.endsWith("/session-aug/review")) {
+      bodies.review = request.postDataJSON();
+      current = detail("closable", "3");
+      return reply(route, envelope({ statementSession: current, mutation: {} }));
+    }
+    if (request.method() === "POST" && path.endsWith("/session-aug/close")) {
+      bodies.close = request.postDataJSON();
+      current = detail("closed", "4");
+      return reply(route, envelope({ statementSession: current, mutation: {} }));
+    }
+    return reply(route, { error: { message: path } }, 404);
+  });
   return { bodies, requested };
 }
 
 test("@desktop creates a session and keeps filters in URL", async ({ page }) => {
   const api = await installApi(page);
-  await page.goto("http://localhost:3000/banking/statements");
+  await page.goto("/banking/statements");
   await expect(page.getByRole("link", { name: "2026-08-01 → 2026-08-31" })).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const sheet = page.locator('[data-slot="popover-content"]');
@@ -148,7 +145,7 @@ test("@desktop creates a session and keeps filters in URL", async ({ page }) => 
 
 test("@desktop resolves blockers, reviews and closes in sequence", async ({ page }) => {
   const api = await installApi(page);
-  await page.goto("http://localhost:3000/banking/statements/session-aug");
+  await page.goto("/banking/statements/session-aug");
   await expect(page.getByText(/Blockers: TRANSACTION_COVERAGE_INCOMPLETE/)).toBeVisible();
   await page.getByRole("button", { name: "Duyệt" }).click();
   const exception = page.getByRole("dialog", { name: "Duyệt exception" });
@@ -180,7 +177,7 @@ test("@desktop resolves blockers, reviews and closes in sequence", async ({ page
 test("@mobile queue and detail avoid body overflow", async ({ page }) => {
   await installApi(page);
   for (const path of ["/banking/statements", "/banking/statements/session-aug"]) {
-    await page.goto(`http://localhost:3000${path}`);
+    await page.goto(path);
     await page.waitForLoadState("networkidle");
     const size = await page.evaluate(() => ({
       body: document.body.scrollWidth,

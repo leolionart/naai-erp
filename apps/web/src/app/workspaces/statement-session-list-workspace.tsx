@@ -171,18 +171,7 @@ export function StatementSessionListWorkspace() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/banking">Tài khoản & Giao dịch</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/banking/internal-transfers">Chuyển tiền nội bộ</Link>
-          </Button>
-          <Button variant="secondary" asChild>
-            <Link href="/banking/statements">Kiểm soát sao kê</Link>
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setFilterSheet(true)}>
             <FilterIcon data-icon="inline-start" />

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("@desktop owner settlement shows confirmed debt custody and withdrawals only", async ({
+test("@desktop @mobile owner settlement shows confirmed debt custody and withdrawals only", async ({
   page,
 }) => {
+  let createdWithdrawal: Record<string, unknown> | undefined;
   await page.addInitScript(() =>
     sessionStorage.setItem("naai-erp-admin-token", "owner-current-token"),
   );
@@ -114,7 +115,41 @@ test("@desktop owner settlement shows confirmed debt custody and withdrawals onl
       }),
     }),
   );
+  await page.route("**/api/v1/organizations/naai/banking/accounts", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        apiVersion: "v1",
+        data: {
+          items: [
+            {
+              id: "bank-main",
+              display_name: "Tài khoản công ty",
+              currency: "VND",
+              status: "active",
+            },
+          ],
+        },
+      }),
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/banking/owner-cash-withdrawals", async (route) => {
+    createdWithdrawal = (await route.request().postDataJSON()) as Record<string, unknown>;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        apiVersion: "v1",
+        data: {
+          withdrawalId: "withdrawal-created",
+          transactionId: "transaction-created",
+          journalId: "journal-created",
+          status: "posted",
+        },
+      }),
+    });
+  });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("http://localhost:3000/banking/owner-current");
   const confirmed = page.getByTestId("confirmed-owner-current");
 
@@ -133,4 +168,39 @@ test("@desktop owner settlement shows confirmed debt custody and withdrawals onl
   await expect(page.getByText("Khoản chưa đủ bằng chứng để quyết toán với chủ")).toHaveCount(0);
   await expect(page.getByText("Khoản cần kiểm tra phân loại")).toHaveCount(0);
   await expect(page.getByText("Khoản 100 triệu chưa đủ bằng chứng quyết toán")).toHaveCount(0);
+
+  const responsiveMetrics = await page.evaluate(() => {
+    const tableContainer = document.querySelector<HTMLElement>(
+      '[data-testid="owner-current-table-scroll"] [data-slot="table-container"]',
+    );
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      tableClientWidth: tableContainer?.clientWidth ?? 0,
+      tableScrollWidth: tableContainer?.scrollWidth ?? 0,
+    };
+  });
+  expect(responsiveMetrics.documentWidth).toBeLessThanOrEqual(responsiveMetrics.viewportWidth + 1);
+  expect(responsiveMetrics.tableClientWidth).toBeGreaterThan(0);
+  expect(responsiveMetrics.tableScrollWidth).toBeGreaterThan(responsiveMetrics.tableClientWidth);
+
+  await page.getByRole("button", { name: "Ghi nhận chủ rút tiền" }).click();
+  await page.getByLabel("Ngày rút").fill("2026-08-11");
+  await page.getByLabel("Rút từ tài khoản").click();
+  await page.getByRole("option", { name: /Tài khoản công ty/ }).click();
+  await page.getByLabel("Số tiền").fill("5.000.000");
+  await page.getByLabel("Ghi chú").fill("Chủ rút tiền dùng cá nhân");
+  await page.getByRole("button", { name: "Ghi nhận khoản rút" }).click();
+  await expect(
+    page.getByText("Đã ghi nhận khoản chủ rút tiền và cập nhật công nợ chủ."),
+  ).toBeVisible();
+  expect(createdWithdrawal).toMatchObject({
+    schemaVersion: 1,
+    movementType: "owner_personal_withdrawal",
+    financialAccountId: "bank-main",
+    bookingDate: "2026-08-11",
+    amountMinor: "5000000",
+    currency: "VND",
+    description: "Chủ rút tiền dùng cá nhân",
+  });
 });

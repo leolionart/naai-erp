@@ -7,6 +7,7 @@ import {
   type BankingStore,
   type BankTransactionActionInput,
   type CreateFinancialAccountInput,
+  type CreateOwnerCashWithdrawalInput,
   type ImportBankStatementInput,
 } from "./banking.types.js";
 
@@ -105,6 +106,27 @@ export class BankingService {
       context,
       await this.store.listOwnerCurrentMovements(context.organizationId),
     );
+  }
+  async createOwnerCashWithdrawal(
+    context: BankingContext,
+    input: CreateOwnerCashWithdrawalInput,
+    key?: string,
+  ) {
+    this.authorize(context, MANAGE);
+    this.requireKey(key);
+    if (
+      input.schemaVersion !== 1 ||
+      input.movementType !== "owner_personal_withdrawal" ||
+      !input.financialAccountId?.trim() ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(input.bookingDate) ||
+      !/^\d+$/.test(input.amountMinor) ||
+      BigInt(input.amountMinor) <= 0n ||
+      !/^[A-Z]{3}$/.test(input.currency) ||
+      !input.description?.trim() ||
+      !input.reason?.trim()
+    )
+      throw new Error("VALIDATION_FAILED");
+    return this.envelope(context, await this.store.createOwnerCashWithdrawal(context, input, key));
   }
   async getTransaction(context: BankingContext, id: string) {
     const data = await this.store.getTransaction(context.organizationId, id);

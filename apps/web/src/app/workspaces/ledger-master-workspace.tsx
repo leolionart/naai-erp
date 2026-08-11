@@ -299,11 +299,11 @@ export function LedgerMasterWorkspace({
   }
 
   return (
-    <Card aria-label="Ledger and master data workspace">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-        <CardAction className="flex items-center gap-2">
+    <Card aria-label="Ledger and master data workspace" className="min-w-0">
+      <CardHeader className="grid-cols-1 has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[1fr_auto]">
+        <CardTitle className="min-w-0">{title}</CardTitle>
+        <CardDescription className="min-w-0">{description}</CardDescription>
+        <CardAction className="col-start-1 row-start-3 row-span-1 flex w-full flex-wrap items-center justify-self-stretch gap-2 sm:col-start-2 sm:row-start-1 sm:row-span-2 sm:w-auto sm:flex-nowrap sm:justify-self-end [&>button]:min-w-0 [&>button]:flex-1 sm:[&>button]:flex-none">
           {section === "accounts" && (
             <CreateAccountDialog
               onCreate={(data) =>
@@ -331,7 +331,7 @@ export function LedgerMasterWorkspace({
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex min-w-0 flex-col gap-4">
         <div
           className="flex flex-wrap items-center gap-2"
           role="tablist"

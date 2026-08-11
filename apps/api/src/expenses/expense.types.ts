@@ -41,6 +41,7 @@ export type CreateExpenseInput = Readonly<{
   payeePartyId?: string;
   employeePartyId?: string;
   expenseDate: string;
+  freelanceDueDate?: string;
   servicePeriodStart?: string;
   servicePeriodEnd?: string;
   businessPurpose: string;

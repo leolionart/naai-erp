@@ -32,7 +32,7 @@ export type AgingSourceItem = Readonly<{
   id: string;
   side: AgingSide;
   balanceKind: AgingBalanceKind;
-  sourceType: "commercial_document" | "opening_balance";
+  sourceType: "commercial_document" | "opening_balance" | "project_freelance_payable";
   sourceId: string;
   partyId: string;
   partyName: string;

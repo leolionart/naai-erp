@@ -17,7 +17,7 @@ import type { AgingQuery, AgingSide, AgingStore } from "./aging.types.js";
 
 type SourceRow = {
   id: string;
-  source_type: "commercial_document" | "opening_balance";
+  source_type: "commercial_document" | "opening_balance" | "project_freelance_payable";
   source_id: string;
   party_id: string;
   party_name: string;
@@ -302,6 +302,21 @@ export class PgAgingStore implements AgingStore {
   }
 
   private async documentSources(org: string, side: AgingSide, asOf: string) {
+    if (side === "ap") {
+      const result = await this.pool.query<SourceRow>(
+        `select 'freelance:'||p.id id,'project_freelance_payable' source_type,p.id source_id,
+         p.freelancer_party_id party_id,party.display_name party_name,e.counter_account_code control_account_code,
+         'FREELANCE-'||p.id document_number,e.expense_date::text document_date,p.due_date::text due_date,
+         p.currency,'payable' balance_kind,p.journal_id,j.journal_date::text journal_date,0::text debit_minor,
+         p.amount_minor::text credit_minor,null reversal_id,null reversal_date
+         from project_freelance_payables p join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id
+         join parties party on party.organization_id=p.organization_id and party.id=p.freelancer_party_id
+         join journal_entries j on j.organization_id=p.organization_id and j.id=p.journal_id
+         where p.organization_id=$1 and p.state<>'paid' and j.journal_date<=$2::date`,
+        [org, asOf],
+      );
+      return result.rows;
+    }
     const types = side === "ar" ? ["sales_invoice", "credit_note"] : ["purchase_invoice"];
     // Exclude documents with state='paid' — these are fully settled and should not appear as
     // open items. Their AP/AR balance was cleared via corresponding payment journal entries.
@@ -319,10 +334,21 @@ export class PgAgingStore implements AgingStore {
     return r.rows;
   }
   private async allocations(org: string, side: AgingSide) {
+    if (side === "ap") {
+      const result = await this.pool.query<AllocationRow>(
+        `select pp.payable_id target_id,pp.id,pp.journal_id,pp.id reconciliation_id,
+         pp.payment_date::text journal_date,pp.amount_minor::text target_amount_minor,
+         pp.amount_minor::text base_amount_minor,null reversal_id,null reversal_date
+         from project_freelance_payable_payments pp where pp.organization_id=$1`,
+        [org],
+      );
+      return result.rows;
+    }
     const target = side === "ar" ? "commercial_document_id" : "commercial_document_id";
     const r = await this.pool.query<AllocationRow>(
-      `select a.${target} target_id,a.id,ra.journal_id,ra.id reconciliation_id,sj.journal_date::text journal_date,a.target_amount_minor::text,a.base_amount_minor::text,ra.reversal_journal_id reversal_id,rj.journal_date::text reversal_date from reconciliation_allocations a join reconciliation_attempts ra on ra.organization_id=a.organization_id and ra.id=a.reconciliation_id left join journal_entries sj on sj.organization_id=ra.organization_id and sj.id=ra.journal_id left join journal_entries rj on rj.organization_id=ra.organization_id and rj.id=ra.reversal_journal_id where a.organization_id=$1 and a.commercial_document_id is not null`,
-      [org],
+      `select a.${target} target_id,a.id,ra.journal_id,ra.id reconciliation_id,sj.journal_date::text journal_date,a.target_amount_minor::text,a.base_amount_minor::text,ra.reversal_journal_id reversal_id,rj.journal_date::text reversal_date from reconciliation_allocations a join reconciliation_attempts ra on ra.organization_id=a.organization_id and ra.id=a.reconciliation_id left join journal_entries sj on sj.organization_id=ra.organization_id and sj.id=ra.journal_id left join journal_entries rj on rj.organization_id=ra.organization_id and rj.id=ra.reversal_journal_id where a.organization_id=$1 and a.commercial_document_id is not null
+       union all select a.sales_invoice_id target_id,a.id,r.journal_id,r.id reconciliation_id,r.receipt_date::text journal_date,a.amount_minor::text,a.amount_minor::text,null reversal_id,null reversal_date from customer_receipt_allocations a join customer_receipts r on r.organization_id=a.organization_id and r.id=a.receipt_id where a.organization_id=$1 and $2='ar'`,
+      [org, side],
     );
     return r.rows;
   }
@@ -331,6 +357,27 @@ export class PgAgingStore implements AgingStore {
     side: AgingSide,
     asOf: string,
   ): Promise<AgingControlBalance[]> {
+    if (side === "ap") {
+      const result = await this.pool.query<{
+        account_code: string;
+        currency: string;
+        balance: string;
+      }>(
+        `select e.counter_account_code account_code,p.currency,
+         (sum(p.amount_minor)-sum(p.paid_minor))::text balance
+         from project_freelance_payables p join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id
+         join journal_entries j on j.organization_id=p.organization_id and j.id=p.journal_id
+         where p.organization_id=$1 and j.journal_date<=$2::date
+         group by e.counter_account_code,p.currency`,
+        [org, asOf],
+      );
+      return result.rows.map((row) => ({
+        controlAccountCode: row.account_code,
+        currency: row.currency,
+        balanceMinor: BigInt(row.balance),
+        baseBalanceMinor: BigInt(row.balance),
+      }));
+    }
     const r = await this.pool.query<{ account_code: string; currency: string; balance: string }>(
       `select l.account_code,j.currency,coalesce(sum(case when $3='ar' then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) end),0)::text balance from journal_lines l join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id join accounts a on a.organization_id=l.organization_id and a.code=l.account_code where l.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed') and a.is_control_account and (($3='ar' and a.root_type='asset') or ($3='ap' and a.root_type='liability')) group by l.account_code,j.currency`,
       [org, asOf, side],
@@ -373,7 +420,9 @@ export class PgAgingStore implements AgingStore {
         sourceHref:
           item.sourceType === "commercial_document"
             ? `${base}/commercial-documents/${encodeURIComponent(item.sourceId)}`
-            : `${base}/opening-balances`,
+            : item.sourceType === "project_freelance_payable"
+              ? `${base}/project-freelance-payables/${encodeURIComponent(item.sourceId)}`
+              : `${base}/opening-balances`,
         journalHrefs: item.journalIds.map((id) => `${base}/journals/${encodeURIComponent(id)}`),
         reconciliationHrefs: item.reconciliationIds.map(
           (id) => `${base}/banking/reconciliations/${encodeURIComponent(id)}`,

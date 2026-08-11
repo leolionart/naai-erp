@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { adminNavigation, findNavigationItem, isNavigationAvailable } from "./navigation";
 
 describe("typed admin navigation", () => {
-  it("keeps unique group and item keys", () => {
+  it("keeps unique keys across groups, parents and submenu destinations", () => {
     expect(new Set(adminNavigation.map((group) => group.key)).size).toBe(adminNavigation.length);
-    const items = adminNavigation.reduce<Array<{ key: string }>>(
-      (all, group) => [...all, ...group.items],
-      [],
+    const keys = adminNavigation.flatMap((group) =>
+      group.items.flatMap((item) => [
+        item.key,
+        ...("children" in item ? item.children.map((child) => child.key) : []),
+      ]),
     );
-    expect(new Set(items.map((item) => item.key)).size).toBe(items.length);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it("exposes only the narrowed MVP destinations", () => {
@@ -37,18 +39,27 @@ describe("typed admin navigation", () => {
     expect(findNavigationItem("expense-by-category")?.href).toBe("/reports/expenses/by-category");
     expect(findNavigationItem("customers")?.href).toBe("/customers");
     expect(findNavigationItem("projects")?.href).toBe("/projects");
+    expect(findNavigationItem("planning")?.href).toBeUndefined();
+    expect(findNavigationItem("revenue-targets")?.href).toBe("/forecast/targets");
+    expect(findNavigationItem("forecast-scenarios")?.href).toBe("/forecast/scenarios");
+    expect(findNavigationItem("forecast-composition")?.href).toBe("/forecast/composition");
+    expect(findNavigationItem("time-management")).toBeUndefined();
+    expect(findNavigationItem("timesheets")).toBeUndefined();
+    expect(findNavigationItem("timesheet-approvals")).toBeUndefined();
+    expect(findNavigationItem("new-timesheet")).toBeUndefined();
+    expect(findNavigationItem("cost-rates")).toBeUndefined();
+    expect(findNavigationItem("overhead")).toBeUndefined();
+    expect(findNavigationItem("overhead-policies")).toBeUndefined();
+    expect(findNavigationItem("overhead-pools")).toBeUndefined();
+    expect(findNavigationItem("overhead-runs")).toBeUndefined();
     for (const hidden of [
       "import-review",
       "performance",
       "evidence",
       "integrations",
-      "timesheets",
-      "cost-rates",
       "project-costs",
       "project-revenue",
-      "overhead",
       "forecast",
-      "forecast-composition",
       "reports",
     ]) {
       expect(findNavigationItem(hidden)).toBeUndefined();

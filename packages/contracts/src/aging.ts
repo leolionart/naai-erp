@@ -19,7 +19,7 @@ export type AgingListQueryContract = Readonly<{
 }>;
 
 export type AgingDrilldownContract = Readonly<{
-  sourceType: "commercial_document" | "opening_balance";
+  sourceType: "commercial_document" | "opening_balance" | "project_freelance_payable";
   sourceId: string;
   journalIds: readonly string[];
   reconciliationIds: readonly string[];

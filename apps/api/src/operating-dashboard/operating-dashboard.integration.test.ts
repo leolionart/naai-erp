@@ -81,7 +81,6 @@ suite("operating dashboard PostgreSQL API", () => {
         ('${org}','control-plan','import','control-plan','finance','Planing & Target',2,'planning_control','planning_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Planing & Target","row":2},"period":"2025-01","revenueMinor":"1000","receivedMinor":"900","expenseMinor":"450","profitMinor":"550","targetAttainmentBps":4000,"forecastExpenseMinor":"500","forecastCashMinor":"400"}','${owner}','${owner}'),
         ('${org}','control-debt','import','control-debt','finance','Công nợ',2,'debt_control','ar_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Công nợ","row":2},"period":"2025-01","projectLabel":"Project","debtMinor":"100","projectCostMinor":"2000","collectedMinor":"1900"}','${owner}','${owner}'),
         ('${org}','control-bonus','import','control-bonus','finance','Tỉ lệ thưởng',2,'bonus_control','bonus_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Tỉ lệ thưởng","row":2},"period":"2025-01","personName":"Owner","bonusMinor":"50","revenueMinor":"1000"}','${owner}','${owner}'),
-        ('${org}','control-payroll','import','control-payroll','finance','Bảng lương',2,'payroll_master','workforce_profile_pending','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Bảng lương","row":2},"personName":"Owner","payrollNetMinor":"300","employmentStatus":"Active","department":"Ops"}','${owner}','${owner}'),
         ('${org}','control-category','import','control-category','finance','Hạng mục chi',2,'expense_category_control','expense_category_control','pending_review','["control_only"]','{}','{"sourceControl":{"workbook":"finance","sheet":"Hạng mục chi","row":2},"category":"Payroll","monthlyAmounts":[{"period":"2025-01","amountMinor":"300"}]}','${owner}','${owner}');
     `);
     await pool.query(
@@ -146,27 +145,17 @@ suite("operating dashboard PostgreSQL API", () => {
           rosBps: 3500,
           recognitionEventCount: 0,
           approvedBudgetCount: 0,
-          postedOverheadRunCount: 0,
           source: "posted_ledger",
         },
-        dataQuality: { pendingCount: 7 },
+        dataQuality: { pendingCount: 6 },
         sourceControls: {
           source: "workbook_import_review_rows",
           accountingStatus: "unconfirmed_non_canonical",
-          rowCount: 2,
-          byKind: [
-            { kind: "bonus_control", count: 1 },
-            { kind: "payroll_master", count: 1 },
-          ],
+          rowCount: 1,
+          byKind: [{ kind: "bonus_control", count: 1 }],
           monthly: [],
           debt: [],
           expenseCategories: [],
-          workforce: {
-            payrollNetMinor: "300",
-            bonusMinor: "50",
-            payrollRowCount: 1,
-            bonusRowCount: 1,
-          },
         },
       },
     });

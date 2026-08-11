@@ -29,25 +29,13 @@ describe("project profitability contract", () => {
       invoicedRevenueMinor: "120000000",
       collectedRevenueMinor: "80000000",
       directProjectCostMinor: "40000000",
-      variableOverheadMinor: "10000000",
-      fixedOverheadMinor: "15000000",
-      fullyLoadedCostMinor: "65000000",
       grossMarginMinor: "60000000",
       grossMarginBps: 6000,
-      contributionMarginMinor: "50000000",
-      contributionMarginBps: 5000,
-      fullyLoadedProfitMinor: "35000000",
-      fullyLoadedMarginBps: 3500,
-      realizedHourlyRateMinor: "1000000",
-      utilizationBps: 7500,
       budgetCostMinor: "60000000",
       overrunMinor: "5000000",
       overrunBps: 833,
       unbilledWorkMinor: "5000000",
       overdueArMinor: "12000000",
-      billableMinutes: 6000,
-      projectMinutes: 7200,
-      availableMinutes: 9600,
       confidenceFlags: [
         {
           code: "budget_overrun",
@@ -60,30 +48,23 @@ describe("project profitability contract", () => {
         recognitionEventIds: ["recognition-1"],
         invoiceIds: ["invoice-1"],
         reconciliationIds: ["reconciliation-1"],
-        directCostItemIds: ["cost-1"],
-        overheadAllocationRunIds: ["run-1"],
-        overheadAllocationSplitIds: ["split-1"],
-        timesheetIds: ["timesheet-1"],
+        expenseIds: ["expense-1"],
+        purchaseDocumentAllocationIds: ["allocation-1"],
         budgetVersionIds: ["budget-1"],
         journalIds: ["journal-1"],
       },
     };
 
     expect(report.schemaVersion).toBe(1);
-    expect(report.fullyLoadedProfitMinor).toBe("35000000");
+    expect(report.grossMarginMinor).toBe("60000000");
     expect(report.confidenceFlags[0]?.sourceIds).toEqual(["budget-1"]);
   });
 
   it("represents undefined ratios as null instead of synthetic zero", () => {
-    const nullableRatios: Pick<
-      ProjectProfitabilityContract,
-      "grossMarginBps" | "realizedHourlyRateMinor" | "utilizationBps" | "overrunBps"
-    > = {
+    const nullableRatios: Pick<ProjectProfitabilityContract, "grossMarginBps" | "overrunBps"> = {
       grossMarginBps: null,
-      realizedHourlyRateMinor: null,
-      utilizationBps: null,
       overrunBps: null,
     };
-    expect(Object.values(nullableRatios)).toEqual([null, null, null, null]);
+    expect(Object.values(nullableRatios)).toEqual([null, null]);
   });
 });

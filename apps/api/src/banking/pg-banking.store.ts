@@ -6,6 +6,7 @@ import type {
   BankingContext,
   BankingStore,
   CreateFinancialAccountInput,
+  CreateOwnerCashWithdrawalInput,
   ImportBankStatementInput,
 } from "./banking.types.js";
 
@@ -708,6 +709,206 @@ export class PgBankingStore implements BankingStore {
     );
     return { items: result.rows };
   }
+  async createOwnerCashWithdrawal(
+    context: BankingContext,
+    input: CreateOwnerCashWithdrawalInput,
+    key: string,
+  ) {
+    const normalized = {
+      ...input,
+      financialAccountId: input.financialAccountId.trim(),
+      amountMinor: BigInt(input.amountMinor).toString(),
+      description: input.description.trim(),
+      reason: input.reason.trim(),
+    };
+    const requestHash = sha256(JSON.stringify(normalized));
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.replay(client, context.organizationId, key, requestHash);
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      await this.assertPostingPeriodAllowed(client, context, input.bookingDate);
+      const account = await client.query<{
+        id: string;
+        currency: string;
+        ledger_account_code: string;
+      }>(
+        `select id,currency,ledger_account_code from financial_accounts
+         where organization_id=$1 and id=$2 and status='active' and kind in ('bank','cash')
+         for update`,
+        [context.organizationId, normalized.financialAccountId],
+      );
+      if (!account.rows[0]) throw new Error("FINANCIAL_ACCOUNT_NOT_FOUND");
+      if (account.rows[0].currency !== input.currency)
+        throw new Error("BANK_TRANSACTION_CURRENCY_MISMATCH");
+      const ownerAccount = await client.query<{ account_code: string }>(
+        `with selected_mapping as (
+           select id,version from financial_statement_mapping_versions
+           where organization_id=$1 and framework='TT133' and state='approved'
+             and effective_from <= $2::date
+             and (effective_to is null or effective_to >= $2::date)
+           order by effective_from desc,version desc limit 1
+         )
+         select ml.account_code
+         from selected_mapping sm
+         join financial_statement_mapping_lines ml
+           on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+         join accounts a on a.organization_id=ml.organization_id and a.code=ml.account_code
+         where ml.statement='balance_sheet' and ml.line_code='owner_current' and a.is_active=true
+         order by ml.account_code limit 2`,
+        [context.organizationId, input.bookingDate],
+      );
+      if (ownerAccount.rows.length !== 1) throw new Error("OWNER_CURRENT_ACCOUNT_NOT_CONFIGURED");
+      const withdrawalId = input.id ?? randomUUID();
+      const transactionId = randomUUID();
+      const journalId = randomUUID();
+      const amount = BigInt(normalized.amountMinor);
+      const fingerprint = sha256(
+        JSON.stringify([
+          "manual_owner_cash_withdrawal",
+          withdrawalId,
+          normalized.financialAccountId,
+          input.bookingDate,
+          normalized.amountMinor,
+          input.currency,
+        ]),
+      );
+      await client.query(
+        `insert into bank_transactions
+         (organization_id,id,financial_account_id,fingerprint,booking_date,amount_minor,currency,
+          reference,description,counterparty_name,state)
+         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'reconciled')`,
+        [
+          context.organizationId,
+          transactionId,
+          normalized.financialAccountId,
+          fingerprint,
+          input.bookingDate,
+          -amount,
+          input.currency,
+          null,
+          normalized.description,
+          null,
+        ],
+      );
+      await client.query(
+        `insert into journal_entries
+         (organization_id,id,journal_date,description,currency,state,version,created_by,
+          approved_at,approved_by,approval_reason,posted_at,posted_by)
+         values($1,$2,$3,$4,$5,'posted',2,$6,now(),$6,$7,now(),$6)`,
+        [
+          context.organizationId,
+          journalId,
+          input.bookingDate,
+          normalized.description,
+          input.currency,
+          context.actorId,
+          normalized.reason,
+        ],
+      );
+      await client.query(
+        `insert into journal_lines
+         (organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+         values($1,$2,1,$3,$4,null,$5,'{}'),($1,$2,2,$6,null,$4,$5,'{}')`,
+        [
+          context.organizationId,
+          journalId,
+          ownerAccount.rows[0]!.account_code,
+          normalized.amountMinor,
+          normalized.description,
+          account.rows[0].ledger_account_code,
+        ],
+      );
+      await client.query(
+        `insert into owner_cash_withdrawals
+         (organization_id,id,bank_transaction_id,journal_id,reason,created_by,correlation_id)
+         values($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          context.organizationId,
+          withdrawalId,
+          transactionId,
+          journalId,
+          normalized.reason,
+          context.actorId,
+          context.correlationId,
+        ],
+      );
+      const eventId = randomUUID();
+      await client.query(
+        `insert into bank_transaction_events
+         (organization_id,id,transaction_id,action,from_state,to_state,actor_id,reason,correlation_id,details)
+         values($1,$2,$3,'record-owner-cash-withdrawal',null,'reconciled',$4,$5,$6,$7)`,
+        [
+          context.organizationId,
+          eventId,
+          transactionId,
+          context.actorId,
+          normalized.reason,
+          context.correlationId,
+          { withdrawalId, journalId },
+        ],
+      );
+      const auditEventId = randomUUID();
+      const outboxEventId = randomUUID();
+      const after = {
+        withdrawalId,
+        transactionId,
+        journalId,
+        financialAccountId: normalized.financialAccountId,
+        bookingDate: input.bookingDate,
+        amountMinor: normalized.amountMinor,
+        currency: input.currency,
+        status: "posted",
+      };
+      await this.audit(
+        client,
+        context,
+        auditEventId,
+        "owner_cash_withdrawal",
+        withdrawalId,
+        "create",
+        1n,
+        null,
+        after,
+      );
+      await this.outbox(
+        client,
+        context,
+        outboxEventId,
+        "owner_cash_withdrawal",
+        withdrawalId,
+        "owner_cash_withdrawal.recorded",
+        after,
+      );
+      const response = {
+        ...after,
+        resourceVersion: "1",
+        eventId,
+        auditEventId,
+        outboxEventId,
+        idempotencyReplayed: false,
+        nextActions: ["get_transaction", "get_journal", "list_owner_current_movements"],
+      };
+      await this.save(
+        client,
+        context.organizationId,
+        key,
+        "banking:owner-cash-withdrawal:create",
+        requestHash,
+        response,
+      );
+      await client.query("commit");
+      return response;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
   async listOwnerCurrentMovements(organizationId: string) {
     const result = await this.pool.query<{
       journal_id: string;
@@ -848,17 +1049,19 @@ export class PgBankingStore implements BankingStore {
                and outgoing.booking_date=j.journal_date
            ) custody_transfer_ids,
            (select (-bt.amount_minor)::text
-              from bank_transactions bt
+              from owner_cash_withdrawals ocw
+              join bank_transactions bt
+                on bt.organization_id=ocw.organization_id and bt.id=ocw.bank_transaction_id
               join financial_accounts fa
                 on fa.organization_id=bt.organization_id and fa.id=bt.financial_account_id
-             where bt.organization_id=j.organization_id and bt.amount_minor<0
-               and fa.kind in ('bank','cash') and fa.code<>'CASH-OWNER-CUSTODY'
-               and j.id='owner-repayment-bank-' || bt.id
+             where ocw.organization_id=j.organization_id and ocw.journal_id=j.id
+               and ocw.movement_type='owner_personal_withdrawal'
+               and bt.amount_minor<0 and fa.kind in ('bank','cash')
              limit 1) personal_withdrawal_minor,
-           (select bt.id
-              from bank_transactions bt
-             where bt.organization_id=j.organization_id and bt.amount_minor<0
-               and j.id='owner-repayment-bank-' || bt.id
+           (select ocw.bank_transaction_id
+              from owner_cash_withdrawals ocw
+             where ocw.organization_id=j.organization_id and ocw.journal_id=j.id
+               and ocw.movement_type='owner_personal_withdrawal'
              limit 1) personal_withdrawal_id
        ) movement_evidence on true
        where j.organization_id=$1 and j.state in ('posted','reversed')
@@ -1257,5 +1460,30 @@ export class PgBankingStore implements BankingStore {
         context.correlationId,
       ],
     );
+  }
+  private async assertPostingPeriodAllowed(
+    client: PoolClient,
+    context: BankingContext,
+    postingDate: string,
+  ) {
+    const periods = await client.query<{ state: string }>(
+      `select state from fiscal_periods
+       where organization_id=$1 and $2::date between starts_on and ends_on
+       order by fiscal_year,period_number limit 2`,
+      [context.organizationId, postingDate],
+    );
+    if (periods.rows.length === 0) throw new Error("FISCAL_PERIOD_NOT_FOUND");
+    if (periods.rows.length > 1) throw new Error("FISCAL_PERIOD_AMBIGUOUS");
+    if (periods.rows[0]!.state === "hard_locked") throw new Error("PERIOD_HARD_LOCKED");
+    if (periods.rows[0]!.state === "soft_locked") {
+      const policy = await client.query<{ soft_lock_posting_roles: string[] }>(
+        `select soft_lock_posting_roles from accounting_workflow_policies
+         where organization_id=$1`,
+        [context.organizationId],
+      );
+      const roles = policy.rows[0]?.soft_lock_posting_roles ?? ["owner", "finance_admin"];
+      if (!context.roles.some((role) => roles.includes(role)))
+        throw new Error("PERIOD_SOFT_LOCKED");
+    }
   }
 }

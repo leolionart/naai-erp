@@ -150,7 +150,6 @@ export interface WorkbookImportReviewRowInput {
     | "profitability_control"
     | "planning_control"
     | "bonus_control"
-    | "workforce_profile_pending"
     | "expense_category_control";
   proposedResourceId?: string;
   status: "pending_review" | "posted" | "ignored";

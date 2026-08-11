@@ -94,7 +94,7 @@ const composition = {
 
 async function install(page: Page) {
   const requests: Array<{ path: string; body?: unknown }> = [];
-  await page.route("http://localhost:3001/api/v1/organizations/naai/**", async (route) => {
+  await page.route("**/api/v1/organizations/naai/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (!path.includes("revenue-targets") && !path.includes("forecast-versions"))

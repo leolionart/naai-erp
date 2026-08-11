@@ -482,26 +482,6 @@ describe("NAAI ERP JSON-first CLI client", () => {
   });
 
   it.each([
-    ["overhead-policies", "approve", "policy-1", "overhead-allocation-policies/policy-1/approve"],
-    ["overhead-runs", "post", "run-1", "overhead-allocation-runs/run-1/post"],
-    ["overhead-source-pools", "list", undefined, "overhead-source-pools"],
-  ])("routes ERP-530 %s %s through public API", async (resource, action, key, suffix) => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: {} }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const client = new NaaiErpClient(
-      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-      fetchFn,
-    );
-    await client.request(resource, action, { periodStart: "2026-08-01" }, key);
-    expect(fetchFn.mock.calls[0]?.[0]).toContain(`/api/v1/organizations/org-a/${suffix}`);
-    expect(fetchFn.mock.calls[0]?.[0]).not.toContain("master-data");
-  });
-
-  it.each([
     [
       "revenue-targets",
       "list",
@@ -938,6 +918,45 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("records an owner cash withdrawal through the canonical banking endpoint", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { status: "posted" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const payload = {
+      schemaVersion: 1,
+      movementType: "owner_personal_withdrawal",
+      financialAccountId: "bank-main",
+      bookingDate: "2026-08-11",
+      amountMinor: "5000000",
+      currency: "VND",
+      description: "Chủ rút tiền dùng cá nhân",
+      reason: "Ghi nhận giao dịch thực tế",
+    };
+    await client.request(
+      "owner-cash-withdrawals",
+      "create",
+      payload,
+      undefined,
+      undefined,
+      "owner-withdrawal-1",
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/banking/owner-cash-withdrawals",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: expect.objectContaining({ "idempotency-key": "owner-withdrawal-1" }),
+      }),
+    );
+  });
+
   it.each(["ignore", "mark-needs-review"])(
     "calls the bank transaction %s review branch without exposing reconcile",
     async (action) => {
@@ -1335,209 +1354,6 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
     expect(fetchFn).not.toHaveBeenCalled();
   });
-
-  it.each([
-    ["workers", "time/workers"],
-    ["timesheets", "time/timesheets"],
-    ["cost-rates", "time/cost-rates"],
-    ["capacity-versions", "time/capacity-versions"],
-    ["time-summary", "time/capacity-summary"],
-  ])("lists %s through the canonical headless time API", async (resource, path) => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: { items: [] } }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const client = new NaaiErpClient(
-      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-      fetchFn,
-    );
-    await client.request(resource, "list", { workerId: "worker-1", from: "2026-08-01" });
-    expect(fetchFn).toHaveBeenCalledWith(
-      `http://api/api/v1/organizations/org-a/${path}?workerId=worker-1&from=2026-08-01`,
-      expect.objectContaining({ method: "GET" }),
-    );
-  });
-
-  it("updates and deactivates workers through controlled REST mutations", async () => {
-    const fetchFn = vi.fn(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ data: {} }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      ),
-    );
-    const client = new NaaiErpClient(
-      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-      fetchFn,
-    );
-    const payload = { schemaVersion: 1, reason: "Payroll correction" };
-    await client.request("workers", "update", payload, "worker-1", "2", "worker-update-1");
-    expect(fetchFn).toHaveBeenLastCalledWith(
-      "http://api/api/v1/organizations/org-a/time/workers/worker-1",
-      expect.objectContaining({
-        method: "PATCH",
-        headers: expect.objectContaining({ "if-match": "2", "idempotency-key": "worker-update-1" }),
-      }),
-    );
-    await client.request("workers", "deactivate", payload, "worker-1", "3", "worker-deactivate-1");
-    expect(fetchFn).toHaveBeenLastCalledWith(
-      "http://api/api/v1/organizations/org-a/time/workers/worker-1/deactivate",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          "if-match": "3",
-          "idempotency-key": "worker-deactivate-1",
-        }),
-      }),
-    );
-  });
-
-  it.each(["submit", "approve", "reject", "revise", "lock", "mark-billed"])(
-    "calls the timesheet %s lifecycle action with controlled mutation headers",
-    async (action) => {
-      const fetchFn = vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ data: {} }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      );
-      const client = new NaaiErpClient(
-        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-        fetchFn,
-      );
-      await client.request(
-        "timesheets",
-        action,
-        { schemaVersion: 1, reason: "Reviewed", expectedResourceVersion: "2" },
-        "sheet-1",
-        "2",
-        `sheet-${action}-1`,
-      );
-      expect(fetchFn).toHaveBeenCalledWith(
-        `http://api/api/v1/organizations/org-a/time/timesheets/sheet-1/${action}`,
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({
-            "idempotency-key": `sheet-${action}-1`,
-            "if-match": "2",
-          }),
-        }),
-      );
-    },
-  );
-
-  it("creates submits and approves append-only timesheet adjustments", async () => {
-    const fetchFn = vi.fn().mockImplementation(
-      async () =>
-        new Response(JSON.stringify({ data: {} }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-    );
-    const client = new NaaiErpClient(
-      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-      fetchFn,
-    );
-    await client.request("timesheet-adjustments", "create", { schemaVersion: 1 }, "sheet-1");
-    expect(fetchFn).toHaveBeenLastCalledWith(
-      "http://api/api/v1/organizations/org-a/time/timesheets/sheet-1/adjustments",
-      expect.objectContaining({ method: "POST" }),
-    );
-    for (const action of ["submit", "approve"]) {
-      await client.request(
-        "timesheet-adjustments",
-        action,
-        { schemaVersion: 1, reason: "Reviewed" },
-        "sheet-1/adjustment-1",
-      );
-      expect(fetchFn).toHaveBeenLastCalledWith(
-        `http://api/api/v1/organizations/org-a/time/timesheets/sheet-1/adjustments/adjustment-1/${action}`,
-        expect.objectContaining({ method: "POST" }),
-      );
-    }
-  });
-
-  it.each(["approve", "retire"])("calls sensitive cost-rate %s", async (action) => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: {} }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const client = new NaaiErpClient(
-      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-      fetchFn,
-    );
-    await client.request(
-      "cost-rates",
-      action,
-      { schemaVersion: 1, reason: "Finance review" },
-      "rate-1",
-    );
-    expect(fetchFn).toHaveBeenCalledWith(
-      `http://api/api/v1/organizations/org-a/time/cost-rates/rate-1/${action}`,
-      expect.objectContaining({ method: "POST" }),
-    );
-  });
-
-  it.each([
-    ["project-costs", "project-costs"],
-    ["project-cost-sources", "project-cost-sources/unallocated"],
-    ["direct-cost-allocations", "direct-cost-allocations"],
-  ])("lists %s through immutable source-linked cost routes", async (resource, path) => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: { items: [] } }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
-    const client = new NaaiErpClient(
-      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-      fetchFn,
-    );
-    await client.request(resource, "list", { projectId: "project-1", basis: "ledger" });
-    expect(fetchFn).toHaveBeenCalledWith(
-      `http://api/api/v1/organizations/org-a/${path}?projectId=project-1&basis=ledger`,
-      expect.objectContaining({ method: "GET" }),
-    );
-  });
-
-  it.each(["submit", "approve", "post", "reverse"])(
-    "calls direct cost allocation %s with controlled mutation headers",
-    async (action) => {
-      const fetchFn = vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ data: {} }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      );
-      const client = new NaaiErpClient(
-        { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
-        fetchFn,
-      );
-      await client.request(
-        "direct-cost-allocations",
-        action,
-        { schemaVersion: 1, expectedResourceVersion: "2", reason: "Reviewed" },
-        "direct-1",
-        "2",
-        `direct-${action}-1`,
-      );
-      expect(fetchFn).toHaveBeenCalledWith(
-        `http://api/api/v1/organizations/org-a/direct-cost-allocations/direct-1/${action}`,
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({
-            "idempotency-key": `direct-${action}-1`,
-            "if-match": "2",
-          }),
-        }),
-      );
-    },
-  );
 
   it.each([
     ["project-budgets", "project-budgets"],

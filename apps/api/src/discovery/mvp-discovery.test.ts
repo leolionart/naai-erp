@@ -14,9 +14,6 @@ describe("mvpDiscoverySpec", () => {
         "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}/deactivate": {
           post: { summary: "deactivate" },
         },
-        "/api/v1/organizations/{organizationId}/time/timesheets": {
-          get: { operationId: "listTimesheets" },
-        },
       },
       "x-naai-resources": ["accounts", "parties", "projects"],
       "x-naai-workflows": [
@@ -38,9 +35,6 @@ describe("mvpDiscoverySpec", () => {
     );
     expect(filtered.paths).not.toHaveProperty(
       "/api/v1/organizations/{organizationId}/master-data/projects/{key}/deactivate",
-    );
-    expect(filtered.paths).not.toHaveProperty(
-      "/api/v1/organizations/{organizationId}/time/timesheets",
     );
     expect(filtered["x-naai-workflows"]).toEqual([
       "commercial-documents/create",

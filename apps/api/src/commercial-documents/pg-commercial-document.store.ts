@@ -24,6 +24,7 @@ type StoredDocument = {
   tax_minor: string;
   gross_minor: string;
   control_account_code: string;
+  funding_financial_account_id: string | null;
   original_document_id: string | null;
   created_by: string;
   version: string;
@@ -661,8 +662,8 @@ export class PgCommercialDocumentStore {
       await client.query(
         `insert into commercial_documents
          (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,
-          currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,reason,created_by)
-         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+          currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,original_document_id,reason,created_by)
+         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
         [
           context.organizationId,
           id,
@@ -678,6 +679,7 @@ export class PgCommercialDocumentStore {
           input.taxMinor,
           input.grossMinor,
           input.controlAccountCode,
+          input.fundingSource?.financialAccountId ?? null,
           input.originalDocumentId ?? null,
           input.reason ?? null,
           context.actorId,
@@ -943,7 +945,7 @@ export class PgCommercialDocumentStore {
         `update commercial_documents set
           document_number=$3, series=$4, fiscal_year=$5, party_id=$6, document_date=$7, due_date=$8,
           currency=$9, net_minor=$10, tax_minor=$11, gross_minor=$12, control_account_code=$13,
-          original_document_id=$14, reason=$15, version=$16, updated_at=now()
+          funding_financial_account_id=$14, original_document_id=$15, reason=$16, version=$17, updated_at=now()
          where organization_id=$1 and id=$2`,
         [
           context.organizationId,
@@ -959,6 +961,7 @@ export class PgCommercialDocumentStore {
           merged.taxMinor,
           merged.grossMinor,
           merged.controlAccountCode,
+          merged.fundingSource?.financialAccountId ?? null,
           merged.originalDocumentId ?? null,
           merged.reason ?? null,
           newVersion,
@@ -1075,13 +1078,13 @@ export class PgCommercialDocumentStore {
       }
       const found = await client.query<StoredDocument>(
         `select id,type,state,document_date::text,currency,party_id,document_number,net_minor::text,tax_minor::text,
-          gross_minor::text,control_account_code,original_document_id,created_by,version::text
+          gross_minor::text,control_account_code,funding_financial_account_id,original_document_id,created_by,version::text
          from commercial_documents where organization_id=$1 and id=$2 for update`,
         [context.organizationId, id],
       );
       const document = found.rows[0];
       if (!document) throw new Error("RESOURCE_NOT_FOUND");
-      const next = NEXT[document.type][document.state]?.[action];
+      let next = NEXT[document.type][document.state]?.[action];
       if (!next) throw new Error("INVALID_DOCUMENT_TRANSITION");
       if (action === "approve" && document.created_by === context.actorId)
         await this.assertSelfApproval(client, context, BigInt(document.gross_minor));
@@ -1090,7 +1093,19 @@ export class PgCommercialDocumentStore {
         if (document.type === "sales_invoice")
           await this.assertSalesContractCoverage(client, context.organizationId, document);
         await this.assertPostingPeriod(client, context, document.document_date);
+        if (document.type === "purchase_invoice" && document.funding_financial_account_id) {
+          const funding = await client.query<{ ledger_account_code: string }>(
+            `select ledger_account_code from financial_accounts where organization_id=$1 and id=$2
+             and currency=$3 and status='active' for update`,
+            [context.organizationId, document.funding_financial_account_id, document.currency],
+          );
+          if (!funding.rows[0]) throw new Error("PURCHASE_FUNDING_ACCOUNT_NOT_AVAILABLE");
+          document.control_account_code = funding.rows[0].ledger_account_code;
+        }
         journalId = await this.postDocumentJournal(client, context, document);
+        if (document.type === "purchase_invoice" && action === "post") {
+          if (document.funding_financial_account_id) next = "paid";
+        }
       }
       const version = (BigInt(document.version) + 1n).toString();
       await client.query(
@@ -1260,8 +1275,8 @@ export class PgCommercialDocumentStore {
       const replacementId = input.id ?? randomUUID();
       await client.query(
         `insert into commercial_documents
-         (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,original_document_id,reason,created_by)
-         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+         (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,original_document_id,reason,created_by)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
         [
           context.organizationId,
           replacementId,
@@ -1277,6 +1292,7 @@ export class PgCommercialDocumentStore {
           input.taxMinor,
           input.grossMinor,
           input.controlAccountCode,
+          input.fundingSource?.financialAccountId ?? null,
           input.originalDocumentId ?? null,
           input.type === "credit_note" ? (input.reason ?? reason) : null,
           context.actorId,

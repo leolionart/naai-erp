@@ -52,12 +52,6 @@ export type WorkbookSourceControls = Readonly<{
     monthlyAmounts: readonly Readonly<{ period: string; amountMinor: string }>[];
     reviewFlags: readonly string[];
   }>[];
-  workforce: Readonly<{
-    payrollNetMinor: string;
-    bonusMinor: string;
-    payrollRowCount: number;
-    bonusRowCount: number;
-  }>;
   rows: readonly Readonly<{
     id: string;
     kind: WorkbookSourceControlKind;
@@ -117,7 +111,6 @@ export type OperatingDashboardReadModel = Readonly<{
     rosBps: number | null;
     recognitionEventCount: number;
     approvedBudgetCount: number;
-    postedOverheadRunCount: number;
     source: "posted_ledger";
     monthly: readonly Readonly<{
       period: string;

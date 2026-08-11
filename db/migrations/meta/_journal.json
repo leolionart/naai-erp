@@ -330,6 +330,41 @@
       "when": 1786341600000,
       "tag": "0046_expense_quick_edit_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1786439594000,
+      "tag": "0047_owner_cash_withdrawals",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1786449600000,
+      "tag": "0048_customer_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1786453200000,
+      "tag": "0049_project_freelance_payables",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1786455000000,
+      "tag": "0050_purchase_invoice_funding",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1786462200000,
+      "tag": "0051_remove_timesheet_workforce",
+      "breakpoints": true
     }
   ]
 }

@@ -81,7 +81,7 @@ async function installApi(page: Page) {
   let unmatchBody: JsonRow | undefined;
   let candidatePath = "";
 
-  await page.route("http://localhost:3001/api/v1/organizations/naai/banking/**", async (route) => {
+  await page.route("**/api/v1/organizations/naai/banking/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
@@ -151,7 +151,7 @@ test("@desktop creates a pending transit transfer with a separately declared fee
   page,
 }) => {
   const api = await installApi(page);
-  await page.goto("http://localhost:3000/banking/internal-transfers");
+  await page.goto("/banking/internal-transfers");
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Tạo transfer" }).click();
   await page.getByLabel("Source transaction ID").fill("bank-out-1");
@@ -186,7 +186,7 @@ test("@desktop reviews candidates in a Sheet, pairs in a short Dialog and unmatc
   page,
 }) => {
   const api = await installApi(page);
-  await page.goto("http://localhost:3000/banking/internal-transfers/transfer-e2e");
+  await page.goto("/banking/internal-transfers/transfer-e2e");
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Tải chi tiết" }).click();
   await expect
@@ -226,14 +226,14 @@ test("@desktop reviews candidates in a Sheet, pairs in a short Dialog and unmatc
 test("@mobile transfer list and detail keep primary actions within the viewport", async ({
   page,
 }) => {
-  await page.goto("http://localhost:3000/banking/internal-transfers");
+  await page.goto("/banking/internal-transfers");
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "Chuyển tiền nội bộ" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Tạo transfer" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.goto("http://localhost:3000/banking/internal-transfers/transfer-mobile");
+  await page.goto("/banking/internal-transfers/transfer-mobile");
   await page.waitForLoadState("networkidle");
   await expect(
     page.getByRole("heading", { level: 1, name: "Chi tiết chuyển tiền nội bộ" }),

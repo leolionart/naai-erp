@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { PlusIcon } from "lucide-react";
 import Link from "next/link";
 import {
   FinancialDataTable,
@@ -8,16 +9,28 @@ import {
 } from "@/components/financial/financial-data-table";
 import { MoneyCell } from "@/components/financial/money-cell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";
 
@@ -73,6 +86,32 @@ type OwnerCurrentResponse = Readonly<{
   reviewItems: readonly OwnerCurrentMovement[];
 }>;
 
+type FinancialAccount = Readonly<{
+  id: string;
+  display_name?: string;
+  displayName?: string;
+  currency: string;
+  status: "active" | "inactive";
+}>;
+
+function accountItems(payload: unknown): FinancialAccount[] {
+  if (Array.isArray(payload)) return payload as FinancialAccount[];
+  if (!payload || typeof payload !== "object") return [];
+  const items = (payload as { items?: unknown }).items;
+  return Array.isArray(items) ? (items as FinancialAccount[]) : [];
+}
+
+function todayLocal() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function formattedVndInput(value: string) {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  return digits ? new Intl.NumberFormat("vi-VN").format(BigInt(digits)) : "";
+}
+
 const labels: Record<MovementType, string> = {
   owner_paid_company_cost: "Chủ trả chi phí công ty",
   owner_custody_cash: "Tiền công ty chủ đang giữ",
@@ -106,16 +145,67 @@ export function OwnerCurrentWorkspace() {
   const [error, setError] = useState("");
   const [type, setType] = useState<MovementType | "all">("all");
   const [query, setQuery] = useState("");
+  const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
+  const [withdrawalDialog, setWithdrawalDialog] = useState(false);
+  const [withdrawalBusy, setWithdrawalBusy] = useState(false);
+  const [withdrawalNotice, setWithdrawalNotice] = useState("");
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+
+  const load = useCallback(async () => {
+    if (!hydrated || !hasToken) return;
+    try {
+      const [position, accountPayload] = await Promise.all([
+        client.data<OwnerCurrentResponse>("banking/owner-current-movements"),
+        client.data<unknown>("banking/accounts"),
+      ]);
+      setData(position);
+      setAccounts(accountItems(accountPayload).filter((account) => account.status === "active"));
+      setError("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể tải công nợ chủ.");
+    }
+  }, [client, hasToken, hydrated]);
 
   useEffect(() => {
-    if (!hydrated || !hasToken) return;
-    void client
-      .data<OwnerCurrentResponse>("banking/owner-current-movements")
-      .then(setData)
-      .catch((caught) =>
-        setError(caught instanceof Error ? caught.message : "Không thể tải công nợ chủ."),
-      );
-  }, [client, hasToken, hydrated]);
+    void load();
+  }, [load]);
+
+  async function createOwnerWithdrawal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const financialAccountId = String(form.get("financialAccountId") ?? "");
+    const account = accounts.find((item) => item.id === financialAccountId);
+    const amountMinor = withdrawalAmount.replace(/\D/g, "");
+    if (!account || !amountMinor || BigInt(amountMinor) <= 0n) {
+      setError("Vui lòng chọn tài khoản nguồn và nhập số tiền rút lớn hơn 0.");
+      return;
+    }
+    setWithdrawalBusy(true);
+    setError("");
+    try {
+      await client.data("banking/owner-cash-withdrawals", {
+        method: "POST",
+        body: {
+          schemaVersion: 1,
+          movementType: "owner_personal_withdrawal",
+          financialAccountId,
+          bookingDate: form.get("bookingDate"),
+          amountMinor,
+          currency: account.currency,
+          description: form.get("description"),
+          reason: "Chủ doanh nghiệp xác nhận khoản rút tiền thực tế",
+        },
+      });
+      setWithdrawalDialog(false);
+      setWithdrawalAmount("");
+      setWithdrawalNotice("Đã ghi nhận khoản chủ rút tiền và cập nhật công nợ chủ.");
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể ghi nhận khoản rút tiền.");
+    } finally {
+      setWithdrawalBusy(false);
+    }
+  }
 
   const rows = useMemo(
     () => filterOwnerCurrentMovements(data?.confirmedTimeline ?? [], type, query),
@@ -245,7 +335,16 @@ export function OwnerCurrentWorkspace() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {withdrawalNotice || "Các khoản bên dưới chỉ gồm biến động tiền với chủ đã xác nhận."}
+        </p>
+        <Button onClick={() => setWithdrawalDialog(true)} disabled={!accounts.length}>
+          <PlusIcon data-icon="inline-start" />
+          Ghi nhận chủ rút tiền
+        </Button>
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
@@ -273,7 +372,7 @@ export function OwnerCurrentWorkspace() {
         </Card>
       </div>
 
-      <Card data-testid="confirmed-owner-current">
+      <Card className="min-w-0" data-testid="confirmed-owner-current">
         <CardHeader>
           <CardTitle>Dòng quyết toán tiền giữa công ty và chủ đã xác nhận</CardTitle>
           <CardDescription>
@@ -282,7 +381,7 @@ export function OwnerCurrentWorkspace() {
             công ty.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="min-w-0 space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="owner-current-type">Loại biến động</FieldLabel>
@@ -314,17 +413,92 @@ export function OwnerCurrentWorkspace() {
               />
             </Field>
           </div>
-          <FinancialDataTable
-            rows={rows}
-            columns={columns}
-            rowKey={(row) => row.journalId}
-            error={error || undefined}
-            loading={!data && !error}
-            emptyTitle="Không có khoản phù hợp"
-            emptyDescription="Không có bút toán đã ghi sổ phù hợp với bộ lọc. Nếu nguồn tiền có thật nhưng không xuất hiện, cần kiểm tra lại việc ghi nhận hoặc mapping tài khoản Owner Current."
-          />
+          <div className="min-w-0" data-testid="owner-current-table-scroll">
+            <FinancialDataTable
+              rows={rows}
+              columns={columns}
+              rowKey={(row) => row.journalId}
+              error={error || undefined}
+              loading={!data && !error}
+              emptyTitle="Không có khoản phù hợp"
+              emptyDescription="Không có bút toán đã ghi sổ phù hợp với bộ lọc. Nếu nguồn tiền có thật nhưng không xuất hiện, cần kiểm tra lại việc ghi nhận hoặc mapping tài khoản Owner Current."
+            />
+          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={withdrawalDialog} onOpenChange={setWithdrawalDialog}>
+        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+          <form className="flex flex-col gap-6" onSubmit={createOwnerWithdrawal}>
+            <DialogHeader>
+              <DialogTitle>Ghi nhận chủ rút tiền</DialogTitle>
+              <DialogDescription>
+                Ghi nhận khoản tiền công ty đã giao cho chủ dùng cá nhân. Hệ thống tự tạo giao dịch
+                tiền và bút toán Owner Current cân bằng.
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="owner-withdrawal-date">Ngày rút</FieldLabel>
+                <Input
+                  id="owner-withdrawal-date"
+                  name="bookingDate"
+                  type="date"
+                  defaultValue={todayLocal()}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="owner-withdrawal-account">Rút từ tài khoản</FieldLabel>
+                <Select name="financialAccountId" required>
+                  <SelectTrigger id="owner-withdrawal-account">
+                    <SelectValue placeholder="Chọn tài khoản ngân hàng hoặc quỹ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.displayName ?? account.display_name ?? account.id} ·{" "}
+                          {account.currency}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="owner-withdrawal-amount">Số tiền</FieldLabel>
+                <Input
+                  id="owner-withdrawal-amount"
+                  inputMode="numeric"
+                  value={withdrawalAmount}
+                  onChange={(event) => setWithdrawalAmount(formattedVndInput(event.target.value))}
+                  placeholder="0 ₫"
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="owner-withdrawal-description">Ghi chú</FieldLabel>
+                <Textarea
+                  id="owner-withdrawal-description"
+                  name="description"
+                  placeholder="Ví dụ: Chủ rút tiền dùng cá nhân"
+                  required
+                />
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setWithdrawalDialog(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={withdrawalBusy}>
+                {withdrawalBusy ? <Spinner /> : null}
+                Ghi nhận khoản rút
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

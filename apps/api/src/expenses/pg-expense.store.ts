@@ -17,6 +17,7 @@ type StoredExpense = {
   expense_class: string;
   state: string;
   expense_date: string;
+  freelance_due_date: string | null;
   currency: string;
   net_minor: string;
   vat_minor: string;
@@ -932,7 +933,7 @@ export class PgExpenseStore {
 
       const id = input.id ?? randomUUID();
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'unreviewed',$15,$16,$17)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'unreviewed',$16,$17,$18)`,
         [
           context.organizationId,
           id,
@@ -940,6 +941,7 @@ export class PgExpenseStore {
           input.payeePartyId ?? null,
           input.employeePartyId ?? null,
           input.expenseDate,
+          input.freelanceDueDate ?? null,
           input.servicePeriodStart ?? null,
           input.servicePeriodEnd ?? null,
           input.businessPurpose,
@@ -1577,6 +1579,8 @@ export class PgExpenseStore {
         await this.period(c, context, e.expense_date);
         await this.assertOwnerPaidCounterAccount(c, context.organizationId, e);
         journalId = await this.postJournal(c, context, e);
+        if (e.expense_class === "freelancer")
+          await this.createFreelancePayable(c, context, e, journalId);
       }
       const version = (BigInt(e.version) + 1n).toString();
       await c.query(
@@ -1724,8 +1728,8 @@ export class PgExpenseStore {
       );
       const replacementId = input.id ?? randomUUID();
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by)
-         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'unreviewed',$15,$16,$17)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'unreviewed',$16,$17,$18)`,
         [
           context.organizationId,
           replacementId,
@@ -1733,6 +1737,7 @@ export class PgExpenseStore {
           input.payeePartyId ?? null,
           input.employeePartyId ?? null,
           input.expenseDate,
+          input.freelanceDueDate ?? null,
           input.servicePeriodStart ?? null,
           input.servicePeriodEnd ?? null,
           input.businessPurpose,
@@ -1848,11 +1853,50 @@ export class PgExpenseStore {
   }
   private async lock(c: PoolClient, org: string, id: string) {
     const r = await c.query<StoredExpense>(
-      `select id,expense_class,state,expense_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist from expenses where organization_id=$1 and id=$2 for update`,
+      `select id,expense_class,state,expense_date::text,freelance_due_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist from expenses where organization_id=$1 and id=$2 for update`,
       [org, id],
     );
     if (!r.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
     return r.rows[0];
+  }
+  private async createFreelancePayable(
+    c: PoolClient,
+    context: ExpenseContext,
+    expense: StoredExpense,
+    journalId: string,
+  ) {
+    if (!expense.payee_party_id || !expense.freelance_due_date)
+      throw new Error("FREELANCE_EXPENSE_RELATIONSHIPS_REQUIRED");
+    const role = await c.query(
+      `select 1 from party_roles where organization_id=$1 and party_id=$2 and role='freelancer'`,
+      [context.organizationId, expense.payee_party_id],
+    );
+    if (!role.rows[0]) throw new Error("FREELANCER_ROLE_REQUIRED");
+    const project = await c.query<{ project_id: string }>(
+      `select distinct project_id from (
+         select dimensions->>'projectId' project_id from expense_lines where organization_id=$1 and expense_id=$2
+         union select dimensions->>'projectId' from expense_allocations where organization_id=$1 and expense_id=$2
+       ) x where project_id is not null`,
+      [context.organizationId, expense.id],
+    );
+    if (project.rows.length !== 1) throw new Error("FREELANCE_EXPENSE_PROJECT_REQUIRED");
+    await c.query(
+      `insert into project_freelance_payables
+       (organization_id,id,expense_id,project_id,freelancer_party_id,due_date,amount_minor,currency,journal_id,created_by)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        context.organizationId,
+        randomUUID(),
+        expense.id,
+        project.rows[0]!.project_id,
+        expense.payee_party_id,
+        expense.freelance_due_date,
+        expense.gross_minor,
+        expense.currency,
+        journalId,
+        context.actorId,
+      ],
+    );
   }
   private async assertReviewReady(c: PoolClient, organizationId: string, e: StoredExpense) {
     const r = await c.query<{

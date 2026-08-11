@@ -209,9 +209,7 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
         effectiveOn: f.get("effectiveFrom"),
         lines: [
           { id: `revenue-${Date.now()}`, category: "revenue", amountMinor: f.get("revenue") },
-          { id: `labor-${Date.now()}`, category: "labor", amountMinor: f.get("labor") },
           { id: `direct-${Date.now()}`, category: "vendor", amountMinor: f.get("directCost") },
-          { id: `overhead-${Date.now()}`, category: "overhead", amountMinor: f.get("overhead") },
         ],
         reason: f.get("reason"),
       },
@@ -242,11 +240,7 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
       id: "cost",
       header: "Costs",
       align: "right",
-      cell: (r) => (
-        <MoneyCell
-          minor={(BigInt(r.directCostTotalMinor) + BigInt(r.overheadTotalMinor)).toString()}
-        />
-      ),
+      cell: (r) => <MoneyCell minor={r.directCostTotalMinor} />,
     },
     { id: "state", header: "State", cell: (r) => <StatusBadge status={r.state} /> },
   ];
@@ -283,9 +277,7 @@ export function ProjectBudgetWorkspace({ projectId }: Readonly<{ projectId: stri
               {[
                 ["name", "Tên version"],
                 ["revenue", "Revenue budget"],
-                ["labor", "Labor budget"],
                 ["directCost", "Direct cost"],
-                ["overhead", "Overhead"],
                 ["reason", "Reason"],
               ].map(([n, l]) => (
                 <Field key={n}>

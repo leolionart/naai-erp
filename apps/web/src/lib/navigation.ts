@@ -68,6 +68,36 @@ export const adminNavigation = [
         status: "available",
       },
       {
+        key: "planning",
+        label: "Kế hoạch & Dự báo",
+        description: "Quản lý mục tiêu doanh thu, kịch bản và cấu phần dự báo.",
+        icon: "report",
+        status: "available",
+        children: [
+          {
+            key: "revenue-targets",
+            label: "Mục tiêu doanh thu",
+            href: "/forecast/targets",
+            description: "Thiết lập và theo dõi các phiên bản mục tiêu doanh thu.",
+            status: "available",
+          },
+          {
+            key: "forecast-scenarios",
+            label: "Kịch bản dự báo",
+            href: "/forecast/scenarios",
+            description: "Quản lý các kịch bản dự báo và vòng đời công bố.",
+            status: "available",
+          },
+          {
+            key: "forecast-composition",
+            label: "Cấu phần dự báo",
+            href: "/forecast/composition",
+            description: "Theo dõi thành phần doanh thu, chi phí và dòng tiền dự báo.",
+            status: "available",
+          },
+        ],
+      },
+      {
         key: "customers",
         label: "Khách hàng",
         href: "/customers",

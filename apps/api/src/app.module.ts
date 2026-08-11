@@ -49,30 +49,22 @@ import { AgingController } from "./aging/aging.controller.js";
 import { AgingService } from "./aging/aging.service.js";
 import { AGING_STORE } from "./aging/aging.types.js";
 import { PgAgingStore } from "./aging/pg-aging.store.js";
+import { CustomerReceiptController } from "./customer-receipts/customer-receipt.controller.js";
+import { CustomerReceiptService } from "./customer-receipts/customer-receipt.service.js";
+import { CUSTOMER_RECEIPT_STORE } from "./customer-receipts/customer-receipt.types.js";
+import { PgCustomerReceiptStore } from "./customer-receipts/pg-customer-receipt.store.js";
+import { ProjectFreelancePayableController } from "./project-freelance-payables/project-freelance-payable.controller.js";
+import { ProjectFreelancePayableService } from "./project-freelance-payables/project-freelance-payable.service.js";
+import { PROJECT_FREELANCE_PAYABLE_STORE } from "./project-freelance-payables/project-freelance-payable.types.js";
+import { PgProjectFreelancePayableStore } from "./project-freelance-payables/pg-project-freelance-payable.store.js";
 import { BankingControlController } from "./banking-controls/banking-control.controller.js";
 import { BankingControlService } from "./banking-controls/banking-control.service.js";
 import { BANKING_CONTROL_STORE } from "./banking-controls/banking-control.types.js";
 import { PgBankingControlStore } from "./banking-controls/pg-banking-control.store.js";
-import { WorkforceController } from "./workforce/workforce.controller.js";
-import { WorkforceService } from "./workforce/workforce.service.js";
-import { WORKFORCE_STORE } from "./workforce/workforce.types.js";
-import { PgWorkforceStore } from "./workforce/pg-workforce.store.js";
-import { ProjectCostController } from "./project-costs/project-cost.controller.js";
-import { ProjectCostService } from "./project-costs/project-cost.service.js";
-import { PROJECT_COST_STORE } from "./project-costs/project-cost.types.js";
-import { PgProjectCostStore } from "./project-costs/pg-project-cost.store.js";
 import { ProjectRecognitionController } from "./project-recognition/project-recognition.controller.js";
 import { ProjectRecognitionService } from "./project-recognition/project-recognition.service.js";
 import { PROJECT_RECOGNITION_STORE } from "./project-recognition/project-recognition.types.js";
 import { PgProjectRecognitionStore } from "./project-recognition/pg-project-recognition.store.js";
-import {
-  OverheadPolicyController,
-  OverheadRunController,
-  OverheadSourcePoolController,
-} from "./overhead-allocations/overhead-allocation.controller.js";
-import { OverheadAllocationService } from "./overhead-allocations/overhead-allocation.service.js";
-import { OVERHEAD_ALLOCATION_STORE } from "./overhead-allocations/overhead-allocation.types.js";
-import { PgOverheadAllocationStore } from "./overhead-allocations/pg-overhead-allocation.store.js";
 import { ProjectProfitabilityController } from "./project-profitability/project-profitability.controller.js";
 import { ProjectProfitabilityService } from "./project-profitability/project-profitability.service.js";
 import { PROJECT_PROFITABILITY_STORE } from "./project-profitability/project-profitability.types.js";
@@ -148,13 +140,10 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     InternalTransferCandidateController,
     DiscoveryController,
     AgingController,
+    CustomerReceiptController,
+    ProjectFreelancePayableController,
     BankingControlController,
-    WorkforceController,
-    ProjectCostController,
     ProjectRecognitionController,
-    OverheadPolicyController,
-    OverheadSourcePoolController,
-    OverheadRunController,
     ProjectProfitabilityController,
     RevenueTargetController,
     ForecastVersionController,
@@ -207,21 +196,18 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     AgingService,
     PgAgingStore,
     { provide: AGING_STORE, useExisting: PgAgingStore },
+    CustomerReceiptService,
+    PgCustomerReceiptStore,
+    { provide: CUSTOMER_RECEIPT_STORE, useExisting: PgCustomerReceiptStore },
+    ProjectFreelancePayableService,
+    PgProjectFreelancePayableStore,
+    { provide: PROJECT_FREELANCE_PAYABLE_STORE, useExisting: PgProjectFreelancePayableStore },
     BankingControlService,
     PgBankingControlStore,
     { provide: BANKING_CONTROL_STORE, useExisting: PgBankingControlStore },
-    WorkforceService,
-    PgWorkforceStore,
-    { provide: WORKFORCE_STORE, useExisting: PgWorkforceStore },
-    ProjectCostService,
-    PgProjectCostStore,
-    { provide: PROJECT_COST_STORE, useExisting: PgProjectCostStore },
     ProjectRecognitionService,
     PgProjectRecognitionStore,
     { provide: PROJECT_RECOGNITION_STORE, useExisting: PgProjectRecognitionStore },
-    OverheadAllocationService,
-    PgOverheadAllocationStore,
-    { provide: OVERHEAD_ALLOCATION_STORE, useExisting: PgOverheadAllocationStore },
     ProjectProfitabilityService,
     PgProjectProfitabilityStore,
     { provide: PROJECT_PROFITABILITY_STORE, useExisting: PgProjectProfitabilityStore },

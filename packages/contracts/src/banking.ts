@@ -102,6 +102,35 @@ export type BankTransactionBranchRequest = Readonly<{
   reason: string;
 }>;
 
+export type CreateOwnerCashWithdrawalRequest = Readonly<{
+  schemaVersion: typeof BANKING_CONTRACT_VERSION;
+  movementType: "owner_personal_withdrawal";
+  id?: string;
+  financialAccountId: string;
+  bookingDate: string;
+  amountMinor: string;
+  currency: string;
+  description: string;
+  reason: string;
+}>;
+
+export type OwnerCashWithdrawalContract = Readonly<{
+  withdrawalId: string;
+  transactionId: string;
+  journalId: string;
+  financialAccountId: string;
+  bookingDate: string;
+  amountMinor: string;
+  currency: string;
+  status: "posted";
+  resourceVersion: string;
+  eventId: string;
+  auditEventId: string;
+  outboxEventId: string;
+  idempotencyReplayed: boolean;
+  nextActions: readonly string[];
+}>;
+
 export type OwnerSettlementMovementTypeContract =
   "owner_paid_company_cost" | "owner_custody_cash" | "owner_personal_withdrawal" | "owner_funding";
 

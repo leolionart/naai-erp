@@ -21,6 +21,12 @@ function fixture() {
     getImport: vi.fn().mockResolvedValue({ id: "import-1" }),
     listTransactions: vi.fn().mockResolvedValue({ items: [] }),
     listOwnerCurrentMovements: vi.fn().mockResolvedValue({ summary: {}, items: [] }),
+    createOwnerCashWithdrawal: vi.fn().mockResolvedValue({
+      withdrawalId: "withdrawal-1",
+      transactionId: "txn-withdrawal-1",
+      journalId: "journal-withdrawal-1",
+      status: "posted",
+    }),
     getTransaction: vi.fn().mockResolvedValue({ id: "txn-1" }),
     transitionTransaction: vi.fn().mockResolvedValue({ transactionId: "txn-1", state: "ignored" }),
   };
@@ -257,5 +263,57 @@ describe("ERP-876 owner-current classification", () => {
         sources: [],
       }),
     ).toMatchObject({ movementType: "adjustment", needsReview: true });
+  });
+});
+
+describe("ERP-888 owner cash withdrawals", () => {
+  const withdrawal = {
+    schemaVersion: 1 as const,
+    movementType: "owner_personal_withdrawal" as const,
+    financialAccountId: "bank-1",
+    bookingDate: "2026-08-11",
+    amountMinor: "52000000",
+    currency: "VND",
+    description: "Chủ doanh nghiệp rút tiền mặt",
+    reason: "Ghi nhận khoản chủ rút dùng cá nhân",
+  };
+
+  it("authorizes and forwards a valid idempotent withdrawal", async () => {
+    const { subject, store } = fixture();
+    const result = await subject.createOwnerCashWithdrawal(context, withdrawal, "withdrawal-key");
+    expect(store.createOwnerCashWithdrawal).toHaveBeenCalledWith(
+      context,
+      withdrawal,
+      "withdrawal-key",
+    );
+    expect(result.data).toMatchObject({ status: "posted", journalId: "journal-withdrawal-1" });
+  });
+
+  it("rejects unauthorized, invalid and non-idempotent withdrawal commands", async () => {
+    const { subject } = fixture();
+    await expect(
+      subject.createOwnerCashWithdrawal(
+        { ...context, roles: ["viewer"] },
+        withdrawal,
+        "withdrawal-key",
+      ),
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(subject.createOwnerCashWithdrawal(context, withdrawal)).rejects.toThrow(
+      "IDEMPOTENCY_KEY_REQUIRED",
+    );
+    await expect(
+      subject.createOwnerCashWithdrawal(
+        context,
+        { ...withdrawal, amountMinor: "-1" },
+        "withdrawal-key",
+      ),
+    ).rejects.toThrow("VALIDATION_FAILED");
+    await expect(
+      subject.createOwnerCashWithdrawal(
+        context,
+        { ...withdrawal, movementType: "company_repayment_to_owner" as never },
+        "withdrawal-key",
+      ),
+    ).rejects.toThrow("VALIDATION_FAILED");
   });
 });

@@ -53,12 +53,8 @@ import {
   PopoverTitle,
 } from "@/components/ui/popover";
 import {
-  createApiClient,
-  DEFAULT_API_CONNECTION,
-  loadApiToken,
-  loadConnectionSettings,
   planningApi,
-  type ApiConnectionSettingsV1,
+  useAuthenticatedApiClient,
   type ForecastComponent,
   type ForecastComponentTransition,
   type ForecastComponentUpdate,
@@ -67,31 +63,20 @@ import {
 } from "@/lib/api";
 
 const SECTION_LABELS = { revenue: "Doanh thu", expense: "Chi phí", cash: "Dòng tiền" } as const;
-function useClient() {
-  const [connection, setConnection] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION);
-  const [token, setToken] = useState("");
-  useEffect(() => {
-    setConnection(loadConnectionSettings(localStorage));
-    setToken(loadApiToken(sessionStorage));
-  }, []);
-  return useMemo(
-    () => createApiClient({ connection: () => connection, token: () => token }),
-    [connection, token],
-  );
-}
-
 export function ForecastCompositionQueueWorkspace() {
-  const client = useClient();
+  const { client, hydrated } = useAuthenticatedApiClient();
   const [rows, setRows] = useState<ForecastVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   useEffect(() => {
+    if (!hydrated) return;
+    setError(undefined);
     client
       .data<{ items: readonly ForecastVersion[] }>(planningApi.forecasts)
       .then((result) => setRows([...result.items]))
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Không thể tải forecast"))
       .finally(() => setLoading(false));
-  }, [client]);
+  }, [client, hydrated]);
   const columns: readonly FinancialColumn<ForecastVersion>[] = [
     {
       id: "forecast",
@@ -155,7 +140,7 @@ export function ForecastCompositionQueueWorkspace() {
 export function ForecastCompositionDetailWorkspace({
   forecastId,
 }: Readonly<{ forecastId: string }>) {
-  const client = useClient();
+  const { client, hydrated } = useAuthenticatedApiClient();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -175,6 +160,7 @@ export function ForecastCompositionDetailWorkspace({
   const [deleteReason, setDeleteReason] = useState("");
 
   const load = useCallback(async () => {
+    if (!hydrated) return;
     setLoading(true);
     setError(undefined);
     try {
@@ -184,7 +170,7 @@ export function ForecastCompositionDetailWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [client, forecastId]);
+  }, [client, forecastId, hydrated]);
   useEffect(() => void load(), [load]);
 
   const rows = useMemo(() => {

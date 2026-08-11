@@ -380,6 +380,13 @@ export class CommercialDocumentService {
   }
   private validate(input: CreateCommercialDocumentInput) {
     if (
+      input.fundingSource &&
+      (input.type !== "purchase_invoice" ||
+        input.fundingSource.type !== "financial_account" ||
+        !input.fundingSource.financialAccountId?.trim())
+    )
+      throw new Error("PURCHASE_FUNDING_SOURCE_INVALID");
+    if (
       (input.migrationSourceExpenseId || input.migrationSourceExpenseDate) &&
       (input.type !== "purchase_invoice" ||
         !input.migrationSourceExpenseId ||

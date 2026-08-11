@@ -3,8 +3,6 @@ import {
   API_VERSION,
   AGING_CONTRACT_VERSION,
   BANKING_CONTROL_CONTRACT_VERSION,
-  TIME_CONTRACT_VERSION,
-  PROJECT_COST_CONTRACT_VERSION,
   PROJECT_ECONOMICS_CONTRACT_VERSION,
   PROJECT_PROFITABILITY_CONTRACT_VERSION,
   EXPENSE_REPORT_CONTRACT_VERSION,
@@ -24,14 +22,8 @@ import {
   type AgingReportContract,
   type BankStatementSessionContract,
   type CreateBankStatementSessionRequest,
-  type CreateTimesheetRequest,
-  type LaborCostRateContract,
-  type TimesheetContract,
-  type CreateDirectCostAllocationRequest,
-  type DirectCostAllocationContract,
   type ExpenseListItemProjectionContract,
   type ExpenseListQueryContract,
-  type ProjectCostItemContract,
   type CreateRevenueRecognitionEventRequest,
   type ProjectBudgetVersionContract,
   type ProjectRevenueAxesContract,
@@ -376,129 +368,6 @@ describe("AI-native API contracts", () => {
     expect(session.control.closeBlockers).toEqual(["unapproved_suspense:exception-1"]);
   });
 
-  it("keeps timesheet lifecycle classifications and cost snapshots machine-readable", () => {
-    const request: CreateTimesheetRequest = {
-      schemaVersion: TIME_CONTRACT_VERSION,
-      workerId: "worker-1",
-      weekStartsOn: "2026-08-03",
-      reason: "Weekly time",
-      entries: [
-        {
-          id: "entry-1",
-          workDate: "2026-08-05",
-          mode: "allocation",
-          minutes: 480,
-          workClassification: "project",
-          billingClassification: "billable",
-          projectId: "project-1",
-          description: "Web application development",
-        },
-      ],
-    };
-    const sheet: TimesheetContract = {
-      id: "sheet-1",
-      workerId: request.workerId,
-      weekStartsOn: request.weekStartsOn,
-      state: "approved",
-      entries: [
-        {
-          ...request.entries[0]!,
-          appliedCost: {
-            rateVersionId: "rate-1",
-            currency: "VND",
-            calculationVersion: 1,
-            roundingPolicy: "half_up",
-            costMinor: "800000",
-          },
-        },
-      ],
-      adjustments: [],
-      resourceVersion: "3",
-      nextActions: ["lock", "mark-billed", "create-adjustment"],
-    };
-    expect(sheet.state).toBe("approved");
-    expect(sheet.entries[0]?.appliedCost?.costMinor).toBe("800000");
-  });
-
-  it("keeps raw labor rates exact strings in their sensitive contract", () => {
-    const rate: LaborCostRateContract = {
-      id: "rate-1",
-      workerId: "worker-1",
-      basis: "fully_loaded",
-      currency: "VND",
-      rateMinorPerHour: "100000",
-      effectiveFrom: "2026-01-01",
-      state: "approved",
-      resourceVersion: "2",
-      nextActions: ["retire"],
-    };
-    expect(rate.rateMinorPerHour).toBe("100000");
-  });
-
-  it("keeps direct project cost basis source linkage and exact splits machine-readable", () => {
-    const request: CreateDirectCostAllocationRequest = {
-      schemaVersion: PROJECT_COST_CONTRACT_VERSION,
-      sourceId: "source-1",
-      reason: "Attribute project tool",
-      splits: [
-        { projectId: "project-a", amountMinor: "600", baseAmountMinor: "600" },
-        { projectId: "project-b", amountMinor: "400", baseAmountMinor: "400" },
-      ],
-    };
-    const allocation: DirectCostAllocationContract = {
-      id: "direct-1",
-      source: {
-        id: request.sourceId,
-        sourceType: "expense_allocation",
-        sourceId: "expense-1",
-        sourceLineId: "line-1",
-        sourceAllocationId: "allocation-1",
-        costClass: "project_tool",
-        basis: "ledger",
-        effectiveOn: "2026-08-15",
-        currency: "VND",
-        amountMinor: "1000",
-        baseAmountMinor: "1000",
-        remainingAmountMinor: "1000",
-        remainingBaseAmountMinor: "1000",
-        disposition: "unallocated",
-        journalId: "journal-source",
-        journalLineId: "journal-line-source",
-        evidenceIds: ["evidence-1"],
-      },
-      splits: [
-        { id: "split-a", ...request.splits[0]! },
-        { id: "split-b", ...request.splits[1]! },
-      ],
-      state: "approved",
-      resourceVersion: "3",
-      nextActions: ["post"],
-      events: [],
-    };
-    const item: ProjectCostItemContract = {
-      id: "direct-1:split-a",
-      projectId: "project-a",
-      costClass: "project_tool",
-      basis: "ledger",
-      effectiveOn: "2026-08-15",
-      currency: "VND",
-      amountMinor: "600",
-      baseAmountMinor: "600",
-      drilldown: {
-        sourceType: "expense_allocation",
-        sourceId: "expense-1",
-        directCostAllocationId: allocation.id,
-        journalId: "journal-reclass",
-        evidenceIds: ["evidence-1"],
-        sourceHref: "/api/v1/organizations/org/expenses/expense-1",
-        journalHref: "/api/v1/organizations/org/journals/journal-reclass",
-        evidenceHrefs: ["/api/v1/organizations/org/evidence/evidence-1"],
-      },
-    };
-    expect(allocation.source.basis).toBe("ledger");
-    expect(item.drilldown.evidenceIds).toEqual(["evidence-1"]);
-  });
-
   it("keeps budget history and recognized invoiced collected axes separate", () => {
     const budget: ProjectBudgetVersionContract = {
       id: "budget-1",
@@ -557,18 +426,18 @@ describe("AI-native API contracts", () => {
   it("exports project profitability as exact money with nullable ratios", () => {
     const summary: Pick<
       ProjectProfitabilityContract,
-      "schemaVersion" | "grossMarginMinor" | "fullyLoadedProfitMinor" | "utilizationBps"
+      "schemaVersion" | "directProjectCostMinor" | "grossMarginMinor" | "grossMarginBps"
     > = {
       schemaVersion: PROJECT_PROFITABILITY_CONTRACT_VERSION,
+      directProjectCostMinor: "40000000",
       grossMarginMinor: "60000000",
-      fullyLoadedProfitMinor: "35000000",
-      utilizationBps: null,
+      grossMarginBps: null,
     };
     expect(summary).toEqual({
       schemaVersion: 1,
+      directProjectCostMinor: "40000000",
       grossMarginMinor: "60000000",
-      fullyLoadedProfitMinor: "35000000",
-      utilizationBps: null,
+      grossMarginBps: null,
     });
   });
 });

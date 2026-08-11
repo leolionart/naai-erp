@@ -40,10 +40,10 @@ cell values and verifies the manifest and workbook structure.
 1. Organization/fiscal configuration.
 2. Accounts, taxes, dimensions, mappings and policies.
 3. Parties and roles.
-4. Projects, contracts, milestones and workforce.
+4. Projects, contracts and milestones.
 5. Bank/financial accounts.
 6. Commercial documents, expenses and evidence references.
-7. Allocations, approvals, recognition, project costing and overhead.
+7. Canonical document/expense allocations, approvals and revenue recognition.
 8. Banking imports, transactions, transfers, matches and reconciliations.
 9. Planning resources, snapshots and export metadata.
 10. Posted journals, audit/outbox history and derived report controls as read-only or rebuildable.

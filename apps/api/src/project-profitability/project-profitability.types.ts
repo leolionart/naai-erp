@@ -18,7 +18,6 @@ export type ProjectProfitabilityQuery = Readonly<{
 export type ProfitabilityBreakdown = Readonly<{
   revenueBreakdown: readonly Record<string, unknown>[];
   directCostBreakdown: readonly Record<string, unknown>[];
-  overheadBreakdown: readonly Record<string, unknown>[];
   glTie: Record<string, unknown>;
 }>;
 

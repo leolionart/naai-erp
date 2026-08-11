@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FilterIcon, RefreshCwIcon } from "lucide-react";
+import { FilterIcon, HandCoinsIcon, RefreshCwIcon } from "lucide-react";
 import {
   FinancialDataTable,
   type FinancialColumn,
@@ -34,6 +34,7 @@ import {
   type AgingReport,
   type AgingSide,
 } from "@/lib/api";
+import { CustomerReceiptDialog } from "./customer-receipt-dialog";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const bucketLabels = {
@@ -60,6 +61,7 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [filterSheet, setFilterSheet] = useState(false);
+  const [receiptInvoice, setReceiptInvoice] = useState<AgingItem>();
 
   const asOf = searchParams.get("asOf") || today();
   const partyId = searchParams.get("partyId") || "";
@@ -183,19 +185,26 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
       header: "Loại số dư",
       cell: (item) => <Badge variant="outline">{item.balanceKind}</Badge>,
     },
+    ...(side === "ar"
+      ? ([
+          {
+            id: "receipt",
+            header: "Thu tiền",
+            cell: (item: AgingItem) =>
+              item.balanceKind === "receivable" && BigInt(item.outstandingMinor) > 0n ? (
+                <Button size="sm" variant="outline" onClick={() => setReceiptInvoice(item)}>
+                  <HandCoinsIcon data-icon="inline-start" />
+                  Ghi nhận đã thu
+                </Button>
+              ) : null,
+          },
+        ] satisfies readonly FinancialColumn<AgingItem>[])
+      : []),
   ];
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          <Button variant={side === "ar" ? "default" : "outline"} asChild>
-            <Link href="/receivables">Phải thu</Link>
-          </Button>
-          <Button variant={side === "ap" ? "default" : "outline"} asChild>
-            <Link href="/payables">Phải trả</Link>
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setFilterSheet(true)}>
             <FilterIcon data-icon="inline-start" />
@@ -351,6 +360,18 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
           </form>
         </PopoverContent>
       </Popover>
+
+      {side === "ar" ? (
+        <CustomerReceiptDialog
+          open={Boolean(receiptInvoice)}
+          onOpenChange={(open) => !open && setReceiptInvoice(undefined)}
+          invoices={(report?.items ?? []).filter(
+            (item) => item.partyId === receiptInvoice?.partyId && item.balanceKind === "receivable",
+          )}
+          initialInvoiceId={receiptInvoice?.id}
+          onRecorded={load}
+        />
+      ) : null}
     </div>
   );
 }

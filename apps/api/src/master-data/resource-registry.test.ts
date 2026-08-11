@@ -56,7 +56,7 @@ describe("master-data resource registry", () => {
       relationalReferences: PROJECT_DELETE_RELATIONAL_REFERENCES,
       dimensionReferences: PROJECT_DELETE_DIMENSION_REFERENCES,
     });
-    expect(PROJECT_DELETE_RELATIONAL_REFERENCES).toHaveLength(9);
+    expect(PROJECT_DELETE_RELATIONAL_REFERENCES).toHaveLength(5);
     expect(PROJECT_DELETE_DIMENSION_REFERENCES).toHaveLength(8);
     expect("deletePolicy" in MASTER_DATA_RESOURCES.parties).toBe(false);
   });

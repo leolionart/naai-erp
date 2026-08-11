@@ -346,45 +346,6 @@ export const internalTransferAttemptState = pgEnum("internal_transfer_attempt_st
   "unmatched",
   "needs_review",
 ]);
-export const workforceKind = pgEnum("workforce_kind", ["employee", "freelancer", "contractor"]);
-export const timesheetState = pgEnum("timesheet_state", [
-  "draft",
-  "submitted",
-  "approved",
-  "locked",
-  "billed",
-  "rejected",
-]);
-export const timeEntryMode = pgEnum("time_entry_mode", ["timed", "allocation"]);
-export const timeEntryScope = pgEnum("time_entry_scope", ["project", "internal"]);
-export const laborCostRateState = pgEnum("labor_cost_rate_state", ["draft", "approved", "retired"]);
-export const laborCostBasis = pgEnum("labor_cost_basis", [
-  "gross_salary",
-  "fully_loaded",
-  "blended",
-]);
-export const timesheetAdjustmentState = pgEnum("timesheet_adjustment_state", [
-  "draft",
-  "submitted",
-  "approved",
-  "rejected",
-]);
-export const projectCostSourceType = pgEnum("project_cost_source_type", [
-  "expense",
-  "commercial_document",
-  "journal_line",
-  "timesheet",
-  "adjustment",
-]);
-export const projectCostClass = pgEnum("project_cost_class", ["direct", "overhead_reserved"]);
-export const projectCostBasis = pgEnum("project_cost_basis", ["ledger", "management"]);
-export const directCostAllocationState = pgEnum("direct_cost_allocation_state", [
-  "draft",
-  "submitted",
-  "approved",
-  "posted",
-  "reversed",
-]);
 export const projectBudgetState = pgEnum("project_budget_state", [
   "draft",
   "submitted",
@@ -427,30 +388,6 @@ export const milestoneAcceptanceState = pgEnum("milestone_acceptance_state", [
   "rejected",
 ]);
 export const recognitionEventState = pgEnum("recognition_event_state", [
-  "draft",
-  "submitted",
-  "approved",
-  "posted",
-  "reversed",
-  "rejected",
-]);
-export const overheadAllocationMethod = pgEnum("overhead_allocation_method", [
-  "revenue",
-  "labor_hours",
-  "headcount",
-  "fixed_percentage",
-  "manual",
-]);
-export const overheadCostClass = pgEnum("overhead_cost_class", ["variable", "fixed"]);
-export const overheadPolicyState = pgEnum("overhead_policy_state", [
-  "draft",
-  "submitted",
-  "approved",
-  "rejected",
-  "superseded",
-]);
-export const overheadPoolState = pgEnum("overhead_pool_state", ["ready", "allocated", "reversed"]);
-export const overheadRunState = pgEnum("overhead_run_state", [
   "draft",
   "submitted",
   "approved",
@@ -1100,467 +1037,6 @@ export const customerServiceSubscriptions = pgTable(
   ],
 );
 
-export const workforceProfiles = pgTable(
-  "workforce_profiles",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    partyId: text("party_id").notNull(),
-    userId: text("user_id"),
-    kind: workforceKind("kind").notNull(),
-    startsOn: date("starts_on").notNull(),
-    endsOn: date("ends_on"),
-    active: boolean("active").notNull().default(true),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    createdBy: text("created_by").notNull().default("master-data"),
-    updatedBy: text("updated_by").notNull().default("master-data"),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("workforce_profiles_party_unique").on(table.organizationId, table.partyId),
-    uniqueIndex("workforce_profiles_user_unique")
-      .on(table.organizationId, table.userId)
-      .where(sql`${table.userId} is not null`),
-    foreignKey({
-      columns: [table.organizationId, table.partyId],
-      foreignColumns: [parties.organizationId, parties.id],
-      name: "workforce_profiles_party_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.userId],
-      foreignColumns: [organizationMemberships.organizationId, organizationMemberships.userId],
-      name: "workforce_profiles_membership_fk",
-    }).onDelete("restrict"),
-    check("workforce_profiles_version", sql`${table.version} > 0`),
-    check(
-      "workforce_profiles_dates",
-      sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn}`,
-    ),
-  ],
-);
-
-export const laborCostRates = pgTable(
-  "labor_cost_rates",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    workerId: text("worker_id").notNull(),
-    basis: laborCostBasis("basis").notNull(),
-    hourlyRateMinor: bigint("hourly_rate_minor", { mode: "bigint" }).notNull(),
-    currency: text("currency").notNull(),
-    effectiveFrom: date("effective_from").notNull(),
-    effectiveTo: date("effective_to"),
-    state: laborCostRateState("state").notNull().default("draft"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    approvedBy: text("approved_by"),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
-    approvalReason: text("approval_reason"),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("labor_cost_rates_worker_effective_unique").on(
-      table.organizationId,
-      table.workerId,
-      table.effectiveFrom,
-    ),
-    foreignKey({
-      columns: [table.organizationId, table.workerId],
-      foreignColumns: [workforceProfiles.organizationId, workforceProfiles.id],
-      name: "labor_cost_rates_worker_fk",
-    }).onDelete("restrict"),
-    check("labor_cost_rates_nonnegative", sql`${table.hourlyRateMinor} >= 0`),
-    check("labor_cost_rates_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-    check(
-      "labor_cost_rates_dates",
-      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`,
-    ),
-    check("labor_cost_rates_version", sql`${table.version} > 0`),
-    check(
-      "labor_cost_rates_approval",
-      sql`${table.state} <> 'approved' or (${table.approvedBy} is not null and ${table.approvedAt} is not null and ${table.approvalReason} is not null and btrim(${table.approvalReason}) <> '')`,
-    ),
-    index("labor_cost_rates_worker_dates_idx").on(
-      table.organizationId,
-      table.workerId,
-      table.effectiveFrom,
-      table.effectiveTo,
-    ),
-  ],
-);
-
-export const timesheets = pgTable(
-  "timesheets",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    workerId: text("worker_id").notNull(),
-    weekStartsOn: date("week_starts_on").notNull(),
-    state: timesheetState("state").notNull().default("draft"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    submittedBy: text("submitted_by"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true }),
-    approvedBy: text("approved_by"),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
-    lockedBy: text("locked_by"),
-    lockedAt: timestamp("locked_at", { withTimezone: true }),
-    billedBy: text("billed_by"),
-    billedAt: timestamp("billed_at", { withTimezone: true }),
-    billingReference: text("billing_reference"),
-    rejectedBy: text("rejected_by"),
-    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
-    rejectionReason: text("rejection_reason"),
-    revisedBy: text("revised_by"),
-    revisedAt: timestamp("revised_at", { withTimezone: true }),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("timesheets_worker_week_unique").on(
-      table.organizationId,
-      table.workerId,
-      table.weekStartsOn,
-    ),
-    foreignKey({
-      columns: [table.organizationId, table.workerId],
-      foreignColumns: [workforceProfiles.organizationId, workforceProfiles.id],
-      name: "timesheets_worker_fk",
-    }).onDelete("restrict"),
-    check("timesheets_week_monday", sql`extract(isodow from ${table.weekStartsOn}) = 1`),
-    check("timesheets_version", sql`${table.version} > 0`),
-    check(
-      "timesheets_rejection_metadata",
-      sql`${table.state} <> 'rejected' or (${table.rejectedBy} is not null and ${table.rejectedAt} is not null and ${table.rejectionReason} is not null and btrim(${table.rejectionReason}) <> '')`,
-    ),
-    index("timesheets_state_week_idx").on(table.organizationId, table.state, table.weekStartsOn),
-  ],
-);
-
-export const timesheetEntries = pgTable(
-  "timesheet_entries",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    timesheetId: text("timesheet_id").notNull(),
-    workDate: date("work_date").notNull(),
-    mode: timeEntryMode("mode").notNull(),
-    scope: timeEntryScope("scope").notNull(),
-    projectId: text("project_id"),
-    contractId: text("contract_id"),
-    serviceLineCode: text("service_line_code"),
-    costCenterCode: text("cost_center_code"),
-    activityCode: text("activity_code"),
-    minutes: integer("minutes").notNull(),
-    billable: boolean("billable").notNull().default(false),
-    description: text("description").notNull(),
-    startedAt: timestamp("started_at", { withTimezone: true }),
-    endedAt: timestamp("ended_at", { withTimezone: true }),
-    allocationPercent: integer("allocation_percent"),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    foreignKey({
-      columns: [table.organizationId, table.timesheetId],
-      foreignColumns: [timesheets.organizationId, timesheets.id],
-      name: "timesheet_entries_timesheet_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.projectId],
-      foreignColumns: [projects.organizationId, projects.id],
-      name: "timesheet_entries_project_fk",
-    }).onDelete("restrict"),
-    check("timesheet_entries_minutes", sql`${table.minutes} > 0 and ${table.minutes} <= 10080`),
-    check("timesheet_entries_description", sql`btrim(${table.description}) <> ''`),
-    check(
-      "timesheet_entries_scope_project",
-      sql`(${table.scope} = 'project' and ${table.projectId} is not null) or (${table.scope} = 'internal' and ${table.projectId} is null and ${table.billable} = false)`,
-    ),
-    check(
-      "timesheet_entries_mode_fields",
-      sql`(${table.mode} = 'timed' and ${table.startedAt} is not null and ${table.endedAt} is not null and ${table.endedAt} > ${table.startedAt} and ${table.allocationPercent} is null) or (${table.mode} = 'allocation' and ${table.startedAt} is null and ${table.endedAt} is null and ${table.allocationPercent} between 1 and 100)`,
-    ),
-    index("timesheet_entries_timesheet_date_idx").on(
-      table.organizationId,
-      table.timesheetId,
-      table.workDate,
-    ),
-  ],
-);
-
-export const timesheetCostSnapshots = pgTable(
-  "timesheet_cost_snapshots",
-  {
-    organizationId: text("organization_id").notNull(),
-    entryId: text("entry_id").notNull(),
-    rateId: text("rate_id").notNull(),
-    appliedHourlyRateMinor: bigint("applied_hourly_rate_minor", { mode: "bigint" }).notNull(),
-    appliedCostMinor: bigint("applied_cost_minor", { mode: "bigint" }).notNull(),
-    currency: text("currency").notNull(),
-    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
-    appliedBy: text("applied_by").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.entryId] }),
-    foreignKey({
-      columns: [table.organizationId, table.entryId],
-      foreignColumns: [timesheetEntries.organizationId, timesheetEntries.id],
-      name: "timesheet_cost_snapshots_entry_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.rateId],
-      foreignColumns: [laborCostRates.organizationId, laborCostRates.id],
-      name: "timesheet_cost_snapshots_rate_fk",
-    }).onDelete("restrict"),
-    check("timesheet_cost_snapshots_rate", sql`${table.appliedHourlyRateMinor} >= 0`),
-    check("timesheet_cost_snapshots_cost", sql`${table.appliedCostMinor} >= 0`),
-    check("timesheet_cost_snapshots_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-  ],
-);
-
-export const timesheetAdjustments = pgTable(
-  "timesheet_adjustments",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    timesheetId: text("timesheet_id").notNull(),
-    entryId: text("entry_id").notNull(),
-    workDate: date("work_date").notNull(),
-    minuteDelta: integer("minute_delta").notNull(),
-    costDeltaMinor: bigint("cost_delta_minor", { mode: "bigint" }).notNull(),
-    currency: text("currency").notNull(),
-    reason: text("reason").notNull(),
-    state: timesheetAdjustmentState("state").notNull().default("draft"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    requestedBy: text("requested_by").notNull(),
-    submittedBy: text("submitted_by"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true }),
-    approvedBy: text("approved_by"),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
-    approvalReason: text("approval_reason"),
-    rejectedBy: text("rejected_by"),
-    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
-    rejectionReason: text("rejection_reason"),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    foreignKey({
-      columns: [table.organizationId, table.timesheetId],
-      foreignColumns: [timesheets.organizationId, timesheets.id],
-      name: "timesheet_adjustments_timesheet_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.entryId],
-      foreignColumns: [timesheetEntries.organizationId, timesheetEntries.id],
-      name: "timesheet_adjustments_entry_fk",
-    }).onDelete("restrict"),
-    check(
-      "timesheet_adjustments_nonzero",
-      sql`${table.minuteDelta} <> 0 or ${table.costDeltaMinor} <> 0`,
-    ),
-    check("timesheet_adjustments_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-    check("timesheet_adjustments_reason", sql`btrim(${table.reason}) <> ''`),
-    check("timesheet_adjustments_version", sql`${table.version} > 0`),
-    check(
-      "timesheet_adjustments_approval",
-      sql`${table.state} <> 'approved' or (${table.approvedBy} is not null and ${table.approvedAt} is not null and ${table.approvalReason} is not null and btrim(${table.approvalReason}) <> '')`,
-    ),
-    check(
-      "timesheet_adjustments_rejection",
-      sql`${table.state} <> 'rejected' or (${table.rejectedBy} is not null and ${table.rejectedAt} is not null and ${table.rejectionReason} is not null and btrim(${table.rejectionReason}) <> '')`,
-    ),
-  ],
-);
-
-export const workforceCapacityVersions = pgTable(
-  "workforce_capacity_versions",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    workerId: text("worker_id").notNull(),
-    weeklyMinutes: integer("weekly_minutes").notNull(),
-    workdays: jsonb("workdays").$type<number[]>().notNull(),
-    effectiveFrom: date("effective_from").notNull(),
-    effectiveTo: date("effective_to"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    reason: text("reason").notNull(),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("workforce_capacity_worker_effective_unique").on(
-      table.organizationId,
-      table.workerId,
-      table.effectiveFrom,
-    ),
-    foreignKey({
-      columns: [table.organizationId, table.workerId],
-      foreignColumns: [workforceProfiles.organizationId, workforceProfiles.id],
-      name: "workforce_capacity_worker_fk",
-    }).onDelete("restrict"),
-    check("workforce_capacity_minutes", sql`${table.weeklyMinutes} between 0 and 10080`),
-    check(
-      "workforce_capacity_dates",
-      sql`${table.effectiveTo} is null or ${table.effectiveTo} >= ${table.effectiveFrom}`,
-    ),
-    check("workforce_capacity_version", sql`${table.version} > 0`),
-    check("workforce_capacity_reason", sql`btrim(${table.reason}) <> ''`),
-    index("workforce_capacity_worker_dates_idx").on(
-      table.organizationId,
-      table.workerId,
-      table.effectiveFrom,
-      table.effectiveTo,
-    ),
-  ],
-);
-
-export const projectCostItems = pgTable(
-  "project_cost_items",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    sourceType: projectCostSourceType("source_type").notNull(),
-    sourceId: text("source_id").notNull(),
-    sourceLineId: text("source_line_id"),
-    projectId: text("project_id"),
-    costClass: projectCostClass("cost_class").notNull(),
-    basis: projectCostBasis("basis").notNull(),
-    effectiveOn: date("effective_on").notNull(),
-    ledgerAccountCode: text("ledger_account_code").notNull(),
-    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-    baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
-    currency: text("currency").notNull(),
-    journalId: text("journal_id"),
-    evidenceId: text("evidence_id"),
-    description: text("description").notNull(),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("project_cost_items_source_unique").on(
-      table.organizationId,
-      table.sourceType,
-      table.sourceId,
-      table.sourceLineId,
-      table.basis,
-    ),
-    foreignKey({
-      columns: [table.organizationId, table.projectId],
-      foreignColumns: [projects.organizationId, projects.id],
-      name: "project_cost_items_project_fk",
-    }).onDelete("restrict"),
-    check(
-      "project_cost_items_amount_positive",
-      sql`${table.amountMinor} > 0 and ${table.baseAmountMinor} > 0`,
-    ),
-    check("project_cost_items_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-    check("project_cost_items_description", sql`btrim(${table.description}) <> ''`),
-    index("project_cost_items_unallocated_idx").on(
-      table.organizationId,
-      table.projectId,
-      table.costClass,
-      table.basis,
-    ),
-  ],
-);
-
-export const directCostAllocations = pgTable(
-  "direct_cost_allocations",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    sourceCostItemId: text("source_cost_item_id").notNull(),
-    allocatableAmountMinor: bigint("allocatable_amount_minor", { mode: "bigint" }).notNull(),
-    allocatableBaseAmountMinor: bigint("allocatable_base_amount_minor", {
-      mode: "bigint",
-    }).notNull(),
-    state: directCostAllocationState("state").notNull().default("draft"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    submittedBy: text("submitted_by"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true }),
-    approvedBy: text("approved_by"),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
-    postedBy: text("posted_by"),
-    postedAt: timestamp("posted_at", { withTimezone: true }),
-    journalId: text("journal_id"),
-    reversedBy: text("reversed_by"),
-    reversedAt: timestamp("reversed_at", { withTimezone: true }),
-    reversalJournalId: text("reversal_journal_id"),
-    reversalReason: text("reversal_reason"),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    foreignKey({
-      columns: [table.organizationId, table.sourceCostItemId],
-      foreignColumns: [projectCostItems.organizationId, projectCostItems.id],
-      name: "direct_cost_allocations_source_fk",
-    }).onDelete("restrict"),
-    check(
-      "direct_cost_allocations_amount",
-      sql`${table.allocatableAmountMinor} > 0 and ${table.allocatableBaseAmountMinor} > 0`,
-    ),
-    check("direct_cost_allocations_version", sql`${table.version} > 0`),
-    index("direct_cost_allocations_source_state_idx").on(
-      table.organizationId,
-      table.sourceCostItemId,
-      table.state,
-    ),
-  ],
-);
-
-export const directCostAllocationSplits = pgTable(
-  "direct_cost_allocation_splits",
-  {
-    organizationId: text("organization_id").notNull(),
-    allocationId: text("allocation_id").notNull(),
-    lineNumber: integer("line_number").notNull(),
-    projectId: text("project_id").notNull(),
-    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-    baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
-    reason: text("reason").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.allocationId, table.lineNumber] }),
-    foreignKey({
-      columns: [table.organizationId, table.allocationId],
-      foreignColumns: [directCostAllocations.organizationId, directCostAllocations.id],
-      name: "direct_cost_allocation_splits_allocation_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.projectId],
-      foreignColumns: [projects.organizationId, projects.id],
-      name: "direct_cost_allocation_splits_project_fk",
-    }).onDelete("restrict"),
-    check("direct_cost_allocation_splits_line", sql`${table.lineNumber} > 0`),
-    check(
-      "direct_cost_allocation_splits_amount",
-      sql`${table.amountMinor} > 0 and ${table.baseAmountMinor} > 0`,
-    ),
-    check("direct_cost_allocation_splits_reason", sql`btrim(${table.reason}) <> ''`),
-  ],
-);
-
 export const contracts = pgTable(
   "contracts",
   {
@@ -1924,224 +1400,6 @@ export const revenueRecognitionEvents = pgTable(
   ],
 );
 
-export const overheadAllocationPolicies = pgTable(
-  "overhead_allocation_policies",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    policyCode: text("policy_code").notNull(),
-    versionNumber: integer("version_number").notNull(),
-    name: text("name").notNull(),
-    method: overheadAllocationMethod("method").notNull(),
-    costClass: overheadCostClass("cost_class").notNull(),
-    effectiveFrom: date("effective_from").notNull(),
-    effectiveTo: date("effective_to"),
-    configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull().default({}),
-    state: overheadPolicyState("state").notNull().default("draft"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    submittedBy: text("submitted_by"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true }),
-    approvedBy: text("approved_by"),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
-    rejectedBy: text("rejected_by"),
-    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (t) => [
-    primaryKey({ columns: [t.organizationId, t.id] }),
-    unique("overhead_policy_code_version_unique").on(
-      t.organizationId,
-      t.policyCode,
-      t.versionNumber,
-    ),
-    check("overhead_policy_code", sql`btrim(${t.policyCode}) <> ''`),
-    check("overhead_policy_name", sql`btrim(${t.name}) <> ''`),
-    check("overhead_policy_version_number", sql`${t.versionNumber} > 0`),
-    check("overhead_policy_version", sql`${t.version} > 0`),
-    check(
-      "overhead_policy_dates",
-      sql`${t.effectiveTo} is null or ${t.effectiveTo} >= ${t.effectiveFrom}`,
-    ),
-    index("overhead_policy_effective_idx").on(
-      t.organizationId,
-      t.policyCode,
-      t.state,
-      t.effectiveFrom,
-      t.effectiveTo,
-    ),
-  ],
-);
-
-export const overheadSourcePools = pgTable(
-  "overhead_source_pools",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    policyId: text("policy_id").notNull(),
-    policyVersionNumber: integer("policy_version_number").notNull(),
-    periodStart: date("period_start").notNull(),
-    periodEnd: date("period_end").notNull(),
-    currency: text("currency").notNull(),
-    sourceAmountMinor: bigint("source_amount_minor", { mode: "bigint" }).notNull(),
-    sourceBaseAmountMinor: bigint("source_base_amount_minor", { mode: "bigint" }).notNull(),
-    state: overheadPoolState("state").notNull().default("ready"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    reason: text("reason").notNull(),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (t) => [
-    primaryKey({ columns: [t.organizationId, t.id] }),
-    foreignKey({
-      columns: [t.organizationId, t.policyId],
-      foreignColumns: [overheadAllocationPolicies.organizationId, overheadAllocationPolicies.id],
-      name: "overhead_source_pools_policy_fk",
-    }).onDelete("restrict"),
-    check("overhead_pool_period", sql`${t.periodEnd} >= ${t.periodStart}`),
-    check("overhead_pool_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
-    check(
-      "overhead_pool_amount",
-      sql`${t.sourceAmountMinor} > 0 and ${t.sourceBaseAmountMinor} > 0`,
-    ),
-    check("overhead_pool_reason", sql`btrim(${t.reason}) <> ''`),
-    check("overhead_pool_version", sql`${t.version} > 0`),
-    index("overhead_pool_period_idx").on(t.organizationId, t.periodStart, t.periodEnd, t.state),
-  ],
-);
-
-export const overheadSourcePoolItems = pgTable(
-  "overhead_source_pool_items",
-  {
-    organizationId: text("organization_id").notNull(),
-    poolId: text("pool_id").notNull(),
-    sourceCostItemId: text("source_cost_item_id").notNull(),
-    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-    baseAmountMinor: bigint("base_amount_minor", { mode: "bigint" }).notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.organizationId, t.poolId, t.sourceCostItemId] }),
-    unique("overhead_source_item_exclusive").on(t.organizationId, t.sourceCostItemId),
-    foreignKey({
-      columns: [t.organizationId, t.poolId],
-      foreignColumns: [overheadSourcePools.organizationId, overheadSourcePools.id],
-      name: "overhead_pool_items_pool_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [t.organizationId, t.sourceCostItemId],
-      foreignColumns: [projectCostItems.organizationId, projectCostItems.id],
-      name: "overhead_pool_items_cost_fk",
-    }).onDelete("restrict"),
-    check("overhead_pool_item_amount", sql`${t.amountMinor} > 0 and ${t.baseAmountMinor} > 0`),
-  ],
-);
-
-export const overheadAllocationRuns = pgTable(
-  "overhead_allocation_runs",
-  {
-    organizationId: text("organization_id").notNull(),
-    id: text("id").notNull(),
-    poolId: text("pool_id").notNull(),
-    policyId: text("policy_id").notNull(),
-    policyVersionNumber: integer("policy_version_number").notNull(),
-    method: overheadAllocationMethod("method").notNull(),
-    periodStart: date("period_start").notNull(),
-    periodEnd: date("period_end").notNull(),
-    currency: text("currency").notNull(),
-    allocatableAmountMinor: bigint("allocatable_amount_minor", { mode: "bigint" }).notNull(),
-    basisSnapshot: jsonb("basis_snapshot").$type<readonly Record<string, unknown>[]>().notNull(),
-    policySnapshot: jsonb("policy_snapshot").$type<Record<string, unknown>>().notNull(),
-    state: overheadRunState("state").notNull().default("draft"),
-    version: bigint("version", { mode: "bigint" })
-      .notNull()
-      .default(sql`1`),
-    submittedBy: text("submitted_by"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true }),
-    approvedBy: text("approved_by"),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
-    rejectedBy: text("rejected_by"),
-    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
-    postedBy: text("posted_by"),
-    postedAt: timestamp("posted_at", { withTimezone: true }),
-    journalId: text("journal_id"),
-    reversedBy: text("reversed_by"),
-    reversedAt: timestamp("reversed_at", { withTimezone: true }),
-    reversalJournalId: text("reversal_journal_id"),
-    reversalReason: text("reversal_reason"),
-    reason: text("reason").notNull(),
-    createdBy: text("created_by").notNull(),
-    ...auditColumns,
-  },
-  (t) => [
-    primaryKey({ columns: [t.organizationId, t.id] }),
-    unique("overhead_run_pool_unique").on(t.organizationId, t.poolId),
-    foreignKey({
-      columns: [t.organizationId, t.poolId],
-      foreignColumns: [overheadSourcePools.organizationId, overheadSourcePools.id],
-      name: "overhead_runs_pool_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [t.organizationId, t.policyId],
-      foreignColumns: [overheadAllocationPolicies.organizationId, overheadAllocationPolicies.id],
-      name: "overhead_runs_policy_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [t.organizationId, t.journalId],
-      foreignColumns: [journalEntries.organizationId, journalEntries.id],
-      name: "overhead_runs_journal_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [t.organizationId, t.reversalJournalId],
-      foreignColumns: [journalEntries.organizationId, journalEntries.id],
-      name: "overhead_runs_reversal_fk",
-    }).onDelete("restrict"),
-    check("overhead_run_period", sql`${t.periodEnd} >= ${t.periodStart}`),
-    check("overhead_run_currency", sql`${t.currency} ~ '^[A-Z]{3}$'`),
-    check("overhead_run_amount", sql`${t.allocatableAmountMinor} > 0`),
-    check("overhead_run_version", sql`${t.version} > 0`),
-    check("overhead_run_reason", sql`btrim(${t.reason}) <> ''`),
-    index("overhead_run_period_state_idx").on(
-      t.organizationId,
-      t.periodStart,
-      t.periodEnd,
-      t.state,
-    ),
-  ],
-);
-
-export const overheadAllocationSplits = pgTable(
-  "overhead_allocation_splits",
-  {
-    organizationId: text("organization_id").notNull(),
-    runId: text("run_id").notNull(),
-    projectId: text("project_id").notNull(),
-    basisValue: bigint("basis_value", { mode: "bigint" }).notNull(),
-    basisTotal: bigint("basis_total", { mode: "bigint" }).notNull(),
-    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-    roundingRank: integer("rounding_rank").notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.organizationId, t.runId, t.projectId] }),
-    foreignKey({
-      columns: [t.organizationId, t.runId],
-      foreignColumns: [overheadAllocationRuns.organizationId, overheadAllocationRuns.id],
-      name: "overhead_splits_run_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [t.organizationId, t.projectId],
-      foreignColumns: [projects.organizationId, projects.id],
-      name: "overhead_splits_project_fk",
-    }).onDelete("restrict"),
-    check("overhead_split_basis", sql`${t.basisValue} >= 0 and ${t.basisTotal} > 0`),
-    check("overhead_split_amount", sql`${t.amountMinor} >= 0`),
-    check("overhead_split_rank", sql`${t.roundingRank} > 0`),
-  ],
-);
-
 export const resourceVersions = pgTable(
   "resource_versions",
   {
@@ -2450,6 +1708,7 @@ export const commercialDocuments = pgTable(
     taxMinor: bigint("tax_minor", { mode: "bigint" }).notNull(),
     grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
     controlAccountCode: text("control_account_code").notNull(),
+    fundingFinancialAccountId: text("funding_financial_account_id"),
     originalDocumentId: text("original_document_id"),
     reason: text("reason"),
     journalId: text("journal_id"),
@@ -2491,6 +1750,11 @@ export const commercialDocuments = pgTable(
       foreignColumns: [accounts.organizationId, accounts.code],
       name: "commercial_documents_control_account_fk",
     }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.fundingFinancialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "commercial_documents_funding_account_fk",
+    }).onDelete("restrict"),
     check("commercial_documents_number_not_blank", sql`btrim(${table.documentNumber}) <> ''`),
     check(
       "commercial_documents_sales_series",
@@ -2511,6 +1775,10 @@ export const commercialDocuments = pgTable(
       sql`(${table.type} = 'credit_note' and btrim(${table.reason}) <> '') or (${table.type} <> 'credit_note' and ${table.reason} is null)`,
     ),
     check("commercial_documents_version_positive", sql`${table.version} > 0`),
+    check(
+      "commercial_documents_purchase_funding",
+      sql`${table.type} = 'purchase_invoice' or ${table.fundingFinancialAccountId} is null`,
+    ),
   ],
 );
 
@@ -2658,6 +1926,7 @@ export const expenses = pgTable(
     payeePartyId: text("payee_party_id"),
     employeePartyId: text("employee_party_id"),
     expenseDate: date("expense_date").notNull(),
+    freelanceDueDate: date("freelance_due_date"),
     servicePeriodStart: date("service_period_start"),
     servicePeriodEnd: date("service_period_end"),
     businessPurpose: text("business_purpose").notNull(),
@@ -2724,6 +1993,10 @@ export const expenses = pgTable(
       sql`${table.expenseClass} <> 'non_documented' or (${table.vatMinor} = 0 and ${table.vatState} in ('unreviewed','ineligible','accountant_override'))`,
     ),
     check("expenses_version_positive", sql`${table.version} > 0`),
+    check(
+      "expenses_freelance_due_date",
+      sql`(${table.expenseClass} = 'freelancer' and ${table.freelanceDueDate} is not null and ${table.payeePartyId} is not null and ${table.freelanceDueDate} >= ${table.expenseDate}) or (${table.expenseClass} <> 'freelancer' and ${table.freelanceDueDate} is null)`,
+    ),
   ],
 );
 
@@ -3337,6 +2610,182 @@ export const financialAccounts = pgTable(
   ],
 );
 
+export const customerReceipts = pgTable(
+  "customer_receipts",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    financialAccountId: text("financial_account_id").notNull(),
+    receiptDate: date("receipt_date").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    description: text("description").notNull(),
+    state: text("state").notNull().default("posted"),
+    journalId: text("journal_id").notNull(),
+    customerId: text("customer_id").notNull(),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.financialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "customer_receipts_financial_account_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "customer_receipts_journal_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.customerId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "customer_receipts_customer_fk",
+    }).onDelete("restrict"),
+    check("customer_receipts_amount_positive", sql`${table.amountMinor} > 0`),
+    check("customer_receipts_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check("customer_receipts_description_not_blank", sql`btrim(${table.description}) <> ''`),
+    check("customer_receipts_posted_state", sql`${table.state} = 'posted'`),
+    check("customer_receipts_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+export const customerReceiptAllocations = pgTable(
+  "customer_receipt_allocations",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    receiptId: text("receipt_id").notNull(),
+    salesInvoiceId: text("sales_invoice_id").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("customer_receipt_allocations_receipt_invoice_unique").on(
+      table.organizationId,
+      table.receiptId,
+      table.salesInvoiceId,
+    ),
+    foreignKey({
+      columns: [table.organizationId, table.receiptId],
+      foreignColumns: [customerReceipts.organizationId, customerReceipts.id],
+      name: "customer_receipt_allocations_receipt_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.salesInvoiceId],
+      foreignColumns: [commercialDocuments.organizationId, commercialDocuments.id],
+      name: "customer_receipt_allocations_invoice_fk",
+    }).onDelete("restrict"),
+    check("customer_receipt_allocations_amount_positive", sql`${table.amountMinor} > 0`),
+  ],
+);
+
+export const projectFreelancePayables = pgTable(
+  "project_freelance_payables",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    expenseId: text("expense_id").notNull(),
+    projectId: text("project_id").notNull(),
+    freelancerPartyId: text("freelancer_party_id").notNull(),
+    dueDate: date("due_date").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    paidMinor: bigint("paid_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`0`),
+    currency: text("currency").notNull(),
+    state: text("state").notNull().default("unpaid"),
+    journalId: text("journal_id").notNull(),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("project_freelance_payables_expense_unique").on(table.organizationId, table.expenseId),
+    foreignKey({
+      columns: [table.organizationId, table.expenseId],
+      foreignColumns: [expenses.organizationId, expenses.id],
+      name: "project_freelance_payables_expense_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+      name: "project_freelance_payables_project_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.freelancerPartyId],
+      foreignColumns: [parties.organizationId, parties.id],
+      name: "project_freelance_payables_freelancer_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "project_freelance_payables_journal_fk",
+    }).onDelete("restrict"),
+    check(
+      "project_freelance_payables_amounts",
+      sql`${table.amountMinor} > 0 and ${table.paidMinor} >= 0 and ${table.paidMinor} <= ${table.amountMinor}`,
+    ),
+    check("project_freelance_payables_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
+    check(
+      "project_freelance_payables_state",
+      sql`${table.state} in ('unpaid','partially_paid','paid')`,
+    ),
+    check(
+      "project_freelance_payables_state_amount",
+      sql`(${table.state}='unpaid' and ${table.paidMinor}=0) or (${table.state}='partially_paid' and ${table.paidMinor}>0 and ${table.paidMinor}<${table.amountMinor}) or (${table.state}='paid' and ${table.paidMinor}=${table.amountMinor})`,
+    ),
+  ],
+);
+
+export const projectFreelancePayablePayments = pgTable(
+  "project_freelance_payable_payments",
+  {
+    organizationId: text("organization_id").notNull(),
+    id: text("id").notNull(),
+    payableId: text("payable_id").notNull(),
+    financialAccountId: text("financial_account_id").notNull(),
+    paymentDate: date("payment_date").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    journalId: text("journal_id").notNull(),
+    createdBy: text("created_by").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    foreignKey({
+      columns: [table.organizationId, table.payableId],
+      foreignColumns: [projectFreelancePayables.organizationId, projectFreelancePayables.id],
+      name: "project_freelance_payable_payments_payable_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.financialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "project_freelance_payable_payments_account_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "project_freelance_payable_payments_journal_fk",
+    }).onDelete("restrict"),
+    check("project_freelance_payable_payments_amount", sql`${table.amountMinor} > 0`),
+  ],
+);
+
 export const bankStatementImports = pgTable(
   "bank_statement_imports",
   {
@@ -3505,6 +2954,46 @@ export const bankTransactions = pgTable(
     check("bank_transaction_description", sql`btrim(${table.description}) <> ''`),
     check("bank_transaction_normalization_version", sql`${table.currentNormalizationVersion} > 0`),
     check("bank_transaction_version", sql`${table.version} > 0`),
+  ],
+);
+
+export const ownerCashWithdrawals = pgTable(
+  "owner_cash_withdrawals",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    bankTransactionId: text("bank_transaction_id").notNull(),
+    journalId: text("journal_id").notNull(),
+    movementType: text("movement_type").notNull().default("owner_personal_withdrawal"),
+    reason: text("reason").notNull(),
+    createdBy: text("created_by").notNull(),
+    correlationId: text("correlation_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    unique("owner_cash_withdrawals_transaction_unique").on(
+      table.organizationId,
+      table.bankTransactionId,
+    ),
+    unique("owner_cash_withdrawals_journal_unique").on(table.organizationId, table.journalId),
+    foreignKey({
+      columns: [table.organizationId, table.bankTransactionId],
+      foreignColumns: [bankTransactions.organizationId, bankTransactions.id],
+      name: "owner_cash_withdrawals_transaction_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.journalId],
+      foreignColumns: [journalEntries.organizationId, journalEntries.id],
+      name: "owner_cash_withdrawals_journal_fk",
+    }).onDelete("restrict"),
+    check(
+      "owner_cash_withdrawals_movement_type",
+      sql`${table.movementType} = 'owner_personal_withdrawal'`,
+    ),
+    check("owner_cash_withdrawals_reason", sql`btrim(${table.reason}) <> ''`),
   ],
 );
 
@@ -5235,16 +4724,6 @@ export const schema = {
   projects,
   servicePlans,
   customerServiceSubscriptions,
-  workforceProfiles,
-  laborCostRates,
-  timesheets,
-  timesheetEntries,
-  timesheetCostSnapshots,
-  timesheetAdjustments,
-  workforceCapacityVersions,
-  projectCostItems,
-  directCostAllocations,
-  directCostAllocationSplits,
   contracts,
   milestones,
   scopeChanges,
@@ -5253,11 +4732,6 @@ export const schema = {
   revenueRecognitionPolicies,
   milestoneAcceptances,
   revenueRecognitionEvents,
-  overheadAllocationPolicies,
-  overheadSourcePools,
-  overheadSourcePoolItems,
-  overheadAllocationRuns,
-  overheadAllocationSplits,
   expenseCategories,
   purchaseProducts,
   resourceVersions,
@@ -5294,6 +4768,7 @@ export const schema = {
   bankStatementSessionImports,
   bankControlExceptions,
   bankTransactions,
+  ownerCashWithdrawals,
   bankTransactionNormalizations,
   bankStatementImportRows,
   bankTransactionEvents,

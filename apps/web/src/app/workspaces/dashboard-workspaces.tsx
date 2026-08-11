@@ -1164,18 +1164,16 @@ export function ExecutiveDashboardWorkspace() {
                 href="/banking/owner-current"
                 status="Nguồn: quyết toán đã xác nhận"
               />
-              {BigInt(ownerHoldsCompanyFundsMinor) > 0n ? (
-                <MetricCard
-                  title="Tiền công ty chủ đang giữ"
-                  value={money(
-                    ownerHoldsCompanyFundsMinor,
-                    operating?.currency ?? executive?.currency,
-                  )}
-                  description="Phần tiền công ty đã giao hoặc rút cho chủ giữ vượt quá các khoản công ty còn nợ chủ. Đây là tài sản/tiền công ty, không phải nợ âm."
-                  href="/banking/owner-current"
-                  status="Chủ đang giữ tiền công ty"
-                />
-              ) : null}
+              <MetricCard
+                title="Tiền công ty chủ đang giữ"
+                value={money(
+                  ownerHoldsCompanyFundsMinor,
+                  operating?.currency ?? executive?.currency,
+                )}
+                description="Phần tiền công ty đã giao hoặc rút cho chủ giữ vượt quá các khoản công ty còn nợ chủ. Đây là tài sản/tiền công ty, không phải nợ âm."
+                href="/banking/owner-current"
+                status="Chủ đang giữ tiền công ty"
+              />
               {showNetCompanyFunds ? (
                 <MetricCard
                   title="Tiền ròng thực còn"

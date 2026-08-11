@@ -119,7 +119,7 @@ function report(side: "ar" | "ap", party = false) {
 async function installApi(page: Page) {
   const requested: string[] = [];
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "aging-e2e-token"));
-  await page.route("http://localhost:3001/api/v1/organizations/naai/reports/**", async (route) => {
+  await page.route("**/api/v1/organizations/naai/reports/**", async (route) => {
     const url = new URL(route.request().url());
     requested.push(`${url.pathname}${url.search}`);
     const side = url.pathname.includes("/ap-aging") ? "ap" : "ar";
@@ -128,15 +128,16 @@ async function installApi(page: Page) {
   return requested;
 }
 
-test("@desktop keeps AR and AP as separate queues and persists report filters in the URL", async ({
+test("@desktop keeps AR and AP as separate submenu pages and persists report filters in the URL", async ({
   page,
 }) => {
   const requested = await installApi(page);
-  await page.goto("http://localhost:3000/receivables?asOf=2026-08-05");
+  await page.goto("/receivables?asOf=2026-08-05");
   await expect(page.getByRole("heading", { name: "Công nợ phải thu" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Acme Client" }).first()).toBeVisible();
   await expect(page.getByText("customer_credit")).toBeVisible();
   await expect(page.getByText("Đã tie-out tài khoản kiểm soát")).toBeVisible();
+  await expect(page.locator('main a[href="/payables"]')).toHaveCount(0);
 
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const sheet = page.locator('[data-slot="popover-content"]');
@@ -156,18 +157,18 @@ test("@desktop keeps AR and AP as separate queues and persists report filters in
     )
     .toBe(true);
 
-  await page.locator("main").getByRole("link", { name: "Phải trả", exact: true }).click();
-  await expect(page).toHaveURL(/\/payables/);
+  await page.goto("/payables?asOf=2026-08-05");
   await expect(page.getByRole("link", { name: "Cloud Vendor" }).first()).toBeVisible();
   await expect(page.getByText("supplier_advance")).toBeVisible();
   await expect(page.getByText("Có chênh lệch tài khoản kiểm soát")).toBeVisible();
+  await expect(page.locator('main a[href="/receivables"]')).toHaveCount(0);
 });
 
 test("@desktop party detail exposes source, journal, reconciliation and evidence drill-down", async ({
   page,
 }) => {
   const requested = await installApi(page);
-  await page.goto("http://localhost:3000/receivables/customers/customer-1?asOf=2026-08-05");
+  await page.goto("/receivables/customers/customer-1?asOf=2026-08-05");
   await expect(page.getByRole("heading", { name: "Acme Client" })).toBeVisible();
   await expect(page.getByText("Open items và allocation readback")).toBeVisible();
   await expect(page.getByRole("link", { name: "Nguồn" }).first()).toHaveAttribute(
@@ -194,7 +195,7 @@ test("@mobile AR queue and supplier detail do not overflow the viewport", async 
     "/receivables?asOf=2026-08-05",
     "/payables/suppliers/supplier-1?asOf=2026-08-05",
   ]) {
-    await page.goto(`http://localhost:3000${path}`);
+    await page.goto(path);
     await page.waitForLoadState("networkidle");
     const metrics = await page.evaluate(() => ({
       body: document.body.scrollWidth,

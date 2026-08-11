@@ -161,6 +161,33 @@ a reviewed three-month average burn of VND 24,000,000 and runway of 10.875 month
 
 The script is for local synthetic data only. Do not run it against staging or production.
 
+## Switch the local development data source
+
+Use one explicit startup profile at a time:
+
+```bash
+# Fast feature development against local PostgreSQL and the local API
+pnpm dev:local-data
+
+# UI comparison against the production API through the server-only read proxy
+pnpm dev:prod-data
+```
+
+Both profiles serve the web application at `http://localhost:3000`. The local profile also starts the
+API at `http://localhost:3001`, runs native database setup/migrations first and forces the browser back
+to the selected profile so an older saved API URL cannot leak across modes. To switch, stop the current
+dev process and run the other command. Do not run two web profiles from the same checkout concurrently.
+
+Validate either profile without starting the dev servers:
+
+```bash
+pnpm dev:local-data -- --check
+pnpm dev:prod-data -- --check
+```
+
+The local profile reads only the local development token from ignored local environment configuration.
+The production profile keeps its token server-side in macOS Keychain and remains read-only by default.
+
 ## Develop the UI against production data without a second database
 
 The normal startup command reads the server-only API token and organization from macOS Keychain:

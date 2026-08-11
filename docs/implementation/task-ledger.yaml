@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-10T09:20:00+07:00
+updated_at: 2026-08-11T18:30:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: null
+current_gate: G58
 current_task: null
 
 tasks:
@@ -2179,6 +2179,403 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-887/
 
+  - id: ERP-888
+    title: Record owner cash withdrawals through canonical banking workflow
+    phase: P13
+    status: done
+    dependencies: [ERP-887]
+    business_rules:
+      [BR-BNK-003, BR-BNK-004, BR-AI-001, BR-AUD-001, BR-IDEM-001, BR-ORG-001, BR-UI-003, BR-UI-004]
+    tests: [T-API-ERP-888-001, T-CLI-ERP-888-002, T-E2E-ERP-888-003]
+    evidence: docs/implementation/evidence/ERP-888/
+    agent: codex-team
+    started_at: 2026-08-11T15:35:00+07:00
+    review_at: 2026-08-11T16:25:00+07:00
+    completed_at: 2026-08-11T16:25:00+07:00
+    completion_basis: fresh_postgresql_atomic_posting_cli_contract_desktop_mobile_and_rendered_browser_gates
+    parallel_file_ownership:
+      backend: apps/api/src/banking, packages/database/src/migrations
+      web: apps/web/src/app/workspaces/owner-current-workspace.tsx, apps/web/e2e/owner-current.spec.ts
+      coordinator: packages/contracts, apps/cli, docs and integration gates
+    planned_files:
+      - apps/api/src/banking/
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/e2e/owner-current.spec.ts
+      - packages/contracts/src/banking.ts
+      - apps/cli/src/
+      - packages/database/src/migrations/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-888/
+
+  - id: ERP-889
+    title: Record customer receipts and allocate receivables manually
+    phase: P13
+    status: done
+    dependencies: [ERP-888]
+    business_rules:
+      [
+        BR-AR-003,
+        BR-AR-002,
+        BR-INV-001,
+        BR-LED-001,
+        BR-LED-002,
+        BR-LED-004,
+        BR-PER-001,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AUD-001,
+        BR-ORG-001,
+        BR-UI-003,
+      ]
+    tests: [T-API-ERP-889-001, T-CLI-ERP-889-002, T-E2E-ERP-889-003]
+    evidence: docs/implementation/evidence/ERP-889/
+    agent: codex-team
+    started_at: 2026-08-11T19:00:00+07:00
+    review_at: 2026-08-11T19:35:00+07:00
+    completed_at: 2026-08-11T19:35:00+07:00
+    completion_basis: canonical_receipt_posting_allocation_aging_cli_openapi_fresh_migration_postgresql_and_desktop_mobile_gates
+    parallel_file_ownership:
+      backend: packages/domain, packages/contracts, packages/database, db/migrations, apps/api, apps/cli, OpenAPI and task evidence
+      web: apps/web receivables workspaces and customer-receipts E2E
+    planned_files:
+      - packages/domain/src/customer-receipts.ts
+      - packages/domain/src/customer-receipts.test.ts
+      - packages/contracts/src/customer-receipts.ts
+      - packages/contracts/src/customer-receipts.test.ts
+      - packages/database/src/schema.ts
+      - db/migrations/0048_customer_receipts.sql
+      - apps/api/src/customer-receipts/
+      - apps/api/src/aging/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/receivables/
+      - apps/web/src/app/workspaces/aging-queue-workspace.tsx
+      - apps/web/src/app/workspaces/aging-party-workspace.tsx
+      - apps/web/e2e/customer-receipts.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-889/
+    notes: A manual cash or bank receipt is a canonical financial mutation, not a UI-only paid flag. The API, CLI and UI must capture the funding account and receipt date, allocate one receipt across one or more sales invoices, support partial and full settlement, update invoice payment state from allocations, and enforce organization scope, authorization, audit, idempotency and fiscal-period controls.
+
+  - id: ERP-890
+    title: Project freelance actual payables and default-settled purchase invoice policy
+    phase: P13
+    status: done
+    dependencies: [ERP-889]
+    business_rules:
+      [
+        BR-PTY-001,
+        BR-INV-002,
+        BR-AP-001,
+        BR-AP-002,
+        BR-CST-002,
+        BR-PRJ-001,
+        BR-DIM-001,
+        BR-LED-001,
+        BR-LED-002,
+        BR-LED-004,
+        BR-PER-001,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AI-003,
+        BR-AI-005,
+        BR-AUD-001,
+        BR-ORG-001,
+        BR-UI-003,
+      ]
+    tests: [T-API-ERP-890-001, T-CLI-ERP-890-002, T-E2E-ERP-890-003]
+    evidence: docs/implementation/evidence/ERP-890/
+    agent: codex-team
+    started_at: 2026-08-11T19:45:00+07:00
+    review_at: 2026-08-11T20:10:00+07:00
+    completed_at: 2026-08-11T20:10:00+07:00
+    completion_basis: expense_linked_freelance_payables_explicit_purchase_funding_db_51_of_51_postgresql_9_of_9_web_3_of_3_and_full_repository_gate
+    parallel_file_ownership:
+      backend: packages/domain, packages/contracts, packages/database, db/migrations, apps/api, apps/cli, OpenAPI and task evidence
+      web: apps/web project expense and payable workspaces plus ERP-890 E2E
+    planned_files:
+      - packages/domain/src/project-freelance-payables.ts
+      - packages/domain/src/project-freelance-payables.test.ts
+      - packages/contracts/src/project-freelance-payables.ts
+      - packages/contracts/src/project-freelance-payables.test.ts
+      - packages/database/src/schema.ts
+      - db/migrations/0049_project_freelance_payables.sql
+      - db/migrations/0050_purchase_invoice_funding.sql
+      - apps/api/src/expenses/
+      - apps/api/src/project-freelance-payables/
+      - apps/api/src/commercial-documents/
+      - apps/api/src/aging/
+      - apps/cli/src/
+      - apps/web/src/app/(app)/projects/
+      - apps/web/src/app/(app)/payables/
+      - apps/web/src/app/workspaces/project-freelance-payables-workspace.tsx
+      - apps/web/src/app/workspaces/aging-queue-workspace.tsx
+      - apps/web/e2e/project-freelance-payables.spec.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-890/
+    notes: Project budget category freelancer is forecast only and never creates AP. Only a canonical actual freelance cost with a project, freelancer party, exact amount, due date and posted accounting effect creates an open payable. The AP workspace lists unpaid actual freelance liabilities rather than every purchase invoice. Ordinary purchase invoices default to settled only when a reviewed canonical funding source or organization policy supplies the balancing bank, cash or Owner Current effect; the system must reject or retain an explicit unresolved state instead of marking paid while leaving AP in the ledger.
+
+  - id: ERP-891
+    title: Explicit local and production data-source profiles for native development
+    phase: P13
+    status: done
+    dependencies: [ERP-888]
+    business_rules: [BR-AI-004, BR-SEC-001]
+    tests: [T-OPS-ERP-891-001]
+    evidence: docs/implementation/evidence/ERP-891/
+    agent: codex-team
+    started_at: 2026-08-11T17:05:00+07:00
+    review_at: 2026-08-11T17:40:00+07:00
+    completed_at: 2026-08-11T17:40:00+07:00
+    completion_basis: selector_regression_tests_live_readiness_checks_docs_lint_and_format_gates
+    planned_files:
+      - scripts/dev-data-source.mjs
+      - tests/dev-data-source.test.ts
+      - package.json
+      - apps/web/.env.example
+      - docs/runbooks/native-development.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-891/
+    notes: Local development uses local PostgreSQL and the local API. Production comparison remains API-first through the server-only read proxy; switching profiles requires restarting the single web process so browser-public credentials and shared Next.js build state cannot cross modes.
+
+  - id: ERP-892
+    title: Move sibling-page navigation from workspace tabs into sidebar submenus
+    phase: P13
+    status: done
+    dependencies: [ERP-891]
+    business_rules: [BR-UI-003, BR-UI-004, BR-UI-007]
+    tests: [T-UNIT-ERP-892-001, T-E2E-ERP-892-002]
+    evidence: docs/implementation/evidence/ERP-892/
+    agent: codex-team
+    started_at: 2026-08-11T16:44:50+07:00
+    review_at: 2026-08-11T17:09:13+07:00
+    completed_at: 2026-08-11T17:09:13+07:00
+    completion_basis: sidebar_submenu_parity_route_switcher_removal_desktop_mobile_e2e_full_repository_gate
+    parallel_file_ownership:
+      navigation: apps/web/src/lib/navigation.ts, apps/web/src/lib/navigation.test.ts, apps/web/src/components/layout/app-navigation.test.tsx, apps/web/e2e/admin-navigation.spec.ts
+      workspaces: apps/web/src/app/workspaces/aging-queue-workspace.tsx, apps/web/src/app/workspaces/banking-workspace.tsx, apps/web/src/app/workspaces/internal-transfer-list-workspace.tsx, apps/web/src/app/workspaces/statement-session-list-workspace.tsx, apps/web/src/app/workspaces/planning-workspaces.tsx, apps/web/src/app/workspaces/overhead-workspaces.tsx, apps/web/src/app/workspaces/timesheet-workspaces.tsx
+      e2e: apps/web/e2e/aging.spec.ts, apps/web/e2e/overhead.spec.ts, related route navigation regressions
+      coordinator: docs/product, docs/testing, docs/implementation
+    planned_files:
+      - apps/web/src/lib/navigation.ts
+      - apps/web/src/lib/navigation.test.ts
+      - apps/web/src/components/layout/app-navigation.test.tsx
+      - apps/web/src/app/workspaces/
+      - apps/web/e2e/
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-892/
+
+  - id: ERP-900
+    title: Inventory solopreneur operational gates and define policy matrix
+    phase: P15
+    status: done
+    dependencies: [ERP-890]
+    business_rules:
+      [BR-WFL-001, BR-WFL-002, BR-AI-001, BR-AI-002, BR-AUD-001, BR-ORG-001, BR-UI-003]
+    tests: [T-DOC-ERP-900-001, T-CONTRACT-ERP-900-002]
+    evidence: docs/implementation/evidence/ERP-900/
+    agent: codex
+    started_at: 2026-08-11T20:20:00+07:00
+    review_at: 2026-08-11T20:45:00+07:00
+    completed_at: 2026-08-11T21:00:00+07:00
+    completion_basis: openapi_mutation_matrix_122_of_122_reviewed_effect_distribution_and_hazardous_dynamic_action_guard
+    planned_files:
+      - docs/implementation/solopreneur-gate-matrix.json
+      - scripts/verify-solopreneur-gate-matrix.mjs
+      - docs/architecture/solopreneur-operation-policy.md
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-900/
+    notes: Build one machine-readable policy matrix for every mutation endpoint and classify financial effect as none, draft-only, posted, correction or destructive. Record current and desired solopreneur behavior for lifecycle steps, maker-checker, reasons, optimistic versions, idempotency, authorization, period locks and audit. No financial mutation may be classified as operational-only, and the inventory itself changes no runtime behavior.
+
+  - id: ERP-901
+    title: One-click policy-aware nonfinancial lifecycle for solopreneurs
+    phase: P15
+    status: done
+    dependencies: [ERP-900]
+    business_rules:
+      [
+        BR-WFL-001,
+        BR-WFL-002,
+        BR-TIM-001,
+        BR-BUD-001,
+        BR-PRJ-001,
+        BR-UI-003,
+        BR-AI-001,
+        BR-AI-002,
+        BR-AUD-001,
+        BR-ORG-001,
+      ]
+    tests: [T-UNIT-ERP-901-001, T-API-ERP-901-002, T-CLI-ERP-901-003, T-E2E-ERP-901-004]
+    evidence: docs/implementation/evidence/ERP-901/
+    agent: codex-team
+    started_at: 2026-08-11T21:10:00+07:00
+    review_at: 2026-08-11T21:35:00+07:00
+    completed_at: 2026-08-11T21:50:00+07:00
+    completion_basis: atomic_three_resource_adapter_slice_focused_5_of_5_web_2_of_2_and_full_repository_gate
+    parallel_file_ownership:
+      backend: centralized workflow capability, domain/contracts, API, CLI, OpenAPI and evidence
+      web: policy-aware one-click controls and ERP-901 E2E
+    planned_files:
+      - apps/api/src/workflow-policy/
+      - apps/api/src/workforce/
+      - apps/api/src/project-costs/
+      - apps/api/src/forecast-components/
+      - apps/api/src/planning/
+      - packages/domain/src/time.ts
+      - packages/domain/src/project-budgets.ts
+      - packages/domain/src/project-costs.ts
+      - packages/domain/src/revenue-recognition.ts
+      - packages/domain/src/forecast-composition.ts
+      - packages/contracts/src/
+      - apps/cli/src/
+      - apps/web/src/app/workspaces/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-901/
+    notes: The accepted atomic runtime slice is timesheet, time adjustment and direct-cost allocation. In persisted solopreneur mode, an authenticated organization owner may complete their eligible nonfinancial submit-and-approve steps through one policy-aware action sharing one PostgreSQL transaction. Controlled mode and non-owner behavior remain unchanged. Post, reverse, lock and bill remain explicit. Project budget, scope, planning, forecast and recognition resources are deferred until their stores expose the same transaction adapter boundary; they are not advertised by the runtime contract.
+
+  - id: ERP-902
+    title: Make routine reasons optional with canonical audit reasons
+    phase: P15
+    status: ready
+    dependencies: [ERP-901]
+    business_rules:
+      [
+        BR-AUD-001,
+        BR-WFL-001,
+        BR-WFL-002,
+        BR-SUB-001,
+        BR-PRJ-001,
+        BR-PRJ-003,
+        BR-TIM-001,
+        BR-BUD-001,
+        BR-UI-003,
+        BR-ORG-001,
+      ]
+    tests: [T-UNIT-ERP-902-001, T-API-ERP-902-002, T-CLI-ERP-902-003, T-E2E-ERP-902-004]
+    evidence: docs/implementation/evidence/ERP-902/
+    planned_files:
+      - apps/api/src/workforce/
+      - apps/api/src/project-costs/
+      - apps/api/src/customer-service-subscriptions/
+      - apps/api/src/master-data/
+      - apps/api/src/planning/
+      - apps/api/src/forecast-components/
+      - packages/domain/src/
+      - packages/contracts/src/
+      - apps/cli/src/
+      - apps/web/src/app/workspaces/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-902/
+    notes: Routine create, edit and nonfinancial lifecycle actions use a stable server-generated audit reason and accept an optional user note instead of requiring free text. Referenced-resource conflicts, authorization and audit remain enforced. Financial correction, reversal, reconciliation, tax override, fiscal-period and destructive restore/reset workflows retain explicit human reasons where required by the policy matrix.
+
+  - id: ERP-903
+    title: Hide technical mutation mechanics and use business selectors
+    phase: P15
+    status: blocked
+    dependencies: [ERP-901, ERP-902]
+    business_rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-UI-003, BR-UI-004, BR-AUD-001, BR-ORG-001]
+    tests: [T-CONTRACT-ERP-903-001, T-CLI-ERP-903-002, T-E2E-ERP-903-003]
+    evidence: docs/implementation/evidence/ERP-903/
+    blocked_reason: ERP-901 and ERP-902 must complete so the UI can hide technical fields against stable one-click actions and canonical audit behavior.
+    planned_files:
+      - packages/contracts/src/
+      - apps/cli/src/
+      - apps/web/src/lib/api/
+      - apps/web/src/app/workspaces/
+      - apps/web/src/components/
+      - apps/web/e2e/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-903/
+    notes: The first-party UI automatically carries current resource versions, correlation data and retry-safe idempotency keys without displaying protocol terminology. Business relationships are chosen by readable organization-scoped selectors rather than raw IDs. Stale versions produce a clear reload-and-retry path, and repeated clicks or network retries create only one business effect. REST and CLI machine-readable contracts retain explicit concurrency and idempotency support.
+
+  - id: ERP-904
+    title: Prove financial safeguards after solopreneur workflow simplification
+    phase: P15
+    status: blocked
+    dependencies: [ERP-901, ERP-902, ERP-903]
+    business_rules:
+      [
+        BR-LED-001,
+        BR-LED-002,
+        BR-LED-003,
+        BR-LED-004,
+        BR-PER-001,
+        BR-WFL-002,
+        BR-TAX-002,
+        BR-REC-002,
+        BR-REC-003,
+        BR-AUD-001,
+        BR-ORG-001,
+        BR-SEC-001,
+      ]
+    tests: [T-PROP-ERP-904-001, T-DB-ERP-904-002, T-API-ERP-904-003, T-E2E-ERP-904-004]
+    evidence: docs/implementation/evidence/ERP-904/
+    blocked_reason: ERP-901 through ERP-903 must complete before the regression gate can verify their integrated behavior against the accounting, tax, reconciliation and security invariants.
+    planned_files:
+      - packages/domain/src/
+      - packages/database/src/
+      - apps/api/src/
+      - apps/web/e2e/
+      - tests/
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-904/
+    notes: This gate must prove that workflow simplification cannot bypass balanced and atomic posting, immutable posted history, reversal-only correction, fiscal-period locks, tax override evidence, allocation limits, reconciliation locks, organization scope, RBAC, audit or idempotency. Controlled-mode regression coverage remains mandatory alongside solopreneur journeys.
+
+  - id: ERP-905
+    title: Simplify projects by removing time and cost-allocation subsystems
+    phase: P15
+    status: done
+    dependencies: [ERP-901]
+    business_rules: [BR-CST-002, BR-PRJ-001, BR-PRF-001, BR-PRF-002, BR-AI-001, BR-ORG-001]
+    tests: [T-DB-ERP-905-001, T-API-ERP-905-002, T-CLI-ERP-905-003, T-INT-ERP-905-004]
+    evidence: docs/implementation/evidence/ERP-905/
+    agent: codex-team
+    started_at: 2026-08-11T22:30:00+07:00
+    review_at: 2026-08-11T23:00:00+07:00
+    completed_at: 2026-08-11T23:00:00+07:00
+    completion_basis: destructive_subsystem_removal_upgrade_and_fresh_migrations_canonical_profitability_integration_and_full_repository_gate
+    planned_files:
+      - db/migrations/0051_remove_timesheet_workforce.sql
+      - packages/database/src/schema.ts
+      - packages/domain/src/
+      - packages/contracts/src/
+      - apps/api/src/workforce/
+      - apps/api/src/project-profitability/
+      - apps/api/src/project-costs/
+      - apps/api/src/overhead-allocations/
+      - apps/api/src/project-profitability/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-905/
+    notes: User explicitly selected destructive removal ahead of ERP-902. Remove workforce profiles, timesheets, entries, adjustments, labor rates, cost snapshots, capacity versions, derived project-cost queues, direct-cost split allocations and overhead allocation policies/pools/runs together with REST, CLI, contracts and reports. A canonical Expense has zero or one project; a selected project makes it direct project cost, while no project means company overhead excluded from project margin. Parties remain the people source. Canonical Expenses, commercial documents, posted journals and accounting invariants are unchanged.
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2231,6 +2628,17 @@ gates:
   G49: [ERP-885]
   G50: [ERP-886]
   G51: [ERP-887]
+  G52: [ERP-888]
+  G53: [ERP-889]
+  G54: [ERP-890]
+  G55: [ERP-891]
+  G56: [ERP-900]
+  G57: [ERP-901]
+  G58: [ERP-902]
+  G59: [ERP-903]
+  G60: [ERP-904]
+  G61: [ERP-892]
+  G62: [ERP-905]
 
 gate_status:
   G0: done
@@ -2283,3 +2691,14 @@ gate_status:
   G49: done
   G50: done
   G51: done
+  G52: done
+  G53: done
+  G54: done
+  G55: done
+  G56: done
+  G57: done
+  G58: ready
+  G59: blocked
+  G60: blocked
+  G61: done
+  G62: done

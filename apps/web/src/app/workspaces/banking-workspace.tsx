@@ -384,21 +384,6 @@ export function BankingWorkspace() {
         </Alert>
       )}
 
-      <div className="flex flex-wrap gap-2" aria-label="Điều hướng nghiệp vụ ngân hàng">
-        <Button variant="secondary" asChild>
-          <Link href="/banking">Tài khoản & Giao dịch</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href="/banking/owner-current">Đối chiếu công nợ chủ</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href="/banking/internal-transfers">Chuyển tiền nội bộ</Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href="/banking/statements">Kiểm soát sao kê</Link>
-        </Button>
-      </div>
-
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 flex-col gap-1">

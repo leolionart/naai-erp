@@ -502,6 +502,19 @@ export class ExpenseService {
       throw new Error("VALIDATION_FAILED");
     if (input.expenseClass === "employee_reimbursement" && !input.employeePartyId)
       throw new Error("REIMBURSEMENT_EMPLOYEE_REQUIRED");
+    if (
+      input.expenseClass === "freelancer" &&
+      (!input.payeePartyId ||
+        !input.freelanceDueDate ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(input.freelanceDueDate) ||
+        input.freelanceDueDate < input.expenseDate ||
+        !input.lines.some(
+          (line) =>
+            Boolean(line.dimensions?.projectId) ||
+            line.allocations.some((allocation) => Boolean(allocation.dimensions.projectId)),
+        ))
+    )
+      throw new Error("FREELANCE_EXPENSE_RELATIONSHIPS_REQUIRED");
     let net = 0n,
       vat = 0n,
       gross = 0n;

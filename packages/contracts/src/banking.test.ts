@@ -1,11 +1,28 @@
 import { describe, expect, it } from "vitest";
 import type {
   ConfirmedOwnerSettlementMovementContract,
+  CreateOwnerCashWithdrawalRequest,
   OwnerSettlementPositionContract,
   OwnerSettlementReviewItemContract,
 } from "./banking.js";
 
+const ownerWithdrawalRequest: CreateOwnerCashWithdrawalRequest = {
+  schemaVersion: 1,
+  movementType: "owner_personal_withdrawal",
+  financialAccountId: "bank-main",
+  bookingDate: "2026-08-11",
+  amountMinor: "5000000",
+  currency: "VND",
+  description: "Chủ rút tiền dùng cá nhân",
+  reason: "Ghi nhận theo giao dịch thực tế",
+};
+
 describe("ERP-883 owner settlement contracts", () => {
+  it("keeps owner withdrawal input free of ledger account codes", () => {
+    expect(ownerWithdrawalRequest.amountMinor).toBe("5000000");
+    expect(ownerWithdrawalRequest).not.toHaveProperty("ownerAccountCode");
+    expect(ownerWithdrawalRequest).not.toHaveProperty("journalLines");
+  });
   it("separates statutory Owner Current from the confirmed settlement position", () => {
     const withdrawal: ConfirmedOwnerSettlementMovementContract = {
       journalId: "journal-owner-withdrawal-1",

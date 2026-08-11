@@ -253,7 +253,7 @@ Cr Bank/AP                      1,100,000
 - `controlled` mode uses maker-checker, with optional bounded self-approval configured by amount.
 - `solopreneur` mode allows the authenticated organization `owner` to create and approve the same
   resource across journals, commercial documents, expenses, financial mappings, executive metrics,
-  ROI definitions, planning, forecast adjustments, project recognition and overhead allocation.
+  ROI definitions, planning, forecast adjustments and project recognition.
 - Solopreneur self-approval always records actor, reason, timestamp, resource version and audit event.
   It never bypasses RBAC, idempotency, period locks, balanced-journal validation, evidence checks,
   tax eligibility rules or immutable posted history.
@@ -265,6 +265,12 @@ Cr Bank/AP                      1,100,000
 - Invalid transitions are rejected.
 - Approval does not imply payment or tax eligibility.
 - Post requires approved state and complete accounting inputs.
+- Every REST mutation is classified in the reviewed solopreneur gate matrix as `none`, `draft`,
+  `posted`, `correction` or `destructive`. No mutation that can post, settle, reverse, reconcile,
+  change a fiscal period or alter retained financial history may be classified `none`.
+- Solopreneur simplification candidates are limited to eligible nonfinancial and draft-only steps.
+  Posted, correction and destructive effects remain explicit and retain their accounting/security
+  safeguards. Controlled-mode behavior is unchanged.
 
 ## 4. Sales, receivables and revenue
 
@@ -327,6 +333,13 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
 
 - Outstanding derives from posted bills, advances, payments, credit/debit notes and allocations.
 - Due/overdue data must tie to AP control account.
+- The self-hosted operational AP workspace contains only unpaid actual freelance costs created from
+  a posted canonical expense with one project, freelancer-role payee and due date. Project budget is
+  forecast only and purchase invoices are excluded from this operational payable population.
+- An ordinary purchase invoice may default to settled only when its create contract carries an
+  explicit active same-currency `financial_account` funding source. Posting resolves the ledger
+  account server-side, credits that funding account and marks the invoice paid atomically. Without
+  canonical funding it remains posted; a state-only paid flag is prohibited.
 
 ### BR-REV-001 — Revenue axes
 
@@ -410,6 +423,13 @@ If VAT is ineligible, cost/tax-expense treatment follows configured reviewed pol
 - One payment may settle multiple invoices; one invoice may receive multiple payments.
 - Allocations cannot exceed available payment or invoice outstanding.
 - Overpayment remains customer credit/advance.
+- A manual customer receipt records an actual cash or bank inflow through one active organization
+  financial account and allocates the exact receipt amount to one or more eligible issued sales
+  invoices for the same customer and currency. Unallocated manual receipts are not silently created.
+- Posting is atomic and balanced: debit the selected funding account and credit each invoice's AR
+  control account. The receipt date must be in an open posting period; audit, authorization and
+  idempotency apply. Invoice `partially_paid` or `paid` state is derived from all canonical
+  reconciliation and manual-receipt allocations, never from a UI-only flag.
 
 ### BR-AR-004 — Credit note
 
@@ -448,8 +468,8 @@ Document type and accounting treatment are independent.
 - Business purpose, payee, period, amount/currency, dimensions, payment evidence and approver are captured as required by class.
 - Expense creation opens in context from the expense list. Payees are selected from active supplier
   parties and displayed by business name while the payload retains the canonical party ID. Employee
-  attribution uses active workforce profiles mapped to party names; when workforce data is absent,
-  the UI states that explicitly instead of exposing arbitrary party identifiers.
+  or freelancer attribution uses the party directory and explicit party roles; the UI never depends
+  on a separate workforce profile.
 - A direct expense may optionally select the project receiving the cost. That project is also the
   user-facing commercial contract, so no separate contract selector is exposed. The supplier/payee
   remains independent from the receiving project's customer. Draft edits preserve existing
@@ -648,6 +668,12 @@ Branches: `ignored`, `needs_review`.
 - A positive confirmed settlement is `Công ty đang nợ chủ`. A negative position is shown separately
   as company funds currently held by the owner, never as negative company debt. Statutory Owner Current
   remains visible for accounting reconciliation.
+- A manual owner personal withdrawal is recorded through one versioned banking command, never by
+  submitting arbitrary journal lines from the UI. The command accepts an active organization bank or
+  cash account, a positive exact amount, date and note; atomically creates a negative cash transaction,
+  a balanced posted journal (Dr approved Owner Current / Cr selected company-funds account), canonical
+  withdrawal evidence, audit and outbox records. Idempotency, organization scope and fiscal-period locks
+  apply. Corrections use normal reversal rather than mutating the posted journal.
 
 ### BR-REC-001 — Candidate matching
 
@@ -689,8 +715,8 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
   authorization, an optimistic resource version, a nonblank reason and an idempotency key.
 - The delete records actor, correlation ID, reason, prior state and resulting resource version in the
   append-only audit trail. An idempotent replay returns the original result without a second effect.
-- A project referenced by contracts, milestones, budgets, documents, expenses, time, project costs,
-  revenue recognition, allocations or other canonical business data cannot be hard-deleted. The API
+- A project referenced by contracts, milestones, budgets, documents, expenses, revenue recognition,
+  allocations or other canonical business data cannot be hard-deleted. The API
   returns a structured conflict so the project can instead be retained, closed or corrected.
 - Deleting an eligible operational project never deletes or rewrites posted accounting entries,
   issued documents or audit history. Only posted accounting/history carries the strict immutable
@@ -713,38 +739,17 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
   dropdown and stay focused on project identity and profile navigation. Precise non-drag state
   changes remain available in the project editor.
 
-### BR-TIM-001 — Timesheet lifecycle
-
-`draft → submitted → approved → locked/billed`
-
-- Prevent overlapping time for the same person.
-- Approved/billed time uses adjustment entries, not silent edits.
-- Billable/non-billable and project/internal classification is explicit.
-
-### BR-CST-001 — Effective labor cost rate
-
-- Labor cost = approved hours × rate effective on work date.
-- Rate changes never rewrite historical cost.
-- Sensitive compensation inputs are access-controlled.
-
 ### BR-CST-002 — Direct costs
 
-- Direct labor, freelancer, project tools/travel/vendor services are attributable to projects.
-- Shared expenses remain overhead until allocated.
-
-### BR-ALL-001 — Source allocation
-
-- Document/timesheet allocation totals equal source total.
-- A cost cannot be counted both directly and through overhead allocation.
-
-### BR-ALL-002 — Overhead methods
-
-Supported methods: revenue proportion, labor hours, headcount, fixed percentage and manual.
-
-### BR-ALL-003 — Allocation versioning
-
-- Allocation policy is versioned and locked after period close.
-- Reports disclose before-overhead and after-overhead margin.
+- A canonical Expense has zero or one project. A posted Expense with a project is counted once as a
+  direct project cost; an Expense without a project is company overhead and is excluded from project
+  margin.
+- A posted purchase commercial-document allocation with a project is counted once as direct project
+  cost. Draft, cancelled and reversed sources are excluded.
+- Freelancer cost becomes an actual project cost only when the canonical Expense is posted. A project
+  budget or planned freelance amount does not itself create cost or a payable.
+- Project cost reports read posted canonical Expense and commercial-document allocation dimensions.
+  They do not create derived cost-item queues or direct/overhead allocation runs.
 
 ### BR-BUD-001 — Project budget
 
@@ -754,17 +759,15 @@ Supported methods: revenue proportion, labor hours, headcount, fixed percentage 
 ### BR-PRF-001 — Project profitability
 
 - Gross margin = recognized project revenue − direct project cost.
-- Contribution margin additionally subtracts attributable variable overhead.
-- Fully loaded profit additionally subtracts allocated fixed overhead.
+- Company overhead without a project is deliberately excluded from project gross margin.
 
 ### BR-PRF-002 — Project reporting integrity
 
 - Project report totals tie to ledger/read-model dimensions.
 - Cash collected is not profit.
 - Show unbilled work, overdue AR, overrun and missing dimensions as confidence flags.
-- Approved timesheet service-line attribution takes precedence. When no approved timesheet supplies
-  a service line, profitability uses the project's valid default service line; a project with that
-  fallback must not be reported as `service-line-unclassified` solely because it has no timesheet.
+- Service-line reporting uses the canonical posted source dimension and then the project's valid
+  default service line. It never depends on a removed timesheet or allocation subsystem.
 
 ## 8. Forecast and KPIs
 
@@ -909,6 +912,15 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Financial analysis pages use the shared URL-backed year/quarter/month navigator and the standard
   filter popover composition. Drill-down values remain directly clickable without decorative arrow
   affordances that add visual noise but no distinct action.
+
+### BR-UI-007 — Sidebar-owned page navigation
+
+- Navigation between sibling routes belongs in the primary sidebar and its named submenus.
+- Workspace headers may contain page actions, filters, view controls and contextual back links, but
+  they must not duplicate the sidebar with tab-like buttons or links that switch to sibling pages.
+- Desktop expanded, desktop collapsed and mobile navigation expose the same available child routes.
+- Tabs remain valid only when they switch content sections within the same route and preserve one
+  workspace identity.
 
 ### BR-RPT-001 — Trial Balance and General Ledger
 

@@ -577,7 +577,8 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
     name: /Công ty đang nợ chủ doanh nghiệp/,
   });
   await expect(ownerPayableCard).toContainText("30.000.000 ₫");
-  await expect(ownerPayableCard).toContainText("Owner Current trên Balance Sheet");
+  await expect(ownerPayableCard).toContainText("Nguồn: quyết toán đã xác nhận");
+  await expect(page.getByRole("link", { name: /Tiền công ty chủ đang giữ/ })).toContainText("0 ₫");
   await expect(
     page.getByRole("link", { name: /Số dư Owner Current trên Balance Sheet/ }),
   ).toHaveCount(0);

@@ -242,6 +242,68 @@ Golden changes require explicit review and a documented reason.
 - `T-E2E-ERP-887-001`: Owner Current renders confirmed settlement metrics and movements only; review
   records returned by the API remain excluded from owner debt and are not shown as a table or metric.
 
+### ERP-892 — Sidebar-owned sibling-page navigation
+
+- `T-UNIT-ERP-892-001`: navigation data exposes complete named submenus for receivables/payables,
+  banking and planning without promoting their children to unrelated top-level destinations.
+- `T-E2E-ERP-892-002`: desktop, collapsed and mobile navigation reaches every sibling page while the
+  corresponding workspace main content contains no tab-like route switcher.
+
+### ERP-888 — Canonical owner cash withdrawal entry
+
+- `T-API-ERP-888-001`: one authorized idempotent command creates an organization-scoped negative
+  bank/cash transaction, canonical withdrawal evidence and a balanced posted Dr Owner Current / Cr
+  selected financial-account journal; inactive/mismatched accounts, missing mapping and locked periods
+  fail without partial writes, and the read model classifies the result as confirmed personal withdrawal.
+- `T-CLI-ERP-888-002`: the first-party CLI sends the versioned withdrawal payload and idempotency key
+  to the canonical banking endpoint without accepting ledger account codes.
+- `T-E2E-ERP-888-003`: Owner Current exposes a responsive dialog for date, active source account,
+  formatted VND amount and note; successful submission refreshes the confirmed settlement timeline.
+
+### ERP-891 — Native development data-source profiles
+
+- `T-OPS-ERP-891-001`: the native development launcher rejects unknown profiles and production-write
+  flags in local mode, validates local PostgreSQL/API readiness without starting servers, and delegates
+  production checks to the server-only production API proxy without exposing its token to browser code.
+
+### ERP-889 — Canonical manual customer receipts
+
+- `T-API-ERP-889-001`: an authorized idempotent receipt posts one balanced Dr funding / Cr AR
+  journal, allocates one or many same-customer invoices, derives partial/full invoice states and
+  rejects over-allocation, currency/customer mismatch, locked periods and cross-organization IDs
+  without partial writes.
+- `T-CLI-ERP-889-002`: the first-party CLI sends the versioned exact-money receipt payload to the
+  canonical REST endpoint and never accepts direct ledger SQL or a UI-only paid flag.
+- `T-E2E-ERP-889-003`: receivables expose a responsive record-receipt action using readable funding
+  account and invoice choices, then refresh aging with the derived balance and payment state.
+
+### ERP-890 — Project freelance actual payables
+
+- `T-API-ERP-890-001`: posting one canonical freelancer expense creates one linked project payable;
+  partial/full payments post balanced journals idempotently and AP aging excludes purchase invoices.
+- `T-CLI-ERP-890-002`: the CLI lists and pays the canonical payable through REST only.
+- `T-E2E-ERP-890-003`: Expense captures project, freelancer and due date while Payables lists and
+  settles only actual unpaid freelance costs on desktop and mobile.
+
+### ERP-900 — Solopreneur gate inventory
+
+- `T-DOC-ERP-900-001`: every OpenAPI POST/PATCH/DELETE operation appears exactly once in the
+  machine-readable gate matrix with a valid financial-effect classification and reviewed safeguards.
+- `T-CONTRACT-ERP-900-002`: no journal, period, document, expense, payment, reconciliation,
+  recognition, allocation commit or financial import mutation is classified `none`.
+
+### ERP-905 — Remove obsolete time and cost-allocation subsystems
+
+- `T-DB-ERP-905-001`: migration removes only the obsolete workforce, timesheet, derived project-cost,
+  direct-allocation and overhead-allocation tables/enums while canonical journals, Expenses,
+  commercial documents and their control totals remain unchanged.
+- `T-API-ERP-905-002`: project profitability counts each posted project Expense and posted purchase
+  allocation once, excludes unprojected overhead and drafts, and no removed route appears in discovery.
+- `T-CLI-ERP-905-003`: CLI exposes no removed resource and retains canonical Expense, purchase and
+  project-profitability access through REST.
+- `T-INT-ERP-905-004`: database upgrade succeeds on an existing tenant and post-migration report totals
+  tie to the posted canonical sources without a derived cost queue.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

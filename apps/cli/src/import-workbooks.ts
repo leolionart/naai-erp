@@ -88,7 +88,7 @@ type ReviewRow = Readonly<{
     | "profitability_control"
     | "planning_control"
     | "bonus_control"
-    | "workforce_profile_pending"
+    | "payroll_control_pending"
     | "expense_category_control";
   proposedResourceId?: string;
   status: "pending_review" | "posted" | "ignored";
@@ -1074,7 +1074,7 @@ export async function buildWorkbookImportPayload(
     stageControlSheet("Tỷ suất lợi nhuận", "profitability_control", "profitability_control");
     stageControlSheet("Planing & Target", "planning_control", "planning_control");
     stageControlSheet("Tỉ lệ thưởng", "bonus_control", "bonus_control");
-    stageControlSheet("Bảng lương", "payroll_master", "workforce_profile_pending");
+    stageControlSheet("Bảng lương", "payroll_master", "payroll_control_pending");
     stageControlSheet("Hạng mục chi", "expense_category_control", "expense_category_control");
   }
 

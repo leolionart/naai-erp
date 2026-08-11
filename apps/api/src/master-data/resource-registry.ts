@@ -13,15 +13,11 @@ export type ResourceDefinition = Readonly<{
 }>;
 
 export const PROJECT_DELETE_RELATIONAL_REFERENCES = [
-  { table: "timesheet_entries", column: "project_id" },
-  { table: "project_cost_items", column: "project_id" },
-  { table: "direct_cost_allocation_splits", column: "project_id" },
   { table: "contracts", column: "project_id" },
   { table: "scope_changes", column: "project_id" },
   { table: "project_budget_versions", column: "project_id" },
   { table: "revenue_recognition_policies", column: "project_id" },
   { table: "revenue_recognition_events", column: "project_id" },
-  { table: "overhead_allocation_splits", column: "project_id" },
 ] as const;
 
 export const PROJECT_DELETE_DIMENSION_REFERENCES = [

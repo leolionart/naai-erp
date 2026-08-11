@@ -1960,6 +1960,162 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/admin-navigation.spec.ts --project=desktop-chromium --grep "collapsed sidebar"
     blocking_gate: G44
 
+  - id: T-API-ERP-888-001
+    task: ERP-888
+    rules: [BR-BNK-003, BR-BNK-004, BR-AUD-001, BR-IDEM-001, BR-ORG-001]
+    title: Owner cash withdrawal posts atomically with canonical evidence and exact accounting
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/banking/banking.integration.test.ts src/banking/banking.service.test.ts
+    blocking_gate: G52
+
+  - id: T-CLI-ERP-888-002
+    task: ERP-888
+    rules: [BR-AI-001, BR-IDEM-001, BR-ORG-001]
+    title: CLI records owner withdrawal through the canonical versioned banking endpoint
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts
+    blocking_gate: G52
+
+  - id: T-E2E-ERP-888-003
+    task: ERP-888
+    rules: [BR-BNK-004, BR-UI-003, BR-UI-004]
+    title: Owner Current dialog records a formatted personal cash withdrawal and refreshes the timeline
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/owner-current.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G52
+
+  - id: T-OPS-ERP-891-001
+    task: ERP-891
+    rules: [BR-AI-004, BR-SEC-001]
+    title: Native development profiles select local services or the server-only production proxy safely
+    layer: operations
+    command: pnpm test:dev-data-source
+    blocking_gate: G55
+
+  - id: T-API-ERP-889-001
+    task: ERP-889
+    rules:
+      [
+        BR-AR-003,
+        BR-AR-002,
+        BR-INV-001,
+        BR-LED-001,
+        BR-LED-002,
+        BR-LED-004,
+        BR-PER-001,
+        BR-AUD-001,
+        BR-ORG-001,
+      ]
+    title: Manual customer receipt posts and allocates receivables atomically
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/customer-receipts/customer-receipt.integration.test.ts
+    blocking_gate: G53
+
+  - id: T-CLI-ERP-889-002
+    task: ERP-889
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-ORG-001]
+    title: CLI records customer receipts through canonical REST only
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts
+    blocking_gate: G53
+
+  - id: T-E2E-ERP-889-003
+    task: ERP-889
+    rules: [BR-AR-003, BR-UI-003]
+    title: Receivables UI records partial and full customer receipts
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/customer-receipts.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G53
+
+  - id: T-API-ERP-890-001
+    task: ERP-890
+    rules:
+      [BR-AP-001, BR-AP-002, BR-CST-002, BR-LED-001, BR-LED-002, BR-PER-001, BR-AUD-001, BR-ORG-001]
+    title: Canonical freelancer expense payable and explicit purchase funding posting
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/project-freelance-payables/project-freelance-payable.integration.test.ts src/commercial-documents/commercial-document.integration.test.ts
+    blocking_gate: G54
+
+  - id: T-CLI-ERP-890-002
+    task: ERP-890
+    rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-ORG-001]
+    title: CLI reads and pays project freelance liabilities through REST
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts
+    blocking_gate: G54
+
+  - id: T-E2E-ERP-890-003
+    task: ERP-890
+    rules: [BR-AP-002, BR-CST-002, BR-UI-003]
+    title: Expense and Payables UI records and settles actual freelance work
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/project-freelance-payables.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G54
+
+  - id: T-DOC-ERP-900-001
+    task: ERP-900
+    rules: [BR-WFL-001, BR-WFL-002, BR-AI-001, BR-AI-002, BR-AUD-001, BR-ORG-001, BR-UI-003]
+    title: Solopreneur matrix covers every OpenAPI mutation exactly once
+    layer: documentation
+    command: node scripts/verify-solopreneur-gate-matrix.mjs
+    blocking_gate: G56
+
+  - id: T-CONTRACT-ERP-900-002
+    task: ERP-900
+    rules: [BR-WFL-002, BR-AI-002, BR-AUD-001, BR-ORG-001]
+    title: Financial mutations are never classified as operational none
+    layer: contract
+    command: node scripts/verify-solopreneur-gate-matrix.mjs
+    blocking_gate: G56
+
+  - id: T-DB-ERP-905-001
+    task: ERP-905
+    rules: [BR-CST-002, BR-PRF-001, BR-PRF-002, BR-ORG-001]
+    title: Obsolete cost-system migration preserves canonical accounting sources
+    layer: database
+    command: pnpm --filter @naai-erp/database exec vitest run src/remove-obsolete-cost-systems-migration.test.ts
+    blocking_gate: G62
+
+  - id: T-API-ERP-905-002
+    task: ERP-905
+    rules: [BR-CST-002, BR-PRF-001, BR-PRF-002, BR-ORG-001]
+    title: Project profitability reads posted canonical project costs once
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/project-profitability/project-profitability.integration.test.ts
+    blocking_gate: G62
+
+  - id: T-CLI-ERP-905-003
+    task: ERP-905
+    rules: [BR-AI-001, BR-ORG-001]
+    title: CLI no longer advertises removed workforce and cost allocation resources
+    layer: cli
+    command: pnpm --filter @naai-erp/cli exec vitest run src/client.test.ts
+    blocking_gate: G62
+
+  - id: T-INT-ERP-905-004
+    task: ERP-905
+    rules: [BR-CST-002, BR-PRF-001, BR-PRF-002, BR-ORG-001]
+    title: Discovery and reports contain no dependency on removed tables or routes
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/discovery src/project-profitability
+    blocking_gate: G62
+
+  - id: T-UNIT-ERP-892-001
+    task: ERP-892
+    rules: [BR-UI-003, BR-UI-004, BR-UI-007]
+    title: Sidebar navigation owns complete sibling-page submenu structure
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/lib/navigation.test.ts src/components/layout/app-navigation.test.tsx src/app/workspaces/banking-workspace.test.tsx
+    blocking_gate: G61
+
+  - id: T-E2E-ERP-892-002
+    task: ERP-892
+    rules: [BR-UI-003, BR-UI-004, BR-UI-007]
+    title: Sibling pages are reached through sidebar submenus without workspace route tabs
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/admin-navigation.spec.ts e2e/aging.spec.ts e2e/overhead.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G61
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

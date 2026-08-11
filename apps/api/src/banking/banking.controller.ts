@@ -4,6 +4,7 @@ import { BankingService } from "./banking.service.js";
 import type {
   BankTransactionActionInput,
   CreateFinancialAccountInput,
+  CreateOwnerCashWithdrawalInput,
   ImportBankStatementInput,
 } from "./banking.types.js";
 import { ReconciliationService } from "../reconciliation/reconciliation.service.js";
@@ -112,6 +113,15 @@ export class BankingController {
     @Headers("x-correlation-id") corr?: string,
   ) {
     return this.service.listOwnerCurrentMovements(await this.context(org, auth, corr));
+  }
+  @Post("owner-cash-withdrawals") async createOwnerCashWithdrawal(
+    @Param("organizationId") org: string,
+    @Body() input: CreateOwnerCashWithdrawalInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.createOwnerCashWithdrawal(await this.context(org, auth, corr), input, key);
   }
   @Get("transactions/:id") async getTransaction(
     @Param("organizationId") org: string,

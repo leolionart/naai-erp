@@ -84,26 +84,7 @@ async function install(page: Page) {
             },
           ],
           directCostBreakdown: [
-            { kind: "labor", amountMinor: "32000000", sourceIds: ["CR-DEV-2026-01"] },
-            { kind: "source_linked", amountMinor: "18000000", sourceIds: ["BILL-FREELANCER-001"] },
-          ],
-          overheadBreakdown: [
-            {
-              costClass: "variable",
-              amountMinor: "10000000",
-              sourcePoolIds: ["pool-1"],
-              policyIds: ["policy-variable"],
-              runIds: ["OH-RUN-2026-08"],
-              journalIds: ["journal-overhead-1"],
-            },
-            {
-              costClass: "fixed",
-              amountMinor: "20000000",
-              sourcePoolIds: ["pool-2"],
-              policyIds: ["policy-fixed"],
-              runIds: ["OH-RUN-2026-08"],
-              journalIds: ["journal-overhead-1"],
-            },
+            { kind: "source_linked", amountMinor: "50000000", sourceIds: ["EXP-FREELANCER-001"] },
           ],
           confidenceDetails: [
             {
@@ -188,15 +169,11 @@ test("@desktop T-E2E-ERP-540-001 shows reviewed profitability layers and confide
   );
   await expect(page.getByText("120.000.000 ₫").first()).toBeVisible();
   await expect(page.getByText("Gross margin", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Contribution margin", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Fully loaded profit", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Doanh thu chưa xuất hóa đơn")).toBeVisible();
   await page.getByRole("link", { name: /WEB-001/ }).click();
   await expect(page).toHaveURL(/\/reports\/project-profitability\/projects\/project-web/);
   const main = page.locator("#main-content");
-  await expect(main.getByText("Chi phí nhân sự")).toBeVisible();
-  await expect(main.getByText("Chi phí nguồn gán trực tiếp")).toBeVisible();
-  await expect(main.getByText("Variable overhead", { exact: true })).toBeVisible();
+  await expect(main.getByText("Chi phí thực tế")).toBeVisible();
   await expect(page.getByText("Vượt ngân sách dự kiến (Budget Overrun)")).toBeVisible();
   await expect(main.getByText("Đã đối soát")).toHaveCount(3);
 });

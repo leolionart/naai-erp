@@ -302,6 +302,9 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
         ('org-erp400-a','erp876-withdrawal','erp400-bank-1',repeat('7',64),'2026-08-12',-30,'VND','Personal withdrawal','ignored'),
         ('org-erp400-a','erp883-custody-out','erp400-bank-1',repeat('8',64),'2026-08-19',-20,'VND','Custody transfer out','reconciled'),
         ('org-erp400-a','erp883-custody-in','erp883-custody-account',repeat('9',64),'2026-08-19',20,'VND','Custody transfer in','reconciled');
+      insert into owner_cash_withdrawals
+        (organization_id,id,bank_transaction_id,journal_id,reason,created_by,correlation_id) values
+        ('org-erp400-a','erp876-withdrawal-evidence','erp876-withdrawal','owner-repayment-bank-erp876-withdrawal','Reviewed personal withdrawal','finance-user','erp876');
       insert into internal_transfers
         (organization_id,id,state,currency,transfer_amount_minor,base_principal_amount_minor,transit_account_code,current_attempt_number,created_by) values
         ('org-erp400-a','erp883-custody-transfer','reconciled','VND',20,20,'113',1,'finance-user');
@@ -416,5 +419,108 @@ describeIntegration("ERP-400 banking PostgreSQL API", () => {
       proposedMovementType: "company_repayment_to_owner",
       reviewReason: "unsupported_company_repayment",
     });
+  });
+
+  it("records an atomic idempotent owner withdrawal with canonical evidence and balanced posting", async () => {
+    await pool.query(`
+      update financial_accounts set status='active'
+        where organization_id='org-erp400-a' and id='erp400-bank-1';
+      insert into fiscal_years(organization_id,year,starts_on,ends_on) values
+        ('org-erp400-a',2026,'2026-01-01','2026-12-31');
+      insert into fiscal_periods
+        (organization_id,fiscal_year,period_number,starts_on,ends_on,state) values
+        ('org-erp400-a',2026,8,'2026-08-01','2026-08-31','open'),
+        ('org-erp400-a',2026,9,'2026-09-01','2026-09-30','hard_locked');
+    `);
+    const payload = {
+      id: "erp888-withdrawal-1",
+      schemaVersion: 1,
+      movementType: "owner_personal_withdrawal",
+      financialAccountId: "erp400-bank-1",
+      bookingDate: "2026-08-21",
+      amountMinor: "52000000",
+      currency: "VND",
+      description: "Chủ doanh nghiệp rút tiền mặt",
+      reason: "Khoản rút cá nhân đã được chủ xác nhận",
+    };
+    const request = {
+      method: "POST" as const,
+      url: "/api/v1/organizations/org-erp400-a/banking/owner-cash-withdrawals",
+      headers: headers(financeToken, "erp888-owner-withdrawal"),
+      payload,
+    };
+    const first = await app.inject(request);
+    expect(first.statusCode, first.body).toBe(201);
+    expect(first.json().data).toMatchObject({
+      withdrawalId: "erp888-withdrawal-1",
+      status: "posted",
+      amountMinor: "52000000",
+      idempotencyReplayed: false,
+    });
+    const replay = await app.inject(request);
+    expect(replay.statusCode, replay.body).toBe(201);
+    expect(replay.json().data).toMatchObject({
+      withdrawalId: "erp888-withdrawal-1",
+      idempotencyReplayed: true,
+    });
+    const changed = await app.inject({
+      ...request,
+      payload: { ...payload, amountMinor: "53000000" },
+    });
+    expect(changed.statusCode).toBe(409);
+
+    const state = await pool.query(
+      `select ocw.bank_transaction_id,ocw.journal_id,bt.amount_minor::text,bt.state,
+        sum(coalesce(jl.debit_minor,0))::text debit_total,
+        sum(coalesce(jl.credit_minor,0))::text credit_total,
+        (select count(*)::int from resource_audit_events ae
+          where ae.organization_id=ocw.organization_id and ae.resource_type='owner_cash_withdrawal'
+            and ae.resource_key=ocw.id) audit_count,
+        (select count(*)::int from outbox_events oe
+          where oe.organization_id=ocw.organization_id and oe.aggregate_type='owner_cash_withdrawal'
+            and oe.aggregate_id=ocw.id) outbox_count
+       from owner_cash_withdrawals ocw
+       join bank_transactions bt on bt.organization_id=ocw.organization_id and bt.id=ocw.bank_transaction_id
+       join journal_entries je on je.organization_id=ocw.organization_id and je.id=ocw.journal_id
+       join journal_lines jl on jl.organization_id=je.organization_id and jl.journal_id=je.id
+       where ocw.organization_id='org-erp400-a' and ocw.id='erp888-withdrawal-1'
+       group by ocw.organization_id,ocw.id,ocw.bank_transaction_id,ocw.journal_id,bt.amount_minor,bt.state`,
+    );
+    expect(state.rows[0]).toMatchObject({
+      amount_minor: "-52000000",
+      state: "reconciled",
+      debit_total: "52000000",
+      credit_total: "52000000",
+      audit_count: 1,
+      outbox_count: 1,
+    });
+    const ownerCurrent = await app.inject({
+      method: "GET",
+      url: "/api/v1/organizations/org-erp400-a/banking/owner-current-movements",
+      headers: headers(financeToken),
+    });
+    const movement = ownerCurrent
+      .json()
+      .data.confirmedTimeline.find(
+        (item: { journalId: string }) => item.journalId === first.json().data.journalId,
+      );
+    expect(movement).toMatchObject({
+      movementType: "owner_personal_withdrawal",
+      classificationBasis: "company_funds_withdrawn_by_owner",
+      needsReview: false,
+    });
+
+    const locked = await app.inject({
+      ...request,
+      headers: headers(financeToken, "erp888-locked"),
+      payload: { ...payload, id: "erp888-locked", bookingDate: "2026-09-01" },
+    });
+    expect(locked.statusCode, locked.body).toBe(409);
+    expect(locked.json().error.code).toBe("PERIOD_HARD_LOCKED");
+    const noLockedEffects = await pool.query(
+      `select count(*)::int count from owner_cash_withdrawals
+       where organization_id='org-erp400-a' and id='erp888-locked'`,
+    );
+    expect(noLockedEffects.rows[0].count).toBe(0);
   });
 });

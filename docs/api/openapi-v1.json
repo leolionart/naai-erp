@@ -91,6 +91,7 @@
     "banking/accounts/deactivate",
     "banking/imports/dry-run",
     "banking/imports/create",
+    "banking/owner-cash-withdrawals/create",
     "banking/transactions/ignore",
     "banking/transactions/mark-needs-review",
     "banking/transactions/candidates",
@@ -1202,6 +1203,176 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/banking/owner-cash-withdrawals": {
+      "post": {
+        "operationId": "createOwnerCashWithdrawal",
+        "tags": ["banking"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "summary": "Record an owner personal cash withdrawal through one canonical banking workflow",
+        "description": "Atomically creates the negative bank or cash transaction, balanced posted Owner Current journal, audit trail, outbox event and canonical withdrawal evidence. Clients never submit ledger account codes or journal lines.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateOwnerCashWithdrawalRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Posted owner withdrawal with canonical transaction and journal links",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OwnerCashWithdrawalEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/customer-receipts": {
+      "get": {
+        "operationId": "listCustomerReceipts",
+        "tags": ["receivables"],
+        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "summary": "List canonical manually recorded customer receipts",
+        "responses": {
+          "200": {
+            "description": "Organization-scoped customer receipts and invoice allocations",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerReceiptListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCustomerReceipt",
+        "tags": ["receivables"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "summary": "Record and allocate an actual cash or bank customer receipt",
+        "description": "Atomically posts a balanced debit to the selected funding account and credits each sales invoice AR control account. The full receipt amount must be allocated to eligible same-customer, same-currency invoices. Invoice payment states and aging balances are derived from canonical allocations; this operation is not a UI-only paid flag.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCustomerReceiptRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Posted receipt, journal and derived invoice allocation states",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerReceiptEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-freelance-payables": {
+      "get": {
+        "operationId": "listProjectFreelancePayables",
+        "tags": ["payables"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } },
+          { "name": "freelancerPartyId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["unpaid", "partially_paid", "paid"] }
+          }
+        ],
+        "summary": "List actual project freelance liabilities created from posted canonical expenses",
+        "responses": {
+          "200": {
+            "description": "Freelance payables",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectFreelancePayableListEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-freelance-payables/{payableId}": {
+      "get": {
+        "operationId": "getProjectFreelancePayable",
+        "tags": ["payables"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "payableId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Freelance payable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectFreelancePayableEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/project-freelance-payables/{payableId}/pay": {
+      "post": {
+        "operationId": "payProjectFreelancePayable",
+        "tags": ["payables"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "name": "payableId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RecordFreelancePayablePaymentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Posted partial or full freelance payment",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectFreelancePayableEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/customer-receipts/{receiptId}": {
+      "get": {
+        "operationId": "getCustomerReceipt",
+        "tags": ["receivables"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/CustomerReceiptId" }
+        ],
+        "summary": "Read one canonical customer receipt with its invoice allocations",
+        "responses": {
+          "200": {
+            "description": "Customer receipt detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CustomerReceiptEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}": {
       "get": {
         "summary": "Read immutable raw metadata and append-only normalized representation history"
@@ -1853,454 +2024,6 @@
         }
       }
     },
-    "/api/v1/organizations/{organizationId}/time/workers": {
-      "get": {
-        "operationId": "listWorkforceProfiles",
-        "summary": "List organization workforce profiles",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      },
-      "post": {
-        "operationId": "createWorkforceProfile",
-        "summary": "Create an employee or freelancer workforce profile",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/workers/{workerId}": {
-      "patch": {
-        "operationId": "updateWorkforceProfile",
-        "summary": "Update employment kind or employment end date with version, reason and idempotency controls",
-        "tags": ["time"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "name": "workerId", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string" } },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": { "200": { "description": "Updated audited workforce profile" } }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/workers/{workerId}/deactivate": {
-      "post": {
-        "operationId": "deactivateWorkforceProfile",
-        "summary": "Deactivate a workforce profile with version, reason and idempotency controls",
-        "tags": ["time"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "name": "workerId", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string" } },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": { "201": { "description": "Deactivated audited workforce profile" } }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/timesheets": {
-      "get": {
-        "operationId": "listTimesheets",
-        "summary": "List weekly timesheets",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      },
-      "post": {
-        "operationId": "createTimesheet",
-        "summary": "Create a weekly draft timesheet with timed or allocation entries",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}": {
-      "get": {
-        "operationId": "getTimesheet",
-        "summary": "Read a timesheet, immutable applied costs and adjustments",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}/{action}": {
-      "post": {
-        "operationId": "transitionTimesheet",
-        "summary": "Submit approve lock mark-billed reject or revise a timesheet",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}/adjustments": {
-      "post": {
-        "operationId": "createTimeAdjustment",
-        "summary": "Create a signed post-approval time or cost adjustment",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/timesheets/{timesheetId}/adjustments/{adjustmentId}/{action}": {
-      "post": {
-        "operationId": "transitionTimeAdjustment",
-        "summary": "Submit approve or reject a post-approval adjustment",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/cost-rates": {
-      "get": {
-        "operationId": "listLaborCostRates",
-        "summary": "List effective-dated labor cost rates",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      },
-      "post": {
-        "operationId": "createLaborCostRate",
-        "summary": "Create a draft effective-dated labor cost rate",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/cost-rates/{rateId}/{action}": {
-      "post": {
-        "operationId": "transitionLaborCostRate",
-        "summary": "Approve or retire a labor cost rate",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/capacity-versions": {
-      "get": {
-        "operationId": "listWorkerCapacityVersions",
-        "summary": "List effective-dated worker capacity versions",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      },
-      "post": {
-        "operationId": "createWorkerCapacityVersion",
-        "summary": "Create an effective-dated weekly capacity version",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/time/capacity-summary": {
-      "get": {
-        "operationId": "getTimeCapacitySummary",
-        "summary": "Summarize capacity approved minutes utilization and availability",
-        "tags": ["time"],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-500 time response"
-          },
-          "201": {
-            "description": "Successful ERP-500 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/project-costs": {
-      "get": {
-        "operationId": "listProjectCosts",
-        "tags": ["project-costs"],
-        "summary": "listProjectCosts",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/project-costs/{id}": {
-      "get": {
-        "operationId": "getProjectCost",
-        "tags": ["project-costs"],
-        "summary": "getProjectCost",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/project-cost-sources/unallocated": {
-      "get": {
-        "operationId": "listUnallocatedProjectCostSources",
-        "tags": ["project-costs"],
-        "summary": "listUnallocatedProjectCostSources",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/direct-cost-allocations": {
-      "get": {
-        "operationId": "listDirectCostAllocations",
-        "tags": ["project-costs"],
-        "summary": "listDirectCostAllocations",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      },
-      "post": {
-        "operationId": "createDirectCostAllocation",
-        "tags": ["project-costs"],
-        "summary": "createDirectCostAllocation",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/direct-cost-allocations/{id}": {
-      "get": {
-        "operationId": "getDirectCostAllocation",
-        "tags": ["project-costs"],
-        "summary": "getDirectCostAllocation",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/direct-cost-allocations/{id}/{action}": {
-      "post": {
-        "operationId": "transitionDirectCostAllocation",
-        "tags": ["project-costs"],
-        "summary": "transitionDirectCostAllocation",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationId"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful ERP-510 response"
-          },
-          "201": {
-            "description": "Successful ERP-510 mutation"
-          }
-        }
-      }
-    },
     "/api/v1/organizations/{organizationId}/scope-changes": {
       "get": {
         "operationId": "listScopeChanges",
@@ -2540,136 +2263,6 @@
         "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
         "responses": {
           "200": { "description": "Independent recognized, invoiced, and collected axes" }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-allocation-policies": {
-      "get": {
-        "operationId": "listOverheadAllocationPolicies",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "name": "state", "in": "query", "schema": { "type": "string" } }
-        ],
-        "responses": { "200": { "description": "Versioned overhead policies" } }
-      },
-      "post": {
-        "operationId": "createOverheadAllocationPolicy",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
-        ],
-        "responses": {
-          "201": {
-            "description": "Create revenue, labor-hours, headcount, fixed-percentage, or manual policy"
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-allocation-policies/{id}": {
-      "get": {
-        "operationId": "getOverheadAllocationPolicy",
-        "tags": ["overhead-allocations"],
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
-        "responses": { "200": { "description": "Policy version detail" } }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-allocation-policies/{id}/{action}": {
-      "post": {
-        "operationId": "transitionOverheadAllocationPolicy",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
-        ],
-        "responses": { "201": { "description": "Submit, approve, or reject policy" } }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-source-pools": {
-      "get": {
-        "operationId": "listOverheadSourcePools",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          {
-            "name": "periodStart",
-            "in": "query",
-            "schema": { "type": "string", "format": "date" }
-          },
-          { "name": "periodEnd", "in": "query", "schema": { "type": "string", "format": "date" } },
-          { "name": "state", "in": "query", "schema": { "type": "string" } }
-        ],
-        "responses": { "200": { "description": "Overhead source pools and exclusivity state" } }
-      },
-      "post": {
-        "operationId": "createOverheadSourcePool",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
-        ],
-        "responses": {
-          "201": { "description": "Claim overhead-reserved cost sources for an open period" }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-source-pools/{id}": {
-      "get": {
-        "operationId": "getOverheadSourcePool",
-        "tags": ["overhead-allocations"],
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
-        "responses": { "200": { "description": "Pool detail and claimed sources" } }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-allocation-runs": {
-      "get": {
-        "operationId": "listOverheadAllocationRuns",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          {
-            "name": "periodStart",
-            "in": "query",
-            "schema": { "type": "string", "format": "date" }
-          },
-          { "name": "periodEnd", "in": "query", "schema": { "type": "string", "format": "date" } },
-          { "name": "state", "in": "query", "schema": { "type": "string" } }
-        ],
-        "responses": { "200": { "description": "Allocation run queue" } }
-      },
-      "post": {
-        "operationId": "createOverheadAllocationRun",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
-        ],
-        "responses": {
-          "201": { "description": "Generate deterministic project splits from the policy basis" }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-allocation-runs/{id}": {
-      "get": {
-        "operationId": "getOverheadAllocationRun",
-        "tags": ["overhead-allocations"],
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
-        "responses": {
-          "200": { "description": "Run detail, immutable basis snapshot, and splits" }
-        }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/overhead-allocation-runs/{id}/{action}": {
-      "post": {
-        "operationId": "transitionOverheadAllocationRun",
-        "tags": ["overhead-allocations"],
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
-        ],
-        "responses": {
-          "201": { "description": "Submit, approve, post, reverse, or reject in an open period" }
         }
       }
     },
@@ -4071,6 +3664,12 @@
         "required": true,
         "schema": { "type": "string", "minLength": 1 }
       },
+      "CustomerReceiptId": {
+        "name": "receiptId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1 }
+      },
       "IfMatch": {
         "name": "If-Match",
         "in": "header",
@@ -5169,7 +4768,7 @@
               "profitability_control",
               "planning_control",
               "bonus_control",
-              "workforce_profile_pending",
+              "payroll_control_pending",
               "expense_category_control"
             ]
           },
@@ -5542,8 +5141,16 @@
           "endsOn",
           "currency",
           "recognizedRevenueMinor",
+          "invoicedRevenueMinor",
+          "collectedRevenueMinor",
           "directProjectCostMinor",
-          "fullyLoadedProfitMinor",
+          "grossMarginMinor",
+          "grossMarginBps",
+          "budgetCostMinor",
+          "overrunMinor",
+          "overrunBps",
+          "unbilledWorkMinor",
+          "overdueArMinor",
           "confidenceFlags",
           "drilldown"
         ],
@@ -5555,8 +5162,16 @@
           "endsOn": { "type": "string", "format": "date" },
           "currency": { "type": "string" },
           "recognizedRevenueMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "invoicedRevenueMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "collectedRevenueMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
           "directProjectCostMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
-          "fullyLoadedProfitMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "grossMarginMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "grossMarginBps": { "type": ["integer", "null"] },
+          "budgetCostMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "overrunMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "overrunBps": { "type": ["integer", "null"] },
+          "unbilledWorkMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
+          "overdueArMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
           "confidenceFlags": {
             "type": "array",
             "items": { "type": "object", "additionalProperties": true }
@@ -7579,6 +7194,278 @@
           "organizationId": { "type": "string" },
           "data": { "$ref": "#/components/schemas/OwnerSettlementPosition" }
         }
+      },
+      "CreateOwnerCashWithdrawalRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "movementType",
+          "financialAccountId",
+          "bookingDate",
+          "amountMinor",
+          "currency",
+          "description",
+          "reason"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "movementType": { "const": "owner_personal_withdrawal" },
+          "id": { "type": "string", "minLength": 1 },
+          "financialAccountId": { "type": "string", "minLength": 1 },
+          "bookingDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "description": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "OwnerCashWithdrawal": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "withdrawalId",
+          "transactionId",
+          "journalId",
+          "financialAccountId",
+          "bookingDate",
+          "amountMinor",
+          "currency",
+          "status",
+          "resourceVersion",
+          "eventId",
+          "auditEventId",
+          "outboxEventId",
+          "idempotencyReplayed",
+          "nextActions"
+        ],
+        "properties": {
+          "withdrawalId": { "type": "string" },
+          "transactionId": { "type": "string" },
+          "journalId": { "type": "string" },
+          "financialAccountId": { "type": "string" },
+          "bookingDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "status": { "const": "posted" },
+          "resourceVersion": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "eventId": { "type": "string" },
+          "auditEventId": { "type": "string" },
+          "outboxEventId": { "type": "string" },
+          "idempotencyReplayed": { "type": "boolean" },
+          "nextActions": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "OwnerCashWithdrawalEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/OwnerCashWithdrawal" }
+        }
+      },
+      "CustomerReceiptAllocationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["salesInvoiceId", "amountMinor"],
+        "properties": {
+          "salesInvoiceId": { "type": "string", "minLength": 1 },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+        }
+      },
+      "CreateCustomerReceiptRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "financialAccountId",
+          "receiptDate",
+          "amountMinor",
+          "currency",
+          "description",
+          "reason",
+          "allocations"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string", "minLength": 1 },
+          "financialAccountId": { "type": "string", "minLength": 1 },
+          "receiptDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "description": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "allocations": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/CustomerReceiptAllocationRequest" }
+          }
+        }
+      },
+      "CustomerReceiptAllocation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "salesInvoiceId",
+          "amountMinor",
+          "invoiceState",
+          "invoiceOutstandingMinor"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "salesInvoiceId": { "type": "string" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "invoiceState": { "type": "string", "enum": ["partially_paid", "paid"] },
+          "invoiceOutstandingMinor": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      },
+      "CustomerReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "id",
+          "financialAccountId",
+          "receiptDate",
+          "amountMinor",
+          "currency",
+          "description",
+          "state",
+          "journalId",
+          "customerId",
+          "allocations",
+          "resourceVersion",
+          "auditEventId",
+          "correlationId",
+          "idempotencyReplayed",
+          "nextActions"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "financialAccountId": { "type": "string" },
+          "receiptDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "description": { "type": "string" },
+          "state": { "const": "posted" },
+          "journalId": { "type": "string" },
+          "customerId": { "type": "string" },
+          "allocations": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/CustomerReceiptAllocation" }
+          },
+          "resourceVersion": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "auditEventId": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "idempotencyReplayed": { "type": "boolean" },
+          "nextActions": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "CustomerReceiptEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/CustomerReceipt" }
+        }
+      },
+      "CustomerReceiptListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CustomerReceipt" }
+          }
+        }
+      },
+      "RecordFreelancePayablePaymentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "financialAccountId", "paymentDate", "amountMinor", "reason"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "financialAccountId": { "type": "string", "minLength": 1 },
+          "paymentDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "ProjectFreelancePayable": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "id",
+          "expenseId",
+          "projectId",
+          "freelancerPartyId",
+          "expenseDate",
+          "dueDate",
+          "amountMinor",
+          "paidMinor",
+          "outstandingMinor",
+          "currency",
+          "description",
+          "state",
+          "journalId",
+          "paymentJournalIds",
+          "resourceVersion"
+        ],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "expenseId": { "type": "string" },
+          "projectId": { "type": "string" },
+          "freelancerPartyId": { "type": "string" },
+          "expenseDate": { "type": "string", "format": "date" },
+          "dueDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string" },
+          "paidMinor": { "type": "string" },
+          "outstandingMinor": { "type": "string" },
+          "currency": { "type": "string" },
+          "description": { "type": "string" },
+          "state": { "type": "string", "enum": ["unpaid", "partially_paid", "paid"] },
+          "journalId": { "type": "string" },
+          "paymentJournalIds": { "type": "array", "items": { "type": "string" } },
+          "resourceVersion": { "type": "string" },
+          "auditEventId": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "idempotencyReplayed": { "type": "boolean" },
+          "nextActions": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ProjectFreelancePayableEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/ProjectFreelancePayable" }
+        }
+      },
+      "ProjectFreelancePayableListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProjectFreelancePayable" }
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -7673,6 +7560,16 @@
                 "taxMinor": { "type": "string", "pattern": "^[0-9]+$" },
                 "grossMinor": { "type": "string", "pattern": "^[0-9]+$" },
                 "controlAccountCode": { "type": "string", "minLength": 1 },
+                "fundingSource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["type", "financialAccountId"],
+                  "properties": {
+                    "type": { "const": "financial_account" },
+                    "financialAccountId": { "type": "string", "minLength": 1 }
+                  },
+                  "description": "Purchase invoices with this explicit active same-currency funding source credit its server-resolved ledger account and become paid atomically. Without it, the invoice posts to AP and remains posted."
+                },
                 "migrationSourceExpenseId": {
                   "type": "string",
                   "minLength": 1,

@@ -640,25 +640,6 @@
       "correction": "unmatch with expectedResourceVersion and reason; principal never affects P&L"
     },
     {
-      "id": "timesheet",
-      "stage": "project_cost_recognition",
-      "endpoint": "/time/timesheets",
-      "cli": "timesheets",
-      "identifiers": ["timesheetId"],
-      "dependsOn": ["party", "project"],
-      "references": [
-        {
-          "field": "entries[].projectId",
-          "target": "project",
-          "targetKey": "id",
-          "required": false,
-          "onMissing": "reject"
-        }
-      ],
-      "lifecycle": ["draft", "submitted", "approved", "locked", "billed"],
-      "correction": "adjustment_after_approval"
-    },
-    {
       "id": "project_budget",
       "stage": "project_cost_recognition",
       "endpoint": "/project-budgets",

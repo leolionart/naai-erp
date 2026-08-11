@@ -1,0 +1,2359 @@
+{
+  "schemaVersion": 1,
+  "task": "ERP-900",
+  "source": "docs/api/openapi-v1.json",
+  "mutationCount": 105,
+  "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
+  "policy": {
+    "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
+    "controlledMode": "unchanged",
+    "financialBoundary": "posted, correction and destructive mutations remain explicit and retain all safeguards"
+  },
+  "uiActionFamilies": [
+    "/api",
+    "accountant-exports",
+    "accountant-exports/{id}",
+    "banking/accounts",
+    "banking/imports",
+    "banking/internal-transfers",
+    "banking/owner-cash-withdrawals",
+    "banking/statement-sessions",
+    "banking/transactions",
+    "commercial-documents",
+    "commercial-documents/{documentId}",
+    "customer-receipts",
+    "customer-service-subscriptions",
+    "customer-service-subscriptions/{subscriptionId}",
+    "evidence",
+    "evidence/{evidenceId}",
+    "executive-metric-policies",
+    "executive-metric-policies/{id}",
+    "expenses",
+    "expenses/{expenseId}",
+    "financial-statement-mappings",
+    "financial-statement-mappings/{mappingVersionId}",
+    "fiscal-periods/close",
+    "fiscal-periods/reopen",
+    "forecast-versions",
+    "forecast-versions/{forecastId}",
+    "forecast-versions/{id}",
+    "journals",
+    "journals/{journalId}",
+    "master-data/{resource}",
+    "milestone-acceptances",
+    "milestone-acceptances/{id}",
+    "opening-balances",
+    "opening-balances/dry-run",
+    "outbound-events/endpoints",
+    "outbound-events/outbox",
+    "planning-actual-facts/backfill",
+    "portable-data-packages/exports",
+    "portable-data-packages/imports",
+    "portable-data-packages/local-admin",
+    "posting-rules/evaluate",
+    "project-budgets",
+    "project-budgets/{id}",
+    "project-freelance-payables/{payableId}",
+    "recognition-policies",
+    "recognition-policies/{id}",
+    "report-snapshots",
+    "report-snapshots/{id}",
+    "revenue-recognition-events",
+    "revenue-recognition-events/{id}",
+    "revenue-targets",
+    "revenue-targets/{id}",
+    "roi-definitions",
+    "roi-definitions/{id}",
+    "roi-input-facts",
+    "roi-input-facts/{id}",
+    "scope-changes",
+    "scope-changes/{id}",
+    "service-plans",
+    "service-plans/{servicePlanId}",
+    "workbook-imports/commit",
+    "workbook-imports/dry-run",
+    "workbook-imports/review-rows"
+  ],
+  "mutations": [
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/service-plans",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/service-plans",
+      "operationId": "createServicePlan",
+      "resource": "service-plans",
+      "action": "service-plans",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "service-plans"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}",
+      "operationId": "updateServicePlan",
+      "resource": "service-plans",
+      "action": "{servicePlanId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "service-plans/{servicePlanId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}/deactivate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}/deactivate",
+      "operationId": "deactivateServicePlan",
+      "resource": "service-plans",
+      "action": "deactivate",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "service-plans/{servicePlanId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/customer-service-subscriptions",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/customer-service-subscriptions",
+      "operationId": "createCustomerServiceSubscription",
+      "resource": "customer-service-subscriptions",
+      "action": "customer-service-subscriptions",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "customer-service-subscriptions"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}",
+      "operationId": "updateCustomerServiceSubscription",
+      "resource": "customer-service-subscriptions",
+      "action": "{subscriptionId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "customer-service-subscriptions/{subscriptionId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/customer-service-subscriptions/{subscriptionId}/{action}",
+      "operationId": "transitionCustomerServiceSubscription",
+      "resource": "customer-service-subscriptions",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "customer-service-subscriptions/{subscriptionId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/portable-data-packages/imports/restore-empty",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/portable-data-packages/imports/restore-empty",
+      "operationId": null,
+      "resource": "portable-data-packages",
+      "action": "restore-empty",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "portable-data-packages/imports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/master-data/{resource}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/master-data/{resource}",
+      "operationId": null,
+      "resource": "master-data",
+      "action": "{resource}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "master-data/{resource}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/master-data/{resource}/{key}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}",
+      "operationId": null,
+      "resource": "master-data",
+      "action": "{key}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "master-data/{resource}"
+    },
+    {
+      "id": "DELETE:/api/v1/organizations/{organizationId}/master-data/{resource}/{key}",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}",
+      "operationId": null,
+      "resource": "master-data",
+      "action": "{key}",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
+      "uiActionFamily": "master-data/{resource}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/master-data/{resource}/{key}/deactivate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}/deactivate",
+      "operationId": null,
+      "resource": "master-data",
+      "action": "deactivate",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "master-data/{resource}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/master-data/{resource}/import/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/master-data/{resource}/import/dry-run",
+      "operationId": null,
+      "resource": "master-data",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "master-data/{resource}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/journals",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/journals",
+      "operationId": null,
+      "resource": "journals",
+      "action": "journals",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "journals"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/journals/{journalId}/post",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/journals/{journalId}/post",
+      "operationId": null,
+      "resource": "journals",
+      "action": "post",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "journals/{journalId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/journals/{journalId}/approve",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/journals/{journalId}/approve",
+      "operationId": null,
+      "resource": "journals",
+      "action": "approve",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "journals/{journalId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/journals/{journalId}/reverse",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/journals/{journalId}/reverse",
+      "operationId": null,
+      "resource": "journals",
+      "action": "reverse",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "journals/{journalId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/journals/{journalId}/repost",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/journals/{journalId}/repost",
+      "operationId": null,
+      "resource": "journals",
+      "action": "repost",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "journals/{journalId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/posting-rules/evaluate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/posting-rules/evaluate",
+      "operationId": null,
+      "resource": "posting-rules",
+      "action": "evaluate",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "posting-rules/evaluate"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/fiscal-periods/close",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/fiscal-periods/close",
+      "operationId": null,
+      "resource": "fiscal-periods",
+      "action": "close",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "fiscal-periods/close"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/fiscal-periods/reopen",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/fiscal-periods/reopen",
+      "operationId": null,
+      "resource": "fiscal-periods",
+      "action": "reopen",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "fiscal-periods/reopen"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/financial-statement-mappings",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/financial-statement-mappings",
+      "operationId": null,
+      "resource": "financial-statement-mappings",
+      "action": "financial-statement-mappings",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "financial-statement-mappings"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/financial-statement-mappings/{mappingVersionId}/versions/{version}/approve",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/financial-statement-mappings/{mappingVersionId}/versions/{version}/approve",
+      "operationId": null,
+      "resource": "financial-statement-mappings",
+      "action": "approve",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "financial-statement-mappings/{mappingVersionId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/opening-balances/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/opening-balances/dry-run",
+      "operationId": null,
+      "resource": "opening-balances",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "opening-balances/dry-run"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/opening-balances",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/opening-balances",
+      "operationId": null,
+      "resource": "opening-balances",
+      "action": "opening-balances",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "opening-balances"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents",
+      "operationId": null,
+      "resource": "commercial-documents",
+      "action": "commercial-documents",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}",
+      "operationId": null,
+      "resource": "commercial-documents",
+      "action": "{documentId}",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category",
+      "operationId": null,
+      "resource": "commercial-documents",
+      "action": "category",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/relationship-backfill/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/relationship-backfill/dry-run",
+      "operationId": "dryRunCommercialDocumentRelationshipBackfill",
+      "resource": "commercial-documents",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/relationship-backfill/commit",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/relationship-backfill/commit",
+      "operationId": "commitCommercialDocumentRelationshipBackfill",
+      "resource": "commercial-documents",
+      "action": "commit",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}",
+      "operationId": null,
+      "resource": "commercial-documents",
+      "action": "{action}",
+      "possibleActions": ["capture", "validate", "verify", "approve", "issue", "post", "cancel"],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "expenses",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/expenses/{expenseId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "{expenseId}",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "DELETE:/api/v1/organizations/{organizationId}/expenses/{expenseId}",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "{expenseId}",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/expenses/{expenseId}/category",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/category",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "category",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/expenses/{expenseId}/metadata",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/metadata",
+      "operationId": "updateExpenseMetadata",
+      "resource": "expenses",
+      "action": "metadata",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{expenseId}/relationship-backfill/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/relationship-backfill/dry-run",
+      "operationId": "dryRunExpenseRelationshipBackfill",
+      "resource": "expenses",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{expenseId}/relationship-backfill/commit",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/relationship-backfill/commit",
+      "operationId": "commitExpenseRelationshipBackfill",
+      "resource": "expenses",
+      "action": "commit",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{expenseId}/review",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/review",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "review",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{expenseId}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/{action}",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "{action}",
+      "possibleActions": ["submit", "approve", "post", "reject", "discard"],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/evidence",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/evidence",
+      "operationId": null,
+      "resource": "evidence",
+      "action": "evidence",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "evidence"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/evidence/{evidenceId}/review",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/evidence/{evidenceId}/review",
+      "operationId": null,
+      "resource": "evidence",
+      "action": "review",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "evidence/{evidenceId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/evidence/{evidenceId}/download-url",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/evidence/{evidenceId}/download-url",
+      "operationId": null,
+      "resource": "evidence",
+      "action": "download-url",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "evidence/{evidenceId}"
+    },
+    {
+      "id": "POST:/api/v1/inbound/{sourcePublicId}/events",
+      "method": "POST",
+      "path": "/api/v1/inbound/{sourcePublicId}/events",
+      "operationId": null,
+      "resource": "",
+      "action": "events",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "/api"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/accounts",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/accounts",
+      "operationId": null,
+      "resource": "banking",
+      "action": "accounts",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/accounts"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/banking/accounts/{accountId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/banking/accounts/{accountId}",
+      "operationId": null,
+      "resource": "banking",
+      "action": "{accountId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/accounts"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/accounts/{accountId}/deactivate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/accounts/{accountId}/deactivate",
+      "operationId": null,
+      "resource": "banking",
+      "action": "deactivate",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/accounts"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/imports",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/imports",
+      "operationId": null,
+      "resource": "banking",
+      "action": "imports",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/imports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/imports/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/imports/dry-run",
+      "operationId": null,
+      "resource": "banking",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/imports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/owner-cash-withdrawals",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/owner-cash-withdrawals",
+      "operationId": "createOwnerCashWithdrawal",
+      "resource": "banking",
+      "action": "owner-cash-withdrawals",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "banking/owner-cash-withdrawals"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/customer-receipts",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/customer-receipts",
+      "operationId": "createCustomerReceipt",
+      "resource": "customer-receipts",
+      "action": "customer-receipts",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "customer-receipts"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/project-freelance-payables/{payableId}/pay",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/project-freelance-payables/{payableId}/pay",
+      "operationId": "payProjectFreelancePayable",
+      "resource": "project-freelance-payables",
+      "action": "pay",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "project-freelance-payables/{payableId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/ignore",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/ignore",
+      "operationId": null,
+      "resource": "banking",
+      "action": "ignore",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/transactions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/mark-needs-review",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/mark-needs-review",
+      "operationId": null,
+      "resource": "banking",
+      "action": "mark-needs-review",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/transactions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/suggest",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/suggest",
+      "operationId": null,
+      "resource": "banking",
+      "action": "suggest",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/transactions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/match",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/match",
+      "operationId": null,
+      "resource": "banking",
+      "action": "match",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/transactions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/reconcile",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/reconcile",
+      "operationId": null,
+      "resource": "banking",
+      "action": "reconcile",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "banking/transactions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/unreconcile",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/transactions/{transactionId}/unreconcile",
+      "operationId": null,
+      "resource": "banking",
+      "action": "unreconcile",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "banking/transactions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/internal-transfers",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/internal-transfers",
+      "operationId": "createInternalTransfer",
+      "resource": "banking",
+      "action": "internal-transfers",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/internal-transfers"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}/match",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}/match",
+      "operationId": "matchInternalTransfer",
+      "resource": "banking",
+      "action": "match",
+      "possibleActions": [],
+      "financialEffect": "posted",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "banking/internal-transfers"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}/unmatch",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/internal-transfers/{transferId}/unmatch",
+      "operationId": "unmatchInternalTransfer",
+      "resource": "banking",
+      "action": "unmatch",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "banking/internal-transfers"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/outbound-events/endpoints",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/outbound-events/endpoints",
+      "operationId": null,
+      "resource": "outbound-events",
+      "action": "endpoints",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "outbound-events/endpoints"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/outbound-events/endpoints/{endpointId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/outbound-events/endpoints/{endpointId}",
+      "operationId": null,
+      "resource": "outbound-events",
+      "action": "{endpointId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "outbound-events/endpoints"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/outbound-events/outbox/{eventId}/replay",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/outbound-events/outbox/{eventId}/replay",
+      "operationId": null,
+      "resource": "outbound-events",
+      "action": "replay",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "outbound-events/outbox"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/statement-sessions",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/statement-sessions",
+      "operationId": "createBankStatementSession",
+      "resource": "banking",
+      "action": "statement-sessions",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/statement-sessions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/review",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/review",
+      "operationId": "reviewBankStatementSession",
+      "resource": "banking",
+      "action": "review",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/statement-sessions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/close",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/close",
+      "operationId": "closeBankStatementSession",
+      "resource": "banking",
+      "action": "close",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/statement-sessions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/exceptions",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/exceptions",
+      "operationId": "createStatementSuspenseException",
+      "resource": "banking",
+      "action": "exceptions",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/statement-sessions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/exceptions/{exceptionId}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/banking/statement-sessions/{sessionId}/exceptions/{exceptionId}/{action}",
+      "operationId": "reviewStatementSuspenseException",
+      "resource": "banking",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "banking/statement-sessions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/scope-changes",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/scope-changes",
+      "operationId": "createScopeChange",
+      "resource": "scope-changes",
+      "action": "scope-changes",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "scope-changes"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/scope-changes/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/scope-changes/{id}/{action}",
+      "operationId": "transitionScopeChange",
+      "resource": "scope-changes",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "scope-changes/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/project-budgets",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/project-budgets",
+      "operationId": "createProjectBudget",
+      "resource": "project-budgets",
+      "action": "project-budgets",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "project-budgets"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/project-budgets/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/project-budgets/{id}/{action}",
+      "operationId": "transitionProjectBudget",
+      "resource": "project-budgets",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "project-budgets/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/recognition-policies",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/recognition-policies",
+      "operationId": "createRecognitionPolicy",
+      "resource": "recognition-policies",
+      "action": "recognition-policies",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "recognition-policies"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/recognition-policies/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/recognition-policies/{id}/{action}",
+      "operationId": "transitionRecognitionPolicy",
+      "resource": "recognition-policies",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "recognition-policies/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/milestone-acceptances",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/milestone-acceptances",
+      "operationId": "createMilestoneAcceptance",
+      "resource": "milestone-acceptances",
+      "action": "milestone-acceptances",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "milestone-acceptances"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/milestone-acceptances/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/milestone-acceptances/{id}/{action}",
+      "operationId": "transitionMilestoneAcceptance",
+      "resource": "milestone-acceptances",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "milestone-acceptances/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/revenue-recognition-events",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/revenue-recognition-events",
+      "operationId": "createRevenueRecognitionEvent",
+      "resource": "revenue-recognition-events",
+      "action": "revenue-recognition-events",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "revenue-recognition-events"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/revenue-recognition-events/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/revenue-recognition-events/{id}/{action}",
+      "operationId": "transitionRevenueRecognitionEvent",
+      "resource": "revenue-recognition-events",
+      "action": "{action}",
+      "possibleActions": ["submit", "approve", "post", "reverse"],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "revenue-recognition-events/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/revenue-targets",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/revenue-targets",
+      "operationId": "createRevenueTarget",
+      "resource": "revenue-targets",
+      "action": "revenue-targets",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "revenue-targets"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/revenue-targets/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/revenue-targets/{id}/{action}",
+      "operationId": "transitionRevenueTarget",
+      "resource": "revenue-targets",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "revenue-targets/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/forecast-versions",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/forecast-versions",
+      "operationId": "createForecastVersion",
+      "resource": "forecast-versions",
+      "action": "forecast-versions",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "forecast-versions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/forecast-versions/{id}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/forecast-versions/{id}/{action}",
+      "operationId": "transitionForecastVersion",
+      "resource": "forecast-versions",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "forecast-versions/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components",
+      "operationId": "createForecastComponent",
+      "resource": "forecast-versions",
+      "action": "components",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "forecast-versions/{forecastId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}",
+      "operationId": "updateForecastComponent",
+      "resource": "forecast-versions",
+      "action": "{componentId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "forecast-versions/{forecastId}"
+    },
+    {
+      "id": "DELETE:/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}",
+      "operationId": "deleteForecastComponent",
+      "resource": "forecast-versions",
+      "action": "{componentId}",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
+      "uiActionFamily": "forecast-versions/{forecastId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}/{action}",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/forecast-versions/{forecastId}/components/{componentId}/{action}",
+      "operationId": "transitionForecastComponent",
+      "resource": "forecast-versions",
+      "action": "{action}",
+      "possibleActions": ["route-dependent"],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["route-dependent"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "forecast-versions/{forecastId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/planning-actual-facts/backfill",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/planning-actual-facts/backfill",
+      "operationId": "backfillPlanningActualFacts",
+      "resource": "planning-actual-facts",
+      "action": "backfill",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "planning-actual-facts/backfill"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/executive-metric-policies",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/executive-metric-policies",
+      "operationId": "createExecutiveMetricPolicy",
+      "resource": "executive-metric-policies",
+      "action": "executive-metric-policies",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "executive-metric-policies"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/executive-metric-policies/{id}/versions/{version}/approve",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/executive-metric-policies/{id}/versions/{version}/approve",
+      "operationId": "approveExecutiveMetricPolicyVersion",
+      "resource": "executive-metric-policies",
+      "action": "approve",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "executive-metric-policies/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/roi-definitions",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/roi-definitions",
+      "operationId": "createRoiDefinition",
+      "resource": "roi-definitions",
+      "action": "roi-definitions",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "roi-definitions"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/roi-definitions/{id}/versions/{version}/approve",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/roi-definitions/{id}/versions/{version}/approve",
+      "operationId": "approveRoiDefinitionVersion",
+      "resource": "roi-definitions",
+      "action": "approve",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "policy-controlled",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "roi-definitions/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/roi-input-facts",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/roi-input-facts",
+      "operationId": "createRoiInputFact",
+      "resource": "roi-input-facts",
+      "action": "roi-input-facts",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "roi-input-facts"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/roi-input-facts/{id}/review",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/roi-input-facts/{id}/review",
+      "operationId": "reviewRoiInputFact",
+      "resource": "roi-input-facts",
+      "action": "review",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "roi-input-facts/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/report-snapshots",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/report-snapshots",
+      "operationId": "createReportSnapshot",
+      "resource": "report-snapshots",
+      "action": "report-snapshots",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "report-snapshots"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/report-snapshots/{id}/versions/{version}/reproduce",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/report-snapshots/{id}/versions/{version}/reproduce",
+      "operationId": "reproduceReportSnapshot",
+      "resource": "report-snapshots",
+      "action": "reproduce",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "report-snapshots/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/accountant-exports",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/accountant-exports",
+      "operationId": "createAccountantExport",
+      "resource": "accountant-exports",
+      "action": "accountant-exports",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "accountant-exports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/accountant-exports/{id}/versions/{version}/supersede",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/accountant-exports/{id}/versions/{version}/supersede",
+      "operationId": "supersedeAccountantExport",
+      "resource": "accountant-exports",
+      "action": "supersede",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
+      "uiActionFamily": "accountant-exports/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/workbook-imports/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/workbook-imports/dry-run",
+      "operationId": "dryRunWorkbookImport",
+      "resource": "workbook-imports",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "workbook-imports/dry-run"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/workbook-imports/commit",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/workbook-imports/commit",
+      "operationId": "commitWorkbookImport",
+      "resource": "workbook-imports",
+      "action": "commit",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "workbook-imports/commit"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/workbook-imports/review-rows/{id}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/workbook-imports/review-rows/{id}",
+      "operationId": "updateWorkbookImportReviewRow",
+      "resource": "workbook-imports",
+      "action": "{id}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "workbook-imports/review-rows"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/portable-data-packages/local-admin/reset",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/portable-data-packages/local-admin/reset",
+      "operationId": "resetLocalOrganizationFromPortableBackup",
+      "resource": "portable-data-packages",
+      "action": "reset",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
+      "uiActionFamily": "portable-data-packages/local-admin"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/portable-data-packages/exports",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/portable-data-packages/exports",
+      "operationId": "createPortableDataPackageExport",
+      "resource": "portable-data-packages",
+      "action": "exports",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "portable-data-packages/exports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/portable-data-packages/imports/inventory",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/portable-data-packages/imports/inventory",
+      "operationId": "inventoryPortableDataPackageImport",
+      "resource": "portable-data-packages",
+      "action": "inventory",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "portable-data-packages/imports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/portable-data-packages/imports/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/portable-data-packages/imports/dry-run",
+      "operationId": "dryRunPortableDataPackageImport",
+      "resource": "portable-data-packages",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "portable-data-packages/imports"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/portable-data-packages/imports/{importId}/commit",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/portable-data-packages/imports/{importId}/commit",
+      "operationId": "commitPortableDataPackageImport",
+      "resource": "portable-data-packages",
+      "action": "commit",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "portable-data-packages/imports"
+    }
+  ]
+}

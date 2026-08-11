@@ -34,6 +34,10 @@ describeIntegration("ERP-300 commercial documents", () => {
        ('${org}','131-AR','AR','asset',true,false),('${org}','331-AP','AP','liability',true,false),
        ('${org}','511-REV','Revenue','revenue',false,true),('${org}','3331-VAT-OUT','VAT output','liability',true,false),
        ('${org}','632-COST','Direct cost','expense',false,true),('${org}','1331-VAT-IN','VAT input','asset',true,false);
+      insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
+       ('${org}','112-BANK','Bank','asset',false,true);
+      insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by) values
+       ('${org}','bank-vnd','BANK','bank','Bank VND','VND','112-BANK','BANK','test','test');
     `);
     const values = [integrationToken, financeToken, approverToken].map((token) =>
       createHash("sha256").update(token).digest("hex"),
@@ -268,6 +272,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       taxMinor: "5000000",
       grossMinor: "55000000",
       controlAccountCode: "331-AP",
+      fundingSource: { type: "financial_account", financialAccountId: "bank-vnd" },
       lines: [
         {
           description: "Subcontract",
@@ -315,6 +320,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     ).toBe(201);
     const posted = await command("purchase-001", "post", financeToken, "purchase-post");
     expect(posted.statusCode).toBe(201);
+    expect(posted.json().data.state).toBe("paid");
     const purchaseTotals = await pool.query<{ debit: string; credit: string }>(
       `select coalesce(sum(debit_minor),0)::text debit,coalesce(sum(credit_minor),0)::text credit from journal_lines where organization_id='${org}' and journal_id=$1`,
       [posted.json().data.journalId],
@@ -330,6 +336,13 @@ describeIntegration("ERP-300 commercial documents", () => {
       { account_code: "1331-VAT-IN", debit: "3000000" },
       { account_code: "632-COST", debit: "52000000" },
     ]);
+    const purchaseCredits = await pool.query<{ account_code: string; credit: string }>(
+      `select account_code,credit_minor::text credit from journal_lines
+       where organization_id=$1 and journal_id=$2 and credit_minor is not null`,
+      [org, posted.json().data.journalId],
+    );
+    expect(purchaseCredits.rows).toEqual([{ account_code: "112-BANK", credit: "55000000" }]);
+    expect(purchaseCredits.rows.some((row) => row.account_code === "331-AP")).toBe(false);
   });
 
   it("persists owner-final CIT and VAT decisions for a documented purchase invoice", async () => {
@@ -389,7 +402,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       vat_eligible_minor: "100",
       reviewed_by: integrationUser,
       review_reason: "Resolved when the purchase invoice was recorded",
-      review_reference: "solopreneur",
+      review_reference: "solopreneur_policy",
     });
     expect(
       (
