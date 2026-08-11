@@ -26,6 +26,5 @@ export type PerformanceStore = Readonly<{
   report(c: PerformanceContext, query: PerformanceQuery): Promise<unknown>;
   listFacts(c: PerformanceContext, query: ActualFactQuery): Promise<unknown>;
   summarizeFacts(c: PerformanceContext, query: ActualFactSummaryQuery): Promise<unknown>;
-  backfill(c: PerformanceContext, input: Record<string, unknown>, key: string): Promise<unknown>;
 }>;
 export const PERFORMANCE_STORE = Symbol("PERFORMANCE_STORE");

@@ -53,6 +53,10 @@ for (const [name, image] of Object.entries(expectedRemoteImages)) {
   }
 }
 
+if (process.env.IMAGE_TAG && process.env.IMAGE_TAG !== "latest") {
+  fail("the supported production contract keeps IMAGE_TAG=latest");
+}
+
 if (!rendered.volumes?.["postgres-data"]) fail("missing postgres-data named volume");
 const postgresMounts = services.postgres.volumes ?? [];
 if (

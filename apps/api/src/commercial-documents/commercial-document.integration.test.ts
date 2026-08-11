@@ -14,6 +14,7 @@ describeIntegration("ERP-300 commercial documents", () => {
   const integrationToken = `erp300-integration-${process.pid}`;
   const financeToken = `erp300-finance-${process.pid}`;
   const approverToken = `erp300-approver-${process.pid}`;
+  const ownerToken = `erp907-owner-${process.pid}`;
   beforeAll(async () => {
     await pool.query(`
       insert into organizations (id,legal_name,base_currency,timezone) values ('${org}','Document Org','VND','Asia/Ho_Chi_Minh');
@@ -27,7 +28,7 @@ describeIntegration("ERP-300 commercial documents", () => {
         ('${org}','A','A','Project A','CLIENT-A','${integrationUser}','fixed_fee','VND',60000000,'2026-01-01','active'),
         ('${org}','B','B','Project B','CLIENT-A','${integrationUser}','fixed_fee','VND',40000000,'2026-01-01','active');
       insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency) values
-        ('${org}','CONTRACT-A','A','CONTRACT-A','2026-01-01',60000000,'VND'),
+        ('${org}','CONTRACT-A','A','CONTRACT-A','2026-01-01',61000000,'VND'),
         ('${org}','CONTRACT-B','B','CONTRACT-B','2026-01-01',40000000,'VND'),
         ('${org}','CONTRACT-A-FUTURE','A','CONTRACT-A-FUTURE','2026-12-01',1000000,'VND');
       insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
@@ -39,14 +40,15 @@ describeIntegration("ERP-300 commercial documents", () => {
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by) values
        ('${org}','bank-vnd','BANK','bank','Bank VND','VND','112-BANK','BANK','test','test');
     `);
-    const values = [integrationToken, financeToken, approverToken].map((token) =>
+    const values = [integrationToken, financeToken, approverToken, ownerToken].map((token) =>
       createHash("sha256").update(token).digest("hex"),
     );
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles) values
       ('${org}','doc-integration','${integrationUser}',$1,'["integration"]'),
       ('${org}','doc-finance','finance-user',$2,'["finance_admin"]'),
-      ('${org}','doc-approver','approver-user',$3,'["approver","accountant"]')`,
+      ('${org}','doc-approver','approver-user',$3,'["approver","accountant"]'),
+      ('${org}','erp907-owner','${integrationUser}',$4,'["owner"]')`,
       values,
     );
     app = await createApp();
@@ -101,6 +103,56 @@ describeIntegration("ERP-300 commercial documents", () => {
       },
     ],
   } as const;
+
+  it("saves and issues a valid sales invoice atomically for a solopreneur owner", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies
+       (organization_id,operating_mode,allow_self_approval,self_approval_max_minor,updated_by)
+       values($1,'solopreneur',false,null,$2)
+       on conflict(organization_id) do update set operating_mode='solopreneur',updated_by=$2`,
+      [org, integrationUser],
+    );
+    const payload = {
+      ...sales,
+      id: "erp907-sales-auto",
+      documentNumber: "SI-ERP907-AUTO",
+      netMinor: "1000000",
+      taxMinor: "100000",
+      grossMinor: "1100000",
+      lines: sales.lines.map((line) => ({
+        ...line,
+        unitPriceMinor: "1000000",
+        netMinor: "1000000",
+        taxMinor: "100000",
+        grossMinor: "1100000",
+        allocations: [
+          {
+            id: "erp907-sales-allocation",
+            amountMinor: "1000000",
+            dimensions: { projectId: "A" },
+          },
+        ],
+      })),
+    };
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(ownerToken, "erp907-sales-auto"),
+      payload,
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ state: "issued", resourceVersion: "3" });
+    expect(response.json().data.journalId).toBeTruthy();
+    const journal = await pool.query(
+      `select state from journal_entries where organization_id=$1 and id=$2`,
+      [org, response.json().data.journalId],
+    );
+    expect(journal.rows[0]?.state).toBe("posted");
+    await pool.query(
+      "update accounting_workflow_policies set operating_mode='controlled' where organization_id=$1",
+      [org],
+    );
+  });
 
   it("validates sales customer project and optional contract relationships before create", async () => {
     const linked = {
@@ -345,7 +397,7 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(purchaseCredits.rows.some((row) => row.account_code === "331-AP")).toBe(false);
   });
 
-  it("persists owner-final CIT and VAT decisions for a documented purchase invoice", async () => {
+  it("keeps management-valid purchase costs visible while tax eligibility remains separate", async () => {
     await pool.query(
       `insert into accounting_workflow_policies
        (organization_id,operating_mode,allow_self_approval,self_approval_max_minor,soft_lock_posting_roles,updated_by)
@@ -396,13 +448,13 @@ describeIntegration("ERP-300 commercial documents", () => {
     );
     expect(persisted.rows[0]).toEqual({
       management_state: "valid",
-      cit_state: "eligible",
-      vat_state: "eligible",
-      cit_eligible_minor: "1000",
-      vat_eligible_minor: "100",
-      reviewed_by: integrationUser,
-      review_reason: "Resolved when the purchase invoice was recorded",
-      review_reference: "solopreneur_policy",
+      cit_state: "unreviewed",
+      vat_state: "unreviewed",
+      cit_eligible_minor: "0",
+      vat_eligible_minor: "0",
+      reviewed_by: null,
+      review_reason: null,
+      review_reference: null,
     });
     expect(
       (
@@ -446,7 +498,7 @@ describeIntegration("ERP-300 commercial documents", () => {
         where organization_id=$1 and journal_id=$2 and account_code='1331-VAT-IN'`,
       [org, posted.json().data.journalId],
     );
-    expect(vatPosting.rows).toEqual([{ debit_minor: "100" }]);
+    expect(vatPosting.rows).toEqual([]);
     await pool.query(
       "update accounting_workflow_policies set operating_mode='controlled' where organization_id=$1",
       [org],
@@ -466,6 +518,7 @@ describeIntegration("ERP-300 commercial documents", () => {
         .data.items.map((item: { id: string }) => item.id)
         .sort(),
     ).toEqual([
+      "erp907-sales-auto",
       "purchase-001",
       "purchase-owner-final",
       "sales-001",

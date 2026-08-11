@@ -304,6 +304,35 @@ Golden changes require explicit review and a documented reason.
 - `T-INT-ERP-905-004`: database upgrade succeeds on an existing tenant and post-migration report totals
   tie to the posted canonical sources without a derived cost queue.
 
+### ERP-906 — Bounded export storage and migration-safe latest updates
+
+- `T-API-ERP-906-001`: portable export uses reviewed dispositions, emits no empty or duplicate child
+  worksheets and records every excluded resource with a stable manifest reason.
+- `T-DB-ERP-906-002`: successful portable and accountant exports retain only the configured newest
+  records for the same organization and export class without deleting another organization, canonical
+  business data, journals or resource audit events.
+- `T-OPS-ERP-906-003`: the supported latest-image update command pulls images, runs and waits for the
+  one-shot migrate service before recreating API/web/worker, then performs health and migration
+  readback; migrate failure stops rollout.
+- `T-INT-ERP-906-004`: storage diagnostics identify relation/TOAST growth and dead tuples read-only,
+  while any lock-heavy reclaim command requires an explicit maintenance confirmation.
+
+### ERP-907 — Immediate canonical management data in solopreneur mode
+
+- `T-API-ERP-907-001`: an authenticated owner in persisted solopreneur mode creates a valid sales
+  document, purchase document or expense through one idempotent save-and-record action; the source
+  reaches issued/posted state with one balanced journal and singular audit/outbox effects. Controlled
+  mode still returns a draft and preserves maker-checker.
+- `T-DB-ERP-907-002`: planning actuals read canonical recognition, invoice and collection sources
+  without a persisted stale cache or manual backfill endpoint. Fresh and upgraded databases remove
+  the obsolete planning fact table safely.
+- `T-E2E-ERP-907-003`: dashboard, account balances and reports show newly posted canonical data on
+  the next read. Missing evidence, dimensions or tax eligibility appears as a local warning and does
+  not blank unrelated cards or reports.
+- `T-REG-ERP-907-004`: balanced posting, posted immutability, reversal/replacement, hard period locks,
+  duplicate prevention, organization scope, audit and idempotency remain enforced in both operating
+  modes. Unreviewed VAT/CIT affects only eligibility/finality axes, not accounting profit.
+
 ## 4. Active MVP gate
 
 ### ERP-710 — External ingestion

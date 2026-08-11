@@ -122,6 +122,83 @@ function signedAmount(row: BankingRow): string {
   return outflow ? `-${outflow.replace(/^-/, "")}` : "0";
 }
 
+export function financialAccountLabel(row: BankingRow) {
+  const id = textField(row, "id");
+  const kind = textField(row, "kind", "accountType", "type");
+  const displayName = textField(row, "displayName", "name");
+  const bankCode = textField(row, "bankCode");
+  const identifier = textField(row, "maskedIdentifier", "accountIdentifier");
+  if (id === "bank-erp851-inferred-source") {
+    return {
+      displayName: "Tài khoản ngân hàng công ty",
+      bankLabel: "Ngân hàng chưa cập nhật",
+      identifierLabel: "Chưa cập nhật số tài khoản",
+    };
+  }
+  if (kind === "transit") {
+    return {
+      displayName: displayName || "Tiền đang chuyển",
+      bankLabel: "Tài khoản sổ cái",
+      identifierLabel: "Không có số tài khoản",
+    };
+  }
+  return {
+    displayName: displayName.replace(/\s*\(suy luận\)\s*/giu, "").trim() || "—",
+    bankLabel: bankCode || (kind === "cash" ? "Tiền mặt" : "Ngân hàng chưa cập nhật"),
+    identifierLabel:
+      identifier && !/suy luận|nguồn chưa đủ/iu.test(identifier)
+        ? identifier
+        : "Chưa cập nhật số tài khoản",
+  };
+}
+
+export function moneyLedgerAccounts(
+  masterAccounts: readonly BankingRow[],
+  trialBalanceRows: readonly BankingRow[],
+  financialAccounts: readonly BankingRow[],
+) {
+  const balances = new Map(
+    trialBalanceRows.map((row) => [textField(row, "accountCode", "code"), row] as const),
+  );
+  return masterAccounts
+    .filter((row) => /^(111|112|113)(?:-|$)/.test(textField(row, "code")))
+    .map((row) => {
+      const code = textField(row, "code");
+      const balance = balances.get(code);
+      return {
+        code,
+        name: textField(row, "name") || code,
+        closingNetMinor: textField(balance ?? {}, "closingNetMinor") || "0",
+        lineCount: textField(balance ?? {}, "lineCount") || "0",
+        mappedAccountCount: financialAccounts.filter(
+          (account) => textField(account, "ledgerAccountCode", "ledgerAccountId") === code,
+        ).length,
+      };
+    });
+}
+
+export function combinedMoneyAccountRows(
+  financialAccounts: readonly BankingRow[],
+  ledgerRows: ReturnType<typeof moneyLedgerAccounts>,
+) {
+  const mappedCodes = new Set(
+    financialAccounts.map((row) => textField(row, "ledgerAccountCode", "ledgerAccountId")),
+  );
+  return [
+    ...financialAccounts,
+    ...ledgerRows
+      .filter((row) => !mappedCodes.has(row.code))
+      .map((row) => ({
+        id: `ledger:${row.code}`,
+        displayName: row.name,
+        kind: "transit",
+        currency: "VND",
+        ledgerAccountCode: row.code,
+        status: "system",
+      })),
+  ];
+}
+
 function maskedIdentifier(value: string) {
   const normalized = value.trim();
   return normalized ? `•••• ${normalized.slice(-4)}` : undefined;
@@ -137,6 +214,8 @@ export function BankingWorkspace() {
   const [token, setToken] = useState("");
   const [accounts, setAccounts] = useState<BankingRow[]>([]);
   const [transactions, setTransactions] = useState<BankingRow[]>([]);
+  const [ledgerAccounts, setLedgerAccounts] = useState<BankingRow[]>([]);
+  const [trialBalanceRows, setTrialBalanceRows] = useState<BankingRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("Sẵn sàng tải tài khoản và giao dịch tiền.");
@@ -182,6 +261,15 @@ export function BankingWorkspace() {
     [accounts, cashHistoryFilters, transactions],
   );
 
+  const moneyLedgerRows = useMemo(
+    () => moneyLedgerAccounts(ledgerAccounts, trialBalanceRows, accounts),
+    [accounts, ledgerAccounts, trialBalanceRows],
+  );
+  const displayedAccounts = useMemo(
+    () => combinedMoneyAccountRows(accounts, moneyLedgerRows),
+    [accounts, moneyLedgerRows],
+  );
+
   function persistConnection(nextConnection = connection, nextToken = token) {
     setConnection(saveConnectionSettings(window.localStorage, nextConnection));
     setToken(saveApiToken(window.sessionStorage, nextToken));
@@ -202,14 +290,22 @@ export function BankingWorkspace() {
 
   async function load() {
     await run(async () => {
-      const [accountPayload, transactionPayload] = await Promise.all([
-        client.data<unknown>("banking/accounts"),
-        client.data<unknown>("banking/transactions"),
-      ]);
+      const today = new Date().toISOString().slice(0, 10);
+      const [accountPayload, transactionPayload, ledgerPayload, trialBalancePayload] =
+        await Promise.all([
+          client.data<unknown>("banking/accounts"),
+          client.data<unknown>("banking/transactions"),
+          client.data<unknown>("master-data/accounts"),
+          client.data<unknown>(
+            `reports/trial-balance?startsOn=2000-01-01&endsOn=${encodeURIComponent(today)}`,
+          ),
+        ]);
       const nextAccounts = bankingItems(accountPayload);
       const nextTransactions = bankingItems(transactionPayload);
       setAccounts(nextAccounts);
       setTransactions(nextTransactions);
+      setLedgerAccounts(bankingItems(ledgerPayload));
+      setTrialBalanceRows(bankingItems(trialBalancePayload));
       setNotice(`Đã tải ${nextAccounts.length} tài khoản và ${nextTransactions.length} giao dịch.`);
     });
   }
@@ -279,24 +375,54 @@ export function BankingWorkspace() {
     {
       id: "name",
       header: "Tài khoản",
-      cell: (row) => (
-        <div className="flex flex-col gap-1">
-          <strong>{textField(row, "displayName", "name") || "—"}</strong>
-          <span className="text-xs text-muted-foreground">
-            {textField(row, "bankCode") || "Tiền mặt"} ·{" "}
-            {textField(row, "maskedIdentifier", "accountIdentifier") || "—"}
-          </span>
-        </div>
-      ),
+      cell: (row) => {
+        const label = financialAccountLabel(row);
+        return (
+          <div className="flex flex-col gap-1">
+            <strong>{label.displayName}</strong>
+            <span className="text-xs text-muted-foreground">
+              {label.bankLabel} · {label.identifierLabel}
+            </span>
+          </div>
+        );
+      },
     },
     {
       id: "type",
       header: "Loại",
-      cell: (row) => (
-        <Badge variant="outline">{textField(row, "kind", "accountType", "type") || "—"}</Badge>
-      ),
+      cell: (row) => {
+        const kind = textField(row, "kind", "accountType", "type");
+        return (
+          <Badge variant="outline">
+            {kind === "bank"
+              ? "Ngân hàng"
+              : kind === "cash"
+                ? "Tiền mặt"
+                : kind === "transit"
+                  ? "Trung chuyển"
+                  : kind || "—"}
+          </Badge>
+        );
+      },
     },
     { id: "currency", header: "Tiền tệ", cell: (row) => textField(row, "currency") || "—" },
+    {
+      id: "balance",
+      header: "Số dư sổ cái",
+      align: "right",
+      cell: (row) => {
+        const ledgerCode = textField(row, "ledgerAccountCode", "ledgerAccountId");
+        const balance = moneyLedgerRows.find((item) => item.code === ledgerCode);
+        return (
+          <div className="flex flex-col items-end gap-1">
+            <MoneyCell minor={balance?.closingNetMinor ?? "0"} />
+            <span className="text-xs text-muted-foreground">
+              {balance?.lineCount ?? 0} dòng đã ghi sổ
+            </span>
+          </div>
+        );
+      },
+    },
     {
       id: "ledger",
       header: "TK sổ cái",
@@ -305,7 +431,12 @@ export function BankingWorkspace() {
     {
       id: "state",
       header: "Trạng thái",
-      cell: (row) => <StatusBadge status={textField(row, "state", "status") || "active"} />,
+      cell: (row) =>
+        textField(row, "status") === "system" ? (
+          <Badge variant="secondary">Tài khoản hệ thống</Badge>
+        ) : (
+          <StatusBadge status={textField(row, "state", "status") || "active"} />
+        ),
     },
   ];
 
@@ -414,7 +545,7 @@ export function BankingWorkspace() {
         </CardHeader>
         <CardContent>
           <FinancialDataTable
-            rows={accounts}
+            rows={displayedAccounts}
             columns={accountColumns}
             rowKey={(row) => textField(row, "id") || JSON.stringify(row)}
             loading={busy && !accounts.length}

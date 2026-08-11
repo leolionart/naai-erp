@@ -111,6 +111,7 @@ export type OperatingDashboardReadModel = Readonly<{
     rosBps: number | null;
     recognitionEventCount: number;
     approvedBudgetCount: number;
+    configurationWarnings: readonly string[];
     source: "posted_ledger";
     monthly: readonly Readonly<{
       period: string;

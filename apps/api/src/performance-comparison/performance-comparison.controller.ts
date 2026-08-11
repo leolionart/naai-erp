@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query } from "@nestjs/common";
+import { Controller, Get, Headers, Inject, Param, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { PerformanceComparisonService } from "./performance-comparison.service.js";
 
@@ -42,14 +42,5 @@ export class PerformanceComparisonController {
       await this.context(org, auth, correlation),
       this.service.parseFactSummary(query),
     );
-  }
-  @Post("planning-actual-facts/backfill") async backfill(
-    @Param("organizationId") org: string,
-    @Body() input: Record<string, unknown>,
-    @Headers("authorization") auth?: string,
-    @Headers("x-correlation-id") correlation?: string,
-    @Headers("idempotency-key") key?: string,
-  ) {
-    return this.service.backfill(await this.context(org, auth, correlation), input, key);
   }
 }

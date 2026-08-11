@@ -28,9 +28,6 @@ if (!upstreamBaseUrl.startsWith("https://")) {
 
 const environment = {
   ...process.env,
-  NEXT_PUBLIC_API_URL: "http://localhost:3000/dev-api",
-  NEXT_PUBLIC_ORGANIZATION_ID: organization,
-  NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION: "1",
   // Prevent a legacy .env.local value from exposing an API token to browser code.
   NEXT_PUBLIC_API_TOKEN: "",
   NAAI_ERP_DEV_UPSTREAM_BASE_URL: upstreamBaseUrl,

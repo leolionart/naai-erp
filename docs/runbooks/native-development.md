@@ -163,7 +163,23 @@ The script is for local synthetic data only. Do not run it against staging or pr
 
 ## Switch the local development data source
 
-Use one explicit startup profile at a time:
+Choose the source once in the ignored `apps/web/.env.local` file:
+
+```dotenv
+# Read production through the server-only localhost proxy.
+NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE=production
+
+# Or use the local API.
+# NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE=local
+# NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+`NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE` is the source of truth. Startup helpers do not override this
+browser setting. Restart the web process after changing it because Next.js embeds public variables
+when it builds the development bundle.
+
+The helpers below prepare the corresponding backend prerequisites, while `.env.local` still decides
+which source the web application reads:
 
 ```bash
 # Fast feature development against local PostgreSQL and the local API
@@ -173,10 +189,10 @@ pnpm dev:local-data
 pnpm dev:prod-data
 ```
 
-Both profiles serve the web application at `http://localhost:3000`. The local profile also starts the
-API at `http://localhost:3001`, runs native database setup/migrations first and forces the browser back
-to the selected profile so an older saved API URL cannot leak across modes. To switch, stop the current
-dev process and run the other command. Do not run two web profiles from the same checkout concurrently.
+Both profiles serve the web application at `http://localhost:3000`. The local helper also starts the
+API at `http://localhost:3001` and runs native database setup/migrations first. An explicit data-source
+value clears an older browser-saved API override. Do not run two web profiles from the same checkout
+concurrently.
 
 Validate either profile without starting the dev servers:
 
@@ -212,18 +228,17 @@ For read-only UI work, the local Next.js application can proxy production API re
 exposing the production token to the browser. Configure the web process with:
 
 ```dotenv
-NEXT_PUBLIC_API_URL=http://localhost:3000/dev-api
+NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE=production
 NEXT_PUBLIC_PURCHASE_PRODUCTS_API_URL=http://localhost:3001
 NEXT_PUBLIC_PURCHASE_PRODUCTS_API_TOKEN=dev-token
 NEXT_PUBLIC_ORGANIZATION_ID=naai
-NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION=1
 NAAI_ERP_DEV_UPSTREAM_BASE_URL=https://erp.naai.studio
 NAAI_ERP_DEV_UPSTREAM_ORGANIZATION=naai
 NAAI_ERP_DEV_UPSTREAM_TOKEN=<server-only production API token>
 ```
 
-`NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION=1` clears any previously saved browser API override so an
-old `localhost:3001` setting cannot silently keep the UI on the local database. The `/dev-api` route
+The explicit production data-source clears any previously saved browser API override so an old
+`localhost:3001` setting cannot silently keep the UI on the local database. The `/dev-api` route
 exists only in a development runtime, requires HTTPS upstream, locks requests
 to the configured organization and exports only `GET`/`HEAD`. Mutation methods are unavailable, so
 local UI experiments cannot change production financial data. Load the token from an approved

@@ -26,6 +26,53 @@ const XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadshe
 const FORBIDDEN_COLUMN =
   /(^|_)(secret|password|token_hash|access_token|refresh_token|private_key|payload_bytes|raw_bytes|file_bytes|content_bytes|blob)($|_)/i;
 
+const EMBEDDED_CHILD_RESOURCES = new Set([
+  "commercial_document_lines",
+  "commercial_document_allocations",
+  "expense_lines",
+  "expense_allocations",
+  "external_references",
+]);
+const OPERATIONAL_RESOURCES = new Set([
+  "api_idempotency_records",
+  "outbox_events",
+  "portable_data_imports",
+  "portable_data_packages",
+]);
+
+const reviewedExclusionReason = (resource: PortableResourceExport): string | undefined => {
+  const type = resource.inventory.resourceType;
+  if (EMBEDDED_CHILD_RESOURCES.has(type))
+    return "Canonical child rows are embedded in their parent resource sheet; a duplicate sheet is intentionally omitted";
+  if (
+    OPERATIONAL_RESOURCES.has(type) ||
+    /(^|_)(events?|attempts?|candidate_runs?|candidates?|claims?|deliveries?|delivery_attempts?|staging|review_rows?|read_models?|projections?)(_|$)/.test(
+      type,
+    )
+  )
+    return "Environment-local operational, retry, staging or read-model state is intentionally omitted";
+  if (!resource.inventory.excluded && resource.rows?.length === 0)
+    return "Resource has no rows at the export cutoff; manifest inventory is retained without an empty worksheet";
+  return undefined;
+};
+
+const applyReviewedDisposition = (
+  resources: readonly PortableResourceExport[],
+): readonly PortableResourceExport[] =>
+  resources.map((resource) => {
+    if (resource.inventory.excluded) return resource;
+    const exclusionReason = reviewedExclusionReason(resource);
+    return exclusionReason
+      ? {
+          inventory: {
+            ...resource.inventory,
+            excluded: true,
+            exclusionReason,
+          },
+        }
+      : resource;
+  });
+
 const jsonValue = (value: unknown): unknown => {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -326,7 +373,9 @@ export class PortableDataPackageService {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     const generatedAt = new Date().toISOString();
     const packageId = randomUUID();
-    const resources = await this.store.collectOrganizationResources(context, input.asOf);
+    const resources = applyReviewedDisposition(
+      await this.store.collectOrganizationResources(context, input.asOf),
+    );
     const { content, manifest, schemas } = await this.workbook(
       context,
       input,

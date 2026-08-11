@@ -142,10 +142,10 @@ describeIntegration("ERP-310 expense workflow", () => {
     );
     expect(defaults.rows[0]).toEqual({
       management_state: "valid",
-      cit_state: "eligible",
-      vat_state: "eligible",
-      cit_eligible_minor: "1000",
-      vat_eligible_minor: "100",
+      cit_state: "unreviewed",
+      vat_state: "unreviewed",
+      cit_eligible_minor: "0",
+      vat_eligible_minor: "0",
     });
 
     const override = await app.inject({

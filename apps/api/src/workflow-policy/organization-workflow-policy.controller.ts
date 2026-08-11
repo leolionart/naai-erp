@@ -23,11 +23,17 @@ export class OrganizationWorkflowPolicyController {
       organizationId,
       correlationId ?? randomUUID(),
     );
+    const capabilities = await this.workflowPolicy.capabilities(organizationId);
     return {
       apiVersion: API_VERSION,
       requestId: context.correlationId,
       organizationId,
-      data: await this.workflowPolicy.capabilities(organizationId),
+      data: {
+        ...capabilities,
+        callerIsOwner: context.roles.includes("owner"),
+        callerCanSaveAndRecord:
+          capabilities.operatingMode === "solopreneur" && context.roles.includes("owner"),
+      },
     };
   }
 }

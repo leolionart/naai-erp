@@ -245,9 +245,15 @@ export class PgFinancialStatementStore {
   }
 
   private async ledger(c: FinancialStatementContext, kind: StatementKind, q: StatementQuery) {
+    const workflow = await this.pool.query<{ operating_mode: "controlled" | "solopreneur" }>(
+      `select operating_mode from accounting_workflow_policies where organization_id=$1`,
+      [c.organizationId],
+    );
+    const solopreneur = workflow.rows[0]?.operating_mode === "solopreneur";
     const mapping = await this.pool.query<{
       id: string;
       version: number;
+      state: "draft" | "approved";
       report_policy: {
         maxLedgerDifferenceMinor: string;
         maxUnreviewedInputMinor: string;
@@ -255,12 +261,26 @@ export class PgFinancialStatementStore {
         maxMissingEvidenceCount: number;
       };
     }>(
-      `select id,version,report_policy from financial_statement_mapping_versions where organization_id=$1 and framework=$2 and state='approved'
+      `select id,version,state,report_policy from financial_statement_mapping_versions where organization_id=$1 and framework=$2
+       and (state='approved' or $5::boolean)
        and effective_from <= $3::date and (effective_to is null or effective_to >= coalesce($4::date,$3::date))
-       order by effective_from desc,version desc limit 1`,
-      [c.organizationId, q.framework, q.endsOn, q.startsOn ?? null],
+       order by (state='approved') desc,effective_from desc,version desc limit 1`,
+      [c.organizationId, q.framework, q.endsOn, q.startsOn ?? null, solopreneur],
     );
-    if (!mapping.rows[0]) throw new Error("REPORT_MAPPING_NOT_FOUND");
+    if (!mapping.rows[0] && !solopreneur) throw new Error("REPORT_MAPPING_NOT_FOUND");
+    const selected =
+      mapping.rows[0] ??
+      ({
+        id: "canonical-unmapped",
+        version: 0,
+        state: "draft",
+        report_policy: {
+          maxLedgerDifferenceMinor: "0",
+          maxUnreviewedInputMinor: "0",
+          maxUnresolvedItemCount: 0,
+          maxMissingEvidenceCount: 0,
+        },
+      } as const);
     const result = await this.pool.query<LedgerRow>(
       `select j.id journal_id,j.version::text journal_version,j.journal_date::text,j.posted_at::text,
         l.line_number,l.account_code,a.name account_name,a.root_type,l.debit_minor::text,l.credit_minor::text,l.dimensions,l.description line_description,
@@ -276,44 +296,66 @@ export class PgFinancialStatementStore {
         q.asOfInstant,
         q.endsOn,
         kind === "balance_sheet" || kind === "cash_flow" ? null : (q.startsOn ?? null),
-        mapping.rows[0].id,
-        mapping.rows[0].version,
+        selected.version > 0 ? selected.id : null,
+        selected.version > 0 ? selected.version : null,
         kind,
       ],
     );
     return {
-      mapping: mapping.rows[0],
+      mapping: selected,
+      reportWarnings: [
+        ...(selected.version === 0 ? ["financial_statement_mapping_missing"] : []),
+        ...(selected.version > 0 && selected.state !== "approved"
+          ? ["financial_statement_mapping_unapproved"]
+          : []),
+      ],
       rows: result.rows.filter((r) => matchesDimensions(r, q.dimensions)),
     };
   }
   async report(c: FinancialStatementContext, kind: StatementKind, q: StatementQuery) {
     const loaded = await this.ledger(c, kind, q);
-    if (kind === "cash_flow") return this.cashFlow(c, loaded.rows, loaded.mapping, q);
+    if (kind === "cash_flow")
+      return {
+        ...((await this.cashFlow(c, loaded.rows, loaded.mapping, q)) as Record<string, unknown>),
+        reportWarnings: loaded.reportWarnings,
+      };
     const currency = await this.currency(c.organizationId);
     const cutoff = this.cutoff(loaded.rows, q.endsOn);
     const domainLines = this.domainLines(c, loaded.rows, loaded.mapping);
     if (kind === "profit_and_loss")
-      return jsonMoney(
-        buildProfitAndLoss({
-          organizationId: c.organizationId,
-          currency,
-          startsOn: q.startsOn!,
-          endsOn: q.endsOn,
-          ledgerCutoff: cutoff,
-          lines: domainLines,
-        }),
-      );
+      return {
+        ...(jsonMoney(
+          buildProfitAndLoss({
+            organizationId: c.organizationId,
+            currency,
+            startsOn: q.startsOn!,
+            endsOn: q.endsOn,
+            ledgerCutoff: cutoff,
+            lines: domainLines,
+          }),
+        ) as Record<string, unknown>),
+        mappingVersion: loaded.mapping,
+        reportWarnings: loaded.reportWarnings,
+      };
     if (kind === "balance_sheet")
-      return jsonMoney(
-        buildBalanceSheet({
-          organizationId: c.organizationId,
-          currency,
-          asOfDate: q.endsOn,
-          ledgerCutoff: cutoff,
-          lines: domainLines,
-        }),
-      );
-    if (kind === "vat_reconciliation") return this.vatReport(c, q, loaded.rows, loaded.mapping);
+      return {
+        ...(jsonMoney(
+          buildBalanceSheet({
+            organizationId: c.organizationId,
+            currency,
+            asOfDate: q.endsOn,
+            ledgerCutoff: cutoff,
+            lines: domainLines,
+          }),
+        ) as Record<string, unknown>),
+        mappingVersion: loaded.mapping,
+        reportWarnings: loaded.reportWarnings,
+      };
+    if (kind === "vat_reconciliation")
+      return {
+        ...((await this.vatReport(c, q, loaded.rows, loaded.mapping)) as Record<string, unknown>),
+        reportWarnings: loaded.reportWarnings,
+      };
     const grouped = new Map<
       string,
       {

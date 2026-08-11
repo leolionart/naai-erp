@@ -24,7 +24,11 @@ export function PageShell({
     <SidebarProvider>
       <SkipLink href={`#${mainId}`} />
       {navigation}
-      <SidebarInset className={cn(className, contentClassName)} id={mainId} tabIndex={-1}>
+      <SidebarInset
+        className={cn("overflow-x-clip", className, contentClassName)}
+        id={mainId}
+        tabIndex={-1}
+      >
         {banner}
         {children}
       </SidebarInset>

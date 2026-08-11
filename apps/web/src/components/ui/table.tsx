@@ -92,12 +92,12 @@ function Table({
   }
 
   return (
-    <div data-slot="configurable-table" className="flex w-full flex-col gap-2">
+    <div data-slot="configurable-table" className="flex min-w-0 w-full flex-col gap-2">
       {columns.length > 1 ? (
-        <div data-slot="table-toolbar" className="flex items-center gap-2 px-1">
+        <div data-slot="table-toolbar" className="flex min-w-0 flex-wrap items-center gap-2 px-1">
           <Input
             aria-label="Tìm kiếm trong bảng"
-            className="max-w-sm"
+            className="min-w-0 flex-1 sm:max-w-sm"
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Tìm kiếm trong bảng..."
             type="search"
@@ -105,7 +105,7 @@ function Table({
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="ml-auto" variant="outline" size="sm">
+              <Button className="ml-auto shrink-0" variant="outline" size="sm">
                 <Columns3 data-icon="inline-start" />
                 Cột hiển thị
                 <ChevronDown data-icon="inline-end" />

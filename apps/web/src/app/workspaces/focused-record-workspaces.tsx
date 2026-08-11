@@ -49,6 +49,7 @@ import {
   INBOUND_CATEGORIES,
   OUTBOUND_CATEGORIES,
 } from "@/components/forms/document-expense-forms";
+import { createSubmitLabel, type WorkflowCreateCapabilities } from "./solopreneur-create-policy";
 import {
   MonthlyCategoryStackedChart,
   type StackedCategoryPoint,
@@ -222,6 +223,7 @@ export function FocusedRecordListWorkspace({
   const [exportError, setExportError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
+  const [workflowCapabilities, setWorkflowCapabilities] = useState<WorkflowCreateCapabilities>();
   const key = params.toString();
   const invoiceStatus = params.get("invoiceStatus") ?? "all";
   const current = config[kind];
@@ -266,6 +268,7 @@ export function FocusedRecordListWorkspace({
         rolesRes,
         workersRes,
         projectsRes,
+        workflowResult,
       ] = await Promise.all([
         includePresent
           ? client.data<{ items?: Row[] } | Row[]>(
@@ -284,7 +287,9 @@ export function FocusedRecordListWorkspace({
           ? client.data<{ items?: Row[] } | Row[]>("time/workers").catch(() => [])
           : Promise.resolve([] as Row[]),
         client.data<{ items?: Row[] } | Row[]>("master-data/projects?limit=500").catch(() => []),
+        client.data<WorkflowCreateCapabilities>("organization-workflow-policy").catch(() => ({})),
       ]);
+      setWorkflowCapabilities(workflowResult);
       const listedDocuments = (
         Array.isArray(documentsResult) ? documentsResult : (documentsResult.items ?? [])
       ).filter((row) =>
@@ -445,6 +450,7 @@ export function FocusedRecordListWorkspace({
       await client.data<Row>(current.endpoint, { method: "POST", body });
       setCreateDialogOpen(false);
       await load();
+      router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tạo ${current.singular}.`);
     } finally {
@@ -647,6 +653,7 @@ export function FocusedRecordListWorkspace({
               parties={clients}
               purchaseParties={payees}
               projects={projects}
+              submitLabel={createSubmitLabel(workflowCapabilities)}
               onSubmit={(body) => void createRecord(body)}
             />
           ) : (
@@ -657,6 +664,7 @@ export function FocusedRecordListWorkspace({
               employees={employees}
               freelancers={freelancers}
               projects={projects}
+              submitLabel={createSubmitLabel(workflowCapabilities)}
               onSubmit={(body) => void createRecord(body)}
             />
           )}

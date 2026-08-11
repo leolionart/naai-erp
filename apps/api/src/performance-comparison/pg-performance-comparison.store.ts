@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- PostgreSQL rows are normalized at the read-model boundary. */
-import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { buildPerformanceComparison, type PerformanceAmount } from "@naai-erp/domain";
-import pg, { type PoolClient } from "pg";
+import pg from "pg";
 import type {
   ActualFactQuery,
   ActualFactSummaryQuery,
@@ -10,7 +9,6 @@ import type {
   PerformanceQuery,
 } from "./performance-comparison.types.js";
 
-const hash = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex");
 const days = (a: string, b: string) =>
   Math.floor((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000) + 1;
 const addDays = (x: string, n: number) => {
@@ -40,7 +38,7 @@ export class PgPerformanceComparisonStore {
     values.push(q.limit + 1);
     const rows = (
       await this.pool.query(
-        `select id,actual_basis "actualBasis",effective_on::text "effectiveOn",amount_minor::text "amountMinor",currency,source_type "sourceType",source_id "sourceId",source_parent_id "sourceParentId",source_version "sourceVersion",dimensions,refreshed_at::text "refreshedAt" from planning_actual_facts where organization_id=$1${where} order by id limit $${values.length}`,
+        `select id,actual_basis "actualBasis",effective_on "effectiveOn",amount_minor::text "amountMinor",currency,source_type "sourceType",source_id "sourceId",source_parent_id "sourceParentId",source_version "sourceVersion",dimensions from (${this.canonicalFactsSql()}) facts where organization_id=$1${where} order by id limit $${values.length}`,
         values,
       )
     ).rows;
@@ -77,55 +75,6 @@ export class PgPerformanceComparisonStore {
       sourceIds: result.ids,
       dimensions: q.dimensions,
     };
-  }
-
-  backfill(c: PerformanceContext, input: Record<string, unknown>, key: string) {
-    return this.mutate(c, key, "planning-actual-facts:backfill", input, async (q) => {
-      const basis = String(input.actualBasis),
-        from = String(input.from),
-        to = String(input.to);
-      await q.query(
-        `delete from planning_actual_facts where organization_id=$1 and actual_basis=$2 and effective_on between $3 and $4`,
-        [c.organizationId, basis, from, to],
-      );
-      let sourceSql: string;
-      if (basis === "recognized")
-        sourceSql = `select 'recognition:'||e.id id,e.effective_on,e.amount_minor,e.currency,'revenue_recognition_event' source_type,e.id source_id,null::text source_parent_id,e.version::text source_version,jsonb_strip_nulls(jsonb_build_object('projectId',e.project_id,'clientId',p.client_party_id,'ownerId',p.owner_user_id) || coalesce(e.policy_snapshot->'dimensions','{}'::jsonb)) dimensions from revenue_recognition_events e join projects p on p.organization_id=e.organization_id and p.id=e.project_id where e.organization_id=$1 and e.state='posted' and e.effective_on between $2 and $3`;
-      else if (basis === "invoiced")
-        sourceSql = `select 'invoice-allocation:'||d.id||':'||a.line_number||':'||a.allocation_number id,d.document_date effective_on,case when d.type='credit_note' then -a.amount_minor else a.amount_minor end amount_minor,d.currency,'commercial_document_allocation' source_type,d.id||':'||a.line_number||':'||a.allocation_number source_id,d.id source_parent_id,d.version::text source_version,a.dimensions from commercial_documents d join commercial_document_allocations a on a.organization_id=d.organization_id and a.document_id=d.id left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id where d.organization_id=$1 and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and $3 and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) union all select 'invoice:'||d.id,d.document_date,case when d.type='credit_note' then -d.net_minor else d.net_minor end,d.currency,'commercial_document',d.id,null::text,d.version::text,'{}'::jsonb from commercial_documents d left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id where d.organization_id=$1 and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and $3 and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) and not exists(select 1 from commercial_document_allocations a where a.organization_id=d.organization_id and a.document_id=d.id)`;
-      else
-        sourceSql = `select 'collection:'||a.id id,bt.booking_date effective_on,case when a.target_currency=o.base_currency then a.target_amount_minor else a.base_amount_minor end amount_minor,o.base_currency currency,'reconciliation_allocation' source_type,a.id source_id,d.id source_parent_id,ra.version::text source_version,coalesce(common_dims.dimensions,'{}'::jsonb) dimensions from reconciliation_allocations a join reconciliation_attempts ra on ra.organization_id=a.organization_id and ra.id=a.reconciliation_id join payment_reconciliations pr on pr.organization_id=ra.organization_id and pr.id=ra.reconciliation_id join bank_transactions bt on bt.organization_id=pr.organization_id and bt.id=pr.bank_transaction_id join commercial_documents d on d.organization_id=a.organization_id and d.id=a.commercial_document_id join organizations o on o.id=a.organization_id left join lateral (select case when count(*)>0 and count(distinct ca.dimensions)=1 then (array_agg(ca.dimensions))[1] else '{}'::jsonb end dimensions from commercial_document_allocations ca where ca.organization_id=d.organization_id and ca.document_id=d.id) common_dims on true where a.organization_id=$1 and pr.direction='receipt' and ra.state='reconciled' and d.type='sales_invoice' and bt.booking_date between $2 and $3`;
-      const inserted = await q.query(
-        `insert into planning_actual_facts(organization_id,id,actual_basis,effective_on,amount_minor,currency,source_type,source_id,source_parent_id,source_version,dimensions) select $1,s.id,$4::planning_actual_basis,s.effective_on,s.amount_minor,s.currency,s.source_type,s.source_id,s.source_parent_id,s.source_version,s.dimensions from (${sourceSql}) s`,
-        [c.organizationId, from, to, basis],
-      );
-      const auditId = randomUUID();
-      await q.query(
-        `insert into planning_audit_events(organization_id,id,resource_type,resource_id,action,actor_id,reason,correlation_id,resource_version) values($1,$2,'planning-actual-facts',$3,'backfill',$4,$5,$6,1)`,
-        [
-          c.organizationId,
-          auditId,
-          `${basis}:${from}:${to}`,
-          c.actorId,
-          input.reason,
-          c.correlationId,
-        ],
-      );
-      return {
-        schemaVersion: 1,
-        actualBasis: basis,
-        from,
-        to,
-        refreshedCount: inserted.rowCount ?? 0,
-        mutation: {
-          resourceVersion: "1",
-          auditEventId: auditId,
-          correlationId: c.correlationId,
-          idempotencyReplayed: false,
-          nextActions: [],
-        },
-      };
-    });
   }
 
   async report(c: PerformanceContext, q: PerformanceQuery) {
@@ -336,18 +285,11 @@ export class PgPerformanceComparisonStore {
     currency: string,
     dimensions: Record<string, string>,
   ) {
-    await this.assertFresh(org, basis, from, to, currency);
     const values: unknown[] = [org, basis, from, to, currency],
       where = this.dims(dimensions, values),
-      freshness =
-        basis === "recognized"
-          ? ` and exists(select 1 from revenue_recognition_events e where e.organization_id=planning_actual_facts.organization_id and e.id=planning_actual_facts.source_id and planning_actual_facts.source_type='revenue_recognition_event' and e.state='posted' and e.version::text=planning_actual_facts.source_version)`
-          : basis === "invoiced"
-            ? ` and exists(select 1 from commercial_documents d where d.organization_id=planning_actual_facts.organization_id and ((planning_actual_facts.source_type='commercial_document' and d.id=planning_actual_facts.source_id) or (planning_actual_facts.source_type='commercial_document_allocation' and d.id=planning_actual_facts.source_parent_id)) and d.state in ('issued','posted','partially_paid','paid') and d.version::text=planning_actual_facts.source_version)`
-            : ` and exists(select 1 from reconciliation_allocations a join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id where a.organization_id=planning_actual_facts.organization_id and a.id=planning_actual_facts.source_id and planning_actual_facts.source_type='reconciliation_allocation' and r.state='reconciled' and r.version::text=planning_actual_facts.source_version)`,
       rows = (
         await this.pool.query(
-          `select id,amount_minor::text amount from planning_actual_facts where organization_id=$1 and actual_basis=$2 and effective_on between $3 and $4 and currency=$5${where}${freshness}`,
+          `select id,amount_minor::text amount from (${this.canonicalFactsSql()}) facts where organization_id=$1 and actual_basis=$2 and effective_on between $3 and $4 and currency=$5${where}`,
           values,
         )
       ).rows;
@@ -357,30 +299,45 @@ export class PgPerformanceComparisonStore {
       hasData: rows.length > 0,
     };
   }
-  private async assertFresh(
-    org: string,
-    basis: string,
-    from: string,
-    to: string,
-    currency: string,
-  ) {
-    const sourceSql =
-      basis === "recognized"
-        ? `select max(updated_at) latest from revenue_recognition_events where organization_id=$1 and state='posted' and effective_on between $2 and $3 and currency=$4`
-        : basis === "invoiced"
-          ? `select max(d.updated_at) latest from commercial_documents d left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id where d.organization_id=$1 and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and $3 and d.currency=$4 and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice'))`
-          : `select max(r.updated_at) latest from reconciliation_allocations a join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id join payment_reconciliations pr on pr.organization_id=r.organization_id and pr.id=r.reconciliation_id join bank_transactions bt on bt.organization_id=pr.organization_id and bt.id=pr.bank_transaction_id join commercial_documents d on d.organization_id=a.organization_id and d.id=a.commercial_document_id join organizations o on o.id=a.organization_id where a.organization_id=$1 and pr.direction='receipt' and r.state='reconciled' and d.type='sales_invoice' and bt.booking_date between $2 and $3 and o.base_currency=$4`;
-    const sourceLatest = (await this.pool.query(sourceSql, [org, from, to, currency])).rows[0]
-      ?.latest;
-    if (!sourceLatest) return;
-    const factRefresh = (
-      await this.pool.query(
-        `select max(refreshed_at) latest from planning_actual_facts where organization_id=$1 and actual_basis=$2 and effective_on between $3 and $4 and currency=$5`,
-        [org, basis, from, to, currency],
-      )
-    ).rows[0]?.latest;
-    if (!factRefresh || new Date(factRefresh) < new Date(sourceLatest))
-      throw new Error("PLANNING_ACTUAL_FACTS_STALE");
+  private canonicalFactsSql() {
+    return `
+      select e.organization_id,'recognition:'||e.id id,'recognized'::text actual_basis,
+        e.effective_on::text effective_on,e.amount_minor,e.currency,
+        'revenue_recognition_event'::text source_type,e.id source_id,null::text source_parent_id,
+        e.version::text source_version,
+        jsonb_strip_nulls(jsonb_build_object('projectId',e.project_id,'clientId',p.client_party_id,'ownerId',p.owner_user_id) || coalesce(e.policy_snapshot->'dimensions','{}'::jsonb)) dimensions
+      from revenue_recognition_events e
+      join projects p on p.organization_id=e.organization_id and p.id=e.project_id
+      where e.state='posted'
+      union all
+      select d.organization_id,'invoice-allocation:'||d.id||':'||a.line_number||':'||a.allocation_number,
+        'invoiced',d.document_date::text,case when d.type='credit_note' then -a.amount_minor else a.amount_minor end,
+        d.currency,'commercial_document_allocation',d.id||':'||a.line_number||':'||a.allocation_number,d.id,
+        d.version::text,a.dimensions
+      from commercial_documents d
+      join commercial_document_allocations a on a.organization_id=d.organization_id and a.document_id=d.id
+      left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
+      where d.state in ('issued','posted','partially_paid','paid') and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice'))
+      union all
+      select d.organization_id,'invoice:'||d.id,'invoiced',d.document_date::text,
+        case when d.type='credit_note' then -d.net_minor else d.net_minor end,d.currency,
+        'commercial_document',d.id,null::text,d.version::text,'{}'::jsonb
+      from commercial_documents d
+      left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
+      where d.state in ('issued','posted','partially_paid','paid') and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice'))
+        and not exists(select 1 from commercial_document_allocations a where a.organization_id=d.organization_id and a.document_id=d.id)
+      union all
+      select a.organization_id,'collection:'||a.id,'collected',bt.booking_date::text,
+        case when a.target_currency=o.base_currency then a.target_amount_minor else a.base_amount_minor end,
+        o.base_currency,'reconciliation_allocation',a.id,d.id,ra.version::text,coalesce(common_dims.dimensions,'{}'::jsonb)
+      from reconciliation_allocations a
+      join reconciliation_attempts ra on ra.organization_id=a.organization_id and ra.id=a.reconciliation_id
+      join payment_reconciliations pr on pr.organization_id=ra.organization_id and pr.id=ra.reconciliation_id
+      join bank_transactions bt on bt.organization_id=pr.organization_id and bt.id=pr.bank_transaction_id
+      join commercial_documents d on d.organization_id=a.organization_id and d.id=a.commercial_document_id
+      join organizations o on o.id=a.organization_id
+      left join lateral (select case when count(*)>0 and count(distinct ca.dimensions)=1 then (array_agg(ca.dimensions))[1] else '{}'::jsonb end dimensions from commercial_document_allocations ca where ca.organization_id=d.organization_id and ca.document_id=d.id) common_dims on true
+      where pr.direction='receipt' and ra.state='reconciled' and d.type='sales_invoice'`;
   }
   private async target(
     org: string,
@@ -445,47 +402,5 @@ export class PgPerformanceComparisonStore {
       amount: row ? BigInt(String(row.composition_snapshot.projectedRevenueMinor)) : null,
       ids: row ? [row.id] : [],
     };
-  }
-  private async mutate(
-    c: PerformanceContext,
-    key: string,
-    operation: string,
-    input: unknown,
-    work: (q: PoolClient) => Promise<any>,
-  ) {
-    const q = await this.pool.connect(),
-      requestHash = hash(input);
-    try {
-      await q.query("begin");
-      await q.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
-        `${c.organizationId}:performance:${key}`,
-      ]);
-      const old = (
-        await q.query(
-          `select operation,request_hash,response_body from api_idempotency_records where organization_id=$1 and idempotency_key=$2`,
-          [c.organizationId, key],
-        )
-      ).rows[0];
-      if (old) {
-        if (old.operation !== operation || old.request_hash !== requestHash)
-          throw new Error("Idempotency key was reused with a different request");
-        await q.query("commit");
-        const response = old.response_body;
-        response.mutation = { ...response.mutation, idempotencyReplayed: true };
-        return response;
-      }
-      const response = await work(q);
-      await q.query(
-        `insert into api_idempotency_records(organization_id,idempotency_key,operation,request_hash,response_body) values($1,$2,$3,$4,$5)`,
-        [c.organizationId, key, operation, requestHash, JSON.stringify(response)],
-      );
-      await q.query("commit");
-      return response;
-    } catch (e) {
-      await q.query("rollback");
-      throw e;
-    } finally {
-      q.release();
-    }
   }
 }

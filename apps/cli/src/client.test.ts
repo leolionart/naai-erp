@@ -1522,7 +1522,7 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
-  it("routes aggregate performance comparisons and planning actual backfill", async () => {
+  it("routes aggregate performance comparisons from canonical actual facts", async () => {
     const fetchFn = vi.fn().mockImplementation(() =>
       Promise.resolve(
         new Response(
@@ -1557,24 +1557,6 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(report).toMatchObject({
       data: { actualVsRetainedForecast: { varianceMinor: "-150" } },
     });
-    await client.request(
-      "planning-actual-facts",
-      "backfill",
-      {
-        schemaVersion: 1,
-        actualBasis: "recognized",
-        from: "2024-02-01",
-        to: "2024-02-29",
-        reason: "Refresh",
-      },
-      undefined,
-      undefined,
-      "facts-1",
-    );
-    expect(fetchFn).toHaveBeenLastCalledWith(
-      "http://api/api/v1/organizations/org-a/planning-actual-facts/backfill",
-      expect.objectContaining({ method: "POST" }),
-    );
   });
 
   it("deletes an operational project through the audited master-data contract", async () => {

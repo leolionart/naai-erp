@@ -62,8 +62,8 @@ function expenseClassToTaxState(
   if (operatingMode === "solopreneur")
     return {
       managementState: "valid",
-      citState: "eligible",
-      vatState: BigInt(vatMinor) > 0n ? "eligible" : "ineligible",
+      citState: "unreviewed",
+      vatState: BigInt(vatMinor) > 0n ? "unreviewed" : "ineligible",
     };
   return { managementState: "unreviewed", citState: "unreviewed", vatState: "unreviewed" };
 }
@@ -955,12 +955,9 @@ export class PgExpenseStore {
           context.actorId,
         ],
       );
+      const operatingMode = await this.operatingMode(c, context.organizationId);
       for (const [index, line] of input.lines.entries()) {
-        const taxState = expenseClassToTaxState(
-          input.expenseClass,
-          await this.operatingMode(c, context.organizationId),
-          line.vatMinor,
-        );
+        const taxState = expenseClassToTaxState(input.expenseClass, operatingMode, line.vatMinor);
         const citState = line.citState ?? taxState.citState;
         const vatState = line.vatState ?? taxState.vatState;
         const fundingTreatment = await this.categoryTreatment(
@@ -1026,36 +1023,98 @@ export class PgExpenseStore {
         );
       }
 
+      const autoComplete = operatingMode === "solopreneur" && context.roles.includes("owner");
+      let finalState = "draft";
+      let resourceVersion = "1";
+      let journalId: string | null = null;
+      if (autoComplete) {
+        const expense: StoredExpense = {
+          id,
+          expense_class: input.expenseClass,
+          state: "draft",
+          expense_date: input.expenseDate,
+          freelance_due_date: input.freelanceDueDate ?? null,
+          currency: input.currency,
+          net_minor: input.netMinor,
+          vat_minor: input.vatMinor,
+          gross_minor: input.grossMinor,
+          counter_account_code: input.counterAccountCode,
+          created_by: context.actorId,
+          version: "1",
+          employee_party_id: input.employeePartyId ?? null,
+          payee_party_id: input.payeePartyId ?? null,
+          evidence_checklist: { ...(input.evidenceChecklist ?? {}) },
+        };
+        await this.period(c, context, expense.expense_date);
+        await this.assertOwnerPaidCounterAccount(c, context.organizationId, expense);
+        journalId = await this.postJournal(c, context, expense);
+        if (expense.expense_class === "freelancer")
+          await this.createFreelancePayable(c, context, expense, journalId);
+        finalState = "posted";
+        resourceVersion = "4";
+        await c.query(
+          `update expenses set state='posted',version=4,updated_at=now(),approved_by=$3,approved_at=now(),
+             posted_by=$3,posted_at=now(),journal_id=$4 where organization_id=$1 and id=$2`,
+          [context.organizationId, id, context.actorId, journalId],
+        );
+        await c.query(
+          `insert into expense_events(organization_id,id,expense_id,action,from_state,to_state,actor_id,reason,correlation_id,details)
+           values($1,$2,$3,'save-and-record','draft','posted',$4,'Solopreneur save and record',$5,$6)`,
+          [
+            context.organizationId,
+            randomUUID(),
+            id,
+            context.actorId,
+            context.correlationId,
+            { journalId, autoCompleted: true },
+          ],
+        );
+      }
+
       const audit = randomUUID(),
         outbox = randomUUID();
       await c.query(
-        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'expense',$3,1,'create',$4,$5,$6)`,
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'expense',$3,$4,'create',$5,$6,$7)`,
         [
           context.organizationId,
           audit,
           id,
+          resourceVersion,
           context.actorId,
           context.correlationId,
-          { state: "draft", expenseClass: input.expenseClass },
+          {
+            state: finalState,
+            expenseClass: input.expenseClass,
+            journalId,
+            autoCompleted: autoComplete,
+          },
         ],
       );
       await c.query(
-        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id) values($1,$2,'expense',$3,'expense.created',1,$4,$5)`,
+        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id) values($1,$2,'expense',$3,$4,1,$5,$6)`,
         [
           context.organizationId,
           outbox,
           id,
-          { expenseId: id, state: "draft", expenseClass: input.expenseClass },
+          autoComplete ? `expense.${finalState}` : "expense.created",
+          {
+            expenseId: id,
+            state: finalState,
+            expenseClass: input.expenseClass,
+            journalId,
+            autoCompleted: autoComplete,
+          },
           context.correlationId,
         ],
       );
       const response = {
         expenseId: id,
-        state: "draft",
-        resourceVersion: "1",
+        state: finalState,
+        resourceVersion,
+        journalId,
         auditEventId: audit,
         outboxEventId: outbox,
-        nextActions: ["submit"],
+        nextActions: Object.keys(NEXT[finalState] ?? {}),
       };
       await this.save(c, context.organizationId, key, "expense:create", hash, response);
       await c.query("commit");

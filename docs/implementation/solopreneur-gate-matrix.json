@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 105,
+  "mutationCount": 104,
   "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
@@ -46,7 +46,6 @@
     "opening-balances/dry-run",
     "outbound-events/endpoints",
     "outbound-events/outbox",
-    "planning-actual-facts/backfill",
     "portable-data-packages/exports",
     "portable-data-packages/imports",
     "portable-data-packages/local-admin",
@@ -1959,26 +1958,6 @@
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
       "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "forecast-versions/{forecastId}"
-    },
-    {
-      "id": "POST:/api/v1/organizations/{organizationId}/planning-actual-facts/backfill",
-      "method": "POST",
-      "path": "/api/v1/organizations/{organizationId}/planning-actual-facts/backfill",
-      "operationId": "backfillPlanningActualFacts",
-      "resource": "planning-actual-facts",
-      "action": "backfill",
-      "possibleActions": [],
-      "financialEffect": "none",
-      "current": {
-        "lifecycleStates": ["endpoint-defined"],
-        "reason": "endpoint-defined",
-        "checker": "endpoint-defined",
-        "version": "endpoint-defined",
-        "idempotency": "required"
-      },
-      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
-      "uiActionFamily": "planning-actual-facts/backfill"
     },
     {
       "id": "POST:/api/v1/organizations/{organizationId}/executive-metric-policies",

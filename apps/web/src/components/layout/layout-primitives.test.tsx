@@ -16,6 +16,8 @@ describe("server-compatible layout primitives", () => {
     expect(html).toContain('id="main-content"');
     expect(html).toContain('tabindex="-1"');
     expect(html).toContain('data-slot="sidebar-inset"');
+    expect(html).toContain("min-w-0");
+    expect(html).toContain("overflow-x-clip");
     expect(html).toContain('aria-label="Điều hướng"');
   });
 
@@ -35,6 +37,8 @@ describe("server-compatible layout primitives", () => {
     expect(html).toContain('aria-current="page"');
     expect(html).toContain("Thêm journal");
     expect(html).toContain("Đã đồng bộ");
+    expect(html).toContain("flex-wrap");
+    expect(html).toContain("min-h-14");
   });
 
   it("allows a custom skip target", () => {

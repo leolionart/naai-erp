@@ -462,4 +462,46 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
     expect(after.ledgerCutoff.sourceFingerprint).toBe(before.ledgerCutoff.sourceFingerprint);
     expect(after.netProfitMinor).toBe(before.netProfitMinor);
   });
+
+  it("uses the latest effective draft mapping for a solopreneur but keeps controlled mode approved-only", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies
+       (organization_id,operating_mode,allow_self_approval,soft_lock_posting_roles,updated_by)
+       values ('org-erp630','solopreneur',false,'["owner"]','maker')
+       on conflict (organization_id) do update set operating_mode='solopreneur',updated_by='maker',updated_at=now()`,
+    );
+    await pool.query(
+      `update financial_statement_mapping_versions set state='draft',approved_at=null,approved_by=null
+       where organization_id='org-erp630'`,
+    );
+
+    const solopreneur = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/org-erp630/reports/financial-statements/profit-and-loss?${reportQuery}`,
+      headers: headers(),
+    });
+    expect(solopreneur.statusCode, solopreneur.body).toBe(200);
+    expect(solopreneur.json().data).toMatchObject({
+      netProfitMinor: expect.any(String),
+      mappingVersion: { state: "draft" },
+      reportWarnings: ["financial_statement_mapping_unapproved"],
+    });
+
+    await pool.query(
+      `update accounting_workflow_policies set operating_mode='controlled',updated_at=now()
+       where organization_id='org-erp630'`,
+    );
+    const controlled = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/org-erp630/reports/financial-statements/profit-and-loss?${reportQuery}`,
+      headers: headers(),
+    });
+    expect(controlled.statusCode).toBe(400);
+    expect(controlled.json().error.code).toBe("REPORT_MAPPING_NOT_FOUND");
+
+    await pool.query(
+      `update financial_statement_mapping_versions set state='approved',approved_at=now(),approved_by='approver'
+       where organization_id='org-erp630' and id='erp630-map' and version=1`,
+    );
+  });
 });

@@ -125,6 +125,24 @@ export class PgPlanningStore {
             c.actorId,
           ],
         );
+        const policy = await resolveOrganizationWorkflowPolicy(c.organizationId, q);
+        if (canSelfApprove({ policy, roles: c.roles })) {
+          const published = publishRevenueTargetVersion(
+            target,
+            existing as RevenueTargetVersion[],
+            c.actorId,
+            new Date().toISOString(),
+          );
+          await q.query(
+            `update revenue_target_versions set state='published',version=2,published_by=$3,published_at=$4,updated_at=now() where organization_id=$1 and id=$2`,
+            [c.organizationId, id, published.publishedBy, published.publishedAt],
+          );
+          if (target.previousVersionId)
+            await q.query(
+              `update revenue_target_versions set state='superseded',version=version+1,updated_at=now() where organization_id=$1 and id=$2 and state='published'`,
+              [c.organizationId, target.previousVersionId],
+            );
+        }
       } else {
         const forecast = createForecastVersion({
           organizationId: c.organizationId,
@@ -170,18 +188,21 @@ export class PgPlanningStore {
           ],
         );
       }
+      const createdResource = await this.getWith(q, c.organizationId, resource, id);
+      const automaticallyPublished = createdResource?.state === "published";
+      const resourceVersion = createdResource?.resourceVersion ?? "1";
       const auditEventId = await this.audit(
         q,
         c,
         resource,
         id,
-        "create",
-        "1",
+        automaticallyPublished ? "create_and_publish" : "create",
+        resourceVersion,
         String(input.reason),
       );
       return {
-        resource: await this.getWith(q, c.organizationId, resource, id),
-        mutation: this.meta(c, "1", auditEventId, false),
+        resource: createdResource,
+        mutation: this.meta(c, resourceVersion, auditEventId, false),
       };
     });
   }

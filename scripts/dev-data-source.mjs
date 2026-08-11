@@ -31,9 +31,6 @@ if (mode === "production") {
   const environment = {
     ...process.env,
     DATABASE_URL: databaseUrl,
-    NEXT_PUBLIC_API_URL: "http://localhost:3001",
-    NEXT_PUBLIC_ORGANIZATION_ID: organizationId,
-    NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION: "1",
   };
 
   if (checkOnly) {

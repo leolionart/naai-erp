@@ -47,12 +47,12 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="flex h-14 shrink-0 items-center gap-2 px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b">
+      <div className="flex min-h-14 min-w-0 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-12">
         <SidebarTrigger className="-ml-1" aria-label="Mở menu chính" />
         {trail.length > 0 ? (
           <>
             <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
-            <Breadcrumb>
+            <Breadcrumb className="min-w-0 flex-1">
               <BreadcrumbList>
                 {trail.map((item, index) => (
                   <Fragment key={`${item.label}-${index}`}>
@@ -73,18 +73,18 @@ export function PageHeader({
           </>
         ) : null}
         {status || actions ? (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
             {status}
             {actions}
           </div>
         ) : null}
       </div>
-      <div className="flex flex-col gap-3 px-4 py-3">
-        <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-3 px-4 py-3">
+        <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-xl font-bold tracking-tight">{title}</h1>
           {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
         </div>
-        {toolbar ? <div className="pt-1">{toolbar}</div> : null}
+        {toolbar ? <div className="min-w-0 pt-1">{toolbar}</div> : null}
       </div>
     </header>
   );

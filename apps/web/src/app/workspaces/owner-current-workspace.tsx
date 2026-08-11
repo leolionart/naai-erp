@@ -233,21 +233,9 @@ export function OwnerCurrentWorkspace() {
                     {source.detail && source.detail !== source.title ? (
                       <span className="text-xs text-muted-foreground">{source.detail}</span>
                     ) : null}
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      {source.payeeName ? <span>{source.payeeName}</span> : null}
-                      {source.category ? (
-                        <Badge variant="secondary">{source.category}</Badge>
-                      ) : null}
-                      {source.expenseClass ? (
-                        <Badge variant="outline">{source.expenseClass}</Badge>
-                      ) : null}
-                      {source.citState ? (
-                        <Badge variant="outline">TNDN: {source.citState}</Badge>
-                      ) : null}
-                      {source.vatState ? (
-                        <Badge variant="outline">VAT: {source.vatState}</Badge>
-                      ) : null}
-                    </div>
+                    {source.payeeName ? (
+                      <span className="text-xs text-muted-foreground">{source.payeeName}</span>
+                    ) : null}
                   </div>
                 ))}
                 <Link
@@ -336,17 +324,21 @@ export function OwnerCurrentWorkspace() {
 
   return (
     <div className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="min-w-0 text-sm text-muted-foreground">
           {withdrawalNotice || "Các khoản bên dưới chỉ gồm biến động tiền với chủ đã xác nhận."}
         </p>
-        <Button onClick={() => setWithdrawalDialog(true)} disabled={!accounts.length}>
+        <Button
+          className="w-full sm:w-auto"
+          onClick={() => setWithdrawalDialog(true)}
+          disabled={!accounts.length}
+        >
           <PlusIcon data-icon="inline-start" />
           Ghi nhận chủ rút tiền
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Card className="min-w-0">
           <CardHeader>
             <CardDescription>Công ty đang nợ chủ</CardDescription>
             <CardTitle>
@@ -354,7 +346,7 @@ export function OwnerCurrentWorkspace() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardDescription>Tiền công ty chủ đang giữ</CardDescription>
             <CardTitle>
@@ -362,7 +354,7 @@ export function OwnerCurrentWorkspace() {
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="min-w-0 sm:col-span-2 xl:col-span-1">
           <CardHeader>
             <CardDescription>Chủ đã chi phí cho công ty</CardDescription>
             <CardTitle>
@@ -373,7 +365,7 @@ export function OwnerCurrentWorkspace() {
       </div>
 
       <Card className="min-w-0" data-testid="confirmed-owner-current">
-        <CardHeader>
+        <CardHeader className="min-w-0">
           <CardTitle>Dòng quyết toán tiền giữa công ty và chủ đã xác nhận</CardTitle>
           <CardDescription>
             Phân biệt chi phí chủ đã trả, tiền công ty giao chủ giữ, tiền chủ rút dùng cá nhân và
@@ -382,7 +374,7 @@ export function OwnerCurrentWorkspace() {
           </CardDescription>
         </CardHeader>
         <CardContent className="min-w-0 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="owner-current-type">Loại biến động</FieldLabel>
               <Select

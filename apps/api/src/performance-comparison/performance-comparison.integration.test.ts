@@ -61,12 +61,14 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
     ];
     for (const [id, on, amount, team] of facts) {
       await pool.query(
-        `insert into revenue_recognition_events(organization_id,id,project_id,policy_id,policy_version_number,effective_on,amount_minor,currency,policy_snapshot,state,posted_by,posted_at,reason,created_by) values($1,$2,'project620','policy620',1,$3,$4,'VND','{}','posted','user620',now(),'Fixture','user620')`,
-        [org, id, on, amount === "0" ? "1" : amount],
-      );
-      await pool.query(
-        `insert into planning_actual_facts(organization_id,id,actual_basis,effective_on,amount_minor,currency,source_type,source_id,source_version,dimensions) values($1,$2,'recognized',$3,$4,'VND','revenue_recognition_event',$2,'1',$5)`,
-        [org, id, on, amount, JSON.stringify({ teamId: team })],
+        `insert into revenue_recognition_events(organization_id,id,project_id,policy_id,policy_version_number,effective_on,amount_minor,currency,policy_snapshot,state,posted_by,posted_at,reason,created_by) values($1,$2,'project620','policy620',1,$3,$4,'VND',$5,'posted','user620',now(),'Fixture','user620')`,
+        [
+          org,
+          id,
+          on,
+          amount === "0" ? "1" : amount,
+          JSON.stringify({ dimensions: { teamId: team } }),
+        ],
       );
     }
     await pool.query(
@@ -127,47 +129,13 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       actualVsProratedTarget: { varianceMinor: "-42000000", varianceBps: -2000, ratioBps: 8000 },
     });
   });
-  it("T-KPI-002 backfills organization-scoped actual facts idempotently and preserves zero/null policy", async () => {
-    const payload = {
-      schemaVersion: 1,
-      actualBasis: "recognized",
-      from: "2024-03-01",
-      to: "2024-03-31",
-      reason: "Refresh March",
-    };
-    const first = await app.inject({
-      method: "POST",
-      url: `/api/v1/organizations/${org}/planning-actual-facts/backfill`,
-      headers: { authorization: "Bearer token620", "idempotency-key": "backfill620" },
-      payload,
-    });
-    expect(first.statusCode, first.body).toBe(201);
-    expect(first.json().data.refreshedCount).toBe(1);
-    const replay = await app.inject({
-      method: "POST",
-      url: `/api/v1/organizations/${org}/planning-actual-facts/backfill`,
-      headers: { authorization: "Bearer token620", "idempotency-key": "backfill620" },
-      payload,
-    });
-    expect(replay.json().data.mutation.idempotencyReplayed).toBe(true);
+  it("T-API-ERP-907-001 reads newly posted canonical facts immediately without backfill", async () => {
     const facts = await get(
       `/planning-actual-facts?actualBasis=recognized&from=2024-03-01&to=2024-03-31`,
     );
     expect(facts.json().data.items).toEqual([
       expect.objectContaining({ amountMinor: "5000000", sourceId: "recognition620" }),
     ]);
-    const zero = await get(
-      `/reports/performance-comparisons?periodId=CAL-2024-02&periodBasis=calendar&actualBasis=recognized&asOfInstant=2024-02-15T16:59:59Z&teamId=zero`,
-    );
-    expect(zero.statusCode, zero.body).toBe(200);
-    expect(zero.json().data.monthOverMonth).toMatchObject({
-      status: "zero_denominator",
-      numeratorMinor: "10000000",
-      denominatorMinor: "0",
-      varianceMinor: "10000000",
-      ratioBps: null,
-      varianceBps: null,
-    });
     const missing = await get(
       `/reports/performance-comparisons?periodId=CAL-2024-02&periodBasis=calendar&actualBasis=recognized&asOfInstant=2024-02-15T16:59:59Z&teamId=missing`,
     );

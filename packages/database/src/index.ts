@@ -90,6 +90,5 @@ export {
   revenueTargetVersions,
   forecastVersions,
   forecastComponents,
-  planningActualFacts,
   planningAuditEvents,
 } from "./schema.js";

@@ -19,7 +19,7 @@ NAAI_ERP_LOGIN_USERNAME=owner
 NAAI_ERP_LOGIN_PASSWORD=<strong-random-password>
 NAAI_ERP_LOGIN_ORGANIZATION=<organization-id>
 NAAI_ERP_LOGIN_API_TOKEN=<active-organization-api-token>
-IMAGE_TAG=sha-<first-12-characters-of-git-sha>
+IMAGE_TAG=latest
 ```
 
 `POSTGRES_PASSWORD` is required by Compose. The release workflow publishes four matching packages:
@@ -29,9 +29,10 @@ IMAGE_TAG=sha-<first-12-characters-of-git-sha>
 - `ghcr.io/leolionart/naai-erp-worker`
 - `ghcr.io/leolionart/naai-erp-migrate`
 
-Each package receives `main` and `sha-<first-12-characters-of-git-sha>` tags. Use the immutable
-`sha-*` tag in `IMAGE_TAG`; `main` is only a convenience default for manual previews. All four
-services must use the same tag so the migration and runtime code stay on one release.
+Each package receives `latest`, `main` and `sha-<first-12-characters-of-git-sha>` tags. Production
+intentionally tracks `latest` across all four services. Do not change the production tag during a
+normal update. The supported updater explicitly enforces `IMAGE_TAG=latest`, including when an older
+environment file still contains another value.
 
 The four `NAAI_ERP_LOGIN_*` values are server-only. Never rename them to `NEXT_PUBLIC_*`, commit
 their real values, or use an API token that is not backed by an active organization membership and
@@ -59,19 +60,29 @@ node scripts/verify-compose.mjs
 
 ## Start or upgrade
 
-Pull the exact release and start it:
+Run the supported updater from the repository root:
 
 ```bash
-docker compose --env-file .env.production pull
-docker compose --env-file .env.production up -d --wait
+pnpm prod:update
+```
+
+Pass a different deployment environment file only when its location differs:
+
+```bash
+pnpm prod:update -- /absolute/path/to/.env.production
 ```
 
 The ordering is deliberate:
 
-1. PostgreSQL becomes healthy.
-2. `migrate` runs once and must exit successfully.
-3. API and worker start only after migration succeeds.
-4. Web starts only after the API readiness check succeeds.
+1. The matching `latest` images are pulled without changing the running application.
+2. PostgreSQL is confirmed healthy, then web, worker and API are stopped for the schema change.
+3. `migrate` is force-recreated from the pulled image and its non-zero exit code aborts the update.
+4. API, worker and web are force-recreated only after migration succeeds.
+5. Compose health, migration exit code, API readiness and web health are verified.
+
+Do not rely on Watchtower to run migrations. A one-shot `migrate` container is normally exited, so
+updating its image does not execute it. Watchtower may pull or recreate long-running containers, but
+the repository update command remains the required production upgrade path.
 
 Inspect the one-shot migration and runtime health:
 
@@ -103,13 +114,9 @@ docker volume inspect naai-erp_postgres-data
 
 Never use `docker compose down --volumes` against a production project.
 
-## Rollback
+## Recovery
 
-Set `IMAGE_TAG` to the previous immutable workflow tag and recreate application services:
-
-```bash
-IMAGE_TAG=sha-<previous-12-character-git-sha> docker compose --env-file .env.production pull
-IMAGE_TAG=sha-<previous-12-character-git-sha> docker compose --env-file .env.production up -d --wait
-```
-
-Database migrations are forward-only. Before rollback, confirm that the previous application image remains compatible with the migrated schema. Restore PostgreSQL from the approved backup procedure if a schema rollback is required.
+Database migrations are forward-only. If migration fails, the updater leaves API, worker and web
+stopped and reports the failing migration logs; repair the migration or restore PostgreSQL through
+the approved backup procedure, then rerun the same `latest` updater. Do not switch production image
+tags as an ad-hoc rollback because an older application may be incompatible with the migrated schema.

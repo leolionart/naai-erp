@@ -1618,17 +1618,6 @@ async function seedPlanning() {
       token: checkerToken,
       key: "forecast-invoiced-publish",
     });
-  await request("/planning-actual-facts/backfill", {
-    method: "POST",
-    body: {
-      schemaVersion: 1,
-      actualBasis: "invoiced",
-      from: startsOn,
-      to: endsOn,
-      reason: "Refresh NAAI local demo invoice actuals",
-    },
-    key: "planning-actual-backfill",
-  });
   note("planning", "annual target and retained forecast published");
 }
 

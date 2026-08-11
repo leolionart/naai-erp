@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-11T18:30:00+07:00
+updated_at: 2026-08-11T21:53:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G58
+current_gate: G64
 current_task: null
 
 tasks:
@@ -2453,7 +2453,7 @@ tasks:
   - id: ERP-902
     title: Make routine reasons optional with canonical audit reasons
     phase: P15
-    status: ready
+    status: deferred
     dependencies: [ERP-901]
     business_rules:
       [
@@ -2486,7 +2486,7 @@ tasks:
       - docs/testing/test-specification.md
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-902/
-    notes: Routine create, edit and nonfinancial lifecycle actions use a stable server-generated audit reason and accept an optional user note instead of requiring free text. Referenced-resource conflicts, authorization and audit remain enforced. Financial correction, reversal, reconciliation, tax override, fiscal-period and destructive restore/reset workflows retain explicit human reasons where required by the policy matrix.
+    notes: Superseded in priority and scope by ERP-907. Optional routine reasons remain desirable but cannot be implemented independently of the broader owner decision that valid solopreneur input must immediately participate in management reporting without approval/review/stale gates.
 
   - id: ERP-903
     title: Hide technical mutation mechanics and use business selectors
@@ -2576,6 +2576,90 @@ tasks:
       - docs/implementation/evidence/ERP-905/
     notes: User explicitly selected destructive removal ahead of ERP-902. Remove workforce profiles, timesheets, entries, adjustments, labor rates, cost snapshots, capacity versions, derived project-cost queues, direct-cost split allocations and overhead allocation policies/pools/runs together with REST, CLI, contracts and reports. A canonical Expense has zero or one project; a selected project makes it direct project cost, while no project means company overhead excluded from project margin. Parties remain the people source. Canonical Expenses, commercial documents, posted journals and accounting invariants are unchanged.
 
+  - id: ERP-906
+    title: Bound export storage and make latest-image upgrades migration-safe
+    phase: P15
+    status: done
+    dependencies: [ERP-905]
+    business_rules: [BR-EXPOR-001, BR-EXPOR-002, BR-OPS-002, BR-OPS-003, BR-OPS-004, BR-ORG-001]
+    tests: [T-API-ERP-906-001, T-DB-ERP-906-002, T-OPS-ERP-906-003, T-INT-ERP-906-004]
+    evidence: docs/implementation/evidence/ERP-906/
+    agent: codex-team
+    started_at: 2026-08-11T21:30:00+07:00
+    review_at: 2026-08-11T22:05:00+07:00
+    completed_at: 2026-08-11T22:05:00+07:00
+    completion_basis: reviewed_export_dispositions_bounded_blob_retention_fresh_and_upgrade_migrations_safe_latest_update_and_full_repository_gate
+    parallel_file_ownership:
+      export: apps/api/src/portable-data-packages and portable export tests
+      retention: packages/database, export retention service/tests and maintenance tooling
+      deployment: Compose/update contract, release verification and operations documentation
+      coordinator: business rules, test catalog, task ledger, integration gates and evidence
+    planned_files:
+      - apps/api/src/portable-data-packages/
+      - apps/api/src/report-exports/
+      - packages/database/src/
+      - db/migrations/
+      - compose.yaml
+      - scripts/
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/runbooks/
+      - docs/implementation/evidence/ERP-906/
+    notes: User prioritized long-term storage and operational safety ahead of ERP-902 after production and local audits. Portable export must use a reviewed resource disposition, avoid empty and duplicate operational sheets, and preserve explicit manifest exclusions. Generated XLSX/blob records require bounded organization-scoped retention without deleting posted accounting history. Production remains on latest images, but the supported update path must run the one-shot migrate service before application restart and expose a verification command. Local maintenance must report bloat and use explicit maintenance-window remediation rather than silent destructive vacuuming.
+
+  - id: ERP-907
+    title: Make valid solopreneur input immediately available to management reporting
+    phase: P15
+    status: done
+    dependencies: [ERP-906]
+    business_rules:
+      [
+        BR-WFL-001,
+        BR-WFL-002,
+        BR-WFL-003,
+        BR-LED-001,
+        BR-LED-003,
+        BR-PER-001,
+        BR-AUD-001,
+        BR-ORG-001,
+        BR-UI-001,
+        BR-UI-003,
+        BR-TAX-002,
+        BR-OPS-003,
+      ]
+    tests: [T-API-ERP-907-001, T-DB-ERP-907-002, T-E2E-ERP-907-003, T-REG-ERP-907-004]
+    evidence: docs/implementation/evidence/ERP-907/
+    agent: codex-team
+    started_at: 2026-08-11T21:10:00+07:00
+    review_at: 2026-08-11T21:53:00+07:00
+    completed_at: 2026-08-11T21:53:00+07:00
+    completion_basis: atomic_solopreneur_posting_canonical_reporting_stale_cache_removal_migration_ui_acceptance_and_full_repository_gate
+    parallel_file_ownership:
+      mutation_lifecycle: commercial documents, expenses, banking and solopreneur workflow services
+      reporting: dashboard, planning, balances, tax and management report read models
+      refresh: mutation-triggered read-model/planning refresh and stale-state removal
+      coordinator: rule inventory, migration, cross-module regression, docs and evidence
+    planned_files:
+      - apps/api/src/commercial-documents/
+      - apps/api/src/expenses/
+      - apps/api/src/banking/
+      - apps/api/src/operating-dashboard/
+      - apps/api/src/planning/
+      - apps/api/src/financial-statements/
+      - apps/api/src/report-exports/
+      - packages/domain/src/
+      - packages/contracts/src/
+      - packages/database/src/
+      - db/migrations/
+      - apps/web/src/
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-907/
+    notes: In persisted solopreneur mode, one owner action saves and completes eligible self-approval so valid canonical input immediately contributes to management balances, dashboard, planning and reports. Posted ledger immutability, balanced journals, period locks, duplicate prevention, audit and idempotency remain mandatory. Missing evidence, tax eligibility or dimensions create record-level warnings and separate VAT/CIT eligibility axes; they do not erase otherwise valid accounting expense or blank an entire report. Read models refresh after mutations without requiring a separate stale/review workflow.
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2639,6 +2723,8 @@ gates:
   G60: [ERP-904]
   G61: [ERP-892]
   G62: [ERP-905]
+  G63: [ERP-906]
+  G64: [ERP-907]
 
 gate_status:
   G0: done
@@ -2697,8 +2783,10 @@ gate_status:
   G55: done
   G56: done
   G57: done
-  G58: ready
+  G58: deferred
   G59: blocked
   G60: blocked
   G61: done
   G62: done
+  G63: done
+  G64: done

@@ -255,8 +255,9 @@ Cr Bank/AP                      1,100,000
   resource across journals, commercial documents, expenses, financial mappings, executive metrics,
   ROI definitions, planning, forecast adjustments and project recognition.
 - Solopreneur self-approval always records actor, reason, timestamp, resource version and audit event.
-  It never bypasses RBAC, idempotency, period locks, balanced-journal validation, evidence checks,
-  tax eligibility rules or immutable posted history.
+  It never bypasses RBAC, idempotency, period locks, balanced-journal validation, duplicate controls
+  or immutable posted history. Missing evidence and unresolved tax classification remain explicit
+  record-level warnings and eligibility states; they do not require a second approver.
 - `NAAI_ERP_SOLOPRENEUR=true` bootstraps the login organization only when its workflow policy is
   missing. The persisted organization policy remains the runtime source of truth.
 
@@ -264,13 +265,31 @@ Cr Bank/AP                      1,100,000
 
 - Invalid transitions are rejected.
 - Approval does not imply payment or tax eligibility.
-- Post requires approved state and complete accounting inputs.
+- Controlled mode requires its configured approval state before posting. In solopreneur mode, the
+  authenticated owner may complete eligible create/save, self-approval and posting in one atomic
+  command when accounting inputs are valid.
 - Every REST mutation is classified in the reviewed solopreneur gate matrix as `none`, `draft`,
   `posted`, `correction` or `destructive`. No mutation that can post, settle, reverse, reconcile,
   change a fiscal period or alter retained financial history may be classified `none`.
-- Solopreneur simplification candidates are limited to eligible nonfinancial and draft-only steps.
-  Posted, correction and destructive effects remain explicit and retain their accounting/security
-  safeguards. Controlled-mode behavior is unchanged.
+- Solopreneur simplification may collapse intermediate submit/review/approve steps but never collapses
+  the distinction between draft input and a posted accounting effect. Posted correction and destructive
+  effects remain explicit and retain their accounting/security safeguards. Controlled-mode behavior
+  is unchanged.
+
+### BR-WFL-003 — Immediate solopreneur management visibility
+
+- Valid input saved by the authenticated organization owner is immediately available to management
+  reporting. Commercial documents and expenses use one `save and record` action that atomically
+  completes eligible owner self-approval and the normal issue/post operation.
+- Management metadata such as payee/customer, project, category and descriptive dimensions may be
+  corrected directly through an audited, versioned command when the change does not rewrite posted
+  debit, credit or tax amounts. Accounting-impacting corrections still use reversal and replacement.
+- Canonical posted transactions affect account balances immediately. Statement import and
+  reconciliation identify differences and matches; they do not gate visibility until period close.
+- Missing evidence, tax eligibility or optional dimensions produce source-level warnings. One
+  incomplete source cannot make unrelated canonical dashboard cards or an entire report unavailable.
+- Planning and management read models read canonical sources on demand or refresh inside the source
+  mutation. They never return a user-actionable `STALE` state requiring a separate backfill workflow.
 
 ## 4. Sales, receivables and revenue
 
@@ -504,6 +523,10 @@ Track separately:
 States: `unreviewed`, `eligible`, `partially_eligible`, `ineligible`, `accountant_override`.
 
 Override requires reviewer, reason, timestamp and reference/evidence.
+
+- Accounting recognition is independent of tax readiness. A posted business expense remains in
+  accounting profit and management cost when CIT or VAT is `unreviewed` or evidence is missing.
+  Only VAT deductibility, CIT deductibility and tax-report finality are reduced or warned locally.
 
 ### BR-TAX-003 — VAT reconciliation
 
@@ -898,7 +921,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 ### BR-UI-003 — Operational UI parity
 
 - Mỗi module backend đã công bố là khả dụng phải có danh sách và thao tác nghiệp vụ chính trên admin UI; JSON console chỉ là công cụ nâng cao.
-- UI gọi cùng REST application services với CLI/AI và không được bỏ qua organization scope, RBAC, audit, idempotency, maker-checker hoặc period locks.
+- UI gọi cùng REST application services với CLI/AI và không được bỏ qua organization scope, RBAC,
+  audit, idempotency hoặc period locks. Controlled mode retains maker-checker; solopreneur mode uses
+  the persisted owner self-completion policy instead of requiring a second reviewer.
 - Trạng thái lỗi API phải hiển thị rõ; UI không được giả lập thành công khi mutation thất bại.
 
 ### BR-UI-004 — Reusable design system
@@ -983,6 +1008,15 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   source of document bytes; the package carries only durable external references and checksums.
 - Post-import controls reconcile resource counts and canonical Trial Balance, P&L, Balance Sheet,
   cash, AR/AP, tax and project reporting at the package cutoff.
+- Workbook sheets come from a reviewed portable-resource disposition, not unrestricted database
+  introspection. Canonical top-level resources are included when rows exist; an empty resource is
+  recorded in the manifest with `empty_at_cutoff` instead of creating a blank worksheet.
+- Child rows already embedded in their canonical parent, operational event/attempt tables, staging
+  tables and derived read models are recorded as excluded with a stable reason and are never emitted
+  as duplicate user-facing worksheets. Explicit exclusion remains visible and is not silent omission.
+- Stored package blobs are bounded per organization. After a successful generation, the system keeps
+  the newest configured number of completed packages and deletes older package blobs/rows without
+  deleting canonical business data, posted journals or append-only resource audit history.
 
 ### BR-EXPOR-003 — Filtered accounting list workbooks
 
@@ -1001,6 +1035,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   data in the presentation sheet so Excel formulas and month/quarter controls remain usable.
 - REST and the first-party CLI use the same filters. Downloads are XLSX attachments with a SHA-256
   checksum and never bypass authorization, organization isolation or audit controls.
+- Stored accountant workbook blobs use the same bounded, organization-scoped retention policy as
+  portable packages. Retention runs only after a successful new export and never removes canonical
+  documents, journal history or audit evidence.
 
 ### BR-SNP-001 — Report snapshot
 
@@ -1065,6 +1102,18 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - A single migration job runs before app rollout.
 - API replicas do not race migrations.
 - Schema changes follow expand/contract compatibility.
+- Production may continue consuming moving `latest` images, but the supported update command must
+  pull all images, recreate and wait for the one-shot migrate service to exit successfully, then
+  recreate application services and verify health. Restarting Watchtower-managed app containers alone
+  is not accepted as migration evidence because an exited migrate container is not automatically run.
+
+### BR-OPS-005 — Bounded database storage maintenance
+
+- Generated export/import blobs have explicit organization-scoped retention; financial source rows,
+  posted ledger history and append-only audits have no generic age-based deletion.
+- Storage diagnostics report database size, relation/TOAST size, live/dead tuples and retained blob
+  counts without mutation. Reclaim operations that require table locks, including `VACUUM FULL` or
+  `pg_repack`, require an explicit maintenance window and backup evidence.
 
 ### BR-OPS-004 — Production confidence
 

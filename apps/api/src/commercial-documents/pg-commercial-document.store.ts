@@ -75,9 +75,7 @@ function purchaseLineTaxDecision(
     }
   }
 
-  const solopreneur = operatingMode === "solopreneur";
   const vatMinor = BigInt(line.taxMinor);
-  if (!explicit && solopreneur) vatEligible = vatMinor;
   const vatState =
     vatMinor === 0n || vatEligible === 0n
       ? "ineligible"
@@ -85,12 +83,12 @@ function purchaseLineTaxDecision(
         ? "eligible"
         : "partially_eligible";
   return {
-    managementState: solopreneur ? "valid" : "unreviewed",
-    citState: solopreneur ? "eligible" : "unreviewed",
-    vatState: explicit || solopreneur ? vatState : "unreviewed",
-    citEligibleMinor: solopreneur ? line.netMinor : "0",
-    vatEligibleMinor: explicit || solopreneur ? vatEligible.toString() : "0",
-    reviewed: explicit || solopreneur,
+    managementState: operatingMode === "solopreneur" ? "valid" : "unreviewed",
+    citState: "unreviewed",
+    vatState: explicit ? vatState : "unreviewed",
+    citEligibleMinor: "0",
+    vatEligibleMinor: explicit ? vatEligible.toString() : "0",
+    reviewed: explicit,
   };
 }
 
@@ -729,21 +727,89 @@ export class PgCommercialDocumentStore {
         );
       }
 
+      const autoComplete = operatingMode === "solopreneur" && context.roles.includes("owner");
+      let finalState = "draft";
+      let resourceVersion = "1";
+      let journalId: string | null = null;
+      if (autoComplete) {
+        const document: StoredDocument = {
+          id,
+          type: input.type,
+          state: "draft",
+          document_date: input.documentDate,
+          currency: input.currency,
+          party_id: input.partyId,
+          document_number: input.documentNumber,
+          net_minor: input.netMinor,
+          tax_minor: input.taxMinor,
+          gross_minor: input.grossMinor,
+          control_account_code: input.controlAccountCode,
+          funding_financial_account_id: input.fundingSource?.financialAccountId ?? null,
+          original_document_id: input.originalDocumentId ?? null,
+          created_by: context.actorId,
+          version: "1",
+        };
+        if (input.type === "sales_invoice")
+          await this.assertSalesContractCoverage(client, context.organizationId, document);
+        await this.assertPostingPeriod(client, context, input.documentDate);
+        if (input.type === "purchase_invoice" && document.funding_financial_account_id) {
+          const funding = await client.query<{ ledger_account_code: string }>(
+            `select ledger_account_code from financial_accounts where organization_id=$1 and id=$2
+             and currency=$3 and status='active' for update`,
+            [context.organizationId, document.funding_financial_account_id, document.currency],
+          );
+          if (!funding.rows[0]) throw new Error("PURCHASE_FUNDING_ACCOUNT_NOT_AVAILABLE");
+          document.control_account_code = funding.rows[0].ledger_account_code;
+        }
+        journalId = await this.postDocumentJournal(client, context, document);
+        finalState =
+          input.type === "purchase_invoice" && document.funding_financial_account_id
+            ? "paid"
+            : input.type === "purchase_invoice"
+              ? "posted"
+              : "issued";
+        resourceVersion = input.type === "purchase_invoice" ? "5" : "3";
+        await client.query(
+          `update commercial_documents set state=$3,version=$4,updated_at=now(),
+             approved_by=case when type='purchase_invoice' then $5 else approved_by end,
+             approved_at=case when type='purchase_invoice' then now() else approved_at end,
+             issued_or_posted_by=$5,issued_or_posted_at=now(),journal_id=$6
+           where organization_id=$1 and id=$2`,
+          [context.organizationId, id, finalState, resourceVersion, context.actorId, journalId],
+        );
+        await client.query(
+          `insert into commercial_document_events
+           (organization_id,id,document_id,from_state,to_state,actor_id,reason,correlation_id)
+           values($1,$2,$3,'draft',$4,$5,'Solopreneur save and record',$6)`,
+          [
+            context.organizationId,
+            randomUUID(),
+            id,
+            finalState,
+            context.actorId,
+            context.correlationId,
+          ],
+        );
+      }
+
       const auditEventId = randomUUID();
       const outboxEventId = randomUUID();
       await client.query(
         `insert into resource_audit_events
          (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)
-         values ($1,$2,'commercial_document',$3,1,'create',$4,$5,$6)`,
+         values ($1,$2,'commercial_document',$3,$4,'create',$5,$6,$7)`,
         [
           context.organizationId,
           auditEventId,
           id,
+          resourceVersion,
           context.actorId,
           context.correlationId,
           {
             type: input.type,
-            state: "draft",
+            state: finalState,
+            journalId,
+            autoCompleted: autoComplete,
             ...(input.migrationSourceExpenseId
               ? {
                   migrationSourceExpenseId: input.migrationSourceExpenseId,
@@ -761,19 +827,26 @@ export class PgCommercialDocumentStore {
           context.organizationId,
           outboxEventId,
           id,
-          `${input.type}.created`,
-          { documentId: id, type: input.type, state: "draft" },
+          autoComplete ? `${input.type}.${finalState}` : `${input.type}.created`,
+          {
+            documentId: id,
+            type: input.type,
+            state: finalState,
+            journalId,
+            autoCompleted: autoComplete,
+          },
           context.correlationId,
         ],
       );
       const response = {
         documentId: id,
         type: input.type,
-        state: "draft",
-        resourceVersion: "1",
+        state: finalState,
+        resourceVersion,
+        journalId,
         auditEventId,
         outboxEventId,
-        nextActions: this.nextActions(input.type, "draft"),
+        nextActions: this.nextActions(input.type, finalState),
       };
       await this.saveReplay(
         client,

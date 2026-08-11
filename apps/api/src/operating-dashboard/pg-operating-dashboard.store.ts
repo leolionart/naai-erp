@@ -127,19 +127,25 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         [org, q.startsOn, q.endsOn],
       ),
       this.pool.query<{ amount: string | null }>(
-        `select sum(
+        `with workflow_policy as (
+           select operating_mode from accounting_workflow_policies where organization_id=$1
+         ), selected_policy as (
+           select * from executive_metric_policy_versions
+           where organization_id=$1 and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
+             and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
+           order by (state='approved') desc,effective_from desc,version desc limit 1
+         ) select sum(
            (case when a.root_type in ('liability','equity','revenue')
              then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)
              else coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) end) * m.sign
          )::text amount
-         from executive_metric_policy_versions p
+         from selected_policy p
          join executive_metric_semantic_mappings m
            on m.organization_id=p.organization_id and m.policy_id=p.id and m.policy_version=p.version
          join accounts a on a.organization_id=m.organization_id and a.code=m.account_code
          join journal_lines l on l.organization_id=a.organization_id and l.account_code=a.code
          join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
-        where p.organization_id=$1 and p.state='approved' and m.semantic='unrestricted_cash'
-          and p.effective_from<=$2::date and (p.effective_to is null or p.effective_to>=$2::date)
+        where p.organization_id=$1 and m.semantic='unrestricted_cash'
           and j.state in ('posted','reversed') and j.journal_date<=$2::date`,
         [org, q.asOf],
       ),
@@ -160,12 +166,12 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         [org, q.asOf],
       ),
       this.pool.query<{ amount: string }>(
-        `with selected_mapping as (
+        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1), selected_mapping as (
            select id,version
            from financial_statement_mapping_versions
-           where organization_id=$1 and framework='TT133' and state='approved'
+           where organization_id=$1 and framework='TT133' and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
              and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-           order by effective_from desc,version desc limit 1
+           order by (state='approved') desc,effective_from desc,version desc limit 1
          ), owner_accounts as (
            select distinct ml.account_code
            from selected_mapping sm
@@ -187,12 +193,12 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         custody: string;
         personal_withdrawals: string;
       }>(
-        `with selected_mapping as (
+        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1), selected_mapping as (
              select id,version
              from financial_statement_mapping_versions
-             where organization_id=$1 and framework='TT133' and state='approved'
+             where organization_id=$1 and framework='TT133' and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
                and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-             order by effective_from desc,version desc limit 1
+             order by (state='approved') desc,effective_from desc,version desc limit 1
            ), owner_accounts as (
              select distinct ml.account_code
              from selected_mapping sm
@@ -250,22 +256,18 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         unclassified_minor: string;
         category_count: number;
       }>(
-        `with selected_mapping as (
+        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1), selected_mapping as (
              select id,version
              from financial_statement_mapping_versions
-             where organization_id=$1 and framework='TT133' and state='approved'
+             where organization_id=$1 and framework='TT133' and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
                and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-             order by effective_from desc,version desc limit 1
+             order by (state='approved') desc,effective_from desc,version desc limit 1
            ), owner_accounts as (
              select distinct ml.account_code
              from selected_mapping sm
-             join financial_statement_mapping_lines ml
-               on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
-             where ml.statement='balance_sheet' and ml.line_code='owner_current'
-           ), workflow_policy as (
-             select operating_mode
-             from accounting_workflow_policies
-             where organization_id=$1
+           join financial_statement_mapping_lines ml
+             on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+           where ml.statement='balance_sheet' and ml.line_code='owner_current'
            )
            select
              coalesce(sum(l.gross_minor) filter (
@@ -293,20 +295,35 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         [org, q.asOf],
       ),
       this.pool.query<{ rate_bps: number | null }>(
-        `select round(rate*10000)::int rate_bps
+        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1)
+         select round(rate*10000)::int rate_bps
          from tax_code_versions
-         where organization_id=$1 and kind='cit' and review_state='accountant_approved'
+         where organization_id=$1 and kind='cit' and (review_state='accountant_approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
            and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-         order by effective_from desc,code limit 1`,
+         order by (review_state='accountant_approved') desc,effective_from desc,code limit 1`,
         [org, q.asOf],
       ),
       this.pool.query<{
         recognition_count: number;
         budget_count: number;
+        operating_mode: "controlled" | "solopreneur";
+        approved_statement_mapping_count: number;
+        effective_statement_mapping_count: number;
+        approved_executive_policy_count: number;
+        effective_executive_policy_count: number;
+        approved_cit_policy_count: number;
+        effective_cit_policy_count: number;
       }>(
         `select
           (select count(*)::int from revenue_recognition_events where organization_id=$1 and state='posted' and effective_on between $2::date and $3::date) recognition_count,
-          (select count(*)::int from project_budget_versions where organization_id=$1 and state='approved') budget_count`,
+          (select count(*)::int from project_budget_versions b where organization_id=$1 and (state='approved' or exists (select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur'))) budget_count,
+          coalesce((select operating_mode from accounting_workflow_policies where organization_id=$1),'controlled') operating_mode,
+          (select count(*)::int from financial_statement_mapping_versions where organization_id=$1 and state='approved' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) approved_statement_mapping_count,
+          (select count(*)::int from financial_statement_mapping_versions where organization_id=$1 and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_statement_mapping_count,
+          (select count(*)::int from executive_metric_policy_versions where organization_id=$1 and state='approved' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) approved_executive_policy_count,
+          (select count(*)::int from executive_metric_policy_versions where organization_id=$1 and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_executive_policy_count,
+          (select count(*)::int from tax_code_versions where organization_id=$1 and kind='cit' and review_state='accountant_approved' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) approved_cit_policy_count,
+          (select count(*)::int from tax_code_versions where organization_id=$1 and kind='cit' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_cit_policy_count`,
         [org, q.startsOn, q.endsOn],
       ),
     ]);
@@ -336,6 +353,33 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         : unclassifiedOwnerPaidCount > 0
           ? ("review_required" as const)
           : ("ready" as const);
+    const config = readiness.rows[0];
+    const configurationWarnings =
+      config?.operating_mode === "solopreneur"
+        ? [
+            ...(config.approved_statement_mapping_count === 0
+              ? [
+                  config.effective_statement_mapping_count > 0
+                    ? "financial_statement_mapping_unapproved"
+                    : "financial_statement_mapping_missing",
+                ]
+              : []),
+            ...(config.approved_executive_policy_count === 0
+              ? [
+                  config.effective_executive_policy_count > 0
+                    ? "executive_metric_policy_unapproved"
+                    : "executive_metric_policy_missing",
+                ]
+              : []),
+            ...(config.approved_cit_policy_count === 0
+              ? [
+                  config.effective_cit_policy_count > 0
+                    ? "cit_policy_unapproved"
+                    : "cit_policy_missing",
+                ]
+              : []),
+          ]
+        : [];
     return {
       revenueMinor: revenue.toString(),
       expenseMinor: expense.toString(),
@@ -364,6 +408,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
       approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,
+      configurationWarnings,
       source: "posted_ledger" as const,
       monthly,
     };
@@ -383,7 +428,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
        left join lateral (select sum(value_minor) amount from contracts where organization_id=p.organization_id and project_id=p.id) c on true
        left join lateral (select sum(a.amount_minor) amount from commercial_document_allocations a join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date<=$4::date) i on true
        left join lateral (select sum(a.amount_minor) amount from expense_allocations a join expenses x on x.organization_id=a.organization_id and x.id=a.expense_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and x.state='posted' and x.expense_date<=$4::date) e on true
-       left join lateral (select id,direct_cost_total_minor from project_budget_versions where organization_id=p.organization_id and project_id=p.id and state='approved' order by version_number desc limit 1) b on true
+       left join lateral (select id,direct_cost_total_minor from project_budget_versions where organization_id=p.organization_id and project_id=p.id and (state='approved' or exists (select 1 from accounting_workflow_policies w where w.organization_id=p.organization_id and w.operating_mode='solopreneur')) order by (state='approved') desc,version_number desc limit 1) b on true
        where p.organization_id=$1 and p.starts_on<=$2 and (p.ends_on is null or p.ends_on>=$3)
        order by greatest(coalesce(c.amount,p.budget_minor)-coalesce(i.amount,0),0) desc,p.id`,
         [org, q.endsOn, q.startsOn, q.asOf],

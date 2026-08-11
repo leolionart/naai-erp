@@ -8,6 +8,7 @@ import type {
   PortableDataPackageStore,
   PortablePackageFile,
   PortablePackageRecord,
+  PortableResourceExport,
   SavePortablePackageInput,
 } from "./portable-data-package.types.js";
 
@@ -20,13 +21,16 @@ const context = (organizationId = "org-a", roles = ["owner"]): PortableDataPacka
 
 class MemoryStore implements PortableDataPackageStore {
   lastInput?: SavePortablePackageInput;
+  readonly prunedPackages = new Set<string>();
   readonly records = new Map<
     string,
     { record: PortablePackageRecord; file: PortablePackageFile }
   >();
   readonly idempotency = new Map<string, string>();
 
-  async collectOrganizationResources(c: PortableDataPackageContext) {
+  async collectOrganizationResources(
+    c: PortableDataPackageContext,
+  ): Promise<readonly PortableResourceExport[]> {
     return [
       {
         inventory: {
@@ -124,7 +128,9 @@ class MemoryStore implements PortableDataPackageStore {
 
   async downloadExport(c: PortableDataPackageContext, packageId: string) {
     const item = this.records.get(packageId);
-    return item?.record.organizationId === c.organizationId ? item.file : undefined;
+    if (item?.record.organizationId !== c.organizationId) return undefined;
+    if (this.prunedPackages.has(packageId)) throw new Error("EXPORT_CONTENT_PRUNED");
+    return item.file;
   }
 
   async resetLocalOrganization(
@@ -145,7 +151,60 @@ class MemoryStore implements PortableDataPackageStore {
   }
 }
 
-const service = (store: MemoryStore) =>
+class DispositionMemoryStore extends MemoryStore {
+  override async collectOrganizationResources(
+    c: PortableDataPackageContext,
+  ): Promise<readonly PortableResourceExport[]> {
+    const [salesInvoice, evidenceBinary] = await super.collectOrganizationResources(c);
+    const resource = (
+      resourceType: string,
+      rows: readonly Record<string, string | boolean | null>[],
+    ): PortableResourceExport => ({
+      inventory: {
+        resourceType,
+        sheetName: resourceType,
+        excluded: false,
+        schemaVersion: 1,
+        dependencyOrder: 30,
+        mutability: "read_only" as const,
+      },
+      schema: {
+        resourceType,
+        sheetName: resourceType,
+        schemaVersion: 1,
+        stableIdColumn: "stableId",
+        operationColumn: "operation",
+        columns: [
+          {
+            key: "value",
+            header: "value",
+            type: "string" as const,
+            required: false,
+            editable: false,
+          },
+        ],
+      },
+      rows: rows.map((data, index) => ({
+        rowNumber: index + 2,
+        operation: "no_change" as const,
+        stableId: `${resourceType}-${index + 1}`,
+        externalReferences: [],
+        relationships: {},
+        data,
+      })),
+    });
+    return [
+      salesInvoice!,
+      resource("projects", []),
+      resource("commercial_document_lines", [{ value: "already embedded" }]),
+      resource("webhook_delivery_attempts", [{ value: "runtime replay state" }]),
+      resource("expense_events", [{ value: "append-only operational event" }]),
+      evidenceBinary!,
+    ];
+  }
+}
+
+const service = (store: PortableDataPackageStore) =>
   new PortableDataPackageService(store, {
     authenticate: async () => context(),
   } as never);
@@ -278,6 +337,54 @@ describe("PortableDataPackageService", () => {
     expect(workbook.getWorksheet("sales_invoices")?.getCell("A2").value).toBe("no_change");
   });
 
+  it("records reviewed exclusions without creating empty, embedded-child or operational sheets", async () => {
+    const store = new DispositionMemoryStore();
+    const result = (await service(store).createExport(
+      context(),
+      { asOf: "2026-08-07", format: "xlsx" },
+      "export-reviewed-disposition",
+    )) as { data: PortablePackageRecord };
+
+    expect(result.data.manifest.totalSheetCount).toBe(1);
+    expect(result.data.manifest.sheets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          resourceType: "projects",
+          excluded: true,
+          rowCount: 0,
+          exclusionReason: expect.stringContaining("no rows"),
+        }),
+        expect.objectContaining({
+          resourceType: "commercial_document_lines",
+          excluded: true,
+          rowCount: 0,
+          exclusionReason: expect.stringContaining("embedded"),
+        }),
+        expect.objectContaining({
+          resourceType: "webhook_delivery_attempts",
+          excluded: true,
+          rowCount: 0,
+          exclusionReason: expect.stringContaining("operational"),
+        }),
+        expect.objectContaining({
+          resourceType: "expense_events",
+          excluded: true,
+          rowCount: 0,
+          exclusionReason: expect.stringContaining("operational"),
+        }),
+      ]),
+    );
+
+    const file = await store.downloadExport(context(), result.data.packageId);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file!.content as never);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      "_manifest",
+      "_schemas",
+      "sales_invoices",
+    ]);
+  });
+
   it("enforces role, idempotency key, input validation and organization-scoped reads", async () => {
     const store = new MemoryStore();
     const s = service(store);
@@ -301,6 +408,24 @@ describe("PortableDataPackageService", () => {
     );
     await expect(s.download(context("org-b"), created.data.packageId)).rejects.toThrow(
       "RESOURCE_NOT_FOUND",
+    );
+  });
+
+  it("keeps pruned export metadata readable while rejecting the expired binary download", async () => {
+    const store = new MemoryStore();
+    const s = service(store);
+    const created = (await s.createExport(
+      context(),
+      { asOf: "2026-08-07", format: "xlsx" },
+      "export-to-prune",
+    )) as { data: PortablePackageRecord };
+    store.prunedPackages.add(created.data.packageId);
+
+    await expect(s.getExport(context(), created.data.packageId)).resolves.toMatchObject({
+      data: { packageId: created.data.packageId, contentHash: created.data.contentHash },
+    });
+    await expect(s.download(context(), created.data.packageId)).rejects.toThrow(
+      "EXPORT_CONTENT_PRUNED",
     );
   });
 });

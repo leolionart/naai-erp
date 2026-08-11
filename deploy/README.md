@@ -8,5 +8,6 @@ by `.github/workflows/release-main.yml`; [compose.build.yaml](../compose.build.y
 those images with local builds for development verification.
 
 Start from [env/.env.example](env/.env.example) and follow
-[the release runbook](../docs/runbooks/docker-compose-release.md). Use one immutable
-`sha-<12-character>` tag across migrate, API, worker and web.
+[the release runbook](../docs/runbooks/docker-compose-release.md). Production intentionally follows
+the matching `latest` tags for migrate, API, worker and web. Use the supported update command so the
+one-shot migration is recreated and completed before the runtime services restart.

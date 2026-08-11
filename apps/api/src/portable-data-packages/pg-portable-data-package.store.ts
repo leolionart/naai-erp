@@ -8,6 +8,7 @@ import {
 } from "@naai-erp/contracts";
 import pg from "pg";
 import { MASTER_DATA_RESOURCES } from "../master-data/resource-registry.js";
+import { pruneGeneratedExportContent } from "../report-exports/export-retention.js";
 import type {
   PortableDataPackageContext,
   PortableDataPackageStore,
@@ -407,6 +408,7 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
         ],
       );
       await client.query("commit");
+      void pruneGeneratedExportContent(this.pool, context.organizationId).catch(() => undefined);
       return this.contract(inserted.rows[0]);
     } catch (error) {
       await client.query("rollback");
@@ -431,6 +433,7 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
       [context.organizationId, packageId],
     );
     const row = result.rows[0];
+    if (row && row.content == null) throw new Error("EXPORT_CONTENT_PRUNED");
     return row
       ? {
           content: row.content as Buffer,

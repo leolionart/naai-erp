@@ -27,7 +27,6 @@ export const PROJECT_DELETE_DIMENSION_REFERENCES = [
   "expense_lines",
   "expense_allocations",
   "forecast_components",
-  "planning_actual_facts",
   "roi_input_facts",
 ] as const;
 

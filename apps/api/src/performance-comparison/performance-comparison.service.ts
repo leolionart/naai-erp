@@ -16,7 +16,6 @@ const isIsoDate = (value: string) =>
   !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
   new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 const BASIS = new Set(["recognized", "invoiced", "collected"]);
-const WRITE = new Set(["owner", "finance_admin", "accountant", "integration"]);
 
 @Injectable()
 export class PerformanceComparisonService {
@@ -117,19 +116,5 @@ export class PerformanceComparisonService {
   }
   summarizeFacts(c: PerformanceContext, q: ActualFactSummaryQuery) {
     return this.store.summarizeFacts(c, q).then((data) => this.envelope(c, data));
-  }
-  async backfill(c: PerformanceContext, input: Record<string, unknown>, key?: string) {
-    if (!c.roles.some((r) => WRITE.has(r))) throw new Error("FORBIDDEN");
-    if (!key?.trim()) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (
-      input.schemaVersion !== 1 ||
-      !BASIS.has(String(input.actualBasis)) ||
-      !isIsoDate(String(input.from)) ||
-      !isIsoDate(String(input.to)) ||
-      String(input.from) > String(input.to) ||
-      !String(input.reason ?? "").trim()
-    )
-      throw new Error("VALIDATION_FAILED");
-    return this.envelope(c, await this.store.backfill(c, input, key));
   }
 }

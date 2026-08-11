@@ -3949,48 +3949,6 @@ export const forecastComponents = pgTable(
   ],
 );
 
-export const planningActualFacts = pgTable(
-  "planning_actual_facts",
-  {
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
-    id: text("id").notNull(),
-    actualBasis: planningActualBasis("actual_basis").notNull(),
-    effectiveOn: date("effective_on").notNull(),
-    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
-    currency: text("currency").notNull(),
-    sourceType: text("source_type").notNull(),
-    sourceId: text("source_id").notNull(),
-    sourceParentId: text("source_parent_id"),
-    sourceVersion: text("source_version").notNull(),
-    dimensions: jsonb("dimensions").$type<Record<string, string>>().notNull().default({}),
-    refreshedAt: timestamp("refreshed_at", { withTimezone: true }).notNull().defaultNow(),
-    ...auditColumns,
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("planning_actual_fact_source_unique").on(
-      table.organizationId,
-      table.actualBasis,
-      table.sourceType,
-      table.sourceId,
-    ),
-    check("planning_actual_fact_id", sql`btrim(${table.id}) <> ''`),
-    check("planning_actual_fact_currency", sql`${table.currency} ~ '^[A-Z]{3}$'`),
-    check(
-      "planning_actual_fact_source",
-      sql`btrim(${table.sourceType}) <> '' and btrim(${table.sourceId}) <> '' and btrim(${table.sourceVersion}) <> '' and (${table.sourceParentId} is null or btrim(${table.sourceParentId}) <> '')`,
-    ),
-    index("planning_actual_fact_period_idx").on(
-      table.organizationId,
-      table.actualBasis,
-      table.effectiveOn,
-      table.currency,
-    ),
-  ],
-);
-
 export const planningAuditEvents = pgTable(
   "planning_audit_events",
   {
@@ -4487,13 +4445,14 @@ export const accountantExports = pgTable(
     state: accountantExportState("state").notNull().default("generated"),
     label: text("label").notNull(),
     manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull(),
-    content: bytea("content").notNull(),
+    content: bytea("content"),
     contentHash: text("content_hash").notNull(),
     sizeBytes: bigint("size_bytes", { mode: "bigint" }).notNull(),
     mediaType: text("media_type").notNull(),
     filename: text("filename").notNull(),
     generatedBy: text("generated_by").notNull(),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+    contentPrunedAt: timestamp("content_pruned_at", { withTimezone: true }),
     supersededBy: text("superseded_by"),
     supersededAt: timestamp("superseded_at", { withTimezone: true }),
     supersedeReason: text("supersede_reason"),
@@ -4674,7 +4633,7 @@ export const portableDataPackages = pgTable(
     format: text("format").notNull(),
     manifest: jsonb("manifest").$type<Record<string, unknown>>().notNull(),
     schemas: jsonb("schemas").$type<readonly Record<string, unknown>[]>().notNull(),
-    content: bytea("content").notNull(),
+    content: bytea("content"),
     contentHash: text("content_hash").notNull(),
     packageHash: text("package_hash").notNull(),
     sizeBytes: bigint("size_bytes", { mode: "bigint" }).notNull(),
@@ -4685,6 +4644,7 @@ export const portableDataPackages = pgTable(
     generatedBy: text("generated_by").notNull(),
     correlationId: text("correlation_id").notNull(),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+    contentPrunedAt: timestamp("content_pruned_at", { withTimezone: true }),
   },
   (table) => [
     primaryKey({ columns: [table.organizationId, table.id] }),

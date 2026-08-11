@@ -15,12 +15,13 @@ export function useAuthenticatedApiClient() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    const configuredDataSource = process.env.NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE;
+    const forceDefaultConnection =
+      process.env.NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION === "1" ||
+      configuredDataSource === "production" ||
+      configuredDataSource === "local";
     setConnection(
-      loadConnectionSettings(
-        window.localStorage,
-        DEFAULT_API_CONNECTION,
-        process.env.NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION === "1",
-      ),
+      loadConnectionSettings(window.localStorage, DEFAULT_API_CONNECTION, forceDefaultConnection),
     );
     const storedToken = loadApiToken(window.sessionStorage);
     setToken(storedToken);

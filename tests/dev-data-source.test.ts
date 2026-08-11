@@ -23,7 +23,7 @@ function fixture(options: { nodeExit?: number; pnpmExit?: number } = {}) {
     writeFileSync(
       path,
       `#!/bin/sh
-printf '%s|%s|%s|%s|%s|%s\n' '${name}' "$*" "$DATABASE_URL" "$NEXT_PUBLIC_API_URL" "$NEXT_PUBLIC_ORGANIZATION_ID" "$NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION" >> "$DEV_DATA_CAPTURE"
+printf '%s|%s|%s|%s|%s|%s|%s\n' '${name}' "$*" "$DATABASE_URL" "$NEXT_PUBLIC_API_URL" "$NEXT_PUBLIC_ORGANIZATION_ID" "$NEXT_PUBLIC_FORCE_DEFAULT_API_CONNECTION" "$NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE" >> "$DEV_DATA_CAPTURE"
 echo '${name}-stdout'
 echo '${name}-stderr' >&2
 exit ${exitCode}
@@ -77,12 +77,13 @@ describe("development data-source selector", () => {
     );
   });
 
-  it("checks the local database with deterministic local API connection settings", () => {
+  it("checks the local database without overriding the env-selected web data source", () => {
     const testFixture = fixture();
     const result = run(["local", "--check"], {
       ...testFixture.environment,
       DATABASE_URL: "postgresql://local-only/database",
       NAAI_ERP_LOCAL_ORGANIZATION: "local-org",
+      NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE: "production",
     });
 
     expect(result.status, result.stderr).toBe(0);
@@ -90,7 +91,7 @@ describe("development data-source selector", () => {
       "Local-data development configuration is ready (local-org, API :3001).",
     );
     expect(readFileSync(testFixture.capture, "utf8")).toContain(
-      "node|scripts/native-dev-db.mjs status|postgresql://local-only/database|http://localhost:3001|local-org|1",
+      "node|scripts/native-dev-db.mjs status|postgresql://local-only/database||||production",
     );
   });
 
@@ -116,13 +117,16 @@ describe("development data-source selector", () => {
 
   it("runs local setup before starting the combined API and web preview", () => {
     const testFixture = fixture();
-    const result = run(["local"], testFixture.environment);
+    const result = run(["local"], {
+      ...testFixture.environment,
+      NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE: "local",
+    });
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain("Data source: local PostgreSQL and local API");
     const calls = readFileSync(testFixture.capture, "utf8").trim().split("\n");
     expect(calls[0]).toContain("node|scripts/native-dev-db.mjs setup|");
     expect(calls[1]).toContain("pnpm|dev:preview|");
-    expect(calls[1]).toContain("|http://localhost:3001|naai|1");
+    expect(calls[1]).toMatch(/\|\|\|\|local$/);
   });
 });

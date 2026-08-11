@@ -40,6 +40,7 @@ import {
   type ManagementReceivableRow,
   type ManagementRevenueRow,
 } from "./management-workbook.js";
+import { pruneGeneratedExportContent } from "./export-retention.js";
 
 type SnapshotRow = Record<string, unknown> & {
   id: string;
@@ -73,7 +74,7 @@ type ExportRow = Record<string, unknown> & {
   format: "csv" | "xlsx";
   state: "generated" | "superseded";
   manifest: Record<string, unknown>;
-  content: Buffer;
+  content: Buffer | null;
   content_hash: string;
   size_bytes: string;
   media_type: string;
@@ -423,6 +424,7 @@ export class PgReportExportStore {
         [c.organizationId, operation, requestBodyHash, response],
       );
       await client.query("commit");
+      void pruneGeneratedExportContent(this.pool, c.organizationId).catch(() => undefined);
       return response;
     } catch (e) {
       await client.query("rollback");
@@ -558,6 +560,7 @@ export class PgReportExportStore {
       [c.organizationId, id, version],
     );
     if (!r.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
+    if (!r.rows[0].content) throw new Error("EXPORT_CONTENT_PRUNED");
     return {
       content: r.rows[0].content,
       mediaType: r.rows[0].media_type,
@@ -1136,6 +1139,7 @@ export class PgReportExportStore {
       isFinal: Boolean(r.manifest.isFinal),
       createdAt: iso(r.generated_at),
       createdBy: r.generated_by,
+      contentAvailable: r.content !== null,
       downloadUrl: `/api/v1/organizations/${encodeURIComponent(c.organizationId)}/accountant-exports/${encodeURIComponent(r.id)}/versions/${r.version}/download`,
     };
   }

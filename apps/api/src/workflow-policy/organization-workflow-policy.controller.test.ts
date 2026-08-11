@@ -4,7 +4,7 @@ import { OrganizationWorkflowPolicyController } from "./organization-workflow-po
 describe("organization workflow policy controller", () => {
   it("returns organization-scoped derived capabilities", async () => {
     const masterData = {
-      authenticate: vi.fn().mockResolvedValue({ correlationId: "corr-1" }),
+      authenticate: vi.fn().mockResolvedValue({ correlationId: "corr-1", roles: ["owner"] }),
     };
     const workflowPolicy = {
       capabilities: vi.fn().mockResolvedValue({
@@ -22,7 +22,12 @@ describe("organization workflow policy controller", () => {
     await expect(controller.get("naai", "Bearer token", "corr-1")).resolves.toMatchObject({
       organizationId: "naai",
       requestId: "corr-1",
-      data: { operatingMode: "solopreneur", ownerCanSelfApprove: true },
+      data: {
+        operatingMode: "solopreneur",
+        ownerCanSelfApprove: true,
+        callerIsOwner: true,
+        callerCanSaveAndRecord: true,
+      },
     });
     expect(masterData.authenticate).toHaveBeenCalledWith("Bearer token", "naai", "corr-1");
     expect(workflowPolicy.capabilities).toHaveBeenCalledWith("naai");

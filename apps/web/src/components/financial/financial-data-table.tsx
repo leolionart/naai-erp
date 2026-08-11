@@ -63,7 +63,7 @@ export function FinancialDataTable<Row>({
     );
   }
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="min-w-0 overflow-hidden rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

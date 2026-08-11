@@ -12,10 +12,15 @@ export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export function resolveDefaultApiBaseUrl(input: {
   nodeEnv: string | undefined;
+  dataSource?: string;
   publicApiUrl?: string;
   serverApiUrl?: string;
   browserOrigin?: string;
 }) {
+  const dataSource = input.dataSource?.trim().toLowerCase();
+  if (dataSource === "production") {
+    return input.browserOrigin ? `${input.browserOrigin}/dev-api` : "/dev-api";
+  }
   const configured = input.publicApiUrl?.trim();
   if (configured) return configured;
   if (input.nodeEnv === "production" && input.browserOrigin) return input.browserOrigin;
@@ -28,6 +33,7 @@ export const DEFAULT_API_CONNECTION: ApiConnectionSettingsV1 = Object.freeze({
   version: 1,
   baseUrl: resolveDefaultApiBaseUrl({
     nodeEnv: process.env.NODE_ENV,
+    dataSource: process.env.NEXT_PUBLIC_NAAI_ERP_DATA_SOURCE,
     publicApiUrl: process.env.NEXT_PUBLIC_API_URL,
     serverApiUrl: process.env.API_BASE_URL,
     ...(typeof window !== "undefined" ? { browserOrigin: window.location.origin } : {}),

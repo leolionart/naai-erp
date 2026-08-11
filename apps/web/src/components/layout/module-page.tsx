@@ -35,7 +35,7 @@ export function ModulePage({
         breadcrumbs={breadcrumbs}
         toolbar={toolbar}
       />
-      <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col p-4 md:p-6">{children}</div>
     </div>
   );
 }

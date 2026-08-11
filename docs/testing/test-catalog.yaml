@@ -2100,6 +2100,70 @@ tests:
     command: pnpm --filter @naai-erp/api exec vitest run src/discovery src/project-profitability
     blocking_gate: G62
 
+  - id: T-API-ERP-906-001
+    task: ERP-906
+    rules: [BR-EXPOR-002, BR-AI-004, BR-ORG-001]
+    title: Portable export omits empty and duplicate sheets with explicit manifest dispositions
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/portable-data-packages
+    blocking_gate: G63
+
+  - id: T-DB-ERP-906-002
+    task: ERP-906
+    rules: [BR-EXPOR-001, BR-EXPOR-002, BR-OPS-005, BR-ORG-001]
+    title: Export blob retention is bounded and organization scoped
+    layer: database
+    command: pnpm --filter @naai-erp/api exec vitest run src/report-exports src/export-retention
+    blocking_gate: G63
+
+  - id: T-OPS-ERP-906-003
+    task: ERP-906
+    rules: [BR-OPS-003, BR-OPS-004]
+    title: Latest image update runs migrate successfully before application recreation
+    layer: operations
+    command: pnpm exec vitest run tests/production-update.test.ts && pnpm test:release
+    blocking_gate: G63
+
+  - id: T-INT-ERP-906-004
+    task: ERP-906
+    rules: [BR-OPS-002, BR-OPS-005]
+    title: Storage diagnostics are read only and lock heavy reclaim requires confirmation
+    layer: integration
+    command: pnpm exec vitest run tests/database-maintenance.test.ts
+    blocking_gate: G63
+
+  - id: T-API-ERP-907-001
+    task: ERP-907
+    rules: [BR-WFL-001, BR-WFL-002, BR-WFL-003, BR-LED-001, BR-PER-001, BR-AUD-001, BR-ORG-001]
+    title: Solopreneur owner saves and records valid documents and expenses atomically
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents src/expenses
+    blocking_gate: G64
+
+  - id: T-DB-ERP-907-002
+    task: ERP-907
+    rules: [BR-WFL-003, BR-OPS-003, BR-ORG-001]
+    title: Planning actuals read canonical sources without stale cache or manual backfill
+    layer: database
+    command: pnpm --filter @naai-erp/database test && pnpm --filter @naai-erp/api exec vitest run src/performance-comparison src/planning
+    blocking_gate: G64
+
+  - id: T-E2E-ERP-907-003
+    task: ERP-907
+    rules: [BR-WFL-003, BR-UI-001, BR-UI-003, BR-TAX-002]
+    title: Canonical data appears immediately while incomplete records produce local warnings
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G64
+
+  - id: T-REG-ERP-907-004
+    task: ERP-907
+    rules: [BR-LED-001, BR-LED-003, BR-PER-001, BR-WFL-003, BR-TAX-002, BR-AUD-001, BR-ORG-001]
+    title: Solopreneur simplification preserves accounting and security invariants
+    layer: regression
+    command: pnpm test
+    blocking_gate: G64
+
   - id: T-UNIT-ERP-892-001
     task: ERP-892
     rules: [BR-UI-003, BR-UI-004, BR-UI-007]

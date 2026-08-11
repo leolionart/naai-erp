@@ -365,6 +365,20 @@
       "when": 1786462200000,
       "tag": "0051_remove_timesheet_workforce",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1786465800000,
+      "tag": "0052_bound_generated_export_storage",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1786469400000,
+      "tag": "0053_remove_planning_actual_fact_cache",
+      "breakpoints": true
     }
   ]
 }

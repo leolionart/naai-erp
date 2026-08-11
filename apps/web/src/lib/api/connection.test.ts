@@ -27,6 +27,22 @@ describe("ERP-345 versioned API connection settings", () => {
   it("uses the public same-origin API in production browsers without breaking local development", () => {
     expect(
       resolveDefaultApiBaseUrl({
+        nodeEnv: "development",
+        dataSource: "production",
+        publicApiUrl: "http://localhost:3001",
+        browserOrigin: "http://localhost:3000",
+      }),
+    ).toBe("http://localhost:3000/dev-api");
+    expect(
+      resolveDefaultApiBaseUrl({
+        nodeEnv: "development",
+        dataSource: "local",
+        publicApiUrl: "http://localhost:3001",
+        browserOrigin: "http://localhost:3000",
+      }),
+    ).toBe("http://localhost:3001");
+    expect(
+      resolveDefaultApiBaseUrl({
         nodeEnv: "production",
         browserOrigin: "https://erp.naai.studio",
         serverApiUrl: "http://api:3001",

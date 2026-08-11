@@ -181,6 +181,12 @@ suite("operating dashboard PostgreSQL API", () => {
        set operating_mode='solopreneur',updated_by=excluded.updated_by,updated_at=now()`,
       [org, owner],
     );
+    await pool.query(
+      `update financial_statement_mapping_versions
+       set state='draft',approved_at=null,approved_by=null
+       where organization_id=$1 and id='tt133-dashboard'`,
+      [org],
+    );
 
     const response = await app.inject({
       method: "GET",
@@ -195,6 +201,12 @@ suite("operating dashboard PostgreSQL API", () => {
       unclassifiedOwnerPaidMinor: "0",
       ownerPaidClassificationStatus: "ready",
       ownerOperatingPayableMinor: "100",
+      statutoryOwnerCurrentBalanceMinor: "810",
+      configurationWarnings: expect.arrayContaining([
+        "financial_statement_mapping_unapproved",
+        "executive_metric_policy_missing",
+        "cit_policy_missing",
+      ]),
     });
   });
 });

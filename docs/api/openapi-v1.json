@@ -54,7 +54,6 @@
     "forecast-components/review",
     "forecast-components/exclude",
     "forecast-composition/read",
-    "planning-actual-facts/backfill",
     "planning-actual-facts/list",
     "planning-actual-facts/summary",
     "performance-comparisons/read",
@@ -2565,18 +2564,6 @@
         "responses": {
           "200": { "description": "Versioned planning actual facts and source drill-down IDs" }
         }
-      }
-    },
-    "/api/v1/organizations/{organizationId}/planning-actual-facts/backfill": {
-      "post": {
-        "operationId": "backfillPlanningActualFacts",
-        "tags": ["planning", "performance-comparisons"],
-        "summary": "Idempotently rebuild recognized, invoiced, or collected facts for a date range",
-        "parameters": [
-          { "$ref": "#/components/parameters/OrganizationId" },
-          { "$ref": "#/components/parameters/IdempotencyKey" }
-        ],
-        "responses": { "201": { "description": "Audited actual-fact backfill result" } }
       }
     },
     "/api/v1/organizations/{organizationId}/planning-actual-facts/summary": {
