@@ -2742,6 +2742,29 @@ tasks:
       - docs/implementation/evidence/ERP-910/
     notes: Add a second purchase-invoice example tailored to OCR/Paperless input. It creates or reuses a deterministic supplier identity from tax ID, omits project and funding relationships, keeps tax state unreviewed and documents that net and VAT remain mandatory accounting controls rather than guessed values.
 
+  - id: ERP-911
+    title: Paste-ready n8n OCR expression mapping
+    phase: P15
+    status: done
+    dependencies: [ERP-910]
+    business_rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-EXP-002, BR-UI-003]
+    tests: [T-CONTRACT-ERP-911-001, T-E2E-ERP-911-002, T-REG-ERP-911-003]
+    evidence: docs/implementation/evidence/ERP-911/
+    agent: codex-team
+    started_at: 2026-08-11T23:25:00+07:00
+    review_at: 2026-08-11T23:33:00+07:00
+    completed_at: 2026-08-11T23:33:00+07:00
+    completion_basis: paste_ready_n8n_expression_max_ocr_mapping_contract_e2e_and_full_repository_gate
+    planned_files:
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/automation-api-dialog.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-911/
+    notes: Add a single n8n expression object that maps the maximum available Paperless/OCR fields from $json.output and source metadata, including normalized money, date and tax ID, so operators do not drag fields manually.
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2810,6 +2833,7 @@ gates:
   G65: [ERP-908]
   G66: [ERP-909]
   G67: [ERP-910]
+  G68: [ERP-911]
 
 gate_status:
   G0: done
@@ -2878,3 +2902,4 @@ gate_status:
   G65: done
   G66: done
   G67: done
+  G68: done

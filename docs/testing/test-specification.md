@@ -503,3 +503,15 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   Copy warns n8n operators not to infer tax amounts from gross payment alone.
 - Contract tests assert the absence of invented project/payment relationships. Mobile E2E opens the
   minimal example and verifies long cURL content remains responsive.
+
+### ERP-911 — Paste-ready n8n OCR mapping expression
+
+- The expense dialog shows a single expression object that can be pasted into n8n Edit Fields or an
+  HTTP JSON body in Expression mode.
+- It maps the Vietnamese OCR labels visible in `$json.output`, retains Paperless source metadata and
+  raw OCR output, and normalizes tax ID, VND amounts and `dd/MM/yyyy` dates.
+- The result separates supplier, supplier-role, invoice candidate, OCR metadata and validation. It
+  leaves unsupported accounting relationships null and sets `readyToPost` false until exact net,
+  VAT, due date, accounts and allocation controls are supplied.
+- Tests protect the paste syntax, mapped field inventory, absence of project/funding guesses and
+  responsive rendering alongside existing cURL examples.

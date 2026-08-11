@@ -4,6 +4,7 @@ import {
   directExpenseCurl,
   projectCurl,
   minimalOcrPurchaseInvoiceCurl,
+  n8nOcrMappingExpression,
   purchaseInvoiceCurl,
   purchaseProductCurl,
   salesInvoiceCurl,
@@ -58,6 +59,31 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
     expect(curl).toContain('"taxState": "unreviewed"');
     expect(curl).not.toContain('"projectId"');
     expect(curl).not.toContain('"fundingSource"');
+  });
+
+  it("builds one paste-ready n8n expression that preserves sparse OCR data without guessing", () => {
+    const expression = n8nOcrMappingExpression();
+    expect(expression).toMatch(/^\{\{/);
+    for (const field of [
+      "$json.output",
+      'output["Ký bởi"]',
+      'output["Mã số thuế (Tax code)"]',
+      'output["Ký hiệu (Serial)"]',
+      'output["Tên hàng hóa, dịch vụ"]',
+      'output["Hạng mục"]',
+      'output["Tổng cộng tiền thanh toán"]',
+      'output["Ký ngày"]',
+      "supplierPartyId",
+      "invoiceCandidate",
+      "readyToPost: false",
+      "rawOutput: output",
+    ]) {
+      expect(expression).toContain(field);
+    }
+    expect(expression).toContain("replace(/[^0-9]/g");
+    expect(expression).toContain("missingWhenNull");
+    expect(expression).not.toContain("projectId");
+    expect(expression).not.toContain("fundingSource");
   });
 
   it.each([

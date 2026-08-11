@@ -19,7 +19,12 @@ type RevealedCredential = Readonly<{ organizationId: string; apiToken: string }>
 export type AutomationResource =
   "customers" | "projects" | "subscriptions" | "purchase-products" | "revenue" | "expenses";
 
-type CurlDefinition = Readonly<{ title: string; description: string; value: string }>;
+type CurlDefinition = Readonly<{
+  title: string;
+  description: string;
+  value: string;
+  kind?: "curl" | "n8n-expression";
+}>;
 
 function masterDataCreateCurl(
   credential: RevealedCredential,
@@ -312,6 +317,126 @@ export function minimalOcrPurchaseInvoiceCurl(credential: RevealedCredential) {
   return `${supplier}\n\n${supplierRole}\n\n${invoice}`;
 }
 
+export function n8nOcrMappingExpression() {
+  return `{{
+  (() => {
+    const output = $json.output ?? {};
+    const text = (value) => value == null ? "" : String(value).trim();
+    const digits = (value) => text(value).replace(/[^0-9]/g, "");
+    const moneyMinor = (value) => {
+      const raw = text(value).replace(/\\s/g, "").replace(/(?:VND|VNĐ|₫)/gi, "");
+      const cleaned = raw.replace(/[^0-9,.-]/g, "");
+      const normalized = /^-?\\d{1,3}([.,]\\d{3})+$/.test(cleaned)
+        ? cleaned.replace(/[.,]/g, "")
+        : cleaned.replace(/,/g, "");
+      return normalized && /^-?\\d+(?:\\.\\d+)?$/.test(normalized)
+        ? String(Math.round(Number(normalized)))
+        : null;
+    };
+    const isoDate = (value) => {
+      const raw = text(value);
+      const parts = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+      if (parts) return parts[3] + "-" + parts[2].padStart(2, "0") + "-" + parts[1].padStart(2, "0");
+      return /^\\d{4}-\\d{2}-\\d{2}$/.test(raw) ? raw : null;
+    };
+    const taxNumber = digits(output["Mã số thuế (Tax code)"]);
+    const documentDate = isoDate(output["Ký ngày"]);
+    const content = text($json.content);
+    const invoiceNumber = (content.match(/(?:Số \\(Inv No\\.\\)|Số hóa đơn)[^0-9]*(\\d{6,10})/i) ?? [])[1] ?? null;
+    const tags = Array.isArray($json.tags)
+      ? $json.tags.map((tag) => typeof tag === "object" ? (tag.name ?? tag.id) : tag)
+      : [];
+    const supplierPartyId = taxNumber ? "party-tax-" + taxNumber : null;
+    const sourceDocumentId = text($json.id);
+    const invoiceId = sourceDocumentId ? "paperless-invoice-" + sourceDocumentId : null;
+    const totalPaymentMinor = moneyMinor(output["Tổng cộng tiền thanh toán"]);
+
+    return {
+      source: {
+        system: "paperless-ngx",
+        externalId: sourceDocumentId || null,
+        canonicalUrl: text($json.url ?? $json.canonical_url) || null,
+        checksum: text($json.checksum) || null,
+        version: "1",
+        metadata: {
+          sourceTitle: text($json.title) || null,
+          originalFileName: text($json.original_file_name) || null,
+          archivedFileName: text($json.archived_file_name) || null,
+          createdAt: text($json.created) || null,
+          modifiedAt: text($json.modified) || null,
+          correspondentId: $json.correspondent ?? null,
+          documentTypeId: $json.document_type ?? null,
+          ownerId: $json.owner ?? null,
+          pageCount: $json.page_count ?? $json.custom_fields?.page_count ?? null,
+          tags
+        }
+      },
+      supplier: supplierPartyId ? {
+        id: supplierPartyId,
+        display_name: text(output["Ký bởi"]) || null,
+        legal_name: text(output["Ký bởi"]) || null,
+        normalized_tax_id: taxNumber,
+        status: "active"
+      } : null,
+      supplierRole: supplierPartyId ? { party_id: supplierPartyId, role: "supplier" } : null,
+      invoiceCandidate: {
+        id: invoiceId,
+        type: "purchase_invoice",
+        documentNumber: text(output["Số hóa đơn"] ?? output["Số (Inv No.)"]) || invoiceNumber,
+        series: text(output["Ký hiệu (Serial)"] ?? output["Ký hiệu"]).replace(/\\s/g, "") || null,
+        fiscalYear: documentDate ? Number(documentDate.slice(0, 4)) : null,
+        partyId: supplierPartyId,
+        documentDate,
+        dueDate: null,
+        currency: "VND",
+        grossMinor: totalPaymentMinor,
+        netMinor: moneyMinor(output["Tổng tiền chưa thuế"] ?? output["Cộng tiền hàng"]),
+        taxMinor: moneyMinor(output["Tiền thuế GTGT"] ?? output["Thuế GTGT"]),
+        controlAccountCode: "331-AP",
+        lines: [{
+          description: text(output["Tên hàng hóa, dịch vụ"]) || null,
+          quantity: "1",
+          unitPriceMinor: null,
+          netMinor: null,
+          taxMinor: null,
+          grossMinor: totalPaymentMinor,
+          primaryAccountCode: null,
+          taxAccountCode: null,
+          taxCode: null,
+          allocations: [{
+            id: invoiceId ? invoiceId + "-line-1" : null,
+            amountMinor: null,
+            dimensions: {
+              sourceCategoryLabel: text(output["Hạng mục"]) || null,
+              taxState: "unreviewed"
+            }
+          }]
+        }]
+      },
+      ocrMetadata: {
+        signedMonth: text(output["Tháng"]) || null,
+        bankName: text(output["Ngân hàng (Bank)"]) || null,
+        bankAccountNumber: text(output["Số tài khoản (Account number)"]) || null,
+        beneficiary: text(output["Đơn vị thụ hưởng (Beneficiary)"]) || null,
+        rawOutput: output
+      },
+      validation: {
+        readyToPost: false,
+        missingWhenNull: [
+          "invoiceCandidate.documentNumber",
+          "invoiceCandidate.dueDate",
+          "invoiceCandidate.netMinor",
+          "invoiceCandidate.taxMinor",
+          "invoiceCandidate.lines[0].primaryAccountCode",
+          "invoiceCandidate.lines[0].taxCode",
+          "invoiceCandidate.lines[0].allocations[0].amountMinor"
+        ]
+      }
+    };
+  })()
+}}`;
+}
+
 export function purchaseProductCurl(credential: RevealedCredential) {
   return `curl --request POST \\
   'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/master-data/purchase-products' \\
@@ -377,6 +502,13 @@ function definitionsFor(
     ],
     expenses: [
       {
+        title: "Expression n8n: chuẩn hóa toàn bộ dữ liệu OCR",
+        description:
+          "Dán nguyên khối vào Edit Fields hoặc JSON Body ở chế độ Expression. Mẫu lấy tối đa field trong $json.output và metadata Paperless, đồng thời chuẩn hóa tiền, ngày và mã số thuế.",
+        value: n8nOcrMappingExpression(),
+        kind: "n8n-expression",
+      },
+      {
         title: "Nhập hóa đơn OCR tối giản — không cần dự án",
         description:
           "Tạo nhà cung cấp từ mã số thuế rồi tạo hóa đơn không có project/funding. Ví dụ dùng VAT 8%; n8n phải lấy đúng tiền trước thuế và VAT từ hóa đơn hoặc danh mục, không tự đoán từ tổng thanh toán.",
@@ -420,7 +552,7 @@ export function AutomationApiDialog({
 
   async function copy(value: string) {
     await navigator.clipboard.writeText(value);
-    toast.success("Đã sao chép cURL đầy đủ.");
+    toast.success("Đã sao chép mẫu đầy đủ.");
   }
 
   return (
@@ -462,7 +594,7 @@ export function AutomationApiDialog({
         {credential ? (
           <div className="flex min-w-0 flex-col gap-3">
             {definitionsFor(credential, resources).map((definition) => (
-              <CurlExample key={definition.title} {...definition} onCopy={copy} />
+              <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
             ))}
           </div>
         ) : null}
@@ -471,15 +603,17 @@ export function AutomationApiDialog({
   );
 }
 
-function CurlExample({
+function ProtocolExample({
   title,
   description,
   value,
+  kind = "curl",
   onCopy,
 }: Readonly<{
   title: string;
   description: string;
   value: string;
+  kind?: "curl" | "n8n-expression";
   onCopy: (value: string) => Promise<void>;
 }>) {
   return (
@@ -503,7 +637,8 @@ function CurlExample({
           className="w-full sm:w-auto"
           onClick={() => void onCopy(value)}
         >
-          <ClipboardIcon data-icon="inline-start" /> Sao chép
+          <ClipboardIcon data-icon="inline-start" /> Sao chép{" "}
+          {kind === "curl" ? "cURL" : "expression"}
         </Button>
       </div>
       <CollapsibleContent>

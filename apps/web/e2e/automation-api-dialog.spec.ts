@@ -25,7 +25,7 @@ const contexts = [
   ["/subscriptions", "/service-plans"],
   ["/settings/purchase-products", "/master-data/purchase-products"],
   ["/documents", '"type": "sales_invoice"'],
-  ["/expenses", '"type": "purchase_invoice"'],
+  ["/expenses", "$json.output"],
 ] as const;
 
 for (const [route, expected] of contexts) {
@@ -56,7 +56,7 @@ test("@mobile expense dialog remains responsive with a complete invoice example"
   await page.getByRole("button", { name: "Hiện ví dụ có token production" }).click();
   await expect(page.getByText(/Token production đã được ghép/)).toBeVisible();
   await page.getByRole("button", { name: /Nhập hóa đơn OCR tối giản/ }).click();
-  const code = page.locator("pre code").first();
+  const code = page.locator("pre code").filter({ hasText: "Authorization: Bearer" }).first();
   await expect(code).toContainText("Authorization: Bearer e2e-stable-token");
   await expect(code).toContainText('"type": "purchase_invoice"');
   await expect(code).toContainText('"externalReference"');

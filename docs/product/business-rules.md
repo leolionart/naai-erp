@@ -135,6 +135,11 @@ These rules define the active release boundary. Historical rules remain valid fo
   tax ID, omits project and funding relationships, and keeps tax eligibility `unreviewed`. Exact net,
   VAT and gross controls remain required and must come from invoice extraction or a verified product
   tax rule; automation must not guess them from the gross total alone.
+- The expense protocol provides a paste-ready n8n expression object for the staging step before ERP
+  mutation. It maps all available `$json.output` OCR labels and Paperless metadata in one operation,
+  normalizes tax ID, VND money and signed date, retains raw OCR output, and explicitly reports fields
+  still missing before the commercial-document create call. Staging data never marks itself ready to
+  post merely because a gross total was extracted.
 
 ### BR-AI-006 — Cash-heavy business activity classification
 

@@ -2245,6 +2245,30 @@ tests:
     command: pnpm check
     blocking_gate: G67
 
+  - id: T-CONTRACT-ERP-911-001
+    task: ERP-911
+    rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-EXP-002]
+    title: One n8n expression maps maximum OCR and Paperless fields without accounting guesses
+    layer: contract
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts
+    blocking_gate: G68
+
+  - id: T-E2E-ERP-911-002
+    task: ERP-911
+    rules: [BR-AI-003, BR-AI-005, BR-UI-003]
+    title: Expense automation dialog renders and copies the OCR expression responsively
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G68
+
+  - id: T-REG-ERP-911-003
+    task: ERP-911
+    rules: [BR-AI-001, BR-EXP-002, BR-UI-003]
+    title: OCR staging expression preserves repository quality and accounting gates
+    layer: regression
+    command: pnpm check
+    blocking_gate: G68
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
