@@ -2,6 +2,8 @@
 
 **ERP AI-native dành cho doanh nghiệp một người.**
 
+![Overview](https://screenshot.naai.studio/snapzy/1786436880-87c97427-snapzy_2026-08-11_15-26-35_675.png)
+
 NAAI ERP giúp một chủ doanh nghiệp tự vận hành tài chính, doanh thu, chi phí, dự án và dòng tiền trong một hệ thống thống nhất. Sản phẩm được thiết kế cho mô hình solopreneur: người sở hữu có thể trực tiếp khai báo, kiểm soát và tự duyệt nghiệp vụ theo chính sách đã cấu hình, nhưng mọi thay đổi tài chính vẫn đi qua phân quyền, audit, idempotency, khóa kỳ và các nguyên tắc kế toán kép.
 
 Giao diện web, REST API, CLI và các tác nhân AI cùng sử dụng một lớp dịch vụ nghiệp vụ. AI không truy cập PostgreSQL trực tiếp và không được bỏ qua các kiểm soát kế toán.
