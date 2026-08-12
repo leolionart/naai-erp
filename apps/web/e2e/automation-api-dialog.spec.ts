@@ -36,9 +36,8 @@ for (const [route, expected] of contexts) {
     await page.getByRole("button", { name: "API & tự động hóa" }).click();
     const dialog = page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" });
     await expect(dialog).toBeVisible();
-    expect(tokenRequests.count).toBe(0);
-    await page.getByRole("button", { name: "Hiện ví dụ có token production" }).click();
-    await expect(page.getByText(/Token production đã được ghép/)).toBeVisible();
+    await expect.poll(() => tokenRequests.count).toBe(1);
+    await expect(dialog.locator("button[aria-expanded]").first()).toBeVisible();
     expect(tokenRequests.count).toBe(1);
     await dialog.locator("button[aria-expanded]").first().click();
     await expect(dialog.locator("pre code").first()).toContainText(expected);
@@ -61,8 +60,7 @@ test("@mobile expense dialog remains responsive with one-request OCR ingestion",
   await page.goto("/expenses");
   await page.getByRole("button", { name: "API & tự động hóa" }).click();
   await expect(page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" })).toBeVisible();
-  await page.getByRole("button", { name: "Hiện ví dụ có token production" }).click();
-  await expect(page.getByText(/Token production đã được ghép/)).toBeVisible();
+  await expect.poll(() => tokenRequests.count).toBe(1);
   await page.getByRole("button", { name: /Nhập nhanh hóa đơn OCR bằng một request/ }).click();
   const code = page.locator("pre code").filter({ hasText: "Authorization: Bearer" }).first();
   await expect(code).toContainText("Authorization: Bearer e2e-stable-token");

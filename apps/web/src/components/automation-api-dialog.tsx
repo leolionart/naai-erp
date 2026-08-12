@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, ChevronRightIcon, ClipboardIcon, CodeXmlIcon, EyeIcon } from "lucide-react";
+import { ChevronRightIcon, ClipboardIcon, CodeXmlIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -14,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 type RevealedCredential = Readonly<{ organizationId: string; apiToken: string }>;
 export type AutomationResource =
@@ -465,6 +465,7 @@ export function AutomationApiDialog({
 }: Readonly<{ resources: readonly AutomationResource[] }>) {
   const [credential, setCredential] = useState<RevealedCredential | null>(null);
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
 
   async function reveal() {
     setLoading(true);
@@ -485,7 +486,13 @@ export function AutomationApiDialog({
   }
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen && !credential && !loading) void reveal();
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline">
           <CodeXmlIcon data-icon="inline-start" />
@@ -500,25 +507,11 @@ export function AutomationApiDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Alert>
-          <AlertTitle>Credential production</AlertTitle>
-          <AlertDescription>
-            Token được lấy từ phiên đăng nhập khi bạn chủ động bấm hiện. Không lưu token vào
-            workflow JSON, log hoặc source code; trong n8n nên chuyển token sang Bearer Auth
-            Credential.
-          </AlertDescription>
-        </Alert>
-
-        {!credential ? (
-          <Button onClick={reveal} disabled={loading}>
-            <EyeIcon data-icon="inline-start" />
-            {loading ? "Đang lấy token…" : "Hiện ví dụ có token production"}
-          </Button>
-        ) : (
+        {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckIcon /> Token production đã được ghép vào các ví dụ bên dưới.
+            <Spinner /> Đang tải ví dụ API…
           </div>
-        )}
+        ) : null}
 
         {credential ? (
           <div className="flex min-w-0 flex-col gap-3">

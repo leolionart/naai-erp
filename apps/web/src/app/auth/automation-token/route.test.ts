@@ -8,12 +8,19 @@ import { POST } from "./route";
 
 const secret = "automation-token-test-secret-that-is-at-least-32-chars";
 
-function request(cookie?: string, origin = "http://localhost") {
+function request(
+  cookie?: string,
+  origin = "http://localhost",
+  forwarded?: Readonly<{ proto: string; host: string }>,
+) {
   return new Request("http://localhost/auth/automation-token", {
     method: "POST",
     headers: {
       ...(cookie ? { cookie } : {}),
       origin,
+      ...(forwarded
+        ? { "x-forwarded-proto": forwarded.proto, "x-forwarded-host": forwarded.host }
+        : {}),
     },
   });
 }
@@ -51,6 +58,23 @@ describe("POST /auth/automation-token", () => {
     expect(
       (await POST(request(`${SESSION_COOKIE_NAME}=${sealed}`, "https://attacker.example"))).status,
     ).toBe(401);
+  });
+
+  it("accepts the public same origin forwarded by the production reverse proxy", async () => {
+    process.env.SESSION_SECRET = secret;
+    const sealed = sealPersistentSession(
+      createPersistentSession({ organizationId: "naai", apiToken: "production-owner-token" }),
+      secret,
+    );
+
+    const response = await POST(
+      request(`${SESSION_COOKIE_NAME}=${sealed}`, "https://erp.naai.studio", {
+        proto: "https",
+        host: "erp.naai.studio",
+      }),
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it("uses the server-only production-data credential during native development", async () => {

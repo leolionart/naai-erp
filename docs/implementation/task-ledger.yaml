@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-12T13:55:00+07:00
+updated_at: 2026-08-12T14:22:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G71
+current_gate: G73
 current_task: null
 
 tasks:
@@ -2849,6 +2849,46 @@ tasks:
       - docs/implementation/evidence/ERP-914/
     notes: Replace the intermediate OCR staging expression with one paste-ready HTTP Request JSON expression that normalizes Vietnamese Paperless fields directly into the ERP-913 one-call request body.
 
+  - id: ERP-915
+    title: Open contextual automation examples immediately
+    phase: P15
+    status: done
+    dependencies: [ERP-914]
+    business_rules: [BR-UI-003, BR-AI-003]
+    tests: [T-E2E-ERP-915-001]
+    evidence: docs/implementation/evidence/ERP-915/
+    agent: codex-root
+    started_at: 2026-08-12T14:08:00+07:00
+    completed_at: 2026-08-12T14:12:00+07:00
+    planned_files:
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-915/
+    notes: Remove the credential warning and reveal button; opening the dialog automatically loads the authenticated production examples once.
+
+  - id: ERP-916
+    title: Honor public origin behind the production reverse proxy
+    phase: P15
+    status: done
+    dependencies: [ERP-915]
+    business_rules: [BR-SEC-001, BR-UI-003, BR-AI-003]
+    tests: [T-REG-ERP-916-001]
+    evidence: docs/implementation/evidence/ERP-916/
+    agent: codex-root
+    started_at: 2026-08-12T14:18:00+07:00
+    completed_at: 2026-08-12T14:22:00+07:00
+    planned_files:
+      - apps/web/src/app/auth/automation-token/route.ts
+      - apps/web/src/app/auth/automation-token/route.test.ts
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-916/
+    notes: Fix the production-only false cross-origin rejection by validating the browser Origin against the reverse-proxy public protocol and host while retaining cross-origin rejection.
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2921,6 +2961,8 @@ gates:
   G69: [ERP-912]
   G70: [ERP-913]
   G71: [ERP-914]
+  G72: [ERP-915]
+  G73: [ERP-916]
 
 gate_status:
   G0: done
@@ -2993,3 +3035,5 @@ gate_status:
   G69: done
   G70: done
   G71: done
+  G72: done
+  G73: done

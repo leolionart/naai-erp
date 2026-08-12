@@ -6,7 +6,24 @@ export const runtime = "nodejs";
 
 function isSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
+  if (!origin) return true;
+  const allowedOrigins = new Set([new URL(request.url).origin]);
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.trim();
+  if ((forwardedProto === "http" || forwardedProto === "https") && forwardedHost) {
+    try {
+      allowedOrigins.add(new URL(`${forwardedProto}://${forwardedHost}`).origin);
+    } catch {
+      return false;
+    }
+  }
+  try {
+    return allowedOrigins.has(new URL(origin).origin);
+  } catch {
+    return false;
+  }
 }
 
 function developmentKeychainValue(service: string) {

@@ -554,3 +554,18 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   the Paperless document content.
 - A representative Paperless payload regression test proves the normalized date, amount, tax ID,
   invoice number, category and external reference.
+
+### ERP-915 — Immediate automation examples
+
+- Opening the contextual API dialog automatically resolves the credential from the authenticated
+  session and renders the examples without an intermediate warning or reveal action.
+- The dialog makes one credential request per mounted session, shows only a short loading state and
+  preserves the existing desktop/mobile copy and responsive behavior.
+
+### ERP-916 — Reverse-proxy session-origin validation
+
+- The production automation-token route accepts an authenticated request when the browser Origin
+  matches the public origin reconstructed from trusted reverse-proxy host/protocol headers, even when
+  the internal Next.js request URL uses a container origin.
+- Missing sessions and genuinely cross-origin browser requests remain rejected, and no credential is
+  exposed in error responses or logs.

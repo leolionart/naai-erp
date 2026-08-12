@@ -2349,6 +2349,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G71
 
+  - id: T-E2E-ERP-915-001
+    task: ERP-915
+    rules: [BR-UI-003, BR-AI-003]
+    title: Opening the automation dialog immediately loads contextual examples from the authenticated session
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G72
+
+  - id: T-REG-ERP-916-001
+    task: ERP-916
+    rules: [BR-SEC-001, BR-UI-003, BR-AI-003]
+    title: Production proxy origin validation accepts the public same-origin session and rejects cross-origin reads
+    layer: regression
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/auth/automation-token/route.test.ts
+    blocking_gate: G73
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
