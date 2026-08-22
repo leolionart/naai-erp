@@ -1006,6 +1006,10 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 ### BR-UI-004 — Reusable design system
 
 - Admin modules use shared semantic tokens and accessible component primitives instead of per-screen raw controls or hard-coded visual rules.
+- Product color is defined once through the shadcn theme contract: primary actions, navigation,
+  charts, focus rings and contextual surfaces use semantic tokens and supported component variants.
+  Screens must not add raw palette utilities or per-page color overrides. Color remains accessible
+  in light and dark modes and never becomes the sole carrier of accounting or lifecycle meaning.
 - Lists, forms, dialogs, feedback, loading and empty states follow one documented composition contract.
 - Responsive behavior preserves navigation and primary workflows without JavaScript-only layout assumptions.
 - Collapsed sidebar submenus use shared accessible overlay/navigation primitives and preserve a

@@ -7,7 +7,7 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G82
+current_gate: G83
 current_task: null
 
 tasks:
@@ -3037,6 +3037,26 @@ tasks:
     completed_at: 2026-08-22T09:08:00+07:00
     completion_basis: advanced_id_disclosure_translated_labels_and_web_typecheck
 
+  - id: ERP-926
+    title: Shadcn semantic color refresh across application
+    phase: P15
+    status: done
+    dependencies: [ERP-925]
+    business_rules: [BR-UI-003, BR-UI-004, BR-UI-007]
+    tests: [T-UNIT-ERP-926-001, T-E2E-ERP-926-002, T-DOC-ERP-926-003]
+    evidence: docs/implementation/evidence/ERP-926/
+    agent: codex-team
+    started_at: 2026-08-22T10:05:00+07:00
+    completed_at: 2026-08-22T10:12:00+07:00
+    completion_basis: semantic_shadcn_palette_build_typecheck_tests_docs_passed_browser_unavailable
+    planned_files:
+      - apps/web/src/app/globals.css
+      - apps/web/src/app/workspaces/financial-statement-workspaces.tsx
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-926/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3119,6 +3139,7 @@ gates:
   G80: [ERP-923]
   G81: [ERP-924]
   G82: [ERP-925]
+  G83: [ERP-926]
 
 gate_status:
   G0: done
@@ -3201,3 +3222,4 @@ gate_status:
   G80: done
   G81: done
   G82: done
+  G83: done

@@ -59,6 +59,15 @@ cases pass and its exact-commit evidence is recorded.
 
 ## 3. Active golden fixtures
 
+### ERP-926 — Shadcn semantic color refresh
+
+- `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,
+  sidebar and chart palettes, and refreshed application surfaces contain no raw palette overrides.
+- `T-E2E-ERP-926-002`: desktop and 390px mobile smoke checks preserve navigation, readable forms,
+  dashboard charts, status meaning and primary interactions in the refreshed theme.
+- `T-DOC-ERP-926-003`: the design-system rule documents semantic shadcn tokens and prohibits
+  per-page color overrides.
+
 ### ERP-922 — Simple business input and backend-owned administration flows
 
 - `T-DOC-ERP-922-001`: business rules, workflow, API guidance and README consistently document

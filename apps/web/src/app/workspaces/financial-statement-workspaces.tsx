@@ -597,7 +597,7 @@ function SourceDialog({
                             variant="ghost"
                             size="sm"
                             asChild
-                            className="h-6 text-[11px] px-1.5 text-blue-600 dark:text-blue-400"
+                            className="h-6 text-[11px] px-1.5 text-primary"
                           >
                             <Link
                               href={

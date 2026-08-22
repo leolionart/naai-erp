@@ -2445,6 +2445,30 @@ tests:
     command: pnpm test:docs
     blocking_gate: G79
 
+  - id: T-UNIT-ERP-926-001
+    task: ERP-926
+    rules: [BR-UI-004]
+    title: Shared shadcn light and dark themes use semantic color tokens without raw page palettes
+    layer: unit
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G83
+
+  - id: T-E2E-ERP-926-002
+    task: ERP-926
+    rules: [BR-UI-003, BR-UI-004, BR-UI-007]
+    title: Desktop and mobile application smoke remains accessible with semantic color
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/admin-navigation.spec.ts e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G83
+
+  - id: T-DOC-ERP-926-003
+    task: ERP-926
+    rules: [BR-UI-004]
+    title: Design system documents shadcn semantic color ownership
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G83
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
