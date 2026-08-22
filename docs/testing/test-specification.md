@@ -587,3 +587,8 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   the internal Next.js request URL uses a container origin.
 - Missing sessions and genuinely cross-origin browser requests remain rejected, and no credential is
   exposed in error responses or logs.
+
+### ERP-919 — End-to-end workflow documentation
+
+- `T-DOC-ERP-919-001`: the workflow guide, README and documentation indexes explain the shared
+  lifecycle, domain use flows, interface choices and links to authoritative rules/contracts.

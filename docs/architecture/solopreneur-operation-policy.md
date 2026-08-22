@@ -1,5 +1,9 @@
 # Solopreneur operation policy
 
+See the [overall business workflow guide](../product/business-workflows.md) for how this policy
+changes the day-to-day user flow. This document remains authoritative for the safeguard boundary
+between `solopreneur` and `controlled` operation modes.
+
 ERP-900 inventories every OpenAPI `POST`, `PATCH` and `DELETE` operation in
 `docs/implementation/solopreneur-gate-matrix.json`. The generated matrix is the machine-readable
 baseline for ERP-901 through ERP-904; it does not change runtime behavior.

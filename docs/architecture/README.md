@@ -1,5 +1,9 @@
 # Architecture Decisions
 
+For the end-to-end user and business process built on these decisions, start with the
+[overall business workflow guide](../product/business-workflows.md). The ADRs below remain the
+authority for architectural constraints and trade-offs.
+
 1. [ADR-001: Stack and Modular Monolith](./ADR-001-stack-and-modular-monolith.md)
 2. [ADR-002: Organization Isolation and Authorization](./ADR-002-organization-isolation-and-auth.md)
 3. [ADR-003: Accounting Invariants](./ADR-003-accounting-invariants.md)

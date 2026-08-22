@@ -4,6 +4,7 @@ This directory contains the authoritative specification, architecture, contracts
 
 ## Core Documentation
 
+- `product/business-workflows.md`: overall user journey and step-by-step business workflows across sales, purchasing, expenses, banking, accounting, reporting and system operations.
 - `product/business-rules.md`: authoritative business behavior and accounting invariants.
 - `testing/test-specification.md`: test layers, golden fixtures, oracles and gate requirements.
 - `testing/test-catalog.yaml`: machine-readable test registry.
@@ -19,3 +20,7 @@ This directory contains the authoritative specification, architecture, contracts
 - `ui/`: VietERP-informed design system standards and component guidelines.
 - `security/`: threat model and secret handling policies.
 - `runbooks/`: native development, Docker Compose production release, and backup/restore designs.
+
+Start with `product/business-workflows.md` when learning how the system is used. Follow its links to
+the authoritative business rules, API contracts and operational runbooks when implementing or
+automating a specific workflow.

@@ -2413,6 +2413,14 @@ tests:
     command: pnpm check
     blocking_gate: G74
 
+  - id: T-DOC-ERP-919-001
+    task: ERP-919
+    rules: [BR-AI-001, BR-AI-004, BR-WFL-001, BR-WFL-002, BR-WFL-003, BR-ORG-001]
+    title: Workflow guide and README map end-to-end use flows to authoritative contracts
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G76
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

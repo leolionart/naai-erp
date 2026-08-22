@@ -1,5 +1,6 @@
 # API Contracts & Machine-Readable Interfaces
 
+- [Overall Business Workflows](../product/business-workflows.md) - User-facing process map explaining when each API/resource family participates in a business journey.
 - [OpenAPI v1 Spec (`openapi-v1.json`)](./openapi-v1.json) - Full machine-readable API specification.
 - [REST API and CRUD Coverage](./resource-coverage.md) - Human-readable endpoint families, CRUD/lifecycle matrix, CLI parity, and known gaps.
 - [AI Data Relationships and Ingestion Guide](./data-relationships-and-ingestion.md) - Canonical lookup, dependency, ID propagation, lifecycle, correction, and end-to-end input recipes.

@@ -81,6 +81,28 @@ Repository chính thức: <https://github.com/leolionart/naai-erp>
 - Quan hệ giữa khách hàng, dự án, chứng từ, chi phí, journal và thanh toán được xác thực; AI không tự đoán ID hay sửa trực tiếp dữ liệu đã ghi sổ.
 - Chứng từ đã phát hành và journal đã post được sửa bằng cancel, reversal hoặc replacement để giữ lịch sử.
 
+## Workflow tổng thể và cách dùng hệ thống
+
+NAAI ERP đi theo một luồng thống nhất, dù thao tác từ web, REST API, CLI hay tác nhân AI:
+
+1. **Thiết lập tổ chức**: chọn tổ chức, kỳ tài chính, hệ thống tài khoản, thuế, danh mục và chính sách vận hành (`solopreneur` hoặc `controlled`).
+2. **Khai báo dữ liệu nền**: tạo party (khách hàng/nhà cung cấp), dự án, sản phẩm mua vào, tài khoản ngân hàng và chiều phân tích. Luôn đọc ID và `nextActions` từ API trước khi tạo bản ghi phụ thuộc.
+3. **Tiếp nhận nghiệp vụ**: nhập doanh thu, hóa đơn mua vào, chi phí, giao dịch ngân hàng, timesheet hoặc dữ liệu từ Paperless/n8n. Dùng external identity, idempotency key và correlation ID cho các lần đồng bộ/lặp lại.
+4. **Kiểm tra và ghi nhận**: bản ghi hợp lệ được lưu theo organization scope; nghiệp vụ tài chính đi qua trạng thái draft → review/approved → posted (hoặc luồng solopreneur được phép hoàn tất ngay). Journal phải cân bằng và kỳ khóa vẫn được tôn trọng.
+5. **Đối soát và điều chỉnh**: ghép thanh toán/ngân hàng, xử lý công nợ, phân bổ overhead và sửa sai bằng cancel, reversal hoặc replacement; không sửa/xóa lịch sử đã post.
+6. **Theo dõi và báo cáo**: dashboard và báo cáo chỉ đọc read model từ dữ liệu canonical đã ghi nhận, có drill-down về chứng từ, journal và nguồn. VAT/CIT, tính hợp lệ quản trị và tính đủ điều kiện thuế được hiển thị độc lập.
+7. **Vận hành an toàn**: mọi mutation có audit, phân quyền, version và idempotency; log hoạt động nền có retention mặc định để tránh phình lưu trữ. Backup, nâng cấp và rollback tuân theo runbook.
+
+### Các use flow chính
+
+- **Bán hàng**: khách hàng → dự án (nếu có) → hóa đơn/doanh thu → ghi nhận → thu tiền → công nợ/báo cáo.
+- **Mua hàng/chi phí**: nhà cung cấp → hóa đơn mua hoặc chi phí trực tiếp → phân loại/VAT → thanh toán hoặc chủ sở hữu trả thay → công nợ và chi phí.
+- **Ngân hàng**: nhập giao dịch → chuẩn hóa/ghép → đối soát → khóa kết quả; chuyển khoản nội bộ không tạo doanh thu/chi phí.
+- **Dự án**: dự án + ngân sách → timesheet/chi phí/phân bổ → doanh thu liên quan → margin và KPI.
+- **Tích hợp**: Paperless/n8n gửi payload có external identity → API validate/idempotent upsert → trả stable IDs/next actions → worker xử lý event và ghi log.
+
+Đọc hướng dẫn chi tiết từng nghiệp vụ, trạng thái và điểm kiểm soát tại [Business workflows](./docs/product/business-workflows.md). Các quy tắc bất biến nằm trong [Business Rules Catalog](./docs/product/business-rules.md); hợp đồng máy đọc được và ví dụ tích hợp nằm trong [API documentation](./docs/api/README.md).
+
 ## Triển khai bằng Docker Compose
 
 Yêu cầu: Docker Engine có Compose v2 và quyền pull image từ `ghcr.io/leolionart` nếu package không công khai.
@@ -157,7 +179,13 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -198,7 +226,13 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 3s
       retries: 5

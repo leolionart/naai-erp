@@ -7,7 +7,7 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G75
+current_gate: G76
 current_task: null
 
 tasks:
@@ -2918,6 +2918,27 @@ tasks:
       - apps/web/e2e/login-theme.spec.ts
       - docs/implementation/evidence/ERP-918/
 
+  - id: ERP-919
+    title: Document end-to-end business workflows and use flows
+    phase: P15
+    status: done
+    dependencies: [ERP-918]
+    business_rules: [BR-AI-001, BR-AI-004, BR-WFL-001, BR-WFL-002, BR-WFL-003, BR-ORG-001]
+    tests: [T-DOC-ERP-919-001]
+    evidence: docs/implementation/evidence/ERP-919/
+    agent: codex-team
+    started_at: 2026-08-22T08:25:00+07:00
+    completed_at: 2026-08-22T08:30:00+07:00
+    completion_basis: workflow_map_readme_crosslinks_and_docs_gate
+    planned_files:
+      - docs/product/business-workflows.md
+      - README.md
+      - docs/README.md
+      - docs/api/README.md
+      - docs/architecture/README.md
+      - docs/runbooks/README.md
+      - docs/implementation/evidence/ERP-919/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3068,3 +3089,4 @@ gate_status:
   G73: done
   G74: done
   G75: done
+  G76: done

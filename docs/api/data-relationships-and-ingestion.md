@@ -4,6 +4,10 @@ This is the canonical playbook for an AI or integration that reads and writes NA
 it together with [`data-relationship-manifest-v1.json`](./data-relationship-manifest-v1.json), the
 [OpenAPI contract](./openapi-v1.json), and the [AI-native interface contract](./ai-native-interface-contract.md).
 
+For the business meaning and human sequence behind these machine operations, start with the
+[overall business workflow guide](../product/business-workflows.md). This ingestion guide remains
+authoritative for lookup order, identifiers, payload relationships and automated writes.
+
 For businesses using cash or personal custody heavily, also read
 [`cash-heavy-business-ingestion.md`](./cash-heavy-business-ingestion.md).
 
