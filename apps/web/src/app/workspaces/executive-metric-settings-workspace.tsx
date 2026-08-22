@@ -153,7 +153,7 @@ export function ExecutiveMetricSettingsWorkspace() {
           {approved
             ? `${approved.id}:${approved.version} có hiệu lực từ ${approved.effective_from}.`
             : businessMode === "solopreneur"
-              ? "Năm nhóm chỉ số sẽ được tính sau khi chủ doanh nghiệp tạo và tự duyệt chính sách."
+              ? "Năm nhóm chỉ số quản trị được dùng ngay cho chủ doanh nghiệp; không yêu cầu bước phê duyệt riêng."
               : "Năm nhóm chỉ số sẽ được tính sau khi chính sách được một người khác phê duyệt."}
         </AlertDescription>
       </Alert>
@@ -199,7 +199,7 @@ export function ExecutiveMetricSettingsWorkspace() {
             <CardTitle>Các phiên bản chính sách</CardTitle>
             <CardDescription>
               {businessMode === "solopreneur"
-                ? "Chủ doanh nghiệp có thể tự duyệt; người thực hiện, thời gian và lý do vẫn được lưu vết."
+                ? "Chủ doanh nghiệp dùng số liệu quản trị ngay; người thực hiện, thời gian và thay đổi vẫn được lưu vết."
                 : "Doanh nghiệp có phân quyền yêu cầu người duyệt khác người tạo."}
             </CardDescription>
           </div>

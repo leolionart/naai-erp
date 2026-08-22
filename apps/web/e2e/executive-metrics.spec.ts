@@ -96,6 +96,36 @@ test("@desktop persists executive filters in the URL and opens source Dialog", a
   await expect(drawer).toBeVisible();
 });
 
+test("@desktop shows valid solopreneur management metrics immediately without a review gate", async ({
+  page,
+}) => {
+  await page.route("**/organization-workflow-policy", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { operatingMode: "solopreneur" } }),
+    }),
+  );
+  const report = {
+    ...executiveReport,
+    netBurnMinor: null,
+    runwayMonthsThousandths: null,
+    runwayStatus: "missing_reviewed_burn",
+  };
+  await page.route("**/reports/executive-metrics?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: report }),
+    }),
+  );
+
+  await page.goto("http://localhost:3000/reports/executive-metrics/liquidity");
+  await expect(page.getByText("Số liệu cập nhật ngay")).toBeVisible();
+  await expect(page.getByText("Có chỉ số cần review")).toHaveCount(0);
+  await expect(page.getByText("Cần review")).toHaveCount(0);
+});
+
 test("@desktop shows an honest empty state when ROI has no reviewed facts", async ({ page }) => {
   await mockReport(page);
   await page.goto("http://localhost:3000/reports/executive-metrics/roi");

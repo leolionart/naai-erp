@@ -298,6 +298,7 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
   const [filterOpen, setFilterOpen] = useState(false);
   const [source, setSource] = useState<Metric | null>(null);
   const [report, setReport] = useState<ExecutiveMetricsContract | null>(null);
+  const [businessMode, setBusinessMode] = useState<"controlled" | "solopreneur">("controlled");
   const [loadError, setLoadError] = useState<string | null>(null);
   const currentDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
   const currentYearStart = `${currentDate.slice(0, 4)}-01-01`;
@@ -329,6 +330,18 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
       });
     return () => controller.abort();
   }, [client, currentDate, currentYearStart, queryKey]);
+  useEffect(() => {
+    let cancelled = false;
+    client
+      .data<{ operatingMode?: "controlled" | "solopreneur" }>("organization-workflow-policy")
+      .then((policy) => {
+        if (!cancelled && policy.operatingMode) setBusinessMode(policy.operatingMode);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
   const rows = report ? reportMetrics(report, kind) : [];
   const columns = useMemo<readonly FinancialColumn<Metric>[]>(
     () => [
@@ -353,8 +366,12 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
         id: "status",
         header: "Trạng thái",
         cell: (row) => (
-          <Badge variant={row.status === "ready" ? "secondary" : "outline"}>
-            {row.status === "ready" ? "Sẵn sàng" : "Cần review"}
+          <Badge
+            variant={
+              row.status === "ready" || businessMode === "solopreneur" ? "secondary" : "outline"
+            }
+          >
+            {row.status === "ready" || businessMode === "solopreneur" ? "Sẵn sàng" : "Cần review"}
           </Badge>
         ),
       },
@@ -369,7 +386,7 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
         ),
       },
     ],
-    [],
+    [businessMode],
   );
   function applyFilters() {
     const query = new URLSearchParams(searchParams.toString());
@@ -394,7 +411,11 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
               {startsOn}–{endsOn}
             </Badge>
             <Badge variant="secondary">
-              {report?.formulaVersion ? "Số liệu dồn tích chuẩn" : "Chưa có báo cáo"}
+              {businessMode === "solopreneur"
+                ? "Số liệu cập nhật ngay"
+                : report?.formulaVersion
+                  ? "Số liệu dồn tích chuẩn"
+                  : "Chưa có báo cáo"}
             </Badge>
             <Badge variant="outline">
               {report ? "Dữ liệu hệ thống" : "Không dùng dữ liệu mẫu"}
@@ -420,7 +441,7 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
             </AlertDescription>
           </Alert>
         ) : null}
-        {rows.some((row) => row.status === "review") ? (
+        {businessMode !== "solopreneur" && rows.some((row) => row.status === "review") ? (
           <Alert>
             <AlertTriangle />
             <AlertTitle>Có chỉ số cần review</AlertTitle>
@@ -448,8 +469,16 @@ export function ExecutiveMetricWorkspace({ kind }: Readonly<{ kind: ExecutiveMet
               value={row.value}
               comparison={row.formula}
               footer={
-                <Badge variant={row.status === "ready" ? "secondary" : "outline"}>
-                  {row.status === "ready" ? "Sẵn sàng" : "Cần review"}
+                <Badge
+                  variant={
+                    row.status === "ready" || businessMode === "solopreneur"
+                      ? "secondary"
+                      : "outline"
+                  }
+                >
+                  {row.status === "ready" || businessMode === "solopreneur"
+                    ? "Sẵn sàng"
+                    : "Cần review"}
                 </Badge>
               }
             />

@@ -1309,22 +1309,6 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-853/
 
-  - id: ERP-854
-    title: Scheduled one-way production to development data refresh
-    phase: P11
-    status: blocked
-    dependencies: [ERP-841, ERP-853]
-    business_rules: [BR-EXPOR-002, BR-MIG-006, BR-OPS-002, BR-ORG-001, BR-AUD-001]
-    tests: []
-    evidence: docs/implementation/evidence/ERP-854/
-    blocked_reason: Production capabilities do not yet expose Full ERP Data Package export/restore operations, and ERP-841 remains in progress. Deploy the compatible application version first, then implement an encrypted blue-green production export to empty development tenant restore with financial control readback.
-    planned_files:
-      - scripts/sync-production-to-development.mjs
-      - docs/runbooks/production-to-development-data-refresh.md
-      - docs/testing/test-catalog.yaml
-      - docs/implementation/task-ledger.yaml
-      - docs/implementation/evidence/ERP-854/
-
   - id: ERP-855
     title: Purchase product VAT catalog and API
     phase: P12
@@ -2955,7 +2939,6 @@ gates:
   G16: [ERP-851]
   G17: [ERP-852]
   G18: [ERP-853]
-  G19: [ERP-854]
   G20: [ERP-855]
   G21: [ERP-856]
   G22: [ERP-857]
@@ -3031,7 +3014,6 @@ gate_status:
   G16: done
   G17: done
   G18: done
-  G19: blocked
   G20: done
   G21: done
   G22: done
