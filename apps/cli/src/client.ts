@@ -362,6 +362,8 @@ export class NaaiErpClient {
     const isWorkbookReviewRow = resource === "workbook-review-rows";
     const isServicePlan = resource === "service-plans";
     const isCustomerServiceSubscription = resource === "customer-service-subscriptions";
+    const isBackgroundActivities =
+      resource === "background-activities" || resource === "operational-logs";
     if (isInboundEvent && !["list", "get"].includes(action))
       throw new Error("Inbound events are read-only admin resources");
     const forecastKey = () => {
@@ -378,7 +380,7 @@ export class NaaiErpClient {
         );
       return { forecastId, componentId };
     };
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isServicePlan || isCustomerServiceSubscription ? resource : isOrganizationWorkflowPolicy ? "organization-workflow-policy" : isCommercialRelationshipBackfill || isQuickPurchaseInvoice ? "commercial-documents" : isExpenseRelationshipBackfill ? "expenses" : isWorkbookReviewRow ? "workbook-imports/review-rows" : isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isOperatingDashboard ? "reports/operating-dashboard" : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isOwnerCurrentMovement ? "banking/owner-current-movements" : isOwnerCashWithdrawal ? "banking/owner-cash-withdrawals" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
+    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/${isBackgroundActivities ? "operational-logs" : isServicePlan || isCustomerServiceSubscription ? resource : isOrganizationWorkflowPolicy ? "organization-workflow-policy" : isCommercialRelationshipBackfill || isQuickPurchaseInvoice ? "commercial-documents" : isExpenseRelationshipBackfill ? "expenses" : isWorkbookReviewRow ? "workbook-imports/review-rows" : isReportSnapshot || isAccountantExport || isWorkbookImport ? resource : isExecutiveMetric ? "reports/executive-metrics" : isExecutiveMetricPolicy || isRoiDefinition || isRoiInputFact ? resource : isFinancialStatementMapping ? "financial-statement-mappings" : isFinancialSourceResolver ? "reports/financial-statements/source-resolver" : isFinancialStatement || isFinancialStatementDrilldown ? "reports/financial-statements" : isVatReconciliation ? "reports/tax/vat-reconciliation" : isExpenseException ? "reports/tax/expense-exceptions" : isPerformanceComparison ? "reports/performance-comparisons" : isPlanningActualFact ? "planning-actual-facts" : isForecastComponent || isForecastComposition ? `forecast-versions/${encodeURIComponent(forecastKey().forecastId)}` : isOperatingDashboard ? "reports/operating-dashboard" : isProjectProfitability ? "reports/project-profitability" : isPlanning ? resource : isJournal ? "journals" : isPostingRule ? "posting-rules" : isPeriodWorkflow ? "fiscal-periods" : isReport ? "reports" : isOpeningBalance ? "opening-balances" : isCommercialDocument ? "commercial-documents" : isExpense ? "expenses" : isEvidence ? "evidence" : isInboundEvent ? "inbound-events" : isOutboundEvent ? "outbound-events/outbox" : isOutboundEndpoint ? "outbound-events/endpoints" : isOutboundDelivery ? "outbound-events/deliveries" : isBankAccount ? "banking/accounts" : isBankImport ? "banking/imports" : isBankTransaction ? "banking/transactions" : isOwnerCurrentMovement ? "banking/owner-current-movements" : isOwnerCashWithdrawal ? "banking/owner-cash-withdrawals" : isReconciliation ? "banking/reconciliations" : isInternalTransfer ? "banking/internal-transfers" : isAging ? `reports/${resource}` : isStatementSession || isStatementException ? "banking/statement-sessions" : isProjectBudget || isScopeChange || isRecognitionPolicy || isMilestoneAcceptance || isRecognitionEvent ? resource : isProjectRevenueAxes ? "project-revenue-position" : `master-data/${encodeURIComponent(resource)}`}`;
     const method =
       action === "delete"
         ? "DELETE"
@@ -397,6 +399,7 @@ export class NaaiErpClient {
             isFinancialSourceResolver ||
             isVatReconciliation ||
             isExpenseException ||
+            isBackgroundActivities ||
             isExecutiveMetric ||
             ((isServicePlan || isCustomerServiceSubscription) &&
               ["list", "get", "schedule-preview"].includes(action)) ||
@@ -744,7 +747,8 @@ export class NaaiErpClient {
         isReportSnapshot ||
         isAccountantExport ||
         isServicePlan ||
-        isCustomerServiceSubscription) &&
+        isCustomerServiceSubscription ||
+        isBackgroundActivities) &&
       method === "GET" &&
       queryPayload &&
       typeof queryPayload === "object"

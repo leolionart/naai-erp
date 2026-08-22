@@ -5,7 +5,7 @@ import { DELETE, GET, POST } from "./route";
 const originalEnvironment = process.env;
 
 function request(body: unknown) {
-  return new Request("http://localhost/auth/session", {
+  return new Request("https://localhost/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -47,6 +47,38 @@ describe("POST /auth/session", () => {
       organizationId: "naai",
       apiToken: "owner-api-token",
     });
+  });
+
+  it("allows the persistent cookie on a plain HTTP development origin used by mobile devices", async () => {
+    const response = await POST(
+      new Request("http://192.168.1.10:3000/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-proto": "http" },
+        body: JSON.stringify({
+          username: "owner",
+          password: "correct horse battery staple",
+        }),
+      }),
+    );
+
+    const cookie = response.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain(`Max-Age=${60 * 60 * 24 * 30}`);
+    expect(cookie).not.toContain("Secure");
+  });
+
+  it("keeps Secure on an HTTPS origin forwarded by the reverse proxy", async () => {
+    const response = await POST(
+      new Request("http://web:3000/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-proto": "https" },
+        body: JSON.stringify({
+          username: "owner",
+          password: "correct horse battery staple",
+        }),
+      }),
+    );
+
+    expect(response.headers.get("set-cookie")).toContain("Secure");
   });
 
   it("does not disclose the token for invalid credentials", async () => {

@@ -2365,6 +2365,54 @@ tests:
     command: pnpm --filter @naai-erp/web exec vitest run src/app/auth/automation-token/route.test.ts
     blocking_gate: G73
 
+  - id: T-UNIT-ERP-917-001
+    task: ERP-917
+    rules: [BR-OPS-001, BR-OPS-006, BR-SEC-002]
+    title: Background activity metadata and errors are redacted before persistence and readback
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/background-activities/background-activity.service.test.ts
+    blocking_gate: G74
+
+  - id: T-API-ERP-917-002
+    task: ERP-917
+    rules: [BR-OPS-001, BR-OPS-006, BR-ORG-001, BR-SEC-001]
+    title: Activity log API is organization scoped authorized paginated and filterable
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/background-activities/background-activity.controller.test.ts
+    blocking_gate: G74
+
+  - id: T-CLI-ERP-917-003
+    task: ERP-917
+    rules: [BR-AI-001, BR-OPS-006, BR-ORG-001]
+    title: CLI reads activity logs and retention status through canonical REST only
+    layer: cli
+    command: pnpm --filter @naai-erp/cli test
+    blocking_gate: G74
+
+  - id: T-DB-ERP-917-004
+    task: ERP-917
+    rules: [BR-OPS-006, BR-OPS-005, BR-AUD-001, BR-ORG-001]
+    title: Bounded retention removes expired operational rows without deleting accounting or audit history
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/background-activities/background-activity.integration.test.ts
+    blocking_gate: G74
+
+  - id: T-E2E-ERP-917-005
+    task: ERP-917
+    rules: [BR-OPS-006, BR-UI-003, BR-ORG-001]
+    title: Desktop and mobile activity viewer exposes filters pagination and effective retention status
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/background-activities.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G74
+
+  - id: T-REG-ERP-917-006
+    task: ERP-917
+    rules: [BR-OPS-001, BR-OPS-006, BR-SEC-002]
+    title: Background failures remain observable and redacted while repository gates pass
+    layer: regression
+    command: pnpm check
+    blocking_gate: G74
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

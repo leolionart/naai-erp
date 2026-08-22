@@ -18,6 +18,7 @@ export type NavigationIcon =
   | "master-data"
   | "purchase-products"
   | "portable-data"
+  | "activity-log"
   | "accountant-exports"
   | "subscription";
 
@@ -291,6 +292,22 @@ export const adminNavigation = [
     key: "data_and_system",
     label: "Dữ liệu & Cấu hình",
     items: [
+      {
+        key: "operations",
+        label: "Vận hành hệ thống",
+        description: "Theo dõi tác vụ chạy ngầm và chính sách lưu log vận hành.",
+        icon: "activity-log",
+        status: "available",
+        children: [
+          {
+            key: "background-activities",
+            label: "Nhật ký chạy ngầm",
+            href: "/settings/background-activities",
+            description: "Xem trạng thái, lỗi và thời gian xử lý của các tác vụ chạy ngầm.",
+            status: "available",
+          },
+        ],
+      },
       {
         key: "master-data",
         label: "Danh mục hệ thống",

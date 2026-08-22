@@ -29,6 +29,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         body: JSON.stringify({
           username: String(data.get("username") ?? ""),
           password: String(data.get("password") ?? ""),
+          remember: data.get("remember") === "on",
         }),
       });
       const result = (await response.json()) as {
@@ -59,7 +60,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
           <CardDescription>Kết nối vào dữ liệu tài chính của NAAI Studio</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={login}>
+          <form action={login} method="post" autoComplete="on">
             <FieldGroup>
               <Field data-invalid={Boolean(error)}>
                 <FieldLabel htmlFor="username">Tài khoản</FieldLabel>
@@ -70,6 +71,23 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                   required
                   aria-invalid={Boolean(error)}
                 />
+              </Field>
+              <Field>
+                <label htmlFor="remember" className="flex cursor-pointer items-start gap-3 text-sm">
+                  <input
+                    id="remember"
+                    name="remember"
+                    type="checkbox"
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <span>
+                    <span className="font-medium">Lưu đăng nhập trên thiết bị này</span>
+                    <span className="mt-1 block text-muted-foreground">
+                      Trình duyệt có thể đề nghị lưu mật khẩu. NAAI ERP không lưu mật khẩu trong bộ
+                      nhớ trình duyệt.
+                    </span>
+                  </span>
+                </label>
               </Field>
               <Field data-invalid={Boolean(error)}>
                 <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>

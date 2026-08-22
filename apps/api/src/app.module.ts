@@ -118,6 +118,10 @@ import { OrganizationWorkflowPolicyController } from "./workflow-policy/organiza
 import { CustomerServiceSubscriptionModule } from "./customer-service-subscriptions/customer-service-subscription.module.js";
 import { ExpenseReportController } from "./expense-reports/expense-report.controller.js";
 import { ExpenseReportService } from "./expense-reports/expense-report.service.js";
+import { OperationalLogController } from "./operational-logs/operational-log.controller.js";
+import { OperationalLogService } from "./operational-logs/operational-log.service.js";
+import { OPERATIONAL_LOG_STORE } from "./operational-logs/operational-log.types.js";
+import { PgOperationalLogStore } from "./operational-logs/pg-operational-log.store.js";
 import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.js";
 
 @Module({
@@ -158,6 +162,7 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     PortableDataPackageController,
     PortableDataImportController,
     ExpenseReportController,
+    OperationalLogController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -242,6 +247,9 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     PortableDataImportService,
     PgPortableDataImportStore,
     PortableCanonicalMutationAdapter,
+    OperationalLogService,
+    PgOperationalLogStore,
+    { provide: OPERATIONAL_LOG_STORE, useExisting: PgOperationalLogStore },
     { provide: PORTABLE_DATA_IMPORT_STORE, useExisting: PgPortableDataImportStore },
   ],
 })

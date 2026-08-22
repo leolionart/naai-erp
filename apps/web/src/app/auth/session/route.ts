@@ -20,15 +20,27 @@ function sessionSecret() {
   return secret;
 }
 
-function clearSession(response: NextResponse) {
+function clearSession(response: NextResponse, request?: Request) {
   response.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
-    secure: true,
+    secure: secureSessionCookie(request),
     sameSite: "lax",
     path: "/",
     maxAge: 0,
   });
   return response;
+}
+
+/**
+ * Secure cookies are mandatory on production HTTPS, but forcing Secure on a
+ * plain HTTP LAN/dev origin makes mobile browsers silently discard the cookie.
+ * Reverse proxies communicate the public scheme through X-Forwarded-Proto.
+ */
+function secureSessionCookie(request?: Request) {
+  if (process.env.NODE_ENV === "production") return true;
+  const forwarded = request?.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim();
+  if (forwarded) return forwarded === "https";
+  return request ? new URL(request.url).protocol === "https:" : true;
 }
 
 export async function POST(request: Request) {
@@ -72,7 +84,7 @@ export async function POST(request: Request) {
     ),
     {
       httpOnly: true,
-      secure: true,
+      secure: secureSessionCookie(request),
       sameSite: "lax",
       path: "/",
       maxAge: SESSION_TTL_SECONDS,
@@ -93,12 +105,14 @@ export async function GET(request: Request) {
   } catch {
     return clearSession(
       NextResponse.json({ error: "Phiên đăng nhập không hợp lệ." }, { status: 401 }),
+      request,
     );
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request?: Request) {
   return clearSession(
     NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }),
+    request,
   );
 }

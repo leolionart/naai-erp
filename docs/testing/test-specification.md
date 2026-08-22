@@ -292,6 +292,24 @@ Golden changes require explicit review and a documented reason.
 - `T-CONTRACT-ERP-900-002`: no journal, period, document, expense, payment, reconciliation,
   recognition, allocation commit or financial import mutation is classified `none`.
 
+### ERP-917 — Background activity log viewer and bounded retention
+
+- `T-UNIT-ERP-917-001`: log redaction removes credentials, authorization headers, tokens, raw
+  evidence and complete financial payloads while preserving job/status/error context and correlation
+  IDs.
+- `T-API-ERP-917-002`: the organization-scoped activity-log read endpoint supports deterministic
+  cursor pagination and job/status/time filters, enforces operations/read authorization and rejects
+  cross-organization access without disclosing rows.
+- `T-CLI-ERP-917-003`: the first-party CLI reads the same activity-log and retention-status contract
+  through REST, emits JSON by default and never queries PostgreSQL directly.
+- `T-DB-ERP-917-004`: retention cleanup deletes only operational activity rows older than the
+  configured/default 30-day policy, is bounded and retry-safe, and leaves journals, resource audit,
+  source documents and immutable outbox history untouched across fresh and upgraded databases.
+- `T-E2E-ERP-917-005`: desktop/mobile operations navigation opens the log viewer, renders loading,
+  empty, redacted-error and pagination states, and shows the effective retention/last-cleanup status.
+- `T-REG-ERP-917-006`: worker and maintenance failures create visible activity rows without leaking
+  secrets or widening cleanup scope; the full repository gate remains green.
+
 ### ERP-905 — Remove obsolete time and cost-allocation subsystems
 
 - `T-DB-ERP-905-001`: migration removes only the obsolete workforce, timesheet, derived project-cost,

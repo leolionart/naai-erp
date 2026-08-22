@@ -1161,6 +1161,27 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 
 ### BR-OPS-004 — Production confidence
 
+### BR-OPS-006 — Background activity log visibility and bounded retention
+
+- Authorized organization members with the operations/read scope can view a paginated, filterable
+  activity stream for background workers and maintenance jobs (job name, status, started/finished
+  time, duration, correlation ID, attempt and a redacted error summary).
+- The stream is an operational read model only. It may include worker, outbox-delivery and
+  maintenance activity, but never replaces the append-only resource/audit chain or posted ledger
+  evidence. Organization filters are mandatory and cross-organization rows are never disclosed.
+- Log messages and structured metadata are redacted before persistence and before API/CLI output;
+  credentials, authorization headers, tokens, raw evidence and complete financial payloads must not
+  be stored or returned.
+- Operational activity rows use a configurable age-based retention policy with a documented default
+  of 30 days. A scheduled cleanup removes only rows older than the effective policy (and may be
+  safely retried); it never deletes journals, source documents, resource audit events or immutable
+  outbox history. The effective retention and last cleanup result are visible to operators.
+- Reads support deterministic cursor pagination and time/status/job filters. Cleanup is bounded per
+  run so it cannot monopolize the database; failures are reported as activity entries and do not
+  silently broaden deletion scope.
+
+### BR-OPS-004 — Production confidence
+
 - Go-live requires reconciled control totals, healthy services, rollback target and approved release manifest.
 
 ### BR-REL-001 — Main images

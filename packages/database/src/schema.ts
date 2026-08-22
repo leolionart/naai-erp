@@ -1460,6 +1460,45 @@ export const resourceAuditEvents = pgTable(
   ],
 );
 
+// Bounded operational telemetry. Unlike resourceAuditEvents, these rows are not part of the
+// immutable financial audit chain and are deliberately eligible for time-based retention.
+export const operationalActivityLogs = pgTable(
+  "operational_activity_logs",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id").notNull(),
+    service: text("service").notNull(),
+    operation: text("operation").notNull(),
+    status: text("status").notNull(),
+    severity: text("severity").notNull().default("info"),
+    workerId: text("worker_id"),
+    correlationId: text("correlation_id"),
+    summary: text("summary").notNull(),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.id] }),
+    index("operational_activity_logs_org_created_idx").on(table.organizationId, table.createdAt),
+    index("operational_activity_logs_expiry_idx").on(table.expiresAt),
+    check("operational_activity_logs_service_not_blank", sql`btrim(${table.service}) <> ''`),
+    check("operational_activity_logs_operation_not_blank", sql`btrim(${table.operation}) <> ''`),
+    check(
+      "operational_activity_logs_status_valid",
+      sql`${table.status} in ('running','succeeded','failed','skipped')`,
+    ),
+    check(
+      "operational_activity_logs_severity_valid",
+      sql`${table.severity} in ('info','warning','error')`,
+    ),
+  ],
+);
+
 export const apiCredentials = pgTable(
   "api_credentials",
   {
@@ -4697,6 +4736,7 @@ export const schema = {
   resourceVersions,
   apiIdempotencyRecords,
   resourceAuditEvents,
+  operationalActivityLogs,
   apiCredentials,
   journalEntries,
   accountingWorkflowPolicies,

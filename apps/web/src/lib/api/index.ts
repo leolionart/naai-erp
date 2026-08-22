@@ -1,5 +1,6 @@
 export * from "./client";
 export * from "./aging";
+export * from "./operational-logs";
 export * from "./connection";
 export * from "./idempotency";
 export * from "./internal-transfers";

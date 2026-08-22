@@ -877,6 +877,21 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(fetchFn).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({ method: "GET" }));
   });
 
+  it("lists background activities through the canonical operational log API", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ data: { items: [] } }), { status: 200 }));
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request("background-activities", "list", { status: "failed", limit: "25" });
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/operational-logs?status=failed&limit=25",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("replays a dead-letter outbound event with a stable idempotency key", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: { state: "pending" } }), {

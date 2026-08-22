@@ -13,6 +13,14 @@ const deliveryPollIntervalMs = Number.parseInt(
 );
 const deliveryBatchSize = Number.parseInt(process.env.OUTBOUND_DELIVERY_BATCH_SIZE ?? "20", 10);
 const workerId = process.env.WORKER_ID ?? `worker-${randomUUID()}`;
+const configuredPurgeInterval = Number.parseInt(
+  process.env.OPERATIONAL_LOG_PURGE_INTERVAL_MS ?? "3600000",
+  10,
+);
+const operationalLogPurgeIntervalMs =
+  Number.isInteger(configuredPurgeInterval) && configuredPurgeInterval >= 60_000
+    ? configuredPurgeInterval
+    : 3_600_000;
 
 function reportHeartbeat(): void {
   process.stdout.write(`${JSON.stringify(createHeartbeat())}\n`);
@@ -52,10 +60,30 @@ async function pollOutboundDeliveries() {
 
 void pollOutboundDeliveries();
 const deliveryTimer = setInterval(() => void pollOutboundDeliveries(), deliveryPollIntervalMs);
+async function purgeOperationalLogs() {
+  if (!deliveryStore) return;
+  try {
+    const purged = await deliveryStore.purgeExpiredOperationalLogs();
+    if (purged)
+      process.stdout.write(
+        `${JSON.stringify({ service: "worker", operation: "operational_log_retention", workerId, purged })}\n`,
+      );
+  } catch (error) {
+    process.stderr.write(
+      `${JSON.stringify({ service: "worker", operation: "operational_log_retention", workerId, error: error instanceof Error ? error.message : "unknown" })}\n`,
+    );
+  }
+}
+void purgeOperationalLogs();
+const operationalLogPurgeTimer = setInterval(
+  () => void purgeOperationalLogs(),
+  operationalLogPurgeIntervalMs,
+);
 
 async function shutdown(): Promise<void> {
   clearInterval(heartbeatTimer);
   clearInterval(deliveryTimer);
+  clearInterval(operationalLogPurgeTimer);
   await deliveryStore?.close();
   process.exitCode = 0;
 }

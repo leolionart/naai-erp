@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   ArchiveRestoreIcon,
+  ActivityIcon,
   BookMarkedIcon,
   BriefcaseIcon,
   CalculatorIcon,
@@ -74,6 +75,7 @@ const icons = {
   "master-data": DatabaseIcon,
   "purchase-products": PackageIcon,
   "portable-data": ArchiveRestoreIcon,
+  "activity-log": ActivityIcon,
   ledger: BookMarkedIcon,
   invoice: ReceiptIcon,
   expense: ReceiptTextIcon,

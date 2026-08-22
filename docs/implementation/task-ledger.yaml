@@ -7,7 +7,7 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G73
+current_gate: G75
 current_task: null
 
 tasks:
@@ -2889,6 +2889,51 @@ tasks:
       - docs/implementation/evidence/ERP-916/
     notes: Fix the production-only false cross-origin rejection by validating the browser Origin against the reverse-proxy public protocol and host while retaining cross-origin rejection.
 
+  - id: ERP-917
+    title: View bounded operational activity logs with default retention
+    phase: P15
+    status: done
+    dependencies: [ERP-916]
+    business_rules: [BR-OPS-005, BR-OPS-006, BR-ORG-001, BR-SEC-001]
+    tests:
+      [
+        T-UNIT-ERP-917-001,
+        T-API-ERP-917-002,
+        T-CLI-ERP-917-003,
+        T-DB-ERP-917-004,
+        T-E2E-ERP-917-005,
+        T-REG-ERP-917-006,
+      ]
+    evidence: docs/implementation/evidence/ERP-917/
+    agent: codex-team
+    started_at: 2026-08-22T00:30:00+07:00
+    completed_at: 2026-08-22T07:40:00+07:00
+    completion_basis: operational_log_api_cli_worker_retention_sidebar_viewer_and_focused_repository_gates
+    planned_files:
+      - db/migrations/0054_operational_activity_logs.sql
+      - packages/database/src/schema.ts
+      - apps/api/src/operational-logs/
+    notes: Operational telemetry is organization-scoped, redacted at write boundaries, queryable with pagination and filtered by service/status/severity. Default expiry is 30 days; cleanup must never touch immutable resource_audit_events or accounting history.
+
+  - id: ERP-918
+    title: Persist mobile login sessions and support password-manager remember login
+    phase: P15
+    status: done
+    dependencies: [ERP-917]
+    business_rules: [BR-SEC-001, BR-UI-003, BR-OPS-005]
+    tests: [T-API-ERP-918-001, T-E2E-ERP-918-002]
+    evidence: docs/implementation/evidence/ERP-918/
+    agent: codex-team
+    started_at: 2026-08-22T00:39:00+07:00
+    completed_at: 2026-08-22T00:42:00+07:00
+    completion_basis: mobile_http_cookie_security_regression_and_password_manager_login_form_e2e
+    planned_files:
+      - apps/web/src/app/auth/session/route.ts
+      - apps/web/src/app/auth/session/route.test.ts
+      - apps/web/src/components/login-form.tsx
+      - apps/web/e2e/login-theme.spec.ts
+      - docs/implementation/evidence/ERP-918/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -2963,6 +3008,8 @@ gates:
   G71: [ERP-914]
   G72: [ERP-915]
   G73: [ERP-916]
+  G74: [ERP-917]
+  G75: [ERP-918]
 
 gate_status:
   G0: done
@@ -3037,3 +3084,5 @@ gate_status:
   G71: done
   G72: done
   G73: done
+  G74: done
+  G75: done

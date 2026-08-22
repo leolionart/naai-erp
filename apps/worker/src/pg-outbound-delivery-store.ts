@@ -8,13 +8,28 @@ import type {
 
 export class PgOutboundDeliveryStore implements OutboundDeliveryStore {
   private readonly pool: pg.Pool;
+  private readonly logRetentionDays: number;
 
-  constructor(connectionString = process.env.DATABASE_URL) {
+  constructor(
+    connectionString = process.env.DATABASE_URL,
+    logRetentionDays = parseOperationalLogRetentionDays(process.env.OPERATIONAL_LOG_RETENTION_DAYS),
+  ) {
     this.pool = new pg.Pool({ connectionString });
+    this.logRetentionDays = logRetentionDays;
   }
 
   async close() {
     await this.pool.end();
+  }
+
+  async purgeExpiredOperationalLogs(now = new Date(), limit = 1000) {
+    const result = await this.pool.query(
+      `delete from operational_activity_logs where ctid in (
+         select ctid from operational_activity_logs where expires_at<$1 order by expires_at limit $2
+       )`,
+      [now, Math.max(1, Math.min(limit, 10_000))],
+    );
+    return result.rowCount ?? 0;
   }
 
   async materializePending(limit: number) {
@@ -218,6 +233,35 @@ export class PgOutboundDeliveryStore implements OutboundDeliveryStore {
           completion.errorSummary?.slice(0, 1000) ?? null,
         ],
       );
+      await client.query(
+        `insert into operational_activity_logs
+         (organization_id,id,service,operation,status,severity,worker_id,correlation_id,summary,
+          details,started_at,completed_at,expires_at)
+         values($1,$2,'worker','outbound_delivery',$3,$4,$5,$6,$7,$8,$9,$9,
+          $9+make_interval(days=>$10))`,
+        [
+          delivery.organizationId,
+          randomUUID(),
+          completion.outcome === "delivered" ? "succeeded" : "failed",
+          completion.outcome === "delivered" ? "info" : "error",
+          workerId,
+          delivery.correlationId,
+          completion.outcome === "delivered"
+            ? "Outbound delivery completed"
+            : "Outbound delivery attempt failed",
+          JSON.stringify({
+            deliveryId: delivery.deliveryId,
+            outboxEventId: delivery.outboxEventId,
+            eventType: delivery.eventType,
+            attemptNumber,
+            outcome: completion.outcome,
+            ...(completion.httpStatus ? { httpStatus: completion.httpStatus } : {}),
+            ...(completion.errorCode ? { errorCode: completion.errorCode.slice(0, 100) } : {}),
+          }),
+          recordedAt,
+          this.logRetentionDays,
+        ],
+      );
       await client.query("commit");
     } catch (error) {
       await client.query("rollback");
@@ -226,4 +270,10 @@ export class PgOutboundDeliveryStore implements OutboundDeliveryStore {
       client.release();
     }
   }
+}
+
+export function parseOperationalLogRetentionDays(value: string | undefined): number {
+  if (!value) return 30;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 365 ? parsed : 30;
 }
