@@ -1,0 +1,1 @@
+- Planning E2E selectors, web TypeScript and lint passed.

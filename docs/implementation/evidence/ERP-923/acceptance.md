@@ -1,0 +1,2 @@
+- [x] Human-friendly account matching and progressive banking forms.
+- [x] Ambiguous/not-found matches fail without mutation.

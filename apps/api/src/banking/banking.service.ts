@@ -73,13 +73,18 @@ export class BankingService {
   async importStatement(context: BankingContext, input: ImportBankStatementInput, key?: string) {
     this.authorize(context, IMPORT);
     this.requireKey(key);
-    this.validateImportInput(input);
-    return this.envelope(context, await this.store.importStatement(context, input, key!));
+    const normalized = await this.resolveAccount(context, input);
+    this.validateImportInput(normalized);
+    return this.envelope(context, await this.store.importStatement(context, normalized, key!));
   }
   async dryRunImport(context: BankingContext, input: ImportBankStatementInput) {
     this.authorize(context, IMPORT);
-    this.validateImportInput(input);
-    return this.envelope(context, await this.store.dryRunImport(context.organizationId, input));
+    const normalized = await this.resolveAccount(context, input);
+    this.validateImportInput(normalized);
+    return this.envelope(
+      context,
+      await this.store.dryRunImport(context.organizationId, normalized),
+    );
   }
   async listImports(context: BankingContext, financialAccountId?: string) {
     return this.envelope(
@@ -173,5 +178,31 @@ export class BankingService {
       input.csvText.length > 5_000_000
     )
       throw new Error("BANK_IMPORT_INVALID");
+  }
+  private async resolveAccount(
+    context: BankingContext,
+    input: ImportBankStatementInput,
+  ): Promise<ImportBankStatementInput & { financialAccountId: string }> {
+    if (input.financialAccountId?.trim())
+      return { ...input, financialAccountId: input.financialAccountId.trim() };
+    const hint = input.financialAccount?.trim();
+    if (!hint) throw new Error("BANK_ACCOUNT_REQUIRED");
+    const payload = (await this.store.listAccounts(context.organizationId)) as unknown;
+    const rows: readonly Record<string, unknown>[] = Array.isArray(payload)
+      ? (payload as readonly Record<string, unknown>[])
+      : ((payload as { items?: readonly Record<string, unknown>[] }).items ?? []);
+    const norm = (v: unknown) =>
+      String(v ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    const matches = rows.filter((row) =>
+      [row.id, row.code, row.displayName, row.display_name].some((v) => norm(v) === norm(hint)),
+    );
+    if (matches.length > 1) throw new Error("BANK_ACCOUNT_AMBIGUOUS");
+    if (!matches[0]?.id) throw new Error("BANK_ACCOUNT_NOT_FOUND");
+    return { ...input, financialAccountId: String(matches[0].id) };
   }
 }

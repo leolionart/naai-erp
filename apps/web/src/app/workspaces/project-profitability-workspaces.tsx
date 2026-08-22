@@ -311,11 +311,11 @@ export function ProjectProfitabilityQueueWorkspace() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="prf-client">Client ID</FieldLabel>
+                <FieldLabel htmlFor="prf-client">Khách hàng</FieldLabel>
                 <Input id="prf-client" name="clientId" defaultValue={query.get("clientId") ?? ""} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="prf-service">Service line ID</FieldLabel>
+                <FieldLabel htmlFor="prf-service">Dòng dịch vụ</FieldLabel>
                 <Input
                   id="prf-service"
                   name="serviceLineId"
@@ -323,7 +323,7 @@ export function ProjectProfitabilityQueueWorkspace() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="prf-owner">Account owner ID</FieldLabel>
+                <FieldLabel htmlFor="prf-owner">Người phụ trách</FieldLabel>
                 <Input
                   id="prf-owner"
                   name="accountOwnerId"

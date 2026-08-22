@@ -446,28 +446,33 @@ export function ForecastCompositionDetailWorkspace({
                   required
                 />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="component-source-type">Source type</FieldLabel>
-                <Input id="component-source-type" name="sourceType" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="component-source-id">Source ID</FieldLabel>
-                <Input id="component-source-id" name="sourceId" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="component-root-type">Commercial root type</FieldLabel>
-                <Input id="component-root-type" name="commercialRootType" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="component-root-id">Commercial root ID</FieldLabel>
-                <Input id="component-root-id" name="commercialRootId" />
-              </Field>
+              <details className="sm:col-span-2 rounded-md border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Tuỳ chọn nâng cao</summary>
+                <div className="grid gap-4 pt-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="component-source-type">Loại nguồn</FieldLabel>
+                    <Input id="component-source-type" name="sourceType" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="component-source-id">Mã nguồn</FieldLabel>
+                    <Input id="component-source-id" name="sourceId" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="component-root-type">Loại hồ sơ gốc</FieldLabel>
+                    <Input id="component-root-type" name="commercialRootType" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="component-root-id">Mã hồ sơ gốc</FieldLabel>
+                    <Input id="component-root-id" name="commercialRootId" />
+                  </Field>
+                </div>
+              </details>
               <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="component-note">Note</FieldLabel>
                 <Input id="component-note" name="note" />
               </Field>
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="component-reason">Reason</FieldLabel>
+                <FieldLabel htmlFor="component-reason">Ghi chú</FieldLabel>
                 <Input id="component-reason" name="reason" required />
               </Field>
             </FieldGroup>
@@ -526,7 +531,7 @@ export function ForecastCompositionDetailWorkspace({
                   <Input id="edit-component-note" name="note" defaultValue={editing.note ?? ""} />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="edit-component-reason">Reason</FieldLabel>
+                  <FieldLabel htmlFor="edit-component-reason">Ghi chú</FieldLabel>
                   <Input id="edit-component-reason" name="reason" required />
                 </Field>
               </FieldGroup>
@@ -630,7 +635,7 @@ export function ForecastCompositionDetailWorkspace({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
-            <FieldLabel htmlFor="transition-reason">Reason</FieldLabel>
+            <FieldLabel htmlFor="transition-reason">Ghi chú</FieldLabel>
             <Input
               id="transition-reason"
               value={reason}
@@ -663,7 +668,7 @@ export function ForecastCompositionDetailWorkspace({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
-            <FieldLabel htmlFor="delete-component-reason">Reason</FieldLabel>
+            <FieldLabel htmlFor="delete-component-reason">Ghi chú xoá</FieldLabel>
             <Input
               id="delete-component-reason"
               value={deleteReason}

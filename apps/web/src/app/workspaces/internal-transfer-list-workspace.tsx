@@ -321,7 +321,7 @@ export function InternalTransferListWorkspace() {
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="transfer-account">Account ID</FieldLabel>
+              <FieldLabel htmlFor="transfer-account">Tài khoản</FieldLabel>
               <Input
                 id="transfer-account"
                 value={filters.accountId}
@@ -338,76 +338,79 @@ export function InternalTransferListWorkspace() {
             <DialogHeader>
               <DialogTitle>Tạo transfer pending</DialogTitle>
               <DialogDescription>
-                Nhập ít nhất một transaction leg. Principal đi qua transit; fee được khai báo riêng.
+                Nhập số tiền chuyển. Hệ thống sẽ xử lý tài khoản trung gian và đối ứng.
               </DialogDescription>
             </DialogHeader>
             <FieldGroup className="py-4">
-              <Field>
-                <FieldLabel htmlFor="create-source-leg">Source transaction ID</FieldLabel>
-                <Input id="create-source-leg" name="sourceTransactionId" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="create-destination-leg">Destination transaction ID</FieldLabel>
-                <Input id="create-destination-leg" name="destinationTransactionId" />
-              </Field>
               <FieldGroup className="grid gap-4 sm:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="create-fee-mode">Fee mode</FieldLabel>
-                  <Select name="feeMode" defaultValue="embedded">
-                    <SelectTrigger id="create-fee-mode">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="embedded">Embedded trong bank leg</SelectItem>
-                        <SelectItem value="separate_transaction">Giao dịch fee riêng</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="create-fee-transaction">Fee transaction ID</FieldLabel>
-                  <Input id="create-fee-transaction" name="feeTransactionId" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="create-principal">Principal amount</FieldLabel>
+                  <FieldLabel htmlFor="create-principal">Số tiền chuyển</FieldLabel>
                   <Input id="create-principal" name="principalAmountMinor" required />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="create-base-principal">Base principal</FieldLabel>
+                  <FieldLabel htmlFor="create-base-principal">Số tiền quy đổi</FieldLabel>
                   <Input id="create-base-principal" name="basePrincipalAmountMinor" required />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="create-currency">Currency</FieldLabel>
+                  <FieldLabel htmlFor="create-currency">Tiền tệ</FieldLabel>
                   <Input id="create-currency" name="currency" defaultValue="VND" required />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="create-transit">Transit account ID</FieldLabel>
+                  <FieldLabel htmlFor="create-transit">Tài khoản trung gian</FieldLabel>
                   <Input id="create-transit" name="transitAccountId" required />
                 </Field>
               </FieldGroup>
               <Field>
-                <FieldLabel htmlFor="create-reason">Lý do</FieldLabel>
+                <FieldLabel htmlFor="create-reason">Ghi chú</FieldLabel>
                 <Input id="create-reason" name="reason" required />
               </Field>
-              <FieldGroup className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="create-fee">Fee amount (optional)</FieldLabel>
-                  <Input id="create-fee" name="feeAmountMinor" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="create-fee-base">Fee base amount</FieldLabel>
-                  <Input id="create-fee-base" name="feeBaseAmountMinor" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="create-fee-account">Fee expense account ID</FieldLabel>
-                  <Input id="create-fee-account" name="feeExpenseAccountId" />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="create-fee-reason">Fee reason</FieldLabel>
-                  <Input id="create-fee-reason" name="feeReason" />
-                </Field>
-              </FieldGroup>
+              <details className="rounded-lg border p-3">
+                <summary className="cursor-pointer text-sm font-medium">Tuỳ chọn nâng cao</summary>
+                <FieldGroup className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="create-source-leg">Giao dịch chiều chuyển</FieldLabel>
+                    <Input id="create-source-leg" name="sourceTransactionId" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-destination-leg">Giao dịch chiều nhận</FieldLabel>
+                    <Input id="create-destination-leg" name="destinationTransactionId" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-fee-mode">Cách ghi nhận phí</FieldLabel>
+                    <Select name="feeMode" defaultValue="embedded">
+                      <SelectTrigger id="create-fee-mode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="embedded">Gộp trong giao dịch ngân hàng</SelectItem>
+                          <SelectItem value="separate_transaction">Giao dịch phí riêng</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-fee-transaction">Giao dịch phí</FieldLabel>
+                    <Input id="create-fee-transaction" name="feeTransactionId" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-fee">Phí ngân hàng</FieldLabel>
+                    <Input id="create-fee" name="feeAmountMinor" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-fee-base">Phí quy đổi</FieldLabel>
+                    <Input id="create-fee-base" name="feeBaseAmountMinor" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-fee-account">Tài khoản chi phí phí</FieldLabel>
+                    <Input id="create-fee-account" name="feeExpenseAccountId" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="create-fee-reason">Diễn giải phí</FieldLabel>
+                    <Input id="create-fee-reason" name="feeReason" />
+                  </Field>
+                </FieldGroup>
+              </details>
             </FieldGroup>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateDialog(false)}>

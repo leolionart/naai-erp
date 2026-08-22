@@ -550,7 +550,7 @@ export function PlanningDetailWorkspace({
             </DialogDescription>
           </DialogHeader>
           <Field>
-            <FieldLabel htmlFor="publish-reason">Reason</FieldLabel>
+            <FieldLabel htmlFor="publish-reason">Ghi chú</FieldLabel>
             <Input
               id="publish-reason"
               value={reason}
@@ -573,7 +573,7 @@ export function PlanningDetailWorkspace({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
-            <FieldLabel htmlFor="supersede-reason">Reason</FieldLabel>
+            <FieldLabel htmlFor="supersede-reason">Lý do thay thế</FieldLabel>
             <Input
               id="supersede-reason"
               value={reason}

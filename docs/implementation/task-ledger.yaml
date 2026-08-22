@@ -7,7 +7,7 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G79
+current_gate: G82
 current_task: ERP-922
 
 tasks:
@@ -2981,7 +2981,7 @@ tasks:
   - id: ERP-922
     title: Simple business input and backend-owned administration flows
     phase: P15
-    status: in_progress
+    status: done
     dependencies: [ERP-921]
     business_rules: [BR-UX-001, BR-AI-001, BR-AI-002, BR-AI-005, BR-AI-006]
     tests: [T-DOC-ERP-922-001]
@@ -2998,6 +2998,42 @@ tasks:
       - docs/implementation/evidence/ERP-922/
     completed_at: 2026-08-22T08:58:00+07:00
     completion_basis: simple_input_rule_progressive_disclosure_planning_form_and_docs_gate
+
+  - id: ERP-923
+    title: Simplify banking input and statement account matching
+    phase: P15
+    status: done
+    dependencies: [ERP-922]
+    business_rules: [BR-UX-001, BR-BNK-001, BR-ORG-001]
+    tests: [T-UNIT-ERP-923-001]
+    evidence: docs/implementation/evidence/ERP-923/
+    agent: codex-team
+    completed_at: 2026-08-22T09:08:00+07:00
+    completion_basis: human_account_matching_and_banking_progressive_disclosure
+
+  - id: ERP-924
+    title: Replace technical reporting filters with business labels
+    phase: P15
+    status: done
+    dependencies: [ERP-923]
+    business_rules: [BR-UX-001, BR-UI-003]
+    tests: [T-E2E-ERP-924-001]
+    evidence: docs/implementation/evidence/ERP-924/
+    agent: codex-team
+    completed_at: 2026-08-22T09:08:00+07:00
+    completion_basis: business_filter_labels_and_web_typecheck
+
+  - id: ERP-925
+    title: Add progressive disclosure to forecast and admin forms
+    phase: P15
+    status: done
+    dependencies: [ERP-924]
+    business_rules: [BR-UX-001, BR-UI-003, BR-UI-004]
+    tests: [T-E2E-ERP-925-001]
+    evidence: docs/implementation/evidence/ERP-925/
+    agent: codex-team
+    completed_at: 2026-08-22T09:08:00+07:00
+    completion_basis: advanced_id_disclosure_translated_labels_and_web_typecheck
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -3078,6 +3114,9 @@ gates:
   G77: [ERP-920]
   G78: [ERP-921]
   G79: [ERP-922]
+  G80: [ERP-923]
+  G81: [ERP-924]
+  G82: [ERP-925]
 
 gate_status:
   G0: done
@@ -3157,3 +3196,6 @@ gate_status:
   G77: done
   G78: in_progress
   G79: in_progress
+  G80: done
+  G81: done
+  G82: done

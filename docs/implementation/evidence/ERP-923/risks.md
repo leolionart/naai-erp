@@ -1,0 +1,1 @@
+- Internal transfer backend still retains advanced IDs for legacy integrations.

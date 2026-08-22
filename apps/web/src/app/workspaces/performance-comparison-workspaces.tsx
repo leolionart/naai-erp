@@ -231,7 +231,7 @@ function FilterSheet({
           </PopoverHeader>
           <FieldGroup className="px-4">
             <Field>
-              <FieldLabel htmlFor="performance-period">Period ID</FieldLabel>
+              <FieldLabel htmlFor="performance-period">Kỳ so sánh</FieldLabel>
               <Input
                 id="performance-period"
                 name="periodId"
@@ -269,7 +269,7 @@ function FilterSheet({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="performance-forecast">Forecast version ID</FieldLabel>
+              <FieldLabel htmlFor="performance-forecast">Kịch bản dự báo</FieldLabel>
               <Input
                 id="performance-forecast"
                 name="forecastVersionId"
@@ -277,9 +277,9 @@ function FilterSheet({
               />
             </Field>
             {[
-              ["teamId", "Team ID"],
-              ["serviceLineCode", "Service line"],
-              ["ownerId", "Owner ID"],
+              ["teamId", "Nhóm"],
+              ["serviceLineCode", "Dòng dịch vụ"],
+              ["ownerId", "Người phụ trách"],
             ].map(([name, label]) => (
               <Field key={name}>
                 <FieldLabel htmlFor={`performance-${name}`}>{label}</FieldLabel>

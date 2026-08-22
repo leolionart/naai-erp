@@ -16,7 +16,8 @@ export type CreateFinancialAccountInput = Readonly<{
 
 export type ImportBankStatementInput = Readonly<{
   id?: string;
-  financialAccountId: string;
+  financialAccountId?: string;
+  financialAccount?: string;
   adapterId: "generic-csv";
   adapterVersion: 1;
   filename: string;

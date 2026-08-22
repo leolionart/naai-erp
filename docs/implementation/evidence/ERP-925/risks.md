@@ -1,0 +1,1 @@
+- Advanced options remain available for exceptional integrations.

@@ -221,14 +221,18 @@ export function StatementSessionListWorkspace() {
             <DialogHeader>
               <DialogTitle>Tạo kỳ kiểm soát sao kê</DialogTitle>
               <DialogDescription>
-                Session chỉ khai báo control totals và import IDs; reconciliation xử lý ở route
-                riêng.
+                Chọn tài khoản, khoảng thời gian và số dư. Các liên kết kỹ thuật chỉ dùng khi cần.
               </DialogDescription>
             </DialogHeader>
             <FieldGroup className="py-4">
               <Field>
-                <FieldLabel htmlFor="statement-account">Financial account ID</FieldLabel>
-                <Input id="statement-account" name="financialAccountId" required />
+                <FieldLabel htmlFor="statement-account">Tài khoản ngân hàng</FieldLabel>
+                <Input
+                  id="statement-account"
+                  name="financialAccountId"
+                  placeholder="Tìm theo tên hoặc số tài khoản"
+                  required
+                />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field>
@@ -242,7 +246,7 @@ export function StatementSessionListWorkspace() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field>
-                  <FieldLabel htmlFor="statement-opening">Opening balance</FieldLabel>
+                  <FieldLabel htmlFor="statement-opening">Số dư đầu kỳ</FieldLabel>
                   <Input
                     id="statement-opening"
                     name="openingBalanceMinor"
@@ -251,7 +255,7 @@ export function StatementSessionListWorkspace() {
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="statement-closing">Closing balance</FieldLabel>
+                  <FieldLabel htmlFor="statement-closing">Số dư cuối kỳ</FieldLabel>
                   <Input
                     id="statement-closing"
                     name="closingBalanceMinor"
@@ -265,13 +269,20 @@ export function StatementSessionListWorkspace() {
                 <Input id="statement-currency" name="currency" defaultValue="VND" required />
               </Field>
               <Field>
-                <FieldLabel htmlFor="statement-imports">Import IDs</FieldLabel>
-                <Input id="statement-imports" name="importIds" placeholder="import-1, import-2" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="statement-reason">Lý do</FieldLabel>
+                <FieldLabel htmlFor="statement-reason">Ghi chú</FieldLabel>
                 <Input id="statement-reason" name="reason" required />
               </Field>
+              <details className="rounded-lg border p-3">
+                <summary className="cursor-pointer text-sm font-medium">Tuỳ chọn nâng cao</summary>
+                <Field className="mt-3">
+                  <FieldLabel htmlFor="statement-imports">Liên kết lần nhập dữ liệu</FieldLabel>
+                  <Input
+                    id="statement-imports"
+                    name="importIds"
+                    placeholder="Chỉ nhập khi cần liên kết thủ công"
+                  />
+                </Field>
+              </details>
             </FieldGroup>
             <DialogFooter>
               <Button type="submit" disabled={loading}>
@@ -297,8 +308,13 @@ export function StatementSessionListWorkspace() {
             <div className="flex-1 px-4 py-2">
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="session-filter-account">Account ID</FieldLabel>
-                  <Input id="session-filter-account" name="accountId" defaultValue={accountId} />
+                  <FieldLabel htmlFor="session-filter-account">Tài khoản ngân hàng</FieldLabel>
+                  <Input
+                    id="session-filter-account"
+                    name="accountId"
+                    placeholder="Tên hoặc số tài khoản"
+                    defaultValue={accountId}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="session-filter-state">Trạng thái</FieldLabel>

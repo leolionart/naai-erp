@@ -134,7 +134,7 @@ test("@desktop manages target versions with create Dialog and URL filter Sheet",
   await dialog.getByLabel("Target amount (minor)").fill("150000000");
   await dialog.getByLabel("Starts on").fill("2026-09-01");
   await dialog.getByLabel("Ends on").fill("2026-09-30");
-  await dialog.getByLabel("Reason").fill("September target review");
+  await dialog.getByLabel("Ghi chú").fill("September target review");
   await dialog.getByRole("button", { name: "Lưu draft" }).click();
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]?.body).toMatchObject({ amountMinor: "150000000", actualBasis: "collected" });
@@ -149,7 +149,7 @@ test("@desktop opens dedicated version pages and requires reason before supersed
   await page.getByRole("button", { name: "Supersede version" }).click();
   const alert = page.getByRole("alertdialog", { name: "Supersede version?" });
   await expect(alert.getByRole("button", { name: "Supersede" })).toBeDisabled();
-  await alert.getByLabel("Reason").fill("Revised after owner review");
+  await alert.getByLabel("Lý do thay thế").fill("Revised after owner review");
   await alert.getByRole("button", { name: "Supersede" }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/target-aug-v1/supersede");
 });
@@ -162,7 +162,7 @@ test("@desktop reviews forecast scenarios and publishes from a short Dialog", as
   await expect(page.getByText("month_end · 2026-08-31")).toBeVisible();
   await page.getByRole("button", { name: "Publish version" }).click();
   const dialog = page.getByRole("dialog", { name: "Publish version?" });
-  await dialog.getByLabel("Reason").fill("Month-end planning review");
+  await dialog.getByLabel("Ghi chú").fill("Month-end planning review");
   await dialog.getByRole("button", { name: "Publish" }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/forecast-base-aug-v1/publish");
 });
@@ -182,7 +182,7 @@ test("@desktop manages forecast composition with source Drawer and reasoned revi
   await page.getByRole("button", { name: "Review" }).click();
   const alert = page.getByRole("alertdialog", { name: "Review component?" });
   await expect(alert.getByRole("button", { name: "Review" })).toBeDisabled();
-  await alert.getByLabel("Reason").fill("Pipeline reviewed with account owner");
+  await alert.getByLabel("Ghi chú").fill("Pipeline reviewed with account owner");
   await alert.getByRole("button", { name: "Review" }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/pipeline-1/review");
 });
@@ -203,10 +203,11 @@ test("@desktop creates a forecast component and persists URL filters", async ({ 
   await dialog.getByLabel("Scheduled on").fill("2026-09-20");
   await dialog.getByLabel("Amount (minor)").fill("30000000");
   await dialog.getByLabel("Source type").fill("milestone");
-  await dialog.getByLabel("Source ID").fill("milestone-1");
-  await dialog.getByLabel("Commercial root type").fill("contract");
-  await dialog.getByLabel("Commercial root ID").fill("contract-1");
-  await dialog.getByLabel("Reason").fill("Accepted committed milestone");
+  await dialog.getByText("Tuỳ chọn nâng cao").click();
+  await dialog.getByLabel("Mã nguồn").fill("milestone-1");
+  await dialog.getByLabel("Loại hồ sơ gốc").fill("contract");
+  await dialog.getByLabel("Mã hồ sơ gốc").fill("contract-1");
+  await dialog.getByLabel("Ghi chú").fill("Accepted committed milestone");
   await dialog.getByRole("button", { name: "Lưu component" }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/components");
 });
@@ -222,7 +223,7 @@ test("@desktop edits and deletes forecast components through controlled dialogs"
   await expect(edit.getByLabel("Amount (minor)")).toHaveValue("20000000");
   await edit.getByLabel("Amount (minor)").fill("24000000");
   await edit.getByLabel("Probability (bps)").fill("7500");
-  await edit.getByLabel("Reason").fill("Pipeline value revised after client call");
+  await edit.getByLabel("Ghi chú").fill("Pipeline value revised after client call");
   await edit.getByRole("button", { name: "Lưu thay đổi" }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/components/pipeline-1");
   expect(requests.at(-1)?.body).toMatchObject({
@@ -234,7 +235,7 @@ test("@desktop edits and deletes forecast components through controlled dialogs"
   await page.getByRole("button", { name: "Delete" }).click();
   const remove = page.getByRole("alertdialog", { name: "Delete component?" });
   await expect(remove.getByRole("button", { name: "Delete" })).toBeDisabled();
-  await remove.getByLabel("Reason").fill("Duplicate pipeline source");
+  await remove.getByLabel("Ghi chú xoá").fill("Duplicate pipeline source");
   await remove.getByRole("button", { name: "Delete" }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/components/pipeline-1");
   expect(requests.at(-1)?.body).toMatchObject({

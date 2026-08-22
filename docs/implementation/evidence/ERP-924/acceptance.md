@@ -1,0 +1,1 @@
+- [x] Human labels replace technical filter labels while payload IDs remain stable.

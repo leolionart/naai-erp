@@ -1,0 +1,2 @@
+- Banking service tests: 10 passed.
+- Web typecheck and internal-transfer tests passed.
