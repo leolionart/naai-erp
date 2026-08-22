@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRightIcon, ClipboardIcon, CodeXmlIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  ClipboardIcon,
+  CodeXmlIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -159,6 +166,28 @@ export function salesInvoiceCurl(credential: RevealedCredential) {
       "externalId": "sales-invoice-source-0001",
       "version": "1"
     }
+  }'`;
+}
+
+/** One-call revenue ingestion: the backend resolves the customer and posting defaults. */
+export function quickRevenueIngestionCurl(credential: RevealedCredential) {
+  return `curl --request POST \\
+  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/sales-invoice-ingestion' \\
+  --header 'Authorization: Bearer ${credential.apiToken}' \\
+  --header 'Content-Type: application/json' \\
+  --header 'Idempotency-Key: n8n-revenue-2026-0001' \\
+  --header 'X-Correlation-Id: n8n-revenue-2026-0001' \\
+  --data '{
+    "customerTaxId": "0312345678",
+    "customerName": "CÔNG TY TNHH KHÁCH HÀNG DEMO",
+    "documentNumber": "00000001",
+    "documentDate": "2026-08-12",
+    "description": "Dịch vụ phát triển phần mềm",
+    "netMinor": "10000000",
+    "taxMinor": "1000000",
+    "grossMinor": "11000000",
+    "currency": "VND",
+    "externalReference": { "system": "n8n", "externalId": "sales-source-0001" }
   }'`;
 }
 
@@ -417,6 +446,12 @@ function definitionsFor(
     ],
     revenue: [
       {
+        title: "Nhập nhanh doanh thu bằng một request",
+        description:
+          "ERP tự tìm hoặc tạo khách hàng theo mã số thuế, áp dụng tài khoản và trạng thái phù hợp; không cần gọi API party, account hay project riêng.",
+        value: quickRevenueIngestionCurl(credential),
+      },
+      {
         title: "Nhập hóa đơn đầu ra hoàn chỉnh",
         description:
           "partyId là khách hàng; projectId nằm trong allocation và phải thuộc chính khách hàng đó.",
@@ -464,6 +499,8 @@ export function AutomationApiDialog({
   resources,
 }: Readonly<{ resources: readonly AutomationResource[] }>) {
   const [credential, setCredential] = useState<RevealedCredential | null>(null);
+  const [showCredential, setShowCredential] = useState(false);
+  const [copiedCredential, setCopiedCredential] = useState(false);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -515,6 +552,51 @@ export function AutomationApiDialog({
 
         {credential ? (
           <div className="flex min-w-0 flex-col gap-3">
+            <section className="rounded-xl border bg-muted/20 p-3" aria-label="API key">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">API key của tổ chức</p>
+                  <p className="text-xs text-muted-foreground">
+                    Chỉ hiển thị trong phiên hiện tại. Lưu vào credential manager của n8n, không lưu
+                    trong workflow JSON hoặc log.
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Org: {credential.organizationId}
+                </span>
+              </div>
+              <div className="mt-3 flex min-w-0 gap-2">
+                <code className="min-w-0 flex-1 overflow-x-auto rounded-md border bg-background px-3 py-2 text-xs">
+                  {showCredential
+                    ? credential.apiToken
+                    : "•".repeat(Math.min(32, credential.apiToken.length))}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={showCredential ? "Ẩn API key" : "Hiện API key"}
+                  onClick={() => setShowCredential((visible) => !visible)}
+                >
+                  {showCredential ? <EyeOffIcon /> : <EyeIcon />}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Sao chép API key"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(credential.apiToken).then(() => {
+                      setCopiedCredential(true);
+                      toast.success("Đã sao chép API key.");
+                      window.setTimeout(() => setCopiedCredential(false), 1800);
+                    });
+                  }}
+                >
+                  {copiedCredential ? <CheckIcon /> : <ClipboardIcon />}
+                </Button>
+              </div>
+            </section>
             {definitionsFor(credential, resources).map((definition) => (
               <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
             ))}

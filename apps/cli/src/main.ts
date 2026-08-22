@@ -280,9 +280,9 @@ if (!resource || (!discovery && (!organizationId || !token))) {
         values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
       );
     } else {
-      if (resource === "quick-purchase-invoices") {
+      if (resource === "quick-purchase-invoices" || resource === "quick-sales-invoices") {
         if (action !== "create" || !values.data || !values["idempotency-key"]) {
-          throw new Error("quick-purchase-invoices create requires --data and --idempotency-key");
+          throw new Error(`${resource} create requires --data and --idempotency-key`);
         }
       }
       const bankAccountId = values["account-id"] ?? values.key;

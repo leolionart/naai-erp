@@ -23,7 +23,9 @@ Xác định organization → đọc capability/RBAC → tra cứu ID chuẩn
 
 ### 2.1 Khách hàng → dự án → doanh thu
 
-1. Tạo party, gán role `client`, giữ lại `partyId`.
+1. Với input đầy đủ, tạo party và gán role `client`; với input tối giản, dùng một lần gọi
+   `commercial-documents/sales-invoice-ingestion` (CLI: `quick-sales-invoices create`) để backend
+   tự match hoặc tạo customer, gán role và tạo chứng từ. Giữ lại các ID trả về.
 2. Tạo project với `client_party_id`, service line và dimension.
 3. Tạo service plan/subscription bằng `customerPartyId`, `servicePlanId`, tùy chọn `projectId`.
 4. Khi có nghĩa vụ doanh thu, tạo commercial document hoặc revenue-recognition event; không đoán liên kết theo tên/số tiền.
@@ -35,7 +37,9 @@ Tham chiếu: `docs/api/data-relationships-and-ingestion.md` (customer/project/s
 ### 2.2 Nhà cung cấp → hóa đơn mua/chi phí → VAT/CIT
 
 1. Tra cứu hoặc tạo supplier party và role `supplier` theo tax ID chuẩn hóa.
-2. Với hóa đơn mua, dùng `commercial-documents/purchase-invoice-ingestion`; chi phí không hóa đơn dùng expense endpoint, không tạo bản ghi trùng.
+2. Với hóa đơn mua, dùng một lần gọi `commercial-documents/purchase-invoice-ingestion` (CLI:
+   `quick-purchase-invoices create`); chi phí không hóa đơn dùng expense endpoint, không tạo bản
+   ghi trùng. Không cần gọi riêng API để tạo supplier/role nếu dùng quick path.
 3. Gắn category, project/cost center, Paperless reference và evidence. Nếu VAT chưa có chứng cứ, ghi gross cost, VAT deductible = 0, tax eligibility = `unreviewed`.
 4. Dry-run/validate payload; lỗi trả field errors, không tạo hiệu ứng một phần.
 5. Submit/approve/post theo policy; thanh toán từ bank/cash hoặc owner-current; reconcile sau khi import sao kê.

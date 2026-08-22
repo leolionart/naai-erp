@@ -420,6 +420,40 @@ The command is organization-scoped, authorized, version-checked, audited and ret
 non-draft records. Issued, posted, partially paid, paid or cancelled history is never hard-deleted;
 use the applicable cancel, credit, reverse or replacement workflow instead.
 
+### 8.5.1 One-call sales/revenue ingestion
+
+For a basic customer sale, integrations use the matching one-call sales operation instead of
+coordinating party, customer-role and invoice mutations themselves. The API resolves the customer
+by normalized tax ID (or reuses the supplied external identity), creates the explicit `client` role
+when needed, and creates the canonical sales document in one idempotent command:
+
+```http
+POST /api/v1/organizations/{organizationId}/commercial-documents/sales-invoice-ingestion
+Authorization: Bearer <token>
+Idempotency-Key: sales-246-v1
+X-Correlation-Id: <correlation-id>
+Content-Type: application/json
+
+{"schemaVersion":1,"customerTaxId":"0312345678","customerName":"Khách hàng A","documentNumber":"INV-246","documentDate":"2026-08-22","description":"Phí dịch vụ tháng 8","grossMinor":"1100000","category":"Dịch vụ"}
+```
+
+The first-party CLI uses the same application service:
+
+```bash
+naai-erp quick-sales-invoices create \
+  --organization naai \
+  --idempotency-key sales-246-v1 \
+  --data '{"schemaVersion":1,"customerTaxId":"0312345678","customerName":"Khách hàng A","documentNumber":"INV-246","documentDate":"2026-08-22","description":"Phí dịch vụ tháng 8","grossMinor":"1100000","category":"Dịch vụ"}'
+```
+
+The response returns the resolved customer `partyId`, canonical `documentId`, `journalId` when
+posted, `resourceVersion`, `auditEventId` and `nextActions`. Callers retain those IDs and follow
+only the returned actions. The backend derives safe defaults and matches organization-scoped
+customers/categories; callers do not provide ledger account IDs, project IDs or payment-account
+IDs for the quick path. Use the full sales-document contract when VAT lines, allocation,
+recognition policy or other accounting detail is known. Repeating the exact request with the same
+idempotency key is safe; a changed payload under that key is rejected.
+
 ### 8.6 Non-invoice expense
 
 Create an expense only after confirming it is not a supplier invoice already represented as a

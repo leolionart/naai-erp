@@ -923,6 +923,29 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/commercial-documents/sales-invoice-ingestion": {
+      "post": {
+        "operationId": "createQuickSalesInvoice",
+        "tags": ["commercial-documents", "sales-invoices", "ingestion"],
+        "summary": "Create one canonical sales invoice while resolving or creating its customer",
+        "description": "One idempotent organization-scoped operation resolves a customer by tax ID or normalized name, ensures its client role, matches an optional project/category and creates the canonical sales invoice. Ambiguous matches and customer/project mismatches fail explicitly; the client does not need lookup calls.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "$ref": "#/components/requestBodies/QuickSalesInvoice" },
+        "responses": {
+          "201": {
+            "description": "Customer resolution and canonical sales-invoice result.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QuickSalesInvoiceEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category": {
       "patch": {
         "summary": "Update only audited category metadata on a commercial document, including issued or posted records"
@@ -5026,6 +5049,16 @@
           }
         }
       },
+      "QuickSalesInvoiceEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "type": "object", "additionalProperties": true }
+        }
+      },
       "FinancialStatementRow": {
         "type": "object",
         "required": [
@@ -7571,6 +7604,39 @@
       }
     },
     "requestBodies": {
+      "QuickSalesInvoice": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "customerName",
+                "documentNumber",
+                "documentDate",
+                "description",
+                "grossMinor"
+              ],
+              "properties": {
+                "schemaVersion": { "const": 1 },
+                "customerTaxId": { "type": "string" },
+                "customerName": { "type": "string", "minLength": 1 },
+                "documentNumber": { "type": "string", "minLength": 1 },
+                "series": { "type": "string" },
+                "documentDate": { "type": "string", "format": "date" },
+                "dueDate": { "type": "string", "format": "date" },
+                "category": { "type": "string" },
+                "project": { "type": "string" },
+                "description": { "type": "string", "minLength": 1 },
+                "grossMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "VND" },
+                "externalReference": { "type": "object", "additionalProperties": true }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
       "QuickPurchaseInvoice": {
         "required": true,
         "content": {

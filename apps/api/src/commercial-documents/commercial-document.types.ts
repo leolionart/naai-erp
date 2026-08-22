@@ -79,4 +79,20 @@ export type QuickPurchaseInvoiceInput = Readonly<{
   externalReference?: ExternalReferenceInput;
 }>;
 
+export type QuickSalesInvoiceInput = Readonly<{
+  schemaVersion?: 1;
+  customerTaxId?: string;
+  customerName: string;
+  documentNumber: string;
+  series?: string;
+  documentDate: string;
+  dueDate?: string;
+  category?: string;
+  project?: string;
+  description: string;
+  grossMinor: string;
+  currency?: string;
+  externalReference?: ExternalReferenceInput;
+}>;
+
 export type CommercialDocumentContext = JournalActorContext;

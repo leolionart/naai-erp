@@ -7,6 +7,7 @@ import {
   n8nOcrMappingExpression,
   purchaseInvoiceCurl,
   purchaseProductCurl,
+  quickRevenueIngestionCurl,
   quickOcrPurchaseInvoiceIngestionCurl,
   salesInvoiceCurl,
   servicePlanCurl,
@@ -69,6 +70,17 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
     expect(curl).not.toContain("/master-data/party-roles");
     expect(curl).not.toContain('"projectId"');
     expect(curl).not.toContain('"fundingSource"');
+  });
+
+  it("builds one quick revenue ingestion request with backend matching", () => {
+    const curl = quickRevenueIngestionCurl(credential);
+    expectCommonHeaders(curl);
+    expect(curl).toContain("/commercial-documents/sales-invoice-ingestion");
+    expect(curl).toContain('"customerTaxId": "0312345678"');
+    expect(curl).toContain('"grossMinor": "11000000"');
+    expect(curl.match(/curl --request/g)).toHaveLength(1);
+    expect(curl).not.toContain("/master-data/parties");
+    expect(curl).not.toContain("controlAccountCode");
   });
 
   it("builds a versioned idempotent request that only discards a draft invoice", () => {

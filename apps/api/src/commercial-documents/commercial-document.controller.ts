@@ -13,11 +13,13 @@ import {
 import { randomUUID } from "node:crypto";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import { QuickPurchaseInvoiceService } from "./quick-purchase-invoice.service.js";
+import { QuickSalesInvoiceService } from "./quick-sales-invoice.service.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentCategoryInput,
   CreateCommercialDocumentInput,
   QuickPurchaseInvoiceInput,
+  QuickSalesInvoiceInput,
 } from "./commercial-document.types.js";
 
 @Controller("api/v1/organizations/:organizationId/commercial-documents")
@@ -26,6 +28,7 @@ export class CommercialDocumentController {
     @Inject(CommercialDocumentService) private readonly service: CommercialDocumentService,
     @Inject(QuickPurchaseInvoiceService)
     private readonly quickPurchaseInvoices: QuickPurchaseInvoiceService,
+    @Inject(QuickSalesInvoiceService) private readonly quickSalesInvoices: QuickSalesInvoiceService,
   ) {}
   private context(organizationId: string, authorization?: string, correlationId?: string) {
     return this.service.authenticate(authorization, organizationId, correlationId ?? randomUUID());
@@ -126,6 +129,20 @@ export class CommercialDocumentController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ) {
     return this.quickPurchaseInvoices.create(
+      await this.context(organizationId, authorization, correlationId),
+      input,
+      idempotencyKey,
+    );
+  }
+  @Post("sales-invoice-ingestion")
+  async createQuickSalesInvoice(
+    @Param("organizationId") organizationId: string,
+    @Body() input: QuickSalesInvoiceInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.quickSalesInvoices.create(
       await this.context(organizationId, authorization, correlationId),
       input,
       idempotencyKey,

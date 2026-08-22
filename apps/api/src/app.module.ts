@@ -18,6 +18,7 @@ import { CommercialDocumentController } from "./commercial-documents/commercial-
 import { CommercialDocumentService } from "./commercial-documents/commercial-document.service.js";
 import { PgCommercialDocumentStore } from "./commercial-documents/pg-commercial-document.store.js";
 import { QuickPurchaseInvoiceService } from "./commercial-documents/quick-purchase-invoice.service.js";
+import { QuickSalesInvoiceService } from "./commercial-documents/quick-sales-invoice.service.js";
 import { ExpenseController } from "./expenses/expense.controller.js";
 import { ExpenseService } from "./expenses/expense.service.js";
 import { PgExpenseStore } from "./expenses/pg-expense.store.js";
@@ -180,6 +181,7 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     PgExpenseReportStore,
     CommercialDocumentService,
     QuickPurchaseInvoiceService,
+    QuickSalesInvoiceService,
     PgCommercialDocumentStore,
     ExpenseService,
     PgExpenseStore,

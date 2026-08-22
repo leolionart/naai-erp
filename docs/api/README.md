@@ -4,6 +4,11 @@
 - [OpenAPI v1 Spec (`openapi-v1.json`)](./openapi-v1.json) - Full machine-readable API specification.
 - [REST API and CRUD Coverage](./resource-coverage.md) - Human-readable endpoint families, CRUD/lifecycle matrix, CLI parity, and known gaps.
 - [AI Data Relationships and Ingestion Guide](./data-relationships-and-ingestion.md) - Canonical lookup, dependency, ID propagation, lifecycle, correction, and end-to-end input recipes.
+- **Simple one-call business input:** use `POST /commercial-documents/purchase-invoice-ingestion`
+  (`quick-purchase-invoices create`) for supplier invoices or
+  `POST /commercial-documents/sales-invoice-ingestion` (`quick-sales-invoices create`) for basic
+  sales. The backend matches/creates the party and role, resolves safe category defaults and
+  returns stable IDs plus `nextActions`; callers should not fan out into multiple setup calls.
 - [Data Relationship Manifest v1](./data-relationship-manifest-v1.json) - Machine-readable resource dependency DAG, reference fields, identities, stages, and recipes.
 - [Cash-heavy Business Ingestion Guide](./cash-heavy-business-ingestion.md) - Output/input invoices, cashbook, petty cash, bank-to-cash transfer, owner movements, advances and unsupported workflow boundaries.
 - [ERP Data Package v1](./portable-organization-data-package.md) - Complete XLSX plus manifest export, dry-run diff, dependency-safe import and reconciliation contract.

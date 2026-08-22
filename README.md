@@ -67,6 +67,9 @@ Repository chính thức: <https://github.com/leolionart/naai-erp>
 
 - REST/OpenAPI có version, CLI chính chủ và webhook cho Paperless-ngx/n8n hoặc hệ thống ngoài.
 - External identity, idempotency key, correlation ID, lỗi theo từng trường và audit trail.
+- Nhập nhanh doanh thu hoặc hóa đơn mua bằng **một lần gọi API/CLI**; backend tự match hoặc tạo
+  khách hàng/nhà cung cấp, role và danh mục an toàn. Không cần nối nhiều API chỉ để nhập một nghiệp
+  vụ cơ bản.
 - Import/export workbook theo quy trình inventory → dry-run → commit → reconciliation.
 - Gói dữ liệu tổ chức có thể xuất, kiểm tra và khôi phục vào tenant trống theo kiểm soát được phê duyệt.
 
@@ -102,6 +105,10 @@ NAAI ERP đi theo một luồng thống nhất, dù thao tác từ web, REST API
 - **Tích hợp**: Paperless/n8n gửi payload có external identity → API validate/idempotent upsert → trả stable IDs/next actions → worker xử lý event và ghi log.
 
 Đọc hướng dẫn chi tiết từng nghiệp vụ, trạng thái và điểm kiểm soát tại [Business workflows](./docs/product/business-workflows.md). Các quy tắc bất biến nằm trong [Business Rules Catalog](./docs/product/business-rules.md); hợp đồng máy đọc được và ví dụ tích hợp nằm trong [API documentation](./docs/api/README.md).
+
+Để tích hợp nhanh, dùng `quick-sales-invoices create` cho doanh thu/hóa đơn bán hoặc
+`quick-purchase-invoices create` cho hóa đơn mua. Cả hai nhận một payload nghiệp vụ tối giản, hỗ trợ
+retry bằng idempotency key và trả về ID chuẩn cùng `nextActions`.
 
 ## Triển khai bằng Docker Compose
 

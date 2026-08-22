@@ -37,6 +37,12 @@ for (const [route, expected] of contexts) {
     const dialog = page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" });
     await expect(dialog).toBeVisible();
     await expect.poll(() => tokenRequests.count).toBe(1);
+    await expect(dialog.getByText("API key của tổ chức")).toBeVisible();
+    await expect(dialog.getByLabel("Hiện API key")).toBeVisible();
+    await dialog.getByLabel("Hiện API key").click();
+    await expect(dialog.getByText("e2e-stable-token", { exact: true })).toBeVisible();
+    await dialog.getByLabel("Ẩn API key").click();
+    await expect(dialog.getByText("e2e-stable-token", { exact: true })).toHaveCount(0);
     await expect(dialog.locator("button[aria-expanded]").first()).toBeVisible();
     expect(tokenRequests.count).toBe(1);
     await dialog.locator("button[aria-expanded]").first().click();
@@ -51,6 +57,22 @@ for (const [route, expected] of contexts) {
     }
   });
 }
+
+test("@mobile revenue exposes the one-request matched input", async ({ page }) => {
+  const tokenRequests = { count: 0 };
+  await install(page, tokenRequests);
+  await page.goto("/documents");
+  await page.getByRole("button", { name: "API & tự động hóa" }).click();
+  const dialog = page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" });
+  await dialog.getByRole("button", { name: /Nhập nhanh doanh thu bằng một request/ }).click();
+  const code = dialog.locator("pre code").filter({ hasText: "sales-invoice-ingestion" });
+  await expect(code).toContainText('"customerTaxId": "0312345678"');
+  await expect(code).toContainText('"grossMinor": "11000000"');
+  await expect(code).not.toContainText("/master-data/parties");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    await page.evaluate(() => document.documentElement.clientWidth + 1),
+  );
+});
 
 test("@mobile expense dialog remains responsive with one-request OCR ingestion", async ({
   page,

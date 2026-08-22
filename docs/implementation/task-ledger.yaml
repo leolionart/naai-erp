@@ -7,7 +7,7 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G76
+current_gate: G77
 current_task: null
 
 tasks:
@@ -2939,6 +2939,26 @@ tasks:
       - docs/runbooks/README.md
       - docs/implementation/evidence/ERP-919/
 
+  - id: ERP-920
+    title: Simple API-key screen and one-call revenue/expense ingestion
+    phase: P15
+    status: done
+    dependencies: [ERP-919]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-004, BR-AI-005, BR-ORG-001, BR-SEC-001]
+    tests: [T-API-ERP-920-001, T-CLI-ERP-920-002, T-E2E-ERP-920-003]
+    evidence: docs/implementation/evidence/ERP-920/
+    agent: codex-team
+    started_at: 2026-08-22T08:30:00+07:00
+    completed_at: 2026-08-22T08:35:00+07:00
+    completion_basis: one_call_sales_purchase_ingestion_secure_key_panel_contract_and_focused_tests
+    planned_files:
+      - apps/api/src/commercial-documents/
+      - apps/cli/src/
+      - apps/web/src/components/automation-api-dialog.tsx
+      - docs/api/openapi-v1.json
+      - docs/api/data-relationships-and-ingestion.md
+      - docs/implementation/evidence/ERP-920/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3090,3 +3110,4 @@ gate_status:
   G74: done
   G75: done
   G76: done
+  G77: done
