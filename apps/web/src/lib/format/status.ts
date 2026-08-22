@@ -11,6 +11,8 @@ const STATUS_LABELS: Readonly<Record<string, string>> = {
   paid: "Đã thanh toán",
   reversed: "Đã đảo",
   active: "Đang hoạt động",
+  in_progress: "Đang thực hiện",
+  completed: "Hoàn thành",
   inactive: "Ngừng hoạt động",
   pending: "Đang chờ",
   retry_scheduled: "Chờ thử lại",
@@ -54,6 +56,7 @@ export function statusTone(value: string | null | undefined): StatusTone {
       "posted",
       "paid",
       "active",
+      "completed",
       "delivered",
       "verified",
       "reconciled",
@@ -70,6 +73,7 @@ export function statusTone(value: string | null | undefined): StatusTone {
       "needs_review",
       "suggested",
       "matched",
+      "in_progress",
     ].includes(status)
   )
     return "warning";

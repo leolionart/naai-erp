@@ -57,6 +57,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
+import { StatusBadge } from "@/components/financial/status-badge";
 import { cn } from "@/lib/utils";
 import { Area, AreaChart } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
@@ -1356,9 +1357,6 @@ export function ExecutiveDashboardWorkspace() {
                                   {project.clientName ?? "Chưa gán khách hàng"}
                                 </CardDescription>
                               </div>
-                              <Badge variant={index < 2 ? "secondary" : "outline"}>
-                                {project.state ?? "Đang theo dõi"}
-                              </Badge>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-3">
@@ -1403,20 +1401,24 @@ export function ExecutiveDashboardWorkspace() {
                               <span>Còn {money(project.backlogMinor, operating?.currency)}</span>
                             </div>
                           </CardContent>
-                          {project.projectId ? (
-                            <CardFooter>
+                          <CardFooter className="flex items-center justify-between gap-3">
+                            <StatusBadge status={project.state ?? "active"} />
+                            {project.projectId ? (
                               <Button
                                 asChild
-                                variant={index < 2 ? "secondary" : "ghost"}
-                                size="sm"
+                                variant={index < 2 ? "secondary" : "outline"}
+                                size="icon-sm"
                                 className="rounded-full"
                               >
-                                <Link href={`/projects/${encodeURIComponent(project.projectId)}`}>
-                                  Xem chi tiết <ArrowRight data-icon="inline-end" />
+                                <Link
+                                  href={`/projects/${encodeURIComponent(project.projectId)}`}
+                                  aria-label={`Mở dự án ${project.name ?? project.code ?? ""}`}
+                                >
+                                  <ArrowRight />
                                 </Link>
                               </Button>
-                            </CardFooter>
-                          ) : null}
+                            ) : null}
+                          </CardFooter>
                         </Card>
                       );
                     })}

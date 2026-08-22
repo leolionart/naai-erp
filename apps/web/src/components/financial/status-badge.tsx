@@ -12,7 +12,11 @@ export function StatusBadge({ status }: Readonly<{ status: string }>) {
     muted: "muted",
   } as const;
   return (
-    <Badge variant={variant[tone]} aria-label={`Trạng thái: ${label}`}>
+    <Badge
+      variant={variant[tone]}
+      aria-label={`Trạng thái: ${label}`}
+      className="h-6 rounded-full px-2.5 text-[11px] font-semibold tracking-tight shadow-none"
+    >
       {label}
     </Badge>
   );
