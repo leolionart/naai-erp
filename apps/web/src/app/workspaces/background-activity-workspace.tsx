@@ -43,7 +43,8 @@ export function OperationalLogWorkspace() {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [page, setPage] = useState<OperationalLogPage>();
   const [status, setStatus] = useState("");
-  const [service, setService] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [source, setSource] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -60,7 +61,7 @@ export function OperationalLogWorkspace() {
     try {
       setPage(
         await client.data<OperationalLogPage>(
-          operationalLogsApi.list({ status, service, limit: 100 }),
+          operationalLogsApi.listAll({ status, eventType, source, limit: 100 }),
         ),
       );
     } catch (caught) {
@@ -68,7 +69,7 @@ export function OperationalLogWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, [client, hasToken, hydrated, service, status]);
+  }, [client, eventType, hasToken, hydrated, source, status]);
 
   useEffect(() => {
     void load();
@@ -80,15 +81,19 @@ export function OperationalLogWorkspace() {
       header: "Hoạt động",
       cell: (item) => (
         <div className="flex min-w-52 flex-col gap-1">
-          <strong>{item.summary || item.operation}</strong>
+          <strong>{item.summary || item.event_type || item.operation}</strong>
           <span className="font-mono text-xs text-muted-foreground">
-            {item.service} · {item.operation}
+            {item.source || item.service} · {item.event_type || item.operation}
           </span>
         </div>
       ),
     },
     { id: "status", header: "Trạng thái", cell: (item) => <StatusBadge status={item.status} /> },
-    { id: "started", header: "Bắt đầu", cell: (item) => formatDateTime(item.started_at) },
+    {
+      id: "started",
+      header: "Thời gian",
+      cell: (item) => formatDateTime(item.occurred_at || item.started_at),
+    },
     { id: "finished", header: "Kết thúc", cell: (item) => formatDateTime(item.completed_at) },
     {
       id: "duration",
@@ -140,9 +145,9 @@ export function OperationalLogWorkspace() {
       <Card>
         <CardHeader className="flex-row flex-wrap items-end justify-between gap-4">
           <div>
-            <CardTitle>Hoạt động chạy ngầm</CardTitle>
+            <CardTitle>Nhật ký hoạt động</CardTitle>
             <CardDescription>
-              Theo dõi tiến trình, lần thử lại và lỗi đã được làm sạch thông tin nhạy cảm.
+              Theo dõi thao tác nghiệp vụ, API, hệ thống và tiến trình nền trong một dòng thời gian.
             </CardDescription>
           </div>
           <Button onClick={() => void load()} disabled={loading}>
@@ -156,6 +161,20 @@ export function OperationalLogWorkspace() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="activity-source">Nguồn hoạt động</FieldLabel>
+              <select
+                id="activity-source"
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                value={source}
+                onChange={(event) => setSource(event.target.value)}
+              >
+                <option value="">Tất cả nguồn</option>
+                <option value="operational">Vận hành</option>
+                <option value="resource_audit">Nghiệp vụ/API</option>
+                <option value="planning_audit">Kế hoạch</option>
+              </select>
+            </Field>
             <Field>
               <FieldLabel htmlFor="activity-status">Trạng thái</FieldLabel>
               <select
@@ -175,9 +194,9 @@ export function OperationalLogWorkspace() {
               <FieldLabel htmlFor="activity-kind">Loại hoạt động</FieldLabel>
               <Input
                 id="activity-kind"
-                placeholder="Ví dụ: outbound-delivery"
-                value={service}
-                onChange={(event) => setService(event.target.value)}
+                placeholder="Ví dụ: create, update, outbound_delivery"
+                value={eventType}
+                onChange={(event) => setEventType(event.target.value)}
               />
             </Field>
           </div>
@@ -187,8 +206,8 @@ export function OperationalLogWorkspace() {
             rowKey={(item) => item.id}
             loading={loading}
             error={error}
-            emptyTitle="Chưa có hoạt động chạy ngầm"
-            emptyDescription="Các tác vụ nền sẽ xuất hiện tại đây khi hệ thống xử lý."
+            emptyTitle="Chưa có hoạt động"
+            emptyDescription="Thao tác nghiệp vụ và hoạt động hệ thống sẽ xuất hiện tại đây."
           />
         </CardContent>
       </Card>

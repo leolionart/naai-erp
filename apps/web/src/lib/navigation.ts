@@ -295,15 +295,15 @@ export const adminNavigation = [
       {
         key: "operations",
         label: "Vận hành hệ thống",
-        description: "Theo dõi tác vụ chạy ngầm và chính sách lưu log vận hành.",
+        description: "Theo dõi hoạt động nghiệp vụ, API, hệ thống và tác vụ chạy ngầm.",
         icon: "activity-log",
         status: "available",
         children: [
           {
             key: "background-activities",
-            label: "Nhật ký chạy ngầm",
+            label: "Nhật ký hoạt động",
             href: "/settings/background-activities",
-            description: "Xem trạng thái, lỗi và thời gian xử lý của các tác vụ chạy ngầm.",
+            description: "Xem thao tác nghiệp vụ, API và hoạt động vận hành theo thời gian.",
             status: "available",
           },
         ],

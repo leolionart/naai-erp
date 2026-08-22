@@ -561,7 +561,7 @@ function SourceDialog({
             </Alert>
           ) : null}
           {data?.items && data.items.length > 0 ? (
-            <div className="rounded-md border overflow-hidden">
+            <div className="overflow-hidden">
               <div className="bg-muted/50 px-4 py-2 text-xs font-semibold grid grid-cols-12 gap-2 border-b">
                 <span className="col-span-3">TÀI KHOẢN KẾ TOÁN</span>
                 <span className="col-span-3">NGÀY & MÃ BÚT TOÁN</span>

@@ -8,6 +8,7 @@ import {
   type OperationalLogContext,
   type OperationalLogFilters,
   type OperationalLogStore,
+  type UnifiedActivityFilters,
 } from "./operational-log.types.js";
 const READ_ROLES = new Set(["owner", "finance_admin", "accountant", "approver", "viewer"]);
 @Injectable()
@@ -26,6 +27,16 @@ export class OperationalLogService {
       requestId: context.correlationId,
       organizationId: context.organizationId,
       data: await this.store.list(context.organizationId, filters),
+    };
+  }
+  async listAll(context: OperationalLogContext, filters: UnifiedActivityFilters) {
+    if (!context.roles.some((role) => READ_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!this.store.listAll) throw new Error("NOT_IMPLEMENTED");
+    return {
+      apiVersion: API_VERSION,
+      requestId: context.correlationId,
+      organizationId: context.organizationId,
+      data: await this.store.listAll(context.organizationId, filters),
     };
   }
 }

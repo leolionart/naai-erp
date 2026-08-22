@@ -1,6 +1,28 @@
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
-import type { OperationalLogFilters, OperationalLogStore } from "./operational-log.types.js";
+import type {
+  OperationalLogFilters,
+  OperationalLogStore,
+  UnifiedActivityFilters,
+} from "./operational-log.types.js";
+
+function decodeCursor(cursor: string | undefined) {
+  if (!cursor) return undefined;
+  try {
+    const [occurredAt, source, id] = Buffer.from(cursor, "base64url").toString("utf8").split("|");
+    if (!occurredAt || !source || !id || Number.isNaN(new Date(occurredAt).valueOf()))
+      return undefined;
+    return { occurredAt, source, id };
+  } catch {
+    return undefined;
+  }
+}
+
+function encodeCursor(row: Record<string, unknown>) {
+  const occurredAt = row.occurred_at;
+  const timestamp = occurredAt instanceof Date ? occurredAt.toISOString() : String(occurredAt);
+  return Buffer.from(`${timestamp}|${String(row.source)}|${String(row.id)}`).toString("base64url");
+}
 
 @Injectable()
 export class PgOperationalLogStore implements OperationalLogStore {
@@ -28,6 +50,65 @@ export class PgOperationalLogStore implements OperationalLogStore {
       items: result.rows.slice(0, limit),
       ...(result.rows.length > limit
         ? { nextCursor: result.rows[limit - 1]?.created_at?.toISOString() }
+        : {}),
+    };
+  }
+  async listAll(organizationId: string, filters: UnifiedActivityFilters) {
+    const values: unknown[] = [organizationId];
+    const where = ["organization_id=$1"];
+    for (const [column, value] of [
+      ["source", filters.source],
+      ["event_type", filters.eventType],
+      ["actor_id", filters.actorId],
+      ["status", filters.status],
+      ["severity", filters.severity],
+    ] as const) {
+      if (value) {
+        values.push(value);
+        where.push(`${column}=$${values.length}`);
+      }
+    }
+    const cursor = decodeCursor(filters.cursor);
+    if (filters.cursor && !cursor) throw new Error("VALIDATION_FAILED");
+    if (cursor) {
+      values.push(cursor.occurredAt, cursor.source, cursor.id);
+      const position = values.length;
+      where.push(
+        `(occurred_at,source,id) < ($${position - 2}::timestamptz,$${position - 1},$${position})`,
+      );
+    }
+    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
+    values.push(limit + 1);
+    const result = await this.pool.query(
+      `select * from (
+         select organization_id,id,'operational'::text source,operation event_type,
+           null::text actor_id,service resource_type,null::text resource_key,
+           correlation_id,status,severity,summary,
+           jsonb_build_object('workerId',worker_id,'details',details,'startedAt',started_at,
+             'completedAt',completed_at,'expiresAt',expires_at) details,
+           created_at occurred_at
+         from operational_activity_logs
+         union all
+         select organization_id,id,'resource_audit'::text source,action event_type,
+           actor_id,resource_type,resource_key,correlation_id,'succeeded'::text status,
+           'info'::text severity,resource_type||' · '||action summary,
+           jsonb_build_object('resourceVersion',resource_version) details,occurred_at
+         from resource_audit_events
+         union all
+         select organization_id,id,'planning_audit'::text source,action event_type,
+           actor_id,resource_type,resource_id resource_key,correlation_id,'succeeded'::text status,
+           'info'::text severity,resource_type||' · '||action summary,
+           jsonb_build_object('resourceVersion',resource_version,'reason',reason) details,occurred_at
+         from planning_audit_events
+       ) activity where ${where.join(" and ")}
+       order by occurred_at desc,source desc,id desc limit $${values.length}`,
+      values,
+    );
+    const items = result.rows.slice(0, limit);
+    return {
+      items,
+      ...(result.rows.length > limit && items.length
+        ? { nextCursor: encodeCursor(items[items.length - 1] as Record<string, unknown>) }
         : {}),
     };
   }

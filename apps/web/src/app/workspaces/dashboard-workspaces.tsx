@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import type {
   AgingReportContract,
   ExecutiveMetricsContract,
@@ -57,6 +57,8 @@ import {
 } from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
+import { Area, AreaChart } from "recharts";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 
 const ExecutiveTrendChart = dynamic(() => import("@/components/dashboard/executive-trend-chart"), {
   loading: () => <Skeleton className="h-48 w-full" />,
@@ -447,6 +449,7 @@ function MetricCard({
   status,
   provisional = false,
   onQuick,
+  trend,
 }: {
   title: string;
   value: string;
@@ -455,11 +458,13 @@ function MetricCard({
   status?: string;
   provisional?: boolean;
   onQuick?: () => void;
+  trend?: readonly number[];
 }) {
   const formattedStatus = formatStatusBadge(status);
+  const trendGradientId = `metric-trend-${useId().replace(/:/g, "")}`;
 
   const cardElement = (
-    <Card className="group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden transition-all hover:border-primary/50 hover:bg-accent/30 active:scale-[0.99]">
+    <Card className="group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden border-border/60 bg-card/80 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-accent/30 hover:shadow-md active:scale-[0.99]">
       <CardHeader className="gap-2 pb-2">
         <CardTitle className="line-clamp-2 min-h-10 text-base leading-5 transition-colors group-hover:text-primary">
           {title}
@@ -468,6 +473,35 @@ function MetricCard({
       </CardHeader>
       <CardContent className="mt-auto pb-4 pt-0">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
+        {trend && trend.length > 1 ? (
+          <div className="mt-3 h-12 w-full" aria-label="Xu hướng chỉ số">
+            <ChartContainer
+              config={
+                { trend: { label: "Xu hướng", color: "var(--chart-1)" } } satisfies ChartConfig
+              }
+              className="h-full w-full aspect-auto"
+              initialDimension={{ width: 260, height: 48 }}
+            >
+              <AreaChart data={trend.map((point, index) => ({ index, value: point }))}>
+                <defs>
+                  <linearGradient id={trendGradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-trend)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="var(--color-trend)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="var(--color-trend)"
+                  fill={`url(#${trendGradientId})`}
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ChartContainer>
+          </div>
+        ) : null}
       </CardContent>
       <CardFooter className="min-h-10 min-w-0 gap-1.5 overflow-hidden pb-4 pt-0">
         {provisional ? (
@@ -1093,6 +1127,11 @@ export function ExecutiveDashboardWorkspace() {
                 href="/reports/tax/expense-exceptions"
                 status={taxExpenses?.status}
                 provisional={taxExpenses?.status !== "ready"}
+                trend={operating?.financials.monthly?.map(
+                  (row) =>
+                    Number(BigInt(row.revenueMinor ?? "0")) -
+                    Number(BigInt(row.expenseMinor ?? "0")),
+                )}
               />
               <MetricCard
                 title="Thuế TNDN tạm tính"
@@ -1156,6 +1195,9 @@ export function ExecutiveDashboardWorkspace() {
                 description={`Tổng tiền thuộc tài khoản và quỹ công ty: Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt ${money(operating?.financials.cashOnHandMinor, operating?.currency)}.`}
                 href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
                 status="Tiền của công ty"
+                trend={operating?.financials.monthly?.map((row) =>
+                  Number(BigInt(row.revenueMinor ?? "0")),
+                )}
               />
               <MetricCard
                 title="Công ty đang nợ chủ doanh nghiệp"

@@ -59,6 +59,13 @@ cases pass and its exact-commit evidence is recorded.
 
 ## 3. Active golden fixtures
 
+### ERP-928 — Trend-rich dashboard metric cards
+
+- `T-UNIT-ERP-928-001`: dashboard metric cards preserve exact source values while rendering optional
+  semantic-token trend data only when a canonical monthly series exists.
+- `T-E2E-ERP-928-002`: desktop and 390px mobile dashboard smoke keeps cards readable, interactive,
+  non-overflowing and accessible with trend charts.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,
@@ -610,3 +617,11 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
 
 - `T-DOC-ERP-919-001`: the workflow guide, README and documentation indexes explain the shared
   lifecycle, domain use flows, interface choices and links to authoritative rules/contracts.
+
+### ERP-927 — Unified activity timeline
+
+- `T-API-ERP-927-001`: the organization-scoped activity endpoint combines operational, resource
+  audit and planning audit events, supports stable filtering/pagination and never returns audit
+  before/after states or credentials.
+- `T-E2E-ERP-927-002`: the settings workspace presents one simple activity timeline and source/event
+  filters on desktop and mobile while retaining the operational retention explanation.

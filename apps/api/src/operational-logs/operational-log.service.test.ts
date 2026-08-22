@@ -33,3 +33,27 @@ describe("ERP-917 operational log reads", () => {
     );
   });
 });
+
+describe("ERP-927 unified activity reads", () => {
+  it("returns the organization-scoped unified activity envelope", async () => {
+    const store = {
+      list: vi.fn(),
+      listAll: vi.fn(async () => ({ items: [{ source: "resource_audit", event_type: "update" }] })),
+      purgeExpired: vi.fn(),
+    };
+    const service = new OperationalLogService(store, {} as never);
+    const result = await service.listAll(context, { source: "resource_audit", limit: 25 });
+    expect(store.listAll).toHaveBeenCalledWith("org-1", { source: "resource_audit", limit: 25 });
+    expect(result.data).toMatchObject({ items: [{ source: "resource_audit" }] });
+  });
+
+  it("keeps unified reads unavailable to integration-only credentials", async () => {
+    const service = new OperationalLogService(
+      { list: vi.fn(), listAll: vi.fn(), purgeExpired: vi.fn() },
+      {} as never,
+    );
+    await expect(service.listAll({ ...context, roles: ["integration"] }, {})).rejects.toThrow(
+      "FORBIDDEN",
+    );
+  });
+});

@@ -1018,6 +1018,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Financial analysis pages use the shared URL-backed year/quarter/month navigator and the standard
   filter popover composition. Drill-down values remain directly clickable without decorative arrow
   affordances that add visual noise but no distinct action.
+- Dashboard overview cards may combine an exact canonical value, concise business context, status
+  and a trend chart only when the underlying API provides a matching time series. Trend visuals use
+  shared chart tokens and never replace the exact value or invent missing data.
 
 ### BR-UI-007 — Sidebar-owned page navigation
 
@@ -1216,6 +1219,17 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Reads support deterministic cursor pagination and time/status/job filters. Cleanup is bounded per
   run so it cannot monopolize the database; failures are reported as activity entries and do not
   silently broaden deletion scope.
+
+### BR-AUD-002 — Unified activity read model
+
+- Authorized operators can view one organization-scoped activity stream that combines operational
+  telemetry with resource and planning audit events. Each row identifies its source, event type,
+  actor, resource, correlation ID, status, severity and occurrence time.
+- The unified read model is a projection only: immutable audit rows remain authoritative and are
+  never changed or removed by operational retention. Before/after financial states and secrets are
+  not returned; details are limited to redacted, non-sensitive metadata.
+- Reads use stable cursor pagination and source/event/status/severity/actor filters. Read-only page
+  views and health probes are intentionally not treated as business audit events.
 
 ### BR-OPS-004 — Production confidence
 

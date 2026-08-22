@@ -11,4 +11,10 @@ describe("operational logs API", () => {
   it("omits empty filters", () => {
     expect(operationalLogsApi.list({ status: "", service: undefined })).toBe("operational-logs");
   });
+
+  it("builds the unified activity endpoint with source and event filters", () => {
+    expect(operationalLogsApi.listAll({ source: "resource_audit", eventType: "update" })).toBe(
+      "operational-logs/all?source=resource_audit&eventType=update",
+    );
+  });
 });

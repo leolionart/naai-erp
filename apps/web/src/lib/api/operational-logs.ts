@@ -12,6 +12,12 @@ export type OperationalLog = Readonly<{
   completed_at?: string | null;
   expires_at: string;
   created_at: string;
+  source?: string;
+  event_type?: string;
+  actor_id?: string | null;
+  resource_type?: string | null;
+  resource_key?: string | null;
+  occurred_at?: string;
 }>;
 
 export type OperationalLogPage = Readonly<{
@@ -27,5 +33,13 @@ export const operationalLogsApi = Object.freeze({
     }
     const suffix = params.toString();
     return `operational-logs${suffix ? `?${suffix}` : ""}`;
+  },
+  listAll: (query: Record<string, string | number | undefined> = {}) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== "") params.set(key, String(value));
+    }
+    const suffix = params.toString();
+    return `operational-logs/all${suffix ? `?${suffix}` : ""}`;
   },
 });
