@@ -345,12 +345,31 @@ export class PgCommercialDocumentStore {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
-      const doc = await client.query<{ version: string; party_id: string; state: string }>(
-        "select version::text,party_id,state from commercial_documents where organization_id=$1 and id=$2 for update",
+      const doc = await client.query<{
+        version: string;
+        party_id: string;
+        state: string;
+        type: CommercialDocumentType;
+      }>(
+        "select version::text,party_id,state,type from commercial_documents where organization_id=$1 and id=$2 for update",
         [context.organizationId, id],
       );
       if (!doc.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
       if (doc.rows[0].version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      const targetParty = input.partyId ?? doc.rows[0].party_id;
+      const role = doc.rows[0].type === "sales_invoice" ? "client" : "supplier";
+      const party = await client.query(
+        "select 1 from parties p join party_roles r on r.organization_id=p.organization_id and r.party_id=p.id where p.organization_id=$1 and p.id=$2 and p.status='active' and r.role=$3",
+        [context.organizationId, targetParty, role],
+      );
+      if (!party.rows[0]) throw new Error("PARTY_ROLE_NOT_FOUND");
+      if (input.projectId) {
+        const project = await client.query(
+          "select 1 from projects where organization_id=$1 and id=$2 and status='active'",
+          [context.organizationId, input.projectId],
+        );
+        if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
+      }
       if (input.category) {
         const c = await client.query(
           "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
@@ -377,11 +396,16 @@ export class PgCommercialDocumentStore {
         ["projectId", input.projectId],
         ["category", input.category],
       ] as const)
-        if (Object.prototype.hasOwnProperty.call(input, key))
+        if (Object.prototype.hasOwnProperty.call(input, key)) {
           await client.query(
             "update commercial_document_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and document_id=$2",
             [context.organizationId, id, val, key],
           );
+          await client.query(
+            "update commercial_document_allocations set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and document_id=$2",
+            [context.organizationId, id, val, key],
+          );
+        }
       const version = (BigInt(doc.rows[0].version) + 1n).toString();
       await client.query(
         "update commercial_documents set version=$3,updated_at=now() where organization_id=$1 and id=$2",
