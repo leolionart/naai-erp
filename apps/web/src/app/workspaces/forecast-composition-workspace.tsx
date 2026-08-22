@@ -80,7 +80,7 @@ export function ForecastCompositionQueueWorkspace() {
   const columns: readonly FinancialColumn<ForecastVersion>[] = [
     {
       id: "forecast",
-      header: "Forecast version",
+      header: "Phiên bản dự báo",
       cell: (row) => (
         <div className="flex min-w-48 flex-col gap-0.5">
           <Link
@@ -97,7 +97,7 @@ export function ForecastCompositionQueueWorkspace() {
     },
     {
       id: "period",
-      header: "Period",
+      header: "Kỳ",
       cell: (row) => (
         <span>
           {row.startsOn} → {row.endsOn}
@@ -106,14 +106,14 @@ export function ForecastCompositionQueueWorkspace() {
     },
     {
       id: "snapshot",
-      header: "Snapshot",
+      header: "Ảnh chụp dữ liệu",
       cell: (row) => (
         <span>
           {row.snapshotKind} · {row.asOfDate}
         </span>
       ),
     },
-    { id: "state", header: "State", cell: (row) => <StatusBadge status={row.state} /> },
+    { id: "state", header: "Trạng thái", cell: (row) => <StatusBadge status={row.state} /> },
   ];
   return (
     <Card>
@@ -391,7 +391,7 @@ export function ForecastCompositionDetailWorkspace({
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle>Forecast components</CardTitle>
+          <CardTitle>Cấu phần dự báo</CardTitle>
           <CardDescription>
             {composition
               ? `${composition.actualBasis} actual through ${composition.asOfDate} · formula ${composition.formulaVersion}`
@@ -431,7 +431,7 @@ export function ForecastCompositionDetailWorkspace({
                 <Input id="component-date" name="scheduledOn" type="date" required />
               </Field>
               <Field>
-                <FieldLabel htmlFor="component-amount">Amount (minor)</FieldLabel>
+                <FieldLabel htmlFor="component-amount">Số tiền (đơn vị nhỏ nhất)</FieldLabel>
                 <Input id="component-amount" name="amountMinor" inputMode="numeric" required />
               </Field>
               <Field>
@@ -488,7 +488,7 @@ export function ForecastCompositionDetailWorkspace({
           {editing ? (
             <form key={editing.id} onSubmit={update}>
               <DialogHeader>
-                <DialogTitle>Edit forecast component</DialogTitle>
+                <DialogTitle>Sửa cấu phần dự báo</DialogTitle>
                 <DialogDescription>
                   Cập nhật lịch, giá trị và xác suất; source identity được giữ nguyên.
                 </DialogDescription>
@@ -505,7 +505,7 @@ export function ForecastCompositionDetailWorkspace({
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="edit-component-amount">Amount (minor)</FieldLabel>
+                  <FieldLabel htmlFor="edit-component-amount">Số tiền (đơn vị nhỏ nhất)</FieldLabel>
                   <Input
                     id="edit-component-amount"
                     name="amountMinor"
@@ -662,9 +662,10 @@ export function ForecastCompositionDetailWorkspace({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete component?</AlertDialogTitle>
+            <AlertDialogTitle>Xóa cấu phần này?</AlertDialogTitle>
             <AlertDialogDescription>
-              Xóa component khỏi draft forecast. Hành động được audit và không thể hoàn tác từ UI.
+              Xóa cấu phần khỏi bản dự báo nháp. Hành động được ghi nhật ký và không thể hoàn tác
+              trên giao diện.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
@@ -678,7 +679,7 @@ export function ForecastCompositionDetailWorkspace({
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction disabled={!deleteReason.trim()} onClick={remove}>
-              Delete
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

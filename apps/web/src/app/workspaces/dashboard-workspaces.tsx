@@ -519,8 +519,8 @@ function MetricCard({
             {formattedStatus}
           </Badge>
         ) : null}
-        <span className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform group-hover:translate-x-0.5">
-          <ArrowRight className="size-4" />
+        <span className="ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-foreground px-3 text-xs font-medium text-background transition-transform group-hover:translate-x-0.5">
+          Xem chi tiết <ArrowRight className="size-3.5" />
         </span>
       </CardFooter>
     </Card>
@@ -1412,7 +1412,7 @@ export function ExecutiveDashboardWorkspace() {
                                 className="rounded-full"
                               >
                                 <Link href={`/projects/${encodeURIComponent(project.projectId)}`}>
-                                  Mở dự án <ArrowRight data-icon="inline-end" />
+                                  Xem chi tiết <ArrowRight data-icon="inline-end" />
                                 </Link>
                               </Button>
                             </CardFooter>

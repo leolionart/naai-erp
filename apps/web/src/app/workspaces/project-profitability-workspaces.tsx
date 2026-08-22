@@ -529,8 +529,8 @@ export function ProjectProfitabilityDetailWorkspace({
         }))}
       />
       <BreakdownTable
-        title="Direct project cost"
-        description="Chi phí thực tế từ Expense đã chọn trực tiếp dự án."
+        title="Chi phí trực tiếp của dự án"
+        description="Chi phí thực tế từ khoản chi đã gắn trực tiếp với dự án."
         rows={detail.directCostBreakdown.map((row, index) => ({
           id: `direct-${row.kind}-${index}`,
           label: "Chi phí thực tế",
@@ -541,40 +541,44 @@ export function ProjectProfitabilityDetailWorkspace({
       />
       <Card>
         <CardHeader>
-          <CardTitle>Control tie</CardTitle>
+          <CardTitle>Đối chiếu kiểm soát</CardTitle>
           <CardDescription>
-            Project report phải tie về ledger/read-model dimensions.
+            Báo cáo dự án phải khớp với sổ cái và các chiều dữ liệu báo cáo.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FinancialDataTable
             rows={[
-              { id: "revenue", label: "Recognized revenue", ...detail.glTie.recognizedRevenue },
-              { id: "direct", label: "Direct project cost", ...detail.glTie.directProjectCost },
+              { id: "revenue", label: "Doanh thu đã ghi nhận", ...detail.glTie.recognizedRevenue },
+              {
+                id: "direct",
+                label: "Chi phí trực tiếp của dự án",
+                ...detail.glTie.directProjectCost,
+              },
             ]}
             columns={[
-              { id: "control", header: "Control", cell: (row) => row.label },
+              { id: "control", header: "Khoản kiểm soát", cell: (row) => row.label },
               {
                 id: "source",
-                header: "Report",
+                header: "Báo cáo",
                 align: "right",
                 cell: (row) => <MoneyCell minor={row.sourceMinor} />,
               },
               {
                 id: "ledger",
-                header: "Ledger",
+                header: "Sổ cái",
                 align: "right",
                 cell: (row) => <MoneyCell minor={row.ledgerMinor} />,
               },
               {
                 id: "difference",
-                header: "Difference",
+                header: "Chênh lệch",
                 align: "right",
                 cell: (row) => <MoneyCell minor={row.differenceMinor} />,
               },
               {
                 id: "status",
-                header: "Status",
+                header: "Trạng thái",
                 cell: (row) => (
                   <StatusBadge status={row.status === "tied_out" ? "reconciled" : "needs_review"} />
                 ),

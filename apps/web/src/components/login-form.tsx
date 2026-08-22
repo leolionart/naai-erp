@@ -105,7 +105,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 {error ? <FieldError>{error}</FieldError> : null}
               </Field>
               <Field>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
                   {submitting ? "Đang đăng nhập…" : "Đăng nhập"}
                 </Button>
               </Field>
