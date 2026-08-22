@@ -64,6 +64,25 @@ These rules define the active release boundary. Historical rules remain valid fo
 
 ## AI-native access
 
+### BR-UX-001 — Simple input, backend-owned matching
+
+- Everyday business input is expressed as one compact business payload from Web, REST or CLI;
+  callers should not coordinate a chain of master-data, relationship and posting calls for one
+  revenue, purchase or expense event.
+- The backend performs organization-scoped deterministic matching (stable ID, exact business key,
+  then one normalized name match), creates only the explicitly permitted missing master data and
+  returns a structured ambiguity/error when it cannot match safely. It never guesses between
+  multiple candidates.
+- Primary screens expose progressive disclosure: one primary action and only the fields needed for
+  the current workflow. Advanced identifiers, protocol details and correction mechanics stay behind
+  a contextual dialog or API contract, not a tab bar or a form full of technical options.
+- The same simplification applies to administrative workflows (master data, metadata correction,
+  imports and background operations): one command may orchestrate safe backend steps while keeping
+  RBAC, organization scope, idempotency, audit, version and accounting invariants intact.
+- Simplification must not hide consequential state. Responses and screens still show the effective
+  resource, warnings, unresolved fields and permitted `nextActions`; ambiguous input has zero
+  mutation and financial history remains immutable.
+
 ### BR-AI-001 — Machine-readable coverage
 
 - Every business entity and workflow has a versioned API contract and first-party CLI access before its feature is complete.

@@ -7,8 +7,8 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G78
-current_task: ERP-921
+current_gate: G79
+current_task: ERP-922
 
 tasks:
   - id: ERP-000
@@ -2962,7 +2962,7 @@ tasks:
   - id: ERP-921
     title: Unified correction for editable transaction metadata
     phase: P15
-    status: in_progress
+    status: done
     dependencies: [ERP-920]
     business_rules: [BR-AI-002, BR-AI-003, BR-AI-005, BR-AI-006, BR-LED-001, BR-ORG-001]
     tests: [T-API-ERP-921-001, T-E2E-ERP-921-002]
@@ -2977,6 +2977,27 @@ tasks:
       - docs/product/business-workflows.md
       - docs/api/data-relationships-and-ingestion.md
       - docs/implementation/evidence/ERP-921/
+
+  - id: ERP-922
+    title: Simple business input and backend-owned administration flows
+    phase: P15
+    status: in_progress
+    dependencies: [ERP-921]
+    business_rules: [BR-UX-001, BR-AI-001, BR-AI-002, BR-AI-005, BR-AI-006]
+    tests: [T-DOC-ERP-922-001]
+    evidence: docs/implementation/evidence/ERP-922/
+    agent: codex-team
+    started_at: 2026-08-22T08:55:00+07:00
+    planned_files:
+      - docs/product/business-rules.md
+      - docs/product/business-workflows.md
+      - docs/api/data-relationships-and-ingestion.md
+      - README.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-922/
+    completed_at: 2026-08-22T08:58:00+07:00
+    completion_basis: simple_input_rule_progressive_disclosure_planning_form_and_docs_gate
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -3056,6 +3077,7 @@ gates:
   G76: [ERP-919]
   G77: [ERP-920]
   G78: [ERP-921]
+  G79: [ERP-922]
 
 gate_status:
   G0: done
@@ -3134,3 +3156,4 @@ gate_status:
   G76: done
   G77: done
   G78: in_progress
+  G79: in_progress

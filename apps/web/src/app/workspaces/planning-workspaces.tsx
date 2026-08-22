@@ -237,7 +237,7 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
             </DialogHeader>
             <FieldGroup className="grid py-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="plan-version">Version</FieldLabel>
+                <FieldLabel htmlFor="plan-version">Lần lập</FieldLabel>
                 <Input
                   id="plan-version"
                   name="versionNumber"
@@ -246,10 +246,6 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
                   defaultValue="1"
                   required
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-previous">Previous version ID</FieldLabel>
-                <Input id="plan-previous" name="previousVersionId" />
               </Field>
               {kind === "targets" ? (
                 <>
@@ -301,28 +297,38 @@ export function PlanningQueueWorkspace({ kind }: Readonly<{ kind: PlanningKind }
               </Field>
               <SelectField
                 name="actualBasis"
-                label="Actual basis"
+                label="Cách tính số thực tế"
                 values={["recognized", "invoiced", "collected"]}
               />
               <Field>
-                <FieldLabel htmlFor="plan-currency">Currency</FieldLabel>
+                <FieldLabel htmlFor="plan-currency">Loại tiền</FieldLabel>
                 <Input id="plan-currency" name="currency" defaultValue="VND" required />
               </Field>
+              <details className="col-span-full rounded-lg border bg-muted/20 px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Tuỳ chọn nâng cao</summary>
+                <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                  <Field>
+                    <FieldLabel htmlFor="plan-team">Nhóm phụ trách</FieldLabel>
+                    <Input id="plan-team" name="teamId" placeholder="Không bắt buộc" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="plan-service">Mã dịch vụ</FieldLabel>
+                    <Input id="plan-service" name="serviceLineCode" placeholder="Không bắt buộc" />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="plan-owner">Người phụ trách</FieldLabel>
+                    <Input id="plan-owner" name="ownerId" placeholder="Không bắt buộc" />
+                  </Field>
+                </div>
+              </details>
               <Field>
-                <FieldLabel htmlFor="plan-team">Team</FieldLabel>
-                <Input id="plan-team" name="teamId" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-service">Service line</FieldLabel>
-                <Input id="plan-service" name="serviceLineCode" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-owner">Owner</FieldLabel>
-                <Input id="plan-owner" name="ownerId" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="plan-reason">Reason</FieldLabel>
-                <Input id="plan-reason" name="reason" required />
+                <FieldLabel htmlFor="plan-reason">Ghi chú</FieldLabel>
+                <Input
+                  id="plan-reason"
+                  name="reason"
+                  placeholder="Ví dụ: kế hoạch quý 3"
+                  required
+                />
               </Field>
             </FieldGroup>
             <DialogFooter>

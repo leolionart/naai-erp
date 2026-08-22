@@ -86,6 +86,9 @@ Repository chính thức: <https://github.com/leolionart/naai-erp>
 - Metadata nghiệp vụ (customer/supplier, project, category, mô tả) sửa được bằng một thao tác trên
   UI hoặc một API request. Backend tự match và, với bản ghi đã post, tự tạo reversal/replacement mà
   không ghi đè lịch sử kế toán.
+- Các thao tác quản trị ưu tiên **một payload, một hành động**: backend tự match và orchestration
+  các bước an toàn; UI chỉ hiển thị trường cơ bản và mở tuỳ chọn nâng cao khi cần. Kết quả vẫn trả
+  warning, lỗi ambiguity, version và `nextActions`, nên đơn giản hoá không đồng nghĩa bỏ kiểm soát.
 
 ## Workflow tổng thể và cách dùng hệ thống
 

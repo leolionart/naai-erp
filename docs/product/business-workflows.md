@@ -21,6 +21,10 @@ Xác định organization → đọc capability/RBAC → tra cứu ID chuẩn
 - Customer/supplier, project, category và mô tả nghiệp vụ đều có thể sửa từ một thao tác trên UI
   hoặc một request API. Backend tự match dữ liệu chuẩn và chọn update draft hay reverse/replacement;
   người dùng không phải gọi nhiều API để tự dàn dựng correction.
+- Input thường ngày dùng payload ngắn và một hành động chính. Backend tự orchestration việc match
+  master data, quan hệ và bước lifecycle an toàn; UI chỉ progressive-disclosure phần nâng cao khi
+  người dùng cần. Nguyên tắc này áp dụng thống nhất cho nghiệp vụ và màn hình quản trị, nhưng vẫn
+  hiển thị warning, ambiguity, version và `nextActions` để không che giấu trạng thái quan trọng.
 
 ## 2. Use flow theo nghiệp vụ
 

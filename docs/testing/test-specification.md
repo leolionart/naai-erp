@@ -59,6 +59,12 @@ cases pass and its exact-commit evidence is recorded.
 
 ## 3. Active golden fixtures
 
+### ERP-922 — Simple business input and backend-owned administration flows
+
+- `T-DOC-ERP-922-001`: business rules, workflow, API guidance and README consistently document
+  one-payload/one-action input, backend-owned deterministic matching, progressive disclosure and
+  zero-mutation ambiguity handling for administrative flows.
+
 The repository currently maintains these reviewed fixtures:
 
 - `GF-LEDGER-001`: Trial Balance and General Ledger.

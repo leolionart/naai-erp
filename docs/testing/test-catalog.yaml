@@ -2437,6 +2437,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/revenue-management.spec.ts e2e/expense-management.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G78
 
+  - id: T-DOC-ERP-922-001
+    task: ERP-922
+    rules: [BR-UX-001, BR-AI-001, BR-AI-002, BR-AI-005, BR-AI-006]
+    title: Simple input and backend-owned matching guidance stays consistent
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G79
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

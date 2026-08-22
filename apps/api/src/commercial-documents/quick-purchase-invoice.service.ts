@@ -107,7 +107,8 @@ export class QuickPurchaseInvoiceService {
     const grossMinor = String(input?.grossMinor ?? "");
     if (
       (input.schemaVersion !== undefined && input.schemaVersion !== 1) ||
-      !/^\d{10}(?:\d{3})?$/.test(supplierTaxId) ||
+      (!supplierTaxId && !supplierName) ||
+      (input?.supplierTaxId !== undefined && !/^\d{10}(?:\d{3})?$/.test(supplierTaxId)) ||
       !documentNumber ||
       !description ||
       !/^\d+$/.test(grossMinor) ||
@@ -139,13 +140,27 @@ export class QuickPurchaseInvoiceService {
     idempotencyKey: string,
   ) {
     let parties = await this.rows("parties", context);
-    let party = parties.find((row) => String(row.normalized_tax_id ?? "") === input.supplierTaxId);
+    const normalizedName = this.normalizeName(input.supplierName);
+    const matches = input.supplierTaxId
+      ? parties.filter((row) => String(row.normalized_tax_id ?? "") === input.supplierTaxId)
+      : parties.filter(
+          (row) =>
+            String(row.status ?? "active") === "active" &&
+            [row.display_name, row.legal_name].some(
+              (value) => this.normalizeName(value) === normalizedName,
+            ),
+        );
+    if (matches.length > 1) throw new Error("SUPPLIER_AMBIGUOUS");
+    let party = matches[0];
     let disposition: "existing" | "created" = "existing";
     if (party && String(party.status ?? "active") !== "active")
       throw new Error("SUPPLIER_INACTIVE");
     if (!party) {
       if (!input.supplierName) throw new Error("SUPPLIER_NAME_REQUIRED");
-      const partyId = `party-tax-${input.supplierTaxId}`;
+      const identity = input.supplierTaxId || normalizedName;
+      const partyId = input.supplierTaxId
+        ? `party-tax-${input.supplierTaxId}`
+        : `party-${createHash("sha256").update(identity).digest("hex").slice(0, 24)}`;
       try {
         const created = await this.masterData.mutate(
           "create",
@@ -157,7 +172,7 @@ export class QuickPurchaseInvoiceService {
               id: partyId,
               display_name: input.supplierName,
               legal_name: input.supplierLegalName ?? input.supplierName,
-              normalized_tax_id: input.supplierTaxId,
+              ...(input.supplierTaxId ? { normalized_tax_id: input.supplierTaxId } : {}),
               status: "active",
             },
           },
@@ -167,7 +182,15 @@ export class QuickPurchaseInvoiceService {
         disposition = "created";
       } catch (error) {
         parties = await this.rows("parties", context);
-        party = parties.find((row) => String(row.normalized_tax_id ?? "") === input.supplierTaxId);
+        party = input.supplierTaxId
+          ? parties.find((row) => String(row.normalized_tax_id ?? "") === input.supplierTaxId)
+          : parties.find(
+              (row) =>
+                String(row.status ?? "active") === "active" &&
+                [row.display_name, row.legal_name].some(
+                  (value) => this.normalizeName(value) === normalizedName,
+                ),
+            );
         if (!party) throw error;
       }
     }
@@ -197,6 +220,16 @@ export class QuickPurchaseInvoiceService {
       }
     }
     return { partyId, disposition, roleDisposition };
+  }
+
+  private normalizeName(value: unknown) {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
   }
 
   private normalizedSearch(value: unknown) {

@@ -127,6 +127,79 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
     );
   });
 
+  it("matches a supplier by normalized name when the UI omits tax ID", async () => {
+    const master = masterWith({
+      parties: [{ id: "supplier-name", display_name: "Công ty Ánh Dương", status: "active" }],
+      "party-roles": [{ party_id: "supplier-name", role: "supplier" }],
+      dimensions: [{ kind: "category", code: "BATTERY_RENTAL", is_active: true }],
+      "default-mappings": [],
+      accounts: [
+        { code: "642-COST", root_type: "expense", is_active: true },
+        { code: "331-AP", root_type: "liability", is_control_account: true, is_active: true },
+      ],
+    });
+    const documents = {
+      create: vi.fn().mockResolvedValue({ data: { documentId: "purchase-name" } }),
+    };
+    const service = new QuickPurchaseInvoiceService(master as never, documents as never);
+
+    const withoutTaxId = {
+      supplierName: input.supplierName,
+      documentNumber: input.documentNumber,
+      documentDate: input.documentDate,
+      description: input.description,
+      grossMinor: input.grossMinor,
+      category: input.category,
+    };
+    await service.create(
+      context,
+      { ...withoutTaxId, supplierName: "cong ty anh duong" },
+      "purchase-by-name",
+    );
+
+    expect(master.mutate).not.toHaveBeenCalled();
+    expect(documents.create).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({ partyId: "supplier-name" }),
+      "purchase-by-name",
+    );
+  });
+
+  it("rejects ambiguous supplier names without mutating master data", async () => {
+    const master = masterWith({
+      parties: [
+        { id: "supplier-a", display_name: "Nhà cung cấp A", status: "active" },
+        { id: "supplier-b", legal_name: "Nha cung cap A", status: "active" },
+      ],
+      dimensions: [{ kind: "category", code: "BATTERY_RENTAL", is_active: true }],
+      "expense-categories": [{ code: "BATTERY_RENTAL", is_active: true }],
+      accounts: [
+        { code: "642-COST", root_type: "expense", is_active: true },
+        { code: "331-AP", root_type: "liability", is_control_account: true, is_active: true },
+      ],
+    });
+    const documents = { create: vi.fn() };
+    const service = new QuickPurchaseInvoiceService(master as never, documents as never);
+
+    const withoutTaxId = {
+      supplierName: input.supplierName,
+      documentNumber: input.documentNumber,
+      documentDate: input.documentDate,
+      description: input.description,
+      grossMinor: input.grossMinor,
+      category: input.category,
+    };
+    await expect(
+      service.create(
+        context,
+        { ...withoutTaxId, supplierName: "Nha cung cap A" },
+        "ambiguous-supplier",
+      ),
+    ).rejects.toThrow("SUPPLIER_AMBIGUOUS");
+    expect(master.mutate).not.toHaveBeenCalled();
+    expect(documents.create).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid minimal data before creating supplier or invoice", async () => {
     const master = masterWith({});
     const documents = { create: vi.fn() };

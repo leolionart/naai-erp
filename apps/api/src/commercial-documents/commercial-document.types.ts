@@ -72,7 +72,7 @@ export type CommercialDocumentMetadataInput = Readonly<{
 
 export type QuickPurchaseInvoiceInput = Readonly<{
   schemaVersion?: 1;
-  supplierTaxId: string;
+  supplierTaxId?: string;
   supplierName?: string;
   supplierLegalName?: string;
   documentNumber: string;

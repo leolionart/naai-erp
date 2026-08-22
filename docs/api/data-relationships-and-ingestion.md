@@ -521,6 +521,16 @@ matching, checks organization scope and validates project/customer compatibility
 ambiguous matches return structured field errors with zero mutation. It never guesses between
 multiple candidates.
 
+#### Simple input contract
+
+For day-to-day administration, prefer one business payload and one canonical command. The backend
+owns matching and safe orchestration; clients do not need separate calls to create a party, assign a
+role, resolve a project/category and then create the document. Send a stable ID when known, or one
+human-readable business key (for example tax ID or exact category code/name) when it is not.
+The service returns the effective IDs, warnings and `nextActions`. If matching is missing or
+ambiguous, it returns field-level errors and performs no mutation. Technical options remain
+progressive-disclosure fields in the UI and are not required for the quick path.
+
 - Draft: update the existing resource with `If-Match`, reason and idempotency key.
 - Issued/posted: plan and atomically execute the applicable credit/reversal plus a linked replacement
   in an open period. The original resource and journal remain immutable.
