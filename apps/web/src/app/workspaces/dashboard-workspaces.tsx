@@ -430,6 +430,7 @@ function formatStatusBadge(status?: string): string | null {
     status === "available" ||
     status === "tied" ||
     status === "ok" ||
+    status === "ready" ||
     status === "normal" ||
     status === "balanced"
   ) {
@@ -520,8 +521,8 @@ function MetricCard({
             {formattedStatus}
           </Badge>
         ) : null}
-        <span className="ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-foreground px-3 text-xs font-medium text-background transition-transform group-hover:translate-x-0.5">
-          Xem chi tiết <ArrowRight className="size-3.5" />
+        <span className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform group-hover:translate-x-0.5">
+          <ArrowRight className="size-4" />
         </span>
       </CardFooter>
     </Card>
