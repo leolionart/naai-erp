@@ -7,7 +7,7 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G86
+current_gate: G87
 current_task: null
 
 tasks:
@@ -3113,6 +3113,25 @@ tasks:
       - apps/web/src/app/workspaces/financial-statement-workspaces.tsx
       - docs/implementation/evidence/ERP-929/
 
+  - id: ERP-930
+    title: Multi-domain home dashboard
+    phase: P15
+    status: done
+    dependencies: [ERP-929]
+    business_rules: [BR-UI-001, BR-UI-004, BR-UI-006]
+    tests: [T-UNIT-ERP-930-001, T-E2E-ERP-930-002]
+    evidence: docs/implementation/evidence/ERP-930/
+    agent: codex-team
+    started_at: 2026-08-22T12:55:00+07:00
+    completed_at: 2026-08-22T12:58:00+07:00
+    completion_basis: canonical_multi_domain_bento_dashboard_web_tests_typecheck_docs_passed
+    planned_files:
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-930/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3199,6 +3218,7 @@ gates:
   G84: [ERP-927]
   G85: [ERP-928]
   G86: [ERP-929]
+  G87: [ERP-930]
 
 gate_status:
   G0: done
@@ -3285,3 +3305,4 @@ gate_status:
   G84: done
   G85: done
   G86: done
+  G87: done

@@ -12,7 +12,15 @@ import type {
   TaxExpenseReviewContract,
   VatReconciliationContract,
 } from "@naai-erp/contracts";
-import { ArrowRight, Filter, ListChecks } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  BriefcaseBusiness,
+  CircleAlert,
+  Filter,
+  ListChecks,
+  Users,
+} from "lucide-react";
 import type { ProjectProfitabilityReport } from "@/lib/api/project-profitability";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -47,14 +55,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
 import { Area, AreaChart } from "recharts";
@@ -1007,6 +1007,21 @@ export function ExecutiveDashboardWorkspace() {
     (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
     (data.aging?.exceptions.length ?? 0);
   const pendingImportRows = operating?.dataQuality.pendingCount ?? 0;
+  const activeProjects = operating?.backlog.projects ?? [];
+  const clientRows = operating?.clientConcentration.clients ?? [];
+  const portfolioProgress = (() => {
+    const contracted = BigInt(operating?.backlog.contractedMinor ?? "0");
+    const invoiced = BigInt(operating?.backlog.invoicedMinor ?? "0");
+    if (contracted <= 0n) return 0;
+    return Math.min(100, Number((invoiced * 10_000n) / contracted) / 100);
+  })();
+  const projectHighlights = [...activeProjects]
+    .sort((left, right) => {
+      const leftValue = BigInt(left.contractedMinor ?? "0");
+      const rightValue = BigInt(right.contractedMinor ?? "0");
+      return leftValue === rightValue ? 0 : leftValue > rightValue ? -1 : 1;
+    })
+    .slice(0, 3);
   const sourceMonthly = operating?.sourceControls?.monthly ?? [];
   const startsOnMonth = (search.get("startsOn") ?? "2025-01-01").slice(0, 7);
   const endsOnMonth = (search.get("endsOn") ?? "2025-12-31").slice(0, 7);
@@ -1119,6 +1134,255 @@ export function ExecutiveDashboardWorkspace() {
           </Empty>
         ) : (
           <>
+            <section aria-labelledby="operating-pulse-title" className="space-y-4">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 id="operating-pulse-title" className="text-lg font-semibold">
+                    Nhịp vận hành
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Công việc, khách hàng và dữ liệu cần chú ý trong cùng kỳ báo cáo.
+                  </p>
+                </div>
+                <Badge variant={flagged + pendingImportRows > 0 ? "secondary" : "outline"}>
+                  {flagged + pendingImportRows > 0
+                    ? `${flagged + pendingImportRows} việc cần xem`
+                    : "Vận hành ổn định"}
+                </Badge>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-12">
+                <Card className="overflow-hidden bg-primary text-primary-foreground lg:col-span-5">
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-3">
+                      <Badge variant="secondary">Danh mục dự án</Badge>
+                      <BriefcaseBusiness aria-hidden="true" className="size-5 opacity-80" />
+                    </div>
+                    <CardTitle className="text-3xl tabular-nums">
+                      {activeProjects.length} dự án
+                    </CardTitle>
+                    <CardDescription className="text-primary-foreground/75">
+                      {money(operating?.backlog.remainingMinor, operating?.currency)} giá trị hợp
+                      đồng còn lại.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Tiến độ xuất hóa đơn</span>
+                      <span className="font-medium tabular-nums">
+                        {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(
+                          portfolioProgress,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <div
+                      className="h-2 overflow-hidden rounded-full bg-primary-foreground/20"
+                      role="progressbar"
+                      aria-label="Tiến độ xuất hóa đơn của danh mục dự án"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={portfolioProgress}
+                    >
+                      <div
+                        className="h-full rounded-full bg-primary-foreground transition-[width]"
+                        style={{ width: `${portfolioProgress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between gap-4 text-xs text-primary-foreground/75">
+                      <span>
+                        Đã xuất {money(operating?.backlog.invoicedMinor, operating?.currency)}
+                      </span>
+                      <span>
+                        Hợp đồng {money(operating?.backlog.contractedMinor, operating?.currency)}
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href="/projects">
+                        Xem danh mục <ArrowRight data-icon="inline-end" />
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                <Card className="lg:col-span-4">
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-base">Khách hàng trọng tâm</CardTitle>
+                      <Users aria-hidden="true" className="size-5 text-primary" />
+                    </div>
+                    <CardDescription>
+                      Tỷ trọng doanh thu giúp nhận diện mức độ tập trung khách hàng.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Khách hàng lớn nhất</p>
+                        <p className="text-2xl font-semibold tabular-nums">
+                          {operating?.clientConcentration.topClientShareBps == null
+                            ? "N/A"
+                            : ratio(operating.clientConcentration.topClientShareBps)}
+                        </p>
+                      </div>
+                      <Badge variant="outline">{clientRows.length} khách hàng</Badge>
+                    </div>
+                    <div className="space-y-3">
+                      {clientRows.slice(0, 3).map((client, index) => (
+                        <div
+                          key={client.clientId ?? `${client.clientName}-${index}`}
+                          className="space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-3 text-sm">
+                            <span className="truncate font-medium">
+                              {client.clientName ?? "Khách hàng chưa đặt tên"}
+                            </span>
+                            <span className="shrink-0 tabular-nums text-muted-foreground">
+                              {money(client.revenueMinor, operating?.currency)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  operating &&
+                                    BigInt(operating.clientConcentration.totalRevenueMinor) > 0n
+                                    ? Number(
+                                        (BigInt(client.revenueMinor ?? "0") * 10_000n) /
+                                          BigInt(operating.clientConcentration.totalRevenueMinor),
+                                      ) / 100
+                                    : 0,
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      {!clientRows.length ? (
+                        <p className="text-sm text-muted-foreground">
+                          Chưa có doanh thu theo khách hàng.
+                        </p>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-accent/40 lg:col-span-3">
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-base">Hàng đợi rà soát</CardTitle>
+                      <CircleAlert aria-hidden="true" className="size-5 text-accent-foreground" />
+                    </div>
+                    <CardDescription>
+                      Những việc cần xử lý để số liệu đáng tin cậy hơn.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Link
+                      href={`/dashboard/finance-review?${q}`}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-card p-3 text-sm shadow-sm transition-colors hover:bg-muted"
+                    >
+                      <span>Ngoại lệ báo cáo</span>
+                      <Badge variant={flagged ? "secondary" : "outline"}>{flagged}</Badge>
+                    </Link>
+                    <Link
+                      href="/settings/background-activities"
+                      className="flex items-center justify-between gap-3 rounded-lg bg-card p-3 text-sm shadow-sm transition-colors hover:bg-muted"
+                    >
+                      <span>Dữ liệu chờ chuẩn hóa</span>
+                      <Badge variant={pendingImportRows ? "secondary" : "outline"}>
+                        {pendingImportRows}
+                      </Badge>
+                    </Link>
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-card p-3 text-sm shadow-sm">
+                      <span>Khoản phải thu quá hạn</span>
+                      <Badge variant={overdueCount ? "destructive" : "outline"}>
+                        {overdueCount}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/dashboard/finance-review?${q}`}>Mở hàng đợi</Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+
+              {projectHighlights.length ? (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {projectHighlights.map((project, index) => {
+                    const contracted = BigInt(project.contractedMinor ?? "0");
+                    const invoiced = BigInt(project.invoicedMinor ?? "0");
+                    const progress =
+                      contracted > 0n
+                        ? Math.min(100, Number((invoiced * 10_000n) / contracted) / 100)
+                        : 0;
+                    return (
+                      <Card key={project.projectId ?? `${project.code}-${index}`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <CardTitle className="truncate text-base">
+                                {project.name ?? project.code ?? "Dự án chưa đặt tên"}
+                              </CardTitle>
+                              <CardDescription className="truncate">
+                                {project.clientName ?? "Chưa gán khách hàng"}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline">{project.state ?? "Đang theo dõi"}</Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Đã xuất hóa đơn</span>
+                            <span className="font-medium tabular-nums">
+                              {new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(
+                                progress,
+                              )}
+                              %
+                            </span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                            <span>{money(project.invoicedMinor, operating?.currency)}</span>
+                            <span>Còn {money(project.backlogMinor, operating?.currency)}</span>
+                          </div>
+                        </CardContent>
+                        {project.projectId ? (
+                          <CardFooter>
+                            <Button asChild variant="ghost" size="sm">
+                              <Link href={`/projects/${encodeURIComponent(project.projectId)}`}>
+                                Mở dự án <ArrowRight data-icon="inline-end" />
+                              </Link>
+                            </Button>
+                          </CardFooter>
+                        ) : null}
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </section>
+
+            <div className="flex items-center gap-2">
+              <Activity aria-hidden="true" className="size-5 text-primary" />
+              <div>
+                <h2 className="text-lg font-semibold">Sức khỏe tài chính</h2>
+                <p className="text-sm text-muted-foreground">
+                  Thuế, công nợ và dòng tiền lấy từ các báo cáo kế toán chuẩn.
+                </p>
+              </div>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <MetricCard
                 title="Lợi nhuận tính thuế TNDN tạm tính"
@@ -1230,57 +1494,48 @@ export function ExecutiveDashboardWorkspace() {
               <CardHeader>
                 <CardTitle>Dự án đang tạo doanh thu</CardTitle>
                 <CardDescription>
-                  Giá trị hợp đồng, hóa đơn đã xuất và phần doanh thu còn lại theo dữ liệu hiện có.
+                  So sánh hợp đồng, hóa đơn đã xuất và phần còn lại theo từng dự án.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
+              <CardContent>
                 {projectPipelineRows.length ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Dự án</TableHead>
-                        <TableHead>Khách hàng</TableHead>
-                        <TableHead className="text-right">Hợp đồng</TableHead>
-                        <TableHead className="text-right">Đã xuất HĐ</TableHead>
-                        <TableHead className="text-right">Còn lại</TableHead>
-                        <TableHead className="text-right">Chi tiết</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {projectPipelineRows.map((project) => {
-                        const projectId = project.projectId ?? "";
-                        return (
-                          <TableRow key={projectId}>
-                            <TableCell className="min-w-48 font-medium">
-                              <div>{project.name ?? project.code ?? "Dự án chưa đặt tên"}</div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {project.code}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-72 truncate" title={project.clientName}>
-                              {project.clientName ?? "Chưa gán khách hàng"}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {money(project.contractedMinor, operating?.currency)}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {money(project.invoicedMinor, operating?.currency)}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {money(project.backlogMinor, operating?.currency)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button asChild size="sm" variant="outline">
-                                <Link href={`/projects/${encodeURIComponent(projectId)}`}>
-                                  Mở dự án
-                                </Link>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  <div className="grid gap-5 md:grid-cols-2">
+                    {projectPipelineRows.slice(0, 6).map((project) => {
+                      const projectId = project.projectId ?? "";
+                      const contracted = BigInt(project.contractedMinor ?? "0");
+                      const invoiced = BigInt(project.invoicedMinor ?? "0");
+                      const progress =
+                        contracted > 0n
+                          ? Math.min(100, Number((invoiced * 10000n) / contracted) / 100)
+                          : 0;
+                      return (
+                        <Link
+                          key={projectId}
+                          href={`/projects/${encodeURIComponent(projectId)}`}
+                          className="group space-y-2 rounded-lg bg-muted/40 p-4 transition-colors hover:bg-muted"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="truncate font-medium group-hover:text-primary">
+                              {project.name ?? project.code ?? "Dự án chưa đặt tên"}
+                            </span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {progress.toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-background">
+                            <div
+                              className="h-full rounded-full bg-primary transition-[width]"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between gap-3 text-xs text-muted-foreground">
+                            <span>Đã xuất {money(project.invoicedMinor, operating?.currency)}</span>
+                            <span>Còn {money(project.backlogMinor, operating?.currency)}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <Empty>
                     <EmptyHeader>
@@ -1396,42 +1651,30 @@ export function FinanceReviewWorkspace() {
               Không trộn công thức hay sửa trạng thái tại dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent>
             {loading ? (
               <Skeleton className="h-48 w-full" />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mức độ</TableHead>
-                    <TableHead>Module</TableHead>
-                    <TableHead>Vấn đề</TableHead>
-                    <TableHead>Nguồn</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <Badge variant={row.severity === "critical" ? "destructive" : "outline"}>
-                          {row.severity}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{row.module}</TableCell>
-                      <TableCell>{row.issue}</TableCell>
-                      <TableCell className="max-w-72 break-all font-mono text-xs">
-                        {row.source || "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={row.href}>Mở module</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="grid gap-3 md:grid-cols-2">
+                {rows.map((row) => (
+                  <Link
+                    key={row.id}
+                    href={row.href}
+                    className="group rounded-lg bg-muted/40 p-4 transition-colors hover:bg-muted"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium group-hover:text-primary">{row.module}</span>
+                      <Badge variant={row.severity === "critical" ? "destructive" : "outline"}>
+                        {row.severity}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-sm">{row.issue}</p>
+                    <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                      {row.source || "—"}
+                    </p>
+                  </Link>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

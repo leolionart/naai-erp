@@ -66,6 +66,13 @@ cases pass and its exact-commit evidence is recorded.
 - `T-E2E-ERP-928-002`: desktop and 390px mobile dashboard smoke keeps cards readable, interactive,
   non-overflowing and accessible with trend charts.
 
+### ERP-930 — Multi-domain home dashboard
+
+- `T-UNIT-ERP-930-001`: home dashboard sections use canonical operating, project, customer and
+  review data without demo values or duplicated financial formulas.
+- `T-E2E-ERP-930-002`: desktop and 390px mobile dashboard preserves responsive bento layout,
+  readable cards, navigation and drill-down actions.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,

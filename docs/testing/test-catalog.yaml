@@ -2485,6 +2485,22 @@ tests:
     command: pnpm --filter @naai-erp/web test
     blocking_gate: G86
 
+  - id: T-UNIT-ERP-930-001
+    task: ERP-930
+    rules: [BR-UI-001, BR-UI-004, BR-UI-006]
+    title: Home dashboard uses canonical multi-domain data without invented values
+    layer: unit
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G87
+
+  - id: T-E2E-ERP-930-002
+    task: ERP-930
+    rules: [BR-UI-001, BR-UI-004, BR-UI-006]
+    title: Responsive multi-domain dashboard remains readable and drill-down capable
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G87
+
   - id: T-UNIT-ERP-926-001
     task: ERP-926
     rules: [BR-UI-004]
