@@ -17,6 +17,7 @@ import { QuickSalesInvoiceService } from "./quick-sales-invoice.service.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentCategoryInput,
+  CommercialDocumentMetadataInput,
   CreateCommercialDocumentInput,
   QuickPurchaseInvoiceInput,
   QuickSalesInvoiceInput,
@@ -160,6 +161,24 @@ export class CommercialDocumentController {
     return this.service.updateCategory(
       await this.context(organizationId, authorization, correlationId),
       id,
+      input,
+      idempotencyKey,
+    );
+  }
+  @Patch(":id/metadata")
+  async updateMetadata(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: CommercialDocumentMetadataInput,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.updateMetadata(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
       input,
       idempotencyKey,
     );

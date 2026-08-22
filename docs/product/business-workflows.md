@@ -18,6 +18,9 @@ Xác định organization → đọc capability/RBAC → tra cứu ID chuẩn
 - `draft → approved → posted → reversed` là vòng đời tài chính; posted không sửa/xóa trực tiếp.
 - Mọi bước cần `organizationId`, stable ID và version hiện tại. Retry dùng idempotency key; liên kết giữa các bước dùng correlation ID.
 - Báo cáo chỉ đọc từ posted/read model. Cảnh báo quản trị, khả năng khấu trừ VAT/CIT và trạng thái kế toán là các trục độc lập.
+- Customer/supplier, project, category và mô tả nghiệp vụ đều có thể sửa từ một thao tác trên UI
+  hoặc một request API. Backend tự match dữ liệu chuẩn và chọn update draft hay reverse/replacement;
+  người dùng không phải gọi nhiều API để tự dàn dựng correction.
 
 ## 2. Use flow theo nghiệp vụ
 
@@ -96,6 +99,25 @@ Tham chiếu: `docs/api/inbound-webhooks-v1.md`, `docs/api/outbound-events-v1.md
 - Sự cố được truy từ correlation ID → activity log → request/job/outbox → audit/source; không dùng log thay cho audit kế toán.
 
 Tham chiếu: `docs/runbooks/docker-compose-release.md`, `docs/runbooks/backup-restore-design.md`, BR-OPS-001/002/003/005/006.
+
+### 2.8 Sửa metadata giao dịch
+
+1. Mở Quick View hoặc gửi một correction request chứa trạng thái mong muốn cuối cùng: customer
+   hoặc supplier/payee, project, category và description.
+2. Backend match theo stable ID, mã số thuế, mã hoặc tên chuẩn hóa. Nếu có nhiều kết quả hoặc quan hệ
+   project/customer không hợp lệ, hệ thống trả lỗi rõ ràng và không thay đổi dữ liệu.
+3. Với draft, hệ thống cập nhật tại chỗ theo version hiện tại. Với chứng từ issued/posted, hệ thống
+   giữ nguyên bản gốc, tạo credit/reversal cần thiết và linked replacement trong kỳ mở.
+4. Response trả về bản ghi hiệu lực, version, audit reference, ID của reversal/replacement và
+   `nextActions`. Retry cùng idempotency key không tạo correction trùng.
+5. Báo cáo chuyển sang đọc replacement đã post; audit/drill-down vẫn thể hiện đầy đủ chuỗi bản gốc →
+   reversal → replacement.
+
+Sửa metadata không cho phép ghi đè journal đã post. Nếu thay đổi số tiền, VAT/CIT, tài khoản hoặc
+payment/reconciliation effect, backend áp dụng financial correction workflow tương ứng và các kiểm
+soát kỳ khóa, cân bằng, RBAC, evidence.
+
+Tham chiếu: `docs/api/data-relationships-and-ingestion.md` mục 8.8, BR-AI-005/006, BR-LED-001/002.
 
 ## 3. Ma trận lựa chọn giao diện
 

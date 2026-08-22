@@ -7,8 +7,8 @@ development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G77
-current_task: null
+current_gate: G78
+current_task: ERP-921
 
 tasks:
   - id: ERP-000
@@ -2959,6 +2959,25 @@ tasks:
       - docs/api/data-relationships-and-ingestion.md
       - docs/implementation/evidence/ERP-920/
 
+  - id: ERP-921
+    title: Unified correction for editable transaction metadata
+    phase: P15
+    status: in_progress
+    dependencies: [ERP-920]
+    business_rules: [BR-AI-002, BR-AI-003, BR-AI-005, BR-AI-006, BR-LED-001, BR-ORG-001]
+    tests: [T-API-ERP-921-001, T-E2E-ERP-921-002]
+    evidence: docs/implementation/evidence/ERP-921/
+    agent: codex-team
+    started_at: 2026-08-22T08:40:00+07:00
+    planned_files:
+      - apps/api/src/
+      - apps/cli/src/
+      - apps/web/src/
+      - docs/product/business-rules.md
+      - docs/product/business-workflows.md
+      - docs/api/data-relationships-and-ingestion.md
+      - docs/implementation/evidence/ERP-921/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3034,6 +3053,9 @@ gates:
   G73: [ERP-916]
   G74: [ERP-917]
   G75: [ERP-918]
+  G76: [ERP-919]
+  G77: [ERP-920]
+  G78: [ERP-921]
 
 gate_status:
   G0: done
@@ -3111,3 +3133,4 @@ gate_status:
   G75: done
   G76: done
   G77: done
+  G78: in_progress

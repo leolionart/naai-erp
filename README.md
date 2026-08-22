@@ -83,6 +83,9 @@ Repository chính thức: <https://github.com/leolionart/naai-erp>
 - Tiền được truyền bằng chuỗi chính xác hoặc minor unit, không dùng số thực nhị phân.
 - Quan hệ giữa khách hàng, dự án, chứng từ, chi phí, journal và thanh toán được xác thực; AI không tự đoán ID hay sửa trực tiếp dữ liệu đã ghi sổ.
 - Chứng từ đã phát hành và journal đã post được sửa bằng cancel, reversal hoặc replacement để giữ lịch sử.
+- Metadata nghiệp vụ (customer/supplier, project, category, mô tả) sửa được bằng một thao tác trên
+  UI hoặc một API request. Backend tự match và, với bản ghi đã post, tự tạo reversal/replacement mà
+  không ghi đè lịch sử kế toán.
 
 ## Workflow tổng thể và cách dùng hệ thống
 

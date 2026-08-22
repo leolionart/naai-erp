@@ -566,6 +566,22 @@ export class PgExpenseStore {
         );
         if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
       }
+      if (input.customerPartyId) {
+        const customer = await c.query(
+          `select 1 from parties p join party_roles r
+             on r.organization_id=p.organization_id and r.party_id=p.id
+            where p.organization_id=$1 and p.id=$2 and p.status='active' and r.role='client'`,
+          [context.organizationId, input.customerPartyId],
+        );
+        if (!customer.rows[0]) throw new Error("CUSTOMER_CLIENT_NOT_FOUND");
+      }
+      if (input.projectId) {
+        const project = await c.query(
+          `select 1 from projects where organization_id=$1 and id=$2 and status='active'`,
+          [context.organizationId, input.projectId],
+        );
+        if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
+      }
 
       const lines = await c.query<{
         line_number: number;
@@ -611,6 +627,24 @@ export class PgExpenseStore {
           [context.organizationId, id, input.category ?? null],
         );
       }
+      if (Object.prototype.hasOwnProperty.call(input, "projectId")) {
+        await c.query(
+          `update expense_lines set dimensions=case
+             when $3::text is null then coalesce(dimensions,'{}'::jsonb)-'projectId'
+             else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('projectId',$3::text)
+           end where organization_id=$1 and expense_id=$2`,
+          [context.organizationId, id, input.projectId ?? null],
+        );
+      }
+      if (Object.prototype.hasOwnProperty.call(input, "customerPartyId")) {
+        await c.query(
+          `update expense_lines set dimensions=case
+             when $3::text is null then coalesce(dimensions,'{}'::jsonb)-'customerPartyId'
+             else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('customerPartyId',$3::text)
+           end where organization_id=$1 and expense_id=$2`,
+          [context.organizationId, id, input.customerPartyId ?? null],
+        );
+      }
       for (const line of input.lineDescriptions ?? []) {
         await c.query(
           `update expense_lines set description=$4
@@ -643,6 +677,12 @@ export class PgExpenseStore {
         businessPurpose: input.businessPurpose ?? expense.business_purpose,
         category: Object.prototype.hasOwnProperty.call(input, "category")
           ? (input.category ?? null)
+          : undefined,
+        projectId: Object.prototype.hasOwnProperty.call(input, "projectId")
+          ? (input.projectId ?? null)
+          : undefined,
+        customerPartyId: Object.prototype.hasOwnProperty.call(input, "customerPartyId")
+          ? (input.customerPartyId ?? null)
           : undefined,
         lineDescriptions: input.lineDescriptions ?? [],
         journalId: expense.journal_id,

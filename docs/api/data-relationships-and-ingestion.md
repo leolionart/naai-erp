@@ -509,6 +509,30 @@ transaction is corrected by authorized unreconcile with reason, then rematch.
 
 Never change a posted source's party, project, lines, amount or journal relationship in place.
 
+#### One-command metadata correction
+
+Web, REST and CLI expose one canonical correction operation for the business metadata users manage
+day to day: customer or supplier/payee, project, category and description. The request expresses the
+desired final metadata; callers do not patch parties, roles, allocations and documents through a
+sequence of APIs.
+
+The backend resolves supplied stable IDs or business identifiers, performs normalized exact
+matching, checks organization scope and validates project/customer compatibility. Missing and
+ambiguous matches return structured field errors with zero mutation. It never guesses between
+multiple candidates.
+
+- Draft: update the existing resource with `If-Match`, reason and idempotency key.
+- Issued/posted: plan and atomically execute the applicable credit/reversal plus a linked replacement
+  in an open period. The original resource and journal remain immutable.
+- Retry: the same idempotency key returns the original correction result and cannot create another
+  reversal or replacement.
+- Response: effective resource ID/version, audit event, original/reversal/replacement IDs and
+  permitted `nextActions`.
+
+Changing amount, tax treatment, ledger accounts or payment/reconciliation effects is a financial
+correction and remains subject to its canonical workflow. The unified UI may present it as one user
+action, but the service still enforces balancing, period locks, evidence, RBAC and audit rules.
+
 ### 8.9 Relationship backfill for final documents and expenses
 
 Use this workflow only when an issued/posted commercial document or posted expense lacks canonical

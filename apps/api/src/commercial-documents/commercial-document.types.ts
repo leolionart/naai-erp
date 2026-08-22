@@ -62,6 +62,13 @@ export type UpdateCommercialDocumentInput = Partial<CreateCommercialDocumentInpu
 export type CommercialDocumentCategoryInput = Readonly<{
   category: string;
 }>;
+export type CommercialDocumentMetadataInput = Readonly<{
+  partyId?: string | null;
+  projectId?: string | null;
+  category?: string | null;
+  description?: string;
+  reason?: string;
+}>;
 
 export type QuickPurchaseInvoiceInput = Readonly<{
   schemaVersion?: 1;

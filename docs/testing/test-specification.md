@@ -33,6 +33,9 @@ cases pass and its exact-commit evidence is recorded.
 - Active operations use stable IDs, organization scope, structured errors and exact values.
 - The CLI calls REST only and emits JSON by default.
 - Paperless/n8n webhook examples cover signature, timestamp, external identity and retry semantics.
+- Metadata correction accepts customer/supplier, project, category and description in one command;
+  draft updates and posted reversal/replacement are organization-scoped, versioned, audited and
+  retry-idempotent, while ambiguous matching produces zero mutation.
 
 ### E2E
 

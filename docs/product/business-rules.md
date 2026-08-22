@@ -118,6 +118,20 @@ These rules define the active release boundary. Historical rules remain valid fo
   Production itself still requires a valid encrypted login session; neither path reads a public
   browser environment variable.
 - Purchase-invoice automation uses `commercial-documents`, not the descriptive expense-metadata
+
+### BR-AI-006 — Unified business metadata correction
+
+- Authorized users may correct the customer or supplier/payee, project, category and business
+  description of revenue and expense records from Web, REST or CLI through one canonical command.
+- The client submits the intended final metadata once. The backend resolves stable master-data IDs,
+  validates organization scope and relationship compatibility, and returns structured ambiguity or
+  field errors instead of requiring callers to coordinate several APIs.
+- Draft records are updated in place with optimistic concurrency, idempotency and audit evidence.
+- For issued or posted records, the same command plans and atomically performs the permitted
+  credit/reversal and linked replacement in an open period. Posted journals and original source
+  history remain immutable; "editable" never means overwriting accounting history.
+- Amounts, tax treatment, accounts and payment/reconciliation effects remain financial corrections,
+  not unrestricted metadata. They use their canonical correction workflows and safeguards.
   correction endpoint. Integrations follow returned `nextActions`; a solopreneur owner create may
   atomically finish as `posted` or `paid`, while controlled-mode clients must perform only the
   lifecycle actions permitted by the response.

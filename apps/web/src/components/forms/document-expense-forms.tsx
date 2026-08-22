@@ -413,6 +413,7 @@ export function DocumentForm({
   purchaseParties = parties,
   projects = [],
   submitLabel = "Lưu hóa đơn nháp",
+  metadataOnly = false,
 }: {
   busy: boolean;
   onSubmit: (body: Row) => void;
@@ -421,6 +422,7 @@ export function DocumentForm({
   purchaseParties?: readonly Row[];
   projects?: readonly Row[];
   submitLabel?: string;
+  metadataOnly?: boolean;
 }) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const initialLine = Array.isArray(initial?.lines)
@@ -517,6 +519,12 @@ export function DocumentForm({
     String(field(initialLine, "taxCode", "tax_code") ?? "VAT10"),
   );
 
+  // Posted documents use the correction endpoint. Keep this payload limited to
+  // descriptive dimensions; amounts and journals remain immutable.
+  const [metadataDescription, setMetadataDescription] = useState(
+    String(field(initialLine, "description") ?? field(initial, "reason") ?? ""),
+  );
+
   useEffect(() => {
     if (!hydrated || !hasToken) return;
     let cancelled = false;
@@ -606,6 +614,16 @@ export function DocumentForm({
   function submit(event: FormEvent) {
     event.preventDefault();
     if (dueDateError || allocationAmountError) return;
+    if (metadataOnly) {
+      onSubmit({
+        partyId: partyId || null,
+        projectId: projectId || null,
+        category: category || null,
+        reason: reason || null,
+        description: metadataDescription || null,
+      });
+      return;
+    }
     const allocationDimensions = canonicalRelationshipDimensions(
       initialDims,
       { category },
@@ -665,6 +683,71 @@ export function DocumentForm({
       ],
     };
     onSubmit(payload);
+  }
+
+  if (metadataOnly) {
+    return (
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <FieldSet className="grid gap-4 sm:grid-cols-2">
+          <FieldLegend className="col-span-full font-semibold">Thông tin quản trị</FieldLegend>
+          <ComboboxInput
+            label={isPurchase ? "Nhà cung cấp" : "Khách hàng"}
+            value={partyId}
+            onChange={setPartyId}
+            options={documentParties}
+            placeholder="Chọn đối tác…"
+          />
+          <Field>
+            <FieldLabel>Dự án</FieldLabel>
+            <Select
+              value={projectId || "__none__"}
+              onValueChange={(v) => setProjectId(v === "__none__" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Chưa phân bổ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Chưa phân bổ</SelectItem>
+                {availableProjects.map((project) => (
+                  <SelectItem key={relationId(project, "id")} value={relationId(project, "id")}>
+                    {String(field(project, "name", "code", "id") ?? "Dự án")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel>Danh mục</FieldLabel>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {activeCategories.map((cat) => (
+                  <SelectItem key={cat.code} value={cat.code}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field className="col-span-full">
+            <FieldLabel htmlFor="document-metadata-description">Diễn giải</FieldLabel>
+            <Textarea
+              id="document-metadata-description"
+              value={metadataDescription}
+              onChange={(e) => setMetadataDescription(e.target.value)}
+            />
+          </Field>
+        </FieldSet>
+        <p className="text-sm text-muted-foreground">
+          Có thể sửa toàn bộ metadata quản trị; số tiền, VAT và bút toán vẫn được bảo toàn.
+        </p>
+        <Button type="submit" disabled={busy} className="self-end">
+          {busy ? "Đang lưu…" : submitLabel}
+        </Button>
+      </form>
+    );
   }
 
   return (

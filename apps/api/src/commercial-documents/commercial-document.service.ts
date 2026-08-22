@@ -6,6 +6,7 @@ import { PgCommercialDocumentStore } from "./pg-commercial-document.store.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentCategoryInput,
+  CommercialDocumentMetadataInput,
   CommercialDocumentContext,
   CommercialDocumentLineInput,
   CreateCommercialDocumentInput,
@@ -175,6 +176,43 @@ export class CommercialDocumentService {
     return this.envelope(
       context,
       await this.store.updateCategory(context, id, category, idempotencyKey),
+    );
+  }
+  async updateMetadata(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: CommercialDocumentMetadataInput,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    const normalized: CommercialDocumentMetadataInput = {
+      ...(Object.prototype.hasOwnProperty.call(input, "partyId")
+        ? { partyId: input.partyId === null ? null : input.partyId!.trim() }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, "projectId")
+        ? { projectId: input.projectId === null ? null : input.projectId!.trim() }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, "category")
+        ? { category: input.category === null ? null : input.category!.trim() }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, "description")
+        ? { description: input.description!.trim() }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, "reason")
+        ? { reason: input.reason!.trim() }
+        : {}),
+    };
+    if (
+      !Object.keys(normalized).length ||
+      Object.values(normalized).some((value) => value === "" || value === undefined)
+    )
+      throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.updateMetadata(context, id, expectedVersion, normalized, idempotencyKey),
     );
   }
   async deleteDraft(

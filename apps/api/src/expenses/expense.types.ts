@@ -67,6 +67,10 @@ export type ExpenseCategoryInput = Readonly<{
 }>;
 export type ExpenseMetadataInput = Readonly<{
   payeePartyId?: string | null;
+  /** Optional customer/party relationship for cross-charge or project costs. */
+  customerPartyId?: string | null;
+  /** Organization-scoped project relationship applied to all lines. */
+  projectId?: string | null;
   businessPurpose?: string;
   category?: string | null;
   lineDescriptions?: readonly Readonly<{

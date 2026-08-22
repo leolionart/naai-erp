@@ -555,14 +555,17 @@ export function FocusedRecordListWorkspace({
     try {
       const source = sourceKind(quickRecord);
       if (source === "recognition") return;
-      const isPostedExpense = source === "expenses" && text(quickRecord, "state") === "posted";
+      const state = text(quickRecord, "state");
+      const isPostedCorrection =
+        (source === "expenses" && state === "posted") ||
+        (source === "documents" && (state === "posted" || state === "issued"));
       const updated = await client.data<Row>(
-        `${sourceEndpoint(source)}/${encodeURIComponent(id)}${isPostedExpense ? "/metadata" : ""}`,
+        `${sourceEndpoint(source)}/${encodeURIComponent(id)}${isPostedCorrection ? "/metadata" : ""}`,
         {
           method: "PATCH",
           expectedVersion: text(quickRecord, "resourceVersion", "version"),
-          ...(isPostedExpense
-            ? { idempotencyKey: `expense-metadata-${id}-${crypto.randomUUID()}` }
+          ...(isPostedCorrection
+            ? { idempotencyKey: `metadata-correction-${id}-${crypto.randomUUID()}` }
             : {}),
           body,
         },
@@ -914,6 +917,10 @@ export function FocusedRecordListWorkspace({
                         }
                         purchaseParties={payees}
                         projects={projects}
+                        metadataOnly={
+                          text(quickRecord, "state") === "posted" ||
+                          text(quickRecord, "state") === "issued"
+                        }
                         submitLabel="Cập nhật thông tin hóa đơn"
                         onSubmit={(body: Row) => void updateQuickRecord(body)}
                       />

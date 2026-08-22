@@ -2421,6 +2421,22 @@ tests:
     command: pnpm test:docs
     blocking_gate: G76
 
+  - id: T-API-ERP-921-001
+    task: ERP-921
+    rules: [BR-AI-002, BR-AI-003, BR-AI-005, BR-AI-006, BR-LED-001, BR-ORG-001]
+    title: Unified metadata correction updates drafts or creates one immutable posted replacement
+    layer: integration
+    command: pnpm --filter @naai-erp/api test
+    blocking_gate: G78
+
+  - id: T-E2E-ERP-921-002
+    task: ERP-921
+    rules: [BR-AI-006, BR-ORG-001]
+    title: Revenue and expense Quick View edit customer project category and description in one action
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/revenue-management.spec.ts e2e/expense-management.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G78
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

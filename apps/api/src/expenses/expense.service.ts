@@ -184,10 +184,12 @@ export class ExpenseService {
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!expectedVersion) throw new Error("VERSION_CONFLICT");
     const hasPayee = Object.prototype.hasOwnProperty.call(input, "payeePartyId");
+    const hasCustomer = Object.prototype.hasOwnProperty.call(input, "customerPartyId");
+    const hasProject = Object.prototype.hasOwnProperty.call(input, "projectId");
     const hasPurpose = Object.prototype.hasOwnProperty.call(input, "businessPurpose");
     const hasCategory = Object.prototype.hasOwnProperty.call(input, "category");
     const hasDescriptions = Object.prototype.hasOwnProperty.call(input, "lineDescriptions");
-    if (!hasPayee && !hasPurpose && !hasCategory && !hasDescriptions)
+    if (!hasPayee && !hasCustomer && !hasProject && !hasPurpose && !hasCategory && !hasDescriptions)
       throw new Error("VALIDATION_FAILED");
 
     const payeePartyId =
@@ -196,6 +198,8 @@ export class ExpenseService {
         : input.payeePartyId === undefined
           ? undefined
           : input.payeePartyId.trim();
+    const customerPartyId = input.customerPartyId === null ? null : input.customerPartyId?.trim();
+    const projectId = input.projectId === null ? null : input.projectId?.trim();
     const businessPurpose = input.businessPurpose?.trim();
     const category =
       input.category === null
@@ -209,6 +213,8 @@ export class ExpenseService {
     }));
     if (
       (hasPayee && payeePartyId !== null && !payeePartyId) ||
+      (hasCustomer && customerPartyId !== null && !customerPartyId) ||
+      (hasProject && projectId !== null && !projectId) ||
       (hasPurpose && !businessPurpose) ||
       (hasCategory && category !== null && !category) ||
       (hasDescriptions && (!lineDescriptions || lineDescriptions.length === 0))
@@ -227,6 +233,8 @@ export class ExpenseService {
     }
     const normalized: ExpenseMetadataInput = {
       ...(hasPayee ? { payeePartyId: payeePartyId as string | null } : {}),
+      ...(hasCustomer ? { customerPartyId: customerPartyId as string | null } : {}),
+      ...(hasProject ? { projectId: projectId as string | null } : {}),
       ...(hasPurpose ? { businessPurpose: businessPurpose as string } : {}),
       ...(hasCategory ? { category: category as string | null } : {}),
       ...(hasDescriptions

@@ -10,6 +10,7 @@ import type {
   CommercialDocumentContext,
   CommercialDocumentType,
   CreateCommercialDocumentInput,
+  CommercialDocumentMetadataInput,
 } from "./commercial-document.types.js";
 
 type StoredDocument = {
@@ -313,6 +314,104 @@ export class PgCommercialDocumentStore {
         context.organizationId,
         idempotencyKey,
         "commercial-document:update-category",
+        hash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateMetadata(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: CommercialDocumentMetadataInput,
+    idempotencyKey: string,
+  ) {
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, input }))
+      .digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(client, context.organizationId, idempotencyKey, hash);
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const doc = await client.query<{ version: string; party_id: string; state: string }>(
+        "select version::text,party_id,state from commercial_documents where organization_id=$1 and id=$2 for update",
+        [context.organizationId, id],
+      );
+      if (!doc.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
+      if (doc.rows[0].version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (input.category) {
+        const c = await client.query(
+          "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
+          [context.organizationId, input.category],
+        );
+        if (!c.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+      }
+      const before = await client.query(
+        "select line_number,description,dimensions from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
+        [context.organizationId, id],
+      );
+      if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
+      if (Object.prototype.hasOwnProperty.call(input, "partyId"))
+        await client.query(
+          "update commercial_documents set party_id=$3 where organization_id=$1 and id=$2",
+          [context.organizationId, id, input.partyId],
+        );
+      if (Object.prototype.hasOwnProperty.call(input, "description"))
+        await client.query(
+          "update commercial_document_lines set description=$3 where organization_id=$1 and document_id=$2",
+          [context.organizationId, id, input.description],
+        );
+      for (const [key, val] of [
+        ["projectId", input.projectId],
+        ["category", input.category],
+      ] as const)
+        if (Object.prototype.hasOwnProperty.call(input, key))
+          await client.query(
+            "update commercial_document_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and document_id=$2",
+            [context.organizationId, id, val, key],
+          );
+      const version = (BigInt(doc.rows[0].version) + 1n).toString();
+      await client.query(
+        "update commercial_documents set version=$3,updated_at=now() where organization_id=$1 and id=$2",
+        [context.organizationId, id, version],
+      );
+      const auditEventId = randomUUID();
+      await client.query(
+        "insert into resource_audit_events (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state) values($1,$2,'commercial-document',$3,$4,'update_metadata',$5,$6,$7,$8)",
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          version,
+          context.actorId,
+          context.correlationId,
+          { partyId: doc.rows[0].party_id, lines: before.rows },
+          { ...input },
+        ],
+      );
+      const response = {
+        documentId: id,
+        resourceVersion: version,
+        auditEventId,
+        state: doc.rows[0].state,
+      };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        "commercial-document:update-metadata",
         hash,
         response,
       );
