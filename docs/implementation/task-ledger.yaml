@@ -8,7 +8,7 @@ project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
 current_gate: G82
-current_task: ERP-922
+current_task: null
 
 tasks:
   - id: ERP-000
@@ -2437,7 +2437,7 @@ tasks:
   - id: ERP-902
     title: Make routine reasons optional with canonical audit reasons
     phase: P15
-    status: deferred
+    status: done
     dependencies: [ERP-901]
     business_rules:
       [
@@ -2471,11 +2471,13 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-902/
     notes: Superseded in priority and scope by ERP-907. Optional routine reasons remain desirable but cannot be implemented independently of the broader owner decision that valid solopreneur input must immediately participate in management reporting without approval/review/stale gates.
+    completed_at: 2026-08-22T09:30:00+07:00
+    completion_basis: superseded_by_erp907_immediate_solopreneur_policy_and_erp922_canonical_default_reasons
 
   - id: ERP-903
     title: Hide technical mutation mechanics and use business selectors
     phase: P15
-    status: blocked
+    status: done
     dependencies: [ERP-901, ERP-902]
     business_rules: [BR-AI-001, BR-AI-003, BR-AI-005, BR-UI-003, BR-UI-004, BR-AUD-001, BR-ORG-001]
     tests: [T-CONTRACT-ERP-903-001, T-CLI-ERP-903-002, T-E2E-ERP-903-003]
@@ -3174,7 +3176,7 @@ gate_status:
   G55: done
   G56: done
   G57: done
-  G58: deferred
+  G58: done
   G59: blocked
   G60: blocked
   G61: done
@@ -3194,8 +3196,8 @@ gate_status:
   G75: done
   G76: done
   G77: done
-  G78: in_progress
-  G79: in_progress
+  G78: done
+  G79: done
   G80: done
   G81: done
   G82: done
