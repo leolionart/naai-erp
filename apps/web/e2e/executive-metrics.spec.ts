@@ -180,8 +180,10 @@ test("@desktop lets a solopreneur self-approve an executive metric policy", asyn
   await page.goto("http://localhost:3000/settings/executive-metrics");
   await expect(page.getByRole("heading", { name: "Cấu hình chỉ số điều hành" })).toBeVisible();
   await expect(page.getByText("Chưa có chính sách đã duyệt")).toBeVisible();
-  await expect(page.getByText(/chủ doanh nghiệp tạo và tự duyệt chính sách/)).toBeVisible();
-  await expect(page.getByText(/Chủ doanh nghiệp có thể tự duyệt/)).toBeVisible();
+  await expect(
+    page.getByText(/năm nhóm chỉ số quản trị được dùng ngay cho chủ doanh nghiệp/i),
+  ).toBeVisible();
+  await expect(page.getByText(/chủ doanh nghiệp dùng số liệu quản trị ngay/i)).toBeVisible();
   await expect(page.getByLabel("Mapping tài khoản")).toHaveValue(/owner_loan=3388-OWNER/);
   await expect(page.getByRole("button", { name: "Tạo phiên bản chính sách nháp" })).toBeVisible();
 });
