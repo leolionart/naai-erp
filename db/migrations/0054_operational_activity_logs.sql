@@ -1,4 +1,4 @@
-create table operational_activity_logs (
+create table if not exists operational_activity_logs (
   organization_id text not null references organizations(id),
   id text not null,
   service text not null,
@@ -20,9 +20,9 @@ create table operational_activity_logs (
   constraint operational_activity_logs_severity_valid check (severity in ('info','warning','error'))
 );
 
-create index operational_activity_logs_org_created_idx
+create index if not exists operational_activity_logs_org_created_idx
   on operational_activity_logs (organization_id, created_at desc);
-create index operational_activity_logs_expiry_idx
+create index if not exists operational_activity_logs_expiry_idx
   on operational_activity_logs (expires_at);
 
 comment on table operational_activity_logs is
