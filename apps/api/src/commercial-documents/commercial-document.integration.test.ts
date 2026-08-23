@@ -21,6 +21,7 @@ describeIntegration("ERP-300 commercial documents", () => {
       insert into fiscal_years (organization_id,year,starts_on,ends_on) values ('${org}',2026,'2026-01-01','2026-12-31');
       insert into fiscal_periods (organization_id,fiscal_year,period_number,starts_on,ends_on) values ('${org}',2026,1,'2026-01-01','2026-01-31'),('${org}',2026,2,'2026-02-01','2026-02-28');
       insert into parties (organization_id,id,display_name,status) values ('${org}','CLIENT-A','Client A','active'),('${org}','SUPPLIER-A','Supplier A','active');
+      insert into party_roles (organization_id,party_id,role) values ('${org}','CLIENT-A','client'),('${org}','SUPPLIER-A','supplier');
       insert into users(id,email,display_name) values('${integrationUser}','${process.pid}@integration.example.com','Integration User');
       insert into organization_memberships(organization_id,user_id) values('${org}','${integrationUser}');
       insert into membership_roles(organization_id,user_id,role) values('${org}','${integrationUser}','owner');
@@ -939,5 +940,82 @@ describeIntegration("ERP-300 commercial documents", () => {
         `update commercial_documents set gross_minor=1 where organization_id='${org}' and id='sales-001'`,
       ),
     ).rejects.toThrow();
+  });
+
+  it("updates paid document metadata without touching accounting fields", async () => {
+    const before = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(before.statusCode).toBe(200);
+    const snapshot = before.json().data;
+    const journalBefore = await pool.query(
+      "select account_code,debit_minor,credit_minor from journal_lines where organization_id=$1 and journal_id=$2 order by account_code,debit_minor,credit_minor",
+      [org, snapshot.journalId],
+    );
+
+    const updated = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001/metadata`,
+      headers: {
+        ...headers(financeToken, "paid-metadata-correction"),
+        "if-match": snapshot.version ?? snapshot.resourceVersion,
+      },
+      payload: { projectId: "B", reason: "Correct management allocation" },
+    });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect(updated.json().data).toMatchObject({ state: "paid", documentId: "purchase-001" });
+
+    const after = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(after.json().data.state).toBe("paid");
+    expect(after.json().data.netMinor).toBe(snapshot.netMinor);
+    expect(after.json().data.taxMinor).toBe(snapshot.taxMinor);
+    const journalAfter = await pool.query(
+      "select account_code,debit_minor,credit_minor from journal_lines where organization_id=$1 and journal_id=$2 order by account_code,debit_minor,credit_minor",
+      [org, snapshot.journalId],
+    );
+    expect(journalAfter.rows).toEqual(journalBefore.rows);
+    expect(after.json().data.projectIds).toContain("B");
+  });
+
+  it("allows project-only metadata without requiring a matching client", async () => {
+    await pool.query(
+      `insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
+       values($1,'UNRELATED','UNRELATED','Unrelated project','SUPPLIER-A',$2,'fixed_fee','VND',1,'2026-01-01','active')`,
+      [org, integrationUser],
+    );
+    const before = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    const updated = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001/metadata`,
+      headers: {
+        ...headers(financeToken, "paid-metadata-unrelated"),
+        "if-match": before.json().data.version ?? before.json().data.resourceVersion,
+      },
+      payload: { projectId: "UNRELATED", reason: "Should fail" },
+    });
+    expect(updated.statusCode, updated.body).toBe(200);
+    const after = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(
+      after
+        .json()
+        .data.lines?.some(
+          (line: { dimensions?: { projectId?: string } }) =>
+            line.dimensions?.projectId === "UNRELATED",
+        ),
+    ).toBe(true);
   });
 });

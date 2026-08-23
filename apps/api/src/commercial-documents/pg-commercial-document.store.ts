@@ -340,6 +340,9 @@ export class PgCommercialDocumentStore {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
+      await client.query(
+        "select set_config('app.commercial_document_metadata_correction','on',true)",
+      );
       const replay = await this.lockReplay(client, context.organizationId, idempotencyKey, hash);
       if (replay) {
         await client.query("rollback");
@@ -358,17 +361,64 @@ export class PgCommercialDocumentStore {
       if (doc.rows[0].version !== expectedVersion) throw new Error("VERSION_CONFLICT");
       const targetParty = input.partyId ?? doc.rows[0].party_id;
       const role = doc.rows[0].type === "sales_invoice" ? "client" : "supplier";
-      const party = await client.query(
-        "select 1 from parties p join party_roles r on r.organization_id=p.organization_id and r.party_id=p.id where p.organization_id=$1 and p.id=$2 and p.status='active' and r.role=$3",
-        [context.organizationId, targetParty, role],
-      );
-      if (!party.rows[0]) throw new Error("PARTY_ROLE_NOT_FOUND");
+      if (Object.prototype.hasOwnProperty.call(input, "partyId")) {
+        if (!targetParty) throw new Error("PARTY_ROLE_NOT_FOUND");
+        const party = await client.query(
+          `with recursive chain(id,path) as (
+           select $2::text,array[$2::text]
+           union all
+           select l.target_party_id,c.path||l.target_party_id
+           from chain c join party_merge_links l
+             on l.organization_id=$1 and l.source_party_id=c.id
+           where not l.target_party_id=any(c.path)
+         )
+         select 1 from chain c
+         join parties p on p.organization_id=$1 and p.id=c.id and p.status='active'
+         join party_roles r on r.organization_id=p.organization_id and r.party_id=p.id and r.role=$3
+         limit 1`,
+          [context.organizationId, targetParty, role],
+        );
+        if (!party.rows[0]) throw new Error("PARTY_ROLE_NOT_FOUND");
+      }
       if (input.projectId) {
-        const project = await client.query(
-          "select 1 from projects where organization_id=$1 and id=$2 and status='active'",
+        const project = await client.query<{ client_party_id: string; state: string }>(
+          "select client_party_id,state::text from projects where organization_id=$1 and id=$2 and state in ('planned','active','on_hold')",
           [context.organizationId, input.projectId],
         );
         if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
+        const targetProject = project.rows[0];
+        if (
+          doc.rows[0].type === "sales_invoice" &&
+          targetParty &&
+          Object.prototype.hasOwnProperty.call(input, "partyId")
+        ) {
+          const parties = await client.query<{ source_id: string; canonical_id: string }>(
+            `with recursive chain(source_id,id,path) as (
+               select p.id,p.id,array[p.id] from parties p
+               where p.organization_id=$1 and p.id in ($2,$3)
+               union all
+               select c.source_id,l.target_party_id,c.path||l.target_party_id
+               from chain c join party_merge_links l
+                 on l.organization_id=$1 and l.source_party_id=c.id
+               where not l.target_party_id=any(c.path)
+             )
+             select c.source_id,c.id canonical_id from chain c
+             where not exists (
+               select 1 from party_merge_links l
+               where l.organization_id=$1 and l.source_party_id=c.id
+                 and not l.target_party_id=any(c.path)
+             )`,
+            [context.organizationId, targetParty, targetProject.client_party_id],
+          );
+          const invoiceCanonical = parties.rows.find(
+            (p) => p.source_id === targetParty,
+          )?.canonical_id;
+          const projectCanonical = parties.rows.find(
+            (p) => p.source_id === targetProject.client_party_id,
+          )?.canonical_id;
+          if (!invoiceCanonical || !projectCanonical || invoiceCanonical !== projectCanonical)
+            throw new Error("PROJECT_CUSTOMER_MISMATCH");
+        }
       }
       if (input.category) {
         const c = await client.query(

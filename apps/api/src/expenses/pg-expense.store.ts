@@ -550,10 +550,16 @@ export class PgExpenseStore {
 
       if (input.payeePartyId) {
         const payee = await c.query(
-          `select 1
-             from parties p join party_roles r
-               on r.organization_id=p.organization_id and r.party_id=p.id
-            where p.organization_id=$1 and p.id=$2 and p.status='active' and r.role='supplier'`,
+          `with recursive chain(id,path) as (
+             select $2::text,array[$2::text]
+             union all select l.target_party_id,c.path||l.target_party_id
+               from chain c join party_merge_links l
+                on l.organization_id=$1 and l.source_party_id=c.id
+               where not l.target_party_id=any(c.path)
+           ) select 1 from chain c join parties p
+             on p.organization_id=$1 and p.id=c.id and p.status='active'
+             join party_roles r on r.organization_id=p.organization_id and r.party_id=p.id and r.role='supplier'
+            limit 1`,
           [context.organizationId, input.payeePartyId],
         );
         if (!payee.rows[0]) throw new Error("PAYEE_SUPPLIER_NOT_FOUND");
@@ -568,19 +574,60 @@ export class PgExpenseStore {
       }
       if (input.customerPartyId) {
         const customer = await c.query(
-          `select 1 from parties p join party_roles r
-             on r.organization_id=p.organization_id and r.party_id=p.id
-            where p.organization_id=$1 and p.id=$2 and p.status='active' and r.role='client'`,
+          `with recursive chain(id,path) as (
+             select $2::text,array[$2::text]
+             union all select l.target_party_id,c.path||l.target_party_id
+               from chain c join party_merge_links l
+                on l.organization_id=$1 and l.source_party_id=c.id
+               where not l.target_party_id=any(c.path)
+           ) select 1 from chain c join parties p
+             on p.organization_id=$1 and p.id=c.id and p.status='active'
+             join party_roles r on r.organization_id=p.organization_id and r.party_id=p.id and r.role='client'
+            limit 1`,
           [context.organizationId, input.customerPartyId],
         );
         if (!customer.rows[0]) throw new Error("CUSTOMER_CLIENT_NOT_FOUND");
       }
       if (input.projectId) {
-        const project = await c.query(
-          `select 1 from projects where organization_id=$1 and id=$2 and status='active'`,
+        const project = await c.query<{ client_party_id: string; state: string }>(
+          `select client_party_id,state::text from projects
+             where organization_id=$1 and id=$2 and state in ('planned','active','on_hold')`,
           [context.organizationId, input.projectId],
         );
         if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
+        const targetProject = project.rows[0];
+        // A project's customer is metadata context. When the expense carries an
+        // explicit customer, accept merged/aliased party IDs but reject unrelated
+        // customers without mutating financial facts.
+        const customerParty = input.customerPartyId;
+        if (customerParty) {
+          const parties = await c.query<{ source_id: string; canonical_id: string }>(
+            `with recursive chain(source_id,id,path) as (
+               select p.id,p.id,array[p.id] from parties p
+                where p.organization_id=$1 and p.id in ($2,$3)
+               union all
+               select c.source_id,l.target_party_id,c.path||l.target_party_id
+                 from chain c join party_merge_links l
+                   on l.organization_id=$1 and l.source_party_id=c.id
+                where not l.target_party_id=any(c.path)
+             )
+             select c.source_id,c.id canonical_id from chain c
+              where not exists (
+                select 1 from party_merge_links l
+                 where l.organization_id=$1 and l.source_party_id=c.id
+                   and not l.target_party_id=any(c.path)
+              )`,
+            [context.organizationId, customerParty, targetProject.client_party_id],
+          );
+          const customerCanonical = parties.rows.find(
+            (p) => p.source_id === customerParty,
+          )?.canonical_id;
+          const projectCanonical = parties.rows.find(
+            (p) => p.source_id === targetProject.client_party_id,
+          )?.canonical_id;
+          if (!customerCanonical || !projectCanonical || customerCanonical !== projectCanonical)
+            throw new Error("PROJECT_CUSTOMER_MISMATCH");
+        }
       }
 
       const lines = await c.query<{

@@ -359,8 +359,10 @@ Cr Bank/AP                      1,100,000
   reporting. Commercial documents and expenses use one `save and record` action that atomically
   completes eligible owner self-approval and the normal issue/post operation.
 - Management metadata such as payee/customer, project, category and descriptive dimensions may be
-  corrected directly through an audited, versioned command when the change does not rewrite posted
-  debit, credit or tax amounts. Accounting-impacting corrections still use reversal and replacement.
+  corrected directly through an audited, versioned command for drafts and for issued, posted,
+  partially-paid or paid documents when the change does not rewrite posted debit, credit or tax
+  amounts. The UI must not disable this metadata path because a document is paid. Accounting-impacting
+  corrections still use reversal and replacement.
 - Canonical posted transactions affect account balances immediately. Statement import and
   reconciliation identify differences and matches; they do not gate visibility until period close.
 - Missing evidence, tax eligibility or optional dimensions produce source-level warnings. One

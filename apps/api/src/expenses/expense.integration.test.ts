@@ -398,6 +398,7 @@ describeIntegration("ERP-310 expense workflow", () => {
         headers: { ...headers(integrationToken, "posted-expense-metadata"), "if-match": "2" },
         payload: {
           payeePartyId: "SUP-02",
+          projectId: "A",
           businessPurpose: "Customer workshop",
           category: "WORKSHOP",
           lineDescriptions: [{ lineNumber: 1, description: "Workshop refreshments" }],
@@ -440,7 +441,7 @@ describeIntegration("ERP-310 expense workflow", () => {
       description: "Workshop refreshments",
       posting_account_code: "642-OPEX",
       vat_account_code: "1331-VAT",
-      dimensions: { projectId: "PROJECT-01", category: "WORKSHOP" },
+      dimensions: { projectId: "A", category: "WORKSHOP" },
     });
     const audit = await pool.query<{ count: number }>(
       `select count(*)::int count from resource_audit_events

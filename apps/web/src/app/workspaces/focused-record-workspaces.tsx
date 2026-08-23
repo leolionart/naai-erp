@@ -558,7 +558,7 @@ export function FocusedRecordListWorkspace({
       const state = text(quickRecord, "state");
       const isPostedCorrection =
         (source === "expenses" && state === "posted") ||
-        (source === "documents" && (state === "posted" || state === "issued"));
+        (source === "documents" && ["issued", "posted", "partially_paid", "paid"].includes(state));
       const updated = await client.data<Row>(
         `${sourceEndpoint(source)}/${encodeURIComponent(id)}${isPostedCorrection ? "/metadata" : ""}`,
         {
@@ -917,10 +917,9 @@ export function FocusedRecordListWorkspace({
                         }
                         purchaseParties={payees}
                         projects={projects}
-                        metadataOnly={
-                          text(quickRecord, "state") === "posted" ||
-                          text(quickRecord, "state") === "issued"
-                        }
+                        metadataOnly={["issued", "posted", "partially_paid", "paid"].includes(
+                          text(quickRecord, "state"),
+                        )}
                         submitLabel="Cập nhật thông tin hóa đơn"
                         onSubmit={(body: Row) => void updateQuickRecord(body)}
                       />
