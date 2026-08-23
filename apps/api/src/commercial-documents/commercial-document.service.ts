@@ -135,7 +135,9 @@ export class CommercialDocumentService {
       originalId: id,
       originalState: existing.state,
       replacement: normalized,
-      effects: ["reverse_original_journal", "cancel_original", "create_replacement_draft"],
+      effects: ["partially_paid", "paid"].includes(existing.state)
+        ? ["update_project_metadata_only", "preserve_payment_settlement", "preserve_journal"]
+        : ["reverse_original_journal", "cancel_original", "create_replacement_draft"],
     });
   }
   async update(
@@ -389,6 +391,27 @@ export class CommercialDocumentService {
       )
       .digest("hex");
     if (expectedPlanHash !== planHash) throw new Error("RELATIONSHIP_BACKFILL_PLAN_MISMATCH");
+    const existing = await this.store.get(context.organizationId, id);
+    if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+    if (["partially_paid", "paid"].includes(existing.state)) {
+      const projectIds = new Set(
+        normalized.lines.flatMap((line) =>
+          line.allocations
+            .map((allocation) => allocation.dimensions.projectId ?? line.dimensions?.projectId)
+            .filter((projectId): projectId is string => Boolean(projectId)),
+        ),
+      );
+      if (projectIds.size !== 1) throw new Error("VALIDATION_FAILED");
+      const projectId = projectIds.values().next().value;
+      if (!projectId) throw new Error("VALIDATION_FAILED");
+      return this.updateMetadata(
+        context,
+        id,
+        expectedVersion,
+        { projectId, reason: reason.trim() },
+        idempotencyKey,
+      );
+    }
     return this.reverseReplace(context, id, expectedVersion, normalized, reason, idempotencyKey);
   }
   private normalizeRelationships(
