@@ -382,7 +382,7 @@ export class PgCommercialDocumentStore {
       }
       if (input.projectId) {
         const project = await client.query<{ client_party_id: string; state: string }>(
-          "select client_party_id,state::text from projects where organization_id=$1 and id=$2 and state in ('planned','active','on_hold')",
+          "select client_party_id,state::text from projects where organization_id=$1 and id=$2 and state in ('planned','active','on_hold','completed')",
           [context.organizationId, input.projectId],
         );
         if (!project.rows[0]) throw new Error("PROJECT_NOT_FOUND");
