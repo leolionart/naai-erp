@@ -394,7 +394,11 @@ export function FocusedRecordListWorkspace({
       );
       const clientParties = listedParties.filter((party) => clientIds.has(text(party, "id")));
       setClients(clientParties);
-      setProjects(Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []));
+      setProjects(
+        (Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? [])).filter(
+          (project) => text(project, "state") !== "closed",
+        ),
+      );
       if (kind === "expenses") {
         const supplierIds = new Set(
           listedRoles
@@ -1407,7 +1411,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           ),
         ),
       );
-      setProjects(items(projectsRes));
+      setProjects(items(projectsRes).filter((project) => text(project, "state") !== "closed"));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
     } finally {
