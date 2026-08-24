@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { CustomerServiceSubscriptionService } from "./customer-service-subscription.service.js";
 @Controller("api/v1/organizations/:organizationId")
@@ -59,6 +70,17 @@ export class CustomerServiceSubscriptionController {
     @Headers("idempotency-key") k?: string,
   ) {
     return this.service.deactivatePlan(await this.context(o, a, c), id, this.version(i, v), k);
+  }
+  @Delete("service-plans/:id") async deletePlan(
+    @Param("organizationId") o: string,
+    @Param("id") id: string,
+    @Body() i: Record<string, unknown>,
+    @Headers("if-match") v?: string,
+    @Headers("authorization") a?: string,
+    @Headers("x-correlation-id") c?: string,
+    @Headers("idempotency-key") k?: string,
+  ) {
+    return this.service.deletePlan(await this.context(o, a, c), id, this.version(i, v), k);
   }
   @Get("customer-service-subscriptions") async list(
     @Param("organizationId") o: string,

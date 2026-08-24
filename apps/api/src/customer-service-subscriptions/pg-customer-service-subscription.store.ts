@@ -168,6 +168,28 @@ export class PgCustomerServiceSubscriptionStore {
       );
     });
   }
+  deletePlan(c: CustomerSubscriptionContext, id: string, i: Record<string, unknown>, k: string) {
+    return this.mutate(c, k, "service-plan:delete", { id, i }, async (q) => {
+      const before = await this.lockPlan(q, c.organizationId, id, i.expectedResourceVersion);
+      const referenced = (
+        await q.query(
+          `select 1 from customer_service_subscriptions where organization_id=$1 and service_plan_id=$2 limit 1`,
+          [c.organizationId, id],
+        )
+      ).rows[0];
+      if (referenced) throw new Error("SERVICE_PLAN_IN_USE");
+      await q.query(`delete from service_plans where organization_id=$1 and id=$2`, [
+        c.organizationId,
+        id,
+      ]);
+      return this.result(q, c, "service_plan", id, "delete", String(before.version), before, {
+        id,
+        deleted: true,
+        resourceVersion: String(before.version),
+        nextActions: [],
+      });
+    });
+  }
   async listSubscriptions(c: CustomerSubscriptionContext, f: Record<string, string | undefined>) {
     const v: unknown[] = [c.organizationId];
     let w = "";

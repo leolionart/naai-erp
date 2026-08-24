@@ -124,6 +124,16 @@ export class CustomerServiceSubscriptionService {
     this.mutation(i);
     return this.envelope(c, await this.store.deactivatePlan(c, id, i, k));
   }
+  async deletePlan(
+    c: CustomerSubscriptionContext,
+    id: string,
+    i: Record<string, unknown>,
+    k?: string,
+  ) {
+    this.authorize(c, k);
+    this.mutation(i);
+    return this.envelope(c, await this.store.deletePlan(c, id, i, k));
+  }
   listSubscriptions(c: CustomerSubscriptionContext, f: Record<string, string | undefined>) {
     return this.store.listSubscriptions(c, f).then((x) => this.envelope(c, x));
   }

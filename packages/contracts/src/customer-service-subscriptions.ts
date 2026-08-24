@@ -50,6 +50,10 @@ export type UpdateServicePlanRequest = Readonly<
     reason: string;
   }
 >;
+export type DeleteServicePlanRequest = Readonly<{
+  schemaVersion: 1;
+  reason: string;
+}>;
 export type CreateCustomerServiceSubscriptionRequest = Readonly<{
   schemaVersion: 1;
   id?: string;

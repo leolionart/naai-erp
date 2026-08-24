@@ -23,6 +23,12 @@ export type CustomerSubscriptionStore = Readonly<{
     input: Record<string, unknown>,
     key: string,
   ): Promise<unknown>;
+  deletePlan(
+    c: CustomerSubscriptionContext,
+    id: string,
+    input: Record<string, unknown>,
+    key: string,
+  ): Promise<unknown>;
   listSubscriptions(
     c: CustomerSubscriptionContext,
     filters: Record<string, string | undefined>,

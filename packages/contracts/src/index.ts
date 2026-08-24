@@ -334,6 +334,7 @@ export {
   CUSTOMER_SERVICE_SUBSCRIPTION_CONTRACT_VERSION,
   type CreateCustomerServiceSubscriptionRequest,
   type CreateServicePlanRequest,
+  type DeleteServicePlanRequest,
   type CustomerServiceSubscriptionContract,
   type CustomerSubscriptionLifecycleActionRequest,
   type RecurrenceRuleContract,

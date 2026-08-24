@@ -12,6 +12,7 @@ const store = () => ({
   createPlan: vi.fn(),
   updatePlan: vi.fn(),
   deactivatePlan: vi.fn(),
+  deletePlan: vi.fn(),
   listSubscriptions: vi.fn(),
   getSubscription: vi.fn(),
   createSubscription: vi.fn(),
@@ -81,6 +82,27 @@ describe("ERP-870 subscription API service", () => {
       ),
     ).rejects.toThrow("RESOURCE_NOT_FOUND");
     expect(s.transition).not.toHaveBeenCalled();
+  });
+  it("requires version, reason and idempotency for safe plan deletion", async () => {
+    const s = store(),
+      service = new CustomerServiceSubscriptionService(s, {} as never);
+    await expect(
+      service.deletePlan(
+        context,
+        "plan",
+        { schemaVersion: 1, expectedResourceVersion: "1", reason: "created by mistake" },
+        "delete-key",
+      ),
+    ).resolves.toMatchObject({ data: undefined });
+    expect(s.deletePlan).toHaveBeenCalledWith(
+      context,
+      "plan",
+      expect.objectContaining({ expectedResourceVersion: "1" }),
+      "delete-key",
+    );
+    await expect(
+      service.deletePlan(context, "plan", { schemaVersion: 1, reason: "x" }, "key"),
+    ).rejects.toThrow("VALIDATION_FAILED");
   });
   it("returns accounting-neutral schedule generated from the stored snapshot", async () => {
     const s = store();

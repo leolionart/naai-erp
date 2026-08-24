@@ -72,4 +72,32 @@ describeIntegration("ERP-885 service-plan quick create", () => {
     expect(second.statusCode, second.body).toBe(201);
     expect(second.json().data.resource.code).toBe("DICH-VU-QUAN-TRI-WEBSITE-2");
   });
+
+  it("hard-deletes only an unreferenced plan with concurrency and audit controls", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/service-plans`,
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": "delete-plan-create" },
+      payload: { schemaVersion: 1, name: "Temporary plan", defaultUnitPriceMinor: "100" },
+    });
+    const plan = created.json().data.resource;
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/v1/organizations/${organizationId}/service-plans/${plan.id}`,
+      headers: {
+        authorization: `Bearer ${token}`,
+        "idempotency-key": "delete-plan-commit",
+        "if-match": plan.resourceVersion,
+      },
+      payload: { schemaVersion: 1, reason: "Created by mistake" },
+    });
+    expect(deleted.statusCode, deleted.body).toBe(200);
+    expect(deleted.json().data.resource).toMatchObject({ id: plan.id, deleted: true });
+    const readback = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/service-plans/${plan.id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(readback.statusCode).toBe(404);
+  });
 });

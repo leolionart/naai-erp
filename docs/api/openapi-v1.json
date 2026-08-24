@@ -217,6 +217,36 @@
           },
           "409": { "description": "Stale resource version" }
         }
+      },
+      "delete": {
+        "operationId": "deleteServicePlan",
+        "tags": ["customer-subscriptions"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/ServicePlanId" },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["schemaVersion", "reason"],
+                "properties": {
+                  "schemaVersion": { "const": 1 },
+                  "reason": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Deleted unreferenced service plan" },
+          "409": { "description": "Stale version or service plan is referenced" }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}/deactivate": {
