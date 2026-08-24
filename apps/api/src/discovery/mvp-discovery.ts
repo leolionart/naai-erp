@@ -13,6 +13,8 @@ const HTTP_METHODS = new Set(["get", "post", "put", "patch", "delete"]);
 const MASTER_RESOURCES = ["parties", "party-roles", "projects"] as const;
 
 const retainedPrefixes = [
+  "/api/v1/organizations/{organizationId}/service-plans",
+  "/api/v1/organizations/{organizationId}/customer-service-subscriptions",
   "/api/v1/organizations/{organizationId}/commercial-documents",
   "/api/v1/organizations/{organizationId}/expenses",
   "/api/v1/organizations/{organizationId}/inbound-events",
@@ -80,6 +82,8 @@ export function mvpDiscoverySpec(source: DiscoverySpec): DiscoverySpec {
   );
   Object.assign(paths, concreteMasterDataPaths(source.paths));
   const workflowPrefixes = [
+    "service-plans/",
+    "customer-service-subscriptions/",
     "commercial-documents/",
     "expenses/",
     "inbound-events/",
@@ -93,7 +97,7 @@ export function mvpDiscoverySpec(source: DiscoverySpec): DiscoverySpec {
   return {
     ...source,
     paths,
-    "x-naai-resources": [...MASTER_RESOURCES],
+    "x-naai-resources": [...MASTER_RESOURCES, "customer-subscriptions"],
     "x-naai-workflows": (source["x-naai-workflows"] ?? []).filter((workflow) =>
       workflowPrefixes.some((prefix) => workflow.startsWith(prefix)),
     ),

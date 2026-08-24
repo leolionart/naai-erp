@@ -14,12 +14,21 @@ describe("mvpDiscoverySpec", () => {
         "/api/v1/organizations/{organizationId}/master-data/{resource}/{key}/deactivate": {
           post: { summary: "deactivate" },
         },
+        "/api/v1/organizations/{organizationId}/service-plans": {
+          get: { operationId: "listServicePlans" },
+          post: { operationId: "createServicePlan" },
+        },
+        "/api/v1/organizations/{organizationId}/customer-service-subscriptions": {
+          get: { operationId: "listCustomerServiceSubscriptions" },
+        },
       },
       "x-naai-resources": ["accounts", "parties", "projects"],
       "x-naai-workflows": [
         "commercial-documents/create",
         "workbook-imports/dry-run",
         "expenses/create",
+        "service-plans/create",
+        "customer-service-subscriptions/create",
       ],
     };
 
@@ -40,7 +49,14 @@ describe("mvpDiscoverySpec", () => {
       "commercial-documents/create",
       "workbook-imports/dry-run",
       "expenses/create",
+      "service-plans/create",
+      "customer-service-subscriptions/create",
     ]);
+    expect(filtered.paths).toHaveProperty("/api/v1/organizations/{organizationId}/service-plans");
+    expect(filtered.paths).toHaveProperty(
+      "/api/v1/organizations/{organizationId}/customer-service-subscriptions",
+    );
+    expect(filtered["x-naai-resources"]).toContain("customer-subscriptions");
     expect(source.paths).toHaveProperty(
       "/api/v1/organizations/{organizationId}/master-data/{resource}",
     );

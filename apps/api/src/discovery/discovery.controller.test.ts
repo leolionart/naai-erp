@@ -57,7 +57,12 @@ describe("MVP headless API discovery", () => {
     ]) {
       expect(spec.paths, excluded).not.toHaveProperty(excluded);
     }
-    expect(spec["x-naai-resources"]).toEqual(["parties", "party-roles", "projects"]);
+    expect(spec["x-naai-resources"]).toEqual([
+      "parties",
+      "party-roles",
+      "projects",
+      "customer-subscriptions",
+    ]);
     expect(spec.paths[`${organization}/workbook-imports/dry-run`]?.post).toMatchObject({
       operationId: "dryRunWorkbookImport",
       requestBody: {
