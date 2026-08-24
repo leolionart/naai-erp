@@ -59,6 +59,7 @@ import {
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { buildFocusedRecordChartPoints } from "./focused-record-chart";
+import { recordPartyId, relationshipIdList } from "./focused-record-relationships";
 
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
@@ -127,26 +128,6 @@ function idList(row: Row | undefined, ...keys: string[]) {
     }
   }
   return [];
-}
-function relationshipIdList(row: Row | undefined, key: "projectId" | "contractId") {
-  const direct = idList(row, `${key}s`);
-  if (direct.length) return direct;
-
-  const ids = new Set<string>();
-  const lines = Array.isArray(row?.lines) ? (row.lines as Row[]) : [];
-  for (const line of lines) {
-    const lineDimensions = line.dimensions as Row | undefined;
-    const lineId = text(lineDimensions, key);
-    if (lineId) ids.add(lineId);
-
-    const allocations = Array.isArray(line.allocations) ? (line.allocations as Row[]) : [];
-    for (const allocation of allocations) {
-      const allocationDimensions = allocation.dimensions as Row | undefined;
-      const allocationId = text(allocationDimensions, key);
-      if (allocationId) ids.add(allocationId);
-    }
-  }
-  return [...ids];
 }
 function items(payload: readonly Row[] | { items?: readonly Row[] }): readonly Row[] {
   return Array.isArray(payload)
@@ -739,9 +720,7 @@ export function FocusedRecordListWorkspace({
                   const id = text(row, "id");
                   const rowSource = sourceKind(row);
                   const dateVal = text(row, "documentDate", "expenseDate", "effectiveOn");
-                  const rawParty =
-                    text(row, rowSource === "expenses" ? "payeePartyId" : "partyId") ||
-                    text(row, "employeePartyId");
+                  const rawParty = recordPartyId(row, projects);
                   const partyMatch = parties.find((p) => String(p.id) === rawParty);
                   const partyName = partyMatch
                     ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
