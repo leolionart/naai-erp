@@ -20,3 +20,11 @@ describe("collapsed sidebar submenu", () => {
     expect(source).toContain('aria-current={childActive ? "page" : undefined}');
   });
 });
+
+describe("mobile sidebar navigation", () => {
+  it("closes the mobile sheet after pathname or query navigation", () => {
+    expect(source).toContain("const { state, isMobile, setOpenMobile } = useSidebar()");
+    expect(source).toContain("if (isMobile) setOpenMobile(false)");
+    expect(source).toContain("[isMobile, pathname, searchParams, setOpenMobile]");
+  });
+});

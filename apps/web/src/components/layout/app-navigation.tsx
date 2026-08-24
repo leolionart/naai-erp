@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -196,7 +196,11 @@ function CollapsedHoverMenu({ item, children, active, isActive, Icon }: Collapse
 export function AppNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
+
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, pathname, searchParams, setOpenMobile]);
 
   const allNavigationHrefs = useMemo(() => {
     const list: string[] = [];
