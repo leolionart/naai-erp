@@ -9,9 +9,12 @@ function first(row: Row, ...keys: string[]) {
 }
 
 export function presentExpenseRecord(row: Row) {
+  const firstLine = Array.isArray(row.lines) ? (row.lines[0] as Row | undefined) : undefined;
   return {
     activityDate: first(row, "expenseDate", "expense_date", "documentDate", "document_date"),
-    description: first(row, "businessPurpose", "business_purpose", "reason", "description"),
+    description:
+      first(row, "notes", "note", "businessPurpose", "business_purpose", "reason", "description") ||
+      (firstLine ? first(firstLine, "note", "notes", "description") : ""),
     amountMinor: first(row, "grossMinor", "gross_minor", "amountMinor", "amount_minor"),
     payeePartyId: first(row, "payeePartyId", "payee_party_id", "partyId", "party_id"),
     category: first(row, "category", "expenseCategoryCode", "expense_category_code"),

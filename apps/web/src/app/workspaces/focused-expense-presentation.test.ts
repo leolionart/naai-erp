@@ -21,4 +21,14 @@ describe("expense presentation", () => {
       counterAccountCode: "331",
     });
   });
+
+  it("uses the canonical line description when the expense header has no useful note", () => {
+    expect(
+      presentExpenseRecord({
+        expense_date: "2024-10-03",
+        gross_minor: "3000000",
+        lines: [{ description: "Máy in Brother L2321" }],
+      }).description,
+    ).toBe("Máy in Brother L2321");
+  });
 });

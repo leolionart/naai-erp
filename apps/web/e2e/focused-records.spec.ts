@@ -564,6 +564,7 @@ test("@desktop expense list renders the canonical snake_case API fields", async 
             category: "DOMAIN_HOSTING",
             counter_account_code: "331",
             state: "posted",
+            lines: [{ description: "Ghi chú từ dòng chi phí" }],
           },
         ],
       }),
