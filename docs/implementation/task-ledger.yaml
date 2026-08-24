@@ -3217,6 +3217,27 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-933/
 
+  - id: ERP-934
+    title: Canonical expense presentation field normalization
+    phase: P15
+    status: done
+    dependencies: [ERP-933]
+    business_rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    tests: [T-UNIT-ERP-934-001, T-E2E-ERP-934-002]
+    evidence: docs/implementation/evidence/ERP-934/
+    agent: codex
+    started_at: 2026-08-24T08:20:00+07:00
+    planned_files:
+      - apps/web/src/app/workspaces/focused-expense-presentation.ts
+      - apps/web/src/app/workspaces/focused-expense-presentation.test.ts
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/e2e/focused-records.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-934/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3307,6 +3328,7 @@ gates:
   G88: [ERP-931]
   G89: [ERP-932]
   G90: [ERP-933]
+  G91: [ERP-934]
 
 gate_status:
   G0: done
@@ -3397,3 +3419,4 @@ gate_status:
   G88: done
   G89: done
   G90: done
+  G91: done

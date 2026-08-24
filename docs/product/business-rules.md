@@ -47,6 +47,9 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Expense Management shows purchase invoices and non-invoice expense records in one listing. Every
   row retains its canonical source type, endpoint, lifecycle and correction form; the UI never fuzzy
   deduplicates supplier/date/amount matches.
+- Expense rows normalize both camelCase and snake_case API compatibility fields into one presentation
+  model for date, payee, category, description and amount; a missing camelCase alias must not blank a
+  value that is present in the canonical API payload.
 - Stable invoice, expense and revenue-recognition detail routes remain available from the unified
   listings.
 - Revenue invoice and recognition surfaces share one presentation contract for customer, project,

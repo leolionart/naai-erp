@@ -61,6 +61,7 @@ import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator
 import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 import { recordPartyId, relationshipIdList } from "./focused-record-relationships";
 import { presentRevenueRecord } from "./focused-record-presentation";
+import { presentExpenseRecord } from "./focused-expense-presentation";
 
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
@@ -731,9 +732,16 @@ export function FocusedRecordListWorkspace({
                           parties,
                         )
                       : undefined;
+                  const expensePresentation =
+                    kind === "expenses" ? presentExpenseRecord(row) : undefined;
                   const dateVal =
-                    revenuePresentation?.activityDate ?? text(row, "expenseDate", "effectiveOn");
-                  const rawParty = revenuePresentation?.customerId ?? recordPartyId(row, projects);
+                    revenuePresentation?.activityDate ??
+                    expensePresentation?.activityDate ??
+                    text(row, "expenseDate", "effectiveOn");
+                  const rawParty =
+                    revenuePresentation?.customerId ??
+                    expensePresentation?.payeePartyId ??
+                    recordPartyId(row, projects);
                   const partyMatch = parties.find((p) => String(p.id) === rawParty);
                   const partyName = partyMatch
                     ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
@@ -743,7 +751,11 @@ export function FocusedRecordListWorkspace({
                     ? (row.lines[0] as Row | undefined)
                     : undefined;
                   const lineDims = (lines?.dimensions as Record<string, string> | undefined) ?? {};
-                  const catCode = text(row, "category") || lineDims.category || "";
+                  const catCode =
+                    expensePresentation?.category ||
+                    text(row, "category") ||
+                    lineDims.category ||
+                    "";
                   const catName = getCategoryName(catCode);
                   const projectIds =
                     revenuePresentation?.projectIds ?? relationshipIdList(row, "projectId");
@@ -773,7 +785,8 @@ export function FocusedRecordListWorkspace({
                         ) : kind === "expenses" || text(row, "type") === "purchase_invoice" ? (
                           <span className="text-sm">
                             {getFundingSourceLabel(
-                              text(row, "counterAccountCode", "controlAccountCode"),
+                              expensePresentation?.counterAccountCode ||
+                                text(row, "counterAccountCode", "controlAccountCode"),
                             )}
                           </span>
                         ) : (
@@ -801,13 +814,18 @@ export function FocusedRecordListWorkspace({
                       ) : null}
                       <TableCell
                         className="max-w-[200px] truncate text-muted-foreground"
-                        title={text(row, "businessPurpose", "reason")}
+                        title={
+                          expensePresentation?.description || text(row, "businessPurpose", "reason")
+                        }
                       >
-                        {text(row, "businessPurpose", "reason") || "—"}
+                        {expensePresentation?.description ||
+                          text(row, "businessPurpose", "reason") ||
+                          "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-semibold text-foreground">
                         {money(
                           revenuePresentation?.amountMinor ??
+                            expensePresentation?.amountMinor ??
                             text(row, "grossMinor", "amountMinor"),
                         )}
                       </TableCell>

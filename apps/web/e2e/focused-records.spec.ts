@@ -545,6 +545,38 @@ test("@desktop recognition date filtering uses effectiveOn rather than createdAt
   await expect(page.getByText("2025-06-30", { exact: true })).toBeVisible();
 });
 
+test("@desktop expense list renders the canonical snake_case API fields", async ({ page }) => {
+  await install(page);
+  await page.route("**/api/v1/organizations/naai/expenses?**", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        apiVersion: "v1",
+        requestId: "expense-live-shape",
+        organizationId: "naai",
+        items: [
+          {
+            id: "expense-live-shape",
+            expense_date: "2026-07-29",
+            business_purpose: "Imported company expense",
+            gross_minor: "408601",
+            payee_party_id: "supplier-720",
+            category: "DOMAIN_HOSTING",
+            counter_account_code: "331",
+            state: "posted",
+          },
+        ],
+      }),
+    }),
+  );
+  await page.goto(
+    "http://localhost:3000/expenses?startsOn=2026-01-01&endsOn=2026-12-31&invoiceStatus=missing",
+  );
+  await expect(page.getByText("2026-07-29", { exact: true })).toBeVisible();
+  await expect(page.getByText("Imported company expense", { exact: true })).toBeVisible();
+  await expect(page.getByText("408.601 ₫", { exact: true })).toBeVisible();
+});
+
 test("@desktop exports revenue and expense XLSX with current URL filters and clear filenames", async ({
   page,
 }) => {

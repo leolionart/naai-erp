@@ -100,6 +100,13 @@ cases pass and its exact-commit evidence is recorded.
   without duplicating collected progress, remain responsive, and enrich every returned project
   within the supported page size.
 
+### ERP-934 — Canonical expense presentation fields
+
+- `T-UNIT-ERP-934-001`: expense presentation maps the live snake_case payload to date, payee,
+  category, description, account and amount without blank cells.
+- `T-E2E-ERP-934-002`: the expense list renders those values and preserves the purchase/expense
+  filters and detail workflow.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,
