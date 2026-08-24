@@ -308,9 +308,6 @@ export function CustomerSubscriptionWorkspace() {
             Lọc theo dữ liệu chuẩn của khách hàng, gói dịch vụ và dự án/hợp đồng.
           </CardDescription>
           <CardAction className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPlanEditor(null)}>
-              <Settings2 data-icon="inline-start" /> Thêm gói dịch vụ
-            </Button>
             <Button size="sm" onClick={() => setEditor(null)}>
               <Plus data-icon="inline-start" /> Thêm subscription
             </Button>
@@ -502,6 +499,11 @@ export function CustomerSubscriptionWorkspace() {
           <CardDescription>
             Giá và chu kỳ mặc định; ngừng dùng vẫn giữ nguyên các subscription lịch sử.
           </CardDescription>
+          <CardAction>
+            <Button variant="outline" size="sm" onClick={() => setPlanEditor(null)}>
+              <Settings2 data-icon="inline-start" /> Thêm loại dịch vụ
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {plans.length === 0 ? (
