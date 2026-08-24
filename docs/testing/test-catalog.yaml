@@ -2541,6 +2541,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts e2e/project-revenue.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G89
 
+  - id: T-UNIT-ERP-933-001
+    task: ERP-933
+    rules: [BR-PRJ-002, BR-UI-003]
+    title: Project directory period defaults match the visible current-year selection
+    layer: unit
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G90
+
+  - id: T-E2E-ERP-933-002
+    task: ERP-933
+    rules: [BR-PRJ-002, BR-UI-003, BR-UI-004]
+    title: Project cards show invoice progress without duplicate collection progress
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G90
+
   - id: T-UNIT-ERP-926-001
     task: ERP-926
     rules: [BR-UI-004]

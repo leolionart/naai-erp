@@ -1,5 +1,16 @@
 export type DirectoryFilterRow = Readonly<Record<string, unknown>>;
 
+export function resolveProjectDirectoryPeriod(
+  search: Pick<URLSearchParams, "get">,
+  today = new Date().toISOString().slice(0, 10),
+) {
+  const year = today.slice(0, 4);
+  return {
+    startsOn: search.get("startsOn") ?? `${year}-01-01`,
+    endsOn: search.get("endsOn") ?? `${year}-12-31`,
+  };
+}
+
 function text(row: DirectoryFilterRow, key: string) {
   return String(row[key] ?? "");
 }

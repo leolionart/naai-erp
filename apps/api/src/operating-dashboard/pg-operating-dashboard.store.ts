@@ -418,7 +418,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     return (
       await this.pool.query<Record<string, unknown>>(
         `select p.id "projectId",p.code,p.name,pa.display_name "clientName",p.state,p.starts_on::text "startsOn",p.ends_on::text "endsOn",
-        coalesce(c.amount,p.budget_minor)::text "contractedMinor",coalesce(i.amount,0)::text "invoicedMinor",coalesce(col.amount,0)::text "collectedMinor",coalesce(e.amount,0)::text "actualCostMinor",
+        coalesce(c.amount,p.budget_minor)::text "contractedMinor",coalesce(r.amount,0)::text "recognizedMinor",coalesce(i.amount,0)::text "invoicedMinor",coalesce(col.amount,0)::text "collectedMinor",coalesce(e.amount,0)::text "actualCostMinor",
         greatest(coalesce(c.amount,p.budget_minor)-coalesce(i.amount,0),0)::text "backlogMinor",
         coalesce(b.direct_cost_total_minor,0)::text "budgetCostMinor",
         case when coalesce(b.direct_cost_total_minor,0)>0 then round(coalesce(e.amount,0)*10000.0/b.direct_cost_total_minor)::int else null end "burnBps",
@@ -430,6 +430,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          union all
          select expected_revenue_impact_minor from scope_changes where organization_id=p.organization_id and project_id=p.id and state='approved' and approved_at::date<=$4::date
        ) contracted) c on true
+       left join lateral (select coalesce(sum(amount_minor),0) amount from revenue_recognition_events where organization_id=p.organization_id and project_id=p.id and state='posted' and effective_on<=$4::date) r on true
        left join lateral (select sum(case when d.type='credit_note' then -x.amount else x.amount end) amount
          from commercial_documents d join lateral (
            select coalesce(sum(source.amount),0) amount from (

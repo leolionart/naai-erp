@@ -129,7 +129,7 @@ suite("operating dashboard PostgreSQL API", () => {
           contractedMinor: "2000",
           invoicedMinor: "1000",
           remainingMinor: "1000",
-          projects: [{ projectId: "project", collectedMinor: "500" }],
+          projects: [{ projectId: "project", recognizedMinor: "0", collectedMinor: "500" }],
         },
         collections: { receivablesMinor: "550", overdueMinor: "550" },
         clientConcentration: { totalRevenueMinor: "1000", topClientShareBps: 10000 },

@@ -92,6 +92,14 @@ cases pass and its exact-commit evidence is recorded.
   2025 customer/project/date/amount/state values on desktop and 390px mobile, without legacy
   `undefined` fields or regressions to commercial documents.
 
+### ERP-933 — Truthful project-year and invoice progress cards
+
+- `T-UNIT-ERP-933-001`: a project directory without explicit date parameters applies the current
+  calendar year while preserving explicit historical ranges and execution-interval overlap.
+- `T-E2E-ERP-933-002`: project cards separately show recognized and invoiced contract progress
+  without duplicating collected progress, remain responsive, and enrich every returned project
+  within the supported page size.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,

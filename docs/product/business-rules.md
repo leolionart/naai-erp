@@ -839,6 +839,12 @@ Confidence uses amount, date tolerance, reference, counterparty, currency and ou
 - A project matches a selected date range when its execution interval overlaps that range, including
   projects that start before the range or have no end date. Projects ending before the selected start
   or starting after the selected end are excluded.
+- When the directory URL has no explicit period, the effective selection is the current calendar
+  year; the visible period navigator and the applied project filter must never disagree.
+- Project cards present recognized and invoiced progress as separate axes against the contract
+  commitment. Collection remains a
+  separate accounting/read-model measure but is not duplicated on directory cards for organizations
+  whose issued-invoice workflow treats invoicing as the operational completion signal.
 - The directory offers both card and Kanban views. Kanban shows all canonical lifecycle columns and
   allows an authorized user to move one project between states through the same organization-scoped,
   audited project update service used by the form, CLI and API. Failed updates restore the prior

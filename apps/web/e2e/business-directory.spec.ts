@@ -68,6 +68,7 @@ test("@desktop and @mobile directory cards expose useful customer and project co
               {
                 projectId: "project-card",
                 contractedMinor: "250000000",
+                recognizedMinor: "100000000",
                 invoicedMinor: "125000000",
                 collectedMinor: "62500000",
               },
@@ -85,17 +86,20 @@ test("@desktop and @mobile directory cards expose useful customer and project co
   await expect(customerCard).toContainText("finance@card.vn");
   await expect(customerCard).toContainText("0909 123 456");
 
-  await page.goto("http://localhost:3000/projects");
+  await page.goto(
+    "http://localhost:3000/projects?startsOn=2026-01-01&endsOn=2026-12-31&periodKind=year",
+  );
   const projectCard = page.getByTestId("projects-card-project-card");
   await expect(projectCard).toContainText("Công ty Card");
   await expect(projectCard).toContainText("WEB · fixed_fee");
   await expect(projectCard).toContainText("2026-08-01 – 2026-10-31");
   await expect(projectCard).toContainText("250.000.000 ₫");
   await expect(projectCard).toContainText("Tiến độ theo cam kết hợp đồng");
+  await expect(projectCard).toContainText("Doanh thu đã ghi nhận");
+  await expect(projectCard).toContainText("40%");
   await expect(projectCard).toContainText("Đã xuất hóa đơn");
   await expect(projectCard).toContainText("50%");
-  await expect(projectCard).toContainText("Đã thu tiền");
-  await expect(projectCard).toContainText("25%");
+  await expect(projectCard).not.toContainText("Đã thu tiền");
   await expect(projectCard.getByText("Đang triển khai", { exact: true })).toBeVisible();
   await expect(projectCard.getByRole("link", { name: "Mở hồ sơ" })).toBeVisible();
   expect(
@@ -405,8 +409,8 @@ test("@desktop project Kanban moves a project between lifecycle columns", async 
       code: "DONE-1",
       name: "Dự án đã xong",
       state: "completed",
-      starts_on: "2025-01-01",
-      ends_on: "2025-12-31",
+      starts_on: "2026-01-01",
+      ends_on: "2026-12-31",
     },
   ];
   await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>

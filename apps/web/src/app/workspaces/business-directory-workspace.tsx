@@ -52,7 +52,10 @@ import type { createApiClient } from "@/lib/api";
 import { ProjectBudgetWorkspace } from "./project-revenue-workspaces";
 import { ProjectCostsWorkspace } from "./project-cost-workspaces";
 import { FocusedRecordListWorkspace } from "./focused-record-workspaces";
-import { projectMatchesDirectoryFilters } from "./business-directory-filters";
+import {
+  projectMatchesDirectoryFilters,
+  resolveProjectDirectoryPeriod,
+} from "./business-directory-filters";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 
 type DirectoryKind = "customers" | "projects";
@@ -140,10 +143,11 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
       if (kind === "projects") {
         setRows(page.items);
         const today = new Date().toISOString().slice(0, 10);
+        const period = resolveProjectDirectoryPeriod(searchParams, today);
         const [parties, dashboard] = await Promise.all([
           client.data<Page>("master-data/parties?limit=100"),
           client.data<{ backlog?: { projects?: readonly Row[] } }>(
-            `reports/operating-dashboard?asOf=${today}&startsOn=1900-01-01&endsOn=${today}&limit=50`,
+            `reports/operating-dashboard?asOf=${today}&startsOn=${period.startsOn}&endsOn=${period.endsOn}&limit=100`,
           ),
         ]);
         setRelatedRows(parties.items);
@@ -170,13 +174,14 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
     } finally {
       setLoading(false);
     }
-  }, [client, hasToken, hydrated, kind]);
+  }, [client, hasToken, hydrated, kind, searchParams]);
   useEffect(() => void load(), [load]);
 
   const projectState = searchParams.get("state") ?? "all";
   const viewMode = searchParams.get("view") === "kanban" ? "kanban" : "grid";
-  const startsOn = searchParams.get("startsOn") ?? "";
-  const endsOn = searchParams.get("endsOn") ?? "";
+  const period = resolveProjectDirectoryPeriod(searchParams);
+  const startsOn = kind === "projects" ? period.startsOn : "";
+  const endsOn = kind === "projects" ? period.endsOn : "";
   const filtered = rows.filter((row) => {
     if (kind === "projects") {
       return projectMatchesDirectoryFilters(row, {
@@ -339,8 +344,8 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
             }
             const financial = customer ? undefined : projectFinancialsById.get(id);
             const contractedMinor = BigInt(value(financial ?? {}, "contractedMinor") || "0");
+            const recognizedMinor = BigInt(value(financial ?? {}, "recognizedMinor") || "0");
             const invoicedMinor = BigInt(value(financial ?? {}, "invoicedMinor") || "0");
-            const collectedMinor = BigInt(value(financial ?? {}, "collectedMinor") || "0");
             const progress = (part: bigint) =>
               contractedMinor > 0n
                 ? Math.min(100, Number((part * 10_000n) / contractedMinor) / 100)
@@ -400,8 +405,8 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
                             Tiến độ theo cam kết hợp đồng
                           </p>
                           {[
+                            ["Doanh thu đã ghi nhận", recognizedMinor, progress(recognizedMinor)],
                             ["Đã xuất hóa đơn", invoicedMinor, progress(invoicedMinor)],
-                            ["Đã thu tiền", collectedMinor, progress(collectedMinor)],
                           ].map(([label, amount, percent]) => (
                             <div key={String(label)} className="space-y-1">
                               <div className="flex items-center justify-between gap-3 text-xs">
