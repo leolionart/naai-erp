@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarClock, Pencil, Plus, RefreshCw, Settings2 } from "lucide-react";
+import { CalendarClock, Pencil, Plus, RefreshCw, Settings2, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ type ServicePlan = Readonly<{
   billingDay: string;
   isActive: boolean;
   version?: string;
+  permittedNextActions: readonly string[];
 }>;
 type Subscription = Readonly<{
   id: string;
@@ -131,6 +132,11 @@ function normalizePlan(row: Row): ServicePlan {
     billingDay: value((row.recurrence as Row | undefined) ?? {}, "billingDay") || "1",
     isActive: bool(row, "active"),
     version: value(row, "version", "resourceVersion", "resource_version") || undefined,
+    permittedNextActions: Array.isArray(row.nextActions)
+      ? row.nextActions.map(String)
+      : Array.isArray(row.next_actions)
+        ? row.next_actions.map(String)
+        : [],
   };
 }
 
@@ -551,6 +557,9 @@ export function CustomerSubscriptionWorkspace() {
                           <Pencil data-icon="inline-start" /> Sửa
                         </Button>
                         {plan.isActive ? <DeactivatePlanButton plan={plan} onSaved={load} /> : null}
+                        {plan.permittedNextActions.includes("delete") ? (
+                          <DeletePlanButton plan={plan} onSaved={load} />
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -586,6 +595,67 @@ export function CustomerSubscriptionWorkspace() {
         onOpenChange={(open) => !open && setScheduleSubscription(undefined)}
       />
     </div>
+  );
+}
+
+function DeletePlanButton({ plan, onSaved }: { plan: ServicePlan; onSaved(): Promise<void> }) {
+  const { client } = useAuthenticatedApiClient();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function remove() {
+    setBusy(true);
+    setError("");
+    try {
+      await client.data(`service-plans/${encodeURIComponent(plan.id)}`, {
+        method: "DELETE",
+        body: { schemaVersion: 1, reason: "Xóa gói dịch vụ chưa từng được sử dụng" },
+        ...(plan.version ? { expectedVersion: plan.version } : {}),
+      });
+      await onSaved();
+      setOpen(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể xóa gói dịch vụ.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
+        <Trash2 data-icon="inline-start" /> Xóa
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Xóa gói dịch vụ?</DialogTitle>
+            <DialogDescription>
+              Chỉ gói chưa từng được subscription tham chiếu mới có thể xóa. Thao tác này không áp
+              dụng cho gói đã có lịch sử sử dụng.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm font-medium">{plan.name}</p>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
+              {busy ? "Đang xóa…" : "Xác nhận xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

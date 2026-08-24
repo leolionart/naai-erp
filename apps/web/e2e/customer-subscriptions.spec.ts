@@ -24,6 +24,32 @@ test("@desktop manages customer subscriptions with canonical relationships and t
       nextActions: ["update", "pause", "cancel", "schedule-preview"],
     },
   ];
+  const plans = [
+    {
+      id: "plan-hosting",
+      code: "HOSTING",
+      name: "Cloud Hosting",
+      serviceLineCode: "CLOUD",
+      defaultUnitPriceMinor: "12000000",
+      currency: "VND",
+      recurrence: { frequency: "month", interval: 1, billingDay: 5 },
+      active: true,
+      resourceVersion: "2",
+      nextActions: ["update", "deactivate", "delete"],
+    },
+    {
+      id: "plan-unused",
+      code: "UNUSED",
+      name: "Gói chưa dùng",
+      serviceLineCode: "CLOUD",
+      defaultUnitPriceMinor: "100000",
+      currency: "VND",
+      recurrence: { frequency: "month", interval: 1, billingDay: 1 },
+      active: true,
+      resourceVersion: "1",
+      nextActions: ["update", "deactivate", "delete"],
+    },
+  ];
   const mutations: Array<{ method: string; url: string; body: Record<string, unknown> }> = [];
 
   await page.route("**/api/v1/organizations/*/**", async (route) => {
@@ -33,6 +59,9 @@ test("@desktop manages customer subscriptions with canonical relationships and t
     if (request.method() !== "GET") {
       const body = request.postDataJSON() as Record<string, unknown>;
       mutations.push({ method: request.method(), url: request.url(), body });
+      if (request.method() === "DELETE" && path.endsWith("/service-plans/plan-unused")) {
+        plans.splice(1, 1);
+      }
       if (path.endsWith("/pause")) subscriptions[0]!.lifecycle = "paused";
       if (path.endsWith("/customer-service-subscriptions")) {
         subscriptions.push({
@@ -57,23 +86,7 @@ test("@desktop manages customer subscriptions with canonical relationships and t
 
     let data: unknown = { items: [] };
     if (path.endsWith("/customer-service-subscriptions")) data = { items: subscriptions };
-    else if (path.endsWith("/service-plans"))
-      data = {
-        items: [
-          {
-            id: "plan-hosting",
-            code: "HOSTING",
-            name: "Cloud Hosting",
-            serviceLineCode: "CLOUD",
-            defaultUnitPriceMinor: "12000000",
-            currency: "VND",
-            recurrence: { frequency: "month", interval: 1, billingDay: 5 },
-            active: true,
-            resourceVersion: "2",
-            nextActions: ["update", "deactivate"],
-          },
-        ],
-      };
+    else if (path.endsWith("/service-plans")) data = { items: plans };
     else if (path.endsWith("/master-data/parties"))
       data = {
         items: [
@@ -110,7 +123,7 @@ test("@desktop manages customer subscriptions with canonical relationships and t
   await expect(page.getByText("NAAI Studio", { exact: true })).toBeVisible();
   await expect(page.getByText("12.000.000 ₫", { exact: true }).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Thêm gói dịch vụ" }).click();
+  await page.getByRole("button", { name: "Thêm loại dịch vụ" }).click();
   const planDialog = page.getByRole("dialog", { name: "Thêm gói dịch vụ" });
   await expect(planDialog.getByLabel("Mã gói")).toHaveCount(0);
   await expect(planDialog.getByLabel("Mã dòng dịch vụ")).toHaveCount(0);
@@ -127,6 +140,24 @@ test("@desktop manages customer subscriptions with canonical relationships and t
           mutation.body.defaultUnitPriceMinor === "500000" &&
           mutation.body.code === undefined &&
           mutation.body.serviceLineCode === undefined,
+      ),
+    )
+    .toBe(true);
+
+  await page
+    .getByRole("row", { name: /Gói chưa dùng/ })
+    .getByRole("button", { name: "Xóa" })
+    .click();
+  const deleteDialog = page.getByRole("dialog", { name: "Xóa gói dịch vụ?" });
+  await expect(deleteDialog.getByText("Gói chưa dùng")).toBeVisible();
+  await deleteDialog.getByRole("button", { name: "Xác nhận xóa" }).click();
+  await expect
+    .poll(() =>
+      mutations.some(
+        (mutation) =>
+          mutation.method === "DELETE" &&
+          mutation.url.endsWith("/service-plans/plan-unused") &&
+          mutation.body.reason === "Xóa gói dịch vụ chưa từng được sử dụng",
       ),
     )
     .toBe(true);
@@ -190,7 +221,7 @@ test("@mobile subscription workspace remains usable without document overflow", 
   await page.goto("http://localhost:3000/subscriptions");
   await expect(page.getByRole("button", { name: "Thêm subscription" })).toBeVisible();
   await expect(page.getByText("Chưa có dịch vụ định kỳ")).toBeVisible();
-  await page.getByRole("button", { name: "Thêm gói dịch vụ" }).click();
+  await page.getByRole("button", { name: "Thêm loại dịch vụ" }).click();
   await expect(page.getByRole("dialog", { name: "Thêm gói dịch vụ" })).toBeVisible();
   const dimensions = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
