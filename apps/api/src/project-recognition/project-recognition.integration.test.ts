@@ -7,7 +7,7 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
 (enabled ? describe : describe.skip)("ERP-520 project economics PostgreSQL API", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   let app: Awaited<ReturnType<typeof createApp>>;
-  const org = "org-erp520",
+  const org = `org-erp520-${process.pid}`,
     makerToken = "erp520-maker",
     checkerToken = "erp520-checker";
   const headers = (token: string, key?: string) => ({
@@ -32,7 +32,7 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
   beforeAll(async () => {
     await pool.query(`
       insert into organizations(id,legal_name,base_currency,timezone) values('${org}','ERP520','VND','Asia/Ho_Chi_Minh');
-      insert into users(id,email,display_name) values('maker520','maker520@example.com','Maker'),('checker520','checker520@example.com','Checker');
+      insert into users(id,email,display_name) values('maker520','maker520@example.com','Maker'),('checker520','checker520@example.com','Checker') on conflict(id) do nothing;
       insert into organization_memberships(organization_id,user_id) values('${org}','maker520'),('${org}','checker520');
       insert into membership_roles(organization_id,user_id,role) values('${org}','maker520','owner'),('${org}','checker520','owner');
       insert into parties(organization_id,id,display_name) values('${org}','client520','Client');
@@ -43,6 +43,10 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
       insert into fiscal_years(organization_id,year,starts_on,ends_on) values('${org}',2026,'2026-01-01','2026-12-31');
       insert into fiscal_periods(organization_id,fiscal_year,period_number,starts_on,ends_on,state) values('${org}',2026,8,'2026-08-01','2026-08-31','open');
       insert into accounts(organization_id,code,name,root_type,allow_manual_posting) values('${org}','131','Contract asset','asset',false),('${org}','3387','Contract liability','liability',false),('${org}','511','Service revenue','revenue',false);
+      insert into parties(organization_id,id,display_name) values('${org}','client-2025','Khách hàng 2025');
+      insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state) values('${org}','project-2025','P2025','Dự án 2025','client-2025','maker520','fixed_fee','VND',9000000,'2025-01-01','completed');
+      insert into revenue_recognition_policies(organization_id,id,project_id,version_number,method,effective_from,currency,contract_value_minor,revenue_account_code,contract_asset_account_code,contract_liability_account_code,evidence_required,state,created_by) values('${org}','policy-2025','project-2025',1,'percentage_of_completion','2025-01-01','VND',9000000,'511','131','3387',false,'approved','maker520');
+      insert into revenue_recognition_events(organization_id,id,project_id,policy_id,policy_version_number,effective_on,amount_minor,currency,evidence_ids,policy_snapshot,state,reason,created_by) values('${org}','recognition-2025','project-2025','policy-2025',1,'2025-06-30',9000000,'VND','[]','{"method":"percentage_of_completion"}','posted','Ghi nhận mốc 2025','maker520');
     `);
     for (const [id, actor, token, roles] of [
       ["maker-cred", "maker520", makerToken, ["owner"]],
@@ -55,6 +59,41 @@ const enabled = process.env.RUN_DB_INTEGRATION === "1" && process.env.DATABASE_U
     app = await createApp();
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
+  });
+
+  it("projects canonical 2025 customer and project identity in list and detail reads", async () => {
+    const list = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/revenue-recognition-events?projectId=project-2025`,
+      headers: headers(checkerToken),
+    });
+    expect(list.statusCode, list.body).toBe(200);
+    expect(list.json().data.items).toEqual([
+      expect.objectContaining({
+        id: "recognition-2025",
+        projectId: "project-2025",
+        projectName: "Dự án 2025",
+        customerPartyId: "client-2025",
+        customerName: "Khách hàng 2025",
+        effectiveOn: "2025-06-30",
+        amountMinor: "9000000",
+        currency: "VND",
+        state: "posted",
+      }),
+    ]);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/revenue-recognition-events/recognition-2025`,
+      headers: headers(checkerToken),
+    });
+    expect(detail.statusCode, detail.body).toBe(200);
+    expect(detail.json().data).toMatchObject({
+      projectName: "Dự án 2025",
+      customerName: "Khách hàng 2025",
+      effectiveOn: "2025-06-30",
+      amountMinor: "9000000",
+    });
   });
   afterAll(async () => {
     await app?.close();

@@ -52,6 +52,14 @@ import {
   type ScopeChange,
 } from "@/lib/api";
 const today = () => new Date().toISOString().slice(0, 10);
+function Detail({ label, value }: Readonly<{ label: string; value: ReactNode }>) {
+  return (
+    <div>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="font-medium">{value}</div>
+    </div>
+  );
+}
 function useClient() {
   const [c, setC] = useState<ApiConnectionSettingsV1>(DEFAULT_API_CONNECTION),
     [t, setT] = useState("");
@@ -87,7 +95,7 @@ function LifecycleActions({
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        {resource.nextActions.map((a) => (
+        {(resource.nextActions ?? []).map((a) => (
           <Button
             key={a}
             variant={["reject", "reverse", "supersede"].includes(a) ? "destructive" : "outline"}
@@ -431,27 +439,30 @@ export function RevenueRecognitionQueueWorkspace() {
         <Link href="/milestone-acceptances">Milestone acceptances</Link>
       </Button>
       <Queue
-        title="Recognition events"
-        description="Recognition requires policy and accepted evidence."
+        title="Ghi nhận doanh thu"
+        description="Doanh thu ghi nhận theo dự án, chính sách và bằng chứng đã được duyệt."
         rows={events}
         columns={[
           {
             id: "event",
-            header: "Event",
+            header: "Khách hàng / Dự án",
             cell: (r) => (
               <Link className="font-medium underline" href={`/revenue-recognition/${r.id}`}>
-                {r.accountingRoute} · {r.milestoneId ?? r.contractId}
+                <span className="block">{r.customerName || "Chưa xác định khách hàng"}</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {r.projectName || r.projectId}
+                </span>
               </Link>
             ),
           },
           {
             id: "recognized",
-            header: "Recognized gross",
+            header: "Số tiền ghi nhận",
             align: "right",
             cell: (r) => <MoneyCell minor={r.amountMinor} />,
           },
-          { id: "date", header: "Date", cell: (r) => r.recognitionDate },
-          { id: "state", header: "State", cell: (r) => <StatusBadge status={r.state} /> },
+          { id: "date", header: "Ngày ghi nhận", cell: (r) => r.effectiveOn },
+          { id: "state", header: "Trạng thái", cell: (r) => <StatusBadge status={r.state} /> },
         ]}
       />
       <Queue
@@ -459,14 +470,14 @@ export function RevenueRecognitionQueueWorkspace() {
         description="Acceptance is evidence, not recognition by itself."
         rows={acceptances}
         columns={[
-          { id: "milestone", header: "Milestone", cell: (r) => r.milestoneId },
+          { id: "milestone", header: "Mốc nghiệm thu", cell: (r) => r.milestoneId },
           {
             id: "amount",
-            header: "Amount",
+            header: "Giá trị",
             align: "right",
             cell: (r) => <MoneyCell minor={r.acceptedAmountMinor ?? r.milestoneAmountMinor} />,
           },
-          { id: "state", header: "State", cell: (r) => <StatusBadge status={r.state} /> },
+          { id: "state", header: "Trạng thái", cell: (r) => <StatusBadge status={r.state} /> },
         ]}
       />
     </div>
@@ -602,23 +613,30 @@ export function ResourceDetailWorkspace({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
-          {Object.entries(resource)
-            .filter(([k]) =>
-              [
-                "projectId",
-                "currency",
-                "recognitionDate",
-                "revenueDeltaMinor",
-                "costDeltaMinor",
-                "journalId",
-              ].includes(k),
-            )
-            .map(([k, v]) => (
-              <div key={k}>
-                <span className="text-xs text-muted-foreground">{k}</span>
-                <div>{String(v)}</div>
-              </div>
-            ))}
+          {kind === "recognition" ? (
+            <>
+              <Detail label="Khách hàng" value={String(resource.customerName ?? "—")} />
+              <Detail
+                label="Dự án"
+                value={String(resource.projectName ?? resource.projectId ?? "—")}
+              />
+              <Detail label="Ngày ghi nhận" value={String(resource.effectiveOn ?? "—")} />
+              <Detail
+                label="Số tiền ghi nhận"
+                value={<MoneyCell minor={String(resource.amountMinor ?? "0")} />}
+              />
+              <Detail label="Diễn giải" value={String(resource.reason ?? "—")} />
+            </>
+          ) : (
+            Object.entries(resource)
+              .filter(([k]) => ["projectId", "currency", "costDeltaMinor", "journalId"].includes(k))
+              .map(([k, v]) => (
+                <div key={k}>
+                  <span className="text-xs text-muted-foreground">{k}</span>
+                  <div>{String(v)}</div>
+                </div>
+              ))
+          )}
         </CardContent>
       </Card>
       <LifecycleActions resource={resource} path={path} reload={load} />

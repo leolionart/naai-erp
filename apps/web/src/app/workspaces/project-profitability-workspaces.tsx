@@ -549,11 +549,10 @@ export function ProjectProfitabilityDetailWorkspace({
         <CardContent>
           <FinancialDataTable
             rows={[
-              { id: "revenue", label: "Doanh thu đã ghi nhận", ...detail.glTie.recognizedRevenue },
               {
                 id: "direct",
                 label: "Chi phí trực tiếp của dự án",
-                ...detail.glTie.directProjectCost,
+                ...detail.glTie,
               },
             ]}
             columns={[

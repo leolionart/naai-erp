@@ -60,6 +60,7 @@ import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-ch
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 import { recordPartyId, relationshipIdList } from "./focused-record-relationships";
+import { presentRevenueRecord } from "./focused-record-presentation";
 
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
@@ -280,7 +281,15 @@ export function FocusedRecordListWorkspace({
       // Do not filter out raw records by time when explicitly looking at a specific Project or Customer profile
       if (startsOn || endsOn) {
         rawItems = rawItems.filter((row) => {
-          const dateVal = text(row, "documentDate", "expenseDate", "issueDate", "createdAt");
+          const dateVal =
+            kind === "documents"
+              ? presentRevenueRecord(
+                  row,
+                  sourceKind(row) === "recognition" ? "recognition" : "documents",
+                  Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
+                  Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
+                ).activityDate
+              : text(row, "expenseDate", "createdAt");
           if (!dateVal) return true;
           if (startsOn && dateVal < startsOn) return false;
           if (endsOn && dateVal > endsOn) return false;
@@ -305,12 +314,18 @@ export function FocusedRecordListWorkspace({
         );
       }
       if (initialPartyId) {
-        rawItems = rawItems.filter(
-          (row) =>
-            String(
-              row.partyId ?? row.party_id ?? row.payeePartyId ?? row.payee_party_id ?? "",
-            ).trim() === initialPartyId.trim(),
-        );
+        rawItems = rawItems.filter((row) => {
+          if (kind !== "documents")
+            return String(row.payeePartyId ?? row.payee_party_id ?? "").trim() === initialPartyId;
+          return (
+            presentRevenueRecord(
+              row,
+              sourceKind(row) === "recognition" ? "recognition" : "documents",
+              Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
+              Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
+            ).customerId === initialPartyId.trim()
+          );
+        });
       }
       const payeePartyId = sourceParams.get("payeePartyId");
       if (kind === "expenses" && payeePartyId) {
@@ -340,11 +355,18 @@ export function FocusedRecordListWorkspace({
           return categoryId === "unclassified" ? !rowCategory : rowCategory === categoryId.trim();
         });
       }
-      rawItems.sort((left, right) =>
-        text(right, "documentDate", "expenseDate", "effectiveOn", "createdAt").localeCompare(
-          text(left, "documentDate", "expenseDate", "effectiveOn", "createdAt"),
-        ),
-      );
+      rawItems.sort((left, right) => {
+        const presentationDate = (row: TaggedRow) =>
+          kind === "documents"
+            ? presentRevenueRecord(
+                row,
+                sourceKind(row) === "recognition" ? "recognition" : "documents",
+                Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
+                Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
+              ).activityDate
+            : text(row, "expenseDate", "createdAt");
+        return presentationDate(right).localeCompare(presentationDate(left));
+      });
       setRows(rawItems);
       const listedParties = Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []);
       setParties(listedParties);
@@ -700,8 +722,18 @@ export function FocusedRecordListWorkspace({
                 {rows.map((row) => {
                   const id = text(row, "id");
                   const rowSource = sourceKind(row);
-                  const dateVal = text(row, "documentDate", "expenseDate", "effectiveOn");
-                  const rawParty = recordPartyId(row, projects);
+                  const revenuePresentation =
+                    kind === "documents"
+                      ? presentRevenueRecord(
+                          row,
+                          rowSource === "recognition" ? "recognition" : "documents",
+                          projects,
+                          parties,
+                        )
+                      : undefined;
+                  const dateVal =
+                    revenuePresentation?.activityDate ?? text(row, "expenseDate", "effectiveOn");
+                  const rawParty = revenuePresentation?.customerId ?? recordPartyId(row, projects);
                   const partyMatch = parties.find((p) => String(p.id) === rawParty);
                   const partyName = partyMatch
                     ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
@@ -713,13 +745,16 @@ export function FocusedRecordListWorkspace({
                   const lineDims = (lines?.dimensions as Record<string, string> | undefined) ?? {};
                   const catCode = text(row, "category") || lineDims.category || "";
                   const catName = getCategoryName(catCode);
-                  const projectIds = relationshipIdList(row, "projectId");
-                  const projectNames = projectIds.map((projectId) => {
-                    const project = projects.find(
-                      (candidate) => text(candidate, "id") === projectId,
-                    );
-                    return project ? text(project, "name", "code") || projectId : projectId;
-                  });
+                  const projectIds =
+                    revenuePresentation?.projectIds ?? relationshipIdList(row, "projectId");
+                  const projectNames =
+                    revenuePresentation?.projectNames ??
+                    projectIds.map((projectId) => {
+                      const project = projects.find(
+                        (candidate) => text(candidate, "id") === projectId,
+                      );
+                      return project ? text(project, "name", "code") || projectId : projectId;
+                    });
                   const relationshipTitle = [
                     projectNames.length ? `Dự án: ${projectNames.join(", ")}` : "",
                   ]
@@ -734,7 +769,7 @@ export function FocusedRecordListWorkspace({
                       </TableCell>
                       <TableCell>
                         {rowSource === "recognition" ? (
-                          <Badge variant="outline">Đã ghi nhận · Chưa có hóa đơn</Badge>
+                          <Badge variant="outline">Doanh thu ghi nhận · Không hóa đơn</Badge>
                         ) : kind === "expenses" || text(row, "type") === "purchase_invoice" ? (
                           <span className="text-sm">
                             {getFundingSourceLabel(
@@ -771,7 +806,10 @@ export function FocusedRecordListWorkspace({
                         {text(row, "businessPurpose", "reason") || "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                        {money(text(row, "grossMinor", "amountMinor"))}
+                        {money(
+                          revenuePresentation?.amountMinor ??
+                            text(row, "grossMinor", "amountMinor"),
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{human(text(row, "state"))}</Badge>
@@ -1381,6 +1419,10 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   useEffect(() => void load(), [load]);
   const state = text(record, "state");
   const type = text(record, "type");
+  const detailPresentation =
+    kind === "documents" && record
+      ? presentRevenueRecord(record, "documents", projects, parties)
+      : undefined;
   const actions =
     kind === "documents" ? (documentActions[type]?.[state] ?? []) : (expenseActions[state] ?? []);
   const source = externalReference(record);
@@ -1511,13 +1553,24 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
               </Card>
               <Card>
                 <CardHeader>
-                  <CardDescription>Đối tượng</CardDescription>
+                  <CardDescription>
+                    {kind === "documents" ? "Khách hàng" : "Đối tượng"}
+                  </CardDescription>
                   <CardTitle>
-                    {text(record, kind === "documents" ? "partyId" : "payeePartyId") || "—"}
+                    {detailPresentation?.customerName ||
+                      (() => {
+                        const partyId = text(record, "payeePartyId");
+                        const party = parties.find(
+                          (candidate) => text(candidate, "id") === partyId,
+                        );
+                        return text(party, "displayName", "legalName") || "Chưa xác định đối tác";
+                      })()}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {human(text(record, kind === "documents" ? "type" : "expenseClass"))}
+                  {kind === "documents" && detailPresentation?.projectNames.length
+                    ? detailPresentation.projectNames.join(", ")
+                    : human(text(record, kind === "documents" ? "type" : "expenseClass"))}
                 </CardContent>
               </Card>
             </div>

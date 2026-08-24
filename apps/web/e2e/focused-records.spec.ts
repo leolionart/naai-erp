@@ -68,7 +68,7 @@ const purchaseInvoice = {
 const recognition = {
   id: "recognition-720",
   projectId: "project-720",
-  effectiveOn: "2026-08-05",
+  effectiveOn: "2025-06-30",
   amountMinor: "8000000",
   currency: "VND",
   state: "posted",
@@ -363,7 +363,7 @@ test("@desktop relationship-aware revenue selects the canonical customer from th
 }) => {
   await install(page);
   await page.goto("http://localhost:3000/documents");
-  await expect(page.getByRole("columnheader", { name: "Khách hàng / Nhà cung cấp" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Khách hàng" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Dự án" })).toBeVisible();
   await expect(page.getByText("Dự án khách hàng 720", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Tạo hóa đơn bán ra" }).click();
@@ -528,7 +528,21 @@ test("@desktop revenue invoice-presence filter isolates recognition activity", a
   await filters.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/invoiceStatus=missing/);
   await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
+  await expect(page.getByText("2025-06-30", { exact: true })).toBeVisible();
+  await expect(page.getByText("Khách hàng 720", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Dự án khách hàng 720", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("INV-720")).toHaveCount(0);
+});
+
+test("@desktop recognition date filtering uses effectiveOn rather than createdAt", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto(
+    "http://localhost:3000/documents?invoiceStatus=missing&startsOn=2025-01-01&endsOn=2025-12-31",
+  );
+  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
+  await expect(page.getByText("2025-06-30", { exact: true })).toBeVisible();
 });
 
 test("@desktop exports revenue and expense XLSX with current URL filters and clear filenames", async ({

@@ -2298,7 +2298,16 @@
         "operationId": "listRevenueRecognitionEvents",
         "tags": ["project-economics"],
         "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
-        "responses": { "200": { "description": "Recognition event ledger" } }
+        "responses": {
+          "200": {
+            "description": "Recognition events with canonical project and customer presentation fields",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RevenueRecognitionEventListEnvelope" }
+              }
+            }
+          }
+        }
       },
       "post": {
         "operationId": "createRevenueRecognitionEvent",
@@ -2317,7 +2326,12 @@
         "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
         "responses": {
           "200": {
-            "description": "Recognition event detail with journal links and policy snapshot"
+            "description": "Recognition event detail with canonical presentation, journal links and policy snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RevenueRecognitionEventEnvelope" }
+              }
+            }
           }
         }
       }
@@ -4386,6 +4400,75 @@
               "items": {
                 "type": "array",
                 "items": { "$ref": "#/components/schemas/CustomerServiceSubscription" }
+              }
+            }
+          }
+        }
+      },
+      "RevenueRecognitionEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "projectId",
+          "projectName",
+          "customerPartyId",
+          "customerName",
+          "policyId",
+          "policyVersionNumber",
+          "effectiveOn",
+          "amountMinor",
+          "currency",
+          "evidenceIds",
+          "policySnapshot",
+          "state",
+          "resourceVersion",
+          "reason"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "projectId": { "type": "string" },
+          "projectName": { "type": "string" },
+          "customerPartyId": { "type": "string" },
+          "customerName": { "type": "string" },
+          "policyId": { "type": "string" },
+          "policyVersionNumber": { "type": "integer", "minimum": 1 },
+          "milestoneAcceptanceId": { "type": ["string", "null"] },
+          "effectiveOn": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "evidenceIds": { "type": "array", "items": { "type": "string" } },
+          "policySnapshot": { "type": "object", "additionalProperties": true },
+          "state": {
+            "type": "string",
+            "enum": ["draft", "submitted", "approved", "posted", "reversed"]
+          },
+          "resourceVersion": { "type": "string", "pattern": "^[0-9]+$" },
+          "journalId": { "type": ["string", "null"] },
+          "reversalJournalId": { "type": ["string", "null"] },
+          "reason": { "type": "string" }
+        },
+        "description": "Canonical v1 response. Legacy presentation-only names recognitionDate, contractId, milestoneId, policyVersionId, baseAmountMinor, accountingRoute and sourceEvidenceIds are deprecated and are not rendered by first-party UI."
+      },
+      "RevenueRecognitionEventEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": { "$ref": "#/components/schemas/RevenueRecognitionEvent" }
+        }
+      },
+      "RevenueRecognitionEventListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "data": {
+            "type": "object",
+            "required": ["items"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/RevenueRecognitionEvent" }
               }
             }
           }

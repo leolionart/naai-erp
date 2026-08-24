@@ -1562,12 +1562,8 @@ export function ExecutiveDashboardWorkspace() {
                           contracted > 0n
                             ? Math.min(100, Number((invoiced * 10000n) / contracted) / 100)
                             : 0;
-                        return (
-                          <Link
-                            key={projectId}
-                            href={`/projects/${encodeURIComponent(projectId)}`}
-                            className="group space-y-2 rounded-lg bg-muted/40 p-4 transition-colors hover:bg-muted"
-                          >
+                        const content = (
+                          <>
                             <div className="flex items-center justify-between gap-3">
                               <span className="truncate font-medium group-hover:text-primary">
                                 {project.name ?? project.code ?? "Dự án chưa đặt tên"}
@@ -1588,7 +1584,26 @@ export function ExecutiveDashboardWorkspace() {
                               </span>
                               <span>Còn {money(project.backlogMinor, operating?.currency)}</span>
                             </div>
+                          </>
+                        );
+                        return projectId ? (
+                          <Link
+                            key={projectId}
+                            href={`/projects/${encodeURIComponent(projectId)}`}
+                            className="group space-y-2 rounded-lg bg-muted/40 p-4 transition-colors hover:bg-muted"
+                          >
+                            {content}
                           </Link>
+                        ) : (
+                          <div
+                            key={`${project.name ?? project.code ?? "unresolved"}-${String(project.invoicedMinor ?? "0")}`}
+                            className="space-y-2 rounded-lg bg-muted/40 p-4"
+                          >
+                            {content}
+                            <p className="text-xs text-muted-foreground">
+                              Chưa thể mở dự án vì thiếu mã liên kết.
+                            </p>
+                          </div>
                         );
                       })}
                     </div>

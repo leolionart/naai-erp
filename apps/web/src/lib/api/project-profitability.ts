@@ -26,16 +26,6 @@ export type ProjectProfitabilitySummary = Readonly<{
   directCostMinor: string;
   grossMarginMinor: string;
   grossMarginBps: number | null;
-  variableOverheadMinor: string;
-  contributionMarginMinor: string;
-  contributionMarginBps: number | null;
-  fixedOverheadMinor: string;
-  fullyLoadedProfitMinor: string;
-  fullyLoadedMarginBps: number | null;
-  realizedHourlyRateMinor: string | null;
-  billableHours: number;
-  availableHours: number;
-  utilizationBps: number | null;
   budgetRevenueMinor?: string;
   budgetCostMinor?: string;
   overrunAmountMinor: string;
@@ -49,11 +39,13 @@ export type ProjectProfitabilityTotals = Readonly<{
   projectCount: number;
   recognizedRevenueMinor: string;
   directCostMinor: string;
-  variableOverheadMinor: string;
-  fixedOverheadMinor: string;
   grossMarginMinor: string;
-  contributionMarginMinor: string;
-  fullyLoadedProfitMinor: string;
+  invoicedRevenueMinor?: string;
+  collectedRevenueMinor?: string;
+  budgetCostMinor?: string;
+  overrunMinor?: string;
+  unbilledWorkMinor?: string;
+  overdueArMinor?: string;
 }>;
 
 export type ProjectProfitabilityReport = Readonly<{
@@ -94,7 +86,7 @@ export type RevenueProfitabilityBreakdown = Readonly<{
 }>;
 
 export type DirectCostProfitabilityBreakdown = Readonly<{
-  kind: "source_linked" | "allocated" | "labor" | "adjustment";
+  kind: "expense" | "purchase_document";
   amountMinor: string;
   sourceIds: readonly string[];
 }>;
@@ -112,20 +104,10 @@ type ProfitabilityTieLine = Readonly<{
   sourceMinor: string;
   ledgerMinor: string;
   differenceMinor: string;
-  status: "tied_out" | "difference";
+  status: "tied_out" | "difference" | "not_posted_to_gl";
 }>;
 
-export type ProjectProfitabilityGlTie = Readonly<{
-  basis: string;
-  recognizedRevenue: ProfitabilityTieLine;
-  directProjectCost: ProfitabilityTieLine &
-    Readonly<{
-      coverage: "full" | "partial";
-      nonGlManagementCostMinor: string;
-      note: string;
-    }>;
-  allocatedOverhead: ProfitabilityTieLine;
-}>;
+export type ProjectProfitabilityGlTie = ProfitabilityTieLine;
 
 export type ProjectProfitabilityDetail = ProjectProfitabilitySummary &
   Readonly<{
@@ -134,7 +116,7 @@ export type ProjectProfitabilityDetail = ProjectProfitabilitySummary &
     periodEnd: string;
     revenueBreakdown: readonly RevenueProfitabilityBreakdown[];
     directCostBreakdown: readonly DirectCostProfitabilityBreakdown[];
-    overheadBreakdown: readonly OverheadProfitabilityBreakdown[];
+    overheadBreakdown?: readonly OverheadProfitabilityBreakdown[];
     confidenceDetails: readonly ProfitabilityConfidenceDetail[];
     glTie: ProjectProfitabilityGlTie;
     controlStatus?: "tied_out" | "difference";

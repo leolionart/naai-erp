@@ -9,10 +9,11 @@ import {
 describe("project profitability contract", () => {
   it("keeps exact money, nullable denominator ratios, confidence and drill-down machine-readable", () => {
     const query: ProjectProfitabilityQueryContract = {
-      startsOn: "2026-08-01",
-      endsOn: "2026-08-31",
+      asOf: "2026-08-31",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-31",
       groupBy: "service_line",
-      confidenceCode: "budget_overrun",
+      confidenceFlag: "budget_overrun",
       limit: 50,
     };
     const report: ProjectProfitabilityContract = {
@@ -22,8 +23,8 @@ describe("project profitability contract", () => {
       clientId: "client-1",
       serviceLineCode: "web-app",
       accountOwnerId: "owner-1",
-      startsOn: query.startsOn,
-      endsOn: query.endsOn,
+      startsOn: query.periodStart,
+      endsOn: query.periodEnd,
       currency: "VND",
       recognizedRevenueMinor: "100000000",
       invoicedRevenueMinor: "120000000",
@@ -49,7 +50,7 @@ describe("project profitability contract", () => {
         invoiceIds: ["invoice-1"],
         reconciliationIds: ["reconciliation-1"],
         expenseIds: ["expense-1"],
-        purchaseDocumentAllocationIds: ["allocation-1"],
+        purchaseDocumentIds: ["purchase-1"],
         budgetVersionIds: ["budget-1"],
         journalIds: ["journal-1"],
       },

@@ -137,7 +137,9 @@ export function AgingPartyWorkspace({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold">{report?.items[0]?.partyName ?? partyId}</h2>
+          <h2 className="text-lg font-semibold">
+            {report?.items[0]?.partyName ?? "Chưa xác định đối tác"}
+          </h2>
           <p className="text-sm text-muted-foreground">
             Snapshot tại {asOf}; không suy diễn trạng thái từ UI.
           </p>

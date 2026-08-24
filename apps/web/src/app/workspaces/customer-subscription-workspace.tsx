@@ -77,9 +77,7 @@ type Subscription = Readonly<{
   intervalCount: string;
   startsOn: string;
   endsOn?: string;
-  nextBillingOn?: string;
   status: SubscriptionStatus;
-  notes?: string;
   version?: string;
   permittedNextActions: readonly string[];
 }>;
@@ -150,9 +148,7 @@ function normalizeSubscription(row: Row): Subscription {
     intervalCount: value((row.recurrenceSnapshot as Row | undefined) ?? {}, "interval") || "1",
     startsOn: value(row, "startsOn", "starts_on"),
     endsOn: value(row, "endsOn", "ends_on") || undefined,
-    nextBillingOn: value(row, "nextBillingOn", "next_billing_on") || undefined,
     status: (value(row, "lifecycle") || "draft") as SubscriptionStatus,
-    notes: value(row, "notes") || undefined,
     version: value(row, "version", "resourceVersion", "resource_version") || undefined,
     permittedNextActions: Array.isArray(row.nextActions)
       ? row.nextActions.map(String)

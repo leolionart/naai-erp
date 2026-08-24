@@ -9,10 +9,10 @@ const reply = (r: Route, d: unknown) =>
   r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(env(d)) });
 async function install(page: Page) {
   const bodies: Record<string, Record<string, unknown> | undefined> = {};
-  await page.route("http://localhost:3001/api/v1/organizations/naai/**", async (route) => {
+  await page.route("**/api/v1/organizations/naai/**", async (route) => {
     const req = route.request(),
       path = new URL(req.url()).pathname;
-    if (req.method() === "GET" && path.endsWith("/budget-versions"))
+    if (req.method() === "GET" && path.endsWith("/project-budgets"))
       return reply(route, {
         items: [
           {
@@ -32,7 +32,7 @@ async function install(page: Page) {
           },
         ],
       });
-    if (req.method() === "GET" && path.endsWith("/reports/project-revenue-axes"))
+    if (req.method() === "GET" && path.includes("/project-revenue-position/"))
       return reply(route, {
         projectId: "project-web",
         startsOn: "2026-08-01",
@@ -66,26 +66,45 @@ async function install(page: Page) {
           },
         ],
       });
-    if (req.method() === "GET" && path.endsWith("/revenue-recognition/events"))
+    if (req.method() === "GET" && path.endsWith("/revenue-recognition-events"))
       return reply(route, {
         items: [
           {
-            id: "event-1",
-            projectId: "project-web",
-            contractId: "contract-1",
-            milestoneId: "milestone-1",
-            policyVersionId: "policy-1",
-            recognitionDate: "2026-08-05",
-            amountMinor: "80000000",
-            baseAmountMinor: "80000000",
-            accountingRoute: "deferred_revenue",
+            id: "recognition-2025",
+            projectId: "project-2025",
+            projectName: "Dự án 2025",
+            customerPartyId: "client-2025",
+            customerName: "Khách hàng 2025",
+            policyId: "policy-2025",
+            policyVersionNumber: 1,
+            effectiveOn: "2025-06-30",
+            amountMinor: "9000000",
             currency: "VND",
-            state: "approved",
-            sourceEvidenceIds: ["evidence-1"],
+            state: "posted",
+            evidenceIds: ["evidence-1"],
+            policySnapshot: {},
+            reason: "Ghi nhận mốc 2025",
             resourceVersion: "2",
-            nextActions: ["post"],
           },
         ],
+      });
+    if (req.method() === "GET" && path.endsWith("/revenue-recognition-events/recognition-2025"))
+      return reply(route, {
+        id: "recognition-2025",
+        projectId: "project-2025",
+        projectName: "Dự án 2025",
+        customerPartyId: "client-2025",
+        customerName: "Khách hàng 2025",
+        policyId: "policy-2025",
+        policyVersionNumber: 1,
+        effectiveOn: "2025-06-30",
+        amountMinor: "9000000",
+        currency: "VND",
+        state: "posted",
+        evidenceIds: [],
+        policySnapshot: {},
+        reason: "Ghi nhận mốc 2025",
+        resourceVersion: "2",
       });
     if (req.method() === "GET" && path.endsWith("/milestone-acceptances"))
       return reply(route, {
@@ -139,6 +158,23 @@ test("@desktop keeps scope changes and milestone acceptance as separate workflow
     milestoneId: "milestone-2",
     reason: "Client acceptance",
   });
+});
+test("@desktop recognition uses canonical 2025 customer project date amount and state", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/revenue-recognition");
+  await expect(page.getByText("Khách hàng 2025", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dự án 2025", { exact: true })).toBeVisible();
+  await expect(page.getByText("2025-06-30", { exact: true })).toBeVisible();
+  await expect(page.getByText("9.000.000 ₫", { exact: true })).toBeVisible();
+  await expect(page.getByText(/undefined/)).toHaveCount(0);
+  await page.getByRole("link", { name: /Khách hàng 2025/ }).click();
+  await expect(page.getByText("Khách hàng 2025", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dự án 2025", { exact: true })).toBeVisible();
+  await expect(page.getByText("2025-06-30", { exact: true })).toBeVisible();
+  await expect(page.getByText("9.000.000 ₫", { exact: true })).toBeVisible();
+  await expect(page.getByText("policy-2025")).toHaveCount(0);
 });
 test("@mobile ERP-520 routes avoid body overflow", async ({ page }) => {
   await install(page);

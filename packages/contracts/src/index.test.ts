@@ -387,16 +387,13 @@ describe("AI-native API contracts", () => {
     const recognition: CreateRevenueRecognitionEventRequest = {
       schemaVersion: PROJECT_ECONOMICS_CONTRACT_VERSION,
       projectId: "project-1",
-      contractId: "contract-1",
-      milestoneId: "milestone-1",
-      policyVersionId: "policy-1",
+      policyId: "policy-1",
+      policyVersionNumber: 1,
       milestoneAcceptanceId: "acceptance-1",
-      recognitionDate: "2026-08-15",
+      effectiveOn: "2026-08-15",
       currency: "VND",
       amountMinor: "500",
-      baseAmountMinor: "500",
-      accountingRoute: "deferred_revenue",
-      sourceEvidenceIds: ["acceptance-document"],
+      evidenceIds: ["acceptance-document"],
       reason: "Recognize phase one",
     };
     const axes: ProjectRevenueAxesContract = {

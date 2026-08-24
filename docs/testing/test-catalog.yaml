@@ -2517,6 +2517,30 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G88
 
+  - id: T-UNIT-ERP-932-001
+    task: ERP-932
+    rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    title: Revenue sources normalize to one canonical presentation model
+    layer: unit
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G89
+
+  - id: T-INT-ERP-932-002
+    task: ERP-932
+    rules: [BR-MVP-007, BR-ORG-001]
+    title: Recognition 2025 API resolves canonical project and customer identity
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/project-recognition/project-recognition.integration.test.ts
+    blocking_gate: G89
+
+  - id: T-E2E-ERP-932-003
+    task: ERP-932
+    rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    title: Revenue and recognition canonical presentation remains responsive
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts e2e/project-revenue.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G89
+
   - id: T-UNIT-ERP-926-001
     task: ERP-926
     rules: [BR-UI-004]

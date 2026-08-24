@@ -30,7 +30,7 @@ export type ProjectBudgetVersionContract = Readonly<{
   directCostTotalMinor: string;
   overheadTotalMinor: string;
   resourceVersion: string;
-  nextActions: readonly string[];
+  nextActions?: readonly string[];
 }>;
 export type CreateProjectBudgetVersionRequest = Readonly<{
   schemaVersion: typeof PROJECT_ECONOMICS_CONTRACT_VERSION;
@@ -125,38 +125,54 @@ export type AcceptMilestoneRequest = ProjectEconomicsTransitionRequest &
     evidenceIds: readonly string[];
   }>;
 
-export type RevenueRecognitionEventContract = Readonly<{
+/** Canonical v1 response returned by revenue-recognition-events list and detail APIs. */
+export type RevenueRecognitionEventV1 = Readonly<{
   id: string;
   projectId: string;
-  contractId: string;
-  milestoneId?: string;
-  policyVersionId: string;
-  recognitionDate: string;
+  projectName: string;
+  customerPartyId: string;
+  customerName: string;
+  policyId: string;
+  policyVersionNumber: number;
+  milestoneAcceptanceId?: string | null;
+  effectiveOn: string;
   currency: string;
   amountMinor: string;
-  baseAmountMinor: string;
-  accountingRoute: "deferred_revenue" | "contract_asset";
-  sourceEvidenceIds: readonly string[];
+  evidenceIds: readonly string[];
+  policySnapshot: Readonly<Record<string, unknown>>;
   state: "draft" | "submitted" | "approved" | "posted" | "reversed";
-  journalId?: string;
-  reversalJournalId?: string;
+  journalId?: string | null;
+  reversalJournalId?: string | null;
+  reason: string;
   resourceVersion: string;
-  nextActions: readonly string[];
+  nextActions?: readonly string[];
+}>;
+export type RevenueRecognitionEventContract = RevenueRecognitionEventV1;
+
+/**
+ * @deprecated Legacy presentation-only field names never matched the persisted v1 API. Kept for
+ * source compatibility; new clients must use RevenueRecognitionEventV1.
+ */
+export type LegacyRevenueRecognitionEventPresentation = Readonly<{
+  recognitionDate?: string;
+  contractId?: string;
+  milestoneId?: string;
+  policyVersionId?: string;
+  baseAmountMinor?: string;
+  accountingRoute?: "deferred_revenue" | "contract_asset";
+  sourceEvidenceIds?: readonly string[];
 }>;
 export type CreateRevenueRecognitionEventRequest = Readonly<{
   schemaVersion: typeof PROJECT_ECONOMICS_CONTRACT_VERSION;
   id?: string;
   projectId: string;
-  contractId: string;
-  milestoneId?: string;
-  policyVersionId: string;
+  policyId: string;
+  policyVersionNumber: number;
   milestoneAcceptanceId?: string;
-  recognitionDate: string;
+  effectiveOn: string;
   currency: string;
   amountMinor: string;
-  baseAmountMinor: string;
-  accountingRoute: "deferred_revenue" | "contract_asset";
-  sourceEvidenceIds: readonly string[];
+  evidenceIds: readonly string[];
   reason: string;
 }>;
 

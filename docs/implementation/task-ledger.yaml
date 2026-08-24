@@ -3156,6 +3156,42 @@ tasks:
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-931/
 
+  - id: ERP-932
+    title: Canonical revenue and recognition presentation model
+    phase: P15
+    status: done
+    dependencies: [ERP-931]
+    business_rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    tests: [T-UNIT-ERP-932-001, T-INT-ERP-932-002, T-E2E-ERP-932-003]
+    evidence: docs/implementation/evidence/ERP-932/
+    agent: codex
+    started_at: 2026-08-24T07:15:00+07:00
+    planned_files:
+      - apps/api/src/project-recognition/pg-project-recognition.store.ts
+      - apps/api/src/project-recognition/project-recognition.integration.test.ts
+      - apps/web/src/app/workspaces/focused-record-presentation.ts
+      - apps/web/src/app/workspaces/focused-record-presentation.test.ts
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/src/app/workspaces/project-revenue-workspaces.tsx
+      - apps/web/src/app/workspaces/aging-party-workspace.tsx
+      - apps/web/src/app/workspaces/aging-queue-workspace.tsx
+      - apps/web/src/app/workspaces/customer-subscription-workspace.tsx
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/src/app/workspaces/project-profitability-workspaces.tsx
+      - apps/web/src/lib/api/project-profitability.ts
+      - apps/web/e2e/focused-records.spec.ts
+      - apps/web/e2e/project-revenue.spec.ts
+      - packages/contracts/src/project-economics.ts
+      - packages/contracts/src/project-profitability.ts
+      - packages/contracts/src/project-profitability.test.ts
+      - packages/contracts/src/index.ts
+      - packages/contracts/src/index.test.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-932/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3244,6 +3280,7 @@ gates:
   G86: [ERP-929]
   G87: [ERP-930]
   G88: [ERP-931]
+  G89: [ERP-932]
 
 gate_status:
   G0: done
@@ -3332,3 +3369,4 @@ gate_status:
   G86: done
   G87: done
   G88: done
+  G89: done

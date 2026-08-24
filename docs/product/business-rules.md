@@ -49,6 +49,11 @@ These rules define the active release boundary. Historical rules remain valid fo
   deduplicates supplier/date/amount matches.
 - Stable invoice, expense and revenue-recognition detail routes remain available from the unified
   listings.
+- Revenue invoice and recognition surfaces share one presentation contract for customer, project,
+  activity date, amount, currency and lifecycle state. Recognition derives its customer only through
+  its canonical project relationship; commercial documents retain their direct party relationship
+  and allocation-based project relationships. Technical policy, evidence, actor and version fields
+  remain available to API clients but are not duplicated in ordinary business tables or forms.
 
 ### BR-MVP-004 — Minimal report readiness
 
@@ -1023,6 +1028,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Dashboard overview cards may combine an exact canonical value, concise business context, status
   and a trend chart only when the underlying API provides a matching time series. Trend visuals use
   shared chart tokens and never replace the exact value or invent missing data.
+- API contracts must use the same field names as runtime responses. Compatibility query aliases may
+  remain accepted and documented as deprecated, but first-party UI uses only the canonical names and
+  does not render raw IDs, stale optional fields or literal `undefined` as business information.
 - Customer and project directory cards expose enough canonical context to distinguish records
   without opening each profile. Customer cards show tax and available contact/identity details;
   project cards show customer, service, budget and execution period. Missing values are stated

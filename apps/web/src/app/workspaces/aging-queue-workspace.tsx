@@ -143,7 +143,6 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
           >
             {item.partyName}
           </Link>
-          <span className="text-xs text-muted-foreground">{item.partyId}</span>
         </div>
       ),
     },
@@ -153,7 +152,9 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
       cell: (item) => (
         <div className="flex min-w-40 flex-col gap-1">
           <strong>{item.documentNumber}</strong>
-          <span className="text-xs text-muted-foreground">Đến hạn {item.dueDate}</span>
+          <span className="text-xs text-muted-foreground">
+            {item.dueDate ? `Đến hạn ${item.dueDate}` : "Chưa có hạn thanh toán"}
+          </span>
         </div>
       ),
     },

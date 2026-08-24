@@ -226,6 +226,8 @@ export {
   type ProjectEconomicsTransitionRequest,
   type ProjectRevenueAxesContract,
   type RevenueRecognitionEventContract,
+  type RevenueRecognitionEventV1,
+  type LegacyRevenueRecognitionEventPresentation,
   type RevenueRecognitionPolicyContract,
   type ScopeChangeContract,
 } from "./project-economics.js";

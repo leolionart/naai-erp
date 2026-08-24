@@ -7,13 +7,22 @@ export type ProjectProfitabilityConfidenceCodeContract =
   "unbilled_work" | "overdue_ar" | "budget_overrun" | "missing_dimensions";
 
 export type ProjectProfitabilityQueryContract = Readonly<{
-  startsOn: string;
-  endsOn: string;
+  asOf: string;
+  periodStart: string;
+  periodEnd: string;
   groupBy?: ProjectProfitabilityGroupByContract;
   projectId?: string;
   clientId?: string;
-  serviceLineCode?: string;
+  serviceLineId?: string;
   accountOwnerId?: string;
+  confidenceFlag?: ProjectProfitabilityConfidenceCodeContract;
+  /** @deprecated Use periodStart. */
+  startsOn?: string;
+  /** @deprecated Use periodEnd. */
+  endsOn?: string;
+  /** @deprecated Use serviceLineId. */
+  serviceLineCode?: string;
+  /** @deprecated Use confidenceFlag. */
   confidenceCode?: ProjectProfitabilityConfidenceCodeContract;
   cursor?: string;
   limit?: number;
@@ -31,7 +40,7 @@ export type ProjectProfitabilityDrilldownContract = Readonly<{
   invoiceIds: readonly string[];
   reconciliationIds: readonly string[];
   expenseIds: readonly string[];
-  purchaseDocumentAllocationIds: readonly string[];
+  purchaseDocumentIds: readonly string[];
   budgetVersionIds: readonly string[];
   journalIds: readonly string[];
 }>;

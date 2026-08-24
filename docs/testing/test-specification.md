@@ -82,6 +82,16 @@ cases pass and its exact-commit evidence is recorded.
   horizontal overflow. Project cards separately show invoiced and collected progress against the
   canonical contract commitment.
 
+### ERP-932 — Canonical revenue and recognition presentation
+
+- `T-UNIT-ERP-932-001`: source adapters map commercial documents and recognition events into the
+  same customer/project/date/amount/state presentation without overriding direct document parties.
+- `T-INT-ERP-932-002`: 2025 recognition list/detail responses include project and customer identity
+  through organization-scoped joins while retaining existing API fields.
+- `T-E2E-ERP-932-003`: unified Revenue and dedicated Recognition screens show the same canonical
+  2025 customer/project/date/amount/state values on desktop and 390px mobile, without legacy
+  `undefined` fields or regressions to commercial documents.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,
