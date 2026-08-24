@@ -247,7 +247,7 @@ export const MASTER_DATA_RESOURCES = {
     organizationColumn: "organization_id",
     keyColumns: ["id"],
     writableColumns: ["id", "project_id", "reference", "signed_on", "value_minor", "currency"],
-    mutableColumns: ["reference", "signed_on", "value_minor"],
+    mutableColumns: ["project_id", "reference", "signed_on", "value_minor"],
   },
   milestones: {
     table: "milestones",

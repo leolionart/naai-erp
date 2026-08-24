@@ -353,8 +353,9 @@ export class PgCommercialDocumentStore {
         party_id: string;
         state: string;
         type: CommercialDocumentType;
+        journal_id: string | null;
       }>(
-        "select version::text,party_id,state,type from commercial_documents where organization_id=$1 and id=$2 for update",
+        "select version::text,party_id,state,type,journal_id from commercial_documents where organization_id=$1 and id=$2 for update",
         [context.organizationId, id],
       );
       if (!doc.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
@@ -455,6 +456,15 @@ export class PgCommercialDocumentStore {
             "update commercial_document_allocations set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and document_id=$2",
             [context.organizationId, id, val, key],
           );
+          if (doc.rows[0].journal_id) {
+            await client.query(
+              "select set_config('app.journal_dimension_metadata_correction','on',true)",
+            );
+            await client.query(
+              "update journal_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and journal_id=$2 and dimensions ? $4",
+              [context.organizationId, doc.rows[0].journal_id, val, key],
+            );
+          }
         }
       const version = (BigInt(doc.rows[0].version) + 1n).toString();
       await client.query(

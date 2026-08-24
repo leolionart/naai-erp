@@ -980,7 +980,18 @@ describeIntegration("ERP-300 commercial documents", () => {
       [org, snapshot.journalId],
     );
     expect(journalAfter.rows).toEqual(journalBefore.rows);
-    expect(after.json().data.projectIds).toContain("B");
+    const journalProjects = await pool.query<{ project_id: string }>(
+      "select distinct l.dimensions->>'projectId' project_id from journal_lines l join commercial_documents d on d.organization_id=l.organization_id and d.journal_id=l.journal_id where d.organization_id=$1 and d.id='purchase-001' and l.dimensions ? 'projectId'",
+      [org],
+    );
+    expect(journalProjects.rows).toEqual([{ project_id: "B" }]);
+    expect(
+      after
+        .json()
+        .data.lines.some(
+          (line: { dimensions?: { projectId?: string } }) => line.dimensions?.projectId === "B",
+        ),
+    ).toBe(true);
   });
 
   it("allows project-only metadata without requiring a matching client", async () => {
