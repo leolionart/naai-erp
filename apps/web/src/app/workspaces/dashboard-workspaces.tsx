@@ -121,6 +121,7 @@ type OperatingProjectWire = Readonly<{
   endsOn?: string | null;
   contractedMinor?: string;
   invoicedMinor?: string;
+  collectedMinor?: string;
   actualCostMinor?: string;
   budgetCostMinor?: string;
   burnBps?: number | null;

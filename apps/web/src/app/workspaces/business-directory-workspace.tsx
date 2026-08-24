@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Columns3, Filter, LayoutGrid } from "lucide-react";
+import { CalendarDays, Columns3, Filter, LayoutGrid, Mail, Phone } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -88,6 +88,16 @@ const PROJECT_STATES = [
 
 const projectStateLabel = (state: string) =>
   (PROJECT_STATES.find((item) => item.value === state)?.label ?? state) || "—";
+export const directoryCardValue = (input: unknown, fallback = "Chưa cập nhật") => {
+  const normalized = String(input ?? "").trim();
+  return normalized || fallback;
+};
+export const projectPeriodLabel = (project: Row) => {
+  const startsOn = value(project, "starts_on");
+  const endsOn = value(project, "ends_on");
+  if (!startsOn && !endsOn) return "Chưa xác định thời gian";
+  return `${startsOn ? dateOnly(startsOn) : "Chưa rõ"} – ${endsOn ? dateOnly(endsOn) : "Đang tiếp diễn"}`;
+};
 const digitsOnly = (input: string) => input.replace(/[^0-9]/g, "");
 const formatInteger = (input: string) => {
   const digits = digitsOnly(input);
@@ -105,6 +115,8 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [rows, setRows] = useState<readonly Row[]>([]);
+  const [relatedRows, setRelatedRows] = useState<readonly Row[]>([]);
+  const [projectFinancials, setProjectFinancials] = useState<readonly Row[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -127,8 +139,20 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
       const page = await client.data<Page>(`master-data/${resource}?limit=100`);
       if (kind === "projects") {
         setRows(page.items);
+        const today = new Date().toISOString().slice(0, 10);
+        const [parties, dashboard] = await Promise.all([
+          client.data<Page>("master-data/parties?limit=100"),
+          client.data<{ backlog?: { projects?: readonly Row[] } }>(
+            `reports/operating-dashboard?asOf=${today}&startsOn=1900-01-01&endsOn=${today}&limit=50`,
+          ),
+        ]);
+        setRelatedRows(parties.items);
+        setProjectFinancials(dashboard.backlog?.projects ?? []);
       } else {
-        const roles = await client.data<Page>("master-data/party-roles?limit=100");
+        const [roles, projects] = await Promise.all([
+          client.data<Page>("master-data/party-roles?limit=100"),
+          client.data<Page>("master-data/projects?limit=100"),
+        ]);
         const customerIds = new Set(
           roles.items
             .filter((row) => value(row, "role") === "client")
@@ -139,6 +163,7 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
             (row) => value(row, "status") !== "inactive" && customerIds.has(value(row, "id")),
           ),
         );
+        setRelatedRows(projects.items);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Không thể tải dữ liệu.");
@@ -171,6 +196,22 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
   const kanbanRows = rows.filter((row) =>
     projectMatchesDirectoryFilters(row, { query, state: "all", startsOn, endsOn }),
   );
+  const partyNames = new Map(
+    (kind === "projects" ? relatedRows : rows).map((row) => [
+      value(row, "id"),
+      directoryCardValue(row.display_name ?? row.legal_name),
+    ]),
+  );
+  const projectCounts = new Map<string, number>();
+  const projectFinancialsById = new Map(
+    projectFinancials.map((row) => [value(row, "projectId"), row]),
+  );
+  if (kind === "customers") {
+    for (const project of relatedRows) {
+      const clientId = value(project, "client_party_id");
+      if (clientId) projectCounts.set(clientId, (projectCounts.get(clientId) ?? 0) + 1);
+    }
+  }
 
   function changeView(nextView: string) {
     if (nextView !== "grid" && nextView !== "kanban") return;
@@ -296,36 +337,115 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
               title = parts[0]!.trim();
               if (!note) note = parts.slice(1).join(" — ").trim();
             }
+            const financial = customer ? undefined : projectFinancialsById.get(id);
+            const contractedMinor = BigInt(value(financial ?? {}, "contractedMinor") || "0");
+            const invoicedMinor = BigInt(value(financial ?? {}, "invoicedMinor") || "0");
+            const collectedMinor = BigInt(value(financial ?? {}, "collectedMinor") || "0");
+            const progress = (part: bigint) =>
+              contractedMinor > 0n
+                ? Math.min(100, Number((part * 10_000n) / contractedMinor) / 100)
+                : 0;
 
             return (
-              <Card key={id} className="flex flex-col justify-between">
+              <Card key={id} data-testid={`${kind}-card-${id}`} className="flex flex-col">
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <CardTitle className="text-base font-semibold leading-tight">
-                        {title}
-                      </CardTitle>
-                      <CardDescription className="font-mono text-xs">
-                        {customer ? id : value(row, "code")}
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline" className="shrink-0">
-                      {customer ? value(row, "status") : projectStateLabel(value(row, "state"))}
-                    </Badge>
+                  <div className="space-y-1">
+                    <CardTitle className="text-base font-semibold leading-tight">{title}</CardTitle>
+                    <CardDescription className="font-mono text-xs">
+                      {customer
+                        ? directoryCardValue(value(row, "normalized_tax_id"), "Chưa có MST")
+                        : directoryCardValue(value(row, "code"), id)}
+                    </CardDescription>
                   </div>
                   {note ? (
                     <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic">{note}</p>
                   ) : null}
                 </CardHeader>
-                <CardContent className="flex flex-wrap gap-2 pt-0">
-                  <Button asChild size="sm">
-                    <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
-                  </Button>
+                <CardContent className="flex flex-1 flex-col gap-4 pt-0">
                   {customer ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/receivables/customers/${encodeURIComponent(id)}`}>Công nợ</Link>
-                    </Button>
-                  ) : null}
+                    <div className="grid gap-2 text-sm">
+                      <p className="font-medium">{projectCounts.get(id) ?? 0} dự án đã liên kết</p>
+                      <p className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                        <Mail className="size-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{directoryCardValue(value(row, "email"))}</span>
+                      </p>
+                      <p className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="size-4 shrink-0" aria-hidden="true" />
+                        {directoryCardValue(value(row, "phone"))}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 text-sm">
+                      <p className="font-medium">
+                        {partyNames.get(value(row, "client_party_id")) ?? "Chưa gán khách hàng"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {directoryCardValue(
+                          value(row, "default_service_line_code"),
+                          "Chưa phân loại dịch vụ",
+                        )}
+                        {value(row, "contract_type") ? ` · ${value(row, "contract_type")}` : ""}
+                      </p>
+                      <p className="flex items-center gap-2 text-muted-foreground">
+                        <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+                        {projectPeriodLabel(row)}
+                      </p>
+                      <p className="font-medium">
+                        Ngân sách{" "}
+                        {money(value(row, "budget_minor"), value(row, "currency") || "VND")}
+                      </p>
+                      {financial ? (
+                        <div className="space-y-2 border-t pt-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Tiến độ theo cam kết hợp đồng
+                          </p>
+                          {[
+                            ["Đã xuất hóa đơn", invoicedMinor, progress(invoicedMinor)],
+                            ["Đã thu tiền", collectedMinor, progress(collectedMinor)],
+                          ].map(([label, amount, percent]) => (
+                            <div key={String(label)} className="space-y-1">
+                              <div className="flex items-center justify-between gap-3 text-xs">
+                                <span>{String(label)}</span>
+                                <span className="tabular-nums">
+                                  {Number(percent).toLocaleString("vi-VN", {
+                                    maximumFractionDigits: 1,
+                                  })}
+                                  %
+                                </span>
+                              </div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className="h-full rounded-full bg-primary"
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                {money(String(amount), value(row, "currency") || "VND")} /{" "}
+                                {money(String(contractedMinor), value(row, "currency") || "VND")}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                  <div className="mt-auto flex items-center justify-between gap-3 border-t pt-3">
+                    <Badge variant="outline" className="shrink-0">
+                      {customer ? value(row, "status") : projectStateLabel(value(row, "state"))}
+                    </Badge>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {customer ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/receivables/customers/${encodeURIComponent(id)}`}>
+                            Công nợ
+                          </Link>
+                        </Button>
+                      ) : null}
+                      <Button asChild size="sm">
+                        <Link href={`/${kind}/${encodeURIComponent(id)}`}>Mở hồ sơ</Link>
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             );

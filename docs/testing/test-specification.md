@@ -73,6 +73,15 @@ cases pass and its exact-commit evidence is recorded.
 - `T-E2E-ERP-930-002`: desktop and 390px mobile dashboard preserves responsive bento layout,
   readable cards, navigation and drill-down actions.
 
+### ERP-931 — Information-rich directory cards
+
+- `T-UNIT-ERP-931-001`: customer and project directory cards derive labels and fallbacks from
+  canonical master-data fields without inventing business values.
+- `T-E2E-ERP-931-002`: desktop and 390px mobile customer/project cards show identity, contact,
+  customer, service, budget and period context with consistent status/action placement and no
+  horizontal overflow. Project cards separately show invoiced and collected progress against the
+  canonical contract commitment.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,

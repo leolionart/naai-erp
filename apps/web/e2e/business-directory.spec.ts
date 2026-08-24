@@ -11,6 +11,98 @@ async function authenticate(page: Page) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "directory-token"));
 }
 
+test("@desktop and @mobile directory cards expose useful customer and project context", async ({
+  page,
+}) => {
+  await authenticate(page);
+  const parties = [
+    {
+      id: "client-card",
+      display_name: "Công ty Card",
+      normalized_tax_id: "0312345678",
+      email: "finance@card.vn",
+      phone: "0909 123 456",
+      status: "active",
+    },
+  ];
+  const projects = [
+    {
+      id: "project-card",
+      code: "CARD-26",
+      name: "Website Card",
+      client_party_id: "client-card",
+      contract_type: "fixed_fee",
+      currency: "VND",
+      budget_minor: "250000000",
+      default_service_line_code: "WEB",
+      starts_on: "2026-08-01",
+      ends_on: "2026-10-31",
+      state: "active",
+    },
+  ];
+  await page.route("**/api/v1/organizations/naai/master-data/parties?limit=100", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(envelope({ items: parties })),
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(envelope({ items: projects })),
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/master-data/party-roles?limit=100", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(envelope({ items: [{ party_id: "client-card", role: "client" }] })),
+    }),
+  );
+  await page.route("**/api/v1/organizations/naai/reports/operating-dashboard?**", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        envelope({
+          backlog: {
+            projects: [
+              {
+                projectId: "project-card",
+                contractedMinor: "250000000",
+                invoicedMinor: "125000000",
+                collectedMinor: "62500000",
+              },
+            ],
+          },
+        }),
+      ),
+    }),
+  );
+
+  await page.goto("http://localhost:3000/customers");
+  const customerCard = page.getByTestId("customers-card-client-card");
+  await expect(customerCard).toContainText("0312345678");
+  await expect(customerCard).toContainText("1 dự án đã liên kết");
+  await expect(customerCard).toContainText("finance@card.vn");
+  await expect(customerCard).toContainText("0909 123 456");
+
+  await page.goto("http://localhost:3000/projects");
+  const projectCard = page.getByTestId("projects-card-project-card");
+  await expect(projectCard).toContainText("Công ty Card");
+  await expect(projectCard).toContainText("WEB · fixed_fee");
+  await expect(projectCard).toContainText("2026-08-01 – 2026-10-31");
+  await expect(projectCard).toContainText("250.000.000 ₫");
+  await expect(projectCard).toContainText("Tiến độ theo cam kết hợp đồng");
+  await expect(projectCard).toContainText("Đã xuất hóa đơn");
+  await expect(projectCard).toContainText("50%");
+  await expect(projectCard).toContainText("Đã thu tiền");
+  await expect(projectCard).toContainText("25%");
+  await expect(projectCard.getByText("Đang triển khai", { exact: true })).toBeVisible();
+  await expect(projectCard.getByRole("link", { name: "Mở hồ sơ" })).toBeVisible();
+  expect(
+    await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+});
+
 test("@desktop customer profile embeds revenue activity and links accounts receivable", async ({
   page,
 }) => {

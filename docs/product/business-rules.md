@@ -1023,6 +1023,14 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Dashboard overview cards may combine an exact canonical value, concise business context, status
   and a trend chart only when the underlying API provides a matching time series. Trend visuals use
   shared chart tokens and never replace the exact value or invent missing data.
+- Customer and project directory cards expose enough canonical context to distinguish records
+  without opening each profile. Customer cards show tax and available contact/identity details;
+  project cards show customer, service, budget and execution period. Missing values are stated
+  explicitly, status and actions retain consistent positions, and mobile layouts must not overflow.
+- Project cards show commercial progress as separate contract, invoiced and collected measures.
+  Collected progress uses only posted/reconciled receipts, attributes gross settlement to the
+  project's net invoice share without counting VAT as revenue, and never combines invoiced and
+  collected percentages into one additive completion number.
 
 ### BR-UI-007 — Sidebar-owned page navigation
 

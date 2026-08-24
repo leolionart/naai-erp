@@ -110,25 +110,6 @@ function text(row: Row | undefined, ...keys: string[]) {
   }
   return "";
 }
-function idList(row: Row | undefined, ...keys: string[]) {
-  for (const key of keys) {
-    const snake = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-    const value = row?.[key] ?? row?.[snake];
-    if (Array.isArray(value)) return value.map(String).filter(Boolean);
-    if (typeof value === "string" && value.trim()) {
-      try {
-        const parsed = JSON.parse(value) as unknown;
-        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-      } catch {
-        return value
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean);
-      }
-    }
-  }
-  return [];
-}
 function items(payload: readonly Row[] | { items?: readonly Row[] }): readonly Row[] {
   return Array.isArray(payload)
     ? (payload as readonly Row[])

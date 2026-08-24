@@ -21,7 +21,7 @@ suite("operating dashboard PostgreSQL API", () => {
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
         ('${org}','131','Receivables','asset',true,false),('${org}','511','Revenue','revenue',false,true),
         ('${org}','642','Expense','expense',false,true),('${org}','211','Equipment','asset',false,true),('${org}','3388','Owner payable','liability',false,true),
-        ('${org}','112','Bank','asset',false,true);
+        ('${org}','112','Bank','asset',false,true),('${org}','3331','Output VAT','liability',false,true);
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,status,created_by,updated_by) values
         ('${org}','bank','BANK','bank','Bank','VND','112','TESTBANK','active','${owner}','${owner}');
       insert into expense_categories(organization_id,code,name,funding_treatment,created_by,updated_by) values
@@ -44,15 +44,17 @@ suite("operating dashboard PostgreSQL API", () => {
         ('${org}','company-expense-journal','2026-07-04','Company cost','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
         ('${org}','unclassified-expense-journal','2026-07-05','Unclassified','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
         ('${org}','owner-equipment-journal','2026-07-06','Owner contributed equipment','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
-        ('${org}','owner-repayment-journal','2026-07-07','Cash withdrawn as owner repayment','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+        ('${org}','owner-repayment-journal','2026-07-07','Cash withdrawn as owner repayment','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+        ('${org}','receipt-journal','2026-07-08','Partial customer receipt','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions) values
-        ('${org}','sales-journal',1,'131',1000,null,'AR','{}'),('${org}','sales-journal',2,'511',null,1000,'Revenue','{}'),
+        ('${org}','sales-journal',1,'131',1100,null,'AR','{}'),('${org}','sales-journal',2,'511',null,1000,'Revenue','{}'),('${org}','sales-journal',3,'3331',null,100,'VAT','{}'),
         ('${org}','owner-expense-journal',1,'642',100,null,'Owner actual','{}'),('${org}','owner-expense-journal',2,'3388',null,100,'Owner payable','{}'),
         ('${org}','tax-expense-journal',1,'642',200,null,'Tax only','{}'),('${org}','tax-expense-journal',2,'3388',null,200,'Owner payable','{}'),
         ('${org}','company-expense-journal',1,'642',300,null,'Company','{}'),('${org}','company-expense-journal',2,'112',null,300,'Bank','{}'),
         ('${org}','unclassified-expense-journal',1,'642',50,null,'Unclassified','{}'),('${org}','unclassified-expense-journal',2,'3388',null,50,'Owner payable','{}'),
         ('${org}','owner-equipment-journal',1,'211',500,null,'Equipment','{}'),('${org}','owner-equipment-journal',2,'3388',null,500,'Owner equipment','{}'),
-        ('${org}','owner-repayment-journal',1,'3388',40,null,'Owner repayment','{}'),('${org}','owner-repayment-journal',2,'112',null,40,'Bank withdrawal','{}');
+        ('${org}','owner-repayment-journal',1,'3388',40,null,'Owner repayment','{}'),('${org}','owner-repayment-journal',2,'112',null,40,'Bank withdrawal','{}'),
+        ('${org}','receipt-journal',1,'112',550,null,'Receipt','{}'),('${org}','receipt-journal',2,'131',null,550,'Settle AR','{}');
       insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by) values
         ('${org}','owner-expense','invoice_backed','posted','2026-07-02','Owner actual','VND',100,0,100,'3388','owner-expense-journal','${owner}'),
         ('${org}','tax-expense','invoice_backed','posted','2026-07-03','Tax only','VND',200,0,200,'3388','tax-expense-journal','${owner}'),
@@ -66,14 +68,18 @@ suite("operating dashboard PostgreSQL API", () => {
         ('${org}','unclassified-expense',1,'Unclassified',50,0,50,'642',null,null,'{}'),
         ('${org}','draft-owner-expense',1,'Draft',400,0,400,'642','OWNER-ACTUAL','owner_paid_company_cost','{}');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,created_by)
-        values('${org}','invoice','sales_invoice','issued','OPS-1','OPS',2026,'client','2026-07-01','2026-07-31','VND',1000,0,1000,'131','sales-journal','${owner}'),
+        values('${org}','invoice','sales_invoice','partially_paid','OPS-1','OPS',2026,'client','2026-07-01','2026-07-31','VND',1000,100,1100,'131','sales-journal','${owner}'),
         ('${org}','future-invoice','sales_invoice','issued','OPS-2','OPS',2026,'client','2026-10-01','2026-10-31','VND',700,0,700,'131',null,'${owner}');
-      insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,dimensions)
-        values('${org}','invoice',1,'Service',1,1000,1000,0,1000,'511','{"projectId":"project"}'),
-        ('${org}','future-invoice',1,'Future service',1,700,700,0,700,'511','{"projectId":"project"}');
+      insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,dimensions)
+        values('${org}','invoice',1,'Service',1,1000,1000,100,1100,'511','3331','{"projectId":"project"}'),
+        ('${org}','future-invoice',1,'Future service',1,700,700,0,700,'511',null,'{"projectId":"project"}');
       insert into commercial_document_allocations(organization_id,document_id,line_number,allocation_number,amount_minor,dimensions)
         values('${org}','invoice',1,1,1000,'{"projectId":"project"}'),
         ('${org}','future-invoice',1,1,700,'{"projectId":"project"}');
+      insert into customer_receipts(organization_id,id,financial_account_id,receipt_date,amount_minor,currency,description,state,journal_id,customer_id,created_by,correlation_id)
+        values('${org}','receipt','bank','2026-07-08',550,'VND','Partial receipt','posted','receipt-journal','client','${owner}','receipt-fixture');
+      insert into customer_receipt_allocations(organization_id,id,receipt_id,sales_invoice_id,amount_minor)
+        values('${org}','receipt-allocation','receipt','invoice',550);
       insert into workbook_import_review_rows(organization_id,id,import_identity,source_identity,workbook,sheet,source_row,kind,proposed_resource_type,status,review_flags,raw_data,mapped_data,created_by,updated_by)
         values
         ('${org}','review','import','source','source.xlsx','Sheet1',2,'sales','commercial_document','pending_review','["missing_project"]','{}','{}','${owner}','${owner}'),
@@ -119,25 +125,30 @@ suite("operating dashboard PostgreSQL API", () => {
       data: {
         schemaVersion: 1,
         asOf: "2026-08-06",
-        backlog: { contractedMinor: "2000", invoicedMinor: "1000", remainingMinor: "1000" },
-        collections: { receivablesMinor: "1000", overdueMinor: "1000" },
+        backlog: {
+          contractedMinor: "2000",
+          invoicedMinor: "1000",
+          remainingMinor: "1000",
+          projects: [{ projectId: "project", collectedMinor: "500" }],
+        },
+        collections: { receivablesMinor: "550", overdueMinor: "550" },
         clientConcentration: { totalRevenueMinor: "1000", topClientShareBps: 10000 },
         financials: {
           revenueMinor: "1000",
           expenseMinor: "650",
           netProfitMinor: "350",
           unrestrictedCashMinor: null,
-          bankAvailableMinor: "-340",
+          bankAvailableMinor: "210",
           cashOnHandMinor: "0",
-          cashAndBankMinor: "-340",
+          cashAndBankMinor: "210",
           ownerPayableMinor: "100",
           statutoryOwnerCurrentBalanceMinor: "810",
           ownerOperatingPayableMinor: "100",
           confirmedOwnerSettlementMinor: "100",
           ownerHoldsCompanyFundsMinor: "0",
-          netAvailableCashMinor: "-440",
+          netAvailableCashMinor: "110",
           actualOwnerPaidCompanyCostMinor: "100",
-          netCompanyFundsMinor: "-440",
+          netCompanyFundsMinor: "110",
           unclassifiedOwnerPaidCount: 1,
           unclassifiedOwnerPaidMinor: "50",
           ownerPaidClassificationStatus: "review_required",

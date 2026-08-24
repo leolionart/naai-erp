@@ -2501,6 +2501,22 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/dashboard-drilldown.spec.ts --project=desktop-chromium --project=mobile-chromium
     blocking_gate: G87
 
+  - id: T-UNIT-ERP-931-001
+    task: ERP-931
+    rules: [BR-UI-003, BR-UI-004]
+    title: Directory cards derive canonical customer and project context with explicit fallbacks
+    layer: unit
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G88
+
+  - id: T-E2E-ERP-931-002
+    task: ERP-931
+    rules: [BR-UI-003, BR-UI-004]
+    title: Information-rich customer and project cards remain readable on desktop and mobile
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/business-directory.spec.ts --project=desktop-chromium --project=mobile-chromium
+    blocking_gate: G88
+
   - id: T-UNIT-ERP-926-001
     task: ERP-926
     rules: [BR-UI-004]

@@ -3132,6 +3132,30 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-930/
 
+  - id: ERP-931
+    title: Information-rich customer and project directory cards
+    phase: P15
+    status: done
+    dependencies: [ERP-930]
+    business_rules: [BR-UI-003, BR-UI-004]
+    tests: [T-UNIT-ERP-931-001, T-E2E-ERP-931-002]
+    evidence: docs/implementation/evidence/ERP-931/
+    agent: codex
+    started_at: 2026-08-24T06:15:00+07:00
+    completed_at: 2026-08-24T06:48:00+07:00
+    completion_basis: canonical_contract_invoice_collection_progress_and_responsive_card_e2e_passed
+    planned_files:
+      - apps/web/src/app/workspaces/business-directory-workspace.tsx
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/e2e/business-directory.spec.ts
+      - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
+      - apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-931/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3219,6 +3243,7 @@ gates:
   G85: [ERP-928]
   G86: [ERP-929]
   G87: [ERP-930]
+  G88: [ERP-931]
 
 gate_status:
   G0: done
@@ -3306,3 +3331,4 @@ gate_status:
   G85: done
   G86: done
   G87: done
+  G88: done

@@ -418,15 +418,44 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     return (
       await this.pool.query<Record<string, unknown>>(
         `select p.id "projectId",p.code,p.name,pa.display_name "clientName",p.state,p.starts_on::text "startsOn",p.ends_on::text "endsOn",
-        coalesce(c.amount,p.budget_minor)::text "contractedMinor",coalesce(i.amount,0)::text "invoicedMinor",coalesce(e.amount,0)::text "actualCostMinor",
+        coalesce(c.amount,p.budget_minor)::text "contractedMinor",coalesce(i.amount,0)::text "invoicedMinor",coalesce(col.amount,0)::text "collectedMinor",coalesce(e.amount,0)::text "actualCostMinor",
         greatest(coalesce(c.amount,p.budget_minor)-coalesce(i.amount,0),0)::text "backlogMinor",
         coalesce(b.direct_cost_total_minor,0)::text "budgetCostMinor",
         case when coalesce(b.direct_cost_total_minor,0)>0 then round(coalesce(e.amount,0)*10000.0/b.direct_cost_total_minor)::int else null end "burnBps",
         case when p.state='completed' then coalesce(e.amount,0)::text else greatest(coalesce(e.amount,0),coalesce(b.direct_cost_total_minor,0))::text end "estimateAtCompletionMinor",
         case when b.id is null then 'project-budget-fallback' else 'approved-direct-cost-budget' end "eacMethod"
        from projects p join parties pa on pa.organization_id=p.organization_id and pa.id=p.client_party_id
-       left join lateral (select sum(value_minor) amount from contracts where organization_id=p.organization_id and project_id=p.id) c on true
-       left join lateral (select sum(a.amount_minor) amount from commercial_document_allocations a join commercial_documents d on d.organization_id=a.organization_id and d.id=a.document_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date<=$4::date) i on true
+       left join lateral (select sum(amount) amount from (
+         select value_minor amount from contracts where organization_id=p.organization_id and project_id=p.id and currency=p.currency and signed_on<=$4::date
+         union all
+         select expected_revenue_impact_minor from scope_changes where organization_id=p.organization_id and project_id=p.id and state='approved' and approved_at::date<=$4::date
+       ) contracted) c on true
+       left join lateral (select sum(case when d.type='credit_note' then -x.amount else x.amount end) amount
+         from commercial_documents d join lateral (
+           select coalesce(sum(source.amount),0) amount from (
+             select a.amount_minor amount from commercial_document_allocations a where a.organization_id=d.organization_id and a.document_id=d.id and a.dimensions->>'projectId'=p.id
+             union all
+             select l.net_minor from commercial_document_lines l where l.organization_id=d.organization_id and l.document_id=d.id and l.dimensions->>'projectId'=p.id and not exists(select 1 from commercial_document_allocations a where a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number)
+           ) source
+         ) x on x.amount<>0
+        where d.organization_id=p.organization_id and d.currency=p.currency and d.type in('sales_invoice','credit_note') and d.state in ('issued','posted','partially_paid','paid') and d.document_date<=$4::date) i on true
+       left join lateral (select coalesce(round(sum(payment.amount_minor*project_share.amount/nullif(d.gross_minor,0))),0)::bigint amount
+         from commercial_documents d
+         join lateral (
+           select coalesce(sum(source.amount),0) amount from (
+             select a.amount_minor amount from commercial_document_allocations a where a.organization_id=d.organization_id and a.document_id=d.id and a.dimensions->>'projectId'=p.id
+             union all
+             select l.net_minor from commercial_document_lines l where l.organization_id=d.organization_id and l.document_id=d.id and l.dimensions->>'projectId'=p.id and not exists(select 1 from commercial_document_allocations a where a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number)
+           ) source
+         ) project_share on project_share.amount<>0
+         join lateral (
+           select coalesce(sum(receipt.amount_minor),0) amount_minor from (
+             select a.target_amount_minor amount_minor from reconciliation_allocations a join reconciliation_attempts r on r.organization_id=a.organization_id and r.id=a.reconciliation_id where a.organization_id=d.organization_id and a.commercial_document_id=d.id and r.state='reconciled' and r.reconciled_at::date<=$4::date
+             union all
+             select a.amount_minor from customer_receipt_allocations a join customer_receipts r on r.organization_id=a.organization_id and r.id=a.receipt_id where a.organization_id=d.organization_id and a.sales_invoice_id=d.id and r.state='posted' and r.receipt_date<=$4::date
+           ) receipt
+         ) payment on payment.amount_minor>0
+        where d.organization_id=p.organization_id and d.currency=p.currency and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date<=$4::date) col on true
        left join lateral (select sum(a.amount_minor) amount from expense_allocations a join expenses x on x.organization_id=a.organization_id and x.id=a.expense_id where a.organization_id=p.organization_id and a.dimensions->>'projectId'=p.id and x.state='posted' and x.expense_date<=$4::date) e on true
        left join lateral (select id,direct_cost_total_minor from project_budget_versions where organization_id=p.organization_id and project_id=p.id and (state='approved' or exists (select 1 from accounting_workflow_policies w where w.organization_id=p.organization_id and w.operating_mode='solopreneur')) order by (state='approved') desc,version_number desc limit 1) b on true
        where p.organization_id=$1 and p.starts_on<=$2 and (p.ends_on is null or p.ends_on>=$3)
