@@ -147,7 +147,7 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
         const [parties, dashboard] = await Promise.all([
           client.data<Page>("master-data/parties?limit=100"),
           client.data<{ backlog?: { projects?: readonly Row[] } }>(
-            `reports/operating-dashboard?asOf=${today}&startsOn=${period.startsOn}&endsOn=${period.endsOn}&limit=100`,
+            `reports/operating-dashboard?asOf=${today}&startsOn=${period.startsOn}&endsOn=${period.endsOn}&limit=50`,
           ),
         ]);
         setRelatedRows(parties.items);
