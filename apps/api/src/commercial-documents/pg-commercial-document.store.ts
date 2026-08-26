@@ -515,6 +515,7 @@ export class PgCommercialDocumentStore {
   ) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+       (select lcat.dimensions->>'category' from commercial_document_lines lcat where lcat.organization_id=d.organization_id and lcat.document_id=d.id and nullif(lcat.dimensions->>'category','') is not null order by lcat.line_number limit 1) category,
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
          from (
            select l2.dimensions->>'projectId' project_id
@@ -568,6 +569,7 @@ export class PgCommercialDocumentStore {
   async get(organizationId: string, id: string) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+       (select lcat.dimensions->>'category' from commercial_document_lines lcat where lcat.organization_id=d.organization_id and lcat.document_id=d.id and nullif(lcat.dimensions->>'category','') is not null order by lcat.line_number limit 1) category,
        (select jsonb_build_object(
           'system', r.system,
           'externalId', r.external_id,

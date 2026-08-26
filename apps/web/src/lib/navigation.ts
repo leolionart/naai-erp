@@ -289,25 +289,9 @@ export const adminNavigation = [
     ],
   },
   {
-    key: "data_and_system",
-    label: "Dữ liệu & Cấu hình",
+    key: "data",
+    label: "Dữ liệu",
     items: [
-      {
-        key: "operations",
-        label: "Vận hành hệ thống",
-        description: "Theo dõi hoạt động nghiệp vụ, API, hệ thống và tác vụ chạy ngầm.",
-        icon: "activity-log",
-        status: "available",
-        children: [
-          {
-            key: "background-activities",
-            label: "Nhật ký hoạt động",
-            href: "/settings/background-activities",
-            description: "Xem thao tác nghiệp vụ, API và hoạt động vận hành theo thời gian.",
-            status: "available",
-          },
-        ],
-      },
       {
         key: "master-data",
         label: "Danh mục hệ thống",
@@ -339,6 +323,28 @@ export const adminNavigation = [
         description: "Xuất khẩu file Excel chứng từ để gửi dịch vụ kế toán thuế.",
         icon: "accountant-exports",
         status: "available",
+      },
+    ],
+  },
+  {
+    key: "configuration",
+    label: "Cấu hình & Vận hành",
+    items: [
+      {
+        key: "operations",
+        label: "Vận hành hệ thống",
+        description: "Theo dõi hoạt động nghiệp vụ, API, hệ thống và tác vụ chạy ngầm.",
+        icon: "activity-log",
+        status: "available",
+        children: [
+          {
+            key: "background-activities",
+            label: "Nhật ký hoạt động",
+            href: "/settings/background-activities",
+            description: "Xem thao tác nghiệp vụ, API và hoạt động vận hành theo thời gian.",
+            status: "available",
+          },
+        ],
       },
     ],
   },

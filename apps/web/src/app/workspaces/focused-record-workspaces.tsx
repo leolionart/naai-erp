@@ -62,6 +62,7 @@ import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 import { recordPartyId, relationshipIdList } from "./focused-record-relationships";
 import { presentRevenueRecord } from "./focused-record-presentation";
 import { presentExpenseRecord } from "./focused-expense-presentation";
+import { recordCategory } from "./focused-record-category";
 
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
@@ -747,15 +748,7 @@ export function FocusedRecordListWorkspace({
                     ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
                     : rawParty || "—";
                   const docNumber = text(row, "documentNumber") || id;
-                  const lines = Array.isArray(row.lines)
-                    ? (row.lines[0] as Row | undefined)
-                    : undefined;
-                  const lineDims = (lines?.dimensions as Record<string, string> | undefined) ?? {};
-                  const catCode =
-                    expensePresentation?.category ||
-                    text(row, "category") ||
-                    lineDims.category ||
-                    "";
+                  const catCode = expensePresentation?.category || recordCategory(row);
                   const catName = getCategoryName(catCode);
                   const projectIds =
                     revenuePresentation?.projectIds ?? relationshipIdList(row, "projectId");

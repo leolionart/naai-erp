@@ -471,9 +471,7 @@ export function DocumentForm({
   const availableProjects = projects;
 
   const [category, setCategory] = useState(
-    String(
-      field(initial, "category") ?? initialDims.category ?? (isPurchase ? "MEAL" : "SOFTWARE_DEV"),
-    ),
+    String(field(initial, "category") ?? initialDims.category ?? ""),
   );
 
   const [lineDescription] = useState(
@@ -624,9 +622,10 @@ export function DocumentForm({
       });
       return;
     }
+    const selectedCategory = category === "__none__" ? "" : category;
     const allocationDimensions = canonicalRelationshipDimensions(
       initialDims,
-      { category },
+      { category: selectedCategory },
       projectId,
     );
     const payload: Row = {
@@ -638,7 +637,7 @@ export function DocumentForm({
       documentDate,
       dueDate: dueDate || documentDate,
       currency,
-      category,
+      category: selectedCategory || null,
       netMinor: netMinor || "0",
       taxMinor: taxMinor || "0",
       grossMinor: grossMinor || "0",
@@ -660,7 +659,10 @@ export function DocumentForm({
           primaryAccountCode,
           taxAccountCode: taxAccountCode || undefined,
           taxCode: taxCode || undefined,
-          dimensions: { ...((initialLine?.dimensions as Row | undefined) ?? {}), category },
+          dimensions: {
+            ...((initialLine?.dimensions as Row | undefined) ?? {}),
+            ...(selectedCategory ? { category: selectedCategory } : {}),
+          },
           allocations: existingAllocations.length
             ? existingAllocations.map((allocation) => ({
                 ...allocation,
@@ -723,6 +725,7 @@ export function DocumentForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Chưa phân loại</SelectItem>
                 {activeCategories.map((cat) => (
                   <SelectItem key={cat.code} value={cat.code}>
                     {cat.name}
