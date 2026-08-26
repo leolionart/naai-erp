@@ -331,20 +331,12 @@ export const adminNavigation = [
     label: "Cấu hình & Vận hành",
     items: [
       {
-        key: "operations",
-        label: "Vận hành hệ thống",
-        description: "Theo dõi hoạt động nghiệp vụ, API, hệ thống và tác vụ chạy ngầm.",
+        key: "background-activities",
+        label: "Nhật ký hoạt động",
+        description: "Xem thao tác nghiệp vụ, API và hoạt động vận hành theo thời gian.",
+        href: "/settings/background-activities",
         icon: "activity-log",
         status: "available",
-        children: [
-          {
-            key: "background-activities",
-            label: "Nhật ký hoạt động",
-            href: "/settings/background-activities",
-            description: "Xem thao tác nghiệp vụ, API và hoạt động vận hành theo thời gian.",
-            status: "available",
-          },
-        ],
       },
     ],
   },

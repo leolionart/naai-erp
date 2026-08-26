@@ -31,7 +31,7 @@ describe("typed admin navigation", () => {
     expect(findNavigationItem("purchase-products")?.href).toBe("/settings/purchase-products");
     expect(findNavigationItem("accountant-exports")?.href).toBe("/reports/accountant-exports");
     expect(findNavigationItem("portable-data-package")?.href).toBe("/settings/data-package");
-    expect(findNavigationItem("operations")?.href).toBeUndefined();
+    expect(findNavigationItem("operations")).toBeUndefined();
     expect(findNavigationItem("background-activities")?.href).toBe(
       "/settings/background-activities",
     );
