@@ -205,10 +205,14 @@ export class CommercialDocumentService {
         ? { category: input.category === null ? null : input.category!.trim() }
         : {}),
       ...(Object.prototype.hasOwnProperty.call(input, "description")
-        ? { description: input.description!.trim() }
+        ? input.description == null
+          ? {}
+          : { description: input.description.trim() }
         : {}),
       ...(Object.prototype.hasOwnProperty.call(input, "reason")
-        ? { reason: input.reason!.trim() }
+        ? input.reason == null
+          ? {}
+          : { reason: input.reason.trim() }
         : {}),
     };
     if (
