@@ -374,11 +374,13 @@ export class PgExpenseStore {
   }
   async list(
     org: string,
-    filters: {
+      filters: {
       state?: string;
       expenseClass?: string;
       payeePartyId?: string;
-      fundingTreatment?: string;
+    fundingTreatment?: string;
+    startsOn?: string;
+    endsOn?: string;
     },
   ) {
     const r = await this.pool.query(
@@ -425,13 +427,17 @@ export class PgExpenseStore {
           and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
          where l.organization_id=e.organization_id and l.expense_id=e.id
            and coalesce(l.funding_treatment,c.funding_treatment)::text=$5
-       )) order by e.expense_date desc,e.id`,
+       ) and ($6::date is null or e.expense_date >= $6::date)
+       and ($7::date is null or e.expense_date <= $7::date)
+       order by e.expense_date desc,e.id`,
       [
         org,
         filters.state ?? null,
         filters.expenseClass ?? null,
         filters.payeePartyId ?? null,
         filters.fundingTreatment ?? null,
+        filters.startsOn ?? null,
+        filters.endsOn ?? null,
       ],
     );
     return r.rows;

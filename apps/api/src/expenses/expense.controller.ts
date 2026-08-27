@@ -32,6 +32,8 @@ export class ExpenseController {
     @Query("class") expenseClass?: string,
     @Query("payeePartyId") payeePartyId?: string,
     @Query("fundingTreatment") fundingTreatment?: string,
+    @Query("startsOn") startsOn?: string,
+    @Query("endsOn") endsOn?: string,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
   ) {
@@ -40,6 +42,8 @@ export class ExpenseController {
       ...(expenseClass ? { expenseClass } : {}),
       ...(payeePartyId ? { payeePartyId } : {}),
       ...(fundingTreatment ? { fundingTreatment } : {}),
+      ...(startsOn ? { startsOn } : {}),
+      ...(endsOn ? { endsOn } : {}),
     });
   }
   @Post("tax-finalization/dry-run") async dryRunTaxFinalization(
