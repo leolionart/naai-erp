@@ -408,14 +408,15 @@ export class PgExpenseStore {
        (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
         where l.organization_id=e.organization_id and l.expense_id=e.id
         order by l.line_number limit 1) category,
-       coalesce((select jsonb_agg(distinct coalesce(l.funding_treatment,c.funding_treatment)
-                    order by coalesce(l.funding_treatment,c.funding_treatment))
-         from expense_lines l
-         left join expense_categories c
-           on c.organization_id=l.organization_id
-          and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
-        where l.organization_id=e.organization_id and l.expense_id=e.id
-          and coalesce(l.funding_treatment,c.funding_treatment) is not null),'[]'::jsonb) "fundingTreatments"
+       coalesce((select jsonb_agg(x.value order by x.value) from (
+         select distinct coalesce(l.funding_treatment,c.funding_treatment) value
+           from expense_lines l
+           left join expense_categories c
+             on c.organization_id=l.organization_id
+            and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
+          where l.organization_id=e.organization_id and l.expense_id=e.id
+            and coalesce(l.funding_treatment,c.funding_treatment) is not null
+       ) x),'[]'::jsonb) "fundingTreatments"
        from expenses e where e.organization_id=$1
        and ($2::text is null or e.state::text=$2)
        and ($3::text is null or e.expense_class::text=$3)
