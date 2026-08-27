@@ -30,10 +30,6 @@ type FinancialAccount = Readonly<{
   status: "active" | "inactive";
 }>;
 
-export function controlledText(value: unknown): string {
-  return value == null ? "" : String(value);
-}
-
 function defaultCounterAccount(treatment: ExpenseCategoryPolicy["fundingTreatment"]) {
   if (treatment === "company_funds") return "112-BANK";
   if (treatment === "owner_paid_company_cost") return "3388-OWNER";
@@ -225,20 +221,14 @@ function ComboboxInput({
   const [open, setOpen] = useState(false);
 
   // Resolve display value if current value matches an ID or name in options
-  // API compatibility payloads may contain nullable party/category values.
-  // Keep the controlled input string-valued so filtering never calls trim() on null.
-  const safeValue = controlledText(value);
-  const currentMatch = options.find(
-    (o) => String(o.id) === safeValue || partyName(o) === safeValue,
-  );
-  const displayVal = currentMatch ? partyName(currentMatch) : safeValue;
+  const currentMatch = options.find((o) => String(o.id) === value || partyName(o) === value);
+  const displayVal = currentMatch ? partyName(currentMatch) : value;
 
   const [inputVal, setInputVal] = useState(displayVal);
 
   useEffect(() => {
-    const normalized = controlledText(value);
-    const match = options.find((o) => String(o.id) === normalized || partyName(o) === normalized);
-    setInputVal(match ? partyName(match) : normalized);
+    const match = options.find((o) => String(o.id) === value || partyName(o) === value);
+    setInputVal(match ? partyName(match) : value);
   }, [value, options]);
 
   const filtered = options.filter((o) => {
