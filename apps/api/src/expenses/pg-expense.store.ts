@@ -439,6 +439,10 @@ export class PgExpenseStore {
   async get(org: string, id: string) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
+       (select coalesce(l.expense_category_code,l.dimensions->>'category')
+          from expense_lines l
+         where l.organization_id=e.organization_id and l.expense_id=e.id
+         order by l.line_number limit 1) category,
        (select jsonb_build_object(
           'system', r.system,
           'externalId', r.external_id,
