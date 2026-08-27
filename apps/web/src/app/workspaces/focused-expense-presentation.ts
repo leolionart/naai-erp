@@ -17,7 +17,15 @@ export function presentExpenseRecord(row: Row) {
       (firstLine ? first(firstLine, "note", "notes", "description") : ""),
     amountMinor: first(row, "grossMinor", "gross_minor", "amountMinor", "amount_minor"),
     payeePartyId: first(row, "payeePartyId", "payee_party_id", "partyId", "party_id"),
-    category: first(row, "category", "expenseCategoryCode", "expense_category_code"),
+    // List APIs may omit the root projection while still returning the
+    // canonical category on the first expense line. Prefer the root value,
+    // then fall back to line-level camel/snake case aliases so the table and
+    // downstream category filters never blank an existing classification.
+    category:
+      first(row, "category", "expenseCategoryCode", "expense_category_code") ||
+      (firstLine
+        ? first(firstLine, "expenseCategoryCode", "expense_category_code", "category")
+        : ""),
     counterAccountCode: first(
       row,
       "counterAccountCode",
