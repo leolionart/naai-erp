@@ -41,7 +41,8 @@
     "demo:seed": "node scripts/seed-local-demo.mjs --bootstrap-checker",
     "demo:verify": "node scripts/seed-local-demo.mjs --verify",
     "prepare": "node scripts/setup-hooks.mjs",
-    "clean": "turbo run clean && rm -rf .turbo node_modules"
+    "clean": "turbo run clean && rm -rf .turbo node_modules",
+    "clean:build-cache": "node scripts/cleanup-build-cache.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.2",
