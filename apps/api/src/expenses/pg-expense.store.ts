@@ -427,7 +427,7 @@ export class PgExpenseStore {
           and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
          where l.organization_id=e.organization_id and l.expense_id=e.id
            and coalesce(l.funding_treatment,c.funding_treatment)::text=$5
-       ) and ($6::date is null or e.expense_date >= $6::date)
+       )) and ($6::date is null or e.expense_date >= $6::date)
        and ($7::date is null or e.expense_date <= $7::date)
        order by e.expense_date desc,e.id`,
       [
