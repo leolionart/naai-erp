@@ -63,6 +63,7 @@ import { recordPartyId, relationshipIdList } from "./focused-record-relationship
 import { presentRevenueRecord } from "./focused-record-presentation";
 import { presentExpenseRecord } from "./focused-expense-presentation";
 import { recordCategory } from "./focused-record-category";
+import { sortRecordsNewestFirst } from "./focused-record-sorting";
 
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
@@ -357,18 +358,16 @@ export function FocusedRecordListWorkspace({
           return categoryId === "unclassified" ? !rowCategory : rowCategory === categoryId.trim();
         });
       }
-      rawItems.sort((left, right) => {
-        const presentationDate = (row: TaggedRow) =>
-          kind === "documents"
-            ? presentRevenueRecord(
-                row,
-                sourceKind(row) === "recognition" ? "recognition" : "documents",
-                Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
-                Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
-              ).activityDate
-            : text(row, "expenseDate", "createdAt");
-        return presentationDate(right).localeCompare(presentationDate(left));
-      });
+      const presentationDate = (row: TaggedRow) =>
+        kind === "documents"
+          ? presentRevenueRecord(
+              row,
+              sourceKind(row) === "recognition" ? "recognition" : "documents",
+              Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
+              Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
+            ).activityDate
+          : text(row, "expenseDate", "createdAt");
+      rawItems = sortRecordsNewestFirst(rawItems, presentationDate);
       setRows(rawItems);
       const listedParties = Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []);
       setParties(listedParties);
