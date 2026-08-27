@@ -1,0 +1,2 @@
+
+- Localhost browser smoke after restarting the stale Next process: `http://localhost:3000/dashboard?periodId=CAL-2026-08` loaded successfully. The homepage chart visibly rendered `Chi phí Ăn uống / Tiếp khách`, `Chi phí Thuê xe / Thuê pin sạc`, `Chi phí Máy chủ / Cloud Services`, `Chi phí Điện / Nước`, `Chi phí Lương & Thưởng nhân sự`, `Chi phí Thiết bị điện tử`, `Chi phí mua vào khác` and `Chi phí Internet / Điện thoại`; chart total rendered `144.310.243 ₫`.
