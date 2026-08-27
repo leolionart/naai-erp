@@ -62,6 +62,15 @@ export function buildFocusedRecordChartPoints(
       continue;
     }
 
+    if (sourceKind(row) === "expenses" && lines.length) {
+      for (const line of lines) {
+        const code = lineCategory(line);
+        const label = (code && categoryName(code)) || fallbackCategory(row);
+        const amount = BigInt(text(line, "grossMinor", "netMinor", "amountMinor") || "0");
+        add(month, label, amount);
+      }
+      continue;
+    }
     const code = text(row, "category", "categoryCode", "expenseCategoryCode", "serviceLineCode");
     const label = (code && categoryName(code)) || fallbackCategory(row);
     const amount = BigInt(

@@ -47,6 +47,24 @@ describe("focused revenue and expense category chart", () => {
     ).toEqual({ "Máy chủ VPS": 250n });
   });
 
+  it("groups API-created expenses by their canonical line categories", () => {
+    expect(
+      buildFocusedRecordChartPoints(
+        [
+          {
+            __sourceKind: "expenses",
+            expense_date: "2026-07-15",
+            lines: [
+              { gross_minor: "250", expense_category_code: "VPS" },
+              { gross_minor: "100", dimensions: { category: "DOMAIN" } },
+            ],
+          },
+        ],
+        name,
+      )[0]?.categories,
+    ).toEqual({ "Máy chủ VPS": 250n, "Tên miền": 100n });
+  });
+
   it("labels missing dimensions explicitly instead of inventing a business category", () => {
     expect(
       buildFocusedRecordChartPoints(
