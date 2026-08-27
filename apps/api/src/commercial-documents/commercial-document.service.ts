@@ -86,6 +86,8 @@ export class CommercialDocumentService {
     state?: string,
     partyId?: string,
     projectId?: string,
+    startsOn?: string,
+    endsOn?: string,
   ) {
     return this.envelope(context, {
       items: await this.store.list(context.organizationId, {
@@ -93,6 +95,8 @@ export class CommercialDocumentService {
         ...(state ? { state } : {}),
         ...(partyId ? { partyId } : {}),
         ...(projectId ? { projectId } : {}),
+        ...(startsOn ? { startsOn } : {}),
+        ...(endsOn ? { endsOn } : {}),
       }),
     });
   }

@@ -511,7 +511,7 @@ export class PgCommercialDocumentStore {
 
   async list(
     organizationId: string,
-    filters: { type?: string; state?: string; partyId?: string; projectId?: string },
+    filters: { type?: string; state?: string; partyId?: string; projectId?: string; startsOn?: string; endsOn?: string },
   ) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
@@ -554,6 +554,8 @@ export class PgCommercialDocumentStore {
                or project_allocation.dimensions->>'projectId'=$5
              )
          ))
+       and ($6::date is null or d.document_date >= $6::date)
+       and ($7::date is null or d.document_date <= $7::date)
        group by d.organization_id,d.id order by d.document_date desc,d.id`,
       [
         organizationId,
@@ -561,6 +563,8 @@ export class PgCommercialDocumentStore {
         filters.state ?? null,
         filters.partyId ?? null,
         filters.projectId ?? null,
+        filters.startsOn ?? null,
+        filters.endsOn ?? null,
       ],
     );
     return result.rows;

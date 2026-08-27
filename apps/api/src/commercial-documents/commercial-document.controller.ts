@@ -41,6 +41,8 @@ export class CommercialDocumentController {
     @Query("state") state?: string,
     @Query("partyId") partyId?: string,
     @Query("projectId") projectId?: string,
+    @Query("startsOn") startsOn?: string,
+    @Query("endsOn") endsOn?: string,
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
@@ -50,6 +52,8 @@ export class CommercialDocumentController {
       state,
       partyId,
       projectId,
+      startsOn,
+      endsOn,
     );
   }
   @Get("relationship-backfill/inventory")
