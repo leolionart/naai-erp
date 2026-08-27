@@ -212,7 +212,12 @@ export function FocusedRecordListWorkspace({
       // The period navigator defaults to the current calendar year even when
       // the URL has not been materialized yet. Keep the data query in sync so
       // the initial view never mixes records from prior years.
-      if (!sourceParams.has("startsOn") && !sourceParams.has("endsOn") && !initialProjectId && !initialPartyId) {
+      if (
+        !sourceParams.has("startsOn") &&
+        !sourceParams.has("endsOn") &&
+        !initialProjectId &&
+        !initialPartyId
+      ) {
         const year = new Date().getFullYear();
         sourceParams.set("startsOn", `${year}-01-01`);
         sourceParams.set("endsOn", `${year}-12-31`);
