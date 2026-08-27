@@ -2573,6 +2573,38 @@ tests:
     command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --grep "snake_case API fields" --project=desktop-chromium
     blocking_gate: G91
 
+  - id: T-UNIT-ERP-935-001
+    task: ERP-935
+    rules: [BR-MVP-007, BR-UI-003]
+    title: Invoice and expense category presentation uses one canonical precedence
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/lib/records/category.test.ts src/app/workspaces/focused-expense-presentation.test.ts
+    blocking_gate: G92
+
+  - id: T-E2E-ERP-935-002
+    task: ERP-935
+    rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    title: Invoice list and detail retain the same category when root projection is omitted
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --grep "invoice list preserves the detail category" --project=desktop-chromium
+    blocking_gate: G92
+
+  - id: T-UNIT-ERP-936-001
+    task: ERP-936
+    rules: [BR-MVP-007, BR-UI-003]
+    title: Category adapter reads allocation-only production payloads
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/lib/records/category.test.ts
+    blocking_gate: G93
+
+  - id: T-E2E-ERP-936-002
+    task: ERP-936
+    rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    title: Production-backed newest purchase invoice renders its category in the list
+    layer: e2e
+    command: PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --grep "production-backed newest purchase invoice" --project=desktop-chromium
+    blocking_gate: G93
+
   - id: T-UNIT-ERP-926-001
     task: ERP-926
     rules: [BR-UI-004]

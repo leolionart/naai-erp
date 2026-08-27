@@ -62,7 +62,7 @@ import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 import { recordPartyId, relationshipIdList } from "./focused-record-relationships";
 import { presentRevenueRecord } from "./focused-record-presentation";
 import { presentExpenseRecord } from "./focused-expense-presentation";
-import { recordCategory } from "./focused-record-category";
+import { recordCategory } from "@/lib/records/category";
 import { sortRecordsNewestFirst } from "./focused-record-sorting";
 
 type Kind = "documents" | "expenses";
@@ -280,6 +280,19 @@ export function FocusedRecordListWorkspace({
           ? text(row, "type") === "purchase_invoice"
           : ["sales_invoice", "credit_note"].includes(text(row, "type")),
       );
+      const documentsWithCategory = await Promise.all(
+        listedDocuments.map(async (row) => {
+          if (recordCategory(row)) return row;
+          const id = text(row, "id");
+          if (!id) return row;
+          try {
+            const detail = await client.data<Row>(`commercial-documents/${encodeURIComponent(id)}`);
+            return { ...row, ...detail };
+          } catch {
+            return row;
+          }
+        }),
+      );
       const listedExpenses = Array.isArray(expensesResult)
         ? expensesResult
         : (expensesResult.items ?? []);
@@ -287,7 +300,7 @@ export function FocusedRecordListWorkspace({
         ? recognitionResult
         : (recognitionResult.items ?? []);
       let rawItems: TaggedRow[] = [
-        ...listedDocuments.map((row) => tagRow(row, "documents", "present", "invoiced")),
+        ...documentsWithCategory.map((row) => tagRow(row, "documents", "present", "invoiced")),
         ...listedExpenses.map((row) => tagRow(row, "expenses", "missing")),
         ...listedRecognitions.map((row) => tagRow(row, "recognition", "missing", "recognized")),
       ];

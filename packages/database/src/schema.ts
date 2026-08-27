@@ -1835,6 +1835,7 @@ export const commercialDocumentLines = pgTable(
     taxMinor: bigint("tax_minor", { mode: "bigint" }).notNull(),
     grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
     primaryAccountCode: text("primary_account_code").notNull(),
+    categoryCode: text("category_code"),
     taxAccountCode: text("tax_account_code"),
     taxCode: text("tax_code"),
     managementState: managementValidityState("management_state").notNull().default("unreviewed"),
@@ -1887,6 +1888,10 @@ export const commercialDocumentLines = pgTable(
     check(
       "commercial_document_lines_eligible_limits",
       sql`${table.citEligibleMinor} >= 0 and ${table.citEligibleMinor} <= ${table.grossMinor} and ${table.vatEligibleMinor} >= 0 and ${table.vatEligibleMinor} <= ${table.taxMinor}`,
+    ),
+    check(
+      "commercial_document_lines_category_code_not_blank",
+      sql`${table.categoryCode} is null or btrim(${table.categoryCode}) <> ''`,
     ),
     check(
       "commercial_document_lines_review_metadata",

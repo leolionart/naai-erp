@@ -50,6 +50,11 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Expense rows normalize both camelCase and snake_case API compatibility fields into one presentation
   model for date, payee, category, description and amount; a missing camelCase alias must not blank a
   value that is present in the canonical API payload.
+- Invoice and expense list/detail surfaces use one category presentation contract: prefer the root
+  category projection, then read the canonical category code from owning line fields (`categoryCode` /
+  `expenseCategoryCode`) when a compatibility response omits the root projection. Allocation dimensions
+  are relationship-only and never supply or override category. The contract must never invent a category
+  from account codes or form defaults.
 - Stable invoice, expense and revenue-recognition detail routes remain available from the unified
   listings.
 - Revenue invoice and recognition surfaces share one presentation contract for customer, project,
@@ -57,7 +62,6 @@ These rules define the active release boundary. Historical rules remain valid fo
   its canonical project relationship; commercial documents retain their direct party relationship
   and allocation-based project relationships. Technical policy, evidence, actor and version fields
   remain available to API clients but are not duplicated in ordinary business tables or forms.
-
 ### BR-MVP-004 — Minimal report readiness
 
 - A clean installation receives a minimal approved TT133 account, tax and statement-mapping setup.
@@ -582,14 +586,14 @@ Document type and accounting treatment are independent.
   allocation IDs and unrelated dimensions while canonicalizing the relationship to `projectId`.
 - A draft created in error may be discarded before submission. Discard requires write authorization,
   optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
-  submitted, approved or posted expenses cannot be deleted.
-- Posted expenses may receive one audited, versioned and idempotent metadata correction for the
-  active supplier/payee, business-purpose text, line descriptions and `dimensions.category`.
-  The quick-edit UI presents these fields as one save action instead of separate category and
-  document-update actions. This operation never changes amounts, tax states, allocations, funding
-  treatment, account codes, journal linkage or any other posted financial field. Every correction
-  retains before/after audit evidence; a payee must resolve to one active supplier party in the same
-  organization.
+ - Posted expenses may receive one audited, versioned and idempotent metadata correction for the
+   active supplier/payee, business-purpose text, line descriptions and canonical `expenseCategoryCode`.
+   Legacy `dimensions.category` is read only during migration and is never written by the active path.
+   The quick-edit UI presents these fields as one save action instead of separate category and
+   document-update actions. This operation never changes amounts, tax states, allocations, funding
+   treatment, account codes, journal linkage or any other posted financial field. Every correction
+   retains before/after audit evidence; a payee must resolve to one active supplier party in the same
+   organization.
 - A posted expense missing its project relationship is corrected only through relationship
   backfill dry-run and reverse/replacement. The original becomes reversed and the replacement remains
   draft for normal review/posting; amount, evidence and accounting history are not rewritten.

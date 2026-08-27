@@ -806,31 +806,32 @@ export class PgReportExportStore {
       this.pool.query(
         `select d.document_date::text date,'purchase_invoice'::text "sourceType",
                   concat_ws('-',nullif(d.series,''),d.document_number) reference,party.display_name "supplierOrPayeeName",
-                  project.name "projectName",coalesce(category.name,account.name,'Chưa phân loại') "categoryName",
+                  project.name "projectName",coalesce(category.name,'Chưa phân loại') "categoryName",
                   coalesce(line.description,d.reason,'Hóa đơn mua vào') description,
                   d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",
                   d.control_account_code "fundingSource",d.state::text state
              from commercial_documents d
              join parties party on party.organization_id=d.organization_id and party.id=d.party_id
              left join lateral (select * from commercial_document_lines l where l.organization_id=d.organization_id and l.document_id=d.id order by l.line_number limit 1) line on true
-             left join lateral (select coalesce(a.dimensions->>'projectId',line.dimensions->>'projectId') project_id,coalesce(a.dimensions->>'category',line.dimensions->>'category') category_code from commercial_document_allocations a where a.organization_id=d.organization_id and a.document_id=d.id and a.line_number=line.line_number order by a.allocation_number limit 1) relation on true
+             left join lateral (select coalesce(a.dimensions->>'projectId',line.dimensions->>'projectId') project_id
+                                 from commercial_document_allocations a
+                                where a.organization_id=d.organization_id and a.document_id=d.id and a.line_number=line.line_number
+                                order by a.allocation_number limit 1) relation on true
              left join projects project on project.organization_id=d.organization_id and project.id=coalesce(relation.project_id,line.dimensions->>'projectId')
-             left join expense_categories category on category.organization_id=d.organization_id and category.code=coalesce(relation.category_code,line.dimensions->>'category')
-             left join accounts account on account.organization_id=d.organization_id and account.code=line.primary_account_code
+             left join dimension_values category on category.organization_id=d.organization_id and category.kind='category' and category.code=line.category_code
             where d.organization_id=$1 and d.type='purchase_invoice' and d.state='posted'
               and d.document_date between $2::date and $3::date order by d.document_date,d.id`,
         params,
       ),
       this.pool.query(
         `select e.expense_date::text date,'expense'::text "sourceType",e.id reference,party.display_name "supplierOrPayeeName",
-                  project.name "projectName",coalesce(category.name,account.name,e.expense_class::text) "categoryName",
+                  project.name "projectName",coalesce(category.name,'Chưa phân loại') "categoryName",
                   e.business_purpose description,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",
                   e.counter_account_code "fundingSource",e.state::text state
              from expenses e left join parties party on party.organization_id=e.organization_id and party.id=e.payee_party_id
              left join lateral (select * from expense_lines l where l.organization_id=e.organization_id and l.expense_id=e.id order by l.line_number limit 1) line on true
              left join projects project on project.organization_id=e.organization_id and project.id=line.dimensions->>'projectId'
              left join expense_categories category on category.organization_id=e.organization_id and category.code=line.expense_category_code
-             left join accounts account on account.organization_id=e.organization_id and account.code=line.posting_account_code
             where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
             order by e.expense_date,e.id`,
         params,
@@ -866,16 +867,15 @@ export class PgReportExportStore {
       ),
       this.pool.query(
         `select source.period_month "month",source.category_code "categoryCode",source.category_name "categoryName",sum(source.amount_minor)::text "amountMinor" from (
-             select to_char(e.expense_date,'YYYY-MM') period_month,coalesce(line.expense_category_code,line.posting_account_code) category_code,coalesce(category.name,account.name,'Chưa phân loại') category_name,line.gross_minor amount_minor
+             select to_char(e.expense_date,'YYYY-MM') period_month,
+                    line.expense_category_code category_code,coalesce(category.name,'Chưa phân loại') category_name,line.gross_minor amount_minor
                from expenses e join expense_lines line on line.organization_id=e.organization_id and line.expense_id=e.id
                left join expense_categories category on category.organization_id=line.organization_id and category.code=line.expense_category_code
-               left join accounts account on account.organization_id=line.organization_id and account.code=line.posting_account_code
               where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
              union all
-             select to_char(d.document_date,'YYYY-MM'),coalesce(line.dimensions->>'category',line.primary_account_code),coalesce(category.name,account.name,'Chưa phân loại'),line.gross_minor
+             select to_char(d.document_date,'YYYY-MM'),line.category_code,coalesce(category.name,'Chưa phân loại'),line.gross_minor
                from commercial_documents d join commercial_document_lines line on line.organization_id=d.organization_id and line.document_id=d.id
-               left join expense_categories category on category.organization_id=line.organization_id and category.code=line.dimensions->>'category'
-               left join accounts account on account.organization_id=line.organization_id and account.code=line.primary_account_code
+               left join dimension_values category on category.organization_id=line.organization_id and category.kind='category' and category.code=line.category_code
               where d.organization_id=$1 and d.type='purchase_invoice' and d.state='posted' and d.document_date between $2::date and $3::date
            ) source group by source.period_month,source.category_code,source.category_name order by source.period_month,source.category_name`,
         params,

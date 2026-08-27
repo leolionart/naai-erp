@@ -64,10 +64,11 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
         lines: [
           expect.objectContaining({
             primaryAccountCode: "642-COST",
+            categoryCode: "BATTERY_RENTAL",
             allocations: [
               expect.objectContaining({
                 amountMinor: "408601",
-                dimensions: { category: "BATTERY_RENTAL", taxState: "unreviewed" },
+                dimensions: { taxState: "unreviewed" },
               }),
             ],
           }),
@@ -252,9 +253,10 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
       expect.objectContaining({
         lines: [
           expect.objectContaining({
+            categoryCode: "BATTERY_RENTAL",
             allocations: [
               expect.objectContaining({
-                dimensions: { category: "BATTERY_RENTAL", taxState: "unreviewed" },
+                dimensions: { taxState: "unreviewed" },
               }),
             ],
           }),

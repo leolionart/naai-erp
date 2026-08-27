@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthenticatedApiClient } from "@/lib/api";
+import { recordCategory } from "@/lib/records/category";
 
 type Row = Record<string, unknown>;
 type ExpenseCategoryPolicy = Readonly<{
@@ -470,9 +471,7 @@ export function DocumentForm({
   const activeCategories = isPurchase ? INBOUND_CATEGORIES : OUTBOUND_CATEGORIES;
   const availableProjects = projects;
 
-  const [category, setCategory] = useState(
-    String(field(initial, "category") ?? initialDims.category ?? ""),
-  );
+  const [category, setCategory] = useState(initial ? recordCategory(initial) : "");
 
   const [lineDescription] = useState(
     String(field(initialLine, "description") ?? "Chi tiết hóa đơn"),
@@ -623,11 +622,7 @@ export function DocumentForm({
       return;
     }
     const selectedCategory = category === "__none__" ? "" : category;
-    const allocationDimensions = canonicalRelationshipDimensions(
-      initialDims,
-      { category: selectedCategory },
-      projectId,
-    );
+    const allocationDimensions = canonicalRelationshipDimensions(initialDims, {}, projectId);
     const payload: Row = {
       type,
       documentNumber,
@@ -637,7 +632,6 @@ export function DocumentForm({
       documentDate,
       dueDate: dueDate || documentDate,
       currency,
-      category: selectedCategory || null,
       netMinor: netMinor || "0",
       taxMinor: taxMinor || "0",
       grossMinor: grossMinor || "0",
@@ -659,17 +653,19 @@ export function DocumentForm({
           primaryAccountCode,
           taxAccountCode: taxAccountCode || undefined,
           taxCode: taxCode || undefined,
-          dimensions: {
-            ...((initialLine?.dimensions as Row | undefined) ?? {}),
-            ...(selectedCategory ? { category: selectedCategory } : {}),
-          },
+          categoryCode: selectedCategory || undefined,
+          dimensions: Object.fromEntries(
+            Object.entries((initialLine?.dimensions as Row | undefined) ?? {}).filter(
+              ([key]) => key !== "category",
+            ),
+          ),
           allocations: existingAllocations.length
             ? existingAllocations.map((allocation) => ({
                 ...allocation,
                 ...(existingAllocations.length === 1 ? { amountMinor: netMinor || "0" } : {}),
                 dimensions: canonicalRelationshipDimensions(
                   allocation.dimensions as Row | undefined,
-                  allocationDimensions,
+                  {},
                   projectId,
                 ),
               }))

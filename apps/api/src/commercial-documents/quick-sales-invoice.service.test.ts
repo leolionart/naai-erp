@@ -59,9 +59,10 @@ describe("QuickSalesInvoiceService", () => {
         lines: [
           expect.objectContaining({
             primaryAccountCode: "511",
+            categoryCode: "SERVICE",
             allocations: [
               expect.objectContaining({
-                dimensions: { category: "SERVICE", projectId: "project" },
+                dimensions: { projectId: "project" },
               }),
             ],
           }),

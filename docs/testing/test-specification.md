@@ -107,7 +107,22 @@ cases pass and its exact-commit evidence is recorded.
 - `T-E2E-ERP-934-002`: the expense list renders those values and preserves the purchase/expense
   filters and detail workflow.
 
+
+### ERP-935 — Canonical invoice category list/detail parity
+
+- `T-UNIT-ERP-935-001`: category presentation prefers the root projection and falls back to
+  canonical line fields or line dimensions across camelCase and snake_case compatibility shapes.
+- `T-E2E-ERP-935-002`: the invoice list shows the same category that the detail form shows when the
+  list response omits its root category projection.
 ### ERP-926 — Shadcn semantic color refresh
+
+### ERP-936 — Production-backed invoice category hydration
+
+- `T-UNIT-ERP-936-001`: category presentation reads a category stored on the owning line (`categoryCode` /
+  `expenseCategoryCode`) across camelCase and snake_case compatibility responses, while allocation-only
+  category dimensions are not treated as an active source.
+- `T-E2E-ERP-936-002`: the production-backed expense list hydrates an unclassified purchase-invoice
+  row from its detail response and renders the newest record's canonical category.
 
 - `T-UNIT-ERP-926-001`: the shared light/dark theme defines non-neutral semantic primary, accent,
   sidebar and chart palettes, and refreshed application surfaces contain no raw palette overrides.

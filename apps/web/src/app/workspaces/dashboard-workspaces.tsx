@@ -56,6 +56,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { useAuthenticatedApiClient } from "@/lib/api";
+import { recordCategory } from "@/lib/records/category";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
 import { StatusBadge } from "@/components/financial/status-badge";
 import { cn } from "@/lib/utils";
@@ -873,7 +874,7 @@ function useExpenseOverviewRows(search: URLSearchParams) {
         `expenses?${shared}`,
       ),
     ])
-      .then(([documentPayload, expensePayload]) => {
+      .then(async ([documentPayload, expensePayload]) => {
         if (!active) return;
         const startsOn = source.get("startsOn");
         const endsOn = source.get("endsOn");
@@ -891,13 +892,38 @@ function useExpenseOverviewRows(search: URLSearchParams) {
         const expenseRows = (
           Array.isArray(expensePayload) ? expensePayload : (expensePayload.items ?? [])
         ).filter(inPeriod);
+        const hydrateMissingCategories = async (
+          rows: Record<string, unknown>[],
+          endpoint: string,
+        ) =>
+          Promise.all(
+            rows.map(async (row) => {
+              if (recordCategory(row)) return row;
+              const id = String(row.id ?? "").trim();
+              if (!id) return row;
+              try {
+                const detail = await client.data<Record<string, unknown>>(
+                  `${endpoint}/${encodeURIComponent(id)}`,
+                );
+                return { ...row, ...detail };
+              } catch {
+                return row;
+              }
+            }),
+          );
+        const hydratedDocuments = await hydrateMissingCategories(
+          documentRows,
+          "commercial-documents",
+        );
+        const hydratedExpenses = await hydrateMissingCategories(expenseRows, "expenses");
+        if (!active) return;
         setRows([
-          ...documentRows.map((row) => ({
+          ...hydratedDocuments.map((row) => ({
             ...row,
             __sourceKind: "documents" as const,
             __invoicePresence: "present" as const,
           })),
-          ...expenseRows.map((row) => ({
+          ...hydratedExpenses.map((row) => ({
             ...row,
             __sourceKind: "expenses" as const,
             __invoicePresence: "missing" as const,

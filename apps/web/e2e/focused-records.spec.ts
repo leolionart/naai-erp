@@ -578,6 +578,41 @@ test("@desktop expense list renders the canonical snake_case API fields", async 
   await expect(page.getByText("408.601 ₫", { exact: true })).toBeVisible();
 });
 
+test("@desktop production-backed newest purchase invoice renders its category", async ({
+  page,
+}) => {
+  await install(page);
+  const invoiceWithoutRootCategory = {
+    id: "invoice-category-line",
+    type: "sales_invoice",
+    documentNumber: "INV-CATEGORY-LINE",
+    documentDate: "2026-08-12",
+    grossMinor: "1000000",
+    partyId: "client-720",
+    state: "draft",
+    lines: [{ dimensions: {}, allocations: [{ dimensions: { category: "SOFTWARE_DEV" } }] }],
+  };
+  await page.route("**/api/v1/organizations/naai/commercial-documents?**", (route) =>
+    reply(route, { items: [invoiceWithoutRootCategory] }),
+  );
+  await page.route(
+    "**/api/v1/organizations/naai/commercial-documents/invoice-category-line",
+    (route) => reply(route, invoiceWithoutRootCategory),
+  );
+  await page.goto("http://localhost:3000/documents?startsOn=2026-01-01&endsOn=2026-12-31");
+  await expect(page.getByText("INV-CATEGORY-LINE", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Doanh thu Phát triển phần mềm / App", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Xem" }).first().click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động doanh thu" })
+      .getByText("Doanh thu Phát triển phần mềm / App", { exact: true })
+      .first(),
+  ).toBeVisible();
+});
+
 test("@desktop exports revenue and expense XLSX with current URL filters and clear filenames", async ({
   page,
 }) => {

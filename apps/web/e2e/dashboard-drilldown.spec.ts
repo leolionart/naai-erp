@@ -11,18 +11,31 @@ const reply = (route: Route, data: unknown) =>
 
 async function install(page: Page, requestedUrls: string[] = []) {
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
-  await page.route("**/api/v1/organizations/naai/commercial-documents**", (route) =>
-    reply(route, {
+  await page.route("**/api/v1/organizations/naai/commercial-documents**", (route) => {
+    if (route.request().url().endsWith("/commercial-documents/purchase-700")) {
+      return reply(route, {
+        id: "purchase-700",
+        type: "purchase_invoice",
+        documentDate: "2026-08-10",
+        lines: [
+          {
+            gross_minor: "12000000",
+            allocations: [{ amount_minor: "12000000", dimensions: { category: "DOMAIN_HOSTING" } }],
+          },
+        ],
+      });
+    }
+    return reply(route, {
       items: [
         {
           id: "purchase-700",
           type: "purchase_invoice",
           documentDate: "2026-08-10",
-          lines: [{ gross_minor: "12000000", dimensions: { category: "DOMAIN_HOSTING" } }],
+          lines: [{ gross_minor: "12000000" }],
         },
       ],
-    }),
-  );
+    });
+  });
   await page.route("**/api/v1/organizations/naai/expenses**", (route) =>
     reply(route, {
       items: [

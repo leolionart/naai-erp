@@ -30,9 +30,58 @@ function fallbackCategory(row: Row) {
 function lineCategory(line: Row) {
   const dimensions = (line.dimensions as Row | undefined) ?? {};
   return (
-    text(line, "category", "categoryCode", "expenseCategoryCode", "serviceLineCode") ||
-    text(dimensions, "category", "serviceLineCode", "service_line_code")
+    text(
+      line,
+      "category",
+      "categoryCode",
+      "category_code",
+      "expenseCategoryCode",
+      "expense_category_code",
+      "serviceLineCode",
+    ) || text(dimensions, "category", "serviceLineCode", "service_line_code")
   );
+}
+
+function allocationCategory(allocation: Row) {
+  const dimensions = allocation.dimensions;
+  return dimensions && typeof dimensions === "object"
+    ? text(dimensions as Row, "category", "categoryCode", "category_code")
+    : "";
+}
+
+function addRecordLines(
+  row: Row,
+  lines: Row[],
+  categoryName: (code?: string) => string,
+  add: (month: string, category: string, amount: bigint) => void,
+  month: string,
+) {
+  const rootCategory = text(
+    row,
+    "category",
+    "categoryCode",
+    "category_code",
+    "expenseCategoryCode",
+  );
+  for (const line of lines) {
+    const directCategory = lineCategory(line) || rootCategory;
+    const allocations = Array.isArray(line.allocations) ? (line.allocations as Row[]) : [];
+    const categorizedAllocations = allocations.filter((allocation) =>
+      allocationCategory(allocation),
+    );
+    if (!lineCategory(line) && categorizedAllocations.length) {
+      for (const allocation of categorizedAllocations) {
+        const code = allocationCategory(allocation);
+        const label = categoryName(code) || fallbackCategory(row);
+        const amount = BigInt(text(allocation, "amountMinor", "amount_minor") || "0");
+        add(month, label, amount);
+      }
+      continue;
+    }
+    const label = (directCategory && categoryName(directCategory)) || fallbackCategory(row);
+    const amount = BigInt(text(line, "grossMinor", "netMinor", "amountMinor") || "0");
+    add(month, label, amount);
+  }
 }
 
 export function buildFocusedRecordChartPoints(
@@ -52,23 +101,8 @@ export function buildFocusedRecordChartPoints(
     const month = date && /^\d{4}-\d{2}/.test(date) ? date.substring(0, 7) : "Khác";
     const lines = Array.isArray(row.lines) ? (row.lines as Row[]) : [];
 
-    if (sourceKind(row) === "documents" && lines.length) {
-      for (const line of lines) {
-        const code = lineCategory(line);
-        const label = (code && categoryName(code)) || fallbackCategory(row);
-        const amount = BigInt(text(line, "grossMinor", "netMinor", "amountMinor") || "0");
-        add(month, label, amount);
-      }
-      continue;
-    }
-
-    if (sourceKind(row) === "expenses" && lines.length) {
-      for (const line of lines) {
-        const code = lineCategory(line);
-        const label = (code && categoryName(code)) || fallbackCategory(row);
-        const amount = BigInt(text(line, "grossMinor", "netMinor", "amountMinor") || "0");
-        add(month, label, amount);
-      }
+    if ((sourceKind(row) === "documents" || sourceKind(row) === "expenses") && lines.length) {
+      addRecordLines(row, lines, categoryName, add, month);
       continue;
     }
     const code = text(row, "category", "categoryCode", "expenseCategoryCode", "serviceLineCode");

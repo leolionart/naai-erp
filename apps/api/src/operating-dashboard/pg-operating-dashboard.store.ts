@@ -287,8 +287,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
            join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-           left join expense_categories c on c.organization_id=l.organization_id
-             and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
+           left join expense_categories c on c.organization_id=l.organization_id and c.code=l.expense_category_code
            join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
            where e.organization_id=$1 and e.state='posted' and e.expense_date<=$2::date
              and j.state in ('posted','reversed')`,

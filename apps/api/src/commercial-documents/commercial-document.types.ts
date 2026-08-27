@@ -19,6 +19,7 @@ export type CommercialDocumentLineInput = Readonly<{
   taxMinor: string;
   grossMinor: string;
   primaryAccountCode: string;
+  categoryCode?: string;
   taxAccountCode?: string;
   taxCode?: string;
   dimensions?: Readonly<Record<string, string>>;

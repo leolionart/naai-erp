@@ -52,6 +52,7 @@ interface ExistingDocument {
     taxMinor: string | number;
     grossMinor: string | number;
     primaryAccountCode: string;
+    categoryCode?: string;
     taxAccountCode?: string;
     taxCode?: string;
     dimensions?: Record<string, string>;
@@ -271,7 +272,10 @@ export class CommercialDocumentService {
         taxMinor: String(l.taxMinor),
         grossMinor: String(l.grossMinor),
         primaryAccountCode: l.primaryAccountCode,
-        dimensions: l.dimensions || {},
+        dimensions: {
+          ...(l.dimensions || {}),
+          ...(l.categoryCode ? { category: l.categoryCode } : {}),
+        },
         allocations,
         ...(typeof originalLineVal === "number" ? { originalLineNumber: originalLineVal } : {}),
         ...(l.taxAccountCode ? { taxAccountCode: l.taxAccountCode } : {}),
@@ -428,23 +432,44 @@ export class CommercialDocumentService {
     return {
       ...input,
       lines: (Array.isArray(input?.lines) ? input.lines : []).map(
-        (line: CommercialDocumentLineInput) => ({
-          ...line,
-          allocations: (Array.isArray(line.allocations) ? line.allocations : []).map(
-            (allocation: DocumentAllocationInput) => ({
-              ...allocation,
-              dimensions: {
-                ...(allocation.dimensions ?? {}),
-                ...(line.dimensions?.projectId && !allocation.dimensions?.projectId
-                  ? { projectId: line.dimensions.projectId }
-                  : {}),
-                ...(line.dimensions?.contractId && !allocation.dimensions?.contractId
-                  ? { contractId: line.dimensions.contractId }
-                  : {}),
+        (line: CommercialDocumentLineInput) => {
+          const lineCategory = line.categoryCode?.trim() || line.dimensions?.category?.trim();
+          const allocationCategories = line.allocations
+            .map((allocation) => allocation.dimensions.category?.trim())
+            .filter((category): category is string => Boolean(category));
+          const categories = [lineCategory, ...allocationCategories].filter(
+            (category): category is string => Boolean(category),
+          );
+          if (new Set(categories).size > 1) throw new Error("CATEGORY_AMBIGUOUS");
+          const dimensions = Object.fromEntries(
+            Object.entries(line.dimensions ?? {}).filter(([key]) => key !== "category"),
+          );
+          const categoryCode = categories[0];
+          return {
+            ...line,
+            ...(categoryCode ? { categoryCode } : {}),
+            ...(Object.keys(dimensions).length ? { dimensions } : {}),
+            allocations: (Array.isArray(line.allocations) ? line.allocations : []).map(
+              (allocation: DocumentAllocationInput) => {
+                const allocationDimensions = Object.fromEntries(
+                  Object.entries(allocation.dimensions ?? {}).filter(([key]) => key !== "category"),
+                );
+                return {
+                  ...allocation,
+                  dimensions: {
+                    ...allocationDimensions,
+                    ...(dimensions.projectId && !allocationDimensions.projectId
+                      ? { projectId: dimensions.projectId }
+                      : {}),
+                    ...(dimensions.contractId && !allocationDimensions.contractId
+                      ? { contractId: dimensions.contractId }
+                      : {}),
+                  },
+                };
               },
-            }),
-          ),
-        }),
+            ),
+          };
+        },
       ),
     };
   }

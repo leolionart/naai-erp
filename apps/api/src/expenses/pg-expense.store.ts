@@ -374,13 +374,13 @@ export class PgExpenseStore {
   }
   async list(
     org: string,
-      filters: {
+    filters: {
       state?: string;
       expenseClass?: string;
       payeePartyId?: string;
-    fundingTreatment?: string;
-    startsOn?: string;
-    endsOn?: string;
+      fundingTreatment?: string;
+      startsOn?: string;
+      endsOn?: string;
     },
   ) {
     const r = await this.pool.query(
@@ -411,8 +411,7 @@ export class PgExpenseStore {
        coalesce((select jsonb_agg(x.value order by x.value) from (
          select distinct coalesce(l.funding_treatment,c.funding_treatment) value
            from expense_lines l
-           left join expense_categories c
-             on c.organization_id=l.organization_id
+           left join expense_categories c on c.organization_id=l.organization_id
             and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
           where l.organization_id=e.organization_id and l.expense_id=e.id
             and coalesce(l.funding_treatment,c.funding_treatment) is not null
@@ -423,8 +422,7 @@ export class PgExpenseStore {
        and ($4::text is null or e.payee_party_id=$4)
        and ($5::text is null or exists(
          select 1 from expense_lines l
-         left join expense_categories c
-           on c.organization_id=l.organization_id
+         left join expense_categories c on c.organization_id=l.organization_id
           and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
          where l.organization_id=e.organization_id and l.expense_id=e.id
            and coalesce(l.funding_treatment,c.funding_treatment)::text=$5
@@ -446,12 +444,10 @@ export class PgExpenseStore {
   async get(org: string, id: string) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
-       (select coalesce(l.expense_category_code,l.dimensions->>'category')
-          from expense_lines l
+       (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
          where l.organization_id=e.organization_id and l.expense_id=e.id
          order by l.line_number limit 1) category,
-       (select jsonb_build_object(
-          'system', r.system,
+       (select jsonb_build_object('system', r.system,
           'externalId', r.external_id,
           'canonicalUrl', r.canonical_url,
           'checksum', r.checksum,
@@ -479,20 +475,32 @@ export class PgExpenseStore {
         [context.organizationId, id],
       );
       if (!expense.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
-      const categoryRow = await c.query(
-        "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
+      const categoryRow = await c.query<{ source: string; funding_treatment: string | null }>(
+        `select 'expense' source,funding_treatment::text from expense_categories
+          where organization_id=$1 and code=$2 and is_active=true
+         union all
+         select 'legacy' source,null::text funding_treatment from dimension_values
+          where organization_id=$1 and kind='category' and code=$2 and is_active=true
+         limit 1`,
         [context.organizationId, category],
       );
       if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
       const before = await c.query<{ line_number: number; category: string | null }>(
-        "select line_number,dimensions->>'category' category from expense_lines where organization_id=$1 and expense_id=$2 order by line_number",
+        "select line_number,coalesce(expense_category_code,dimensions->>'category') category from expense_lines where organization_id=$1 and expense_id=$2 order by line_number",
         [context.organizationId, id],
       );
       if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
-      await c.query(
-        "update expense_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text) where organization_id=$1 and expense_id=$2",
-        [context.organizationId, id, category],
-      );
+      await c.query("select set_config('app.expense_metadata_correction','on',true)");
+      if (categoryRow.rows[0].source === "expense")
+        await c.query(
+          "update expense_lines set expense_category_code=$3,funding_treatment=$4 where organization_id=$1 and expense_id=$2",
+          [context.organizationId, id, category, categoryRow.rows[0].funding_treatment],
+        );
+      else
+        await c.query(
+          "update expense_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text) where organization_id=$1 and expense_id=$2",
+          [context.organizationId, id, category],
+        );
       const version = BigInt(expense.rows[0].version) + 1n;
       await c.query(
         "update expenses set version=$3,updated_at=now() where organization_id=$1 and id=$2",
@@ -646,7 +654,7 @@ export class PgExpenseStore {
         description: string;
         category: string | null;
       }>(
-        `select line_number,description,dimensions->>'category' category
+        `select line_number,description,expense_category_code category
            from expense_lines where organization_id=$1 and expense_id=$2
           order by line_number for update`,
         [context.organizationId, id],
@@ -677,13 +685,28 @@ export class PgExpenseStore {
         );
       }
       if (Object.prototype.hasOwnProperty.call(input, "category")) {
-        await c.query(
-          `update expense_lines set dimensions=case
-             when $3::text is null then coalesce(dimensions,'{}'::jsonb)-'category'
-             else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text)
-           end where organization_id=$1 and expense_id=$2`,
-          [context.organizationId, id, input.category ?? null],
+        const category = await c.query<{ source: string; funding_treatment: string | null }>(
+          `select 'expense' source,funding_treatment::text from expense_categories
+             where organization_id=$1 and code=$2 and is_active=true
+           union all
+           select 'legacy' source,null::text funding_treatment from dimension_values
+             where organization_id=$1 and kind='category' and code=$2 and is_active=true
+           limit 1`,
+          [context.organizationId, input.category],
         );
+        if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+        if (category.rows[0].source === "expense")
+          await c.query(
+            `update expense_lines set expense_category_code=$3,funding_treatment=$4
+              where organization_id=$1 and expense_id=$2`,
+            [context.organizationId, id, input.category, category.rows[0].funding_treatment],
+          );
+        else
+          await c.query(
+            `update expense_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text)
+              where organization_id=$1 and expense_id=$2`,
+            [context.organizationId, id, input.category],
+          );
       }
       if (Object.prototype.hasOwnProperty.call(input, "projectId")) {
         await c.query(

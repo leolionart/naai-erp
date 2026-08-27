@@ -1,13 +1,13 @@
 schema_version: 1
 project: NAAI ERP
-updated_at: 2026-08-12T14:22:00+07:00
+updated_at: 2026-08-27T15:18:00+07:00
 status_values: [blocked, ready, in_progress, review, done]
 development_status: done
 development_completed_at: 2026-08-10T06:36:00+07:00
 project_status: done
 project_completed_at: 2026-08-10T06:36:00+07:00
 
-current_gate: G87
+current_gate: G93
 current_task: null
 
 tasks:
@@ -3237,6 +3237,59 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/task-ledger.yaml
       - docs/implementation/evidence/ERP-934/
+  - id: ERP-935
+    title: Canonical invoice category list and detail parity
+    phase: P15
+    status: done
+    dependencies: [ERP-934]
+    business_rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    tests: [T-UNIT-ERP-935-001, T-E2E-ERP-935-002]
+    evidence: docs/implementation/evidence/ERP-935/
+    agent: codex
+    started_at: 2026-08-27T00:00:00+07:00
+    completed_at: 2026-08-27T15:00:00+07:00
+    completion_basis: canonical_category_adapter_unit_typecheck_and_invoice_list_detail_e2e_passed
+    planned_files:
+      - apps/web/src/lib/records/category.ts
+      - apps/web/src/lib/records/category.test.ts
+      - apps/web/src/app/workspaces/focused-record-category.ts
+      - apps/web/src/app/workspaces/focused-record-category.test.ts
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/src/app/workspaces/focused-expense-presentation.ts
+      - apps/web/src/components/forms/document-expense-forms.tsx
+      - apps/web/e2e/focused-records.spec.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-935/
+  - id: ERP-936
+    title: Production-backed invoice category hydration
+    phase: P15
+    status: done
+    dependencies: [ERP-935]
+    business_rules: [BR-MVP-007, BR-UI-003, BR-UI-004]
+    tests: [T-UNIT-ERP-936-001, T-E2E-ERP-936-002]
+    evidence: docs/implementation/evidence/ERP-936/
+    agent: codex
+    started_at: 2026-08-27T15:15:00+07:00
+    completed_at: 2026-08-27T15:18:00+07:00
+    completion_basis: production_shaped_category_hydration_local_smoke_unit_typecheck_and_e2e_passed
+    planned_files:
+      - apps/api/src/commercial-documents/pg-commercial-document.store.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/web/src/lib/records/category.ts
+      - apps/web/src/lib/records/category.test.ts
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/e2e/focused-records.spec.ts
+      - db/migrations/0058_canonical_category_codes.sql
+      - db/migrations/0059_expense_tax_finalization_trigger.sql
+      - db/migrations/0060_commercial_tax_finalization_trigger.sql
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-936/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
@@ -3329,6 +3382,8 @@ gates:
   G89: [ERP-932]
   G90: [ERP-933]
   G91: [ERP-934]
+  G92: done
+  G93: [ERP-936]
 
 gate_status:
   G0: done
@@ -3420,3 +3475,5 @@ gate_status:
   G89: done
   G90: done
   G91: done
+  G92: done
+  G93: done

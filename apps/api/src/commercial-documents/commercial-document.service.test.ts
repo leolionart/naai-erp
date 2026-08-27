@@ -263,6 +263,46 @@ describe("ERP-300 CommercialDocumentService", () => {
       );
       expect(result.data).toEqual({ documentId: "sales-1", version: "2" });
     });
+    it("promotes allocation-only category to the owning line field", async () => {
+      const store = {
+        validateRelationships: vi.fn().mockResolvedValue(undefined),
+        create: vi.fn().mockResolvedValue({ documentId: "purchase-1", state: "draft" }),
+      };
+      const service = new CommercialDocumentService(store as never, {} as never);
+      await service.create(
+        context,
+        {
+          ...sales,
+          type: "purchase_invoice",
+          lines: [
+            {
+              ...sales.lines[0],
+              dimensions: { projectId: "p-a" },
+              allocations: [
+                {
+                  id: "a",
+                  amountMinor: "100000000",
+                  dimensions: { projectId: "p-a", category: "MEAL" },
+                },
+              ],
+            },
+          ],
+        },
+        "allocation-category",
+      );
+      expect(store.validateRelationships).toHaveBeenCalledWith(
+        "org-a",
+        expect.objectContaining({
+          lines: [
+            expect.objectContaining({
+              categoryCode: "MEAL",
+              dimensions: { projectId: "p-a" },
+              allocations: [expect.objectContaining({ dimensions: { projectId: "p-a" } })],
+            }),
+          ],
+        }),
+      );
+    });
     it("rejects update if not in draft state", async () => {
       const existing = {
         id: "sales-1",

@@ -143,9 +143,6 @@ export class QuickSalesInvoiceService {
           a.is_active !== false && String(a.root_type) === "asset" && a.is_control_account === true,
       );
     if (!revenue || !control) throw new Error("QUICK_SALES_ACCOUNT_MAPPING_REQUIRED");
-    const dimensionsOut: Record<string, string> = {};
-    if (categoryMatches[0]) dimensionsOut.category = String(categoryMatches[0].code);
-    if (project) dimensionsOut.projectId = String(project.id);
     const response = await this.documents.create(
       context,
       {
@@ -170,11 +167,12 @@ export class QuickSalesInvoiceService {
             taxMinor: "0",
             grossMinor,
             primaryAccountCode: String(revenue.code),
+            ...(categoryMatches[0] ? { categoryCode: String(categoryMatches[0].code) } : {}),
             allocations: [
               {
                 id: `quick-${createHash("sha256").update(`${idempotencyKey}:${documentNumber}`).digest("hex").slice(0, 24)}`,
                 amountMinor: grossMinor,
-                dimensions: dimensionsOut,
+                dimensions: project ? { projectId: String(project.id) } : {},
               },
             ],
           },

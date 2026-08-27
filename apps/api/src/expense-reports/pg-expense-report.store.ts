@@ -32,11 +32,14 @@ export class PgExpenseReportStore {
         and e.expense_date between $2::date and $3::date`;
     const categorySql = `
       select d.id || ':' || l.line_number source_id,to_char(d.document_date,'YYYY-MM') report_month,d.currency,
-        nullif(l.dimensions->>'category','') dimension_key,
+        coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''),
+          (select nullif(a.dimensions->>'category','') from commercial_document_allocations a
+            where a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number
+            order by a.allocation_number limit 1)) dimension_key,
         c.name dimension_name,l.net_minor::text net_minor,l.tax_minor::text vat_minor,l.gross_minor::text amount_minor
       from commercial_documents d
       join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
-      left join dimension_values c on c.organization_id=d.organization_id and c.kind='category' and c.code=nullif(l.dimensions->>'category','')
+      left join dimension_values c on c.organization_id=d.organization_id and c.kind='category' and c.code=coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''))
       where d.organization_id=$1 and d.type='purchase_invoice'
         and d.state in ('posted','partially_paid','paid')
         and d.document_date between $2::date and $3::date

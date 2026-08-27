@@ -976,7 +976,7 @@ export class PgBankingStore implements BankingStore {
                from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id),
              'grossMinor',e.gross_minor::text,'sourceHref','/expenses/' || e.id,
              'expenseClass',e.expense_class::text,
-             'category',(select coalesce(el.expense_category_code,el.dimensions->>'category')
+             'category',(select el.expense_category_code
                from expense_lines el where el.organization_id=e.organization_id and el.expense_id=e.id
                order by el.line_number limit 1),
              'fundingTreatments',(select coalesce(jsonb_agg(distinct
@@ -984,8 +984,7 @@ export class PgBankingStore implements BankingStore {
                filter (where coalesce(el.funding_treatment,ec.funding_treatment) is not null),'[]'::jsonb)
                from expense_lines el
                left join expense_categories ec
-                 on ec.organization_id=el.organization_id
-                and ec.code=coalesce(el.expense_category_code,el.dimensions->>'category')
+                 on ec.organization_id=el.organization_id and ec.code=el.expense_category_code
                where el.organization_id=e.organization_id and el.expense_id=e.id),
              'citState',e.cit_state::text,'vatState',e.vat_state::text,
              'payeeName',p.display_name

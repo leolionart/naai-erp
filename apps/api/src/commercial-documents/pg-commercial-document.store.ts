@@ -136,13 +136,23 @@ export class PgCommercialDocumentStore {
       input.type === "purchase_invoice" && account.rows[0]?.root_type === "asset"
         ? { ...defaultTax, citState: "ineligible", citEligibleMinor: "0" }
         : defaultTax;
+    const categoryCode = line.categoryCode?.trim() || line.dimensions?.category?.trim() || null;
+    if (categoryCode) {
+      const category = await client.query(
+        "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
+        [context.organizationId, categoryCode],
+      );
+      if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+    }
+    const dimensions = Object.fromEntries(
+      Object.entries(line.dimensions ?? {}).filter(([key]) => key !== "category"),
+    );
     await client.query(
       `insert into commercial_document_lines
        (organization_id,document_id,line_number,original_line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,
-        primary_account_code,tax_account_code,tax_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,
+        primary_account_code,category_code,tax_account_code,tax_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,
         reviewed_by,reviewed_at,review_reason,review_reference,dimensions)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-        case when $19::text is null then null else now() end,$20,$21,$22)`,
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
       [
         context.organizationId,
         documentId,
@@ -155,6 +165,7 @@ export class PgCommercialDocumentStore {
         line.taxMinor,
         line.grossMinor,
         line.primaryAccountCode,
+        categoryCode,
         line.taxAccountCode ?? null,
         line.taxCode ?? null,
         tax.managementState,
@@ -163,13 +174,14 @@ export class PgCommercialDocumentStore {
         tax.citEligibleMinor,
         tax.vatEligibleMinor,
         tax.reviewed ? context.actorId : null,
+        tax.reviewed ? new Date() : null,
         tax.reviewed ? "Resolved when the purchase invoice was recorded" : null,
         tax.reviewed
           ? operatingMode === "solopreneur"
             ? "solopreneur_policy"
             : "explicit_tax_state"
           : null,
-        line.dimensions ?? {},
+        dimensions,
       ],
     );
   }
@@ -279,12 +291,15 @@ export class PgCommercialDocumentStore {
       );
       if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
       const before = await client.query<{ line_number: number; category: string | null }>(
-        "select line_number,dimensions->>'category' category from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
+        "select line_number,category_code category from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
         [context.organizationId, id],
       );
       if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
       await client.query(
-        "update commercial_document_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text) where organization_id=$1 and document_id=$2",
+        "select set_config('app.commercial_document_metadata_correction','on',true)",
+      );
+      await client.query(
+        "update commercial_document_lines set category_code=$3 where organization_id=$1 and document_id=$2",
         [context.organizationId, id, category],
       );
       const version = BigInt(document.rows[0].version) + 1n;
@@ -443,29 +458,33 @@ export class PgCommercialDocumentStore {
           "update commercial_document_lines set description=$3 where organization_id=$1 and document_id=$2",
           [context.organizationId, id, input.description],
         );
-      for (const [key, val] of [
-        ["projectId", input.projectId],
-        ["category", input.category],
-      ] as const)
-        if (Object.prototype.hasOwnProperty.call(input, key)) {
+      if (Object.prototype.hasOwnProperty.call(input, "projectId")) {
+        await client.query(
+          "select set_config('app.commercial_document_metadata_correction','on',true)",
+        );
+        await client.query(
+          "update commercial_document_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-'projectId' else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('projectId',$3::text) end where organization_id=$1 and document_id=$2",
+          [context.organizationId, id, input.projectId ?? null],
+        );
+        await client.query(
+          "update commercial_document_allocations set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-'projectId' else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('projectId',$3::text) end where organization_id=$1 and document_id=$2",
+          [context.organizationId, id, input.projectId ?? null],
+        );
+        if (doc.rows[0].journal_id) {
           await client.query(
-            "update commercial_document_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and document_id=$2",
-            [context.organizationId, id, val, key],
+            "select set_config('app.journal_dimension_metadata_correction','on',true)",
           );
           await client.query(
-            "update commercial_document_allocations set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and document_id=$2",
-            [context.organizationId, id, val, key],
+            "update journal_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-'projectId' else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('projectId',$3::text) end where organization_id=$1 and journal_id=$2",
+            [context.organizationId, doc.rows[0].journal_id, input.projectId ?? null],
           );
-          if (doc.rows[0].journal_id) {
-            await client.query(
-              "select set_config('app.journal_dimension_metadata_correction','on',true)",
-            );
-            await client.query(
-              "update journal_lines set dimensions=case when $3::text is null then coalesce(dimensions,'{}'::jsonb)-$4 else coalesce(dimensions,'{}'::jsonb)||jsonb_build_object($4,$3::text) end where organization_id=$1 and journal_id=$2 and dimensions ? $4",
-              [context.organizationId, doc.rows[0].journal_id, val, key],
-            );
-          }
         }
+      }
+      if (Object.prototype.hasOwnProperty.call(input, "category"))
+        await client.query(
+          "update commercial_document_lines set category_code=$3 where organization_id=$1 and document_id=$2",
+          [context.organizationId, id, input.category ?? null],
+        );
       const version = (BigInt(doc.rows[0].version) + 1n).toString();
       await client.query(
         "update commercial_documents set version=$3,updated_at=now() where organization_id=$1 and id=$2",
@@ -511,32 +530,52 @@ export class PgCommercialDocumentStore {
 
   async list(
     organizationId: string,
-    filters: { type?: string; state?: string; partyId?: string; projectId?: string; startsOn?: string; endsOn?: string },
+    filters: {
+      type?: string;
+      state?: string;
+      partyId?: string;
+      projectId?: string;
+      startsOn?: string;
+      endsOn?: string;
+    },
   ) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
-       (select lcat.dimensions->>'category' from commercial_document_lines lcat where lcat.organization_id=d.organization_id and lcat.document_id=d.id and nullif(lcat.dimensions->>'category','') is not null order by lcat.line_number limit 1) category,
+       (select coalesce(nullif(lcat.category_code,''),nullif(lcat.dimensions->>'category',''),
+          (select nullif(a.dimensions->>'category','') from commercial_document_allocations a
+           where a.organization_id=lcat.organization_id and a.document_id=lcat.document_id and a.line_number=lcat.line_number
+           order by a.allocation_number limit 1))
+          from commercial_document_lines lcat
+         where lcat.organization_id=d.organization_id and lcat.document_id=d.id
+           and (lcat.category_code is not null or lcat.dimensions ? 'category' or exists (
+             select 1 from commercial_document_allocations a
+              where a.organization_id=lcat.organization_id and a.document_id=lcat.document_id and a.line_number=lcat.line_number
+                and a.dimensions ? 'category'))
+         order by lcat.line_number limit 1) category,
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
          from (
-           select l2.dimensions->>'projectId' project_id
-             from commercial_document_lines l2
+           select l2.dimensions->>'projectId' project_id from commercial_document_lines l2
             where l2.organization_id=d.organization_id and l2.document_id=d.id
            union
-           select a2.dimensions->>'projectId'
-             from commercial_document_allocations a2
+           select a2.dimensions->>'projectId' from commercial_document_allocations a2
             where a2.organization_id=d.organization_id and a2.document_id=d.id
          ) relationship where relationship.project_id is not null),'[]'::jsonb) "projectIds",
        coalesce((select jsonb_agg(distinct relationship.contract_id order by relationship.contract_id)
          from (
-           select l2.dimensions->>'contractId' contract_id
-             from commercial_document_lines l2
+           select l2.dimensions->>'contractId' contract_id from commercial_document_lines l2
             where l2.organization_id=d.organization_id and l2.document_id=d.id
            union
-           select a2.dimensions->>'contractId'
-             from commercial_document_allocations a2
+           select a2.dimensions->>'contractId' from commercial_document_allocations a2
             where a2.organization_id=d.organization_id and a2.document_id=d.id
          ) relationship where relationship.contract_id is not null),'[]'::jsonb) "contractIds",
-       coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null),'[]') lines
+       coalesce(jsonb_agg(
+         jsonb_set(to_jsonb(l), '{category_code}', to_jsonb(coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''),
+           (select nullif(a0.dimensions->>'category','') from commercial_document_allocations a0
+            where a0.organization_id=l.organization_id and a0.document_id=l.document_id and a0.line_number=l.line_number
+            order by a0.allocation_number limit 1)))
+         ) || jsonb_build_object('allocations',coalesce((select jsonb_agg(a order by a.allocation_number)
+           from commercial_document_allocations a where a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number),'[]'::jsonb))
+         order by l.line_number) filter (where l.line_number is not null),'[]') lines
        from commercial_documents d left join commercial_document_lines l
          on l.organization_id=d.organization_id and l.document_id=d.id
        where d.organization_id=$1 and ($2::text is null or d.type::text=$2)
@@ -547,12 +586,8 @@ export class PgCommercialDocumentStore {
              on project_allocation.organization_id=project_line.organization_id
             and project_allocation.document_id=project_line.document_id
             and project_allocation.line_number=project_line.line_number
-           where project_line.organization_id=d.organization_id
-             and project_line.document_id=d.id
-             and (
-               project_line.dimensions->>'projectId'=$5
-               or project_allocation.dimensions->>'projectId'=$5
-             )
+           where project_line.organization_id=d.organization_id and project_line.document_id=d.id
+             and (project_line.dimensions->>'projectId'=$5 or project_allocation.dimensions->>'projectId'=$5)
          ))
        and ($6::date is null or d.document_date >= $6::date)
        and ($7::date is null or d.document_date <= $7::date)
@@ -573,27 +608,28 @@ export class PgCommercialDocumentStore {
   async get(organizationId: string, id: string) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
-       (select lcat.dimensions->>'category' from commercial_document_lines lcat where lcat.organization_id=d.organization_id and lcat.document_id=d.id and nullif(lcat.dimensions->>'category','') is not null order by lcat.line_number limit 1) category,
-       (select jsonb_build_object(
-          'system', r.system,
-          'externalId', r.external_id,
-          'canonicalUrl', r.canonical_url,
-          'checksum', r.checksum,
-          'version', r.version,
-          'syncedAt', r.synced_at::text,
-          'metadata', r.metadata
-        ) from external_references r where r.organization_id=d.organization_id and r.document_id=d.id) as "externalReference",
+       (select coalesce(nullif(lcat.category_code,''),nullif(lcat.dimensions->>'category',''),
+          (select nullif(a.dimensions->>'category','') from commercial_document_allocations a
+           where a.organization_id=lcat.organization_id and a.document_id=lcat.document_id and a.line_number=lcat.line_number
+           order by a.allocation_number limit 1))
+          from commercial_document_lines lcat
+         where lcat.organization_id=d.organization_id and lcat.document_id=d.id
+           and (lcat.category_code is not null or lcat.dimensions ? 'category' or exists (
+             select 1 from commercial_document_allocations a
+              where a.organization_id=lcat.organization_id and a.document_id=lcat.document_id
+                and a.line_number=lcat.line_number and a.dimensions ? 'category'))
+         order by lcat.line_number limit 1) category,
+       (select jsonb_build_object('system',r.system,'externalId',r.external_id,'canonicalUrl',r.canonical_url,
+          'checksum',r.checksum,'version',r.version,'syncedAt',r.synced_at::text,'metadata',r.metadata)
+          from external_references r where r.organization_id=d.organization_id and r.document_id=d.id) as "externalReference",
        coalesce(json_agg(jsonb_build_object(
         'lineNumber',l.line_number,'description',l.description,'quantity',l.quantity,
-        'unitPriceMinor',l.unit_price_minor::text,'netMinor',l.net_minor::text,
-        'taxMinor',l.tax_minor::text,'grossMinor',l.gross_minor::text,
-        'primaryAccountCode',l.primary_account_code,'taxAccountCode',l.tax_account_code,
-        'taxCode',l.tax_code,'managementState',l.management_state::text,
-        'citState',l.cit_state::text,'vatState',l.vat_state::text,
+        'grossMinor',l.gross_minor::text,'primaryAccountCode',l.primary_account_code,
+        'categoryCode',l.category_code,'taxAccountCode',l.tax_account_code,'taxCode',l.tax_code,
+        'managementState',l.management_state::text,'citState',l.cit_state::text,'vatState',l.vat_state::text,
         'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
-        'reviewedBy',l.reviewed_by,'reviewedAt',l.reviewed_at::text,
-        'reviewReason',l.review_reason,'reviewReference',l.review_reference,
-        'dimensions',l.dimensions,
+        'reviewedBy',l.reviewed_by,'reviewedAt',l.reviewed_at::text,'reviewReason',l.review_reason,
+        'reviewReference',l.review_reference,'dimensions',l.dimensions,
         'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]')
           from commercial_document_allocations a where a.organization_id=l.organization_id
             and a.document_id=l.document_id and a.line_number=l.line_number))

@@ -57,11 +57,12 @@ export class QuickPurchaseInvoiceService {
           taxMinor: "0",
           grossMinor: normalized.grossMinor,
           primaryAccountCode: accounts.primaryAccountCode,
+          categoryCode: category.code,
           allocations: [
             {
               id: allocationId,
               amountMinor: normalized.grossMinor,
-              dimensions: { category: category.code, taxState: "unreviewed" },
+              dimensions: { taxState: "unreviewed" },
             },
           ],
         },
