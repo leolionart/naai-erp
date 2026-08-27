@@ -209,6 +209,14 @@ export function FocusedRecordListWorkspace({
     }
     try {
       const sourceParams = new URLSearchParams(key);
+      // The period navigator defaults to the current calendar year even when
+      // the URL has not been materialized yet. Keep the data query in sync so
+      // the initial view never mixes records from prior years.
+      if (!sourceParams.has("startsOn") && !sourceParams.has("endsOn") && !initialProjectId && !initialPartyId) {
+        const year = new Date().getFullYear();
+        sourceParams.set("startsOn", `${year}-01-01`);
+        sourceParams.set("endsOn", `${year}-12-31`);
+      }
       if (initialProjectId && !sourceParams.has("projectId")) {
         sourceParams.set("projectId", initialProjectId);
       }
@@ -226,7 +234,7 @@ export function FocusedRecordListWorkspace({
       } else if (!new Set(["sales_invoice", "credit_note"]).has(documentParams.get("type") ?? ""))
         documentParams.delete("type");
       const recognitionQuery = new URLSearchParams();
-      for (const name of ["projectId", "state"]) {
+      for (const name of ["projectId", "state", "startsOn", "endsOn"]) {
         const value = sourceParams.get(name);
         if (value) recognitionQuery.set(name, value);
       }
