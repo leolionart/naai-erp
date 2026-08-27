@@ -31,4 +31,14 @@ describe("expense presentation", () => {
       }).description,
     ).toBe("Máy in Brother L2321");
   });
+
+  it("falls back to the canonical line category when the list root projection is absent", () => {
+    expect(
+      presentExpenseRecord({
+        expense_date: "2026-08-04",
+        gross_minor: "120000",
+        lines: [{ expense_category_code: "SOFTWARE" }],
+      }).category,
+    ).toBe("SOFTWARE");
+  });
 });
