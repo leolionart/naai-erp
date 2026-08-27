@@ -24,7 +24,13 @@ export function presentExpenseRecord(row: Row) {
     category:
       first(row, "category", "expenseCategoryCode", "expense_category_code") ||
       (firstLine
-        ? first(firstLine, "expenseCategoryCode", "expense_category_code", "category")
+        ? first(firstLine, "expenseCategoryCode", "expense_category_code", "category") ||
+          (Array.isArray(firstLine.allocations)
+            ? first(
+                ((firstLine.allocations as Row[])[0]?.dimensions as Row | undefined) ?? {},
+                "category",
+              )
+            : "")
         : ""),
     counterAccountCode: first(
       row,
