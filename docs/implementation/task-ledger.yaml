@@ -3330,6 +3330,23 @@ tasks:
       - docs/api/openapi-v1.json
       - docs/implementation/evidence/ERP-946/
 
+  - id: ERP-947
+    title: Unified revenue and expense correction protocol
+    phase: P16
+    status: in_progress
+    dependencies: [ERP-946]
+    business_rules: [BR-AI-003, BR-AI-005, BR-AI-006, BR-MVP-003, BR-MVP-007, BR-LED-003]
+    tests: [T-API-ERP-947-001, T-CONTRACT-ERP-947-002, T-INT-ERP-947-003]
+    evidence: docs/implementation/evidence/ERP-947/
+    agent: codex-root
+    started_at: 2026-08-28T17:20:00+07:00
+    planned_files:
+      - apps/api/src/commercial-documents/
+      - apps/api/src/expenses/
+      - packages/contracts/src/
+      - docs/api/openapi-v1.json
+      - docs/implementation/evidence/ERP-947/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
