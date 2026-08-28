@@ -68,6 +68,7 @@ import { sortRecordsNewestFirst } from "./focused-record-sorting";
 type Kind = "documents" | "expenses";
 type SourceKind = "documents" | "expenses" | "recognition";
 type Row = Record<string, unknown>;
+const nonNullRow = (row: Row | null | undefined): row is Row => Boolean(row);
 type TaggedRow = Row & {
   __sourceKind: SourceKind;
   __invoicePresence: "present" | "missing";
@@ -334,7 +335,7 @@ export function FocusedRecordListWorkspace({
           (row) =>
             String(row.projectId ?? row.project_id ?? "").trim() === initialProjectId.trim() ||
             (Array.isArray(row.lines) &&
-              (row.lines as Row[]).some((l) => {
+              (row.lines as (Row | null | undefined)[]).filter(nonNullRow).some((l) => {
                 const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
                 return (
                   String(
@@ -372,12 +373,14 @@ export function FocusedRecordListWorkspace({
       if (categoryId) {
         rawItems = rawItems.filter((row) => {
           if (Array.isArray(row.lines)) {
-            const lineCategories = (row.lines as Row[]).map((l) => {
-              const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
-              return String(
-                l.expenseCategoryCode ?? l.expense_category_code ?? dims.category ?? "",
-              ).trim();
-            });
+            const lineCategories = (row.lines as (Row | null | undefined)[])
+              .filter(nonNullRow)
+              .map((l) => {
+                const dims = (l.dimensions as Record<string, unknown> | undefined) ?? {};
+                return String(
+                  l.expenseCategoryCode ?? l.expense_category_code ?? dims.category ?? "",
+                ).trim();
+              });
             return categoryId === "unclassified"
               ? lineCategories.every((value) => !value)
               : lineCategories.some((value) => value === categoryId.trim());
@@ -643,7 +646,9 @@ export function FocusedRecordListWorkspace({
     setQuickBusy(true);
     setError("");
     try {
-      const lines = Array.isArray(quickRecord.lines) ? (quickRecord.lines as Row[]) : [];
+      const lines = Array.isArray(quickRecord.lines)
+        ? (quickRecord.lines as (Row | null | undefined)[]).filter(nonNullRow)
+        : [];
       const replacement =
         source === "expenses"
           ? {
@@ -1805,28 +1810,29 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(Array.isArray(record.lines) ? (record.lines as Row[]) : []).map(
-                      (line, index) => (
-                        <TableRow key={text(line, "id") || index}>
-                          <TableCell>{text(line, "description") || "—"}</TableCell>
-                          <TableCell>
-                            {text(
-                              line,
-                              kind === "documents" ? "primaryAccountCode" : "postingAccountCode",
-                            ) || "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {money(text(line, "netMinor"))}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {money(text(line, kind === "documents" ? "taxMinor" : "vatMinor"))}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {money(text(line, "grossMinor"))}
-                          </TableCell>
-                        </TableRow>
-                      ),
-                    )}
+                    {(Array.isArray(record.lines)
+                      ? (record.lines as (Row | null | undefined)[]).filter(nonNullRow)
+                      : []
+                    ).map((line, index) => (
+                      <TableRow key={text(line, "id") || index}>
+                        <TableCell>{text(line, "description") || "—"}</TableCell>
+                        <TableCell>
+                          {text(
+                            line,
+                            kind === "documents" ? "primaryAccountCode" : "postingAccountCode",
+                          ) || "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {money(text(line, "netMinor"))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {money(text(line, kind === "documents" ? "taxMinor" : "vatMinor"))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {money(text(line, "grossMinor"))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
