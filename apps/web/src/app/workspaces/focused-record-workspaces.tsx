@@ -187,6 +187,8 @@ export function FocusedRecordListWorkspace({
   const [quickRecord, setQuickRecord] = useState<Row>();
   const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
   const [deleteInvoiceReason, setDeleteInvoiceReason] = useState("");
+  const [reclassifyOpen, setReclassifyOpen] = useState(false);
+  const [reclassifyReason, setReclassifyReason] = useState("");
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -627,6 +629,114 @@ export function FocusedRecordListWorkspace({
       setQuickBusy(false);
     }
   }
+  const canReclassifyFunding =
+    quickRecord !== undefined &&
+    (sourceKind(quickRecord) === "expenses" ||
+      (sourceKind(quickRecord) === "documents" &&
+        text(quickRecord, "type") === "purchase_invoice")) &&
+    ["posted", "issued", "partially_paid", "paid"].includes(text(quickRecord, "state"));
+
+  async function reclassifyFunding() {
+    if (!quickRecord || !canReclassifyFunding || !reclassifyReason.trim()) return;
+    const id = text(quickRecord, "id");
+    const source = sourceKind(quickRecord);
+    setQuickBusy(true);
+    setError("");
+    try {
+      const lines = Array.isArray(quickRecord.lines) ? (quickRecord.lines as Row[]) : [];
+      const replacement =
+        source === "expenses"
+          ? {
+              id: crypto.randomUUID(),
+              expenseClass: text(quickRecord, "expenseClass", "expense_class") || "non_documented",
+              payeePartyId: text(quickRecord, "payeePartyId", "payee_party_id") || undefined,
+              employeePartyId:
+                text(quickRecord, "employeePartyId", "employee_party_id") || undefined,
+              expenseDate: text(quickRecord, "expenseDate", "expense_date"),
+              businessPurpose:
+                text(quickRecord, "businessPurpose", "business_purpose") || "Chi phí doanh nghiệp",
+              currency: text(quickRecord, "currency") || "VND",
+              netMinor: text(quickRecord, "netMinor", "net_minor") || "0",
+              vatMinor: text(quickRecord, "vatMinor", "vat_minor") || "0",
+              grossMinor: text(quickRecord, "grossMinor", "gross_minor") || "0",
+              counterAccountCode: "3388-OWNER",
+              lines: lines.map((line) => ({
+                ...line,
+                postingAccountCode: text(line, "postingAccountCode", "posting_account_code"),
+                allocations: Array.isArray(line.allocations) ? line.allocations : [],
+              })),
+            }
+          : {
+              id: crypto.randomUUID(),
+              type: "purchase_invoice",
+              documentNumber: text(quickRecord, "documentNumber", "document_number") || id,
+              fiscalYear: Number(
+                text(quickRecord, "fiscalYear", "fiscal_year") || new Date().getFullYear(),
+              ),
+              partyId: text(quickRecord, "partyId", "party_id"),
+              documentDate: text(quickRecord, "documentDate", "document_date"),
+              dueDate:
+                text(quickRecord, "dueDate", "due_date") ||
+                text(quickRecord, "documentDate", "document_date"),
+              currency: text(quickRecord, "currency") || "VND",
+              netMinor: text(quickRecord, "netMinor", "net_minor") || "0",
+              taxMinor: text(quickRecord, "taxMinor", "tax_minor") || "0",
+              grossMinor: text(quickRecord, "grossMinor", "gross_minor") || "0",
+              controlAccountCode: "3388-OWNER",
+              lines: lines.map((line) => ({
+                description: text(line, "description") || "Chi phí doanh nghiệp",
+                quantity: text(line, "quantity") || "1",
+                unitPriceMinor:
+                  text(line, "unitPriceMinor", "unit_price_minor") ||
+                  text(line, "grossMinor", "gross_minor") ||
+                  "0",
+                netMinor: text(line, "netMinor", "net_minor") || "0",
+                taxMinor: text(line, "taxMinor", "tax_minor") || "0",
+                grossMinor: text(line, "grossMinor", "gross_minor") || "0",
+                primaryAccountCode:
+                  text(line, "primaryAccountCode", "primary_account_code") || "642-OPEX",
+                categoryCode:
+                  text(
+                    line,
+                    "categoryCode",
+                    "category_code",
+                    "expenseCategoryCode",
+                    "expense_category_code",
+                  ) || undefined,
+                allocations: Array.isArray(line.allocations) ? line.allocations : [],
+              })),
+            };
+      const endpoint =
+        source === "expenses"
+          ? `expenses/${encodeURIComponent(id)}/reverse-replace`
+          : `commercial-documents/${encodeURIComponent(id)}/reclassify-funding`;
+      const requestBody =
+        source === "expenses"
+          ? { replacement, reason: reclassifyReason.trim() }
+          : { targetControlAccountCode: "3388-OWNER", reason: reclassifyReason.trim() };
+      const result = await client.data<Row>(endpoint, {
+        method: "POST",
+        expectedVersion: text(quickRecord, "resourceVersion", "version"),
+        idempotencyKey: `funding-reclassify-${id}-${crypto.randomUUID()}`,
+        body: requestBody,
+      });
+      setReclassifyOpen(false);
+      setReclassifyReason("");
+      await load();
+      if (result?.replacementExpenseId || result?.replacementDocumentId) {
+        toast.success(
+          "Đã đảo bút toán cũ và tạo bản thay thế với nguồn chủ doanh nghiệp chi hộ (TK 3388).",
+        );
+      }
+      setQuickRecord(undefined);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Không thể đổi nguồn thanh toán.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
   const points: readonly StackedCategoryPoint[] = buildFocusedRecordChartPoints(
     rows,
     getCategoryName,
@@ -942,6 +1052,13 @@ export function FocusedRecordListWorkspace({
                   </CardContent>
                 </Card>
               ) : null}
+              {canReclassifyFunding ? (
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" onClick={() => setReclassifyOpen(true)}>
+                    Đổi sang chủ doanh nghiệp chi hộ (TK 3388)
+                  </Button>
+                </div>
+              ) : null}
               {sourceKind(quickRecord) !== "recognition" ? (
                 <>
                   {sourceKind(quickRecord) === "documents" ? (
@@ -1056,6 +1173,49 @@ export function FocusedRecordListWorkspace({
               onClick={() => void deleteQuickPurchaseInvoice()}
             >
               {quickBusy ? "Đang xóa…" : "Xác nhận xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={reclassifyOpen}
+        onOpenChange={(open) => {
+          setReclassifyOpen(open);
+          if (!open) setReclassifyReason("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đổi nguồn thanh toán sang TK 3388?</DialogTitle>
+            <DialogDescription>
+              Bút toán đã ghi sổ sẽ được đảo và tạo bản thay thế ở trạng thái nháp. Lịch sử và đối
+              soát cũ được giữ nguyên; bản thay thế ghi nhận chủ doanh nghiệp chi hộ.
+            </DialogDescription>
+          </DialogHeader>
+          <Field>
+            <FieldLabel htmlFor="reclassify-funding-reason">Lý do điều chỉnh</FieldLabel>
+            <Textarea
+              id="reclassify-funding-reason"
+              value={reclassifyReason}
+              onChange={(event) => setReclassifyReason(event.target.value)}
+              placeholder="Ví dụ: Hóa đơn do chủ doanh nghiệp thanh toán bằng tiền cá nhân"
+            />
+          </Field>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={quickBusy}
+              onClick={() => setReclassifyOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              disabled={quickBusy || !reclassifyReason.trim()}
+              onClick={() => void reclassifyFunding()}
+            >
+              {quickBusy ? "Đang xử lý…" : "Xác nhận đổi nguồn"}
             </Button>
           </DialogFooter>
         </DialogContent>

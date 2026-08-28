@@ -71,6 +71,11 @@ export type CommercialDocumentMetadataInput = Readonly<{
   reason?: string;
 }>;
 
+export type CommercialDocumentFundingReclassificationInput = Readonly<{
+  targetControlAccountCode: string;
+  reason: string;
+}>;
+
 export type QuickPurchaseInvoiceInput = Readonly<{
   schemaVersion?: 1;
   supplierTaxId?: string;

@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
-import {
-  FinancialDataTable,
-  type FinancialColumn,
-} from "@/components/financial/financial-data-table";
-import { StatusBadge } from "@/components/financial/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import {
   operationalLogsApi,
@@ -74,6 +75,8 @@ export function OperationalLogWorkspace() {
 
   useEffect(() => {
     void load();
+    const interval = window.setInterval(() => void load(), 5_000);
+    return () => window.clearInterval(interval);
   }, [load]);
 
   const timelineFor = useMemo(
@@ -90,108 +93,6 @@ export function OperationalLogWorkspace() {
     [],
   );
 
-  const columns: readonly FinancialColumn<OperationalLog>[] = [
-    {
-      id: "activity",
-      header: "Hoạt động",
-      cell: (item) => (
-        <div className="flex min-w-52 flex-col gap-1">
-          <strong>{item.summary || item.event_type || item.operation}</strong>
-          <span className="font-mono text-xs text-muted-foreground">
-            {item.source || item.service} · {item.event_type || item.operation}
-          </span>
-        </div>
-      ),
-    },
-    { id: "status", header: "Trạng thái", cell: (item) => <StatusBadge status={item.status} /> },
-    {
-      id: "started",
-      header: "Thời gian",
-      cell: (item) => formatDateTime(item.occurred_at || item.started_at),
-    },
-    { id: "finished", header: "Kết thúc", cell: (item) => formatDateTime(item.completed_at) },
-    {
-      id: "duration",
-      header: "Thời lượng",
-      cell: (item) =>
-        formatDuration(
-          item.completed_at
-            ? Math.max(
-                0,
-                new Date(item.completed_at).valueOf() - new Date(item.started_at).valueOf(),
-              )
-            : null,
-        ),
-    },
-    {
-      id: "attempt",
-      header: "Lần chạy",
-      cell: (item) => <Badge variant="outline">{item.worker_id || "—"}</Badge>,
-    },
-    {
-      id: "detail",
-      header: "Chi tiết",
-      cell: (item) => (
-        <div className="max-w-96 space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span
-              className={
-                item.status === "failed"
-                  ? "text-destructive"
-                  : "font-mono text-xs text-muted-foreground"
-              }
-            >
-              {item.status === "failed" && item.details
-                ? typeof item.details === "string"
-                  ? item.details
-                  : "Có lỗi khi xử lý"
-                : item.correlation_id || item.id}
-            </span>
-            {timelineFor(item).length > 0 ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-expanded={expanded.has(item.id)}
-                onClick={() =>
-                  setExpanded((current) => {
-                    const next = new Set(current);
-                    if (next.has(item.id)) next.delete(item.id);
-                    else next.add(item.id);
-                    return next;
-                  })
-                }
-              >
-                {expanded.has(item.id)
-                  ? "Ẩn quá trình"
-                  : `Xem quá trình (${timelineFor(item).length})`}
-              </Button>
-            ) : null}
-          </div>
-          {expanded.has(item.id) ? (
-            <ol
-              className="border-l pl-3 text-xs text-muted-foreground"
-              aria-label="Chi tiết quá trình"
-            >
-              {timelineFor(item).map((event, index) => (
-                <li className="mb-2" key={`${item.id}-event-${index}`}>
-                  <div className="font-medium text-foreground">
-                    {String(event.message ?? event.phase ?? event.step ?? `Bước ${index + 1}`)}
-                  </div>
-                  <div>
-                    {formatDateTime(
-                      String(event.occurredAt ?? event.occurred_at ?? event.timestamp ?? ""),
-                    )}{" "}
-                    · {String(event.level ?? event.status ?? "info")}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : null}
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-4">
       <Alert>
@@ -203,52 +104,64 @@ export function OperationalLogWorkspace() {
       </Alert>
 
       <Card>
-        <CardHeader className="flex-row flex-wrap items-end justify-between gap-4">
+        <CardHeader className="!flex !flex-row flex-wrap items-start justify-between gap-3 border-b">
           <div>
             <CardTitle>Nhật ký hoạt động</CardTitle>
             <CardDescription>
               Theo dõi thao tác nghiệp vụ, API, hệ thống và tiến trình nền trong một dòng thời gian.
             </CardDescription>
           </div>
-          <Button onClick={() => void load()} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-auto shrink-0"
+            onClick={() => void load()}
+            disabled={loading}
+          >
             {loading ? (
               <Spinner data-icon="inline-start" />
             ) : (
               <RefreshCwIcon data-icon="inline-start" />
             )}
-            Tải lại
+            Tải lại log
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field>
               <FieldLabel htmlFor="activity-source">Nguồn hoạt động</FieldLabel>
-              <select
-                id="activity-source"
-                className="h-9 rounded-md border bg-background px-3 text-sm"
-                value={source}
-                onChange={(event) => setSource(event.target.value)}
+              <Select
+                value={source || "__all"}
+                onValueChange={(value) => setSource(value === "__all" ? "" : value)}
               >
-                <option value="">Tất cả nguồn</option>
-                <option value="operational">Vận hành</option>
-                <option value="resource_audit">Nghiệp vụ/API</option>
-                <option value="planning_audit">Kế hoạch</option>
-              </select>
+                <SelectTrigger id="activity-source" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Tất cả nguồn</SelectItem>
+                  <SelectItem value="operational">Vận hành</SelectItem>
+                  <SelectItem value="resource_audit">Nghiệp vụ/API</SelectItem>
+                  <SelectItem value="planning_audit">Kế hoạch</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <Field>
               <FieldLabel htmlFor="activity-status">Trạng thái</FieldLabel>
-              <select
-                id="activity-status"
-                className="h-9 rounded-md border bg-background px-3 text-sm"
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
+              <Select
+                value={status || "__all"}
+                onValueChange={(value) => setStatus(value === "__all" ? "" : value)}
               >
-                <option value="">Tất cả trạng thái</option>
-                <option value="running">Đang chạy</option>
-                <option value="succeeded">Thành công</option>
-                <option value="failed">Thất bại</option>
-                <option value="cancelled">Đã hủy</option>
-              </select>
+                <SelectTrigger id="activity-status" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="running">Đang chạy</SelectItem>
+                  <SelectItem value="succeeded">Thành công</SelectItem>
+                  <SelectItem value="failed">Thất bại</SelectItem>
+                  <SelectItem value="cancelled">Đã hủy</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
             <Field>
               <FieldLabel htmlFor="activity-kind">Loại hoạt động</FieldLabel>
@@ -260,15 +173,115 @@ export function OperationalLogWorkspace() {
               />
             </Field>
           </div>
-          <FinancialDataTable
-            rows={page?.items ?? []}
-            columns={columns}
-            rowKey={(item) => item.id}
-            loading={loading}
-            error={error}
-            emptyTitle="Chưa có hoạt động"
-            emptyDescription="Thao tác nghiệp vụ và hoạt động hệ thống sẽ xuất hiện tại đây."
-          />
+          <div
+            className="overflow-hidden rounded-lg border bg-slate-950 text-slate-100 shadow-inner"
+            aria-live="polite"
+          >
+            {loading ? (
+              <div className="px-4 py-8 text-center font-mono text-sm text-slate-400">
+                Đang tải log…
+              </div>
+            ) : null}
+            {!loading && error ? (
+              <div className="px-4 py-8 font-mono text-sm text-red-300">[error] {error}</div>
+            ) : null}
+            {!loading && !error && (page?.items ?? []).length === 0 ? (
+              <div className="px-4 py-8 text-center font-mono text-sm text-slate-400">
+                Chưa có log.
+              </div>
+            ) : null}
+            {!loading && !error
+              ? (page?.items ?? []).map((item) => {
+                  const timeline = timelineFor(item);
+                  const isFailed = item.status === "failed";
+                  return (
+                    <div
+                      className="border-b border-slate-800 px-4 py-3 last:border-b-0"
+                      key={item.id}
+                    >
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-xs leading-relaxed">
+                        <span className="shrink-0 text-slate-500">
+                          {formatDateTime(item.occurred_at || item.started_at)}
+                        </span>
+                        <span
+                          className={
+                            isFailed
+                              ? "text-red-400"
+                              : item.status === "running"
+                                ? "text-amber-300"
+                                : "text-emerald-400"
+                          }
+                        >
+                          [{item.status}]
+                        </span>
+                        <span className="font-semibold text-slate-100">
+                          {item.source || item.service || "system"}
+                        </span>
+                        <span className="text-slate-300">
+                          {item.event_type || item.operation || "activity"}
+                        </span>
+                        <span className="text-slate-400">
+                          — {item.summary || (isFailed ? "Có lỗi khi xử lý" : "Hoàn tất")}
+                        </span>
+                        {item.worker_id ? (
+                          <span className="text-slate-500">worker={item.worker_id}</span>
+                        ) : null}
+                        {item.completed_at ? (
+                          <span className="text-slate-500">
+                            duration=
+                            {formatDuration(
+                              Math.max(
+                                0,
+                                new Date(item.completed_at).valueOf() -
+                                  new Date(item.started_at).valueOf(),
+                              ),
+                            )}
+                          </span>
+                        ) : null}
+                        {timeline.length > 0 ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 font-sans text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
+                            aria-expanded={expanded.has(item.id)}
+                            onClick={() =>
+                              setExpanded((current) => {
+                                const next = new Set(current);
+                                if (next.has(item.id)) next.delete(item.id);
+                                else next.add(item.id);
+                                return next;
+                              })
+                            }
+                          >
+                            {expanded.has(item.id) ? "Ẩn trace" : `trace(${timeline.length})`}
+                          </Button>
+                        ) : null}
+                      </div>
+                      {expanded.has(item.id) ? (
+                        <ol
+                          className="mt-2 border-l border-slate-700 pl-4 font-mono text-xs text-slate-400"
+                          aria-label="Chi tiết quá trình"
+                        >
+                          {timeline.map((event, index) => (
+                            <li className="mb-1 last:mb-0" key={`${item.id}-event-${index}`}>
+                              {formatDateTime(
+                                String(
+                                  event.occurredAt ?? event.occurred_at ?? event.timestamp ?? "",
+                                ),
+                              )}{" "}
+                              {String(event.level ?? event.status ?? "info")} —{" "}
+                              {String(
+                                event.message ?? event.phase ?? event.step ?? `Bước ${index + 1}`,
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
+                    </div>
+                  );
+                })
+              : null}
+          </div>
         </CardContent>
       </Card>
     </div>

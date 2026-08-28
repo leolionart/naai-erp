@@ -361,4 +361,27 @@ describe("ERP-300 CommercialDocumentService", () => {
     );
     expect(result.data).toMatchObject({ replacementDocumentId: "sales-2" });
   });
+
+  it("allows authorized funding reclassification with optimistic version and idempotency", async () => {
+    const store = {
+      reclassifyFunding: vi.fn().mockResolvedValue({ replacementDocumentId: "pi-2" }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    const result = await service.reclassifyFunding(
+      { ...context, roles: ["owner"] },
+      "pi-1",
+      "4",
+      { targetControlAccountCode: "3388", reason: "Owner paid" },
+      "funding-1",
+    );
+    expect(store.reclassifyFunding).toHaveBeenCalledWith(
+      expect.anything(),
+      "pi-1",
+      "4",
+      "3388",
+      "Owner paid",
+      "funding-1",
+    );
+    expect(result.data).toMatchObject({ replacementDocumentId: "pi-2" });
+  });
 });

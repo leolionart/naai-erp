@@ -49,12 +49,13 @@ export class QuickSalesInvoiceService {
       !/^\d{4}-\d{2}-\d{2}$/.test(input.documentDate ?? "")
     )
       throw new Error("VALIDATION_FAILED");
-    const [parties, roles, projects, dimensions, accounts] = await Promise.all([
+    const [parties, roles, projects, categories, accounts, dimensions] = await Promise.all([
       this.rows("parties", context),
       this.rows("party-roles", context),
       this.rows("projects", context),
-      this.rows("dimensions", context),
+      this.rows("categories", context),
       this.rows("accounts", context),
+      this.rows("dimensions", context),
     ]);
     const activeParties = parties.filter((p) => String(p.status ?? "active") === "active");
     const matches = customerTaxId
@@ -118,12 +119,13 @@ export class QuickSalesInvoiceService {
         throw new Error("PROJECT_CUSTOMER_MISMATCH");
     }
     const categoryKey = this.norm(input.category);
+    const categoryRows = categories.length
+      ? categories.filter((d) => String(d.kind) === "revenue")
+      : dimensions.filter((d) => String(d.kind) === "category");
     const categoryMatches = categoryKey
-      ? dimensions.filter(
+      ? categoryRows.filter(
           (d) =>
-            String(d.kind) === "category" &&
-            d.is_active !== false &&
-            [d.code, d.name].some((v) => this.norm(v) === categoryKey),
+            d.is_active !== false && [d.code, d.name].some((v) => this.norm(v) === categoryKey),
         )
       : [];
     if (categoryMatches.length > 1) throw new Error("CATEGORY_AMBIGUOUS");

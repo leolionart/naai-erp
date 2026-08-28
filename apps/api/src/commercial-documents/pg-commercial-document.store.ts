@@ -632,6 +632,7 @@ export class PgCommercialDocumentStore {
           from external_references r where r.organization_id=d.organization_id and r.document_id=d.id) as "externalReference",
        coalesce(json_agg(jsonb_build_object(
         'lineNumber',l.line_number,'description',l.description,'quantity',l.quantity,
+        'unitPriceMinor',l.unit_price_minor::text,'netMinor',l.net_minor::text,'taxMinor',l.tax_minor::text,
         'grossMinor',l.gross_minor::text,'primaryAccountCode',l.primary_account_code,
         'categoryCode',l.category_code,'taxAccountCode',l.tax_account_code,'taxCode',l.tax_code,
         'managementState',l.management_state::text,'citState',l.cit_state::text,'vatState',l.vat_state::text,
@@ -1618,6 +1619,7 @@ export class PgCommercialDocumentStore {
     input: CreateCommercialDocumentInput,
     reason: string,
     idempotencyKey: string,
+    allowReconciliation = false,
   ) {
     const requestHash = createHash("sha256")
       .update(JSON.stringify({ id, expectedVersion, input, reason }))
@@ -1651,7 +1653,8 @@ export class PgCommercialDocumentStore {
           where organization_id=$1 and commercial_document_id=$2 limit 1`,
         [context.organizationId, id],
       );
-      if (reconciliation.rows[0]) throw new Error("INVALID_DOCUMENT_TRANSITION");
+      if (reconciliation.rows[0] && !allowReconciliation)
+        throw new Error("INVALID_DOCUMENT_TRANSITION");
       if ((input.id ?? "") === id) throw new Error("VALIDATION_FAILED");
       await this.assertPostingPeriod(client, context, input.documentDate);
       const journal = await client.query<{ state: string; currency: string; version: string }>(
@@ -1739,6 +1742,13 @@ export class PgCommercialDocumentStore {
             ],
           );
       }
+      if (allowReconciliation && reconciliation.rows[0]) {
+        await client.query(
+          `update reconciliation_allocations set commercial_document_id=$3
+             where organization_id=$1 and commercial_document_id=$2`,
+          [context.organizationId, id, replacementId],
+        );
+      }
       await client.query(
         `update external_references set document_id=$3,synced_at=now()
           where organization_id=$1 and document_id=$2`,
@@ -1790,6 +1800,63 @@ export class PgCommercialDocumentStore {
     } finally {
       client.release();
     }
+  }
+
+  async reclassifyFunding(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    targetControlAccountCode: string,
+    reason: string,
+    idempotencyKey: string,
+  ) {
+    const existing = await this.get(context.organizationId, id);
+    if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+    if (existing.type !== "purchase_invoice") throw new Error("VALIDATION_FAILED");
+    const replacement = {
+      id: randomUUID(),
+      type: "purchase_invoice" as const,
+      documentNumber: existing.document_number,
+      series: existing.series ?? undefined,
+      fiscalYear: Number(existing.fiscal_year),
+      partyId: existing.party_id,
+      documentDate: String(existing.document_date).slice(0, 10),
+      dueDate: String(existing.due_date).slice(0, 10),
+      currency: existing.currency,
+      netMinor: String(existing.net_minor),
+      taxMinor: String(existing.tax_minor),
+      grossMinor: String(existing.gross_minor),
+      controlAccountCode: targetControlAccountCode,
+      lines: (existing.lines ?? []).map((line: Record<string, unknown>) => ({
+        description: line.description,
+        quantity: String(line.quantity ?? "1"),
+        unitPriceMinor: String(line.unitPriceMinor ?? line.grossMinor ?? "0"),
+        netMinor: String(line.netMinor ?? line.grossMinor ?? "0"),
+        taxMinor: String(line.taxMinor ?? "0"),
+        grossMinor: String(line.grossMinor ?? "0"),
+        primaryAccountCode: line.primaryAccountCode,
+        categoryCode: line.categoryCode ?? undefined,
+        taxAccountCode: line.taxAccountCode ?? undefined,
+        taxCode: line.taxCode ?? undefined,
+        dimensions: line.dimensions ?? {},
+        allocations: (Array.isArray(line.allocations) ? line.allocations : []).map(
+          (a: Record<string, unknown>) => ({
+            id: a.id ?? a.allocation_id ?? randomUUID(),
+            amountMinor: String(a.amountMinor ?? a.amount_minor),
+            dimensions: a.dimensions ?? {},
+          }),
+        ),
+      })),
+    } satisfies CreateCommercialDocumentInput;
+    return this.reverseReplace(
+      context,
+      id,
+      expectedVersion,
+      replacement,
+      reason,
+      idempotencyKey,
+      true,
+    );
   }
 
   private nextActions(type: CommercialDocumentType, state: string) {

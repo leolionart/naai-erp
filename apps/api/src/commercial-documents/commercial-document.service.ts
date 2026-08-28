@@ -387,6 +387,29 @@ export class CommercialDocumentService {
       ),
     );
   }
+  async reclassifyFunding(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: { targetControlAccountCode: string; reason: string },
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion || !input.targetControlAccountCode?.trim() || !input.reason?.trim())
+      throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.reclassifyFunding(
+        context,
+        id,
+        expectedVersion,
+        input.targetControlAccountCode.trim(),
+        input.reason.trim(),
+        idempotencyKey,
+      ),
+    );
+  }
   async commitRelationshipBackfill(
     context: CommercialDocumentContext,
     id: string,

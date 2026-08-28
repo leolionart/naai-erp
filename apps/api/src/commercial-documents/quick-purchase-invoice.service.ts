@@ -248,29 +248,18 @@ export class QuickPurchaseInvoiceService {
     categoryInput: string | undefined,
     description: string,
   ) {
-    const [dimensions, expenseCategories] = await Promise.all([
-      this.rows("dimensions", context),
-      this.rows("expense-categories", context),
-    ]);
-    const expenseCategoriesByCode = new Map(
-      expenseCategories.map((row) => [String(row.code ?? ""), row] as const),
-    );
-    const candidates = dimensions
+    const categories = await this.rows("categories", context);
+    const legacy = categories.length ? categories : await this.rows("dimensions", context);
+    const candidates = legacy
       .filter((row) => {
-        if (String(row.kind) !== "category" || row.is_active === false) return false;
-        const expenseCategory = expenseCategoriesByCode.get(String(row.code ?? ""));
-        return expenseCategory?.is_active !== false;
+        return ["expense", "category"].includes(String(row.kind)) && row.is_active !== false;
       })
       .map((row) => {
         const code = String(row.code ?? "");
         return {
           code,
-          name: String(expenseCategoriesByCode.get(code)?.name ?? row.name ?? code),
-          aliases: [
-            code,
-            String(row.name ?? ""),
-            String(expenseCategoriesByCode.get(code)?.name ?? ""),
-          ].filter(Boolean),
+          name: String(row.name ?? code),
+          aliases: [code, String(row.name ?? ""), String(row.name ?? "")].filter(Boolean),
         };
       });
     if (candidates.length === 0) throw new Error("CATEGORY_NOT_FOUND");
@@ -331,14 +320,17 @@ export class QuickPurchaseInvoiceService {
     category: string,
     documentDate: string,
   ) {
-    const [dimensions, mappings, accounts] = await Promise.all([
-      this.rows("dimensions", context),
+    const [categories, mappings, accounts] = await Promise.all([
+      this.rows("categories", context),
       this.rows("default-mappings", context),
       this.rows("accounts", context),
     ]);
-    const categoryExists = dimensions.some(
+    const categoryCatalog = categories.length ? categories : await this.rows("dimensions", context);
+    const categoryExists = categoryCatalog.some(
       (row) =>
-        String(row.kind) === "category" && String(row.code) === category && row.is_active !== false,
+        ["expense", "category"].includes(String(row.kind)) &&
+        String(row.code) === category &&
+        row.is_active !== false,
     );
     if (!categoryExists) throw new Error("CATEGORY_NOT_FOUND");
     const mapping = [...mappings]

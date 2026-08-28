@@ -206,6 +206,24 @@ export class CommercialDocumentController {
       idempotencyKey,
     );
   }
+  @Post(":id/reclassify-funding")
+  async reclassifyFunding(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { targetControlAccountCode: string; reason: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.reclassifyFunding(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input,
+      idempotencyKey,
+    );
+  }
   @Post(":id/relationship-backfill/dry-run")
   async dryRunRelationshipBackfill(
     @Param("organizationId") organizationId: string,
