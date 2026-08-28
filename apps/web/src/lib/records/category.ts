@@ -13,7 +13,8 @@ export function recordCategory(row: Row): string {
   const root = first(row, "category", "categoryCode", "category_code");
   if (root) return root;
   if (!Array.isArray(row.lines)) return "";
-  for (const line of row.lines as Row[]) {
+  for (const line of row.lines as (Row | null | undefined)[]) {
+    if (!line) continue;
     const lineCategory = first(
       line,
       "category",
