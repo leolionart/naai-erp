@@ -596,13 +596,13 @@ export class PgFinancialStatementStore {
         case when l.tax_minor>0 then array['source_document']::text[] else array[]::text[] end present_evidence_types
        from commercial_documents d join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
        left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
-       where d.organization_id=$1 and d.document_date between $2::date and $3::date and d.created_at <= $4::timestamptz and l.tax_minor>0
+       where d.organization_id=$1 and d.state<>'cancelled' and d.document_date between $2::date and $3::date and d.created_at <= $4::timestamptz and l.tax_minor>0
        union all
        select concat('expense:',e.id,':',l.line_number),e.id,'expense','input',l.vat_minor::text,'normal',l.vat_state::text,l.vat_eligible_minor::text,
         l.reviewed_by,l.review_reason,l.review_reference,null::text,true,e.journal_id is not null,e.journal_id,
         array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id) then array['source_document']::text[] else array[]::text[] end
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-       where e.organization_id=$1 and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz and l.vat_minor>0`,
+       where e.organization_id=$1 and e.state<>'reversed' and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz and l.vat_minor>0`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
     );
     const items = source.rows.map((r) => ({

@@ -417,7 +417,7 @@ export class PgExpenseStore {
             and coalesce(l.funding_treatment,c.funding_treatment) is not null
        ) x),'[]'::jsonb) "fundingTreatments"
        from expenses e where e.organization_id=$1
-       and ($2::text is null or e.state::text=$2)
+       and (($2::text is not null and e.state::text=$2) or ($2::text is null and e.state<>'reversed'))
        and ($3::text is null or e.expense_class::text=$3)
        and ($4::text is null or e.payee_party_id=$4)
        and ($5::text is null or exists(

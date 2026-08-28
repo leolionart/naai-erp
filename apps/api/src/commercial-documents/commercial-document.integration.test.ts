@@ -912,6 +912,27 @@ describeIntegration("ERP-300 commercial documents", () => {
       state: "draft",
       externalReference: expect.objectContaining({ externalId: "sales-backfill-1" }),
     });
+    const operationalListing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    expect(operationalListing.statusCode, operationalListing.body).toBe(200);
+    expect(operationalListing.json().data.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: replacement.id, state: "draft" })]),
+    );
+    expect(
+      operationalListing.json().data.items.some((item: { id: string }) => item.id === original.id),
+    ).toBe(false);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/api/v1/organizations/${org}/commercial-documents/${original.id}`,
+          headers: { authorization: `Bearer ${financeToken}` },
+        })
+      ).statusCode,
+    ).toBe(200);
   });
 
   it("enforces lifecycle, organization scope, allocation totals and final immutability", async () => {

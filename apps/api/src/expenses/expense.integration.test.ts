@@ -620,6 +620,41 @@ describeIntegration("ERP-310 expense workflow", () => {
     expect(
       listing.json().data.items.some((item: { id: string }) => item.id === "legacy-company-paid"),
     ).toBe(false);
+
+    await pool.query(
+      `insert into expenses
+        (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,created_by)
+       values ($1,'reversed-original','non_documented','reversed','2026-08-06','Reversed original','VND',5000,0,5000,'111-CASH','maker')`,
+      [organizationId],
+    );
+    await pool.query(
+      `insert into expense_lines
+        (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,management_state,cit_state,vat_state,dimensions)
+       values ($1,'reversed-original',1,'Reversed original',5000,0,5000,'642-OPEX','valid','eligible','ineligible','{}')`,
+      [organizationId],
+    );
+    const operationalListing = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(operationalListing.statusCode, operationalListing.body).toBe(200);
+    expect(
+      operationalListing
+        .json()
+        .data.items.some((item: { id: string }) => item.id === "reversed-original"),
+    ).toBe(false);
+    const explicitHistory = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${organizationId}/expenses?state=reversed`,
+      headers: { authorization: `Bearer ${integrationToken}` },
+    });
+    expect(explicitHistory.statusCode, explicitHistory.body).toBe(200);
+    expect(explicitHistory.json().data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "reversed-original", state: "reversed" }),
+      ]),
+    );
   });
 
   it("discards only a version-matched draft and replays idempotently", async () => {

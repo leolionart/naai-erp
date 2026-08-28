@@ -40,6 +40,10 @@ These rules define the active release boundary. Historical rules remain valid fo
   inbound/outbound invoice silos.
 - Each workspace defaults to all relevant records. Invoice presence is an optional URL-backed filter
   with `all`, `present` and `missing` semantics.
+- Operational listings show the current canonical source set by default: commercial documents in
+  `cancelled` state and expenses in `reversed` state are hidden so a correction's original and
+  replacement are not presented as duplicate spend. An explicit lifecycle-state filter and the
+  detail route remain available for audit and history review.
 - Revenue Management shows invoiced revenue activity separately from recognized revenue activity.
   These axes are visibly labeled and are never added together as one revenue total. A recognition
   event without an explicit invoice relationship is shown as non-invoice activity; the UI never

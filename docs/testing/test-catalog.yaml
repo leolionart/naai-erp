@@ -2677,6 +2677,14 @@ tests:
     command: DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp pnpm --filter @naai-erp/database db:migrate
     blocking_gate: G96
 
+  - id: T-INT-ERP-947-004
+    task: ERP-947
+    rules: [BR-MVP-003, BR-MVP-007, BR-LED-003]
+    title: Operational source listings hide cancelled and reversed correction originals while detail and explicit state filters retain history
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.integration.test.ts src/expenses/expense.integration.test.ts
+    blocking_gate: G95
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

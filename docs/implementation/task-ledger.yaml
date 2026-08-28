@@ -3333,7 +3333,7 @@ tasks:
   - id: ERP-947
     title: Unified revenue and expense correction protocol
     phase: P16
-    status: in_progress
+    status: review
     dependencies: [ERP-946]
     business_rules: [BR-AI-003, BR-AI-005, BR-AI-006, BR-MVP-003, BR-MVP-007, BR-LED-003]
     tests: [T-API-ERP-947-001, T-CONTRACT-ERP-947-002, T-INT-ERP-947-003]
@@ -3343,8 +3343,12 @@ tasks:
     planned_files:
       - apps/api/src/commercial-documents/
       - apps/api/src/expenses/
+      - apps/api/src/financial-statements/
+      - apps/api/src/report-exports/
       - packages/contracts/src/
       - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-947/
 
   - id: ERP-949

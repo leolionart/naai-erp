@@ -591,7 +591,8 @@ export class PgCommercialDocumentStore {
        from commercial_documents d left join commercial_document_lines l
          on l.organization_id=d.organization_id and l.document_id=d.id
        where d.organization_id=$1 and ($2::text is null or d.type::text=$2)
-         and ($3::text is null or d.state::text=$3) and ($4::text is null or d.party_id=$4)
+         and (($3::text is not null and d.state::text=$3) or ($3::text is null and d.state<>'cancelled'))
+         and ($4::text is null or d.party_id=$4)
          and ($5::text is null or exists (
            select 1 from commercial_document_lines project_line
            left join commercial_document_allocations project_allocation
