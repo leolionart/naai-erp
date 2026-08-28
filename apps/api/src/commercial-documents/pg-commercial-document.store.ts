@@ -1789,7 +1789,7 @@ export class PgCommercialDocumentStore {
           input.grossMinor,
           input.controlAccountCode,
           input.fundingSource?.financialAccountId ?? null,
-          input.originalDocumentId ?? id,
+          input.type === "credit_note" ? (input.originalDocumentId ?? id) : null,
           input.type === "credit_note" ? (input.reason ?? reason) : null,
           context.actorId,
         ],
