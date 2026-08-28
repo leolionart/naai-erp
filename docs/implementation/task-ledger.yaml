@@ -3347,6 +3347,23 @@ tasks:
       - docs/api/openapi-v1.json
       - docs/implementation/evidence/ERP-947/
 
+  - id: ERP-949
+    title: Complete request lifecycle and failure logging
+    phase: P16
+    status: review
+    dependencies: [ERP-947]
+    business_rules: [BR-AUD-001, BR-SEC-001, BR-AI-003]
+    tests: [T-API-ERP-949-001, T-UNIT-ERP-949-002]
+    evidence: docs/implementation/evidence/ERP-949/
+    agent: codex-root/request_lifecycle_logging
+    started_at: 2026-08-28T17:00:00+07:00
+    planned_files:
+      - apps/api/src/operational-logs/request-lifecycle.interceptor.ts
+      - apps/api/src/operational-logs/pg-operational-log.store.ts
+      - apps/api/src/bootstrap.ts
+      - apps/api/src/api-exception.filter.ts
+      - docs/implementation/evidence/ERP-949/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

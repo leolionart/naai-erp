@@ -4,6 +4,12 @@ import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./api-exception.filter.js";
 import multipart from "@fastify/multipart";
 import { authenticateApiSession, SessionAuthenticationError } from "./auth/session-cookie-auth.js";
+import { RequestLifecycleInterceptor } from "./operational-logs/request-lifecycle.interceptor.js";
+import {
+  OPERATIONAL_LOG_STORE,
+  type OperationalLogStore,
+} from "./operational-logs/operational-log.types.js";
+import { randomUUID } from "node:crypto";
 
 type BootstrapEnvironment = Readonly<{
   NODE_ENV?: string;
@@ -61,6 +67,33 @@ export async function createApp(
         authenticateApiSession(request, environment);
       } catch (error) {
         if (!(error instanceof SessionAuthenticationError)) throw error;
+        const organizationId =
+          (request.params as Record<string, string> | undefined)?.organizationId ??
+          request.url.match(/\/organizations\/([^/?]+)/)?.[1];
+        const correlationId =
+          request.headers["x-correlation-id"] ?? request.headers["X-Correlation-Id"];
+        if (organizationId) {
+          const store = app.get<OperationalLogStore>(OPERATIONAL_LOG_STORE);
+          const id = randomUUID();
+          try {
+            await store.start?.({
+              organizationId,
+              id,
+              service: "api",
+              operation: request.method,
+              correlationId: typeof correlationId === "string" ? correlationId : null,
+              summary: `${request.method} ${request.url} failed authentication`,
+              details: { code: error.code, status: error.statusCode, stage: "authentication" },
+            });
+            await store.finish?.(organizationId, id, {
+              status: "failed",
+              severity: "error",
+              details: { code: error.code, status: error.statusCode, stage: "authentication" },
+            });
+          } catch {
+            // Logging must never prevent the auth response.
+          }
+        }
         await reply.status(error.statusCode).send({
           error: {
             code: error.code,
@@ -87,5 +120,6 @@ export async function createApp(
     });
   }
   app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalInterceptors(app.get(RequestLifecycleInterceptor));
   return app;
 }

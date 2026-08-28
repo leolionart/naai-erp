@@ -123,6 +123,7 @@ import { OperationalLogController } from "./operational-logs/operational-log.con
 import { OperationalLogService } from "./operational-logs/operational-log.service.js";
 import { OPERATIONAL_LOG_STORE } from "./operational-logs/operational-log.types.js";
 import { PgOperationalLogStore } from "./operational-logs/pg-operational-log.store.js";
+import { RequestLifecycleInterceptor } from "./operational-logs/request-lifecycle.interceptor.js";
 import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.js";
 
 @Module({
@@ -251,6 +252,7 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     PortableCanonicalMutationAdapter,
     OperationalLogService,
     PgOperationalLogStore,
+    RequestLifecycleInterceptor,
     { provide: OPERATIONAL_LOG_STORE, useExisting: PgOperationalLogStore },
     { provide: PORTABLE_DATA_IMPORT_STORE, useExisting: PgPortableDataImportStore },
   ],

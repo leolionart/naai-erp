@@ -2653,6 +2653,22 @@ tests:
     command: pnpm test:docs
     blocking_gate: G83
 
+  - id: T-UNIT-ERP-949-002
+    task: ERP-949
+    rules: [BR-AUD-001, BR-AI-003]
+    title: Request lifecycle interceptor records success and failure with correlation details
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/operational-logs/request-lifecycle.interceptor.test.ts
+    blocking_gate: G95
+
+  - id: T-API-ERP-949-001
+    task: ERP-949
+    rules: [BR-AUD-001, BR-SEC-001]
+    title: Authentication and controller failures are visible in operational activity logs
+    layer: api
+    command: pnpm --filter @naai-erp/api test
+    blocking_gate: G95
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

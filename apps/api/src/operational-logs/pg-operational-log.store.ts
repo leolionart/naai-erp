@@ -27,6 +27,51 @@ function encodeCursor(row: Record<string, unknown>) {
 @Injectable()
 export class PgOperationalLogStore implements OperationalLogStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  async start(input: {
+    organizationId: string;
+    id: string;
+    service: string;
+    operation: string;
+    correlationId?: string | null;
+    summary: string;
+    details?: unknown;
+  }) {
+    await this.pool.query(
+      `insert into operational_activity_logs (organization_id,id,service,operation,status,severity,correlation_id,summary,details,started_at,expires_at)
+       values ($1,$2,$3,$4,'running','info',$5,$6,$7,now(),now()+interval '30 days')`,
+      [
+        input.organizationId,
+        input.id,
+        input.service,
+        input.operation,
+        input.correlationId ?? null,
+        input.summary,
+        input.details ?? {},
+      ],
+    );
+  }
+  async finish(
+    organizationId: string,
+    id: string,
+    result: {
+      status: "succeeded" | "failed";
+      severity?: "info" | "warning" | "error";
+      summary?: string;
+      details?: unknown;
+    },
+  ) {
+    await this.pool.query(
+      `update operational_activity_logs set status=$3,severity=coalesce($4,severity),summary=coalesce($5,summary),details=coalesce($6,details),completed_at=now() where organization_id=$1 and id=$2`,
+      [
+        organizationId,
+        id,
+        result.status,
+        result.severity ?? null,
+        result.summary ?? null,
+        result.details ?? null,
+      ],
+    );
+  }
   async list(organizationId: string, filters: OperationalLogFilters) {
     const values: unknown[] = [organizationId];
     const where = ["organization_id=$1"];
