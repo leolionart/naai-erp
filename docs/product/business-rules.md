@@ -62,6 +62,14 @@ These rules define the active release boundary. Historical rules remain valid fo
   its canonical project relationship; commercial documents retain their direct party relationship
   and allocation-based project relationships. Technical policy, evidence, actor and version fields
   remain available to API clients but are not duplicated in ordinary business tables or forms.
+### BR-MVP-008 — Unified revenue and expense category catalog
+
+- Revenue and expense forms select only active, organization-scoped categories from the canonical
+  `master-data/categories` resource; clients must not silently fall back to hardcoded demo values.
+- Each category has a stable code, display name, kind (`revenue` or `expense`) and optional default
+  account/tax mapping. The same catalog is used by validation, posting, reports and automation.
+- Category mutations are versioned, audited, idempotent and deactivation preserves existing history.
+
 ### BR-MVP-004 — Minimal report readiness
 
 - A clean installation receives a minimal approved TT133 account, tax and statement-mapping setup.

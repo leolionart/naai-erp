@@ -22,6 +22,8 @@
     "dimension-requirements",
     "default-mappings",
     "expense-categories",
+    "categories",
+    "business-categories",
     "purchase-products",
     "parties",
     "party-roles",

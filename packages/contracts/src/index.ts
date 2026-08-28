@@ -30,6 +30,11 @@ export {
   type OwnerPaidClassificationStatusContract,
 } from "./expense-categories.js";
 export {
+  BUSINESS_CATEGORY_CONTRACT_VERSION,
+  type BusinessCategoryContract,
+  type BusinessCategoryTypeContract,
+} from "./business-categories.js";
+export {
   FILTERED_DOCUMENT_EXPORT_CONTRACT_VERSION,
   type FilteredDocumentExportContract,
   type FilteredDocumentExportKindContract,

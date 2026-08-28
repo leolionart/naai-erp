@@ -45,9 +45,14 @@ export class MasterDataController {
     @Headers("x-correlation-id") correlationId?: string,
     @Query("cursor") cursor?: string,
     @Query("limit") limit?: string,
+    @Query("kind") kind?: string,
+    @Query("is_active") isActive?: string,
   ) {
     const context = await this.context(organizationId, authorization, correlationId);
-    return this.service.list(resource, context, cursor, Number.parseInt(limit ?? "50", 10));
+    return this.service.list(resource, context, cursor, Number.parseInt(limit ?? "50", 10), {
+      ...(kind ? { kind } : {}),
+      ...(isActive !== undefined ? { is_active: isActive === "true" } : {}),
+    });
   }
 
   @Post(":resource/import/dry-run")

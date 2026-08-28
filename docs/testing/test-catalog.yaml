@@ -2605,6 +2605,30 @@ tests:
     command: PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts --grep "production-backed newest purchase invoice" --project=desktop-chromium
     blocking_gate: G93
 
+  - id: T-API-ERP-937-001
+    task: ERP-937
+    rules: [BR-MVP-008, BR-ORG-001, BR-AUD-001]
+    title: Unified category resource supports revenue/expense kinds and organization-scoped CRUD
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/master-data/resource-registry.test.ts
+    blocking_gate: G94
+
+  - id: T-INT-ERP-937-002
+    task: ERP-937
+    rules: [BR-MVP-008, BR-AI-005]
+    title: Category catalog validation and deactivation preserve assignment compatibility
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/master-data/master-data.integration.test.ts
+    blocking_gate: G94
+
+  - id: T-E2E-ERP-937-003
+    task: ERP-937
+    rules: [BR-MVP-008, BR-MVP-007]
+    title: Revenue and expense forms use canonical active categories
+    layer: e2e
+    command: pnpm --filter @naai-erp/web test
+    blocking_gate: G94
+
   - id: T-UNIT-ERP-926-001
     task: ERP-926
     rules: [BR-UI-004]

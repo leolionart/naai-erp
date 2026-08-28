@@ -39,11 +39,18 @@ export class PgMasterDataStore {
     organizationId: string,
     offset: number,
     limit: number,
+    filters: Readonly<Record<string, unknown>> = {},
   ): Promise<readonly Record<string, unknown>[]> {
     const definition = resourceDefinition(resource);
+    const filterEntries = Object.entries(filters).filter(([, value]) => value !== undefined);
+    const clauses = [
+      `${quote(definition.organizationColumn)} = $1`,
+      ...filterEntries.map(([column], i) => `${quote(column)} = $${i + 2}`),
+    ];
+    const params = [organizationId, ...filterEntries.map(([, value]) => value), offset, limit];
     const result = await this.pool.query<Record<string, unknown>>(
-      `select * from ${quote(definition.table)} where ${quote(definition.organizationColumn)} = $1 order by ${definition.keyColumns.map(quote).join(", ")} offset $2 limit $3`,
-      [organizationId, offset, limit],
+      `select * from ${quote(definition.table)} where ${clauses.join(" and ")} order by ${definition.keyColumns.map(quote).join(", ")} offset $${params.length - 1} limit $${params.length}`,
+      params,
     );
     return result.rows;
   }

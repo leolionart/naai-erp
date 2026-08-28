@@ -139,8 +139,12 @@ export class PgCommercialDocumentStore {
     const categoryCode = line.categoryCode?.trim() || line.dimensions?.category?.trim() || null;
     if (categoryCode) {
       const category = await client.query(
-        "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
-        [context.organizationId, categoryCode],
+        "select 1 from business_categories where organization_id=$1 and kind=$2 and code=$3 and is_active=true",
+        [
+          context.organizationId,
+          input.type === "purchase_invoice" ? "expense" : "revenue",
+          categoryCode,
+        ],
       );
       if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
     }
@@ -438,8 +442,12 @@ export class PgCommercialDocumentStore {
       }
       if (input.category) {
         const c = await client.query(
-          "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
-          [context.organizationId, input.category],
+          "select 1 from business_categories where organization_id=$1 and kind=$2 and code=$3 and is_active=true",
+          [
+            context.organizationId,
+            doc.rows[0]?.type === "purchase_invoice" ? "expense" : "revenue",
+            input.category,
+          ],
         );
         if (!c.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
       }

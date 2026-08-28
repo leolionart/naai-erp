@@ -23,6 +23,13 @@ type ExpenseCategoryPolicy = Readonly<{
   isActive: boolean;
   fundingTreatment: "company_funds" | "owner_paid_company_cost" | "tax_only_non_cash";
 }>;
+type CatalogCategory = Readonly<{
+  code: string;
+  name: string;
+  kind?: string;
+  isActive: boolean;
+  defaultAccountCode?: string;
+}>;
 type FinancialAccount = Readonly<{
   id: string;
   displayName?: string;
@@ -468,10 +475,50 @@ export function DocumentForm({
   const initialNetMinor = String(field(initialLine, "netMinor", "net_minor") ?? "");
   const isPurchase = type === "purchase_invoice";
   const documentParties = isPurchase ? purchaseParties : parties;
-  const activeCategories = isPurchase ? INBOUND_CATEGORIES : OUTBOUND_CATEGORIES;
+  const [catalogCategories, setCatalogCategories] = useState<readonly CatalogCategory[]>([]);
+  const [categoryLoadError, setCategoryLoadError] = useState("");
+  const activeCategories = catalogCategories;
   const availableProjects = projects;
 
   const [category, setCategory] = useState(initial ? recordCategory(initial) : "");
+
+  useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    let cancelled = false;
+    const kind = isPurchase ? "expense" : "revenue";
+    void client
+      .data<readonly Record<string, unknown>[] | { items?: readonly Record<string, unknown>[] }>(
+        `master-data/categories?kind=${kind}&is_active=true&limit=200`,
+      )
+      .then((payload) => {
+        if (cancelled) return;
+        const rows: readonly Record<string, unknown>[] = Array.isArray(payload)
+          ? payload
+          : ((payload as { items?: readonly Record<string, unknown>[] }).items ?? []);
+        setCatalogCategories(
+          rows
+            .map((row) => ({
+              code: String(row.code ?? ""),
+              name: String(row.name ?? row.code ?? ""),
+              kind: String(row.kind ?? ""),
+              isActive: Boolean(row.isActive ?? row.is_active ?? true),
+              defaultAccountCode:
+                String(row.defaultAccountCode ?? row.default_account_code ?? "") || undefined,
+            }))
+            .filter((row) => row.code && row.isActive),
+        );
+        setCategoryLoadError("");
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setCatalogCategories([]);
+          setCategoryLoadError(cause instanceof Error ? cause.message : "Không thể tải danh mục.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, hasToken, hydrated, isPurchase]);
 
   const [lineDescription] = useState(
     String(field(initialLine, "description") ?? "Chi tiết hóa đơn"),
@@ -560,12 +607,12 @@ export function DocumentForm({
     setType(newType);
     if (!initial) {
       if (newType === "purchase_invoice") {
-        setCategory("MEAL");
+        setCategory("");
         setPrimaryAccountCode("6428");
         setTaxAccountCode("1331");
         setControlAccountCode("331");
       } else {
-        setCategory("SOFTWARE_DEV");
+        setCategory("");
         setPrimaryAccountCode("5113");
         setTaxAccountCode("3331");
         setControlAccountCode("131");
@@ -600,11 +647,9 @@ export function DocumentForm({
 
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
-    const item = activeCategories.find(
-      (c: { code: string; defaultAccount: string }) => c.code === catCode,
-    );
+    const item = activeCategories.find((c) => c.code === catCode);
     if (item && !initial) {
-      setPrimaryAccountCode(item.defaultAccount);
+      if (item.defaultAccountCode) setPrimaryAccountCode(item.defaultAccountCode);
     }
   }
 
@@ -727,6 +772,11 @@ export function DocumentForm({
                     {cat.name}
                   </SelectItem>
                 ))}
+                {!activeCategories.length ? (
+                  <SelectItem value="__none__" disabled>
+                    {categoryLoadError ? "Không thể tải danh mục" : "Chưa có danh mục hoạt động"}
+                  </SelectItem>
+                ) : null}
               </SelectContent>
             </Select>
           </Field>
@@ -1045,6 +1095,8 @@ export function ExpenseForm({
 }) {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const [categoryPolicies, setCategoryPolicies] = useState<readonly ExpenseCategoryPolicy[]>([]);
+  const [catalogCategories, setCatalogCategories] = useState<readonly CatalogCategory[]>([]);
+  const [categoryLoadError, setCategoryLoadError] = useState("");
   const initialLine = Array.isArray(initial?.lines)
     ? (initial.lines[0] as Row | undefined)
     : undefined;
@@ -1058,8 +1110,45 @@ export function ExpenseForm({
     String(field(initial, "expenseClass", "expense_class") ?? "non_documented"),
   );
   const [category, setCategory] = useState(
-    String(field(initial, "category") ?? initialDims.category ?? "MEAL"),
+    String(field(initial, "category") ?? initialDims.category ?? ""),
   );
+
+  useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    let cancelled = false;
+    void client
+      .data<readonly Record<string, unknown>[] | { items?: readonly Record<string, unknown>[] }>(
+        "master-data/categories?kind=expense&is_active=true&limit=200",
+      )
+      .then((payload) => {
+        if (cancelled) return;
+        const rows: readonly Record<string, unknown>[] = Array.isArray(payload)
+          ? payload
+          : ((payload as { items?: readonly Record<string, unknown>[] }).items ?? []);
+        setCatalogCategories(
+          rows
+            .map((row) => ({
+              code: String(row.code ?? ""),
+              name: String(row.name ?? row.code ?? ""),
+              kind: String(row.kind ?? "expense"),
+              isActive: Boolean(row.isActive ?? row.is_active ?? true),
+              defaultAccountCode:
+                String(row.defaultAccountCode ?? row.default_account_code ?? "") || undefined,
+            }))
+            .filter((row) => row.code && row.isActive),
+        );
+        setCategoryLoadError("");
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setCatalogCategories([]);
+          setCategoryLoadError(cause instanceof Error ? cause.message : "Không thể tải danh mục.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, hasToken, hydrated]);
   const [payeePartyId, setPayeePartyId] = useState(
     String(field(initial, "payeePartyId", "payee_party_id") ?? ""),
   );
@@ -1154,9 +1243,9 @@ export function ExpenseForm({
     setCategory(catCode);
     const policy = categoryPolicies.find((item) => item.code === catCode);
     if (policy) setCounterAccountCode(defaultCounterAccount(policy.fundingTreatment));
-    const item = INBOUND_CATEGORIES.find((c) => c.code === catCode);
+    const item = catalogCategories.find((c) => c.code === catCode);
     if (item && !initial) {
-      setPostingAccountCode(item.defaultAccount);
+      if (item.defaultAccountCode) setPostingAccountCode(item.defaultAccountCode);
       if (catCode === "SALARY") setExpenseClass("payroll_personnel");
       else if (catCode === "TAX") setExpenseClass("tax_payment");
       else if (catCode === "OWNER_DRAWING") setExpenseClass("owner_personal");
@@ -1248,17 +1337,16 @@ export function ExpenseForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {(categoryPolicies.length
-                    ? categoryPolicies.map((policy) => ({
-                        code: policy.code,
-                        name: policy.name,
-                      }))
-                    : INBOUND_CATEGORIES
-                  ).map((cat) => (
+                  {catalogCategories.map((cat) => (
                     <SelectItem key={cat.code} value={cat.code}>
                       {cat.name}
                     </SelectItem>
                   ))}
+                  {!catalogCategories.length ? (
+                    <SelectItem value="__none__" disabled>
+                      {categoryLoadError ? "Không thể tải danh mục" : "Chưa có danh mục hoạt động"}
+                    </SelectItem>
+                  ) : null}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -1353,17 +1441,16 @@ export function ExpenseForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {(categoryPolicies.length
-                  ? categoryPolicies.map((policy) => ({
-                      code: policy.code,
-                      name: policy.name,
-                    }))
-                  : INBOUND_CATEGORIES
-                ).map((cat) => (
+                {catalogCategories.map((cat) => (
                   <SelectItem key={cat.code} value={cat.code}>
                     {cat.name}
                   </SelectItem>
                 ))}
+                {!catalogCategories.length ? (
+                  <SelectItem value="__none__" disabled>
+                    {categoryLoadError ? "Không thể tải danh mục" : "Chưa có danh mục hoạt động"}
+                  </SelectItem>
+                ) : null}
               </SelectGroup>
             </SelectContent>
           </Select>

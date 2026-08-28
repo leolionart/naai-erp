@@ -127,6 +127,7 @@ export const dimensionKind = pgEnum("dimension_kind", [
   "project",
   "contract",
 ]);
+export const businessCategoryType = pgEnum("business_category_type", ["expense", "revenue"]);
 export const partyRole = pgEnum("party_role", ["client", "supplier", "freelancer", "employee"]);
 export const partyStatus = pgEnum("party_status", ["active", "inactive", "merged"]);
 export const projectState = pgEnum("project_state", [
@@ -2066,6 +2067,34 @@ export const expenseCategories = pgTable(
     check("expense_categories_code_not_blank", sql`btrim(${table.code}) <> ''`),
     check("expense_categories_name_not_blank", sql`btrim(${table.name}) <> ''`),
     check("expense_categories_version_positive", sql`${table.version} > 0`),
+  ],
+);
+
+/** Unified organization-scoped catalog used by revenue and expense entry flows. */
+export const businessCategories = pgTable(
+  "business_categories",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    kind: businessCategoryType("kind").notNull(),
+    accountCode: text("account_code"),
+    taxCode: text("tax_code"),
+    isActive: boolean("is_active").notNull().default(true),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
+    createdBy: text("created_by").notNull().default("master-data"),
+    updatedBy: text("updated_by").notNull().default("master-data"),
+    ...auditColumns,
+  },
+  (table) => [
+    primaryKey({ columns: [table.organizationId, table.kind, table.code] }),
+    check("business_categories_code_not_blank", sql`btrim(${table.code}) <> ''`),
+    check("business_categories_name_not_blank", sql`btrim(${table.name}) <> ''`),
+    check("business_categories_version_positive", sql`${table.version} > 0`),
   ],
 );
 

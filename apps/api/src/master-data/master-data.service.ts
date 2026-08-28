@@ -33,13 +33,16 @@ export class MasterDataService {
     context: ActorContext,
     cursor: string | undefined,
     limitInput: number,
+    filters: Readonly<Record<string, unknown>> = {},
   ): Promise<ApiEnvelope<CursorPage<Record<string, unknown>>>> {
     const offset = cursor
       ? Number.parseInt(Buffer.from(cursor, "base64url").toString("utf8"), 10)
       : 0;
     const limit = Math.min(Math.max(limitInput || 50, 1), 100);
     if (!Number.isFinite(offset) || offset < 0) throw new Error("VALIDATION_FAILED");
-    const rows = await this.store.list(resource, context.organizationId, offset, limit + 1);
+    const rows = Object.keys(filters).length
+      ? await this.store.list(resource, context.organizationId, offset, limit + 1, filters)
+      : await this.store.list(resource, context.organizationId, offset, limit + 1);
     const hasNext = rows.length > limit;
     return {
       apiVersion: API_VERSION,
