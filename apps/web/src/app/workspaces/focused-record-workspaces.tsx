@@ -160,6 +160,11 @@ function sourceEndpoint(source: SourceKind) {
   if (source === "recognition") return "revenue-recognition-events";
   return "commercial-documents";
 }
+function fundingCode(row: Row | undefined) {
+  return sourceKind(row) === "documents"
+    ? text(row, "controlAccountCode", "counterAccountCode")
+    : text(row, "counterAccountCode", "controlAccountCode");
+}
 function tagRow(
   row: Row,
   source: SourceKind,
@@ -1152,11 +1157,7 @@ export function FocusedRecordListWorkspace({
                 <Card>
                   <CardHeader>
                     <CardDescription>Nguồn thanh toán</CardDescription>
-                    <CardTitle>
-                      {getFundingSourceLabel(
-                        text(quickRecord, "counterAccountCode", "controlAccountCode"),
-                      )}
-                    </CardTitle>
+                    <CardTitle>{getFundingSourceLabel(fundingCode(quickRecord))}</CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
                     TK 111/112 là tiền công ty và làm giảm số dư quỹ. TK 3388 là chủ doanh nghiệp
@@ -1171,11 +1172,7 @@ export function FocusedRecordListWorkspace({
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      const currentCode = text(
-                        quickRecord,
-                        "counterAccountCode",
-                        "controlAccountCode",
-                      );
+                      const currentCode = fundingCode(quickRecord);
                       const alternative = FUNDING_OPTIONS.find(
                         (option) => !currentCode.startsWith(option.code.split("-")[0]),
                       );
@@ -1328,7 +1325,7 @@ export function FocusedRecordListWorkspace({
               </SelectTrigger>
               <SelectContent>
                 {FUNDING_OPTIONS.filter((option) => {
-                  const currentCode = text(quickRecord, "counterAccountCode", "controlAccountCode");
+                  const currentCode = fundingCode(quickRecord);
                   return !currentCode.startsWith(option.code.split("-")[0]);
                 }).map((option) => (
                   <SelectItem key={option.code} value={option.code}>
