@@ -448,9 +448,9 @@ function definitionsFor(
         kind: "n8n-expression",
       },
       {
-        title: "Nhập nhanh hóa đơn OCR bằng một request",
+        title: "Nhập hóa đơn đầu vào từ Paperless / n8n",
         description:
-          "Bắt buộc: supplierName hoặc supplierTaxId, documentNumber, documentDate, description, grossMinor. Có thể thêm category, dueDate, currency và externalReference; không cần dự án hay tài khoản thanh toán.",
+          "Dành cho luồng Paperless/n8n: OCR gửi thông tin tối thiểu, ERP tự tìm nhà cung cấp và tạo hóa đơn. Bắt buộc: supplierName hoặc supplierTaxId, documentNumber, documentDate, description, grossMinor. Có thể thêm category, dueDate, currency và externalReference.",
         value: quickOcrPurchaseInvoiceIngestionCurl(credential),
       },
       {
