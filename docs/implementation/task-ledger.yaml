@@ -3385,6 +3385,21 @@ tasks:
       - db/migrations/meta/_journal.json
       - docs/implementation/evidence/ERP-950/
 
+  - id: ERP-951
+    title: Sort business records and append activity log pages
+    phase: P16
+    status: review
+    dependencies: [ERP-950]
+    business_rules: [BR-MVP-007, BR-AUD-001, BR-UX-001]
+    tests: [T-UNIT-ERP-951-001, T-E2E-ERP-951-002]
+    evidence: docs/implementation/evidence/ERP-951/
+    agent: codex-root
+    started_at: 2026-08-28T19:30:00+07:00
+    planned_files:
+      - apps/web/src/app/workspaces/focused-record-workspaces.tsx
+      - apps/web/src/app/workspaces/background-activity-workspace.tsx
+      - docs/implementation/evidence/ERP-951/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

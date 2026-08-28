@@ -2677,6 +2677,22 @@ tests:
     command: DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp pnpm --filter @naai-erp/database db:migrate
     blocking_gate: G96
 
+  - id: T-UNIT-ERP-951-001
+    task: ERP-951
+    rules: [BR-MVP-007, BR-UX-001]
+    title: Business record sorting defaults to document date and supports deterministic column order
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/focused-record-sorting.test.ts
+    blocking_gate: G97
+
+  - id: T-E2E-ERP-951-002
+    task: ERP-951
+    rules: [BR-AUD-001]
+    title: Activity log appends cursor pages while preserving existing rows
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec vitest run src/lib/api/operational-logs.test.ts
+    blocking_gate: G97
+
   - id: T-INT-ERP-947-004
     task: ERP-947
     rules: [BR-MVP-003, BR-MVP-007, BR-LED-003]

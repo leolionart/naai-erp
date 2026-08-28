@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -49,34 +49,60 @@ export function OperationalLogWorkspace() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [loadingMore, setLoadingMore] = useState(false);
+  const logViewportRef = useRef<HTMLDivElement>(null);
+  const nextCursorRef = useRef<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    if (!hydrated) return;
-    setLoading(true);
-    setError("");
-    if (!hasToken) {
-      setPage(undefined);
-      setError("AUTH_REQUIRED");
-      setLoading(false);
-      return;
-    }
-    try {
-      setPage(
-        await client.data<OperationalLogPage>(
-          operationalLogsApi.listAll({ status, eventType, source, limit: 100 }),
-        ),
-      );
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Không thể tải nhật ký chạy ngầm.");
-    } finally {
-      setLoading(false);
-    }
-  }, [client, eventType, hasToken, hydrated, source, status]);
+  const load = useCallback(
+    async (append = false) => {
+      if (!hydrated) return;
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      if (!append) nextCursorRef.current = undefined;
+      setError("");
+      if (!hasToken) {
+        setPage(undefined);
+        setError("AUTH_REQUIRED");
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+      try {
+        const currentCursor = append ? nextCursorRef.current : undefined;
+        if (append && !currentCursor) {
+          setLoadingMore(false);
+          return;
+        }
+        const next = await client.data<OperationalLogPage>(
+          operationalLogsApi.listAll({
+            status,
+            eventType,
+            source,
+            limit: 100,
+            cursor: currentCursor,
+          }),
+        );
+        setPage((previous) => {
+          if (!append || !previous) return next;
+          const seen = new Set(previous.items.map((item) => item.id));
+          return {
+            ...next,
+            items: [...previous.items, ...next.items.filter((item) => !seen.has(item.id))],
+          };
+        });
+        nextCursorRef.current = next.nextCursor ?? undefined;
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Không thể tải nhật ký chạy ngầm.");
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [client, eventType, hasToken, hydrated, source, status],
+  );
 
   useEffect(() => {
     void load();
-    const interval = window.setInterval(() => void load(), 5_000);
-    return () => window.clearInterval(interval);
   }, [load]);
 
   const timelineFor = useMemo(
@@ -116,7 +142,7 @@ export function OperationalLogWorkspace() {
             size="sm"
             className="w-auto shrink-0"
             onClick={() => void load()}
-            disabled={loading}
+            disabled={loading || loadingMore}
           >
             {loading ? (
               <Spinner data-icon="inline-start" />
@@ -174,7 +200,18 @@ export function OperationalLogWorkspace() {
             </Field>
           </div>
           <div
-            className="overflow-hidden rounded-lg border bg-slate-950 text-slate-100 shadow-inner"
+            ref={logViewportRef}
+            onScroll={(event) => {
+              const target = event.currentTarget;
+              if (
+                target.scrollTop + target.clientHeight >= target.scrollHeight - 160 &&
+                nextCursorRef.current &&
+                !loadingMore
+              ) {
+                void load(true);
+              }
+            }}
+            className="max-h-[70vh] overflow-y-auto rounded-lg border bg-slate-950 text-slate-100 shadow-inner"
             aria-live="polite"
           >
             {loading ? (
@@ -281,6 +318,11 @@ export function OperationalLogWorkspace() {
                   );
                 })
               : null}
+            {!loading && !error && loadingMore ? (
+              <div className="px-4 py-3 text-center font-mono text-xs text-slate-400">
+                Đang tải thêm log…
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

@@ -2,8 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Download, ExternalLink, Eye, Filter, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowDown,
+  ArrowUp,
+  Download,
+  ExternalLink,
+  Eye,
+  Filter,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -176,6 +186,10 @@ export function FocusedRecordListWorkspace({
   const pathname = usePathname();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
+  const [sortKey, setSortKey] = useState<"date" | "id" | "party" | "category" | "amount" | "state">(
+    "date",
+  );
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [parties, setParties] = useState<Row[]>([]);
   const [clients, setClients] = useState<Row[]>([]);
   const [payees, setPayees] = useState<Row[]>([]);
@@ -200,6 +214,82 @@ export function FocusedRecordListWorkspace({
   const key = params.toString();
   const invoiceStatus = params.get("invoiceStatus") ?? "all";
   const current = config[kind];
+  const sortedRows = useMemo(() => {
+    const valueFor = (row: Row, key: typeof sortKey): string => {
+      if (key === "date") {
+        return kind === "documents"
+          ? presentRevenueRecord(
+              row,
+              sourceKind(row) === "recognition" ? "recognition" : "documents",
+              projects,
+              parties,
+            ).activityDate
+          : presentExpenseRecord(row).activityDate;
+      }
+      if (key === "id") return text(row, "documentNumber", "id");
+      if (key === "party")
+        return text(
+          row,
+          kind === "documents" ? "customerName" : "payeeName",
+          kind === "documents" ? "partyId" : "payeePartyId",
+        );
+      if (key === "category") return recordCategory(row);
+      if (key === "amount") return text(row, "grossMinor", "amountMinor", "amount");
+      return text(row, "state");
+    };
+    return [...rows].sort((left, right) => {
+      const a = valueFor(left, sortKey);
+      const b = valueFor(right, sortKey);
+      let comparison: number;
+      if (sortKey === "date") {
+        const leftTime = a ? Date.parse(a) : Number.NaN;
+        const rightTime = b ? Date.parse(b) : Number.NaN;
+        if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
+          return Number.isNaN(leftTime) === Number.isNaN(rightTime)
+            ? 0
+            : Number.isNaN(leftTime)
+              ? 1
+              : -1;
+        } else comparison = leftTime - rightTime;
+      } else {
+        comparison = a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [kind, parties, projects, rows, sortDirection, sortKey]);
+  const toggleSort = (next: typeof sortKey) => {
+    if (sortKey === next) setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(next);
+      setSortDirection(next === "date" ? "desc" : "asc");
+    }
+  };
+  const SortHead = ({
+    label,
+    value,
+    className,
+  }: {
+    label: string;
+    value: typeof sortKey;
+    className?: string;
+  }) => (
+    <TableHead className={className}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 hover:underline"
+        onClick={() => toggleSort(value)}
+      >
+        {label}
+        {sortKey === value ? (
+          sortDirection === "asc" ? (
+            <ArrowUp className="size-3" />
+          ) : (
+            <ArrowDown className="size-3" />
+          )
+        ) : null}
+      </button>
+    </TableHead>
+  );
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
@@ -848,20 +938,23 @@ export function FocusedRecordListWorkspace({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[140px]">Mã bản ghi</TableHead>
-                  <TableHead className="w-[110px]">Ngày chứng từ</TableHead>
+                  <SortHead className="w-[140px]" label="Mã bản ghi" value="id" />
+                  <SortHead className="w-[110px]" label="Ngày chứng từ" value="date" />
                   <TableHead className="w-[180px]">Nguồn thanh toán / Trục</TableHead>
-                  <TableHead className="w-[160px]">Danh mục nghiệp vụ</TableHead>
-                  <TableHead>{kind === "documents" ? "Khách hàng" : "Chi cho ai"}</TableHead>
+                  <SortHead className="w-[160px]" label="Danh mục nghiệp vụ" value="category" />
+                  <SortHead
+                    label={kind === "documents" ? "Khách hàng" : "Chi cho ai"}
+                    value="party"
+                  />
                   {kind === "documents" ? <TableHead>Dự án</TableHead> : null}
                   <TableHead>Nội dung / Diễn giải</TableHead>
-                  <TableHead className="w-[140px] text-right">Tổng tiền</TableHead>
-                  <TableHead className="w-[120px]">Trạng thái</TableHead>
+                  <SortHead className="w-[140px] text-right" label="Tổng tiền" value="amount" />
+                  <SortHead className="w-[120px]" label="Trạng thái" value="state" />
                   <TableHead className="w-[110px] text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => {
+                {sortedRows.map((row) => {
                   const id = text(row, "id");
                   const rowSource = sourceKind(row);
                   const revenuePresentation =
