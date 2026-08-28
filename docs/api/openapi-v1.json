@@ -7898,7 +7898,20 @@
                     "type": { "const": "financial_account" },
                     "financialAccountId": { "type": "string", "minLength": 1 }
                   },
-                  "description": "Purchase invoices with this explicit active same-currency funding source credit its server-resolved ledger account and become paid atomically. Without it, the invoice posts to AP and remains posted."
+                  "description": "Legacy alias for an explicit company funding account. Purchase invoices with this active same-currency source credit its server-resolved ledger account and become paid atomically."
+                },
+                "funding": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["company_bank", "owner_paid", "owner_custody_cash"]
+                    },
+                    "financialAccountId": { "type": "string", "minLength": 1 }
+                  },
+                  "description": "Canonical funding choice. If omitted for a purchase invoice, the API defaults to owner_paid and credits the approved TT133 owner_current account (for example 3388-OWNER). company_bank requires financialAccountId."
                 },
                 "migrationSourceExpenseId": {
                   "type": "string",

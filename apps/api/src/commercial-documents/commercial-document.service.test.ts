@@ -143,6 +143,37 @@ describe("ERP-300 CommercialDocumentService", () => {
       ),
     ).resolves.toMatchObject({ data: { state: "draft" } });
   });
+  it("defaults purchase invoices to owner-paid funding while preserving an explicit company bank", async () => {
+    const store = {
+      validateRelationships: vi.fn().mockResolvedValue(undefined),
+      create: vi.fn().mockResolvedValue({ documentId: "purchase-owner", state: "draft" }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    await service.create(
+      context,
+      { ...sales, type: "purchase_invoice", controlAccountCode: "331-AP" },
+      "purchase-owner-default",
+    );
+    expect(store.create.mock.calls[0]?.[1]).toMatchObject({
+      type: "purchase_invoice",
+      funding: { type: "owner_paid" },
+    });
+
+    await service.create(
+      context,
+      {
+        ...sales,
+        type: "purchase_invoice",
+        controlAccountCode: "331-AP",
+        funding: { type: "company_bank", financialAccountId: "bank-vnd" },
+      },
+      "purchase-bank-explicit",
+    );
+    expect(store.create.mock.calls[1]?.[1]).toMatchObject({
+      funding: { type: "company_bank", financialAccountId: "bank-vnd" },
+      fundingSource: { type: "financial_account", financialAccountId: "bank-vnd" },
+    });
+  });
   it("restricts migration source expenses to purchase invoices", async () => {
     const service = new CommercialDocumentService({} as never, {} as never);
     await expect(

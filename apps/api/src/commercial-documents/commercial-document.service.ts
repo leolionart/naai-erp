@@ -376,6 +376,9 @@ export class CommercialDocumentService {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     const normalized = this.normalizeRelationships({
       ...input,
+      ...(input.type === "purchase_invoice" && !input.funding && !input.fundingSource
+        ? { funding: { type: "owner_paid" as const } }
+        : {}),
       ...(input.funding?.type === "company_bank" && input.funding.financialAccountId
         ? {
             fundingSource: {

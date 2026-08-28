@@ -61,6 +61,7 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
         taxMinor: "0",
         grossMinor: "408601",
         controlAccountCode: "331-AP",
+        funding: { type: "owner_paid" },
         lines: [
           expect.objectContaining({
             primaryAccountCode: "642-COST",

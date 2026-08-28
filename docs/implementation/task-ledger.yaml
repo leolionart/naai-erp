@@ -3315,7 +3315,7 @@ tasks:
   - id: ERP-946
     title: Unified funding contract across API integrations
     phase: P16
-    status: in_progress
+    status: review
     dependencies: [ERP-937]
     business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-AI-006, BR-LED-003, BR-ORG-001]
     tests: [T-API-ERP-946-001, T-CONTRACT-ERP-946-002, T-INT-ERP-946-003]

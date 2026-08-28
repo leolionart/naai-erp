@@ -716,6 +716,22 @@ describeIntegration("ERP-300 commercial documents", () => {
       migrationSourceExpenseDate: "2026-01-27",
     });
 
+    const renamedDuplicate = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents`,
+      headers: headers(integrationToken, "migration-fingerprint-duplicate"),
+      payload: {
+        ...payload,
+        id: "workbook-fingerprint-duplicate",
+        documentNumber: "WB-CP-RENAMED",
+        migrationSourceExpenseId: undefined,
+        migrationSourceExpenseDate: undefined,
+        externalReference: { system: "workbook", externalId: "chi-phi:renamed" },
+      },
+    });
+    expect(renamedDuplicate.statusCode).toBe(400);
+    expect(renamedDuplicate.body).toContain("DUPLICATE_DOCUMENT");
+
     const mismatch = await app.inject({
       method: "POST",
       url: `/api/v1/organizations/${org}/commercial-documents`,

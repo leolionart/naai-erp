@@ -1024,9 +1024,12 @@ export class PgExpenseStore {
       }
 
       // Duplicate checks:
+      await c.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `purchase-expense:${context.organizationId}:${input.payeePartyId ?? ""}:${input.expenseDate}:${input.grossMinor}:${input.currency}`,
+      ]);
       const duplicateResult = await c.query<{ id: string }>(
         `select id from expenses
-         where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5`,
+         where organization_id=$1 and payee_party_id is not distinct from $2 and expense_date=$3 and gross_minor=$4 and currency=$5 and state<>'reversed'`,
         [
           context.organizationId,
           input.payeePartyId ?? null,
@@ -1042,7 +1045,7 @@ export class PgExpenseStore {
       if (input.payeePartyId) {
         const duplicateInvoice = await c.query<{ id: string }>(
           `select id from commercial_documents
-           where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5`,
+           where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5 and state<>'cancelled'`,
           [
             context.organizationId,
             input.payeePartyId,
@@ -1310,9 +1313,12 @@ export class PgExpenseStore {
         }
       }
 
+      await c.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `purchase-expense:${context.organizationId}:${merged.payeePartyId ?? ""}:${merged.expenseDate}:${merged.grossMinor}:${merged.currency}`,
+      ]);
       const duplicateResult = await c.query<{ id: string }>(
         `select id from expenses
-         where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5 and id<>$6`,
+         where organization_id=$1 and payee_party_id is not distinct from $2 and expense_date=$3 and gross_minor=$4 and currency=$5 and id<>$6 and state<>'reversed'`,
         [
           context.organizationId,
           merged.payeePartyId ?? null,
@@ -1329,7 +1335,7 @@ export class PgExpenseStore {
       if (merged.payeePartyId) {
         const duplicateInvoice = await c.query<{ id: string }>(
           `select id from commercial_documents
-           where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5`,
+           where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5 and state<>'cancelled'`,
           [
             context.organizationId,
             merged.payeePartyId,

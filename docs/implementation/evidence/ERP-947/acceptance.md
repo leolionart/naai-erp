@@ -8,3 +8,9 @@
   explicit lifecycle state is requested. Export raw records include correction status and lineage
   IDs so an accountant can filter `original`, `corrected_original` and `replacement` explicitly.
 - Detail endpoints remain unchanged and continue to return the original for audit drill-down.
+- Purchase-invoice create and quick-ingestion requests without a funding choice use owner-paid
+  semantics and the approved TT133 owner-current account; explicit company-bank requests retain
+  their selected financial account. A regression test covers both branches.
+- Duplicate purchase invoices are rejected even when invoice number or external ID changes, and
+  duplicate purchase-vs-expense fingerprints are rejected while cancelled/reversed originals are
+  excluded.

@@ -48,7 +48,10 @@ export class QuickPurchaseInvoiceService {
       taxMinor: "0",
       grossMinor: normalized.grossMinor,
       controlAccountCode: accounts.controlAccountCode,
-      ...(normalized.funding ? { funding: normalized.funding } : {}),
+      // Quick ingestion represents the common case where the owner paid the
+      // supplier personally. The API store resolves the configured owner-
+      // current ledger account; callers can still opt into company_bank.
+      funding: normalized.funding ?? { type: "owner_paid" },
       lines: [
         {
           description: normalized.description,

@@ -118,6 +118,29 @@ export class PgCommercialDocumentStore {
     return (await resolveOrganizationWorkflowPolicy(organizationId, client)).operatingMode;
   }
 
+  private async ownerCurrentAccount(
+    client: PoolClient,
+    organizationId: string,
+    documentDate: string,
+  ) {
+    const result = await client.query<{ account_code: string }>(
+      `with selected_mapping as (
+         select id,version from financial_statement_mapping_versions
+          where organization_id=$1 and framework='TT133' and state='approved'
+            and effective_from <= $2::date and (effective_to is null or effective_to >= $2::date)
+          order by effective_from desc,version desc limit 1
+       )
+       select ml.account_code from selected_mapping sm
+       join financial_statement_mapping_lines ml on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
+       join accounts a on a.organization_id=ml.organization_id and a.code=ml.account_code
+       where ml.statement='balance_sheet' and ml.line_code='owner_current' and a.is_active=true
+       order by ml.account_code limit 2`,
+      [organizationId, documentDate],
+    );
+    if (result.rows.length !== 1) throw new Error("OWNER_CURRENT_ACCOUNT_NOT_CONFIGURED");
+    return result.rows[0]!.account_code;
+  }
+
   private async insertDocumentLine(
     client: PoolClient,
     context: CommercialDocumentContext,
@@ -681,6 +704,13 @@ export class PgCommercialDocumentStore {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
+      // Resolve owner-paid control account before any draft upsert path so a
+      // retried external reference cannot retain the legacy AP account.
+      const effectiveControlAccountCode =
+        input.type === "purchase_invoice" &&
+        (input.funding?.type === "owner_paid" || input.funding?.type === "owner_custody_cash")
+          ? await this.ownerCurrentAccount(client, context.organizationId, input.documentDate)
+          : input.controlAccountCode;
       if (input.externalReference) {
         const extRefResult = await client.query<{
           document_id: string | null;
@@ -729,7 +759,7 @@ export class PgCommercialDocumentStore {
                 `update commercial_documents set
                   type=$3, document_number=$4, series=$5, fiscal_year=$6, party_id=$7, document_date=$8, due_date=$9,
                   currency=$10, net_minor=$11, tax_minor=$12, gross_minor=$13, control_account_code=$14,
-                  original_document_id=$15, reason=$16, version=$17, updated_at=now()
+                  funding_financial_account_id=$15, original_document_id=$16, reason=$17, version=$18, updated_at=now()
                  where organization_id=$1 and id=$2`,
                 [
                   context.organizationId,
@@ -745,7 +775,8 @@ export class PgCommercialDocumentStore {
                   input.netMinor,
                   input.taxMinor,
                   input.grossMinor,
-                  input.controlAccountCode,
+                  effectiveControlAccountCode,
+                  input.fundingSource?.financialAccountId ?? null,
                   input.originalDocumentId ?? null,
                   input.reason ?? null,
                   newVersion,
@@ -850,18 +881,33 @@ export class PgCommercialDocumentStore {
       }
 
       // Duplicate checks:
+      if (input.type === "purchase_invoice")
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
+          `purchase-expense:${context.organizationId}:${input.partyId ?? ""}:${input.documentDate}:${input.grossMinor}:${input.currency}`,
+        ]);
       const duplicateResult = await client.query<{ id: string }>(
-        `select id from commercial_documents
-         where organization_id=$1 and type=$2 and party_id=$3 and document_number=$4 and document_date=$5 and gross_minor=$6 and currency=$7`,
-        [
-          context.organizationId,
-          input.type,
-          input.partyId,
-          input.documentNumber,
-          input.documentDate,
-          input.grossMinor,
-          input.currency,
-        ],
+        input.type === "purchase_invoice"
+          ? `select id from commercial_documents
+             where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5 and state<>'cancelled'`
+          : `select id from commercial_documents
+             where organization_id=$1 and type=$2 and party_id=$3 and document_number=$4 and document_date=$5 and gross_minor=$6 and currency=$7 and state<>'cancelled'`,
+        input.type === "purchase_invoice"
+          ? [
+              context.organizationId,
+              input.partyId,
+              input.documentDate,
+              input.grossMinor,
+              input.currency,
+            ]
+          : [
+              context.organizationId,
+              input.type,
+              input.partyId,
+              input.documentNumber,
+              input.documentDate,
+              input.grossMinor,
+              input.currency,
+            ],
       );
       if (duplicateResult.rows.length > 0) {
         throw new Error("DUPLICATE_DOCUMENT");
@@ -870,7 +916,7 @@ export class PgCommercialDocumentStore {
       if (input.type === "purchase_invoice") {
         const duplicateExpense = await client.query<{ id: string }>(
           `select id from expenses
-           where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5`,
+           where organization_id=$1 and payee_party_id is not distinct from $2 and expense_date=$3 and gross_minor=$4 and currency=$5 and state<>'reversed'`,
           [
             context.organizationId,
             input.partyId,
@@ -899,6 +945,9 @@ export class PgCommercialDocumentStore {
         }
       }
 
+      // Owner-paid/custody purchases credit the configured owner-current ledger
+      // account. Company-bank purchases continue to resolve their financial
+      // account's ledger code below.
       const id = input.id ?? randomUUID();
       if (input.type === "credit_note")
         await this.assertCreditAllowed(client, context.organizationId, input);
@@ -921,7 +970,7 @@ export class PgCommercialDocumentStore {
           input.netMinor,
           input.taxMinor,
           input.grossMinor,
-          input.controlAccountCode,
+          effectiveControlAccountCode,
           input.fundingSource?.financialAccountId ?? null,
           input.originalDocumentId ?? null,
           input.reason ?? null,
@@ -988,7 +1037,7 @@ export class PgCommercialDocumentStore {
           net_minor: input.netMinor,
           tax_minor: input.taxMinor,
           gross_minor: input.grossMinor,
-          control_account_code: input.controlAccountCode,
+          control_account_code: effectiveControlAccountCode,
           funding_financial_account_id: input.fundingSource?.financialAccountId ?? null,
           original_document_id: input.originalDocumentId ?? null,
           created_by: context.actorId,
@@ -1285,19 +1334,35 @@ export class PgCommercialDocumentStore {
         }
       }
 
+      if (merged.type === "purchase_invoice")
+        await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
+          `purchase-expense:${context.organizationId}:${merged.partyId ?? ""}:${merged.documentDate}:${merged.grossMinor}:${merged.currency}`,
+        ]);
       const duplicateResult = await client.query<{ id: string }>(
-        `select id from commercial_documents
-         where organization_id=$1 and type=$2 and party_id=$3 and document_number=$4 and document_date=$5 and gross_minor=$6 and currency=$7 and id<>$8`,
-        [
-          context.organizationId,
-          merged.type,
-          merged.partyId,
-          merged.documentNumber,
-          merged.documentDate,
-          merged.grossMinor,
-          merged.currency,
-          id,
-        ],
+        merged.type === "purchase_invoice"
+          ? `select id from commercial_documents
+             where organization_id=$1 and type='purchase_invoice' and party_id=$2 and document_date=$3 and gross_minor=$4 and currency=$5 and id<>$6 and state<>'cancelled'`
+          : `select id from commercial_documents
+             where organization_id=$1 and type=$2 and party_id=$3 and document_number=$4 and document_date=$5 and gross_minor=$6 and currency=$7 and id<>$8 and state<>'cancelled'`,
+        merged.type === "purchase_invoice"
+          ? [
+              context.organizationId,
+              merged.partyId,
+              merged.documentDate,
+              merged.grossMinor,
+              merged.currency,
+              id,
+            ]
+          : [
+              context.organizationId,
+              merged.type,
+              merged.partyId,
+              merged.documentNumber,
+              merged.documentDate,
+              merged.grossMinor,
+              merged.currency,
+              id,
+            ],
       );
       if (duplicateResult.rows.length > 0) {
         throw new Error("DUPLICATE_DOCUMENT");
@@ -1306,7 +1371,7 @@ export class PgCommercialDocumentStore {
       if (merged.type === "purchase_invoice") {
         const duplicateExpense = await client.query<{ id: string }>(
           `select id from expenses
-           where organization_id=$1 and payee_party_id=$2 and expense_date=$3 and gross_minor=$4 and currency=$5`,
+           where organization_id=$1 and payee_party_id is not distinct from $2 and expense_date=$3 and gross_minor=$4 and currency=$5 and state<>'reversed'`,
           [
             context.organizationId,
             merged.partyId,

@@ -19,6 +19,10 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Paperless-ngx owns source file bytes, search and document lifecycle. NAAI ERP stores references only.
 - Purchase invoice is the canonical supplier-invoice record. Non-invoice expense must not duplicate it through a second invoice-backed path.
 - Duplicate checks prioritize external identity, then supplier, invoice number, date, gross amount and currency.
+- Cross-resource business fingerprints (organization, supplier/payee, date, gross amount and currency)
+  reject duplicate purchase invoices and non-invoice expenses even when document numbers or external
+  IDs differ. Cancelled/reversed originals are excluded from the active fingerprint so an approved
+  correction or migration replacement can be created without weakening history immutability.
 - The same external ID may exist in different organizations.
 
 ### BR-MVP-003 — Focused invoice and expense UI
@@ -66,6 +70,7 @@ These rules define the active release boundary. Historical rules remain valid fo
   its canonical project relationship; commercial documents retain their direct party relationship
   and allocation-based project relationships. Technical policy, evidence, actor and version fields
   remain available to API clients but are not duplicated in ordinary business tables or forms.
+
 ### BR-MVP-008 — Unified revenue and expense category catalog
 
 - Revenue and expense forms select only active, organization-scoped categories from the canonical
@@ -598,14 +603,14 @@ Document type and accounting treatment are independent.
   allocation IDs and unrelated dimensions while canonicalizing the relationship to `projectId`.
 - A draft created in error may be discarded before submission. Discard requires write authorization,
   optimistic version matching, a nonblank reason, idempotency, and retained audit/outbox evidence;
- - Posted expenses may receive one audited, versioned and idempotent metadata correction for the
-   active supplier/payee, business-purpose text, line descriptions and canonical `expenseCategoryCode`.
-   Legacy `dimensions.category` is read only during migration and is never written by the active path.
-   The quick-edit UI presents these fields as one save action instead of separate category and
-   document-update actions. This operation never changes amounts, tax states, allocations, funding
-   treatment, account codes, journal linkage or any other posted financial field. Every correction
-   retains before/after audit evidence; a payee must resolve to one active supplier party in the same
-   organization.
+- Posted expenses may receive one audited, versioned and idempotent metadata correction for the
+  active supplier/payee, business-purpose text, line descriptions and canonical `expenseCategoryCode`.
+  Legacy `dimensions.category` is read only during migration and is never written by the active path.
+  The quick-edit UI presents these fields as one save action instead of separate category and
+  document-update actions. This operation never changes amounts, tax states, allocations, funding
+  treatment, account codes, journal linkage or any other posted financial field. Every correction
+  retains before/after audit evidence; a payee must resolve to one active supplier party in the same
+  organization.
 - A posted expense missing its project relationship is corrected only through relationship
   backfill dry-run and reverse/replacement. The original becomes reversed and the replacement remains
   draft for normal review/posting; amount, evidence and accounting history are not rewritten.
