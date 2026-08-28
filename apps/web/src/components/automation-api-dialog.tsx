@@ -438,12 +438,6 @@ function definitionsFor(
           "ERP tự tìm hoặc tạo khách hàng theo mã số thuế, áp dụng tài khoản và trạng thái phù hợp; không cần gọi API party, account hay project riêng.",
         value: quickRevenueIngestionCurl(credential),
       },
-      {
-        title: "Nhập hóa đơn đầu ra hoàn chỉnh",
-        description:
-          "partyId là khách hàng; projectId nằm trong allocation và phải thuộc chính khách hàng đó.",
-        value: salesInvoiceCurl(credential),
-      },
     ],
     expenses: [
       {
@@ -458,18 +452,6 @@ function definitionsFor(
         description:
           "ERP tự tạo hoặc dùng lại nhà cung cấp theo mã số thuế, gán vai trò supplier và nhập hóa đơn tối giản. Không cần dự án hay tài khoản thanh toán.",
         value: quickOcrPurchaseInvoiceIngestionCurl(credential),
-      },
-      {
-        title: "Xóa hóa đơn nháp tạo dư",
-        description:
-          "Chỉ dùng cho hóa đơn còn ở trạng thái draft và chưa có bút toán. Lấy version hiện tại của hóa đơn để điền vào If-Match; hóa đơn đã ghi sổ phải dùng quy trình hủy hoặc đảo bút toán.",
-        value: discardDraftPurchaseInvoiceCurl(credential),
-      },
-      {
-        title: "Nhập hóa đơn đầu vào hoàn chỉnh",
-        description:
-          "Tạo purchase invoice; fundingSource chỉ dùng khi công ty thực trả từ tài khoản tài chính đã khai báo.",
-        value: purchaseInvoiceCurl(credential),
       },
       {
         title: "Nhập chi phí không phải hóa đơn VAT",
