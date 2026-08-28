@@ -138,7 +138,7 @@ export const adminNavigation = [
           {
             key: "sales-documents",
             label: "Quản lý doanh thu",
-            href: "/documents",
+            href: "/revenue",
             description: "Hoạt động đã xuất hóa đơn và doanh thu đã ghi nhận chưa có hóa đơn.",
             status: "available",
           },

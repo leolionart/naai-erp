@@ -290,8 +290,12 @@ export class PgCommercialDocumentStore {
       );
       if (!document.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
       const categoryRow = await client.query(
-        "select 1 from dimension_values where organization_id=$1 and kind='category' and code=$2 and is_active=true",
-        [context.organizationId, category],
+        `select 1 from business_categories bc
+         join commercial_documents d on d.organization_id=bc.organization_id
+           and d.id=$2
+         where bc.organization_id=$1 and bc.kind=case when d.type='purchase_invoice' then 'expense'::business_category_type else 'revenue'::business_category_type end
+           and bc.code=$3 and bc.is_active=true`,
+        [context.organizationId, id, category],
       );
       if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
       const before = await client.query<{ line_number: number; category: string | null }>(

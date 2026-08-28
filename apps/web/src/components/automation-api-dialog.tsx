@@ -174,20 +174,15 @@ export function quickRevenueIngestionCurl(credential: RevealedCredential) {
   return `curl --request POST \\
   'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/sales-invoice-ingestion' \\
   --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-revenue-2026-0001' \\
-  --header 'X-Correlation-Id: n8n-revenue-2026-0001' \\
+  --header 'Content-Type: application/json' --header 'Idempotency-Key: revenue-{{$json.id}}' \\
   --data '{
     "customerTaxId": "0312345678",
     "customerName": "CÔNG TY TNHH KHÁCH HÀNG DEMO",
     "documentNumber": "00000001",
     "documentDate": "2026-08-12",
+    "category": "SOFTWARE_DEV",
     "description": "Dịch vụ phát triển phần mềm",
-    "netMinor": "10000000",
-    "taxMinor": "1000000",
-    "grossMinor": "11000000",
-    "currency": "VND",
-    "externalReference": { "system": "n8n", "externalId": "sales-source-0001" }
+    "grossMinor": "11000000"
   }'`;
 }
 
@@ -285,24 +280,16 @@ export function quickOcrPurchaseInvoiceIngestionCurl(credential: RevealedCredent
   return `curl --request POST \\
   'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/purchase-invoice-ingestion' \\
   --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-paperless-001-k26toh-250571-v1' \\
-  --header 'X-Correlation-Id: n8n-paperless-001-k26toh-250571-v1' \\
+  --header 'Content-Type: application/json' --header 'Idempotency-Key: purchase-{{$json.id}}' \\
   --data '{
     "supplierTaxId": "0110660175",
     "supplierName": "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
     "documentNumber": "00250571",
     "documentDate": "2026-07-27",
-    "category": "Thuê pin và sạc xe điện",
+    "category": "EV_BATTERY_CHARGING",
     "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
     "grossMinor": "408601",
-    "externalReference": {
-      "system": "paperless-ngx",
-      "externalId": "246",
-      "canonicalUrl": "https://paperless.example/documents/246",
-      "version": "1",
-      "metadata": { "sourceTitle": "001_K26TOH_250571_9137" }
-    }
+    "externalReference": { "system": "paperless-ngx", "externalId": "246" }
   }'`;
 }
 
