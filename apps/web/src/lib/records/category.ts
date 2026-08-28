@@ -34,7 +34,8 @@ export function recordCategory(row: Row): string {
       if (dimensionCategory) return dimensionCategory;
     }
     if (Array.isArray(line.allocations)) {
-      for (const allocation of line.allocations as Row[]) {
+      for (const allocation of line.allocations as (Row | null | undefined)[]) {
+        if (!allocation) continue;
         const allocationDimensions = allocation.dimensions;
         if (allocationDimensions && typeof allocationDimensions === "object") {
           const allocationCategory = first(

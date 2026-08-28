@@ -34,15 +34,21 @@ export function relationshipIdList(row: Row | undefined, key: "projectId" | "con
   if (rootId) return [rootId];
 
   const ids = new Set<string>();
-  const lines = Array.isArray(row?.lines) ? (row.lines as Row[]) : [];
+  const lines = Array.isArray(row?.lines)
+    ? (row.lines as (Row | null | undefined)[]).filter((line): line is Row => Boolean(line))
+    : [];
   for (const line of lines) {
-    const lineDimensions = line.dimensions as Row | undefined;
+    const lineDimensions = (line.dimensions as Row | null | undefined) ?? undefined;
     const lineId = text(lineDimensions, key);
     if (lineId) ids.add(lineId);
 
-    const allocations = Array.isArray(line.allocations) ? (line.allocations as Row[]) : [];
+    const allocations = Array.isArray(line.allocations)
+      ? (line.allocations as (Row | null | undefined)[]).filter((allocation): allocation is Row =>
+          Boolean(allocation),
+        )
+      : [];
     for (const allocation of allocations) {
-      const allocationDimensions = allocation.dimensions as Row | undefined;
+      const allocationDimensions = (allocation.dimensions as Row | null | undefined) ?? undefined;
       const allocationId = text(allocationDimensions, key);
       if (allocationId) ids.add(allocationId);
     }

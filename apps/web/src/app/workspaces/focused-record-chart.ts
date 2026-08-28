@@ -65,7 +65,11 @@ function addRecordLines(
   );
   for (const line of lines) {
     const directCategory = lineCategory(line) || rootCategory;
-    const allocations = Array.isArray(line.allocations) ? (line.allocations as Row[]) : [];
+    const allocations = Array.isArray(line.allocations)
+      ? (line.allocations as (Row | null | undefined)[]).filter((allocation): allocation is Row =>
+          Boolean(allocation),
+        )
+      : [];
     const categorizedAllocations = allocations.filter((allocation) =>
       allocationCategory(allocation),
     );
