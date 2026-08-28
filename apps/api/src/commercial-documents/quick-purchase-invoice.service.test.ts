@@ -217,13 +217,17 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
     const master = masterWith({
       parties: [{ id: "supplier-existing", normalized_tax_id: "0110660175", status: "active" }],
       "party-roles": [{ party_id: "supplier-existing", role: "supplier" }],
-      dimensions: [
-        { kind: "category", code: "BATTERY_RENTAL", name: "Thuê pin", is_active: true },
-        { kind: "category", code: "OFFICE_SUPPLIES", name: "Văn phòng phẩm", is_active: true },
-      ],
-      "expense-categories": [
-        { code: "BATTERY_RENTAL", name: "Chi phí thuê pin", is_active: true },
-        { code: "OFFICE_SUPPLIES", name: "Chi phí văn phòng phẩm", is_active: true },
+      // ERP-937: the unified business category catalog is canonical. Keep the
+      // legacy dimensions omitted here so this test exercises the production
+      // read path and its canonical display name.
+      categories: [
+        { kind: "expense", code: "BATTERY_RENTAL", name: "Chi phí thuê pin", is_active: true },
+        {
+          kind: "expense",
+          code: "OFFICE_SUPPLIES",
+          name: "Chi phí văn phòng phẩm",
+          is_active: true,
+        },
       ],
       "default-mappings": [],
       accounts: [
