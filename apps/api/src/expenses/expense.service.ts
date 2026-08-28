@@ -443,6 +443,24 @@ export class ExpenseService {
       await this.store.reverseReplace(context, id, expectedVersion, normalized, reason.trim(), key),
     );
   }
+
+  /** Reverse a posted expense without creating a replacement record. */
+  async reverse(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => POST.has(role))) throw new Error("FORBIDDEN");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.reverse(context, id, expectedVersion, reason.trim(), key),
+    );
+  }
   async commitRelationshipBackfill(
     context: ExpenseContext,
     id: string,

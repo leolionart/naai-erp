@@ -13,3 +13,7 @@ Purchase-invoice API ingestion now defaults to `owner_paid` and resolves the app
 `owner_current` account at posting time. Explicit `company_bank` funding remains supported.
 Purchase invoices and non-invoice expenses share an organization-scoped business fingerprint
 (party/payee, date, gross amount and currency), protected by a transaction advisory lock.
+
+Added a reversal-only expense command for confirmed import mistakes. It creates only the balanced
+reversal journal, marks the source expense `reversed`, retains audit/outbox evidence and does not
+create a replacement row.

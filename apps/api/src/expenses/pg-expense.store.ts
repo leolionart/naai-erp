@@ -2042,6 +2042,139 @@ export class PgExpenseStore {
       c.release();
     }
   }
+
+  async reverse(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    key: string,
+  ) {
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, reason }))
+      .digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const found = await c.query<StoredExpense & { journal_id: string | null }>(
+        `select id,expense_class,state,expense_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,
+          counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist,journal_id
+         from expenses where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const original = found.rows[0];
+      if (!original) throw new Error("RESOURCE_NOT_FOUND");
+      if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (original.state !== "posted" || !original.journal_id)
+        throw new Error("INVALID_EXPENSE_TRANSITION");
+      const reconciliation = await c.query(
+        `select 1 from reconciliation_allocations where organization_id=$1 and expense_id=$2 limit 1`,
+        [context.organizationId, id],
+      );
+      if (reconciliation.rows[0]) throw new Error("INVALID_EXPENSE_TRANSITION");
+      await this.period(c, context, original.expense_date);
+      const journal = await c.query<{ state: string; currency: string }>(
+        `select state,currency from journal_entries where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, original.journal_id],
+      );
+      if (journal.rows[0]?.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
+      const reversalJournalId = randomUUID();
+      await c.query(
+        `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
+         values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
+        [
+          context.organizationId,
+          reversalJournalId,
+          original.expense_date,
+          `Reversal of ${original.journal_id}: ${reason}`,
+          journal.rows[0].currency,
+          context.actorId,
+          reason,
+          original.journal_id,
+        ],
+      );
+      await c.query(
+        `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+         select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
+         from journal_lines where organization_id=$1 and journal_id=$2`,
+        [context.organizationId, original.journal_id, reversalJournalId],
+      );
+      await c.query(
+        `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        [context.organizationId, original.journal_id],
+      );
+      const version = (BigInt(original.version) + 1n).toString();
+      await c.query(
+        `update expenses set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        [context.organizationId, id],
+      );
+      const event = randomUUID(),
+        audit = randomUUID(),
+        outbox = randomUUID();
+      await c.query(
+        `insert into expense_events(organization_id,id,expense_id,action,from_state,to_state,actor_id,reason,correlation_id,details)
+         values($1,$2,$3,'reverse',$4,'reversed',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          event,
+          id,
+          original.state,
+          context.actorId,
+          reason,
+          context.correlationId,
+          { reversalJournalId, journalId: original.journal_id },
+        ],
+      );
+      await c.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'expense',$3,$4,'reverse',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          audit,
+          id,
+          version,
+          context.actorId,
+          context.correlationId,
+          { state: original.state, journalId: original.journal_id },
+          { state: "reversed", reversalJournalId, reason },
+        ],
+      );
+      await c.query(
+        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+         values($1,$2,'expense',$3,'expense.reversed',1,$4,$5)`,
+        [
+          context.organizationId,
+          outbox,
+          id,
+          { expenseId: id, state: "reversed", reversalJournalId },
+          context.correlationId,
+        ],
+      );
+      const response = {
+        expenseId: id,
+        state: "reversed",
+        resourceVersion: version,
+        reversalJournalId,
+        eventId: event,
+        auditEventId: audit,
+        outboxEventId: outbox,
+        nextActions: [],
+      };
+      await this.save(c, context.organizationId, key, "expense:reverse", hash, response);
+      await c.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await c.query("rollback");
+      throw error;
+    } finally {
+      c.release();
+    }
+  }
   private async lock(c: PoolClient, org: string, id: string) {
     const r = await c.query<StoredExpense>(
       `select id,expense_class,state,expense_date::text,freelance_due_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist from expenses where organization_id=$1 and id=$2 for update`,

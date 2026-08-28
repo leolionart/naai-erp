@@ -202,6 +202,23 @@ export class ExpenseController {
       key,
     );
   }
+  @Post(":id/reverse") async reverse(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: { reason?: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.reverse(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input.reason ?? "",
+      key,
+    );
+  }
   @Post(":id/relationship-backfill/dry-run") async dryRunRelationshipBackfill(
     @Param("organizationId") org: string,
     @Param("id") id: string,

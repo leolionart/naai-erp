@@ -14,3 +14,6 @@
 - Duplicate purchase invoices are rejected even when invoice number or external ID changes, and
   duplicate purchase-vs-expense fingerprints are rejected while cancelled/reversed originals are
   excluded.
+- Confirmed posted import mistakes can be reversed without a replacement row; reversal journal,
+  immutable original journal, version check, idempotency, reconciliation guard and audit lineage
+  are all enforced.

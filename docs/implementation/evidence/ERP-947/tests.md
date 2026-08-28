@@ -6,3 +6,5 @@
 - DB integration regression is covered in the commercial-document and expense integration suites; it requires `RUN_DB_INTEGRATION=1` and a configured `DATABASE_URL`.
 - `pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts src/commercial-documents/quick-purchase-invoice.service.test.ts src/commercial-documents/commercial-document.integration.test.ts` — 25 passed, 12 skipped (DB integration skipped without `DATABASE_URL`).
 - `pnpm --filter @naai-erp/api lint` — passed after owner-paid and fingerprint changes.
+- Reverse-only service delegation and guard tests — passed; full API suite now reports 190 passed,
+  116 skipped.

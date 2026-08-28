@@ -423,4 +423,35 @@ describe("ERP-310 ExpenseService", () => {
     );
     expect(result.data).toMatchObject({ replacementExpenseId: "e-2" });
   });
+  it("delegates posted expense reverse-only with version, reason and idempotency", async () => {
+    const store = {
+      reverse: vi
+        .fn()
+        .mockResolvedValue({ expenseId: "e-1", state: "reversed", reversalJournalId: "jr-rev" }),
+    };
+    const service = new ExpenseService(store as never, {} as never);
+    const result = await service.reverse(context, "e-1", "4", "Imported duplicate", "reverse-1");
+    expect(store.reverse).toHaveBeenCalledWith(
+      context,
+      "e-1",
+      "4",
+      "Imported duplicate",
+      "reverse-1",
+    );
+    expect(result.data).toMatchObject({ expenseId: "e-1", state: "reversed" });
+  });
+
+  it("requires posting role, version, reason and idempotency for reverse-only", async () => {
+    const service = new ExpenseService({} as never, {} as never);
+    await expect(
+      service.reverse({ ...context, roles: ["viewer"] }, "e-1", "1", "r", "k"),
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(service.reverse(context, "e-1", "", "r", "k")).rejects.toThrow("VERSION_CONFLICT");
+    await expect(service.reverse(context, "e-1", "1", "", "k")).rejects.toThrow(
+      "VALIDATION_FAILED",
+    );
+    await expect(service.reverse(context, "e-1", "1", "r")).rejects.toThrow(
+      "IDEMPOTENCY_KEY_REQUIRED",
+    );
+  });
 });

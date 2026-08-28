@@ -1137,6 +1137,45 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/reverse": {
+      "post": {
+        "operationId": "reversePostedExpense",
+        "tags": ["expenses", "corrections"],
+        "summary": "Reverse a posted expense without creating a replacement record",
+        "description": "Creates a balanced reversal journal, marks the original expense reversed, retains audit/outbox evidence and removes it from default operational views. The original posted journal remains immutable.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "expenseId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reason"],
+                "properties": { "reason": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reversal result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale version, posted expense already reversed, or reconciliation prevents reversal"
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses/relationship-backfill/inventory": {
       "get": {
         "operationId": "inventoryExpenseRelationshipBackfill",
