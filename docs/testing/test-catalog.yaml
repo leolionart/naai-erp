@@ -2669,6 +2669,14 @@ tests:
     command: pnpm --filter @naai-erp/api test
     blocking_gate: G95
 
+  - id: T-MIG-ERP-950-001
+    task: ERP-950
+    rules: [BR-MVP-008, BR-AI-001]
+    title: Category relation repair migration is idempotent on upgraded databases
+    layer: integration
+    command: DATABASE_URL=postgresql://naai_erp:naai_erp@127.0.0.1:5432/naai_erp pnpm --filter @naai-erp/database db:migrate
+    blocking_gate: G96
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

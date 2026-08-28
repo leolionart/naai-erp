@@ -3364,6 +3364,21 @@ tasks:
       - apps/api/src/api-exception.filter.ts
       - docs/implementation/evidence/ERP-949/
 
+  - id: ERP-950
+    title: Repair unified business category migration drift
+    phase: P16
+    status: review
+    dependencies: [ERP-937]
+    business_rules: [BR-MVP-008, BR-AI-001, BR-AI-005]
+    tests: [T-MIG-ERP-950-001]
+    evidence: docs/implementation/evidence/ERP-950/
+    agent: codex-root
+    started_at: 2026-08-28T17:20:00+07:00
+    planned_files:
+      - db/migrations/0063_repair_business_categories.sql
+      - db/migrations/meta/_journal.json
+      - docs/implementation/evidence/ERP-950/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
