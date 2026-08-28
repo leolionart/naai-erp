@@ -32,7 +32,9 @@ FROM expense_categories
 ON CONFLICT (organization_id, kind, code) DO NOTHING;
 
 INSERT INTO business_categories (organization_id, kind, code, name, account_code)
-SELECT o.id, 'revenue', v.code, v.name, v.account_code
+SELECT o.id, 'revenue', v.code, v.name,
+       CASE WHEN EXISTS (SELECT 1 FROM accounts a WHERE a.organization_id=o.id AND a.code=v.account_code AND a.is_active)
+            THEN v.account_code ELSE NULL END
 FROM organizations o
 CROSS JOIN (VALUES
   ('SOFTWARE_DEV','Doanh thu Phát triển phần mềm / App','5113'),
@@ -44,5 +46,4 @@ CROSS JOIN (VALUES
   ('RETAINER_FEE','Doanh thu Phí Retainer hàng tháng','5113'),
   ('OTHER_REVENUE','Doanh thu bán ra khác','5113')
 ) AS v(code,name,account_code)
-WHERE EXISTS (SELECT 1 FROM accounts a WHERE a.organization_id=o.id AND a.code=v.account_code AND a.is_active)
 ON CONFLICT (organization_id, kind, code) DO NOTHING;

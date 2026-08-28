@@ -38,12 +38,6 @@ type FinancialAccount = Readonly<{
   status: "active" | "inactive";
 }>;
 
-function defaultCounterAccount(treatment: ExpenseCategoryPolicy["fundingTreatment"]) {
-  if (treatment === "company_funds") return "112-BANK";
-  if (treatment === "owner_paid_company_cost") return "3388-OWNER";
-  return "331-AP";
-}
-
 function field(source: unknown, ...keys: string[]): unknown {
   if (!source || typeof source !== "object") return undefined;
   const record = source as Record<string, unknown>;
@@ -1190,7 +1184,7 @@ export function ExpenseForm({
     ),
   );
   const [counterAccountCode, setCounterAccountCode] = useState(
-    String(field(initial, "counterAccountCode", "counter_account_code") ?? "111-CASH"),
+    String(field(initial, "counterAccountCode", "counter_account_code") ?? "3388-OWNER"),
   );
   const allocationAmountError =
     existingAllocations.length > 1 && initialNetMinor !== "" && netMinor !== initialNetMinor
@@ -1199,6 +1193,11 @@ export function ExpenseForm({
   const [postingAccountCode, setPostingAccountCode] = useState(
     String(field(initialLine, "postingAccountCode", "posting_account_code") ?? "642-OPEX"),
   );
+  const derivedPostingAccountCode = initial
+    ? postingAccountCode
+    : (catalogCategories.find((item) => item.code === category)?.defaultAccountCode ??
+      INBOUND_CATEGORIES.find((item) => item.code === category)?.defaultAccount ??
+      postingAccountCode);
 
   useEffect(() => {
     if (!hydrated || !hasToken) return;
@@ -1226,10 +1225,6 @@ export function ExpenseForm({
           })
           .filter((policy) => policy.isActive);
         setCategoryPolicies(active);
-        if (!initial) {
-          const selected = active.find((policy) => policy.code === category);
-          if (selected) setCounterAccountCode(defaultCounterAccount(selected.fundingTreatment));
-        }
       })
       .catch(() => {
         if (!cancelled) setCategoryPolicies([]);
@@ -1241,8 +1236,6 @@ export function ExpenseForm({
 
   function handleCategoryChange(catCode: string) {
     setCategory(catCode);
-    const policy = categoryPolicies.find((item) => item.code === catCode);
-    if (policy) setCounterAccountCode(defaultCounterAccount(policy.fundingTreatment));
     const item = catalogCategories.find((c) => c.code === catCode);
     if (item && !initial) {
       if (item.defaultAccountCode) setPostingAccountCode(item.defaultAccountCode);
@@ -1293,7 +1286,7 @@ export function ExpenseForm({
           ...(initialLine ?? {}),
           lineNumber: 1,
           description: businessPurpose || getCategoryName(category) || "Chi phí doanh nghiệp",
-          postingAccountCode,
+          postingAccountCode: derivedPostingAccountCode,
           expenseCategoryCode: category,
           ...(BigInt(vatMinor || "0") > 0n ? { vatAccountCode: "1331-VAT" } : {}),
           netMinor: netMinor || "0",
@@ -1586,24 +1579,19 @@ export function ExpenseForm({
           required
         />
         <Field>
-          <FieldLabel>Tài khoản hạch toán chi phí</FieldLabel>
-          <Select value={postingAccountCode} onValueChange={setPostingAccountCode}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {ACCOUNT_CODES.map((acc) => (
-                  <SelectItem key={acc.code} value={acc.code}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <FieldLabel>Tài khoản chi phí (tự động theo danh mục)</FieldLabel>
+          <Input
+            value={derivedPostingAccountCode}
+            readOnly
+            disabled
+            aria-label="Tài khoản chi phí"
+          />
+          <p className="text-sm text-muted-foreground">
+            Tài khoản được suy ra từ danh mục nghiệp vụ; không cần chọn thủ công.
+          </p>
         </Field>
         <Field>
-          <FieldLabel>Nguồn thanh toán chi phí</FieldLabel>
+          <FieldLabel>Ai đã chi tiền?</FieldLabel>
           <Select value={counterAccountCode} onValueChange={setCounterAccountCode}>
             <SelectTrigger>
               <SelectValue />
