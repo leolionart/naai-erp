@@ -15,7 +15,7 @@ const READ_ROLES = new Set(["owner", "finance_admin", "accountant", "approver", 
 export class OperationalLogService {
   constructor(
     @Inject(OPERATIONAL_LOG_STORE) private readonly store: OperationalLogStore,
-    private readonly masterData: MasterDataService,
+    @Inject(MasterDataService) private readonly masterData: MasterDataService,
   ) {}
   authenticate(authorization: string | undefined, organizationId: string, correlationId: string) {
     return this.masterData.authenticate(authorization, organizationId, correlationId);

@@ -1,5 +1,6 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
 import type { FundingInputContract } from "@naai-erp/contracts";
+import type { BusinessCorrectionRequestContract } from "@naai-erp/contracts";
 
 export type ExpenseContext = JournalActorContext;
 export type ExpenseAxis = "management" | "cit" | "vat";
@@ -82,3 +83,4 @@ export type ExpenseMetadataInput = Readonly<{
   }>[];
 }>;
 export type TaxFinalizationInput = Readonly<{ reason: string; planHash?: string }>;
+export type ExpenseCorrectionInput = BusinessCorrectionRequestContract;

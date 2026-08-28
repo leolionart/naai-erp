@@ -15,6 +15,7 @@ import { ExpenseService } from "./expense.service.js";
 import type {
   CreateExpenseInput,
   ExpenseCategoryInput,
+  ExpenseCorrectionInput,
   ExpenseMetadataInput,
   ExpenseReviewInput,
   TaxFinalizationInput,
@@ -123,6 +124,23 @@ export class ExpenseController {
     @Headers("idempotency-key") key?: string,
   ) {
     return this.service.updateMetadata(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input,
+      key,
+    );
+  }
+  @Patch(":id/correction") async correct(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: ExpenseCorrectionInput,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.correct(
       await this.context(org, auth, corr),
       id,
       expectedVersion ?? "",

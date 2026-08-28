@@ -14,3 +14,9 @@ export type FundingFieldErrorContract = Readonly<{
   message: string;
   expected?: readonly string[];
 }>;
+
+export type BusinessCorrectionRequestContract = Readonly<{
+  category?: string;
+  funding?: FundingInputContract;
+  reason: string;
+}>;

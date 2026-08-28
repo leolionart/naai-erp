@@ -226,6 +226,28 @@ export class CommercialDocumentService {
       await this.store.updateMetadata(context, id, expectedVersion, normalized, idempotencyKey),
     );
   }
+  async correct(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: { category?: string; funding?: unknown; reason: string },
+    key?: string,
+  ) {
+    if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
+    const doc = await this.store.get(context.organizationId, id);
+    if (!doc) throw new Error("RESOURCE_NOT_FOUND");
+    if (input.funding) throw new Error("FUNDING_CORRECTION_REQUIRES_REPLACEMENT");
+    return this.updateMetadata(
+      context,
+      id,
+      expectedVersion,
+      {
+        ...(input.category !== undefined ? { category: input.category } : {}),
+        reason: input.reason,
+      },
+      key,
+    );
+  }
   async deleteDraft(
     context: CommercialDocumentContext,
     id: string,

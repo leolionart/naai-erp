@@ -4,6 +4,7 @@ export {
   type FundingTypeContract,
   type FundingInputContract,
   type FundingFieldErrorContract,
+  type BusinessCorrectionRequestContract,
 } from "./funding.js";
 export {
   CUSTOMER_RECEIPT_CONTRACT_VERSION,

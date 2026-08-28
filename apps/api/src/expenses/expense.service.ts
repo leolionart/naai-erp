@@ -251,6 +251,23 @@ export class ExpenseService {
       await this.store.updateMetadata(context, id, expectedVersion, normalized, key),
     );
   }
+  async correct(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    input: { category?: string; funding?: unknown; reason: string },
+    key?: string,
+  ) {
+    if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
+    if (input.funding) throw new Error("FUNDING_CORRECTION_REQUIRES_REPLACEMENT");
+    return this.updateMetadata(
+      context,
+      id,
+      expectedVersion,
+      { ...(input.category !== undefined ? { category: input.category } : {}) },
+      key,
+    );
+  }
   async update(
     context: ExpenseContext,
     id: string,

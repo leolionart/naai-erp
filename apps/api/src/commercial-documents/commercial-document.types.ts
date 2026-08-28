@@ -1,5 +1,6 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
 import type { FundingInputContract } from "@naai-erp/contracts";
+import type { BusinessCorrectionRequestContract } from "@naai-erp/contracts";
 
 export type CommercialDocumentType = "sales_invoice" | "purchase_invoice" | "credit_note";
 export type CommercialDocumentAction =
@@ -78,6 +79,7 @@ export type CommercialDocumentFundingReclassificationInput = Readonly<{
   targetControlAccountCode: string;
   reason: string;
 }>;
+export type CommercialDocumentCorrectionInput = BusinessCorrectionRequestContract;
 
 export type QuickPurchaseInvoiceInput = Readonly<{
   schemaVersion?: 1;
