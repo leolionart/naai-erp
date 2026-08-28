@@ -566,9 +566,26 @@ export function AutomationApiDialog({
                 </Button>
               </div>
             </section>
-            {definitionsFor(credential, resources).map((definition) => (
-              <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
-            ))}
+            {definitionsFor(credential, resources)
+              .filter((definition) => definition.kind !== "n8n-expression")
+              .map((definition) => (
+                <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
+              ))}
+            {definitionsFor(credential, resources).some(
+              (definition) => definition.kind === "n8n-expression",
+            ) ? (
+              <section className="mt-3 border-t pt-3">
+                <p className="mb-2 text-sm font-medium">Nâng cao cho n8n</p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Expression chỉ dùng trong node HTTP Request ở chế độ Expression, không phải cURL.
+                </p>
+                {definitionsFor(credential, resources)
+                  .filter((definition) => definition.kind === "n8n-expression")
+                  .map((definition) => (
+                    <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
+                  ))}
+              </section>
+            ) : null}
           </div>
         ) : null}
       </DialogContent>
