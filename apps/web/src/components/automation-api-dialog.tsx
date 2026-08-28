@@ -435,7 +435,7 @@ function definitionsFor(
       {
         title: "Nhập nhanh doanh thu bằng một request",
         description:
-          "ERP tự tìm hoặc tạo khách hàng theo mã số thuế, áp dụng tài khoản và trạng thái phù hợp; không cần gọi API party, account hay project riêng.",
+          "Bắt buộc: customerName, documentNumber, documentDate, description, grossMinor. Có thể thêm customerTaxId, category, project, dueDate, currency và externalReference; các field tùy chọn không đưa vào cURL tối thiểu.",
         value: quickRevenueIngestionCurl(credential),
       },
     ],
@@ -450,13 +450,13 @@ function definitionsFor(
       {
         title: "Nhập nhanh hóa đơn OCR bằng một request",
         description:
-          "ERP tự tạo hoặc dùng lại nhà cung cấp theo mã số thuế, gán vai trò supplier và nhập hóa đơn tối giản. Không cần dự án hay tài khoản thanh toán.",
+          "Bắt buộc: supplierName hoặc supplierTaxId, documentNumber, documentDate, description, grossMinor. Có thể thêm category, dueDate, currency và externalReference; không cần dự án hay tài khoản thanh toán.",
         value: quickOcrPurchaseInvoiceIngestionCurl(credential),
       },
       {
         title: "Nhập chi phí không phải hóa đơn VAT",
         description:
-          "Dùng expense cho biên nhận hoặc khoản chi trực tiếp; không tạo trùng purchase invoice.",
+          "Bắt buộc: payeePartyId, expenseDate, businessPurpose, grossMinor và một dòng chi phí. Có thể thêm category, project, VAT, currency, evidence và externalReference.",
         value: directExpenseCurl(credential),
       },
     ],
