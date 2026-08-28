@@ -145,7 +145,6 @@ function human(value: string) {
 }
 const FUNDING_OPTIONS = [
   { code: "111-CASH", label: "Quỹ tiền mặt công ty (TK 111)" },
-  { code: "112-BANK", label: "Tài khoản ngân hàng công ty (TK 112)" },
   { code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" },
 ] as const;
 function fundingLabel(code: string) {
