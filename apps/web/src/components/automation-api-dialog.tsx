@@ -31,6 +31,11 @@ type CurlDefinition = Readonly<{
   description: string;
   value: string;
   kind?: "curl" | "n8n-expression";
+  method?: string;
+  path?: string;
+  required?: readonly string[];
+  optional?: readonly string[];
+  response?: string;
 }>;
 
 function masterDataCreateCurl(
@@ -433,31 +438,59 @@ function definitionsFor(
     ],
     revenue: [
       {
-        title: "Nhập nhanh doanh thu bằng một request",
+        title: "Tạo doanh thu",
         description:
-          "Bắt buộc: customerName, documentNumber, documentDate, description, grossMinor. Có thể thêm customerTaxId, category, project, dueDate, currency và externalReference; các field tùy chọn không đưa vào cURL tối thiểu.",
+          "Tạo một khoản doanh thu bằng một request tối thiểu. ERP tự resolve khách hàng và tài khoản mặc định theo danh mục.",
         value: quickRevenueIngestionCurl(credential),
+        method: "POST",
+        path: "/commercial-documents/sales-invoice-ingestion",
+        required: ["customerName", "documentNumber", "documentDate", "description", "grossMinor"],
+        optional: [
+          "customerTaxId",
+          "category",
+          "project",
+          "dueDate",
+          "currency",
+          "externalReference",
+        ],
+        response: '{ "data": { "documentId": "…", "status": "draft" } }',
       },
     ],
     expenses: [
       {
-        title: "Expression n8n: chuẩn hóa toàn bộ dữ liệu OCR",
+        title: "Chuẩn hóa dữ liệu OCR (n8n Expression)",
         description:
-          "Dán nguyên khối vào JSON Body của HTTP Request ở chế độ Expression. Kết quả là body nhập hóa đơn một-call đã chuẩn hóa tiền, ngày, mã số thuế và tự lấy số hóa đơn từ nội dung khi OCR không tách field riêng.",
+          "Tùy chọn cho workflow n8n: chuyển output OCR thành JSON chuẩn trước khi gọi API. Đây không phải request REST và không dùng cURL.",
         value: n8nOcrMappingExpression(),
         kind: "n8n-expression",
       },
       {
-        title: "Nhập hóa đơn đầu vào từ Paperless / n8n",
+        title: "Tạo hóa đơn đầu vào",
         description:
-          "Dành cho luồng Paperless/n8n: OCR gửi thông tin tối thiểu, ERP tự tìm nhà cung cấp và tạo hóa đơn. Bắt buộc: supplierName hoặc supplierTaxId, documentNumber, documentDate, description, grossMinor. Có thể thêm category, dueDate, currency và externalReference.",
+          "Request REST tối thiểu cho hóa đơn mua vào. ERP tự tìm hoặc tạo nhà cung cấp và áp dụng danh mục đã khai báo.",
         value: quickOcrPurchaseInvoiceIngestionCurl(credential),
+        method: "POST",
+        path: "/commercial-documents/purchase-invoice-ingestion",
+        required: [
+          "supplierName hoặc supplierTaxId",
+          "documentNumber",
+          "documentDate",
+          "description",
+          "grossMinor",
+        ],
+        optional: ["category", "dueDate", "currency", "externalReference"],
+        response: '{ "data": { "documentId": "…", "status": "draft" } }',
       },
       {
-        title: "Nhập chi phí không phải hóa đơn VAT",
+        title: "Tạo chi phí trực tiếp",
         description:
-          "Bắt buộc: payeePartyId, expenseDate, businessPurpose, grossMinor và một dòng chi phí. Có thể thêm category, project, VAT, currency, evidence và externalReference.",
+          "Dùng cho khoản chi không có hóa đơn VAT. Request giữ ở mức tối thiểu; các thông tin kế toán nâng cao do ERP xử lý theo cấu hình.",
         value: directExpenseCurl(credential),
+        method: "POST",
+        path: "/expenses",
+        required: ["payeePartyId", "expenseDate", "businessPurpose", "grossMinor"],
+        optional: ["category", "project", "VAT", "currency", "evidence", "externalReference"],
+        response: '{ "data": { "expenseId": "…", "status": "draft" } }',
       },
     ],
   };
@@ -488,7 +521,7 @@ export function AutomationApiDialog({
 
   async function copy(value: string) {
     await navigator.clipboard.writeText(value);
-    toast.success("Đã sao chép mẫu đầy đủ.");
+    toast.success("Đã sao chép vào clipboard.");
   }
 
   return (
@@ -507,9 +540,9 @@ export function AutomationApiDialog({
       </DialogTrigger>
       <DialogContent className="max-h-[90svh] min-w-0 overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Ví dụ cURL cho n8n và AI</DialogTitle>
+          <DialogTitle>REST API &amp; tự động hóa</DialogTitle>
           <DialogDescription>
-            Giao thức production tương ứng với dữ liệu có thể nhập tại màn hình hiện tại.
+            Tài liệu nhanh cho endpoint đang dùng: xác thực, tham số, request cURL và phản hồi mẫu.
           </DialogDescription>
         </DialogHeader>
 
@@ -598,14 +631,45 @@ function ProtocolExample({
   description,
   value,
   kind = "curl",
+  method,
+  path,
+  required,
+  optional,
+  response,
   onCopy,
 }: Readonly<{
   title: string;
   description: string;
   value: string;
   kind?: "curl" | "n8n-expression";
+  method?: string;
+  path?: string;
+  required?: readonly string[];
+  optional?: readonly string[];
+  response?: string;
   onCopy: (value: string) => Promise<void>;
 }>) {
+  if (kind === "n8n-expression") {
+    return (
+      <section className="rounded-xl border border-dashed bg-muted/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="font-medium">{title}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void onCopy(value)}>
+            <ClipboardIcon data-icon="inline-start" /> Sao chép expression
+          </Button>
+        </div>
+        <details className="mt-3 rounded-lg border bg-background">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Xem expression</summary>
+          <pre className="max-h-[40svh] overflow-auto border-t bg-muted/40 p-4 text-xs leading-relaxed">
+            <code>{value}</code>
+          </pre>
+        </details>
+      </section>
+    );
+  }
   return (
     <Collapsible className="group rounded-xl border">
       <div className="flex min-w-0 flex-col items-stretch gap-2 p-3 sm:flex-row sm:items-start">
@@ -632,10 +696,50 @@ function ProtocolExample({
         </Button>
       </div>
       <CollapsibleContent>
+        {method && path ? (
+          <div className="space-y-3 border-t px-4 py-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">
+                {method}
+              </span>
+              <code className="text-muted-foreground">
+                /api/v1/organizations/:organizationId{path}
+              </code>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FieldList title="Bắt buộc" values={required} />
+              <FieldList title="Tùy chọn" values={optional} />
+            </div>
+            {response ? (
+              <div>
+                <p className="mb-1 font-medium">Phản hồi thành công</p>
+                <pre className="overflow-auto rounded-md bg-muted/40 p-3">
+                  <code>{response}</code>
+                </pre>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <pre className="max-h-[45svh] overflow-auto border-t bg-muted/40 p-4 text-xs leading-relaxed">
           <code>{value}</code>
         </pre>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+function FieldList({ title, values }: Readonly<{ title: string; values?: readonly string[] }>) {
+  if (!values?.length) return null;
+  return (
+    <div>
+      <p className="mb-1 font-medium">{title}</p>
+      <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+        {values.map((value) => (
+          <li key={value}>
+            <code>{value}</code>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
