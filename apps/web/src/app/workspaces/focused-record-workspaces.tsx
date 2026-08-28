@@ -143,6 +143,15 @@ function money(value: unknown) {
 function human(value: string) {
   return value ? value.replaceAll("_", " ") : "—";
 }
+const FUNDING_OPTIONS = [
+  { code: "111-CASH", label: "Quỹ tiền mặt công ty (TK 111)" },
+  { code: "112-BANK", label: "Tài khoản ngân hàng công ty (TK 112)" },
+  { code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" },
+] as const;
+function fundingLabel(code: string) {
+  const root = code.split("-")[0];
+  return FUNDING_OPTIONS.find((option) => option.code.startsWith(root))?.label ?? code;
+}
 function sourceKind(row: Row | undefined): SourceKind {
   const value = row?.__sourceKind;
   return value === "expenses" || value === "recognition" ? value : "documents";
@@ -204,6 +213,7 @@ export function FocusedRecordListWorkspace({
   const [deleteInvoiceReason, setDeleteInvoiceReason] = useState("");
   const [reclassifyOpen, setReclassifyOpen] = useState(false);
   const [reclassifyReason, setReclassifyReason] = useState("");
+  const [reclassifyTargetAccount, setReclassifyTargetAccount] = useState("111-CASH");
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickBusy, setQuickBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -730,7 +740,13 @@ export function FocusedRecordListWorkspace({
     ["posted", "issued", "partially_paid", "paid"].includes(text(quickRecord, "state"));
 
   async function reclassifyFunding() {
-    if (!quickRecord || !canReclassifyFunding || !reclassifyReason.trim()) return;
+    if (
+      !quickRecord ||
+      !canReclassifyFunding ||
+      !reclassifyReason.trim() ||
+      !reclassifyTargetAccount
+    )
+      return;
     const id = text(quickRecord, "id");
     const source = sourceKind(quickRecord);
     setQuickBusy(true);
@@ -754,7 +770,7 @@ export function FocusedRecordListWorkspace({
               netMinor: text(quickRecord, "netMinor", "net_minor") || "0",
               vatMinor: text(quickRecord, "vatMinor", "vat_minor") || "0",
               grossMinor: text(quickRecord, "grossMinor", "gross_minor") || "0",
-              counterAccountCode: "3388-OWNER",
+              counterAccountCode: reclassifyTargetAccount,
               lines: lines.map((line) => ({
                 ...line,
                 postingAccountCode: text(line, "postingAccountCode", "posting_account_code"),
@@ -777,7 +793,7 @@ export function FocusedRecordListWorkspace({
               netMinor: text(quickRecord, "netMinor", "net_minor") || "0",
               taxMinor: text(quickRecord, "taxMinor", "tax_minor") || "0",
               grossMinor: text(quickRecord, "grossMinor", "gross_minor") || "0",
-              controlAccountCode: "3388-OWNER",
+              controlAccountCode: reclassifyTargetAccount,
               lines: lines.map((line) => ({
                 description: text(line, "description") || "Chi phí doanh nghiệp",
                 quantity: text(line, "quantity") || "1",
@@ -808,7 +824,7 @@ export function FocusedRecordListWorkspace({
       const requestBody =
         source === "expenses"
           ? { replacement, reason: reclassifyReason.trim() }
-          : { targetControlAccountCode: "3388-OWNER", reason: reclassifyReason.trim() };
+          : { targetControlAccountCode: reclassifyTargetAccount, reason: reclassifyReason.trim() };
       const result = await client.data<Row>(endpoint, {
         method: "POST",
         expectedVersion: text(quickRecord, "resourceVersion", "version"),
@@ -820,7 +836,7 @@ export function FocusedRecordListWorkspace({
       await load();
       if (result?.replacementExpenseId || result?.replacementDocumentId) {
         toast.success(
-          "Đã đảo bút toán cũ và tạo bản thay thế với nguồn chủ doanh nghiệp chi hộ (TK 3388).",
+          `Đã đảo bút toán cũ và tạo bản thay thế với nguồn ${fundingLabel(reclassifyTargetAccount)}.`,
         );
       }
       setQuickRecord(undefined);
@@ -1152,8 +1168,23 @@ export function FocusedRecordListWorkspace({
               ) : null}
               {canReclassifyFunding ? (
                 <div className="flex justify-end">
-                  <Button type="button" variant="outline" onClick={() => setReclassifyOpen(true)}>
-                    Đổi sang chủ doanh nghiệp chi hộ (TK 3388)
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const currentCode = text(
+                        quickRecord,
+                        "counterAccountCode",
+                        "controlAccountCode",
+                      );
+                      const alternative = FUNDING_OPTIONS.find(
+                        (option) => !currentCode.startsWith(option.code.split("-")[0]),
+                      );
+                      setReclassifyTargetAccount(alternative?.code ?? "111-CASH");
+                      setReclassifyOpen(true);
+                    }}
+                  >
+                    Đổi nguồn thanh toán
                   </Button>
                 </div>
               ) : null}
@@ -1284,12 +1315,33 @@ export function FocusedRecordListWorkspace({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Đổi nguồn thanh toán sang TK 3388?</DialogTitle>
+            <DialogTitle>Đổi sang nguồn thanh toán khác?</DialogTitle>
             <DialogDescription>
               Bút toán đã ghi sổ sẽ được đảo và tạo bản thay thế ở trạng thái nháp. Lịch sử và đối
-              soát cũ được giữ nguyên; bản thay thế ghi nhận chủ doanh nghiệp chi hộ.
+              soát cũ được giữ nguyên; bản thay thế sẽ ghi nhận theo nguồn bạn chọn.
             </DialogDescription>
           </DialogHeader>
+          <Field>
+            <FieldLabel htmlFor="reclassify-funding-target">Nguồn thanh toán mới</FieldLabel>
+            <Select value={reclassifyTargetAccount} onValueChange={setReclassifyTargetAccount}>
+              <SelectTrigger id="reclassify-funding-target">
+                <SelectValue placeholder="Chọn nguồn thanh toán" />
+              </SelectTrigger>
+              <SelectContent>
+                {FUNDING_OPTIONS.filter((option) => {
+                  const currentCode = text(quickRecord, "counterAccountCode", "controlAccountCode");
+                  return !currentCode.startsWith(option.code.split("-")[0]);
+                }).map((option) => (
+                  <SelectItem key={option.code} value={option.code}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Sẽ chuyển sang: {fundingLabel(reclassifyTargetAccount)}
+            </p>
+          </Field>
           <Field>
             <FieldLabel htmlFor="reclassify-funding-reason">Lý do điều chỉnh</FieldLabel>
             <Textarea
