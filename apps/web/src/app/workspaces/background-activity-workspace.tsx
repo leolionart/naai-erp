@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import {
   FinancialDataTable,
@@ -47,6 +47,7 @@ export function OperationalLogWorkspace() {
   const [source, setSource] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     if (!hydrated) return;
@@ -74,6 +75,20 @@ export function OperationalLogWorkspace() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const timelineFor = useMemo(
+    () => (item: OperationalLog) => {
+      const details = item.details;
+      if (!details || typeof details !== "object") return [] as readonly Record<string, unknown>[];
+      const candidate = details as Record<string, unknown>;
+      const events = candidate.events ?? candidate.timeline ?? candidate.steps ?? candidate.logs;
+      if (!Array.isArray(events)) return [] as readonly Record<string, unknown>[];
+      return events.filter((event): event is Record<string, unknown> =>
+        Boolean(event && typeof event === "object"),
+      );
+    },
+    [],
+  );
 
   const columns: readonly FinancialColumn<OperationalLog>[] = [
     {
@@ -117,16 +132,61 @@ export function OperationalLogWorkspace() {
       id: "detail",
       header: "Chi tiết",
       cell: (item) => (
-        <div className="max-w-80 text-sm">
-          {item.status === "failed" && item.details ? (
-            <span className="text-destructive">
-              {typeof item.details === "string" ? item.details : "Có lỗi khi xử lý"}
+        <div className="max-w-96 space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span
+              className={
+                item.status === "failed"
+                  ? "text-destructive"
+                  : "font-mono text-xs text-muted-foreground"
+              }
+            >
+              {item.status === "failed" && item.details
+                ? typeof item.details === "string"
+                  ? item.details
+                  : "Có lỗi khi xử lý"
+                : item.correlation_id || item.id}
             </span>
-          ) : (
-            <span className="font-mono text-xs text-muted-foreground">
-              {item.correlation_id || item.id}
-            </span>
-          )}
+            {timelineFor(item).length > 0 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-expanded={expanded.has(item.id)}
+                onClick={() =>
+                  setExpanded((current) => {
+                    const next = new Set(current);
+                    if (next.has(item.id)) next.delete(item.id);
+                    else next.add(item.id);
+                    return next;
+                  })
+                }
+              >
+                {expanded.has(item.id)
+                  ? "Ẩn quá trình"
+                  : `Xem quá trình (${timelineFor(item).length})`}
+              </Button>
+            ) : null}
+          </div>
+          {expanded.has(item.id) ? (
+            <ol
+              className="border-l pl-3 text-xs text-muted-foreground"
+              aria-label="Chi tiết quá trình"
+            >
+              {timelineFor(item).map((event, index) => (
+                <li className="mb-2" key={`${item.id}-event-${index}`}>
+                  <div className="font-medium text-foreground">
+                    {String(event.message ?? event.phase ?? event.step ?? `Bước ${index + 1}`)}
+                  </div>
+                  <div>
+                    {formatDateTime(
+                      String(event.occurredAt ?? event.occurred_at ?? event.timestamp ?? ""),
+                    )}{" "}
+                    · {String(event.level ?? event.status ?? "info")}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : null}
         </div>
       ),
     },

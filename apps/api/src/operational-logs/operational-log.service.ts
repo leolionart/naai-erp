@@ -39,4 +39,14 @@ export class OperationalLogService {
       data: await this.store.listAll(context.organizationId, filters),
     };
   }
+  async listEvents(context: OperationalLogContext, activityId: string) {
+    if (!context.roles.some((role) => READ_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!this.store.listEvents) throw new Error("NOT_IMPLEMENTED");
+    return {
+      apiVersion: API_VERSION,
+      requestId: context.correlationId,
+      organizationId: context.organizationId,
+      data: await this.store.listEvents(context.organizationId, activityId),
+    };
+  }
 }

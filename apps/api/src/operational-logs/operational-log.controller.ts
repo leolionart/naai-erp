@@ -37,4 +37,17 @@ export class OperationalLogController {
       { ...query, ...(limit ? { limit } : {}) } as Parameters<OperationalLogService["listAll"]>[1],
     );
   }
+
+  @Get(":activityId/events")
+  async events(
+    @Param("organizationId") organizationId: string,
+    @Param("activityId") activityId: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.listEvents(
+      await this.service.authenticate(authorization, organizationId, correlationId ?? randomUUID()),
+      activityId,
+    );
+  }
 }

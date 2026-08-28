@@ -20,5 +20,6 @@ export type OperationalLogStore = Readonly<{
   list(organizationId: string, filters: OperationalLogFilters): Promise<unknown>;
   listAll?(organizationId: string, filters: UnifiedActivityFilters): Promise<unknown>;
   purgeExpired(now: Date, limit?: number): Promise<number>;
+  listEvents?(organizationId: string, activityId: string): Promise<unknown>;
 }>;
 export const OPERATIONAL_LOG_STORE = Symbol("OPERATIONAL_LOG_STORE");

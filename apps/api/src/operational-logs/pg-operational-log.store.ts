@@ -119,4 +119,14 @@ export class PgOperationalLogStore implements OperationalLogStore {
     );
     return result.rowCount ?? 0;
   }
+  async listEvents(organizationId: string, activityId: string) {
+    const result = await this.pool.query(
+      `select sequence, occurred_at, phase, level, message, attempt, correlation_id, metadata
+       from operational_activity_log_events
+       where organization_id=$1 and activity_id=$2
+       order by sequence asc, occurred_at asc`,
+      [organizationId, activityId],
+    );
+    return { items: result.rows };
+  }
 }
