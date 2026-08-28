@@ -385,6 +385,8 @@ export class PgExpenseStore {
   ) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
+       e.original_expense_id "originalExpenseId",
+       (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
          from (
            select l2.dimensions->>'projectId' project_id
@@ -444,6 +446,8 @@ export class PgExpenseStore {
   async get(org: string, id: string) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,
+       e.original_expense_id "originalExpenseId",
+       (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
          where l.organization_id=e.organization_id and l.expense_id=e.id
          order by l.line_number limit 1) category,
@@ -1908,8 +1912,8 @@ export class PgExpenseStore {
       );
       const replacementId = input.id ?? randomUUID();
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by)
-         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'unreviewed',$16,$17,$18)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by,original_expense_id)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'unreviewed',$16,$17,$18,$19)`,
         [
           context.organizationId,
           replacementId,
@@ -1929,6 +1933,7 @@ export class PgExpenseStore {
           input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
           input.evidenceChecklist ?? {},
           context.actorId,
+          id,
         ],
       );
       for (const [index, line] of input.lines.entries()) {

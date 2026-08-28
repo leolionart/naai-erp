@@ -5,3 +5,5 @@
 - Journal-derived statements continue to include posted and reversed journal rows so reversal
   netting remains correct.
 - A deploy/readback is still required before the production UI reflects this behavior.
+- Expense lineage migration uses audited reverse-replace events for idempotent backfill; records
+  without that audit event remain unlinked and are not guessed.

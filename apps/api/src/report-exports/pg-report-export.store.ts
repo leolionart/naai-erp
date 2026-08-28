@@ -573,9 +573,9 @@ export class PgReportExportStore {
         ? []
         : (
             await this.pool.query(
-              `select d.id,d.type::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.original_document_id "originalDocumentId",d.reason,d.journal_id "journalId",d.version::text version
+              `select d.id,d.type::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.original_document_id "originalDocumentId",d.reason,d.journal_id "journalId",d.version::text version,case when d.original_document_id is not null then 'replacement' when d.state='cancelled' then 'corrected_original' else 'original' end "correctionStatus"
        from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
-       where d.organization_id=$1 and d.document_date between $2::date and $3::date and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) and ($4::text is null or d.state::text=$4) and ($5::text is null or d.party_id=$5)
+       where d.organization_id=$1 and d.document_date between $2::date and $3::date and (d.type='sales_invoice' or (d.type='credit_note' and original.type='sales_invoice')) and (($4::text is not null and d.state::text=$4) or ($4::text is null and d.state<>'cancelled')) and ($5::text is null or d.party_id=$5)
        and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
               [
                 c.organizationId,
@@ -608,7 +608,7 @@ export class PgReportExportStore {
         ? []
         : (
             await this.pool.query(
-              `select d.id,'purchase_invoice'::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.journal_id "journalId",d.version::text version from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id where d.organization_id=$1 and d.type='purchase_invoice' and d.document_date between $2::date and $3::date and (($4::text is not null and d.state::text=$4) or ($4::text is null and d.state<>'cancelled')) and ($5::text is null or d.party_id=$5) and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
+              `select d.id,'purchase_invoice'::text "sourceType",'present'::text "invoicePresence",d.state::text state,d.document_number "documentNumber",d.series,d.party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",d.document_date::text "recordDate",d.due_date::text "dueDate",d.currency,d.net_minor::text "netMinor",d.tax_minor::text "taxMinor",d.gross_minor::text "grossMinor",d.control_account_code "accountCode",d.original_document_id "originalDocumentId",d.reason,d.journal_id "journalId",d.version::text version from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id where d.organization_id=$1 and d.type='purchase_invoice' and d.document_date between $2::date and $3::date and (($4::text is not null and d.state::text=$4) or ($4::text is null and d.state<>'cancelled')) and ($5::text is null or d.party_id=$5) and ($6::text is null or exists(select 1 from commercial_document_lines l left join commercial_document_allocations a on a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number where l.organization_id=d.organization_id and l.document_id=d.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by d.document_date,d.id`,
               [
                 c.organizationId,
                 filters.startsOn,
@@ -624,7 +624,7 @@ export class PgReportExportStore {
         ? []
         : (
             await this.pool.query(
-              `select e.id,'expense'::text "sourceType",'missing'::text "invoicePresence",e.state::text state,null::text "documentNumber",e.payee_party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",e.expense_date::text "recordDate",null::text "dueDate",e.currency,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",e.counter_account_code "accountCode",e.journal_id "journalId",e.version::text version,e.expense_class::text "expenseClass",e.business_purpose "businessPurpose",e.cit_state::text "citState",e.vat_state::text "vatState" from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id where e.organization_id=$1 and e.expense_date between $2::date and $3::date and (($4::text is not null and e.state::text=$4) or ($4::text is null and e.state<>'reversed')) and ($5::text is null or e.payee_party_id=$5) and ($6::text is null or exists(select 1 from expense_lines l left join expense_allocations a on a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number where l.organization_id=e.organization_id and l.expense_id=e.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by e.expense_date,e.id`,
+              `select e.id,'expense'::text "sourceType",'missing'::text "invoicePresence",e.state::text state,null::text "documentNumber",e.payee_party_id "partyId",p.display_name "partyName",p.normalized_tax_id "partyTaxId",e.expense_date::text "recordDate",null::text "dueDate",e.currency,e.net_minor::text "netMinor",e.vat_minor::text "taxMinor",e.gross_minor::text "grossMinor",e.counter_account_code "accountCode",e.journal_id "journalId",e.version::text version,e.expense_class::text "expenseClass",e.business_purpose "businessPurpose",e.cit_state::text "citState",e.vat_state::text "vatState",e.original_expense_id "originalExpenseId",(select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",case when e.original_expense_id is not null then 'replacement' when exists(select 1 from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id) then 'corrected_original' else 'original' end "correctionStatus" from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id where e.organization_id=$1 and e.expense_date between $2::date and $3::date and (($4::text is not null and e.state::text=$4) or ($4::text is null and e.state<>'reversed')) and ($5::text is null or e.payee_party_id=$5) and ($6::text is null or exists(select 1 from expense_lines l left join expense_allocations a on a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number where l.organization_id=e.organization_id and l.expense_id=e.id and (l.dimensions->>'projectId'=$6 or a.dimensions->>'projectId'=$6))) order by e.expense_date,e.id`,
               [
                 c.organizationId,
                 filters.startsOn,
@@ -655,13 +655,39 @@ export class PgReportExportStore {
             .then((x) => x.rows)
         : [],
     ]);
-    return this.filteredWorkbook(
-      c,
-      "purchase_invoices_and_expenses",
-      filters,
-      [...invoices, ...expenses],
-      [...invoiceLines, ...expenseLines],
+    const correctionEvents = await this.pool.query<{
+      resource_type: string;
+      resource_key: string;
+      after_state: Record<string, unknown> | null;
+    }>(
+      `select resource_type,resource_key,after_state from resource_audit_events
+       where organization_id=$1 and action='reverse_replace'
+         and resource_type in ('commercial_document','expense')`,
+      [c.organizationId],
     );
+    const correctionById = new Map<string, Record<string, unknown>>();
+    for (const event of correctionEvents.rows) {
+      const replacementId = event.after_state?.replacementId;
+      if (!replacementId) continue;
+      correctionById.set(`${event.resource_type}:${event.resource_key}`, {
+        correctionStatus: "corrected_original",
+        replacementId,
+      });
+      correctionById.set(`${event.resource_type}:${replacementId}`, {
+        correctionStatus: "replacement",
+        correctedFromId: event.resource_key,
+      });
+    }
+    const records = [...invoices, ...expenses].map((record) => ({
+      ...record,
+      ...(correctionById.get(
+        `${record.sourceType === "expense" ? "expense" : "commercial_document"}:${record.id}`,
+      ) ?? {}),
+    }));
+    return this.filteredWorkbook(c, "purchase_invoices_and_expenses", filters, records, [
+      ...invoiceLines,
+      ...expenseLines,
+    ]);
   }
   private async filteredWorkbook(
     c: ReportExportContext,

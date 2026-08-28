@@ -1987,6 +1987,8 @@ export const expenses = pgTable(
       .notNull()
       .default({}),
     journalId: text("journal_id"),
+    /** Original posted expense superseded by this correction replacement. */
+    originalExpenseId: text("original_expense_id"),
     version: bigint("version", { mode: "bigint" })
       .notNull()
       .default(sql`1`),
@@ -2018,6 +2020,11 @@ export const expenses = pgTable(
       columns: [table.organizationId, table.journalId],
       foreignColumns: [journalEntries.organizationId, journalEntries.id],
       name: "expenses_journal_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.originalExpenseId],
+      foreignColumns: [table.organizationId, table.id],
+      name: "expenses_original_expense_fk",
     }).onDelete("restrict"),
     check("expenses_purpose_not_blank", sql`btrim(${table.businessPurpose}) <> ''`),
     check("expenses_currency_iso3", sql`${table.currency} ~ '^[A-Z]{3}$'`),

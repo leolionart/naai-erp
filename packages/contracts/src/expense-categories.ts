@@ -26,6 +26,9 @@ export type ExpenseListItemProjectionContract = Readonly<{
   expense_date: string;
   gross_minor: string;
   category: string | null;
+  /** Correction lineage; originals remain available for audit but are hidden by default. */
+  originalExpenseId?: string | null;
+  replacementExpenseId?: string | null;
   /** Effective line treatments after applying the legacy category fallback. */
   fundingTreatments: readonly ExpenseFundingTreatmentContract[];
   projectIds: readonly string[];

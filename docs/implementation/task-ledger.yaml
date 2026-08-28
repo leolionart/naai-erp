@@ -3346,6 +3346,8 @@ tasks:
       - apps/api/src/financial-statements/
       - apps/api/src/report-exports/
       - packages/contracts/src/
+      - packages/database/src/schema.ts
+      - db/migrations/0064_expense_correction_links.sql
       - docs/api/openapi-v1.json
       - docs/product/business-rules.md
       - docs/testing/test-catalog.yaml

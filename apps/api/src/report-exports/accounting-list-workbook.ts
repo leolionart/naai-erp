@@ -254,7 +254,15 @@ export function createAccountingListWorkbook(input: {
         lineTax,
         lineGross,
         text(record.state) || null,
-        invoicePresent ? text(record.reason) || null : "Chi phí không có hóa đơn",
+        invoicePresent
+          ? [text(record.reason), text(record.correctionStatus)].filter(Boolean).join("; ") || null
+          : [
+              "Chi phí không có hóa đơn",
+              text(record.correctionStatus),
+              text(record.originalExpenseId) ? `Gốc: ${text(record.originalExpenseId)}` : null,
+            ]
+              .filter(Boolean)
+              .join("; "),
       ]);
       row.getCell(4).numFmt = "dd/mm/yyyy";
       row.getCell(7).numFmt = "dd/mm/yyyy";

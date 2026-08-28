@@ -553,6 +553,9 @@ export class PgCommercialDocumentStore {
   ) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+       case when d.state='cancelled' and exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace') then 'corrected' when exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id) then 'replacement' else null end correction_status,
+       (select ra.after_state->>'replacementId' from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace' order by ra.occurred_at desc limit 1) replacement_id,
+       (select ra.resource_key from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id order by ra.occurred_at desc limit 1) corrected_from_id,
        (select coalesce(nullif(lcat.category_code,''),nullif(lcat.dimensions->>'category',''),
           (select nullif(a.dimensions->>'category','') from commercial_document_allocations a
            where a.organization_id=lcat.organization_id and a.document_id=lcat.document_id and a.line_number=lcat.line_number
@@ -621,6 +624,9 @@ export class PgCommercialDocumentStore {
   async get(organizationId: string, id: string) {
     const result = await this.pool.query(
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+       case when d.state='cancelled' and exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace') then 'corrected' when exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id) then 'replacement' else null end correction_status,
+       (select ra.after_state->>'replacementId' from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace' order by ra.occurred_at desc limit 1) replacement_id,
+       (select ra.resource_key from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id order by ra.occurred_at desc limit 1) corrected_from_id,
        (select coalesce(nullif(lcat.category_code,''),nullif(lcat.dimensions->>'category',''),
           (select nullif(a.dimensions->>'category','') from commercial_document_allocations a
            where a.organization_id=lcat.organization_id and a.document_id=lcat.document_id and a.line_number=lcat.line_number
@@ -1718,7 +1724,7 @@ export class PgCommercialDocumentStore {
           input.grossMinor,
           input.controlAccountCode,
           input.fundingSource?.financialAccountId ?? null,
-          input.originalDocumentId ?? null,
+          input.originalDocumentId ?? id,
           input.type === "credit_note" ? (input.reason ?? reason) : null,
           context.actorId,
         ],
