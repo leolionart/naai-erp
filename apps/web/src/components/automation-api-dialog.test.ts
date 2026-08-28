@@ -58,7 +58,7 @@ describe("ERP-908 and ERP-909 contextual automation cURL examples", () => {
       '"supplierName"',
       '"documentNumber": "00250571"',
       '"documentDate": "2026-07-27"',
-      '"category": "Thuê pin và sạc xe điện"',
+      '"category": "EV_BATTERY_CHARGING"',
       '"description"',
       '"grossMinor": "408601"',
       '"externalReference"',
