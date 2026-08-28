@@ -185,7 +185,6 @@ export function quickRevenueIngestionCurl(credential: RevealedCredential) {
     "customerName": "CÔNG TY TNHH KHÁCH HÀNG DEMO",
     "documentNumber": "00000001",
     "documentDate": "2026-08-12",
-    "category": "SOFTWARE_DEV",
     "description": "Dịch vụ phát triển phần mềm",
     "grossMinor": "11000000"
   }'`;
@@ -199,31 +198,16 @@ export function directExpenseCurl(credential: RevealedCredential) {
   --header 'Idempotency-Key: n8n-direct-expense-2026-0001' \\
   --data '{
     "id": "direct-expense-2026-0001",
-    "expenseClass": "receipt_backed",
     "payeePartyId": "party-supplier-id",
     "expenseDate": "2026-08-12",
     "businessPurpose": "Chi phí vận hành có chứng từ nhưng không phải hóa đơn VAT",
-    "currency": "VND",
-    "netMinor": "500000",
-    "vatMinor": "0",
     "grossMinor": "500000",
-    "counterAccountCode": "3388-OWNER",
-    "evidenceChecklist": { "invoice": false, "receipt": true, "payment": true },
     "lines": [{
       "description": "Chi phí vận hành",
       "netMinor": "500000",
       "vatMinor": "0",
-      "grossMinor": "500000",
-      "postingAccountCode": "642-COST",
-      "expenseCategoryCode": "BUSINESS_SERVICE",
-      "vatState": "ineligible",
-      "allocations": [{
-        "id": "direct-expense-2026-0001-line-1",
-        "amountMinor": "500000",
-        "dimensions": { "projectId": "project-naai-demo", "category": "BUSINESS_SERVICE" }
-      }]
-    }],
-    "externalReference": { "system": "n8n", "externalId": "expense-source-0001", "version": "1" }
+      "grossMinor": "500000"
+    }]
   }'`;
 }
 
@@ -291,10 +275,9 @@ export function quickOcrPurchaseInvoiceIngestionCurl(credential: RevealedCredent
     "supplierName": "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
     "documentNumber": "00250571",
     "documentDate": "2026-07-27",
-    "category": "EV_BATTERY_CHARGING",
     "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
     "grossMinor": "408601",
-    "externalReference": { "system": "paperless-ngx", "externalId": "246" }
+    "currency": "VND"
   }'`;
 }
 

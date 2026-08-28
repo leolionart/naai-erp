@@ -1,5 +1,11 @@
 export const API_VERSION = "v1" as const;
 export {
+  FUNDING_CONTRACT_VERSION,
+  type FundingTypeContract,
+  type FundingInputContract,
+  type FundingFieldErrorContract,
+} from "./funding.js";
+export {
   CUSTOMER_RECEIPT_CONTRACT_VERSION,
   type CreateCustomerReceiptRequest,
   type CustomerReceiptContract,

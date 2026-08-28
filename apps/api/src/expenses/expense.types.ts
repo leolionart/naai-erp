@@ -1,4 +1,5 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
+import type { FundingInputContract } from "@naai-erp/contracts";
 
 export type ExpenseContext = JournalActorContext;
 export type ExpenseAxis = "management" | "cit" | "vat";
@@ -50,6 +51,8 @@ export type CreateExpenseInput = Readonly<{
   vatMinor: string;
   grossMinor: string;
   counterAccountCode: string;
+  /** Canonical funding contract; legacy line fundingTreatment remains supported. */
+  funding?: FundingInputContract;
   evidenceChecklist?: Readonly<Record<string, boolean>>;
   lines: readonly ExpenseLineInput[];
   externalReference?: ExternalReferenceInput;

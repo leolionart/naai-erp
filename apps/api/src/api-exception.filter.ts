@@ -7,6 +7,7 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   RESOURCE_NOT_FOUND: 404,
   EXPORT_CONTENT_PRUNED: 410,
   VALIDATION_FAILED: 400,
+  FUNDING_SOURCE_INVALID: 422,
   IDEMPOTENCY_KEY_REQUIRED: 400,
   IF_MATCH_REQUIRED: 428,
   DELETE_REASON_REQUIRED: 422,
@@ -200,6 +201,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<FastifyReply>();
     console.error("ApiExceptionFilter caught error:", exception);
     const message = exception instanceof Error ? exception.message : "INTERNAL_ERROR";
+    const details =
+      exception && typeof exception === "object" && "details" in exception
+        ? (exception as { details?: unknown }).details
+        : undefined;
     const status = STATUS_BY_CODE[message] ?? 400;
     response.status(status).send({
       apiVersion: "v1",
@@ -207,6 +212,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
         code: message.replaceAll(" ", "_").toUpperCase(),
         message,
         retryable: status >= 500,
+        ...(details !== undefined ? { details } : {}),
       },
     });
   }

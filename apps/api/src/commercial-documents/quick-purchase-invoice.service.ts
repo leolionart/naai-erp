@@ -48,6 +48,7 @@ export class QuickPurchaseInvoiceService {
       taxMinor: "0",
       grossMinor: normalized.grossMinor,
       controlAccountCode: accounts.controlAccountCode,
+      ...(normalized.funding ? { funding: normalized.funding } : {}),
       lines: [
         {
           description: normalized.description,

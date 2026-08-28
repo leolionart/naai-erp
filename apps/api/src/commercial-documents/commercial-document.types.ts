@@ -1,4 +1,5 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
+import type { FundingInputContract } from "@naai-erp/contracts";
 
 export type CommercialDocumentType = "sales_invoice" | "purchase_invoice" | "credit_note";
 export type CommercialDocumentAction =
@@ -51,6 +52,8 @@ export type CreateCommercialDocumentInput = Readonly<{
   grossMinor: string;
   controlAccountCode: string;
   fundingSource?: Readonly<{ type: "financial_account"; financialAccountId: string }>;
+  /** Canonical funding contract. fundingSource is retained as a legacy alias. */
+  funding?: FundingInputContract;
   originalDocumentId?: string;
   migrationSourceExpenseId?: string;
   migrationSourceExpenseDate?: string;
@@ -90,6 +93,7 @@ export type QuickPurchaseInvoiceInput = Readonly<{
   grossMinor: string;
   currency?: string;
   externalReference?: ExternalReferenceInput;
+  funding?: FundingInputContract;
 }>;
 
 export type QuickSalesInvoiceInput = Readonly<{

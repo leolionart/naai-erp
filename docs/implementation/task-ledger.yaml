@@ -3312,6 +3312,24 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-937/
 
+  - id: ERP-946
+    title: Unified funding contract across API integrations
+    phase: P16
+    status: in_progress
+    dependencies: [ERP-937]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-003, BR-AI-005, BR-AI-006, BR-LED-003, BR-ORG-001]
+    tests: [T-API-ERP-946-001, T-CONTRACT-ERP-946-002, T-INT-ERP-946-003]
+    evidence: docs/implementation/evidence/ERP-946/
+    agent: codex-root
+    started_at: 2026-08-28T16:45:00+07:00
+    planned_files:
+      - apps/api/src/commercial-documents/
+      - apps/api/src/expenses/
+      - packages/contracts/src/
+      - db/migrations/
+      - docs/api/openapi-v1.json
+      - docs/implementation/evidence/ERP-946/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
