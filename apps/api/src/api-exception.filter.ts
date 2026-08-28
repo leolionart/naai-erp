@@ -1,5 +1,9 @@
 import { Catch, type ArgumentsHost, type ExceptionFilter } from "@nestjs/common";
 import type { FastifyReply } from "fastify";
+import pg from "pg";
+import { randomUUID } from "node:crypto";
+
+const failureLogPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   AUTH_REQUIRED: 401,
@@ -207,6 +211,32 @@ export class ApiExceptionFilter implements ExceptionFilter {
         ? (exception as { details?: unknown }).details
         : undefined;
     const status = STATUS_BY_CODE[message] ?? 400;
+    const request = host.switchToHttp().getRequest<{
+      params?: Record<string, string>;
+      method?: string;
+      url?: string;
+      headers?: Record<string, string>;
+    }>();
+    const organizationId = request.params?.organizationId;
+    const correlationId =
+      request.headers?.["x-correlation-id"] ?? request.headers?.["X-Correlation-Id"];
+    if (organizationId) {
+      void failureLogPool
+        .query(
+          `insert into operational_activity_logs
+          (organization_id,id,service,operation,status,severity,correlation_id,summary,details,started_at,completed_at,expires_at)
+         values ($1,$2,'api',$3,'failed','error',$4,$5,$6,now(),now(),now()+interval '30 days')`,
+          [
+            organizationId,
+            randomUUID(),
+            request.method ?? "REQUEST",
+            correlationId ?? null,
+            `${request.method ?? "REQUEST"} ${request.url ?? ""} failed: ${message}`,
+            { code: message.replaceAll(" ", "_").toUpperCase(), status, details: details ?? null },
+          ],
+        )
+        .catch(() => undefined);
+    }
     response.status(status).send({
       apiVersion: "v1",
       error: {
