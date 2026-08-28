@@ -71,9 +71,15 @@ export function CategoryCatalogWorkspace() {
             code: String(r.code),
             name: String(r.name ?? r.code),
             kind: r.kind === "revenue" ? "revenue" : "expense",
-            defaultAccountCode: r.defaultAccountCode ?? r.default_account_code,
+            defaultAccountCode:
+              r.defaultAccountCode == null && r.default_account_code == null
+                ? undefined
+                : String(r.defaultAccountCode ?? r.default_account_code),
             isActive: Boolean(r.isActive ?? r.is_active ?? true),
-            version: r.version ?? r.resourceVersion,
+            version:
+              r.version == null && r.resourceVersion == null
+                ? undefined
+                : String(r.version ?? r.resourceVersion),
           };
         }),
       );
