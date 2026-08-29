@@ -60,6 +60,8 @@ export {
   type LocalOrganizationResetResultContract,
   type EmptyOrganizationRestoreRequestContract,
   type EmptyOrganizationRestoreResultContract,
+  type PortableDataCloneRequestContract,
+  type PortableDataCloneResultContract,
   type PortableRowEnvelopeContract,
   type PortableRowIssueContract,
   type PortableRowOperationContract,

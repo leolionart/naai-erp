@@ -6,6 +6,7 @@ import {
   type PortableDataPackageManifestContract,
   type PortableDryRunResultContract,
   type LocalOrganizationResetRequestContract,
+  type PortableDataCloneRequestContract,
 } from "./portable-data-packages.js";
 
 describe("portable data package contracts", () => {
@@ -66,5 +67,17 @@ describe("portable data package contracts", () => {
     expect(request).toEqual(
       expect.objectContaining({ confirmOrganizationId: "naai", packageId: "package-backup-1" }),
     );
+  });
+
+  it("describes a cross-environment clone without embedding credentials", () => {
+    const request: PortableDataCloneRequestContract = {
+      sourceBaseUrl: "https://erp.example",
+      sourceOrganizationId: "prod",
+      targetBaseUrl: "http://localhost:3001",
+      targetOrganizationId: "demo",
+      reason: "Refresh local demo",
+    };
+    expect(request).not.toHaveProperty("token");
+    expect(request.targetOrganizationId).toBe("demo");
   });
 });

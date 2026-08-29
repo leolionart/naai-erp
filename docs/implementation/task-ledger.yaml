@@ -3400,6 +3400,25 @@ tasks:
       - apps/web/src/app/workspaces/background-activity-workspace.tsx
       - docs/implementation/evidence/ERP-951/
 
+  - id: ERP-953
+    title: Cross-environment portable data clone API and CLI
+    phase: P16
+    status: done
+    dependencies: [ERP-952]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-004, BR-AI-005, BR-ORG-001]
+    tests: [T-API-ERP-953-001, T-CLI-ERP-953-002, T-INT-ERP-953-003]
+    evidence: docs/implementation/evidence/ERP-953/
+    agent: codex-root
+    started_at: 2026-08-29T22:00:00+07:00
+    completed_at: 2026-08-29T22:10:00+07:00
+    completion_basis: cross_environment_source_target_api_cli_contract_self_reference_restore_and_idempotent_workflow
+    planned_files:
+      - apps/api/src/portable-data-packages/
+      - apps/cli/src/main.ts
+      - packages/contracts/src/portable-data-packages.ts
+      - docs/api/portable-organization-data-package.md
+      - docs/implementation/evidence/ERP-953/
+
   - id: ERP-952
     title: Backend-owned operating dashboard metrics and owner custody expense reduction
     phase: P16

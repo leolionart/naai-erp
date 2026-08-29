@@ -86,6 +86,28 @@ JSON is the default output. Export download refuses to write unless `--output` i
 money remains a minor-unit string in workbook cells and JSON; callers must not convert it to a
 binary floating-point value.
 
+### Cross-environment clone helper
+
+For an authorized development refresh, the CLI can orchestrate source export/download and target
+empty-organization restore without direct database access. Source and target credentials are
+provided only to the process (prefer environment variables); they are never written to disk.
+
+```bash
+NAAI_ERP_SOURCE_TOKEN=... NAAI_ERP_TOKEN=... \
+  naai-erp portable-data-clone run \
+  --source-base-url https://erp.naai.studio \
+  --source-organization naai \
+  --target-base-url http://localhost:3001 \
+  --target-organization demo-local \
+  --reason "Refresh local demo from production package" \
+  --idempotency-key clone-20260829
+```
+
+The helper performs the same guarded `exports`, `download`, and `imports/restore-empty` REST
+operations as individual commands. The target restore must satisfy the API's empty-target and
+owner authorization checks; use `portable-data-reset local` only for an explicitly approved local
+recovery. The result includes the package ID, workbook SHA-256 and restore readback.
+
 ### Dry-run response shape
 
 ```json

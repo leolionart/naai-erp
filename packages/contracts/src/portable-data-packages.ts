@@ -133,3 +133,22 @@ export type EmptyOrganizationRestoreResultContract = Readonly<{
   auditEventId: string;
   idempotencyReplayed: boolean;
 }>;
+
+/** Cross-environment orchestration request used by first-party tooling.
+ * The source workbook is fetched through the source REST API and submitted to
+ * the target restore endpoint; credentials are transport inputs and are never
+ * persisted in the package or response.
+ */
+export type PortableDataCloneRequestContract = Readonly<{
+  sourceBaseUrl: string;
+  sourceOrganizationId: string;
+  targetBaseUrl: string;
+  targetOrganizationId: string;
+  asOf?: string;
+  reason: string;
+}>;
+export type PortableDataCloneResultContract = Readonly<{
+  packageId: string;
+  workbookSha256: string;
+  restore: EmptyOrganizationRestoreResultContract | Readonly<Record<string, unknown>>;
+}>;

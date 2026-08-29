@@ -296,9 +296,10 @@ export class PortableDataImportService {
     context: PortableDataPackageContext,
     upload: PortableWorkbookUpload,
     idempotencyKey?: string,
+    sourceOrganizationId = context.organizationId,
   ) {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    const parsed = await this.parse(context, upload);
+    const parsed = await this.parse(context, upload, sourceOrganizationId);
     return this.envelope(context, await this.store.saveInventory(context, parsed, idempotencyKey));
   }
 
@@ -345,9 +346,10 @@ export class PortableDataImportService {
     context: PortableDataPackageContext,
     upload: PortableWorkbookUpload,
     idempotencyKey?: string,
+    sourceOrganizationId = context.organizationId,
   ) {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    const parsed = await this.parse(context, upload);
+    const parsed = await this.parse(context, upload, sourceOrganizationId);
     await this.store.saveInventory(context, parsed, `${idempotencyKey}:inventory`);
     const rows: PortableDryRunRowResultContract[] = [];
     for (const sheet of parsed.parsedSheets)

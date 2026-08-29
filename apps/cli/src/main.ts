@@ -79,6 +79,11 @@ const { values, positionals } = parseArgs({
     "invoice-presence": { type: "string" },
     "confirm-organization": { type: "string" },
     "source-organization": { type: "string" },
+    "source-base-url": { type: "string" },
+    "source-token": { type: "string" },
+    "target-base-url": { type: "string" },
+    "target-organization": { type: "string" },
+    "target-token": { type: "string" },
     reason: { type: "string" },
   },
 });
@@ -87,7 +92,8 @@ const [resource, action = "list"] = positionals;
 const organizationId = values.organization ?? process.env.NAAI_ERP_ORGANIZATION;
 const token = process.env.NAAI_ERP_TOKEN;
 const discovery = resource === "discovery" && ["openapi", "capabilities"].includes(action);
-if (!resource || (!discovery && (!organizationId || !token))) {
+const crossEnvironmentClone = resource === "portable-data-clone" && action === "run";
+if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !token))) {
   process.stderr.write(
     JSON.stringify({
       error:
@@ -143,6 +149,66 @@ if (!resource || (!discovery && (!organizationId || !token))) {
         values["idempotency-key"],
       );
       process.stdout.write(JSON.stringify(result) + "\n");
+    } else if (crossEnvironmentClone) {
+      const sourceBaseUrl = values["source-base-url"];
+      const sourceOrganization = values["source-organization"];
+      const sourceToken = values["source-token"] ?? process.env.NAAI_ERP_SOURCE_TOKEN;
+      const targetBaseUrl = values["target-base-url"] ?? values["base-url"];
+      const targetOrganization = values["target-organization"] ?? organizationId;
+      const targetToken = values["target-token"] ?? token;
+      if (
+        !sourceBaseUrl ||
+        !sourceOrganization ||
+        !sourceToken ||
+        !targetBaseUrl ||
+        !targetOrganization ||
+        !targetToken
+      )
+        throw new Error(
+          "portable-data-clone run requires source/target base URL, organization, and token",
+        );
+      if (!values.reason?.trim() || !values["idempotency-key"])
+        throw new Error("portable-data-clone run requires --reason and --idempotency-key");
+      const source = new NaaiErpClient({
+        baseUrl: sourceBaseUrl,
+        organizationId: sourceOrganization,
+        token: sourceToken,
+      });
+      const target = new NaaiErpClient({
+        baseUrl: targetBaseUrl,
+        organizationId: targetOrganization,
+        token: targetToken,
+      });
+      const exportResponse = (await source.portableDataRequest(
+        "exports",
+        "POST",
+        { ...(values["as-of"] ? { asOf: values["as-of"] } : {}) },
+        `${values["idempotency-key"]}:export`,
+      )) as { data?: { packageId?: string }; packageId?: string };
+      const packageId = exportResponse.data?.packageId ?? exportResponse.packageId;
+      if (!packageId)
+        throw new Error("portable-data-clone export response did not include packageId");
+      const file = await source.downloadPortableDataPackage(packageId);
+      const workbookSha256 = createHash("sha256").update(file.content).digest("hex");
+      const restore = await target.portableDataRequest(
+        "imports/restore-empty",
+        "POST",
+        {
+          sourceOrganizationId: sourceOrganization,
+          confirmTargetOrganizationId: targetOrganization,
+          packageId,
+          workbookSha256,
+          reason: values.reason.trim(),
+          workbookBase64: Buffer.from(file.content).toString("base64"),
+          mapSourceActorsToTargetActor: true,
+        },
+        `${values["idempotency-key"]}:restore`,
+      );
+      process.stdout.write(
+        values.human
+          ? `${JSON.stringify({ packageId, workbookSha256, restore }, null, 2)}\n`
+          : `${JSON.stringify({ packageId, workbookSha256, restore })}\n`,
+      );
     } else if (resource === "portable-data-reset") {
       if (
         action !== "local" ||

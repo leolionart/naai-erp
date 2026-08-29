@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Req } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
 import { PortableDataPackageService } from "./portable-data-package.service.js";
@@ -45,11 +45,13 @@ export class PortableDataImportController {
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
     @Headers("idempotency-key") idempotencyKey?: string,
+    @Query("sourceOrganizationId") sourceOrganizationId?: string,
   ) {
     return this.imports.inventory(
       await this.context(organizationId, authorization, correlationId),
       await this.workbook(request),
       idempotencyKey,
+      sourceOrganizationId,
     );
   }
 
@@ -60,11 +62,13 @@ export class PortableDataImportController {
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
     @Headers("idempotency-key") idempotencyKey?: string,
+    @Query("sourceOrganizationId") sourceOrganizationId?: string,
   ) {
     return this.imports.dryRun(
       await this.context(organizationId, authorization, correlationId),
       await this.workbook(request),
       idempotencyKey,
+      sourceOrganizationId,
     );
   }
 

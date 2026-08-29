@@ -300,7 +300,15 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
           `select count(*)::int count from "${tableNameOf(sheet).replaceAll('"', '""')}" where organization_id=$1`,
           [context.organizationId],
         );
-        if ((present.rows[0]?.count ?? 0) > 0) throw new Error("RESTORE_TARGET_NOT_EMPTY");
+        const preservedLocalTables = new Set([
+          "organizations",
+          "users",
+          "organization_memberships",
+          "membership_roles",
+          "api_credentials",
+        ]);
+        if ((present.rows[0]?.count ?? 0) > 0 && !preservedLocalTables.has(tableNameOf(sheet)))
+          throw new Error("RESTORE_TARGET_NOT_EMPTY");
       }
       const tableNames = sheets.map(tableNameOf);
       const dependencies = await client.query<{ table_name: string; referenced_table: string }>(
@@ -360,6 +368,23 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
         );
         const hasId = columns.rows.some((column) => column.column_name === "id");
         const hasVersion = columns.rows.some((column) => column.column_name === "version");
+        // Self-referencing foreign keys (for example journal reversal/replacement links)
+        // cannot be inserted in arbitrary workbook order.  Stage those values and
+        // backfill them after every row in the table exists, preserving the canonical
+        // stable IDs without disabling constraints.
+        const selfReferences = await client.query<{ column_name: string }>(
+          `select kcu.column_name
+             from information_schema.table_constraints tc
+             join information_schema.key_column_usage kcu
+               on kcu.constraint_name=tc.constraint_name and kcu.constraint_schema=tc.constraint_schema
+             join information_schema.constraint_column_usage ccu
+               on ccu.constraint_name=tc.constraint_name and ccu.constraint_schema=tc.constraint_schema
+            where tc.constraint_type='FOREIGN KEY' and tc.table_schema='public'
+              and tc.table_name=$1 and ccu.table_name=$1`,
+          [tableName],
+        );
+        const selfReferenceColumns = new Set(selfReferences.rows.map((row) => row.column_name));
+        const pendingSelfReferences: Array<{ id: string; column: string; value: unknown }> = [];
         const jsonKeys = new Set(
           sheet.schema.columns
             .filter((column) => column.type === "json")
@@ -367,7 +392,6 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
         );
         for (const row of sheet.rows) {
           const record: Record<string, unknown> = {
-            organization_id: context.organizationId,
             ...Object.fromEntries(
               Object.entries(row.data).map(([key, value]) => [
                 key,
@@ -376,6 +400,10 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
             ),
             ...row.relationships,
           };
+          // Organization scope is always owned by the target context.  Source
+          // workbooks may include their original organization_id in data or
+          // relationships; never allow that value to leak into the target.
+          record.organization_id = context.organizationId;
           delete record.lines;
           for (const [key, value] of Object.entries(record))
             if (
@@ -386,10 +414,22 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
               sourceActorIds.add(String(value));
               record[key] = context.actorId;
             }
+          const expectedRecord = { ...record };
+          if (record.id != null)
+            for (const column of selfReferenceColumns)
+              if (record[column] != null) {
+                pendingSelfReferences.push({
+                  id: String(record.id),
+                  column,
+                  value: record[column],
+                });
+                expectedRecord[column] = record[column];
+                record[column] = null;
+              }
           if (hasId && row.stableId && !("id" in record)) record.id = row.stableId;
           if (hasVersion && !("version" in record))
             record.version = row.expectedResourceVersion ?? null;
-          const expected = { ...record };
+          const expected = { ...expectedRecord };
           delete expected.organization_id;
           const expectedRows = expectedByTable.get(tableName) ?? [];
           expectedRows.push(normalizeRecordDates(tableName, expected));
@@ -397,6 +437,13 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
           await client.query(
             `insert into ${table} select * from jsonb_populate_record(null::${table},$1::jsonb)`,
             [JSON.stringify(record)],
+          );
+        }
+        for (const pending of pendingSelfReferences) {
+          await client.query(
+            `update ${table} set "${pending.column.replaceAll('"', '""')}"=$1
+             where organization_id=$2 and id=$3`,
+            [pending.value, context.organizationId, pending.id],
           );
         }
         restoredByResource[sheet.resourceType] = sheet.rows.length;
