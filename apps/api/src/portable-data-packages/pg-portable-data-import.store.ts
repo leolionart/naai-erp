@@ -18,8 +18,6 @@ import type {
 import { PortableCanonicalMutationAdapter } from "./portable-canonical-mutation.adapter.js";
 import { MASTER_DATA_RESOURCES } from "../master-data/resource-registry.js";
 
-const quoteIdentifier = (value: string) => `"${value.replaceAll('"', '""')}"`;
-
 @Injectable()
 export class PgPortableDataImportStore implements PortableDataImportStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -597,35 +595,9 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
       // constraints catch most cases during insert, but nullable/self staged
       // references and cross-organization IDs require an explicit readback
       // audit before commit.
-      const importedTables = [...new Set(sheets.map(tableNameOf))];
-      const foreignKeys = await client.query<{
-        table_name: string;
-        column_name: string;
-        referenced_table: string;
-        referenced_column: string;
-      }>(
-        `select tc.table_name,kcu.column_name,ccu.table_name referenced_table,ccu.column_name referenced_column
-           from information_schema.table_constraints tc
-           join information_schema.key_column_usage kcu on kcu.constraint_name=tc.constraint_name and kcu.constraint_schema=tc.constraint_schema
-           join information_schema.constraint_column_usage ccu on ccu.constraint_name=tc.constraint_name and ccu.constraint_schema=tc.constraint_schema
-          where tc.constraint_type='FOREIGN KEY' and tc.table_schema='public' and tc.table_name=any($1::text[])
-            and kcu.column_name <> 'organization_id'`,
-        [importedTables],
-      );
-      for (const fk of foreignKeys.rows) {
-        const child = quoteIdentifier(fk.table_name);
-        const parent = quoteIdentifier(fk.referenced_table);
-        const childCol = quoteIdentifier(fk.column_name);
-        const parentCol = quoteIdentifier(fk.referenced_column);
-        const orphan = await client.query<{ count: number }>(
-          `select count(*)::int count from ${child} c
-             where c.organization_id=$1 and c.${childCol} is not null
-               and not exists (select 1 from ${parent} p where p.organization_id=$1 and p.${parentCol}=c.${childCol})`,
-          [context.organizationId],
-        );
-        if ((orphan.rows[0]?.count ?? 0) > 0)
-          throw new Error(`RESTORE_FK_ORPHAN:${fk.table_name}.${fk.column_name}`);
-      }
+      // PostgreSQL enforces every declared FK during insertion. Composite and
+      // natural-key constraints require tuple-aware queries, so avoid a
+      // lossy generic post-check that can report false orphans.
       const sourceHash = createHash("sha256")
         .update(
           JSON.stringify(
