@@ -18,6 +18,8 @@ import type {
 import { PortableCanonicalMutationAdapter } from "./portable-canonical-mutation.adapter.js";
 import { MASTER_DATA_RESOURCES } from "../master-data/resource-registry.js";
 
+const quoteIdentifier = (value: string) => `"${value.replaceAll('"', '""')}"`;
+
 @Injectable()
 export class PgPortableDataImportStore implements PortableDataImportStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -357,6 +359,15 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
       const restoredByResource: Record<string, number> = {};
       const sourceActorIds = new Set<string>();
       const expectedByTable = new Map<string, Record<string, unknown>[]>();
+      // Parent rows carry canonical line/allocation data inline in portable
+      // workbooks. Keep these payloads aside while inserting parents, then
+      // materialize the relational child tables once all FK targets exist.
+      const embeddedChildren: Array<{
+        kind: "document" | "expense";
+        id: string;
+        lines: unknown[];
+        externalReferences: PortableRowEnvelopeContract["externalReferences"];
+      }> = [];
       const dateKeysByTable = new Map<string, Set<string>>(
         sheets.map((sheet) => [
           tableNameOf(sheet),
@@ -421,6 +432,15 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
           // workbooks may include their original organization_id in data or
           // relationships; never allow that value to leak into the target.
           record.organization_id = context.organizationId;
+          if (tableName === "commercial_documents" || tableName === "expenses") {
+            const embedded = record.lines;
+            embeddedChildren.push({
+              kind: tableName === "commercial_documents" ? "document" : "expense",
+              id: String(record.id ?? row.stableId),
+              lines: Array.isArray(embedded) ? embedded : [],
+              externalReferences: row.externalReferences ?? [],
+            });
+          }
           delete record.lines;
           // Stable IDs are the canonical identity for imported rows. Assign the
           // ID before staging self-references so rows that only carry a
@@ -483,6 +503,129 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
           }
         }
         restoredByResource[sheet.resourceType] = sheet.rows.length;
+      }
+      for (const parent of embeddedChildren) {
+        const isDocument = parent.kind === "document";
+        const lineTable = isDocument ? "commercial_document_lines" : "expense_lines";
+        const allocationTable = isDocument
+          ? "commercial_document_allocations"
+          : "expense_allocations";
+        const parentColumn = isDocument ? "document_id" : "expense_id";
+        for (const [index, raw] of parent.lines.entries()) {
+          const line = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+          const allocations = Array.isArray(line.allocations) ? line.allocations : [];
+          const dimensions =
+            line.dimensions && typeof line.dimensions === "object" ? line.dimensions : {};
+          if (isDocument) {
+            await client.query(
+              `insert into commercial_document_lines
+               (organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,category_code,tax_account_code,tax_code,dimensions,created_at)
+               values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now())`,
+              [
+                context.organizationId,
+                parent.id,
+                index + 1,
+                String(line.description ?? "Imported line"),
+                String(line.quantity ?? "1"),
+                String(line.unitPriceMinor ?? "0"),
+                String(line.netMinor ?? "0"),
+                String(line.taxMinor ?? "0"),
+                String(line.grossMinor ?? line.netMinor ?? "0"),
+                String(line.primaryAccountCode ?? ""),
+                line.categoryCode ?? line.expenseCategoryCode ?? null,
+                line.taxAccountCode ?? line.vatAccountCode ?? null,
+                line.taxCode ?? null,
+                JSON.stringify(dimensions),
+              ],
+            );
+          } else {
+            await client.query(
+              `insert into expense_lines
+               (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,dimensions,cit_eligible_minor,vat_eligible_minor)
+               values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+              [
+                context.organizationId,
+                parent.id,
+                index + 1,
+                String(line.description ?? "Imported line"),
+                String(line.netMinor ?? "0"),
+                String(line.vatMinor ?? line.taxMinor ?? "0"),
+                String(line.grossMinor ?? line.netMinor ?? "0"),
+                String(line.postingAccountCode ?? line.primaryAccountCode ?? ""),
+                line.expenseCategoryCode ?? line.categoryCode ?? null,
+                line.fundingTreatment ??
+                  (line.expenseCategoryCode || line.categoryCode ? "company_funds" : null),
+                line.vatAccountCode ?? line.taxAccountCode ?? null,
+                JSON.stringify(dimensions),
+                String(line.citEligibleMinor ?? "0"),
+                String(line.vatEligibleMinor ?? line.taxMinor ?? line.vatMinor ?? "0"),
+              ],
+            );
+          }
+          for (const [allocationIndex, rawAllocation] of allocations.entries()) {
+            const allocation = (
+              rawAllocation && typeof rawAllocation === "object" ? rawAllocation : {}
+            ) as Record<string, unknown>;
+            const allocationDimensions =
+              allocation.dimensions && typeof allocation.dimensions === "object"
+                ? allocation.dimensions
+                : { allocationId: String(allocation.id ?? allocationIndex + 1) };
+            await client.query(
+              `insert into ${allocationTable}
+               (organization_id,${parentColumn},line_number,allocation_number,amount_minor,dimensions)
+               values($1,$2,$3,$4,$5,$6)`,
+              [
+                context.organizationId,
+                parent.id,
+                index + 1,
+                allocationIndex + 1,
+                String(allocation.amountMinor ?? "0"),
+                JSON.stringify(allocationDimensions),
+              ],
+            );
+          }
+        }
+        for (const ref of parent.externalReferences) {
+          await client.query(
+            `insert into external_references(organization_id,system,external_id,${parentColumn})
+             values($1,$2,$3,$4) on conflict (organization_id,system,external_id) do nothing`,
+            [context.organizationId, ref.system, ref.externalId, parent.id],
+          );
+        }
+      }
+      // A portable restore is only considered valid when every imported
+      // relationship resolves inside the target organization.  PostgreSQL FK
+      // constraints catch most cases during insert, but nullable/self staged
+      // references and cross-organization IDs require an explicit readback
+      // audit before commit.
+      const importedTables = [...new Set(sheets.map(tableNameOf))];
+      const foreignKeys = await client.query<{
+        table_name: string;
+        column_name: string;
+        referenced_table: string;
+        referenced_column: string;
+      }>(
+        `select tc.table_name,kcu.column_name,ccu.table_name referenced_table,ccu.column_name referenced_column
+           from information_schema.table_constraints tc
+           join information_schema.key_column_usage kcu on kcu.constraint_name=tc.constraint_name and kcu.constraint_schema=tc.constraint_schema
+           join information_schema.constraint_column_usage ccu on ccu.constraint_name=tc.constraint_name and ccu.constraint_schema=tc.constraint_schema
+          where tc.constraint_type='FOREIGN KEY' and tc.table_schema='public' and tc.table_name=any($1::text[])
+            and kcu.column_name <> 'organization_id'`,
+        [importedTables],
+      );
+      for (const fk of foreignKeys.rows) {
+        const child = quoteIdentifier(fk.table_name);
+        const parent = quoteIdentifier(fk.referenced_table);
+        const childCol = quoteIdentifier(fk.column_name);
+        const parentCol = quoteIdentifier(fk.referenced_column);
+        const orphan = await client.query<{ count: number }>(
+          `select count(*)::int count from ${child} c
+             where c.organization_id=$1 and c.${childCol} is not null
+               and not exists (select 1 from ${parent} p where p.organization_id=$1 and p.${parentCol}=c.${childCol})`,
+          [context.organizationId],
+        );
+        if ((orphan.rows[0]?.count ?? 0) > 0)
+          throw new Error(`RESTORE_FK_ORPHAN:${fk.table_name}.${fk.column_name}`);
       }
       const sourceHash = createHash("sha256")
         .update(
