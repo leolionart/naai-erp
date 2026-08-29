@@ -124,8 +124,10 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
         `select coalesce(jsonb_agg(jsonb_build_object(
           'description',l.description,'quantity',l.quantity,'unitPriceMinor',l.unit_price_minor::text,
           'netMinor',l.net_minor::text,'taxMinor',l.tax_minor::text,'grossMinor',l.gross_minor::text,
-          'primaryAccountCode',l.primary_account_code,'taxAccountCode',l.tax_account_code,
-          'taxCode',l.tax_code,'dimensions',l.dimensions,
+          'primaryAccountCode',l.primary_account_code,'categoryCode',l.category_code,
+          'taxAccountCode',l.tax_account_code,'taxCode',l.tax_code,'dimensions',l.dimensions,
+          'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,
+          'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
           'allocations',(select coalesce(jsonb_agg(jsonb_build_object(
             'id',coalesce(a.dimensions->>'allocationId',a.allocation_number::text),
             'amountMinor',a.amount_minor::text,'dimensions',a.dimensions-'allocationId') order by a.allocation_number),'[]'::jsonb)

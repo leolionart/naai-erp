@@ -199,6 +199,9 @@ class DispositionMemoryStore extends MemoryStore {
       resource("commercial_document_lines", [{ value: "already embedded" }]),
       resource("webhook_delivery_attempts", [{ value: "runtime replay state" }]),
       resource("expense_events", [{ value: "append-only operational event" }]),
+      resource("revenue_recognition_events", [{ value: "posted recognition" }]),
+      resource("customer_receipts", [{ value: "posted receipt" }]),
+      resource("owner_cash_withdrawals", [{ value: "owner withdrawal" }]),
       evidenceBinary!,
     ];
   }
@@ -345,7 +348,7 @@ describe("PortableDataPackageService", () => {
       "export-reviewed-disposition",
     )) as { data: PortablePackageRecord };
 
-    expect(result.data.manifest.totalSheetCount).toBe(1);
+    expect(result.data.manifest.totalSheetCount).toBe(4);
     expect(result.data.manifest.sheets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -372,6 +375,9 @@ describe("PortableDataPackageService", () => {
           rowCount: 0,
           exclusionReason: expect.stringContaining("operational"),
         }),
+        expect.objectContaining({ resourceType: "revenue_recognition_events", excluded: false, rowCount: 1 }),
+        expect.objectContaining({ resourceType: "customer_receipts", excluded: false, rowCount: 1 }),
+        expect.objectContaining({ resourceType: "owner_cash_withdrawals", excluded: false, rowCount: 1 }),
       ]),
     );
 
@@ -382,6 +388,9 @@ describe("PortableDataPackageService", () => {
       "_manifest",
       "_schemas",
       "sales_invoices",
+      "customer_receipts",
+      "owner_cash_withdrawals",
+      "revenue_recognition_events",
     ]);
   });
 

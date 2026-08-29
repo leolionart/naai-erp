@@ -40,15 +40,26 @@ const OPERATIONAL_RESOURCES = new Set([
   "portable_data_packages",
 ]);
 
+// A few canonical business event tables deliberately use an ``events`` suffix,
+// but they are part of the accounting source of truth and must be portable.
+// Keep this allow-list close to the reviewed-disposition rule so a broad
+// operational-event pattern cannot silently drop revenue or cash history.
+const PORTABLE_BUSINESS_EVENT_RESOURCES = new Set([
+  "revenue_recognition_events",
+  "customer_receipts",
+  "owner_cash_withdrawals",
+]);
+
 const reviewedExclusionReason = (resource: PortableResourceExport): string | undefined => {
   const type = resource.inventory.resourceType;
   if (EMBEDDED_CHILD_RESOURCES.has(type))
     return "Canonical child rows are embedded in their parent resource sheet; a duplicate sheet is intentionally omitted";
   if (
-    OPERATIONAL_RESOURCES.has(type) ||
-    /(^|_)(events?|attempts?|candidate_runs?|candidates?|claims?|deliveries?|delivery_attempts?|staging|review_rows?|read_models?|projections?)(_|$)/.test(
-      type,
-    )
+    !PORTABLE_BUSINESS_EVENT_RESOURCES.has(type) &&
+    (OPERATIONAL_RESOURCES.has(type) ||
+      /(^|_)(events?|attempts?|candidate_runs?|candidates?|claims?|deliveries?|delivery_attempts?|staging|review_rows?|read_models?|projections?)(_|$)/.test(
+        type,
+      ))
   )
     return "Environment-local operational, retry, staging or read-model state is intentionally omitted";
   if (!resource.inventory.excluded && resource.rows?.length === 0)
