@@ -375,9 +375,21 @@ describe("PortableDataPackageService", () => {
           rowCount: 0,
           exclusionReason: expect.stringContaining("operational"),
         }),
-        expect.objectContaining({ resourceType: "revenue_recognition_events", excluded: false, rowCount: 1 }),
-        expect.objectContaining({ resourceType: "customer_receipts", excluded: false, rowCount: 1 }),
-        expect.objectContaining({ resourceType: "owner_cash_withdrawals", excluded: false, rowCount: 1 }),
+        expect.objectContaining({
+          resourceType: "revenue_recognition_events",
+          excluded: false,
+          rowCount: 1,
+        }),
+        expect.objectContaining({
+          resourceType: "customer_receipts",
+          excluded: false,
+          rowCount: 1,
+        }),
+        expect.objectContaining({
+          resourceType: "owner_cash_withdrawals",
+          excluded: false,
+          rowCount: 1,
+        }),
       ]),
     );
 
