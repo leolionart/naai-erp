@@ -506,7 +506,6 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
       }
       for (const parent of embeddedChildren) {
         const isDocument = parent.kind === "document";
-        const lineTable = isDocument ? "commercial_document_lines" : "expense_lines";
         const allocationTable = isDocument
           ? "commercial_document_allocations"
           : "expense_allocations";
