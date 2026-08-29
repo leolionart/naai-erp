@@ -182,7 +182,7 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
       const exportResponse = (await source.portableDataRequest(
         "exports",
         "POST",
-        { ...(values["as-of"] ? { asOf: values["as-of"] } : {}) },
+        { asOf: values["as-of"] ?? new Date().toISOString().slice(0, 10) },
         `${values["idempotency-key"]}:export`,
       )) as { data?: { packageId?: string }; packageId?: string };
       const packageId = exportResponse.data?.packageId ?? exportResponse.packageId;
