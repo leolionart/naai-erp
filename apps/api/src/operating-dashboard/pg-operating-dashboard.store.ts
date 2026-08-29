@@ -48,11 +48,47 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const contracted = projects.reduce((sum, row) => sum + amount(row.contractedMinor), 0n);
     const invoiced = projects.reduce((sum, row) => sum + amount(row.invoicedMinor), 0n);
     const totalRevenue = clients.reduce((sum, row) => sum + amount(row.revenueMinor), 0n);
+    const clientRows = clients.map((row) => ({
+      ...row,
+      shareBps: ratioBps(amount(row.revenueMinor), totalRevenue),
+    }));
     const ar = amount(aging.outstandingTotalMinor);
     const creditSales = await this.creditSales(org, q.asOf);
     const overdue = aging.items
       .filter((item) => item.bucket !== "current")
       .reduce((sum, item) => sum + amount(item.outstandingMinor), 0n);
+    const overdueCount = aging.items.filter((item) => item.bucket !== "current").length;
+    const projectRows = projects.map((p) => ({
+      ...p,
+      invoicedProgressBps:
+        amount(p.contractedMinor) > 0n
+          ? Number((amount(p.invoicedMinor) * 10_000n) / amount(p.contractedMinor))
+          : 0,
+    }));
+    const pipeline = projectRows
+      .filter(
+        (p) =>
+          amount((p as Record<string, unknown>).contractedMinor) !== 0n ||
+          amount((p as Record<string, unknown>).invoicedMinor) !== 0n ||
+          amount((p as Record<string, unknown>).backlogMinor) !== 0n,
+      )
+      .sort((a, b) =>
+        Number(
+          amount((b as Record<string, unknown>).invoicedMinor) +
+            amount((b as Record<string, unknown>).backlogMinor) -
+            amount((a as Record<string, unknown>).invoicedMinor) -
+            amount((a as Record<string, unknown>).backlogMinor),
+        ),
+      )
+      .slice(0, 6);
+    const highlights = [...projectRows]
+      .sort((a, b) =>
+        Number(
+          amount((b as Record<string, unknown>).contractedMinor) -
+            amount((a as Record<string, unknown>).contractedMinor),
+        ),
+      )
+      .slice(0, 3);
     const asOfMs = Date.parse(`${q.asOf}T00:00:00Z`);
     let due7 = 0n,
       due30 = 0n,
@@ -74,7 +110,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         contractedMinor: contracted.toString(),
         invoicedMinor: invoiced.toString(),
         remainingMinor: (contracted > invoiced ? contracted - invoiced : 0n).toString(),
-        projects: projects.slice(0, q.limit),
+        portfolioProgressBps: contracted > 0n ? Number((invoiced * 10_000n) / contracted) : 0,
+        projects: projectRows.slice(0, q.limit),
+        projectPipeline: pipeline,
+        projectHighlights: highlights,
       },
       collections: {
         receivablesMinor: ar.toString(),
@@ -84,6 +123,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         dueWithin7DaysMinor: due7.toString(),
         dueWithin30DaysMinor: due30.toString(),
         laterMinor: later.toString(),
+        overdueCount,
       },
       projectBurn: projects.slice(0, q.limit),
       clientConcentration: {
@@ -93,7 +133,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           clients.slice(0, 3).reduce((sum, row) => sum + amount(row.revenueMinor), 0n),
           totalRevenue,
         ),
-        clients: clients.slice(0, q.limit),
+        clients: clientRows.slice(0, q.limit),
       },
       financials,
       dataQuality: quality,
@@ -216,7 +256,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                and e.expense_date<=$2::date
                and e.counter_account_code in (select account_code from owner_accounts)
                and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
-           ), custody as (
+           ), custody_incoming as (
              select coalesce(sum(it.transfer_amount_minor),0) amount
              from internal_transfers it
              join internal_transfer_attempts ita on ita.organization_id=it.organization_id
@@ -227,6 +267,25 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              join financial_accounts fa on fa.organization_id=incoming.organization_id
                and fa.id=incoming.financial_account_id
              where it.organization_id=$1 and fa.code='CASH-OWNER-CUSTODY'
+           ), custody_expenses as (
+             /*
+              * Costs paid directly from the owner's custody cash reduce the
+              * amount of company money still held by the owner.  These are
+              * canonical posted expenses whose counter account is the ledger
+              * account backing CASH-OWNER-CUSTODY (typically cash/111), and
+              * therefore do not require a synthetic transfer record.
+              */
+             select coalesce(sum(e.gross_minor),0) amount
+             from expenses e
+             join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
+             join financial_accounts fa on fa.organization_id=e.organization_id
+               and fa.code='CASH-OWNER-CUSTODY'
+             where e.organization_id=$1 and e.state='posted'
+               and j.state in ('posted','reversed')
+               and e.expense_date<=$2::date
+               and e.counter_account_code=fa.ledger_account_code
+           ), custody as (
+             select greatest((select amount from custody_incoming) - (select amount from custody_expenses),0) amount
            ), personal_withdrawals as (
              select coalesce(sum(-bt.amount_minor),0) amount
              from bank_transactions bt
@@ -330,6 +389,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       period: row.period,
       revenueMinor: amount(row.revenue).toString(),
       expenseMinor: amount(row.expense).toString(),
+      netProfitMinor: (amount(row.revenue) - amount(row.expense)).toString(),
     }));
     const revenue = monthlyResult.rows.reduce((sum, row) => sum + amount(row.revenue), 0n);
     const expense = monthlyResult.rows.reduce((sum, row) => sum + amount(row.expense), 0n);
@@ -379,6 +439,12 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
               : []),
           ]
         : [];
+    const taxableProfit = netProfit;
+    const taxableProfitMinor = (taxableProfit > 0n ? taxableProfit : 0n).toString();
+    const corporateIncomeTaxMinor =
+      taxPolicy.rows[0]?.rate_bps == null
+        ? null
+        : ((BigInt(taxableProfitMinor) * BigInt(taxPolicy.rows[0].rate_bps)) / 10_000n).toString();
     return {
       revenueMinor: revenue.toString(),
       expenseMinor: expense.toString(),
@@ -404,6 +470,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       unclassifiedOwnerPaidMinor: unclassifiedOwnerPaidMinor.toString(),
       ownerPaidClassificationStatus,
       corporateIncomeTaxRateBps: taxPolicy.rows[0]?.rate_bps ?? null,
+      taxableProfitMinor,
+      corporateIncomeTaxMinor,
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
       approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,
@@ -504,6 +572,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       pendingCount: count.rows[0]?.count ?? 0,
       byFlag: flags.rows,
       rows: rows.rows,
+      flaggedCount: flags.rows.reduce((sum, row) => sum + row.count, 0),
     };
   }
 

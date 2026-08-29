@@ -73,7 +73,10 @@ export type OperatingDashboardReadModel = Readonly<{
     contractedMinor: string;
     invoicedMinor: string;
     remainingMinor: string;
+    portfolioProgressBps: number;
     projects: readonly Record<string, unknown>[];
+    projectPipeline: readonly Record<string, unknown>[];
+    projectHighlights: readonly Record<string, unknown>[];
   }>;
   collections: Readonly<{
     receivablesMinor: string;
@@ -83,6 +86,7 @@ export type OperatingDashboardReadModel = Readonly<{
     dueWithin7DaysMinor: string;
     dueWithin30DaysMinor: string;
     laterMinor: string;
+    overdueCount: number;
   }>;
   projectBurn: readonly Record<string, unknown>[];
   clientConcentration: Readonly<{
@@ -108,6 +112,8 @@ export type OperatingDashboardReadModel = Readonly<{
     unclassifiedOwnerPaidMinor: string;
     ownerPaidClassificationStatus: "ready" | "review_required" | "unconfigured";
     corporateIncomeTaxRateBps: number | null;
+    taxableProfitMinor: string;
+    corporateIncomeTaxMinor: string | null;
     rosBps: number | null;
     recognitionEventCount: number;
     approvedBudgetCount: number;
@@ -117,12 +123,14 @@ export type OperatingDashboardReadModel = Readonly<{
       period: string;
       revenueMinor: string;
       expenseMinor: string;
+      netProfitMinor: string;
     }>[];
   }>;
   dataQuality: Readonly<{
     pendingCount: number;
     byFlag: readonly Readonly<{ flag: string; count: number }>[];
     rows: readonly Record<string, unknown>[];
+    flaggedCount: number;
   }>;
   sourceControls: WorkbookSourceControls;
 }>;

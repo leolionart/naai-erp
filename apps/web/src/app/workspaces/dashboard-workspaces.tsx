@@ -129,12 +129,14 @@ type OperatingProjectWire = Readonly<{
   estimateAtCompletionMinor?: string;
   eacMethod?: string;
   backlogMinor?: string;
+  invoicedProgressBps?: number | null;
 }>;
 type OperatingClientWire = Readonly<{
   clientId?: string;
   clientName?: string;
   revenueMinor?: string;
   invoiceCount?: number;
+  shareBps?: number | null;
 }>;
 type OperatingDashboardWire = Readonly<{
   schemaVersion: 1;
@@ -146,12 +148,16 @@ type OperatingDashboardWire = Readonly<{
     invoicedMinor: string;
     remainingMinor: string;
     projects: readonly OperatingProjectWire[];
+    portfolioProgressBps?: number | null;
+    projectPipeline?: readonly OperatingProjectWire[];
+    projectHighlights?: readonly OperatingProjectWire[];
   }>;
   collections: Readonly<{
     receivablesMinor: string;
     creditSalesMinor: string;
     dsoDays: number | null;
     overdueMinor: string;
+    overdueCount?: number;
     dueWithin7DaysMinor: string;
     dueWithin30DaysMinor: string;
     laterMinor: string;
@@ -192,10 +198,14 @@ type OperatingDashboardWire = Readonly<{
       period: string;
       revenueMinor: string;
       expenseMinor: string;
+      netProfitMinor?: string;
     }>[];
+    taxableProfitMinor?: string;
+    corporateIncomeTaxMinor?: string;
   }>;
   dataQuality: Readonly<{
     pendingCount: number;
+    flaggedCount?: number;
     byFlag: readonly Readonly<{ flag: string; count: number }>[];
     rows: readonly Record<string, unknown>[];
   }>;
@@ -401,18 +411,6 @@ function ratio(value: number | null | undefined) {
 function months(value: string | null | undefined) {
   if (value == null) return "N/A";
   return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(Number(value) / 1000)} tháng`;
-}
-
-function sumMinor(values: readonly (string | null | undefined)[]) {
-  return values.reduce<bigint>((total, value) => total + BigInt(value ?? "0"), 0n).toString();
-}
-
-function daysBetween(startsOn: string, endsOn: string) {
-  const start = Date.parse(`${startsOn}T00:00:00Z`);
-  const end = Date.parse(`${endsOn}T00:00:00Z`);
-  return Number.isFinite(start) && Number.isFinite(end)
-    ? Math.max(1, Math.round((end - start) / 86_400_000) + 1)
-    : 30;
 }
 
 function formatStatusBadge(status?: string): string | null {
@@ -970,112 +968,28 @@ export function ExecutiveDashboardWorkspace() {
   const taxExpenses = data.taxExpenses;
   const vat = data.vat;
   const usingOperatingFallback = !operating;
-  const projects = data.projects?.items ?? [];
-  const recognizedMinor = sumMinor(projects.map((item) => item.recognizedRevenueMinor));
-  const fallbackOverdueMinor = sumMinor(
-    (data.aging?.items ?? [])
-      .filter((item) => (item.daysOverdue ?? 0) > 0)
-      .map((item) => item.baseOutstandingMinor),
-  );
-  const periodDays = daysBetween(
-    data.projects?.periodStart ?? executive?.period.startsOn ?? "2026-08-01",
-    data.projects?.periodEnd ?? executive?.period.endsOn ?? "2026-08-31",
-  );
-  const fallbackDso =
-    BigInt(recognizedMinor) > 0n
-      ? `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(Number((BigInt(data.aging?.baseOutstandingTotalMinor ?? "0") * BigInt(periodDays * 10)) / BigInt(recognizedMinor)) / 10)} ngày`
-      : "N/A";
-  const overdueMinor = operating?.collections.overdueMinor ?? fallbackOverdueMinor;
-  const overdueCount = (data.aging?.items ?? []).filter(
-    (item) => (item.daysOverdue ?? 0) > 0,
-  ).length;
-  const dso = operating
-    ? operating.collections.dsoDays == null
+  const overdueMinor = operating?.collections.overdueMinor ?? "0";
+  const overdueCount = operating?.collections.overdueCount ?? 0;
+  const dso =
+    operating?.collections.dsoDays == null
       ? "N/A"
-      : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`
-    : fallbackDso;
-  const { companyOwesOwnerMinor, ownerHoldsCompanyFundsMinor } = ownerSettlementDashboardAmounts(
-    operating?.financials,
-  );
-  const netCompanyFundsMinor =
-    operating?.financials.netCompanyFundsMinor ??
-    (
-      BigInt(operating?.financials.cashAndBankMinor ?? "0") - BigInt(companyOwesOwnerMinor)
-    ).toString();
+      : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`;
+  const companyOwesOwnerMinor = operating?.financials.companyOwesOwnerMinor ?? "0";
+  const ownerHoldsCompanyFundsMinor = operating?.financials.ownerHoldsCompanyFundsMinor ?? "0";
+  // Owner-settlement and net-funds values are canonical backend read-model fields.
+  // Keep the frontend presentation-only: do not recalculate dashboard metrics here.
+  const netCompanyFundsMinor = operating?.financials.netCompanyFundsMinor ?? "0";
   const showNetCompanyFunds = shouldShowNetCompanyFunds(companyOwesOwnerMinor);
-  const taxableProfitMinor =
-    profitAndLoss == null || taxExpenses == null
-      ? undefined
-      : (
-          BigInt(profitAndLoss.profitBeforeTaxMinor) + BigInt(taxExpenses.citIneligibleMinor)
-        ).toString();
-  const corporateIncomeTaxMinor =
-    taxableProfitMinor == null || operating?.financials.corporateIncomeTaxRateBps == null
-      ? undefined
-      : (
-          ((BigInt(taxableProfitMinor) > 0n ? BigInt(taxableProfitMinor) : 0n) *
-            BigInt(operating.financials.corporateIncomeTaxRateBps)) /
-          10_000n
-        ).toString();
-  const projectPipelineRows = [...(operating?.backlog.projects ?? [])]
-    .filter(
-      (project) =>
-        BigInt(project.contractedMinor ?? "0") !== 0n ||
-        BigInt(project.invoicedMinor ?? "0") !== 0n ||
-        BigInt(project.backlogMinor ?? "0") !== 0n,
-    )
-    .sort((left, right) => {
-      const leftActivity = BigInt(left.invoicedMinor ?? "0") + BigInt(left.backlogMinor ?? "0");
-      const rightActivity = BigInt(right.invoicedMinor ?? "0") + BigInt(right.backlogMinor ?? "0");
-      return leftActivity === rightActivity ? 0 : leftActivity > rightActivity ? -1 : 1;
-    })
-    .slice(0, 6);
-  const flaggedPerformance =
-    performance?.confidenceFlags.filter(
-      (f) => (f.severity as string) === "critical" || !f.code.startsWith("missing_"),
-    ).length ?? 0;
-  const flagged =
-    flaggedPerformance +
-    (data.projects?.items.filter((item) => item.confidenceCodes.length).length ?? 0) +
-    (data.aging?.exceptions.length ?? 0);
+  const taxableProfitMinor = operating?.financials.taxableProfitMinor;
+  const corporateIncomeTaxMinor = operating?.financials.corporateIncomeTaxMinor;
+  const projectPipelineRows = operating?.backlog.projectPipeline ?? [];
+  const flagged = operating?.dataQuality.flaggedCount ?? 0;
   const pendingImportRows = operating?.dataQuality.pendingCount ?? 0;
   const activeProjects = operating?.backlog.projects ?? [];
   const clientRows = operating?.clientConcentration.clients ?? [];
-  const portfolioProgress = (() => {
-    const contracted = BigInt(operating?.backlog.contractedMinor ?? "0");
-    const invoiced = BigInt(operating?.backlog.invoicedMinor ?? "0");
-    if (contracted <= 0n) return 0;
-    return Math.min(100, Number((invoiced * 10_000n) / contracted) / 100);
-  })();
-  const projectHighlights = [...activeProjects]
-    .sort((left, right) => {
-      const leftValue = BigInt(left.contractedMinor ?? "0");
-      const rightValue = BigInt(right.contractedMinor ?? "0");
-      return leftValue === rightValue ? 0 : leftValue > rightValue ? -1 : 1;
-    })
-    .slice(0, 3);
-  const sourceMonthly = operating?.sourceControls?.monthly ?? [];
-  const startsOnMonth = (search.get("startsOn") ?? "2025-01-01").slice(0, 7);
-  const endsOnMonth = (search.get("endsOn") ?? "2025-12-31").slice(0, 7);
-  type MonthlyRow = {
-    period: string;
-    kind?: string;
-    revenueMinor?: string;
-    expenseMinor?: string;
-    [key: string]: unknown;
-  };
-  let filteredMonthly: readonly MonthlyRow[] = (sourceMonthly as readonly MonthlyRow[]).filter(
-    (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
-  );
-  if (filteredMonthly.length === 0 && operating?.financials?.monthly) {
-    filteredMonthly = (operating.financials.monthly as readonly MonthlyRow[]).filter(
-      (row) => row.period >= startsOnMonth && row.period <= endsOnMonth,
-    );
-  }
-  const profitabilityMonthly = filteredMonthly.filter(
-    (row) => row.kind === "profitability_control",
-  );
-  const baseMonthly = profitabilityMonthly.length ? profitabilityMonthly : filteredMonthly;
+  const portfolioProgress = (operating?.backlog.portfolioProgressBps ?? 0) / 100;
+  const projectHighlights = operating?.backlog.projectHighlights ?? [];
+  const baseMonthly = operating?.financials.monthly ?? [];
 
   const chartPoints: readonly Readonly<{ label: string; valueMinor: string }>[] = baseMonthly.map(
     (row) => ({
@@ -1083,16 +997,7 @@ export function ExecutiveDashboardWorkspace() {
       valueMinor: String(row.revenueMinor ?? "0"),
     }),
   );
-  const comparisonPoints: readonly Readonly<{ label: string; valueMinor: string }>[] = [
-    { label: "Kỳ trước", valueMinor: performance?.monthOverMonth.denominatorMinor ?? "0" },
-    { label: "Thực tế kỳ này", valueMinor: performance?.actualVsFullTarget.numeratorMinor ?? "0" },
-    {
-      label: "Dự báo giữ lại",
-      valueMinor: performance?.actualVsRetainedForecast.denominatorMinor ?? "0",
-    },
-  ].filter((point): point is { label: string; valueMinor: string } => point.valueMinor != null);
-  const displayedChartPoints: readonly Readonly<{ label: string; valueMinor: string }>[] =
-    chartPoints.length ? chartPoints : comparisonPoints;
+  const displayedChartPoints = chartPoints;
 
   return (
     <ModulePage
@@ -1288,16 +1193,7 @@ export function ExecutiveDashboardWorkspace() {
                               <div
                                 className="h-full rounded-full bg-primary"
                                 style={{
-                                  width: `${Math.min(
-                                    100,
-                                    operating &&
-                                      BigInt(operating.clientConcentration.totalRevenueMinor) > 0n
-                                      ? Number(
-                                          (BigInt(client.revenueMinor ?? "0") * 10_000n) /
-                                            BigInt(operating.clientConcentration.totalRevenueMinor),
-                                        ) / 100
-                                      : 0,
-                                  )}%`,
+                                  width: `${(client.shareBps ?? 0) / 100}%`,
                                 }}
                               />
                             </div>
@@ -1357,12 +1253,7 @@ export function ExecutiveDashboardWorkspace() {
                 {projectHighlights.length ? (
                   <div className="grid gap-4 md:grid-cols-3">
                     {projectHighlights.map((project, index) => {
-                      const contracted = BigInt(project.contractedMinor ?? "0");
-                      const invoiced = BigInt(project.invoicedMinor ?? "0");
-                      const progress =
-                        contracted > 0n
-                          ? Math.min(100, Number((invoiced * 10_000n) / contracted) / 100)
-                          : 0;
+                      const progress = (project.invoicedProgressBps ?? 0) / 100;
                       return (
                         <Card
                           key={project.projectId ?? `${project.code}-${index}`}
@@ -1471,10 +1362,8 @@ export function ExecutiveDashboardWorkspace() {
                   href="/reports/tax/expense-exceptions"
                   status={taxExpenses?.status}
                   provisional={taxExpenses?.status !== "ready"}
-                  trend={operating?.financials.monthly?.map(
-                    (row) =>
-                      Number(BigInt(row.revenueMinor ?? "0")) -
-                      Number(BigInt(row.expenseMinor ?? "0")),
+                  trend={operating?.financials.monthly?.map((row) =>
+                    Number(BigInt(row.netProfitMinor ?? "0")),
                   )}
                 />
                 <MetricCard
@@ -1582,12 +1471,7 @@ export function ExecutiveDashboardWorkspace() {
                     <div className="grid gap-5 md:grid-cols-2">
                       {projectPipelineRows.slice(0, 6).map((project) => {
                         const projectId = project.projectId ?? "";
-                        const contracted = BigInt(project.contractedMinor ?? "0");
-                        const invoiced = BigInt(project.invoicedMinor ?? "0");
-                        const progress =
-                          contracted > 0n
-                            ? Math.min(100, Number((invoiced * 10000n) / contracted) / 100)
-                            : 0;
+                        const progress = (project.invoicedProgressBps ?? 0) / 100;
                         const content = (
                           <>
                             <div className="flex items-center justify-between gap-3">

@@ -3400,6 +3400,23 @@ tasks:
       - apps/web/src/app/workspaces/background-activity-workspace.tsx
       - docs/implementation/evidence/ERP-951/
 
+  - id: ERP-952
+    title: Backend-owned operating dashboard metrics and owner custody expense reduction
+    phase: P16
+    status: done
+    dependencies: [ERP-951]
+    business_rules: [BR-KPI-005, BR-BNK-004, BR-AI-001, BR-ORG-001]
+    tests: [T-API-ERP-952-001, T-INT-ERP-952-002]
+    evidence: docs/implementation/evidence/ERP-952/
+    agent: codex-root
+    started_at: 2026-08-29T00:00:00+07:00
+    completed_at: 2026-08-29T16:36:00+07:00
+    completion_basis: backend_canonical_homepage_metrics_owner_custody_regression_frontend_presentation_only_typecheck_and_unit_evidence
+    planned_files:
+      - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
+      - apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts
+      - docs/implementation/evidence/ERP-952/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -709,6 +709,10 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   management net company funds.
 - Official dashboard balances include posted records only and disclose uncategorized or unreviewed
   records separately.
+- When company funds are held in the owner's custody account, the confirmed custody amount is the
+  reconciled custody inflow less posted expenses paid directly from that custody account as of the
+  reporting date. Such expenses reduce both physical custody cash and the dashboard's owner-held
+  company-funds metric.
 - Payment: Dr employee payable, Cr bank/cash.
 - Avoid duplicate booking from company-card/bank import and employee claim.
 

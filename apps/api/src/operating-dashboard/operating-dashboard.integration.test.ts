@@ -220,4 +220,40 @@ suite("operating dashboard PostgreSQL API", () => {
       ]),
     });
   });
+
+  it("reduces owner custody when custody cash pays a posted expense", async () => {
+    await pool.query(`
+      insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting)
+        values('${org}','111','Custody cash','asset',false,true)
+        on conflict (organization_id,code) do nothing;
+      insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,status,created_by,updated_by)
+        values('${org}','custody','CASH-OWNER-CUSTODY','cash','Owner custody','VND','111','active','${owner}','${owner}')
+        on conflict (organization_id,id) do nothing;
+      insert into bank_transactions(organization_id,id,financial_account_id,fingerprint,booking_date,amount_minor,currency,description,state)
+        values('${org}','custody-out','bank','${"a".repeat(64)}','2026-07-01',-500,'VND','Transfer to owner custody','imported'),
+              ('${org}','custody-in','custody','${"b".repeat(64)}','2026-07-01',500,'VND','Transfer to owner custody','imported');
+      insert into internal_transfers(organization_id,id,state,currency,transfer_amount_minor,base_principal_amount_minor,transit_account_code,created_by)
+        values('${org}','custody-transfer','reconciled','VND',500,500,'111','${owner}');
+      insert into internal_transfer_attempts(organization_id,id,transfer_id,attempt_number,state,posting_mode,outgoing_transaction_id,incoming_transaction_id,correlation_id,created_by,matched_by,matched_at)
+        values('${org}','custody-attempt','custody-transfer',1,'reconciled','direct','custody-out','custody-in','custody-correlation','${owner}','${owner}',now());
+      insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by)
+        values('${org}','custody-expense-journal','2026-07-02','Custody paid expense','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+      insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+        values('${org}','custody-expense-journal',1,'642',200,null,'Custody cost','{}'),('${org}','custody-expense-journal',2,'111',null,200,'Custody cash','{}');
+      insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by)
+        values('${org}','custody-expense','invoice_backed','posted','2026-07-02','Custody cost','VND',200,0,200,'111','custody-expense-journal','${owner}');
+      insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions)
+        values('${org}','custody-expense',1,'Custody cost',200,0,200,'642','COMPANY','company_funds','{}');
+    `);
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/reports/operating-dashboard?asOf=2026-08-06&startsOn=2026-01-01&endsOn=2026-08-06`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.financials).toMatchObject({
+      ownerCashCustodyMinor: "300",
+      ownerHoldsCompanyFundsMinor: "240",
+    });
+  });
 });
