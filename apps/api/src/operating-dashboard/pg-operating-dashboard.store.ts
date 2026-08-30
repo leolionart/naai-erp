@@ -263,6 +263,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                and e.expense_date<=$2::date
                and e.counter_account_code in (select account_code from owner_accounts)
                and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
+               and (e.funding_financial_account_id is null or e.funding_financial_account_id<> (select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY'))
            ), custody_incoming as (
              select coalesce(sum(it.transfer_amount_minor),0) amount
              from internal_transfers it
@@ -349,14 +350,13 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                )
            ), totals as (
              select (select amount from eligible_owner_expenses)
-               - (select amount from custody_transfers)
-               - (select amount from company_repayments) settlement
+               - (select amount from custody_transfers) settlement
            )
            select settlement::text,
              greatest(settlement,0)::text company_owes_owner,
              greatest(-settlement,0)::text owner_holds_company_funds,
              (select amount from custody)::text custody,
-             (select amount from company_repayments)::text personal_withdrawals
+             '0'::text personal_withdrawals
            from totals`,
         [org, q.asOf],
       ),
