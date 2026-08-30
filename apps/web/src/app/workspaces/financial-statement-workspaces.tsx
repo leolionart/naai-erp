@@ -1024,6 +1024,12 @@ export function TaxExpenseExceptionsWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
+  const [finalizeReason, setFinalizeReason] = useState(
+    "AI audit: xác nhận và hoàn tất phân loại CIT/VAT theo chính sách doanh nghiệp",
+  );
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalizeNotice, setFinalizeNotice] = useState("");
   const query = useMemo(() => {
     const q = new URLSearchParams(searchKey);
     const end = q.get("endsOn") ?? q.get("to") ?? today();
@@ -1136,9 +1142,46 @@ export function TaxExpenseExceptionsWorkspace() {
     },
     [pathname, router],
   );
+
+  async function finalizeReview() {
+    if (!hasToken || !finalizeReason.trim() || finalizing) return;
+    setFinalizing(true);
+    setFinalizeNotice("");
+    try {
+      const dryRun = await api.data<{ planHash: string; lineCount: number }>(
+        "expenses/tax-finalization/dry-run",
+        { method: "POST", body: { reason: finalizeReason.trim() } },
+      );
+      await api.data<{ lineCount: number }>("expenses/tax-finalization/commit", {
+        method: "POST",
+        body: { reason: finalizeReason.trim(), planHash: dryRun.planHash },
+      });
+      setFinalizeNotice(`Đã hoàn tất review ${dryRun.lineCount} dòng. Đang tải lại dữ liệu…`);
+      setFinalizeOpen(false);
+      const refreshed = await api.data<
+        RawTaxExpenseReview | { items: readonly TaxExpenseException[] }
+      >(`${financialStatementsApi.expenseExceptions}?${query}`);
+      const items = refreshed.items.map((item) => normalizeTaxException(item));
+      setRows(items);
+    } catch (e) {
+      setFinalizeNotice(e instanceof Error ? e.message : "Không thể hoàn tất review");
+    } finally {
+      setFinalizing(false);
+    }
+  }
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
+        {finalizeNotice ? (
+          <span className="text-sm text-muted-foreground">{finalizeNotice}</span>
+        ) : null}
+        <Button
+          variant="default"
+          onClick={() => setFinalizeOpen(true)}
+          disabled={!hasToken || loading || !rows.length}
+        >
+          Hoàn tất review tự động
+        </Button>
         <Button variant="outline" onClick={() => setFiltersOpen(true)}>
           <Filter data-icon="inline-start" />
           Bộ lọc
@@ -1223,6 +1266,36 @@ export function TaxExpenseExceptionsWorkspace() {
           </form>
         </PopoverContent>
       </Popover>
+      <Dialog open={finalizeOpen} onOpenChange={setFinalizeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hoàn tất review chi phí thuế?</DialogTitle>
+            <DialogDescription>
+              Backend sẽ chạy dry-run, sau đó cập nhật các dòng còn chờ review trong một giao dịch
+              có audit và idempotency. Lịch sử journal không bị sửa.
+            </DialogDescription>
+          </DialogHeader>
+          <Field>
+            <FieldLabel htmlFor="tax-finalize-reason">Lý do</FieldLabel>
+            <Input
+              id="tax-finalize-reason"
+              value={finalizeReason}
+              onChange={(event) => setFinalizeReason(event.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Hủy</Button>
+            </DialogClose>
+            <Button
+              onClick={() => void finalizeReview()}
+              disabled={finalizing || !finalizeReason.trim()}
+            >
+              {finalizing ? "Đang xử lý…" : "Xác nhận hoàn tất"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
