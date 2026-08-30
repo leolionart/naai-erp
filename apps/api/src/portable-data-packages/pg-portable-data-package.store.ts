@@ -462,6 +462,18 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
       : undefined;
   }
 
+  async deleteExport(
+    context: PortableDataPackageContext,
+    packageId: string,
+    _idempotencyKey: string,
+  ) {
+    const result = await this.pool.query(
+      `delete from portable_data_packages where organization_id=$1 and id=$2 returning id`,
+      [context.organizationId, packageId],
+    );
+    return { packageId, deleted: result.rowCount === 1 };
+  }
+
   async resetLocalOrganization(
     context: PortableDataPackageContext,
     input: LocalOrganizationResetInput,

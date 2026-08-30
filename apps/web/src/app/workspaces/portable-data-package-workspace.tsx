@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   DatabaseBackup,
   Download,
   FileSpreadsheet,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { ModulePage } from "@/components/layout/module-page";
@@ -105,6 +106,15 @@ type ExportRecord = Readonly<{
     sheets: readonly SheetInventory[];
   }>;
 }>;
+type BackupHistoryRecord = Readonly<{
+  packageId: string;
+  filename: string;
+  asOf: string;
+  generatedAt: string;
+  sizeBytes: number;
+  contentHash: string;
+  contentPrunedAt?: string;
+}>;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -113,6 +123,7 @@ export function PortableDataPackageWorkspace() {
   const [asOf, setAsOf] = useState(today);
   const [file, setFile] = useState<File>();
   const [exported, setExported] = useState<ExportRecord>();
+  const [history, setHistory] = useState<readonly BackupHistoryRecord[]>([]);
   const [imported, setImported] = useState<ImportRecord>();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -123,6 +134,14 @@ export function PortableDataPackageWorkspace() {
     () => ({ authorization: `Bearer ${token}`, "x-correlation-id": crypto.randomUUID() }),
     [token],
   );
+
+  useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    void client
+      .data<readonly BackupHistoryRecord[]>("portable-data-packages/exports?limit=20")
+      .then(setHistory)
+      .catch(() => undefined);
+  }, [client, hasToken, hydrated, exported]);
 
   async function jsonFetch<T>(path: string, init: RequestInit) {
     const response = await fetch(`${root}/${path}`, init);
@@ -164,6 +183,45 @@ export function PortableDataPackageWorkspace() {
       anchor.download = exported.filename;
       anchor.click();
       URL.revokeObjectURL(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function downloadPackage(item: BackupHistoryRecord) {
+    setBusy("download");
+    try {
+      const response = await fetch(
+        `${root}/exports/${encodeURIComponent(item.packageId)}/download`,
+        {
+          headers: authHeaders,
+        },
+      );
+      if (!response.ok) throw new Error(`Không thể tải file: HTTP ${response.status}`);
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = item.filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function deletePackage(item: BackupHistoryRecord) {
+    if (!window.confirm(`Xoá bản sao lưu ${item.packageId}?`)) return;
+    setBusy("delete");
+    try {
+      await jsonFetch(`exports/${encodeURIComponent(item.packageId)}`, {
+        method: "DELETE",
+        headers: { ...authHeaders, "idempotency-key": crypto.randomUUID() },
+      });
+      setHistory((items) => items.filter((entry) => entry.packageId !== item.packageId));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -339,6 +397,72 @@ export function PortableDataPackageWorkspace() {
                 Dry-run
               </Button>
             </CardFooter>
+          </Card>
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <CardTitle>Lịch sử sao lưu</CardTitle>
+              <CardDescription>
+                Các package gần nhất của organization này. Package còn nội dung có thể tải lại để
+                khôi phục; metadata và checksum vẫn được giữ khi file đã được dọn theo retention.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ngày dữ liệu</TableHead>
+                    <TableHead>Tạo lúc</TableHead>
+                    <TableHead>Kích thước</TableHead>
+                    <TableHead>Checksum</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.length ? (
+                    history.map((item) => (
+                      <TableRow key={item.packageId}>
+                        <TableCell>{item.asOf}</TableCell>
+                        <TableCell>{new Date(item.generatedAt).toLocaleString("vi-VN")}</TableCell>
+                        <TableCell>{Math.ceil(item.sizeBytes / 1024)} KB</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {item.contentHash.slice(0, 12)}…
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={item.contentPrunedAt ? "outline" : "default"}>
+                            {item.contentPrunedAt ? "Đã dọn file" : "Có thể tải"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={Boolean(item.contentPrunedAt) || busy !== ""}
+                            onClick={() => void downloadPackage(item)}
+                          >
+                            <Download data-icon="inline-start" /> Tải lại
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy !== ""}
+                            onClick={() => void deletePackage(item)}
+                          >
+                            <Trash2 data-icon="inline-start" /> Xoá
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        Chưa có lịch sử sao lưu.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
           </Card>
         </div>
 

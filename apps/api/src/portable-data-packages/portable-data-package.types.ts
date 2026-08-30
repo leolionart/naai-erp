@@ -86,6 +86,11 @@ export type PortableDataPackageStore = Readonly<{
     context: PortableDataPackageContext,
     packageId: string,
   ): Promise<PortablePackageFile | undefined>;
+  deleteExport?: (
+    context: PortableDataPackageContext,
+    packageId: string,
+    idempotencyKey: string,
+  ) => Promise<{ packageId: string; deleted: boolean }>;
   resetLocalOrganization(
     context: PortableDataPackageContext,
     input: LocalOrganizationResetInput,

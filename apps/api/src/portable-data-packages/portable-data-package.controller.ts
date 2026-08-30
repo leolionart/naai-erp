@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Post,
+  Query,
+  Res,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { FastifyReply } from "fastify";
 import { PortableDataPackageService } from "./portable-data-package.service.js";
@@ -36,6 +47,21 @@ export class PortableDataPackageController {
     return this.service.listExports(
       await this.context(organizationId, authorization, correlationId),
       Number.isFinite(parsed) ? parsed : undefined,
+    );
+  }
+
+  @Delete("exports/:packageId")
+  async remove(
+    @Param("organizationId") organizationId: string,
+    @Param("packageId") packageId: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.deleteExport(
+      await this.context(organizationId, authorization, correlationId),
+      packageId,
+      idempotencyKey,
     );
   }
 

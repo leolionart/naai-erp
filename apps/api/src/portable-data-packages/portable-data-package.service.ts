@@ -429,6 +429,12 @@ export class PortableDataPackageService {
     this.assertExportPermission(context);
     return this.envelope(context, await this.store.listExports(context, limit));
   }
+  async deleteExport(context: PortableDataPackageContext, packageId: string, key?: string) {
+    this.assertExportPermission(context);
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!this.store.deleteExport) throw new Error("NOT_IMPLEMENTED");
+    return this.envelope(context, await this.store.deleteExport(context, packageId, key));
+  }
 
   async getInventory(context: PortableDataPackageContext, packageId: string) {
     this.assertExportPermission(context);
