@@ -338,7 +338,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                  join bank_transactions outgoing on outgoing.organization_id=ita.organization_id
                    and outgoing.id=ita.outgoing_transaction_id
                  where it.organization_id=$1
-                   and outgoing.booking_date=(select journal_date from journal_entries where id=movements.id and organization_id=$1)
                    and it.transfer_amount_minor=(-owner_delta)
                )
            ), totals as (
