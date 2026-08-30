@@ -258,7 +258,7 @@ suite("operating dashboard PostgreSQL API", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data.financials).toMatchObject({
       ownerCashCustodyMinor: "200",
-      ownerHoldsCompanyFundsMinor: "140",
+      ownerHoldsCompanyFundsMinor: "100",
     });
   });
 
@@ -288,7 +288,7 @@ suite("operating dashboard PostgreSQL API", () => {
       // The prior custody transfer less custody-paid expense and custody purchase invoice.
       ownerCashCustodyMinor: "200",
       // Personal advance is a liability, not a custody cash outflow.
-      ownerOperatingPayableMinor: "250",
+      actualOwnerPaidCompanyCostMinor: "250",
     });
   });
 });
