@@ -516,8 +516,8 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
           if (isDocument) {
             await client.query(
               `insert into commercial_document_lines
-               (organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,category_code,tax_account_code,tax_code,dimensions,created_at)
-               values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now())`,
+              (organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,category_code,tax_account_code,tax_code,dimensions,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference,created_at)
+               values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,now())`,
               [
                 context.organizationId,
                 parent.id,
@@ -533,13 +533,22 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
                 line.taxAccountCode ?? line.vatAccountCode ?? null,
                 line.taxCode ?? null,
                 JSON.stringify(dimensions),
+                line.managementState ?? "unreviewed",
+                line.citState ?? "unreviewed",
+                line.vatState ?? "unreviewed",
+                String(line.citEligibleMinor ?? "0"),
+                String(line.vatEligibleMinor ?? "0"),
+                line.reviewedBy ?? null,
+                line.reviewedAt ?? null,
+                line.reviewReason ?? null,
+                line.reviewReference ?? null,
               ],
             );
           } else {
             await client.query(
               `insert into expense_lines
-               (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,dimensions,cit_eligible_minor,vat_eligible_minor)
-               values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+               (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,vat_account_code,dimensions,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
+               values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
               [
                 context.organizationId,
                 parent.id,
@@ -554,8 +563,15 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
                   (line.expenseCategoryCode || line.categoryCode ? "company_funds" : null),
                 line.vatAccountCode ?? line.taxAccountCode ?? null,
                 JSON.stringify(dimensions),
+                line.managementState ?? "unreviewed",
+                line.citState ?? "unreviewed",
+                line.vatState ?? "unreviewed",
                 String(line.citEligibleMinor ?? "0"),
                 String(line.vatEligibleMinor ?? line.taxMinor ?? line.vatMinor ?? "0"),
+                line.reviewedBy ?? null,
+                line.reviewedAt ?? null,
+                line.reviewReason ?? null,
+                line.reviewReference ?? null,
               ],
             );
           }
