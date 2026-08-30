@@ -15,6 +15,9 @@ BEGIN
       FROM financial_accounts
      WHERE code = 'CASH-OWNER-CUSTODY'
   LOOP
+    IF EXISTS (SELECT 1 FROM expenses WHERE organization_id = org_row.organization_id AND funding_financial_account_id = (SELECT id FROM financial_accounts WHERE organization_id = org_row.organization_id AND code = 'CASH-OWNER-CUSTODY')) THEN
+      CONTINUE;
+    END IF;
     SELECT id INTO custody_account
       FROM financial_accounts
      WHERE organization_id = org_row.organization_id
@@ -39,15 +42,15 @@ BEGIN
          AND fa.code = 'CASH-OWNER-CUSTODY'
        WHERE it.organization_id = org_row.organization_id
       UNION ALL
-      SELECT e.expense_date, 2, -e.gross_minor, e.id
+      SELECT e.expense_date, 2, -sum(e.gross_minor), e.id
         FROM expenses e
         JOIN expense_lines el
           ON el.organization_id = e.organization_id
          AND el.expense_id = e.id
        WHERE e.organization_id = org_row.organization_id
          AND e.state = 'posted'
-         AND e.funding_financial_account_id IS NULL
          AND el.funding_treatment = 'owner_paid_company_cost'
+       GROUP BY e.expense_date, e.id
        ORDER BY movement_date, priority, expense_id
     LOOP
       IF movement.expense_id IS NULL THEN
