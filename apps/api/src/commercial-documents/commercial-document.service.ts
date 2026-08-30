@@ -32,6 +32,7 @@ interface ExistingDocument {
   tax_minor: string | number;
   gross_minor: string | number;
   control_account_code: string;
+  funding_financial_account_id: string | null;
   original_document_id: string | null;
   reason: string | null;
   externalReference?: {
@@ -327,6 +328,14 @@ export class CommercialDocumentService {
         : existing.original_document_id;
     const reasonVal = input.reason !== undefined ? input.reason : existing.reason;
 
+    const fundingAccountId = input.funding
+      ? input.funding.type === "owner_paid"
+        ? undefined
+        : input.funding.financialAccountId
+      : (input.fundingSource?.financialAccountId ??
+        existing.funding_financial_account_id ??
+        undefined);
+
     let cleanedExtRef: ExternalReferenceInput | undefined = undefined;
     if (mergedExtRef) {
       cleanedExtRef = {
@@ -358,6 +367,14 @@ export class CommercialDocumentService {
         input.controlAccountCode !== undefined
           ? input.controlAccountCode
           : existing.control_account_code,
+      ...(fundingAccountId
+        ? {
+            fundingSource: {
+              type: "financial_account" as const,
+              financialAccountId: fundingAccountId,
+            },
+          }
+        : {}),
       lines: input.lines !== undefined ? input.lines : existingLines,
       ...(seriesVal ? { series: seriesVal } : {}),
       ...(origId ? { originalDocumentId: origId } : {}),
@@ -379,7 +396,9 @@ export class CommercialDocumentService {
       ...(input.type === "purchase_invoice" && !input.funding && !input.fundingSource
         ? { funding: { type: "owner_paid" as const } }
         : {}),
-      ...(input.funding?.type === "company_bank" && input.funding.financialAccountId
+      ...((input.funding?.type === "company_bank" ||
+        input.funding?.type === "owner_custody_cash") &&
+      input.funding.financialAccountId
         ? {
             fundingSource: {
               type: "financial_account" as const,
@@ -677,15 +696,18 @@ export class CommercialDocumentService {
         message: "Nguồn tiền không được hỗ trợ",
         expected: allowed,
       });
-    if (type === "company_bank" && !input.funding.financialAccountId?.trim())
+    if (
+      (type === "company_bank" || type === "owner_custody_cash") &&
+      !input.funding.financialAccountId?.trim()
+    )
       fieldErrors.push({
         field: "funding.financialAccountId",
-        message: "Bắt buộc khi công ty trả bằng tài khoản ngân hàng",
+        message: "Bắt buộc khi chi từ ngân hàng công ty hoặc tiền mặt công ty do chủ giữ",
       });
-    if (type !== "company_bank" && input.funding.financialAccountId)
+    if (type === "owner_paid" && input.funding.financialAccountId)
       fieldErrors.push({
         field: "funding.financialAccountId",
-        message: "Chỉ truyền khi funding.type=company_bank",
+        message: "Không truyền tài khoản công ty khi chủ chi hộ",
       });
     if (fieldErrors.length) {
       const error = new Error("FUNDING_SOURCE_INVALID") as Error & { details: unknown };

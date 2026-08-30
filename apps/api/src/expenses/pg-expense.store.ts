@@ -23,6 +23,7 @@ type StoredExpense = {
   vat_minor: string;
   gross_minor: string;
   counter_account_code: string;
+  funding_financial_account_id: string | null;
   created_by: string;
   version: string;
   employee_party_id: string | null;
@@ -445,6 +446,16 @@ export class PgExpenseStore {
   }
 
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {
+    if (input.fundingFinancialAccountId) {
+      const funding = await this.pool.query<{ ledger_account_code: string }>(
+        `select ledger_account_code from financial_accounts
+           where organization_id=$1 and id=$2 and currency=$3 and status='active'`,
+        [organizationId, input.fundingFinancialAccountId, input.currency],
+      );
+      if (!funding.rows[0]) throw new Error("EXPENSE_FUNDING_ACCOUNT_NOT_AVAILABLE");
+      if (funding.rows[0].ledger_account_code !== input.counterAccountCode)
+        throw new Error("EXPENSE_FUNDING_ACCOUNT_MISMATCH");
+    }
     const relationships = input.lines.flatMap((line) => {
       const lineProjectId = line.dimensions?.projectId;
       const lineContractId = line.dimensions?.contractId;
@@ -1304,6 +1315,7 @@ export class PgExpenseStore {
           vat_minor: input.vatMinor,
           gross_minor: input.grossMinor,
           counter_account_code: input.counterAccountCode,
+          funding_financial_account_id: input.fundingFinancialAccountId ?? null,
           created_by: context.actorId,
           version: "1",
           employee_party_id: input.employeePartyId ?? null,
@@ -2316,7 +2328,7 @@ export class PgExpenseStore {
   }
   private async lock(c: PoolClient, org: string, id: string) {
     const r = await c.query<StoredExpense>(
-      `select id,expense_class,state,expense_date::text,freelance_due_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,counter_account_code,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist from expenses where organization_id=$1 and id=$2 for update`,
+      `select id,expense_class,state,expense_date::text,freelance_due_date::text,currency,net_minor::text,vat_minor::text,gross_minor::text,counter_account_code,funding_financial_account_id,created_by,version::text,employee_party_id,payee_party_id,evidence_checklist from expenses where organization_id=$1 and id=$2 for update`,
       [org, id],
     );
     if (!r.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
@@ -2411,6 +2423,16 @@ export class PgExpenseStore {
     );
   }
   private async postJournal(c: PoolClient, context: ExpenseContext, e: StoredExpense) {
+    if (e.funding_financial_account_id) {
+      const funding = await c.query<{ ledger_account_code: string }>(
+        `select ledger_account_code from financial_accounts
+           where organization_id=$1 and id=$2 and currency=$3 and status='active' for update`,
+        [context.organizationId, e.funding_financial_account_id, e.currency],
+      );
+      if (!funding.rows[0]) throw new Error("EXPENSE_FUNDING_ACCOUNT_NOT_AVAILABLE");
+      if (funding.rows[0].ledger_account_code !== e.counter_account_code)
+        throw new Error("EXPENSE_FUNDING_ACCOUNT_MISMATCH");
+    }
     const journalId = randomUUID();
     const lines = await c.query<{
       line_number: number;

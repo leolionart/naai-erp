@@ -89,8 +89,17 @@ export class ExpenseService {
       expenseClass?: string;
       payeePartyId?: string;
       fundingTreatment?: string;
+      startsOn?: string;
+      endsOn?: string;
     },
   ) {
+    const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+    if (
+      (filters.startsOn && !isoDate.test(filters.startsOn)) ||
+      (filters.endsOn && !isoDate.test(filters.endsOn)) ||
+      (filters.startsOn && filters.endsOn && filters.startsOn > filters.endsOn)
+    )
+      throw new Error("VALIDATION_FAILED");
     if (
       filters.fundingTreatment &&
       !["company_funds", "owner_paid_company_cost", "tax_only_non_cash"].includes(

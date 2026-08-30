@@ -1068,7 +1068,9 @@
             "in": "query",
             "description": "Filters by the effective snapshotted line treatment, falling back to the reviewed expense-category treatment only when the line snapshot is absent.",
             "schema": { "$ref": "#/components/schemas/ExpenseFundingTreatment" }
-          }
+          },
+          { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } }
         ],
         "responses": {
           "200": {
@@ -1082,7 +1084,18 @@
         }
       },
       "post": {
-        "summary": "Create an idempotent expense draft with an independent supplier/payee and optional receiving-project/contract allocations"
+        "summary": "Create an idempotent expense draft with an independent supplier/payee and optional receiving-project/contract allocations",
+        "description": "Creates a draft in controlled/integration mode. Under the approved solopreneur owner policy the service may complete the lifecycle atomically and return posted. The canonical funding object is preferred; fundingFinancialAccountId is retained as a top-level compatibility field and must identify an organization-scoped account when supplied.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExpenseRequest"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}": {
@@ -4196,6 +4209,51 @@
       }
     },
     "schemas": {
+      "CreateExpenseRequest": {
+        "type": "object",
+        "description": "Expense creation normally starts in draft state. Under the approved solopreneur owner policy it may complete atomically as posted; otherwise use lifecycle actions to submit, approve or post.",
+        "required": [
+          "expenseClass",
+          "expenseDate",
+          "businessPurpose",
+          "currency",
+          "netMinor",
+          "vatMinor",
+          "grossMinor",
+          "counterAccountCode",
+          "lines"
+        ],
+        "properties": {
+          "expenseClass": { "type": "string" },
+          "expenseDate": { "type": "string", "format": "date" },
+          "businessPurpose": { "type": "string", "minLength": 1 },
+          "currency": { "type": "string" },
+          "netMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "vatMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "grossMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "counterAccountCode": { "type": "string" },
+          "funding": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["company_bank", "owner_paid", "owner_custody_cash"]
+              },
+              "financialAccountId": {
+                "type": "string",
+                "description": "Required for company_bank and owner_custody_cash; omitted for owner_paid."
+              }
+            }
+          },
+          "fundingFinancialAccountId": {
+            "type": "string",
+            "description": "Top-level compatibility alias for funding.financialAccountId."
+          },
+          "lines": { "type": "array", "items": { "type": "object" }, "minItems": 1 }
+        },
+        "additionalProperties": true
+      },
       "RecurrenceRule": {
         "type": "object",
         "required": ["frequency", "interval", "billingDay"],

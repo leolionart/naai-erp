@@ -173,6 +173,21 @@ describe("ERP-300 CommercialDocumentService", () => {
       funding: { type: "company_bank", financialAccountId: "bank-vnd" },
       fundingSource: { type: "financial_account", financialAccountId: "bank-vnd" },
     });
+
+    await service.create(
+      context,
+      {
+        ...sales,
+        type: "purchase_invoice",
+        controlAccountCode: "331-AP",
+        funding: { type: "owner_custody_cash", financialAccountId: "cash-owner" },
+      },
+      "purchase-custody-explicit",
+    );
+    expect(store.create.mock.calls[2]?.[1]).toMatchObject({
+      funding: { type: "owner_custody_cash", financialAccountId: "cash-owner" },
+      fundingSource: { type: "financial_account", financialAccountId: "cash-owner" },
+    });
   });
   it("restricts migration source expenses to purchase invoices", async () => {
     const service = new CommercialDocumentService({} as never, {} as never);

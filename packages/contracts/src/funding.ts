@@ -5,7 +5,7 @@ export type FundingTypeContract = "company_bank" | "owner_paid" | "owner_custody
 
 export type FundingInputContract = Readonly<{
   type: FundingTypeContract;
-  /** Required only when type is company_bank. */
+  /** Required for company_bank and owner_custody_cash; omitted for owner_paid. */
   financialAccountId?: string;
 }>;
 

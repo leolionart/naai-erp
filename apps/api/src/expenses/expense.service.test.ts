@@ -45,6 +45,25 @@ describe("ERP-310 ExpenseService", () => {
     );
   });
 
+  it("passes report date bounds through to the canonical expense store", async () => {
+    const store = { list: vi.fn().mockResolvedValue([]) };
+    const service = new ExpenseService(store as never, {} as never);
+    await service.list(context, {
+      startsOn: "2026-01-01",
+      endsOn: "2026-03-31",
+    });
+    expect(store.list).toHaveBeenCalledWith("org-a", {
+      startsOn: "2026-01-01",
+      endsOn: "2026-03-31",
+    });
+    await expect(
+      service.list(context, { startsOn: "2026-03-31", endsOn: "2026-01-01" }),
+    ).rejects.toThrow("VALIDATION_FAILED");
+    await expect(service.list(context, { startsOn: "31-03-2026" })).rejects.toThrow(
+      "VALIDATION_FAILED",
+    );
+  });
+
   it("creates a non-invoice expense with VAT forced non-deductible", async () => {
     const store = {
       validateRelationships: vi.fn().mockResolvedValue(undefined),

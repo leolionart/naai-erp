@@ -39,7 +39,7 @@ export class PgExpenseReportStore {
         c.name dimension_name,l.net_minor::text net_minor,l.tax_minor::text vat_minor,l.gross_minor::text amount_minor
       from commercial_documents d
       join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
-      left join dimension_values c on c.organization_id=d.organization_id and c.kind='category' and c.code=coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''))
+      left join business_categories c on c.organization_id=d.organization_id and c.kind='expense' and c.code=coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''))
       where d.organization_id=$1 and d.type='purchase_invoice'
         and d.state in ('posted','partially_paid','paid')
         and d.document_date between $2::date and $3::date

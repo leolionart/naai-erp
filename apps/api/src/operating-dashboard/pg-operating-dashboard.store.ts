@@ -403,7 +403,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
            where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
              and j.state in ('posted','reversed')`,
-        [org, q.startsOn, q.asOf],
+        [org, q.startsOn, q.endsOn],
       ),
       this.pool.query<{ rate_bps: number | null }>(
         `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1)
@@ -597,10 +597,12 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
   private async clients(org: string, q: OperatingDashboardQuery) {
     return (
       await this.pool.query<Record<string, unknown>>(
-        `select d.party_id "clientId",p.display_name "clientName",sum(d.net_minor)::text "revenueMinor",count(*)::int "invoiceCount"
+        `select d.party_id "clientId",p.display_name "clientName",
+                sum(case when d.type='credit_note' then -d.net_minor else d.net_minor end)::text "revenueMinor",
+                count(*)::int "invoiceCount"
        from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id
-       where d.organization_id=$1 and d.type='sales_invoice' and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and least($3::date,$4::date)
-       group by d.party_id,p.display_name order by sum(d.net_minor) desc,d.party_id`,
+       where d.organization_id=$1 and d.type in ('sales_invoice','credit_note') and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and least($3::date,$4::date)
+       group by d.party_id,p.display_name order by sum(case when d.type='credit_note' then -d.net_minor else d.net_minor end) desc,d.party_id`,
         [org, q.startsOn, q.endsOn, q.asOf],
       )
     ).rows;
@@ -608,7 +610,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
 
   private async creditSales(org: string, asOf: string) {
     const result = await this.pool.query<{ amount: string }>(
-      `select coalesce(sum(net_minor),0)::text amount from commercial_documents where organization_id=$1 and type='sales_invoice' and state in ('issued','posted','partially_paid','paid') and document_date between ($2::date-89) and $2`,
+      `select coalesce(sum(case when type='credit_note' then -net_minor else net_minor end),0)::text amount
+         from commercial_documents
+        where organization_id=$1 and type in ('sales_invoice','credit_note')
+          and state in ('issued','posted','partially_paid','paid')
+          and document_date between ($2::date-89) and $2`,
       [org, asOf],
     );
     return amount(result.rows[0]?.amount);
