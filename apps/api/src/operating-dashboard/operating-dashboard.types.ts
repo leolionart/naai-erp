@@ -131,6 +131,9 @@ export type OperatingDashboardReadModel = Readonly<{
     byFlag: readonly Readonly<{ flag: string; count: number }>[];
     rows: readonly Record<string, unknown>[];
     flaggedCount: number;
+    inferredCount: number;
+    inferredByFlag: readonly Readonly<{ flag: string; count: number }>[];
+    inferredRows: readonly Record<string, unknown>[];
   }>;
   sourceControls: WorkbookSourceControls;
 }>;

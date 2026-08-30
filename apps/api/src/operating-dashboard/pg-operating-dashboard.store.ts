@@ -557,7 +557,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
   }
 
   private async quality(org: string, limit: number) {
-    const [count, flags, rows] = await Promise.all([
+    const [count, flags, rows, inferred] = await Promise.all([
       this.pool.query<{ count: number }>(
         `select count(*)::int count from workbook_import_review_rows where organization_id=$1 and status='pending_review'`,
         [org],
@@ -570,12 +570,51 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         `select id,kind,workbook,sheet,source_row "sourceRow",review_flags "reviewFlags",mapped_data "mappedData",version::text from workbook_import_review_rows where organization_id=$1 and status='pending_review' order by updated_at desc,id limit $2`,
         [org, limit],
       ),
+      this.pool.query<Record<string, unknown>>(
+        `select e.id "expenseId",e.expense_date::text "expenseDate",e.gross_minor::text "grossMinor",
+                e.counter_account_code "counterAccountCode",l.expense_category_code "categoryCode",
+                coalesce(l.funding_treatment,c.funding_treatment) "fundingTreatment",
+                case
+                  when coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
+                    and e.counter_account_code in (select ledger_account_code from financial_accounts where organization_id=$1 and kind in ('bank','cash'))
+                    then 'funding_source_mismatch'
+                  when coalesce(l.funding_treatment,c.funding_treatment)='tax_only_non_cash'
+                    and e.counter_account_code in (select ledger_account_code from financial_accounts where organization_id=$1 and kind in ('bank','cash'))
+                    then 'non_cash_funding_mismatch'
+                  when l.cit_state='ineligible' and l.cit_eligible_minor=0
+                    and l.expense_category_code in ('SALARY','PAYROLL','ELECTRONIC_EQUIP','SERVER_CLOUD','VEHICLE_RENTAL')
+                    then 'cit_review_recommended'
+                  else null
+                end "inferredFlag"
+           from expenses e
+           join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+           left join expense_categories c on c.organization_id=l.organization_id and c.code=l.expense_category_code
+          where e.organization_id=$1 and e.state='posted'
+            and (
+              (coalesce(l.funding_treatment,c.funding_treatment) in ('owner_paid_company_cost','tax_only_non_cash')
+               and e.counter_account_code in (select ledger_account_code from financial_accounts where organization_id=$1 and kind in ('bank','cash')))
+              or (l.cit_state='ineligible' and l.cit_eligible_minor=0 and l.expense_category_code in ('SALARY','PAYROLL','ELECTRONIC_EQUIP','SERVER_CLOUD','VEHICLE_RENTAL'))
+            )
+          order by e.expense_date,e.id,l.line_number limit $2`,
+        [org, limit],
+      ),
     ]);
+    const inferredRows = inferred.rows.filter((row) => row.inferredFlag);
+    const inferredByFlag = inferredRows.reduce<{ flag: string; count: number }[]>((acc, row) => {
+      const flag = String(row.inferredFlag);
+      const existing = acc.find((item) => item.flag === flag);
+      if (existing) existing.count += 1;
+      else acc.push({ flag, count: 1 });
+      return acc;
+    }, []);
     return {
       pendingCount: count.rows[0]?.count ?? 0,
       byFlag: flags.rows,
       rows: rows.rows,
       flaggedCount: flags.rows.reduce((sum, row) => sum + row.count, 0),
+      inferredCount: inferredRows.length,
+      inferredByFlag,
+      inferredRows,
     };
   }
 
