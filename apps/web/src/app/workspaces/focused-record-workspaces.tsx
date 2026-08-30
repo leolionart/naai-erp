@@ -145,11 +145,15 @@ function human(value: string) {
 }
 const FUNDING_OPTIONS = [
   { code: "111-CASH", label: "Quỹ tiền mặt công ty (TK 111)" },
+  { code: "112-BANK", label: "Tài khoản ngân hàng công ty (TK 112)" },
   { code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" },
 ] as const;
-function fundingLabel(code: string) {
+type FundingOption = Readonly<{ code: string; label: string }>;
+function fundingLabel(code: string, options: readonly FundingOption[] = FUNDING_OPTIONS) {
   const root = code.split("-")[0];
-  return FUNDING_OPTIONS.find((option) => option.code.startsWith(root))?.label ?? code;
+  return (
+    options.find((option) => option.code === code || option.code.startsWith(root))?.label ?? code
+  );
 }
 function sourceKind(row: Row | undefined): SourceKind {
   const value = row?.__sourceKind;
@@ -209,6 +213,7 @@ export function FocusedRecordListWorkspace({
   const [employees, setEmployees] = useState<Row[]>([]);
   const [freelancers, setFreelancers] = useState<Row[]>([]);
   const [projects, setProjects] = useState<Row[]>([]);
+  const [financialAccounts, setFinancialAccounts] = useState<Row[] | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
@@ -225,6 +230,27 @@ export function FocusedRecordListWorkspace({
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [workflowCapabilities, setWorkflowCapabilities] = useState<WorkflowCreateCapabilities>();
+  const reclassifyFundingOptions = useMemo<readonly FundingOption[]>(() => {
+    // Keep the canonical choices visible while the account catalog is loading.
+    // Once loaded, organization-scoped active accounts become the source of truth.
+    if (financialAccounts === undefined) return FUNDING_OPTIONS;
+    const options: FundingOption[] = [];
+    const seenCodes = new Set<string>();
+    for (const account of financialAccounts) {
+      const status = text(account, "status");
+      if (status && status !== "active") continue;
+      const code = text(account, "ledgerAccountCode", "ledger_account_code", "code");
+      if (!code || seenCodes.has(code)) continue;
+      seenCodes.add(code);
+      const displayName = text(account, "displayName", "display_name", "name") || code;
+      options.push({ code, label: `${displayName} (${code})` });
+    }
+    // Owner-paid is a control source rather than a financial account, so it is
+    // intentionally added separately from the organization account catalog.
+    if (!seenCodes.has("3388-OWNER"))
+      options.push({ code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" });
+    return options;
+  }, [financialAccounts]);
   const key = params.toString();
   const invoiceStatus = params.get("invoiceStatus") ?? "all";
   const current = config[kind];
@@ -559,6 +585,22 @@ export function FocusedRecordListWorkspace({
   ]);
   useEffect(() => void load(), [load]);
   useEffect(() => {
+    if (!hydrated || !hasToken) return;
+    let cancelled = false;
+    void client
+      .data<readonly Row[] | { items?: readonly Row[] }>("banking/accounts")
+      .then((payload) => {
+        if (cancelled) return;
+        setFinancialAccounts([...items(payload)]);
+      })
+      .catch(() => {
+        if (!cancelled) setFinancialAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, hasToken, hydrated]);
+  useEffect(() => {
     if (params.get("create") === "1") setCreateOpen(true);
   }, [params]);
 
@@ -840,7 +882,7 @@ export function FocusedRecordListWorkspace({
       await load();
       if (result?.replacementExpenseId || result?.replacementDocumentId) {
         toast.success(
-          `Đã đảo bút toán cũ và tạo bản thay thế với nguồn ${fundingLabel(reclassifyTargetAccount)}.`,
+          `Đã đảo bút toán cũ và tạo bản thay thế với nguồn ${fundingLabel(reclassifyTargetAccount, reclassifyFundingOptions)}.`,
         );
       }
       setQuickRecord(undefined);
@@ -1173,10 +1215,12 @@ export function FocusedRecordListWorkspace({
                     variant="outline"
                     onClick={() => {
                       const currentCode = fundingCode(quickRecord);
-                      const alternative = FUNDING_OPTIONS.find(
+                      const alternative = reclassifyFundingOptions.find(
                         (option) => !currentCode.startsWith(option.code.split("-")[0]),
                       );
-                      setReclassifyTargetAccount(alternative?.code ?? "111-CASH");
+                      setReclassifyTargetAccount(
+                        alternative?.code ?? reclassifyFundingOptions[0]?.code ?? "111-CASH",
+                      );
                       setReclassifyOpen(true);
                     }}
                   >
@@ -1324,18 +1368,20 @@ export function FocusedRecordListWorkspace({
                 <SelectValue placeholder="Chọn nguồn thanh toán" />
               </SelectTrigger>
               <SelectContent>
-                {FUNDING_OPTIONS.filter((option) => {
-                  const currentCode = fundingCode(quickRecord);
-                  return !currentCode.startsWith(option.code.split("-")[0]);
-                }).map((option) => (
-                  <SelectItem key={option.code} value={option.code}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                {reclassifyFundingOptions
+                  .filter((option) => {
+                    const currentCode = fundingCode(quickRecord);
+                    return !currentCode.startsWith(option.code.split("-")[0]);
+                  })
+                  .map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              Sẽ chuyển sang: {fundingLabel(reclassifyTargetAccount)}
+              Sẽ chuyển sang: {fundingLabel(reclassifyTargetAccount, reclassifyFundingOptions)}
             </p>
           </Field>
           <Field>
