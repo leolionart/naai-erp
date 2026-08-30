@@ -11,6 +11,7 @@ import type {
   CommercialDocumentType,
   CreateCommercialDocumentInput,
   CommercialDocumentMetadataInput,
+  CommercialDocumentTaxReviewInput,
 } from "./commercial-document.types.js";
 
 type StoredDocument = {
@@ -116,6 +117,117 @@ export class PgCommercialDocumentStore {
 
   private async operatingMode(client: PoolClient, organizationId: string) {
     return (await resolveOrganizationWorkflowPolicy(organizationId, client)).operatingMode;
+  }
+
+  async review(
+    context: CommercialDocumentContext,
+    id: string,
+    input: CommercialDocumentTaxReviewInput,
+    key: string,
+  ) {
+    const hash = createHash("sha256").update(JSON.stringify({ id, input })).digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(client, context.organizationId, key, hash);
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const document = await client.query<{ type: string; state: string; version: string }>(
+        `select type,state,version::text from commercial_documents
+         where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const found = document.rows[0];
+      if (!found) throw new Error("RESOURCE_NOT_FOUND");
+      if (found.type !== "purchase_invoice") throw new Error("TAX_REVIEW_NOT_SUPPORTED");
+      if (!["posted", "partially_paid", "paid"].includes(found.state))
+        throw new Error("INVALID_DOCUMENT_TRANSITION");
+      const line = await client.query<{ net_minor: string; tax_minor: string }>(
+        `select net_minor::text,tax_minor::text from commercial_document_lines
+         where organization_id=$1 and document_id=$2 and line_number=$3 for update`,
+        [context.organizationId, id, input.lineNumber],
+      );
+      const source = line.rows[0];
+      if (!source) throw new Error("RESOURCE_NOT_FOUND");
+      const maximum = input.axis === "vat" ? BigInt(source.tax_minor) : BigInt(source.net_minor);
+      const eligible = BigInt(input.eligibleMinor ?? "0");
+      if (eligible < 0n || eligible > maximum) throw new Error("ELIGIBILITY_AMOUNT_INVALID");
+      await client.query("select set_config('app.tax_finalization','on',true)");
+      const column = input.axis === "cit" ? "cit" : "vat";
+      await client.query(
+        `update commercial_document_lines set ${column}_state=$4::eligibility_state,
+          ${column}_eligible_minor=$5,reviewed_by=$6,reviewed_at=now(),review_reason=$7,review_reference=$8
+         where organization_id=$1 and document_id=$2 and line_number=$3`,
+        [
+          context.organizationId,
+          id,
+          input.lineNumber,
+          input.state,
+          eligible.toString(),
+          context.actorId,
+          input.reason.trim(),
+          input.reference ?? null,
+        ],
+      );
+      const version = (BigInt(found.version) + 1n).toString();
+      await client.query(
+        "update commercial_documents set version=version+1,updated_at=now() where organization_id=$1 and id=$2",
+        [context.organizationId, id],
+      );
+      const auditEventId = randomUUID(),
+        outboxEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'commercial_document',$3,$4,'review',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          version,
+          context.actorId,
+          context.correlationId,
+          { axis: input.axis },
+          { axis: input.axis, state: input.state, eligibleMinor: eligible.toString() },
+        ],
+      );
+      await client.query(
+        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+         values($1,$2,'commercial_document',$3,'commercial_document.reviewed',1,$4,$5)`,
+        [
+          context.organizationId,
+          outboxEventId,
+          id,
+          { documentId: id, axis: input.axis, lineNumber: input.lineNumber, state: input.state },
+          context.correlationId,
+        ],
+      );
+      const response = {
+        documentId: id,
+        type: found.type,
+        axis: input.axis,
+        reviewState: input.state,
+        resourceVersion: version,
+        auditEventId,
+        outboxEventId,
+      };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        key,
+        "commercial-document:review",
+        hash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   private async ownerCurrentAccount(

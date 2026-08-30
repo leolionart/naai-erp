@@ -1,0 +1,4 @@
+- Queue no longer shows reviewed rows by default: UI sends `state=unreviewed`; backend honors `all`, `unreviewed`, `exception`, and `reviewed`.
+- Each unresolved row has a Review CIT popup with state, amount and reason.
+- Expense and purchase-invoice rows use their correct review endpoint and line number.
+- Review mutation is idempotent, audited and does not modify posted journal entries.

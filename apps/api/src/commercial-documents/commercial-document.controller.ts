@@ -20,6 +20,7 @@ import type {
   CommercialDocumentCorrectionInput,
   CommercialDocumentMetadataInput,
   CreateCommercialDocumentInput,
+  CommercialDocumentTaxReviewInput,
   QuickPurchaseInvoiceInput,
   QuickSalesInvoiceInput,
 } from "./commercial-document.types.js";
@@ -239,6 +240,22 @@ export class CommercialDocumentController {
       await this.context(organizationId, authorization, correlationId),
       id,
       expectedVersion ?? "",
+      input,
+      idempotencyKey,
+    );
+  }
+  @Post(":id/review")
+  async review(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: CommercialDocumentTaxReviewInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.review(
+      await this.context(organizationId, authorization, correlationId),
+      id,
       input,
       idempotencyKey,
     );

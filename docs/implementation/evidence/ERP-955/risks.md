@@ -1,0 +1,2 @@
+- VAT and management remain separate axes; this screen currently provides CIT review only.
+- Production data is unchanged by this code change; deployment is required before the UI is available live.

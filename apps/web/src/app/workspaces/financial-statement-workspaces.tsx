@@ -282,10 +282,15 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
   return {
     id: String(item.id ?? `${item.expense_id ?? "expense"}:${item.line_number ?? "line"}`),
     expenseId: String(item.expense_id ?? source.expenseId ?? ""),
+    ...(item.source_type === "purchase_invoice" || item.expense_class === "invoice_backed"
+      ? { sourceType: "purchase_invoice" as const }
+      : { sourceType: "expense" as const }),
+    ...(item.line_number !== undefined ? { lineNumber: Number(item.line_number) } : {}),
     expenseDate: String(item.expense_date ?? ""),
     description: String(item.description ?? "Chi phí cần rà soát"),
     ...(item.party_name ? { partyName: String(item.party_name) } : {}),
-    bookedMinor: String(item.booked_gross_minor ?? "0"),
+    // CIT basis is net expense; VAT is tracked separately below.
+    bookedMinor: String(item.booked_net_minor ?? item.booked_gross_minor ?? "0"),
     citEligibleMinor: String(item.cit_eligible_minor ?? "0"),
     citIneligibleMinor: (
       BigInt(String(item.booked_gross_minor ?? "0")) -
@@ -1030,6 +1035,15 @@ export function TaxExpenseExceptionsWorkspace() {
   );
   const [finalizing, setFinalizing] = useState(false);
   const [finalizeNotice, setFinalizeNotice] = useState("");
+  const [reviewRow, setReviewRow] = useState<TaxExpenseException | null>(null);
+  const [reviewState, setReviewState] = useState<"eligible" | "partially_eligible" | "ineligible">(
+    "eligible",
+  );
+  const [reviewAmount, setReviewAmount] = useState("0");
+  const [reviewReason, setReviewReason] = useState(
+    "AI audit: xác nhận phân loại CIT theo chứng từ đầu vào",
+  );
+  const [reviewing, setReviewing] = useState(false);
   const query = useMemo(() => {
     const q = new URLSearchParams(searchKey);
     const end = q.get("endsOn") ?? q.get("to") ?? today();
@@ -1038,6 +1052,7 @@ export function TaxExpenseExceptionsWorkspace() {
     if (!q.has("endsOn")) q.set("endsOn", end);
     if (!q.has("asOfInstant")) q.set("asOfInstant", `${end}T16:59:59.999Z`);
     if (!q.has("framework")) q.set("framework", "TT133");
+    if (!q.has("state")) q.set("state", "unreviewed");
     return q;
   }, [searchKey]);
   useEffect(() => {
@@ -1113,21 +1128,35 @@ export function TaxExpenseExceptionsWorkspace() {
         header: "",
         align: "right",
         cell: (row) => {
-          const isDoc =
-            row.expenseId.startsWith("demo-purchase") ||
-            row.expenseId.startsWith("SUP-") ||
-            row.expenseId.startsWith("doc-");
+          const isDoc = row.sourceType === "purchase_invoice";
           const targetHref = isDoc
             ? `/documents/${encodeURIComponent(row.expenseId)}`
             : row.expenseId
               ? `/expenses/${encodeURIComponent(row.expenseId)}`
               : `/expenses`;
+          const canReview = row.citState === "unreviewed" || row.citState === "review";
           return (
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={targetHref}>
-                Xem chi tiết <ChevronRight className="size-3.5 ml-0.5" />
-              </Link>
-            </Button>
+            <div className="flex items-center justify-end gap-1">
+              {canReview ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setReviewRow(row);
+                    setReviewState("eligible");
+                    setReviewAmount(row.bookedMinor);
+                    setReviewReason("AI audit: xác nhận phân loại CIT theo chứng từ đầu vào");
+                  }}
+                >
+                  Review CIT
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={targetHref}>
+                  Xem chi tiết <ChevronRight className="size-3.5 ml-0.5" />
+                </Link>
+              </Button>
+            </div>
           );
         },
       },
@@ -1169,6 +1198,35 @@ export function TaxExpenseExceptionsWorkspace() {
       setFinalizeNotice(e instanceof Error ? e.message : "Không thể hoàn tất review");
     } finally {
       setFinalizing(false);
+    }
+  }
+  async function reviewCit() {
+    if (!reviewRow || !reviewReason.trim() || reviewing || !hasToken) return;
+    setReviewing(true);
+    try {
+      const endpoint =
+        reviewRow.sourceType === "purchase_invoice"
+          ? `commercial-documents/${encodeURIComponent(reviewRow.expenseId)}/review`
+          : `expenses/${encodeURIComponent(reviewRow.expenseId)}/review`;
+      await api.data(endpoint, {
+        method: "POST",
+        body: {
+          axis: "cit",
+          lineNumber: reviewRow.lineNumber ?? 1,
+          state: reviewState,
+          eligibleMinor: reviewState === "ineligible" ? "0" : reviewAmount,
+          reason: reviewReason.trim(),
+        },
+      });
+      setReviewRow(null);
+      const refreshed = await api.data<
+        RawTaxExpenseReview | { items: readonly TaxExpenseException[] }
+      >(`${financialStatementsApi.expenseExceptions}?${query}`);
+      setRows(refreshed.items.map((item) => normalizeTaxException(item)));
+    } catch (e) {
+      setFinalizeNotice(e instanceof Error ? e.message : "Không thể review CIT");
+    } finally {
+      setReviewing(false);
     }
   }
   return (
@@ -1294,6 +1352,65 @@ export function TaxExpenseExceptionsWorkspace() {
               disabled={finalizing || !finalizeReason.trim()}
             >
               {finalizing ? "Đang xử lý…" : "Xác nhận hoàn tất"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(reviewRow)}
+        onOpenChange={(open) => {
+          if (!open && !reviewing) setReviewRow(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review CIT từng khoản</DialogTitle>
+            <DialogDescription>
+              {reviewRow?.description} ·{" "}
+              {reviewRow ? <MoneyCell minor={reviewRow.bookedMinor} /> : null}
+            </DialogDescription>
+          </DialogHeader>
+          <Field>
+            <FieldLabel>Trạng thái CIT</FieldLabel>
+            <Select
+              value={reviewState}
+              onValueChange={(value) => setReviewState(value as typeof reviewState)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="eligible">Đủ điều kiện</SelectItem>
+                <SelectItem value="partially_eligible">Đủ một phần</SelectItem>
+                <SelectItem value="ineligible">Không đủ điều kiện</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {reviewState !== "ineligible" ? (
+            <Field>
+              <FieldLabel htmlFor="cit-review-amount">Số tiền được tính CIT</FieldLabel>
+              <Input
+                id="cit-review-amount"
+                inputMode="numeric"
+                value={reviewAmount}
+                onChange={(e) => setReviewAmount(e.target.value)}
+              />
+            </Field>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="cit-review-reason">Lý do</FieldLabel>
+            <Input
+              id="cit-review-reason"
+              value={reviewReason}
+              onChange={(e) => setReviewReason(e.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Hủy</Button>
+            </DialogClose>
+            <Button onClick={() => void reviewCit()} disabled={reviewing || !reviewReason.trim()}>
+              {reviewing ? "Đang lưu…" : "Xác nhận review"}
             </Button>
           </DialogFooter>
         </DialogContent>

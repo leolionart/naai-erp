@@ -79,6 +79,14 @@ export type CommercialDocumentFundingReclassificationInput = Readonly<{
   targetControlAccountCode: string;
   reason: string;
 }>;
+export type CommercialDocumentTaxReviewInput = Readonly<{
+  axis: "cit" | "vat";
+  lineNumber: number;
+  state: "eligible" | "partially_eligible" | "ineligible" | "accountant_override";
+  eligibleMinor?: string;
+  reason: string;
+  reference?: string;
+}>;
 export type CommercialDocumentCorrectionInput = BusinessCorrectionRequestContract;
 
 export type QuickPurchaseInvoiceInput = Readonly<{

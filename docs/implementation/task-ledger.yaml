@@ -3461,6 +3461,24 @@ tasks:
       - docs/testing/test-specification.md
       - docs/implementation/evidence/ERP-954/
 
+  - id: ERP-955
+    title: Tax exception queue filtering and actionable CIT review
+    phase: P16
+    status: review
+    dependencies: [ERP-954]
+    business_rules: [BR-TAX-003, BR-AUD-001, BR-ORG-001]
+    tests: [T-API-ERP-955-001, T-INT-ERP-955-002, T-E2E-ERP-955-003]
+    evidence: docs/implementation/evidence/ERP-955/
+    agent: codex-root
+    started_at: 2026-08-30T20:40:00+07:00
+    planned_files:
+      - apps/api/src/financial-statements/pg-financial-statement.store.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/commercial-documents/
+      - apps/web/src/app/workspaces/financial-statement-workspaces.tsx
+      - apps/web/src/lib/api/financial-statements.ts
+      - docs/implementation/evidence/ERP-955/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

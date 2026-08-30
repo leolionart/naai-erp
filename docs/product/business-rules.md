@@ -1364,6 +1364,14 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Completion requires source-versus-target resource counts, deterministic hashes, balanced-journal
   checks and financial control totals with zero unexplained variance.
 
+### BR-TAX-006 — Actionable tax exception review
+
+- The tax exception queue defaults to unresolved CIT/VAT/management lines and supports explicit
+  state filters; reviewed lines are not presented as pending work unless `state=all` is requested.
+- CIT review is an audited metadata mutation and may be performed after posting without changing
+  the immutable journal. The review records the exact source line, eligibility amount, reason and
+  idempotency key.
+
 ## Traceability requirement
 
 Every implemented feature must trace:

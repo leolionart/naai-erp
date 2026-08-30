@@ -730,7 +730,7 @@ export class PgFinancialStatementStore {
   }
   async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, state = "all") {
     const result = await this.pool.query(
-      `select e.id expense_id,e.expense_date::text,e.expense_class::text,e.state::text expense_state,e.currency,e.payee_party_id,e.journal_id,
+      `select 'expense'::text source_type,e.id expense_id,e.expense_date::text,e.expense_class::text,e.state::text expense_state,e.currency,e.payee_party_id,e.journal_id,
         l.line_number,l.description,l.net_minor::text booked_net_minor,l.vat_minor::text booked_vat_minor,l.gross_minor::text booked_gross_minor,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
         l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.posting_account_code,l.vat_account_code,l.dimensions,
@@ -743,7 +743,7 @@ export class PgFinancialStatementStore {
          and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz
          and j.state in ('posted','reversed') and j.posted_at <= $4::timestamptz
        union all
-       select d.id,d.document_date::text,'invoice_backed',d.state::text,d.currency,d.party_id,d.journal_id,
+       select 'purchase_invoice'::text,d.id,d.document_date::text,'invoice_backed',d.state::text,d.currency,d.party_id,d.journal_id,
         l.line_number,l.description,l.net_minor::text,l.tax_minor::text,l.gross_minor::text,
         l.cit_eligible_minor::text,l.vat_eligible_minor::text,l.management_state::text,l.cit_state::text,l.vat_state::text,
         l.reviewed_by,l.reviewed_at,l.review_reason,l.review_reference,l.primary_account_code,l.tax_account_code,l.dimensions,
@@ -785,6 +785,7 @@ export class PgFinancialStatementStore {
     });
     const items = filteredRows.map((row) => ({
       ...row,
+      sourceType: row.source_type,
       sourceIds: {
         expenseId: row.expense_id,
         journalId: row.journal_id,

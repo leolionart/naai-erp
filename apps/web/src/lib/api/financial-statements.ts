@@ -105,6 +105,8 @@ export type TaxExpenseException = Readonly<{
   reviewer?: string;
   reason?: string;
   sourceIds: readonly string[];
+  sourceType?: "expense" | "purchase_invoice";
+  lineNumber?: number;
 }>;
 
 export const financialStatementsApi = Object.freeze({

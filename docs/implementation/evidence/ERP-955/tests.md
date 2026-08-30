@@ -1,0 +1,5 @@
+- `pnpm --filter @naai-erp/api exec vitest run src/expenses/expense.service.test.ts src/commercial-documents/commercial-document.service.test.ts` — 38 passed.
+- `pnpm --filter @naai-erp/api typecheck` — passed.
+- `pnpm --filter @naai-erp/web typecheck` — passed.
+- `pnpm exec prettier --write ...` and `git diff --check` — passed.
+- Backend state-filter integration coverage from commit `81c08fb` — 8/8 passed.

@@ -1758,8 +1758,11 @@ export class PgExpenseStore {
         return { ...replay, idempotencyReplayed: true };
       }
       const expense = await this.lock(c, context.organizationId, id);
-      if (["posted", "rejected"].includes(expense.state))
+      // Tax eligibility is audited metadata and may be reviewed after posting;
+      // management review and rejected records remain immutable.
+      if (["posted", "rejected"].includes(expense.state) && input.axis === "management")
         throw new Error("EXPENSE_FINAL_IMMUTABLE");
+      if (expense.state === "rejected") throw new Error("EXPENSE_FINAL_IMMUTABLE");
       const line = await c.query<{
         gross_minor: string;
         vat_minor: string;
@@ -1818,6 +1821,7 @@ export class PgExpenseStore {
       }
       await this.refreshSummary(c, context.organizationId, id);
       const version = (BigInt(expense.version) + 1n).toString();
+      await c.query("select set_config('app.tax_finalization','on',true)");
       await c.query(
         "update expenses set version=version+1,updated_at=now() where organization_id=$1 and id=$2",
         [context.organizationId, id],
