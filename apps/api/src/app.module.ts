@@ -125,6 +125,7 @@ import { OPERATIONAL_LOG_STORE } from "./operational-logs/operational-log.types.
 import { PgOperationalLogStore } from "./operational-logs/pg-operational-log.store.js";
 import { RequestLifecycleInterceptor } from "./operational-logs/request-lifecycle.interceptor.js";
 import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.js";
+import { TimeController } from "./time/time.controller.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -165,6 +166,7 @@ import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.
     PortableDataImportController,
     ExpenseReportController,
     OperationalLogController,
+    TimeController,
   ],
   providers: [
     DatabaseReadinessService,
