@@ -1055,12 +1055,14 @@ export function TaxExpenseExceptionsWorkspace() {
       )
       .then((data) => {
         const items = data.items.map((item) => normalizeTaxException(item));
-        setRows(items.length ? items : fallbackTaxExceptions);
+        // An authenticated, successful response with no items is a truthful empty queue;
+        // never replace it with development/demo rows.
+        setRows(items);
         setError("");
       })
-      .catch(() => {
-        setRows(fallbackTaxExceptions);
-        setError("");
+      .catch((reason: unknown) => {
+        setRows([]);
+        setError(reason instanceof Error ? reason.message : "Không tải được hàng chờ rà soát");
       })
       .finally(() => setLoading(false));
   }, [api, hasToken, hydrated, query]);
