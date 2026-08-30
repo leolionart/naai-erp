@@ -425,6 +425,11 @@ export class PortableDataPackageService {
     return this.envelope(context, record);
   }
 
+  async listExports(context: PortableDataPackageContext, limit?: number) {
+    this.assertExportPermission(context);
+    return this.envelope(context, await this.store.listExports(context, limit));
+  }
+
   async getInventory(context: PortableDataPackageContext, packageId: string) {
     this.assertExportPermission(context);
     const record = await this.store.getExport(context, packageId);

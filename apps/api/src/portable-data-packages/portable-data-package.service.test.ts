@@ -126,6 +126,12 @@ class MemoryStore implements PortableDataPackageStore {
     return item?.organizationId === c.organizationId ? item : undefined;
   }
 
+  async listExports(c: PortableDataPackageContext) {
+    return [...this.records.values()]
+      .map((item) => item.record)
+      .filter((record) => record.organizationId === c.organizationId);
+  }
+
   async downloadExport(c: PortableDataPackageContext, packageId: string) {
     const item = this.records.get(packageId);
     if (item?.record.organizationId !== c.organizationId) return undefined;

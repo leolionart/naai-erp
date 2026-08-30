@@ -43,6 +43,7 @@ export type PortablePackageRecord = Readonly<{
   generatedAt: string;
   generatedBy: string;
   correlationId: string;
+  contentPrunedAt?: string | null;
 }>;
 
 export type PortablePackageFile = Readonly<{
@@ -77,6 +78,10 @@ export type PortableDataPackageStore = Readonly<{
     context: PortableDataPackageContext,
     packageId: string,
   ): Promise<PortablePackageRecord | undefined>;
+  listExports(
+    context: PortableDataPackageContext,
+    limit?: number,
+  ): Promise<readonly PortablePackageRecord[]>;
   downloadExport(
     context: PortableDataPackageContext,
     packageId: string,

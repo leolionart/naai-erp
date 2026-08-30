@@ -279,13 +279,15 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
         const path =
           action === "export"
             ? "exports"
-            : action === "status"
-              ? `exports/${encodeURIComponent(values.key ?? "")}`
-              : action === "inventory"
-                ? `exports/${encodeURIComponent(values.key ?? "")}/inventory`
-                : "";
+            : action === "list" || action === "history"
+              ? "exports"
+              : action === "status"
+                ? `exports/${encodeURIComponent(values.key ?? "")}`
+                : action === "inventory"
+                  ? `exports/${encodeURIComponent(values.key ?? "")}/inventory`
+                  : "";
         if (!path) throw new Error(`Unsupported portable-data-export action: ${action}`);
-        if (action !== "export" && !values.key)
+        if (!["export", "list", "history"].includes(action) && !values.key)
           throw new Error(`portable-data-export ${action} requires --key`);
         const result = await client.portableDataRequest(
           path,

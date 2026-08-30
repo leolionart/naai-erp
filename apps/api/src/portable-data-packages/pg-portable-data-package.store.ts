@@ -346,6 +346,9 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
       generatedAt: new Date(row.generated_at as string | Date).toISOString(),
       generatedBy: String(row.generated_by),
       correlationId: String(row.correlation_id),
+      contentPrunedAt: row.content_pruned_at
+        ? new Date(row.content_pruned_at as string | Date).toISOString()
+        : null,
     };
   }
 
@@ -422,11 +425,24 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
 
   async getExport(context: PortableDataPackageContext, packageId: string) {
     const result = await this.pool.query(
-      `select organization_id,id,as_of,filename,media_type,size_bytes,content_hash,manifest,generated_at,generated_by,correlation_id
+      `select organization_id,id,as_of,filename,media_type,size_bytes,content_hash,manifest,generated_at,generated_by,correlation_id,content_pruned_at
        from portable_data_packages where organization_id=$1 and id=$2`,
       [context.organizationId, packageId],
     );
     return result.rows[0] ? this.contract(result.rows[0]) : undefined;
+  }
+
+  async listExports(context: PortableDataPackageContext, limit = 50) {
+    const bounded = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 100) : 50;
+    const result = await this.pool.query(
+      `select organization_id,id,as_of,filename,media_type,size_bytes,content_hash,manifest,generated_at,generated_by,correlation_id,content_pruned_at
+         from portable_data_packages
+        where organization_id=$1
+        order by generated_at desc, id desc
+        limit $2`,
+      [context.organizationId, bounded],
+    );
+    return result.rows.map((row) => this.contract(row));
   }
 
   async downloadExport(context: PortableDataPackageContext, packageId: string) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Res } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { FastifyReply } from "fastify";
 import { PortableDataPackageService } from "./portable-data-package.service.js";
@@ -23,6 +23,20 @@ export class PortableDataPackageController {
   ) {
     const context = await this.context(organizationId, authorization, correlationId);
     return this.service.createExport(context, this.service.parseExportInput(body), idempotencyKey);
+  }
+
+  @Get("exports")
+  async list(
+    @Param("organizationId") organizationId: string,
+    @Query("limit") limit: string | undefined,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    const parsed = limit == null ? undefined : Number(limit);
+    return this.service.listExports(
+      await this.context(organizationId, authorization, correlationId),
+      Number.isFinite(parsed) ? parsed : undefined,
+    );
   }
 
   @Post("local-admin/reset")
