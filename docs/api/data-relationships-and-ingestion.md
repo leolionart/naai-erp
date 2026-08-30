@@ -143,6 +143,7 @@ Never choose the nearest party/project/account by name similarity alone.
 | `payeePartyId`                                                        | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
 | `employeePartyId`                                                     | Party ID                               | Required for employee reimbursement                                      |
 | `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`      | Account `code`                         | Must exist and be allowed by posting rules                               |
+| `fundingFinancialAccountId`                                            | Financial account `id`                 | Optional payment-provenance link; required when funding is company bank or owner custody cash |
 | `taxAccountCode`, `vatAccountCode`                                    | Account `code`                         | Optional only when tax treatment permits                                 |
 | `taxCode`                                                             | Effective tax-code version             | Resolve using document/expense date                                      |
 | `dimensions`                                                          | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values |
