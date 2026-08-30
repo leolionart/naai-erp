@@ -1671,6 +1671,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
+  const operating = data.operating;
   const overdueMinor = data.operating?.collections.overdueMinor ?? "0";
   const topClientShare = data.operating?.clientConcentration.topClientShareBps
     ? ratio(data.operating.clientConcentration.topClientShareBps)
@@ -1687,16 +1688,16 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
   > = {
     revenue: {
       title: "Doanh thu thực tế",
-      value: money(performance?.actualVsFullTarget.numeratorMinor, performance?.currency),
-      formula: performance?.actualVsFullTarget.formulaVersion ?? "Performance Comparison API",
-      sourceIds: performance?.actualVsFullTarget.numeratorSourceIds ?? [],
+      value: money(operating?.financials.revenueMinor, operating?.currency),
+      formula: "Operating Dashboard API",
+      sourceIds: [],
       canonicalHref: `/reports/performance/${encodeURIComponent(performance?.period.id ?? search.get("periodId") ?? "current")}?${q}`,
     },
     ros: {
       title: "ROS (Return on Sales)",
-      value: ratio(executive?.ros.valueBps),
-      formula: executive?.ros.formulaVersion ?? "Executive Metrics API",
-      sourceIds: executive?.sourceBoundary.sourceIds ?? [],
+      value: ratio(operating?.financials.rosBps),
+      formula: "Operating Dashboard API",
+      sourceIds: [],
       canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
     },
     runway: {
