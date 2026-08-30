@@ -1425,7 +1425,7 @@ export function ExecutiveDashboardWorkspace() {
                 <MetricCard
                   title="Tiền công ty hiện có"
                   value={money(operating?.financials.cashAndBankMinor, operating?.currency)}
-                  description={`Tổng tiền thuộc tài khoản và quỹ công ty: Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt ${money(operating?.financials.cashOnHandMinor, operating?.currency)}.`}
+                  description={`Tổng tiền của công ty, gồm ngân hàng và tiền mặt do công ty/chủ đang giữ: Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt ${money(operating?.financials.cashOnHandMinor, operating?.currency)}.`}
                   href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
                   status="Tiền của công ty"
                   trend={operating?.financials.monthly?.map((row) =>
@@ -1453,7 +1453,7 @@ export function ExecutiveDashboardWorkspace() {
                   <MetricCard
                     title="Tiền ròng thực còn"
                     value={money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}
-                    description={`Tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
+                    description={`Tổng tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
                     href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
                     status="Sau nghĩa vụ với chủ"
                   />
