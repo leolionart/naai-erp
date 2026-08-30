@@ -1,4 +1,5 @@
 # Risks and follow-ups
 
 - Existing web test failures are unrelated to this change and must be repaired separately.
-- The read model assumes custody-paid expenses identify the custody ledger through `counter_account_code`; ambiguous historical rows remain outside the canonical metric until corrected.
+- Legacy rows that lack an explicit funding account remain outside the custody-spend deduction; they require reviewed correction/replacement before production migration.
+- `CASH-COMPANY` and `CASH-OWNER-CUSTODY` historically shared ledger `111-CASH`; account-level funding metadata is required to split old movements reliably.

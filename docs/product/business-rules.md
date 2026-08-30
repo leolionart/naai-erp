@@ -713,6 +713,12 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   reconciled custody inflow less posted expenses paid directly from that custody account as of the
   reporting date. Such expenses reduce both physical custody cash and the dashboard's owner-held
   company-funds metric.
+- Funding source is a separate management dimension: `company_bank`, `company_cash`,
+  `owner_custody_cash`, or `owner_personal_advance`. A purchase invoice reduces owner custody only
+  when its explicit funding financial account is `CASH-OWNER-CUSTODY`; an Owner Current credit alone
+  is not evidence of custody cash. `owner_personal_advance` increases the owner payable and leaves
+  custody unchanged. The dashboard excludes owner custody from company available cash to prevent
+  double counting, while preserving the original funding treatment and audit provenance.
 - Payment: Dr employee payable, Cr bank/cash.
 - Avoid duplicate booking from company-card/bank import and employee claim.
 

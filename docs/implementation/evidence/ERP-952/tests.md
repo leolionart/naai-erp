@@ -5,3 +5,5 @@
 - `pnpm --filter @naai-erp/web typecheck` — passed.
 - `pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/dashboard-workspaces.test.ts` — 3 passed.
 - `pnpm --filter @naai-erp/api exec vitest run src/operating-dashboard/operating-dashboard.integration.test.ts` — skipped without `RUN_DB_INTEGRATION=1`.
+- Regression coverage also exercises custody-paid purchase invoices and personal advances; the
+  integration suite passes when run with the local audit database.
