@@ -85,4 +85,5 @@ export type ExpenseMetadataInput = Readonly<{
   }>[];
 }>;
 export type TaxFinalizationInput = Readonly<{ reason: string; planHash?: string }>;
+export type FundingInferenceInput = Readonly<{ reason: string; planHash?: string }>;
 export type ExpenseCorrectionInput = BusinessCorrectionRequestContract;

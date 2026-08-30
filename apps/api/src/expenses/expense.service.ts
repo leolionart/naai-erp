@@ -131,6 +131,28 @@ export class ExpenseService {
       await this.store.commitTaxFinalization(context, reason.trim(), planHash, key),
     );
   }
+  async dryRunFundingInference(context: ExpenseContext, reason: string) {
+    if (!context.roles.some((role) => WRITE.has(role))) throw new Error("FORBIDDEN");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.dryRunFundingInference(context.organizationId, reason.trim()),
+    );
+  }
+  async commitFundingInference(
+    context: ExpenseContext,
+    reason: string,
+    planHash: string,
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => WRITE.has(role))) throw new Error("FORBIDDEN");
+    if (!reason.trim() || !planHash) throw new Error("VALIDATION_FAILED");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    return this.envelope(
+      context,
+      await this.store.commitFundingInference(context, reason.trim(), planHash, key),
+    );
+  }
   async dryRunRelationshipBackfill(
     context: ExpenseContext,
     id: string,

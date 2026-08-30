@@ -295,6 +295,140 @@ export class PgExpenseStore {
     }
   }
 
+  private async fundingInferencePlan(c: PoolClient, org: string) {
+    const rows = await c.query<{
+      expense_id: string;
+      current_account: string | null;
+      account_id: string;
+      account_code: string;
+      evidence_ids: string[];
+      evidence_count: string;
+    }>(
+      `select e.id expense_id,e.funding_financial_account_id current_account,
+              fa.id account_id,fa.code account_code,
+              array_agg(distinct ra.id) evidence_ids,count(distinct ra.id)::text evidence_count
+         from expenses e
+         join reconciliation_allocations ra on ra.organization_id=e.organization_id and ra.expense_id=e.id
+         join reconciliation_attempts rat on rat.organization_id=ra.organization_id and rat.id=ra.reconciliation_id
+         join bank_transactions bt on bt.organization_id=rat.organization_id and bt.id=rat.bank_transaction_id
+         join financial_accounts fa on fa.organization_id=bt.organization_id and fa.id=bt.financial_account_id
+        where e.organization_id=$1 and e.state='posted' and rat.state='reconciled'
+        group by e.id,e.funding_financial_account_id,fa.id,fa.code
+        order by e.id,fa.id`,
+      [org],
+    );
+    const grouped = new Map<string, typeof rows.rows>();
+    for (const row of rows.rows)
+      grouped.set(row.expense_id, [...(grouped.get(row.expense_id) ?? []), row]);
+    const items: Record<string, unknown>[] = [];
+    const unresolved: Record<string, unknown>[] = [];
+    const all = await c.query<{ id: string; funding_financial_account_id: string | null }>(
+      `select id,funding_financial_account_id from expenses where organization_id=$1 and state='posted'`,
+      [org],
+    );
+    for (const expense of all.rows) {
+      if (expense.funding_financial_account_id) continue;
+      const matches = grouped.get(expense.id) ?? [];
+      const accountIds = [...new Set(matches.map((m) => m.account_id))];
+      if (accountIds.length === 1 && matches[0]) {
+        const match = matches[0];
+        items.push({
+          expenseId: expense.id,
+          currentFundingFinancialAccountId: null,
+          suggestedFundingFinancialAccountId: match.account_id,
+          accountCode: match.account_code,
+          evidenceType: "reconciliation",
+          evidenceIds: match.evidence_ids,
+          confidence: "confirmed",
+        });
+      } else {
+        unresolved.push({
+          expenseId: expense.id,
+          reason:
+            matches.length === 0 ? "no_reconciled_payment_evidence" : "multiple_financial_accounts",
+        });
+      }
+    }
+    return {
+      items,
+      unresolved,
+      counts: { assignable: items.length, unresolved: unresolved.length },
+    };
+  }
+
+  async dryRunFundingInference(org: string, reason: string) {
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin isolation level repeatable read");
+      const plan = await this.fundingInferencePlan(c, org);
+      const planHash = createHash("sha256").update(JSON.stringify({ reason, plan })).digest("hex");
+      await c.query("rollback");
+      return { dryRun: true, planHash, ...plan };
+    } finally {
+      c.release();
+    }
+  }
+
+  async commitFundingInference(
+    context: ExpenseContext,
+    reason: string,
+    planHash: string,
+    key: string,
+  ) {
+    const hash = createHash("sha256").update(JSON.stringify({ reason, planHash })).digest("hex");
+    const c = await this.pool.connect();
+    try {
+      await c.query("begin");
+      const replay = await this.replay(c, context.organizationId, key, hash);
+      if (replay) {
+        await c.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const plan = await this.fundingInferencePlan(c, context.organizationId);
+      const currentHash = createHash("sha256")
+        .update(JSON.stringify({ reason, plan }))
+        .digest("hex");
+      if (currentHash !== planHash) throw new Error("FUNDING_INFERENCE_PLAN_MISMATCH");
+      for (const item of plan.items as Array<{
+        expenseId: string;
+        suggestedFundingFinancialAccountId: string;
+      }>) {
+        await c.query(
+          `update expenses set funding_financial_account_id=$3,updated_at=now() where organization_id=$1 and id=$2 and funding_financial_account_id is null`,
+          [context.organizationId, item.expenseId, item.suggestedFundingFinancialAccountId],
+        );
+      }
+      const auditId = randomUUID();
+      const response = {
+        dryRun: false,
+        planHash,
+        counts: plan.counts,
+        updatedExpenseIds: (plan.items as Array<{ expenseId: string }>).map((x) => x.expenseId),
+        auditEventId: auditId,
+        idempotencyReplayed: false,
+      };
+      await c.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'expense_funding_inference',$3,1,'commit',$4,$5,$6)`,
+        [
+          context.organizationId,
+          auditId,
+          "organization",
+          context.actorId,
+          context.correlationId,
+          response,
+        ],
+      );
+      await this.save(c, context.organizationId, key, "expense:funding-inference", hash, response);
+      await c.query("commit");
+      return response;
+    } catch (e) {
+      await c.query("rollback");
+      throw e;
+    } finally {
+      c.release();
+    }
+  }
+
   private taxFinalizationResult(items: TaxFinalizationItem[], planHash: string, dryRun: boolean) {
     const sum = (field: "citEligibleMinor" | "vatEligibleMinor") =>
       items.reduce((total, item) => total + BigInt(item[field]), 0n).toString();

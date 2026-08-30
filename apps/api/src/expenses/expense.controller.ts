@@ -19,6 +19,7 @@ import type {
   ExpenseMetadataInput,
   ExpenseReviewInput,
   TaxFinalizationInput,
+  FundingInferenceInput,
 } from "./expense.types.js";
 
 @Controller("api/v1/organizations/:organizationId/expenses")
@@ -56,6 +57,31 @@ export class ExpenseController {
     return this.service.dryRunTaxFinalization(
       await this.context(org, auth, corr),
       input.reason ?? "",
+    );
+  }
+  @Post("funding-inference/dry-run") async dryRunFundingInference(
+    @Param("organizationId") org: string,
+    @Body() input: FundingInferenceInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.dryRunFundingInference(
+      await this.context(org, auth, corr),
+      input.reason ?? "",
+    );
+  }
+  @Post("funding-inference/commit") async commitFundingInference(
+    @Param("organizationId") org: string,
+    @Body() input: FundingInferenceInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.commitFundingInference(
+      await this.context(org, auth, corr),
+      input.reason ?? "",
+      input.planHash ?? "",
+      key,
     );
   }
   @Post("tax-finalization/commit") async commitTaxFinalization(
