@@ -26,3 +26,24 @@ reversed through the authenticated journal API using idempotent correction reque
 The backup used before this mutation is
 `/home/backups/naai-erp/naai-erp-20260830-194650-pre-erp954-bank-correction.dump` with SHA-256
 `c14bdd83c31755d9bc4c27f314905eac88ce42737a170c16033a32492a8dde00`.
+
+An additional explicit-provenance correction was then posted through the journal API:
+`3e31eec1-b0cd-4f98-b004-392214f76109`, Dr `3388-OWNER` / Cr `111-CASH`, `120.233.150₫`. This
+reclassifies the 20 expenses already marked as paid from owner custody, without changing their
+expense amounts or tax treatment. The new journal was created, self-approved and posted with audit
+events `b19f904a-88c3-4c8d-97db-4f38f1445886`, `bbcba825-e0e2-4248-82ec-5ab1d04acc01` and
+`de7aa0ec-e686-468c-8c76-e92e42094a06`.
+
+The immediate pre-reclassification backup was
+`/home/backups/naai-erp/naai-erp-20260830-195401-pre-erp954-custody-reclass.dump`.
+
+Per the owner's explicit instruction that the company bank is effectively empty and the remaining
+funds were withdrawn/spent by the owner, a provisional, non-P&L correction was posted:
+`50606dbf-0e35-4aef-a4f6-cdcdfaddba13`, Dr `3388-OWNER` / Cr `112-BANK`, `78.333.660₫`.
+Its dimensions mark `provisional_owner_bank_withdrawal` and
+`requires_bank_statement_reconciliation`; it is intended to be reversed/replaced if a bank
+statement proves a different closing balance.
+
+The backup immediately before this provisional correction is
+`/home/backups/naai-erp/naai-erp-20260830-200449-pre-erp954-bank-residual.dump` with SHA-256
+`bc4f28ef01107021b99b643fa33263f6e058e500d41bffea9aeed628a91cfbd6`.

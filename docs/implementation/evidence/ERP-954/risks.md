@@ -10,3 +10,5 @@
 - The remaining `owner-repayment-bank-*` and `owner-repayment-import-2026-03-22-100000000` entries
   may be genuine bank payments, but their bank evidence and purpose must be confirmed separately;
   they were not auto-reclassified.
+- Journal `50606dbf-0e35-4aef-a4f6-cdcdfaddba13` is explicitly provisional. Reverse and replace it
+  when the actual bank closing statement is available; do not treat it as proof of a zero balance.

@@ -191,20 +191,23 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       ),
       this.pool.query<{ bank_amount: string; cash_amount: string; amount: string }>(
         `with cash_accounts as (
-           select distinct ledger_account_code account_code,kind,code
+           /*
+            * A financial account is a view over a ledger account.  Several
+            * account records (notably CASH-COMPANY and CASH-OWNER-CUSTODY)
+            * may intentionally share 111-CASH, so grouping by the ledger
+            * account prevents counting that balance twice while retaining
+            * the complete physical cash pool.
+            */
+           select ledger_account_code account_code,
+                  bool_or(kind='bank') as is_bank,
+                  bool_or(kind='cash') as is_cash
            from financial_accounts
            where organization_id=$1 and status='active' and kind in ('bank','cash')
-             and code<>'CASH-OWNER-CUSTODY'
-             and not exists (
-               select 1 from financial_accounts custody_account
-               where custody_account.organization_id=financial_accounts.organization_id
-                 and custody_account.code='CASH-OWNER-CUSTODY'
-                 and custody_account.ledger_account_code=financial_accounts.ledger_account_code
-             )
+           group by ledger_account_code
          )
          select
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='bank'),0)::text bank_amount,
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='cash'),0)::text cash_amount,
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.is_bank),0)::text bank_amount,
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.is_cash),0)::text cash_amount,
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)),0)::text amount
          from cash_accounts ca
          join journal_lines l on l.organization_id=$1 and l.account_code=ca.account_code
@@ -448,9 +451,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     // Custody cash remains company cash; it is only held outside the company
     // bank/company-cash account. Include it in total company funds while
     // keeping bank availability separate.
-    const cashAndBankMinor = amount(cashAndBank.rows[0]?.amount) + ownerCustodyMinor;
+    // The ledger balance already contains the complete physical cash pool,
+    // including cash held by the owner.  Do not add custody a second time.
+    const cashAndBankMinor = amount(cashAndBank.rows[0]?.amount);
     const bankAvailableMinor = amount(cashAndBank.rows[0]?.bank_amount);
-    const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount) + ownerCustodyMinor;
+    const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
     const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
     const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
     const confirmedOwnerSettlementMinor = amount(ownerSettlement.rows[0]?.settlement);

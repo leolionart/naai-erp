@@ -7,6 +7,8 @@
 PROD read-only audit (2026-08-30) confirmed the shared-ledger condition and showed 37/53 bank rows in
 `ignored` state; no ignored rows were auto-reconciled.
 
-After correction, PROD readback reports `112-BANK=78,333,660₫`, `bankAvailableMinor=78,333,660₫`,
-`cashOnHandMinor=25,086,850₫`, and `cashAndBankMinor=103,420,510₫`. The four reversal API calls each
-returned HTTP 201 and created a reversal journal; the posted originals remain immutable and linked.
+After the duplicate-transfer and custody reclassification corrections, the PROD ledger reports
+`111-CASH=1,910,850₫`, `112-BANK=78,333,660₫` and `3388-OWNER=-57,038,831₫`. The four reversal API
+calls each returned HTTP 201 and created a reversal journal; the posted originals remain immutable
+and linked. The running PROD image still needs the latest dashboard code before its cash-card values
+reflect the corrected shared-ledger aggregation.
