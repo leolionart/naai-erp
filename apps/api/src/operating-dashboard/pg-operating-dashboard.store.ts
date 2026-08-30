@@ -304,7 +304,14 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            ), custody as (
              select greatest((select amount from custody_incoming)
                - (select amount from custody_expenses)
-               - (select amount from custody_purchase_invoices),0) amount
+               - (select amount from custody_purchase_invoices)
+               - (select coalesce(sum(l.gross_minor),0) from expenses e
+                   join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+                   join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
+                  where e.organization_id=$1 and e.state='posted' and j.state in ('posted','reversed')
+                    and e.expense_date<=$2::date
+                    and l.funding_treatment='owner_paid_company_cost'
+                    and e.funding_financial_account_id=(select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY')),0) amount
            ), personal_withdrawals as (
              select coalesce(sum(-bt.amount_minor),0) amount
              from bank_transactions bt
