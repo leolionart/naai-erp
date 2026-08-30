@@ -31,6 +31,30 @@ Do not start implementation if any mandatory file is missing, unreadable, or con
 - Invalid inbound payloads return structured field errors. n8n handles retry; users edit ERP drafts directly. Do not add a separate review/approval lifecycle for ingestion.
 - Prefer Antigravity/Gemini for bounded mechanical CRUD, client, test-boilerplate, Docker and documentation work when available; Codex integrates and verifies accounting/API gates.
 
+## Skill coordination and environment boundaries
+
+Use the NAAI ERP skills as a coordinated workflow, not as interchangeable shortcuts:
+
+- `naai-erp-prod-data-ops` is the entry point for PROD data audit, clone and correction. It owns
+  organization scope, evidence, mutation safety and API-only business-data writes.
+- `naai-erp-backup-restore` is mandatory before any PROD or local database restore, clone import or
+  corrective mutation. Record the backup path, checksum, schema/version checks and row-count controls.
+- `naai-erp-deploy-monitor` is used only for code/image release: inspect the worktree and gates, push
+  only when authorized, wait for the exact `Release main images` workflow, create the required release,
+  update Dockge and verify runtime image revisions and health.
+- `dockge-container-ops` is the infrastructure transport for stack status, logs, restart/update and
+  Compose operations. It must not be used as an alternative business-data mutation path.
+- `caddy-route-manager` is used only when reverse-proxy routes, TLS or public service exposure change;
+  verify the route before and after reload.
+
+For a task involving both code and data, follow this order: (1) read-only audit with
+`naai-erp-prod-data-ops`; (2) backup with `naai-erp-backup-restore`; (3) data correction through the
+authenticated PROD REST API/CLI and read back the resource; (4) code change and tests; (5) deploy and
+monitor with `naai-erp-deploy-monitor` plus `dockge-container-ops`; (6) repeat API, ledger and
+dashboard reconciliation. SQL/Docker access is limited to backup, schema discovery and read-only
+queries; never mutate business rows directly. Report data-correction evidence separately from image
+deployment evidence.
+
 ## Required execution loop
 
 For each task:
