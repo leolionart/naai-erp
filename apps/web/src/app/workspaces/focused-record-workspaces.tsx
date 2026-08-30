@@ -1706,7 +1706,9 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           "master-data/party-roles?limit=500",
         ),
         kind === "expenses"
-          ? client.data<readonly Row[] | { items: readonly Row[] }>("time/workers")
+          ? client
+              .data<readonly Row[] | { items: readonly Row[] }>("time/workers")
+              .catch(() => [] as readonly Row[])
           : Promise.resolve([] as readonly Row[]),
         client.data<readonly Row[] | { items: readonly Row[] }>("master-data/projects?limit=500"),
       ]);
