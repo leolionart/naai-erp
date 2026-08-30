@@ -51,6 +51,9 @@ const PORTABLE_BUSINESS_EVENT_RESOURCES = new Set([
   "customer_receipt_allocations",
   "internal_transfer_attempts",
   "expense_funding_events",
+  "reconciliation_attempts",
+  "reconciliation_allocations",
+  "reconciliation_events",
 ]);
 
 const reviewedExclusionReason = (resource: PortableResourceExport): string | undefined => {
