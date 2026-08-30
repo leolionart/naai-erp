@@ -415,9 +415,13 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const revenue = monthlyResult.rows.reduce((sum, row) => sum + amount(row.revenue), 0n);
     const expense = monthlyResult.rows.reduce((sum, row) => sum + amount(row.expense), 0n);
     const netProfit = revenue - expense;
-    const cashAndBankMinor = amount(cashAndBank.rows[0]?.amount);
+    const ownerCustodyMinor = amount(ownerSettlement.rows[0]?.custody);
+    // Custody cash remains company cash; it is only held outside the company
+    // bank/company-cash account. Include it in total company funds while
+    // keeping bank availability separate.
+    const cashAndBankMinor = amount(cashAndBank.rows[0]?.amount) + ownerCustodyMinor;
     const bankAvailableMinor = amount(cashAndBank.rows[0]?.bank_amount);
-    const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
+    const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount) + ownerCustodyMinor;
     const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
     const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
     const confirmedOwnerSettlementMinor = amount(ownerSettlement.rows[0]?.settlement);
@@ -484,7 +488,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       confirmedOwnerSettlementMinor: confirmedOwnerSettlementMinor.toString(),
       ownerHoldsCompanyFundsMinor: ownerHoldsCompanyFundsMinor.toString(),
       ownerSettlementDrilldownHref: "/banking/owner-current",
-      ownerCashCustodyMinor: amount(ownerSettlement.rows[0]?.custody).toString(),
+      ownerCashCustodyMinor: ownerCustodyMinor.toString(),
       ownerPersonalWithdrawalMinor: amount(
         ownerSettlement.rows[0]?.personal_withdrawals,
       ).toString(),
