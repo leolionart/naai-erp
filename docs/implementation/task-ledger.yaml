@@ -3441,6 +3441,26 @@ tasks:
       - apps/api/src/expenses/pg-expense.store.ts
       - docs/implementation/evidence/ERP-952/
 
+  - id: ERP-954
+    title: Reconcile company cash owner custody and Owner Current metrics
+    phase: P16
+    status: review
+    dependencies: [ERP-952]
+    business_rules: [BR-EXP-004, BR-BNK-002, BR-BNK-003, BR-BNK-004, BR-KPI-005]
+    tests: [T-API-ERP-954-001, T-INT-ERP-954-002, T-PROD-ERP-954-003]
+    evidence: docs/implementation/evidence/ERP-954/
+    agent: codex-root
+    started_at: 2026-08-30T20:25:00+07:00
+    review_at: 2026-08-30T20:38:00+07:00
+    planned_files:
+      - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
+      - apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts
+      - apps/api/src/banking/pg-banking.store.ts
+      - apps/api/src/banking/banking.service.test.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-954/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -13,6 +13,16 @@ Every active task must map its rules to independently rerunnable commands in
 `docs/testing/test-catalog.yaml`. A task is not done until positive, negative and relevant boundary
 cases pass and its exact-commit evidence is recorded.
 
+### ERP-954 — Company cash, owner custody and Owner Current reconciliation
+
+- `T-API-ERP-954-001`: owner-custody spending is recognized only from the explicit custody financial
+  account; a shared ledger code or an unclassified legacy expense cannot silently move custody cash.
+- `T-INT-ERP-954-002`: the operating dashboard exposes bank, company cash, remaining owner-custody
+  cash and total company funds from non-overlapping components, while Owner Current settlement remains
+  a separate liability/control balance.
+- `T-PROD-ERP-954-003`: production readback reconciles the dashboard, financial-account balances,
+  custody inflows/spending, Owner Current and balanced posted/reversal journals at one cutoff.
+
 ## 2. Required layers
 
 ### Unit and domain
