@@ -128,6 +128,7 @@ export function PortableDataPackageWorkspace() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<BackupHistoryRecord>();
 
   const root = `${connection.baseUrl}/api/v1/organizations/${encodeURIComponent(connection.organizationId)}/portable-data-packages`;
   const authHeaders = useMemo(
@@ -214,7 +215,6 @@ export function PortableDataPackageWorkspace() {
   }
 
   async function deletePackage(item: BackupHistoryRecord) {
-    if (!window.confirm(`Xoá bản sao lưu ${item.packageId}?`)) return;
     setBusy("delete");
     try {
       await jsonFetch(`exports/${encodeURIComponent(item.packageId)}`, {
@@ -222,6 +222,7 @@ export function PortableDataPackageWorkspace() {
         headers: { ...authHeaders, "idempotency-key": crypto.randomUUID() },
       });
       setHistory((items) => items.filter((entry) => entry.packageId !== item.packageId));
+      setDeleteTarget(undefined);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -446,7 +447,7 @@ export function PortableDataPackageWorkspace() {
                             size="sm"
                             variant="ghost"
                             disabled={busy !== ""}
-                            onClick={() => void deletePackage(item)}
+                            onClick={() => setDeleteTarget(item)}
                           >
                             <Trash2 data-icon="inline-start" /> Xoá
                           </Button>
@@ -539,6 +540,26 @@ export function PortableDataPackageWorkspace() {
           <AlertDialogFooter>
             <AlertDialogCancel>Quay lại kiểm tra</AlertDialogCancel>
             <AlertDialogAction onClick={commit}>Commit có kiểm soát</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && setDeleteTarget(undefined)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá bản sao lưu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bản sao lưu này sẽ bị xoá khỏi lịch sử và không thể dùng để khôi phục nữa.
+              {deleteTarget ? ` Package: ${deleteTarget.packageId}` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && void deletePackage(deleteTarget)}>
+              Xoá bản sao lưu
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
