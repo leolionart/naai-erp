@@ -2,6 +2,28 @@ import { describe, expect, it, vi } from "vitest";
 import { NaaiErpClient } from "./client.js";
 
 describe("NAAI ERP JSON-first CLI client", () => {
+  it("runs evidence-based expense funding inference", async () => {
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ data: { planHash: "plan-1" } }), { status: 200 })),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.inferExpenseFundingDryRun("audit live funding");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/expenses/funding-inference/dry-run",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ reason: "audit live funding" }) }),
+    );
+    await client.commitExpenseFundingInference(
+      { reason: "apply reviewed plan", planHash: "plan-1" },
+      "funding-commit-1",
+    );
+    expect(fetchFn.mock.calls[1]?.[0]).toContain("/funding-inference/commit");
+    expect(fetchFn.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ headers: expect.objectContaining({ "idempotency-key": "funding-commit-1" }) }),
+    );
+  });
   it("reads monthly expense breakdown reports through canonical REST", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: {} }), {

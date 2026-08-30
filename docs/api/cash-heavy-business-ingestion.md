@@ -199,6 +199,32 @@ Use the expense API only when the cost is not already represented by a purchase 
 `OWNER-PAYABLE-CONFIGURED-CODE` is deliberately a placeholder. AI must resolve the organization's
 approved account and must not submit the placeholder itself.
 
+## Evidence-based funding inference (CLI/API)
+
+For historical expenses whose funding account is missing, the backend can inspect only explicit
+evidence (a reconciled bank transaction/account or a unique journal counter-account mapping). It
+never uses dates, revenue timing, FIFO or a guessed ledger code. Run a zero-mutation plan first:
+
+```bash
+naai-erp expense-funding-inference dry-run \
+  --organization "$NAAI_ERP_ORGANIZATION" \
+  --reason "Audit production funding evidence"
+```
+
+The response contains `data.planHash`, assignable `items` (with evidence IDs and confidence) and
+`unresolved` rows. Commit exactly that plan only after inspecting the evidence:
+
+```bash
+naai-erp expense-funding-inference commit \
+  --organization "$NAAI_ERP_ORGANIZATION" \
+  --reason "Apply evidence-backed funding mappings" \
+  --plan-hash "$PLAN_HASH" \
+  --idempotency-key "funding-inference-<unique-run>"
+```
+
+The commit is organization-scoped, plan-hash guarded, idempotent and audited. It writes only the
+canonical `fundingFinancialAccountId`; unresolved expenses remain unchanged for explicit correction.
+
 ## Reimbursing the owner
 
 Reimbursement is a settlement of the owner liability, not a second expense:

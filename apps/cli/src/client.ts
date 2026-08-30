@@ -154,6 +154,45 @@ export class NaaiErpClient {
     return body;
   }
 
+  /** Run the backend's evidence-based funding inference for expense records. */
+  async inferExpenseFundingDryRun(reason: string): Promise<unknown> {
+    return this.expenseFundingInferenceRequest("dry-run", { reason });
+  }
+
+  /** Commit a previously generated funding inference plan. */
+  async commitExpenseFundingInference(
+    input: Readonly<{ reason: string; planHash: string }>,
+    idempotencyKey: string,
+  ): Promise<unknown> {
+    return this.expenseFundingInferenceRequest("commit", input, idempotencyKey);
+  }
+
+  private async expenseFundingInferenceRequest(
+    action: "dry-run" | "commit",
+    payload: Readonly<{ reason: string; planHash?: string }>,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    if (!this.options.organizationId || !this.options.token)
+      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    const response = await this.fetchFn(
+      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/expenses/funding-inference/${action}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.options.token.replace(/^Bearer\\s+/i, "")}`,
+          accept: "application/json",
+          "content-type": "application/json",
+          "x-correlation-id": randomUUID(),
+          ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+    const body: unknown = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(body));
+    return body;
+  }
+
   private portableDataBase() {
     if (!this.options.organizationId || !this.options.token) {
       throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");

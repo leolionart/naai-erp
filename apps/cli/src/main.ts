@@ -85,6 +85,7 @@ const { values, positionals } = parseArgs({
     "target-organization": { type: "string" },
     "target-token": { type: "string" },
     reason: { type: "string" },
+    "plan-hash": { type: "string" },
   },
 });
 
@@ -337,6 +338,29 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
           values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
         );
       } else throw new Error(`Unsupported portable-data-import action: ${action}`);
+    } else if (resource === "expense-funding-inference") {
+      if (!["dry-run", "commit"].includes(action))
+        throw new Error("expense-funding-inference supports dry-run and commit actions");
+      if (!values.reason?.trim())
+        throw new Error(`expense-funding-inference ${action} requires --reason`);
+      if (action === "dry-run") {
+        const result = await client.inferExpenseFundingDryRun(values.reason.trim());
+        process.stdout.write(
+          values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+        );
+      } else {
+        if (!values["plan-hash"] || !values["idempotency-key"])
+          throw new Error(
+            "expense-funding-inference commit requires --plan-hash and --idempotency-key",
+          );
+        const result = await client.commitExpenseFundingInference(
+          { reason: values.reason.trim(), planHash: values["plan-hash"] },
+          values["idempotency-key"],
+        );
+        process.stdout.write(
+          values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
+        );
+      }
     } else if (resource === "workbook-import") {
       const result = await runWorkbookImport(
         client,

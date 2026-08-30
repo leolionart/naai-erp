@@ -310,6 +310,7 @@ export class PgExpenseStore {
          from expenses e
          join reconciliation_allocations ra on ra.organization_id=e.organization_id and ra.expense_id=e.id
          join reconciliation_attempts rat on rat.organization_id=ra.organization_id and rat.id=ra.reconciliation_id
+         join payment_reconciliations pr on pr.organization_id=rat.organization_id and pr.id=rat.reconciliation_id and pr.direction='payment'
          join bank_transactions bt on bt.organization_id=rat.organization_id and bt.id=rat.bank_transaction_id
          join financial_accounts fa on fa.organization_id=bt.organization_id and fa.id=bt.financial_account_id
         where e.organization_id=$1 and e.state='posted' and rat.state='reconciled'
