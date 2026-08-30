@@ -191,14 +191,14 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       ),
       this.pool.query<{ bank_amount: string; cash_amount: string; amount: string }>(
         `with cash_accounts as (
-           select distinct ledger_account_code account_code,kind
+           select distinct ledger_account_code account_code,kind,code
            from financial_accounts
            where organization_id=$1 and status='active' and kind in ('bank','cash')
          )
          select
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='bank'),0)::text bank_amount,
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='cash'),0)::text cash_amount,
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)),0)::text amount
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='cash' and not exists (select 1 from financial_accounts x where x.organization_id=$1 and x.code='CASH-OWNER-CUSTODY' and x.ledger_account_code=ca.account_code)),0)::text cash_amount,
+           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='bank' or (ca.kind='cash' and not exists (select 1 from financial_accounts x where x.organization_id=$1 and x.code='CASH-OWNER-CUSTODY' and x.ledger_account_code=ca.account_code))),0)::text amount
          from cash_accounts ca
          join journal_lines l on l.organization_id=$1 and l.account_code=ca.account_code
          join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
