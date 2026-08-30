@@ -284,8 +284,27 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                and j.state in ('posted','reversed')
                and e.expense_date<=$2::date
                and e.counter_account_code=fa.ledger_account_code
+           ), custody_purchase_invoices as (
+             /*
+              * Purchase invoices are a canonical spend source and do not
+              * necessarily have a row in expenses. When their reviewed
+              * funding account is CASH-OWNER-CUSTODY, the invoice itself
+              * consumes the owner-held company cash.  Include only
+              * progressed, non-cancelled invoices and use the document date
+              * for the dashboard cutoff.
+              */
+             select coalesce(sum(d.gross_minor),0) amount
+             from commercial_documents d
+             join financial_accounts fa on fa.organization_id=d.organization_id
+               and fa.id=d.funding_financial_account_id
+               and fa.code='CASH-OWNER-CUSTODY'
+             where d.organization_id=$1 and d.type='purchase_invoice'
+               and d.state in ('posted','partially_paid','paid')
+               and d.document_date<=$2::date
            ), custody as (
-             select greatest((select amount from custody_incoming) - (select amount from custody_expenses),0) amount
+             select greatest((select amount from custody_incoming)
+               - (select amount from custody_expenses)
+               - (select amount from custody_purchase_invoices),0) amount
            ), personal_withdrawals as (
              select coalesce(sum(-bt.amount_minor),0) amount
              from bank_transactions bt

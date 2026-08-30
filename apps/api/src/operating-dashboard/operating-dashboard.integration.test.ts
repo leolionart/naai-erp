@@ -229,6 +229,9 @@ suite("operating dashboard PostgreSQL API", () => {
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,status,created_by,updated_by)
         values('${org}','custody','CASH-OWNER-CUSTODY','cash','Owner custody','VND','111','active','${owner}','${owner}')
         on conflict (organization_id,id) do nothing;
+      insert into parties(organization_id,id,display_name,status)
+        values('${org}','custody-supplier','Custody supplier','active')
+        on conflict (organization_id,id) do nothing;
       insert into bank_transactions(organization_id,id,financial_account_id,fingerprint,booking_date,amount_minor,currency,description,state)
         values('${org}','custody-out','bank','${"a".repeat(64)}','2026-07-01',-500,'VND','Transfer to owner custody','imported'),
               ('${org}','custody-in','custody','${"b".repeat(64)}','2026-07-01',500,'VND','Transfer to owner custody','imported');
@@ -244,6 +247,8 @@ suite("operating dashboard PostgreSQL API", () => {
         values('${org}','custody-expense','invoice_backed','posted','2026-07-02','Custody cost','VND',200,0,200,'111','custody-expense-journal','${owner}');
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions)
         values('${org}','custody-expense',1,'Custody cost',200,0,200,'642','COMPANY','company_funds','{}');
+      insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,created_by)
+        values('${org}','custody-purchase','purchase_invoice','paid','CUST-1',null,2026,'custody-supplier','2026-07-03','2026-07-03','VND',100,0,100,'3388','custody','${owner}');
     `);
     const response = await app.inject({
       method: "GET",
@@ -252,8 +257,38 @@ suite("operating dashboard PostgreSQL API", () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json().data.financials).toMatchObject({
-      ownerCashCustodyMinor: "300",
-      ownerHoldsCompanyFundsMinor: "240",
+      ownerCashCustodyMinor: "200",
+      ownerHoldsCompanyFundsMinor: "140",
+    });
+  });
+
+  it("keeps custody unchanged when the owner advances personal cash after custody is depleted", async () => {
+    // This expense is funded from the owner's personal money (owner payable),
+    // not from the company cash already held in custody.  It must increase
+    // the owner payable while leaving the custody balance untouched.
+    await pool.query(`
+      insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by)
+        values('${org}','personal-advance-journal','2026-07-03','Owner personal advance after custody depletion','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+      insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+        values('${org}','personal-advance-journal',1,'642',150,null,'Personal advance cost','{}'),
+              ('${org}','personal-advance-journal',2,'3388',null,150,'Owner payable','{}');
+      insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by)
+        values('${org}','personal-advance-expense','invoice_backed','posted','2026-07-03','Owner personal advance','VND',150,0,150,'3388','personal-advance-journal','${owner}');
+      insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions)
+        values('${org}','personal-advance-expense',1,'Personal advance cost',150,0,150,'642','OWNER-ACTUAL','owner_paid_company_cost','{"fundingSource":"owner_personal_advance"}');
+    `);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/reports/operating-dashboard?asOf=2026-08-06&startsOn=2026-01-01&endsOn=2026-08-06`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.financials).toMatchObject({
+      // The prior custody transfer less custody-paid expense and custody purchase invoice.
+      ownerCashCustodyMinor: "200",
+      // Personal advance is a liability, not a custody cash outflow.
+      ownerOperatingPayableMinor: "250",
     });
   });
 });
