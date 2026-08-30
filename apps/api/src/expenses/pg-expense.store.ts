@@ -384,7 +384,7 @@ export class PgExpenseStore {
     },
   ) {
     const r = await this.pool.query(
-      `select e.*,e.expense_date::text expense_date,
+      `select e.*,e.expense_date::text expense_date,e.funding_financial_account_id "fundingFinancialAccountId",
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
@@ -445,7 +445,7 @@ export class PgExpenseStore {
   }
   async get(org: string, id: string) {
     const r = await this.pool.query(
-      `select e.*,e.expense_date::text expense_date,
+      `select e.*,e.expense_date::text expense_date,e.funding_financial_account_id "fundingFinancialAccountId",
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
@@ -880,7 +880,7 @@ export class PgExpenseStore {
                   expense_class=$3, payee_party_id=$4, employee_party_id=$5, expense_date=$6,
                   service_period_start=$7, service_period_end=$8, business_purpose=$9, currency=$10,
                   net_minor=$11, vat_minor=$12, gross_minor=$13, counter_account_code=$14,
-                  evidence_checklist=$15, version=$16, updated_at=now()
+                  funding_financial_account_id=$15, evidence_checklist=$16, version=$17, updated_at=now()
                  where organization_id=$1 and id=$2`,
                 [
                   context.organizationId,
@@ -897,6 +897,7 @@ export class PgExpenseStore {
                   input.vatMinor,
                   input.grossMinor,
                   input.counterAccountCode,
+                  input.fundingFinancialAccountId ?? null,
                   input.evidenceChecklist ?? {},
                   newVersion,
                 ],
@@ -1061,7 +1062,7 @@ export class PgExpenseStore {
 
       const id = input.id ?? randomUUID();
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'unreviewed',$16,$17,$18)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'unreviewed',$17,$18,$19)`,
         [
           context.organizationId,
           id,
@@ -1078,6 +1079,7 @@ export class PgExpenseStore {
           input.vatMinor,
           input.grossMinor,
           input.counterAccountCode,
+          input.fundingFinancialAccountId ?? null,
           input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
           input.evidenceChecklist ?? {},
           context.actorId,
@@ -1400,7 +1402,7 @@ export class PgExpenseStore {
           expense_class=$3, payee_party_id=$4, employee_party_id=$5, expense_date=$6,
           service_period_start=$7, service_period_end=$8, business_purpose=$9, currency=$10,
           net_minor=$11, vat_minor=$12, gross_minor=$13, counter_account_code=$14,
-          evidence_checklist=$15, version=$16, updated_at=now()
+          funding_financial_account_id=$15, evidence_checklist=$16, version=$17, updated_at=now()
          where organization_id=$1 and id=$2`,
         [
           context.organizationId,
@@ -1417,6 +1419,7 @@ export class PgExpenseStore {
           merged.vatMinor,
           merged.grossMinor,
           merged.counterAccountCode,
+          merged.fundingFinancialAccountId ?? null,
           merged.evidenceChecklist ?? {},
           newVersion,
         ],
@@ -1918,8 +1921,8 @@ export class PgExpenseStore {
       );
       const replacementId = input.id ?? randomUUID();
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,evidence_checklist,created_by,original_expense_id)
-         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'unreviewed',$16,$17,$18,$19)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,cit_state,vat_state,evidence_checklist,created_by,original_expense_id)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'unreviewed',$17,$18,$19,$20)`,
         [
           context.organizationId,
           replacementId,
@@ -1936,6 +1939,7 @@ export class PgExpenseStore {
           input.vatMinor,
           input.grossMinor,
           input.counterAccountCode,
+          input.fundingFinancialAccountId ?? null,
           input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
           input.evidenceChecklist ?? {},
           context.actorId,

@@ -231,6 +231,12 @@ These rules define the active release boundary. Historical rules remain valid fo
 - When no canonical API exists for a classified movement, AI stops and reports the missing workflow;
   it does not fall back to direct SQL or an unreviewed manual journal.
 
+Expense and purchase-invoice records may carry an optional organization-scoped
+`fundingFinancialAccountId`. This provenance identifies the actual company bank/cash account used
+for settlement (including the owner's custody cash account) and is retained independently from the
+category `fundingTreatment`. Historical rows may remain null when evidence is unavailable; clients
+must not infer a source account from a ledger code alone.
+
 ## Rule format
 
 Every rule contains a stable ID, invariant/behavior, validation, state transition or posting effect, edge cases and required test coverage. A rule may not be silently changed from code; update this file and its mapped tests first.

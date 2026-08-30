@@ -3434,6 +3434,10 @@ tasks:
     planned_files:
       - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
       - apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts
+      - packages/database/src/schema.ts
+      - db/migrations/0065_expense_funding_financial_account.sql
+      - apps/api/src/expenses/expense.types.ts
+      - apps/api/src/expenses/pg-expense.store.ts
       - docs/implementation/evidence/ERP-952/
 
 gates:

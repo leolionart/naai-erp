@@ -1980,6 +1980,8 @@ export const expenses = pgTable(
     vatMinor: bigint("vat_minor", { mode: "bigint" }).notNull(),
     grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
     counterAccountCode: text("counter_account_code").notNull(),
+    /** Financial account that funded the expense when payment provenance is known. */
+    fundingFinancialAccountId: text("funding_financial_account_id"),
     citState: eligibilityState("cit_state").notNull().default("unreviewed"),
     vatState: eligibilityState("vat_state").notNull().default("unreviewed"),
     evidenceChecklist: jsonb("evidence_checklist")
@@ -2015,6 +2017,11 @@ export const expenses = pgTable(
       columns: [table.organizationId, table.counterAccountCode],
       foreignColumns: [accounts.organizationId, accounts.code],
       name: "expenses_counter_account_fk",
+    }).onDelete("restrict"),
+    foreignKey({
+      columns: [table.organizationId, table.fundingFinancialAccountId],
+      foreignColumns: [financialAccounts.organizationId, financialAccounts.id],
+      name: "expenses_funding_account_fk",
     }).onDelete("restrict"),
     foreignKey({
       columns: [table.organizationId, table.journalId],

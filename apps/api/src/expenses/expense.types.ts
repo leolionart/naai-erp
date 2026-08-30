@@ -54,6 +54,8 @@ export type CreateExpenseInput = Readonly<{
   counterAccountCode: string;
   /** Canonical funding contract; legacy line fundingTreatment remains supported. */
   funding?: FundingInputContract;
+  /** Organization-scoped financial account proving the payment source. */
+  fundingFinancialAccountId?: string;
   evidenceChecklist?: Readonly<Record<string, boolean>>;
   lines: readonly ExpenseLineInput[];
   externalReference?: ExternalReferenceInput;

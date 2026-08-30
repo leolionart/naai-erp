@@ -30,6 +30,7 @@ interface ExistingExpense {
   vat_minor: string | number;
   gross_minor: string | number;
   counter_account_code: string;
+  funding_financial_account_id?: string | null;
   evidence_checklist: Record<string, boolean> | null;
   externalReference?: {
     system: string;
@@ -284,7 +285,13 @@ export class ExpenseService {
     if (existing.state !== "draft") throw new Error("INVALID_STATE_TRANSITION");
     if (existing.version.toString() !== expectedVersion) throw new Error("VERSION_CONFLICT");
 
-    const merged = this.normalizeRelationships(this.mergeExpense(existing, input));
+    const mergedInput = this.mergeExpense(existing, input);
+    const merged = this.normalizeRelationships({
+      ...mergedInput,
+      ...(mergedInput.funding?.financialAccountId && !mergedInput.fundingFinancialAccountId
+        ? { fundingFinancialAccountId: mergedInput.funding.financialAccountId }
+        : {}),
+    });
     this.validate(merged);
     await this.store.validateRelationships?.(context.organizationId, merged);
 
@@ -401,6 +408,11 @@ export class ExpenseService {
         input.counterAccountCode !== undefined
           ? input.counterAccountCode
           : existing.counter_account_code,
+      ...(input.fundingFinancialAccountId !== undefined
+        ? { fundingFinancialAccountId: input.fundingFinancialAccountId }
+        : existing.funding_financial_account_id
+          ? { fundingFinancialAccountId: existing.funding_financial_account_id }
+          : {}),
       lines: input.lines !== undefined ? input.lines : existingLines,
       ...(payee ? { payeePartyId: payee } : {}),
       ...(employee ? { employeePartyId: employee } : {}),
@@ -415,7 +427,12 @@ export class ExpenseService {
   async create(context: ExpenseContext, input: CreateExpenseInput, key?: string) {
     if (!context.roles.some((r) => WRITE.has(r))) throw new Error("FORBIDDEN");
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    const normalized = this.normalizeRelationships(input);
+    const normalized = this.normalizeRelationships({
+      ...input,
+      ...(input.funding?.financialAccountId && !input.fundingFinancialAccountId
+        ? { fundingFinancialAccountId: input.funding.financialAccountId }
+        : {}),
+    });
     this.validate(normalized);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(context, await this.store.create(context, normalized, key));
@@ -632,6 +649,15 @@ export class ExpenseService {
       if (!input.externalReference.system?.trim() || !input.externalReference.externalId?.trim()) {
         throw new Error("VALIDATION_FAILED");
       }
+    }
+    if (input.funding) {
+      if (
+        (input.funding.type === "company_bank" || input.funding.type === "owner_custody_cash") &&
+        !input.funding.financialAccountId?.trim()
+      )
+        throw new Error("FUNDING_FINANCIAL_ACCOUNT_REQUIRED");
+      if (input.funding.type === "owner_paid" && input.funding.financialAccountId)
+        throw new Error("FUNDING_FINANCIAL_ACCOUNT_NOT_ALLOWED");
     }
   }
 }
