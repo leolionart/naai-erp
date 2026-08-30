@@ -195,6 +195,12 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            from financial_accounts
            where organization_id=$1 and status='active' and kind in ('bank','cash')
              and code<>'CASH-OWNER-CUSTODY'
+             and not exists (
+               select 1 from financial_accounts custody_account
+               where custody_account.organization_id=financial_accounts.organization_id
+                 and custody_account.code='CASH-OWNER-CUSTODY'
+                 and custody_account.ledger_account_code=financial_accounts.ledger_account_code
+             )
          )
          select
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.kind='bank'),0)::text bank_amount,
