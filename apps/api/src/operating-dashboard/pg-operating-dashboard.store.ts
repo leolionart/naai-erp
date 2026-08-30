@@ -311,6 +311,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       ),
       this.pool.query<{
         owner_paid: string;
+        cit_ineligible: string;
         unclassified_count: number;
         unclassified_minor: string;
         category_count: number;
@@ -343,14 +344,15 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                  and e.counter_account_code in (select account_code from owner_accounts)
                  and coalesce((select operating_mode from workflow_policy),'controlled')<>'solopreneur'
              ),0)::text unclassified_minor,
+             (coalesce(sum(l.net_minor) filter (where l.cit_state='ineligible' and j.state in ('posted','reversed')),0) + coalesce((select sum(cl.net_minor) from commercial_document_lines cl join commercial_documents cd on cd.organization_id=cl.organization_id and cd.id=cl.document_id where cl.organization_id=$1 and cl.cit_state='ineligible' and cd.type='purchase_invoice' and cd.state in ('issued','posted','partially_paid','paid') and cd.document_date between $2::date and $3::date),0))::text cit_ineligible,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
            join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
            left join expense_categories c on c.organization_id=l.organization_id and c.code=l.expense_category_code
            join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
-           where e.organization_id=$1 and e.state='posted' and e.expense_date<=$2::date
+           where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
              and j.state in ('posted','reversed')`,
-        [org, q.asOf],
+        [org, q.startsOn, q.asOf],
       ),
       this.pool.query<{ rate_bps: number | null }>(
         `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1)
@@ -439,7 +441,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
               : []),
           ]
         : [];
-    const taxableProfit = netProfit;
+    const citIneligible = amount(expenseFunding.rows[0]?.cit_ineligible);
+    const taxableProfit = netProfit + citIneligible;
     const taxableProfitMinor = (taxableProfit > 0n ? taxableProfit : 0n).toString();
     const corporateIncomeTaxMinor =
       taxPolicy.rows[0]?.rate_bps == null
