@@ -443,11 +443,14 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         : [];
     const citIneligible = amount(expenseFunding.rows[0]?.cit_ineligible);
     const taxableProfit = netProfit + citIneligible;
-    const taxableProfitMinor = (taxableProfit > 0n ? taxableProfit : 0n).toString();
+    // Preserve the signed taxable result for reporting.  Only the CIT tax
+    // base is floored at zero; a loss must remain visible to users.
+    const taxableProfitMinor = taxableProfit.toString();
+    const taxableBaseMinor = taxableProfit > 0n ? taxableProfit : 0n;
     const corporateIncomeTaxMinor =
       taxPolicy.rows[0]?.rate_bps == null
         ? null
-        : ((BigInt(taxableProfitMinor) * BigInt(taxPolicy.rows[0].rate_bps)) / 10_000n).toString();
+        : ((taxableBaseMinor * BigInt(taxPolicy.rows[0].rate_bps)) / 10_000n).toString();
     return {
       revenueMinor: revenue.toString(),
       expenseMinor: expense.toString(),
