@@ -128,6 +128,8 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           'taxAccountCode',l.tax_account_code,'taxCode',l.tax_code,'dimensions',l.dimensions,
           'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,
           'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
+          'reviewedBy',l.reviewed_by,'reviewedAt',l.reviewed_at,
+          'reviewReason',l.review_reason,'reviewReference',l.review_reference,
           'allocations',(select coalesce(jsonb_agg(jsonb_build_object(
             'id',coalesce(a.dimensions->>'allocationId',a.allocation_number::text),
             'amountMinor',a.amount_minor::text,'dimensions',a.dimensions-'allocationId') order by a.allocation_number),'[]'::jsonb)
@@ -148,6 +150,8 @@ export class PgPortableDataPackageStore implements PortableDataPackageStore {
           'vatAccountCode',l.vat_account_code,'dimensions',l.dimensions,
           'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,
           'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
+          'reviewedBy',l.reviewed_by,'reviewedAt',l.reviewed_at,
+          'reviewReason',l.review_reason,'reviewReference',l.review_reference,
           'allocations',(select coalesce(jsonb_agg(jsonb_build_object(
             'id',coalesce(a.dimensions->>'allocationId',a.allocation_number::text),
             'amountMinor',a.amount_minor::text,'dimensions',a.dimensions-'allocationId') order by a.allocation_number),'[]'::jsonb)

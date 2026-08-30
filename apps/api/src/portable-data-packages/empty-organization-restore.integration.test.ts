@@ -55,6 +55,37 @@ suite("ERP-853 empty organization restore", () => {
       "insert into bank_transactions(organization_id,id,financial_account_id,fingerprint,booking_date,amount_minor,currency,description) values($1,'bank-tx-1','bank-1',$2,'2026-08-08',500,'VND','Opening bank activity')",
       [source, createHash("sha256").update(`bank-${suffix}`).digest("hex")],
     );
+    // Include representative business rows whose child lines and tax metadata
+    // are embedded in the portable package. This guards against exporting the
+    // parent while silently dropping categories, accounts or CIT/VAT states.
+    await pool.query(
+      "insert into parties(organization_id,id,display_name) values($1,'party-1','Demo customer')",
+      [source],
+    );
+    await pool.query(
+      `insert into commercial_documents
+       (organization_id,id,type,state,document_number,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,version,created_by)
+       values($1,'doc-1','sales_invoice','issued','INV-1',2026,'party-1','2026-08-08','2026-08-31','VND',100,0,100,'112',1,$2)`,
+      [source, actor],
+    );
+    await pool.query(
+      `insert into commercial_document_lines
+       (organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,dimensions,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason)
+       values($1,'doc-1',1,'Consulting',1,100,100,0,100,'112','{"category":"services"}','valid','eligible','ineligible',100,0,$2,now(),'integration fixture')`,
+      [source, actor],
+    );
+    await pool.query(
+      `insert into expenses
+       (organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,created_by)
+       values($1,'expense-1','invoice_backed','posted','2026-08-08','Office supplies','VND',50,0,50,'411',$2)`,
+      [source, actor],
+    );
+    await pool.query(
+      `insert into expense_lines
+       (organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,dimensions,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason)
+       values($1,'expense-1',1,'Supplies',50,0,50,'411','{"category":"office"}','valid','ineligible','ineligible',0,0,$2,now(),'integration fixture')`,
+      [source, actor],
+    );
     await pool.query(
       "insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by) values($1,'journal-1','2026-08-08','Opening capital','VND','posted',2,$2,now(),$2,'fixture',now(),$2)",
       [source, actor],
@@ -127,10 +158,33 @@ suite("ERP-853 empty organization restore", () => {
         (select count(*)::int from journal_entries where organization_id=$1) journals,
         (select count(*)::int from journal_lines where organization_id=$1) lines,
         (select count(*)::int from bank_transactions where organization_id=$1) bank_rows,
-        (select count(*)::int from api_credentials where organization_id=$1) credentials`,
+        (select count(*)::int from api_credentials where organization_id=$1) credentials,
+        (select count(*)::int from commercial_document_lines where organization_id=$1) document_lines,
+        (select count(*)::int from expense_lines where organization_id=$1) expense_lines`,
       [target],
     );
-    expect(counts.rows[0]).toEqual({ journals: 1, lines: 2, bank_rows: 1, credentials: 1 });
+    expect(counts.rows[0]).toMatchObject({
+      journals: 1,
+      lines: 2,
+      bank_rows: 1,
+      credentials: 1,
+      document_lines: 1,
+      expense_lines: 1,
+    });
+    const metadata = await pool.query(
+      `select l.management_state,l.cit_state,l.vat_state,l.cit_eligible_minor::text cit_eligible,
+              l.reviewed_by,l.review_reason
+       from commercial_document_lines l where l.organization_id=$1 and l.document_id='doc-1'`,
+      [target],
+    );
+    expect(metadata.rows[0]).toEqual({
+      management_state: "valid",
+      cit_state: "eligible",
+      vat_state: "ineligible",
+      cit_eligible: "100",
+      reviewed_by: actor,
+      review_reason: "integration fixture",
+    });
     const replay = await app.inject(request);
     expect(replay.statusCode, replay.body).toBe(201);
     expect(replay.json().data.idempotencyReplayed).toBe(true);
