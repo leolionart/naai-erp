@@ -245,6 +245,7 @@ suite("operating dashboard PostgreSQL API", () => {
         values('${org}','custody-expense-journal',1,'642',200,null,'Custody cost','{}'),('${org}','custody-expense-journal',2,'111',null,200,'Custody cash','{}');
       insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by)
         values('${org}','custody-expense','invoice_backed','posted','2026-07-02','Custody cost','VND',200,0,200,'111','custody-expense-journal','${owner}');
+      update expenses set funding_financial_account_id='custody' where organization_id='${org}' and id='custody-expense';
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions)
         values('${org}','custody-expense',1,'Custody cost',200,0,200,'642','COMPANY','company_funds','{}');
       insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,created_by)
@@ -263,6 +264,26 @@ suite("operating dashboard PostgreSQL API", () => {
       // custody spend, leaving 200 in this shared-ledger fixture.
       ownerHoldsCompanyFundsMinor: "200",
     });
+  });
+
+  it("does not infer custody spend from the shared 111 ledger without explicit funding", async () => {
+    await pool.query(`
+      insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by)
+        values('${org}','company-cash-expense-journal','2026-07-04','Company cash expense','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+      insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+        values('${org}','company-cash-expense-journal',1,'642',50,null,'Company cash cost','{}'),('${org}','company-cash-expense-journal',2,'111',null,50,'Company cash','{}');
+      insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by)
+        values('${org}','company-cash-expense','invoice_backed','posted','2026-07-04','Company cash cost','VND',50,0,50,'111','company-cash-expense-journal','${owner}');
+      insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions)
+        values('${org}','company-cash-expense',1,'Company cash cost',50,0,50,'642','COMPANY','company_funds','{}');
+    `);
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/reports/operating-dashboard?asOf=2026-08-06&startsOn=2026-01-01&endsOn=2026-08-06`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.financials.ownerCashCustodyMinor).toBe("200");
   });
 
   it("keeps custody unchanged when the owner advances personal cash after custody is depleted", async () => {

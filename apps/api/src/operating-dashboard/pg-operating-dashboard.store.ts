@@ -277,21 +277,21 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              where it.organization_id=$1 and fa.code='CASH-OWNER-CUSTODY'
            ), custody_expenses as (
              /*
-              * Costs paid directly from the owner's custody cash reduce the
-              * amount of company money still held by the owner.  These are
-              * canonical posted expenses whose counter account is the ledger
-              * account backing CASH-OWNER-CUSTODY (typically cash/111), and
-              * therefore do not require a synthetic transfer record.
+             * Costs paid directly from the owner's custody cash reduce the
+             * amount of company money still held by the owner.  Do not infer
+             * this from the shared 111 ledger/counter account: legacy rows can
+             * use the same ledger for company cash. Only an explicit funding
+             * financial-account link is authoritative.
               */
              select coalesce(sum(e.gross_minor),0) amount
              from expenses e
              join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
              join financial_accounts fa on fa.organization_id=e.organization_id
                and fa.code='CASH-OWNER-CUSTODY'
+               and e.funding_financial_account_id=fa.id
              where e.organization_id=$1 and e.state='posted'
                and j.state in ('posted','reversed')
                and e.expense_date<=$2::date
-               and e.counter_account_code=fa.ledger_account_code
            ), custody_purchase_invoices as (
              /*
               * Purchase invoices are a canonical spend source and do not
@@ -313,13 +313,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              select greatest((select amount from custody_incoming)
                - (select amount from custody_expenses)
                - (select amount from custody_purchase_invoices)
-               - (select coalesce(sum(l.gross_minor),0) from expenses e
-                   join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-                   join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
-                  where e.organization_id=$1 and e.state='posted' and j.state in ('posted','reversed')
-                    and e.expense_date<=$2::date
-                    and l.funding_treatment='owner_paid_company_cost'
-                    and e.funding_financial_account_id=(select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY')),0) amount
+               ) amount
            ), custody_transfers as (
              select (select amount from custody_incoming) amount
            ), company_repayments as (
