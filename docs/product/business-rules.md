@@ -807,7 +807,8 @@ Branches: `ignored`, `needs_review`.
   running balance. The complete ledger closing balance remains separately disclosed and continues to
   feed the unchanged executive dashboard metric.
 - The confirmed owner-settlement position equals owner-paid company costs plus owner funding, less
-  company cash held by the owner and evidenced personal owner withdrawals. Timing does not matter:
+  total owner-custody transfers and evidenced company repayments/personal withdrawals. The remaining
+  physical custody balance is displayed separately and is never subtracted a second time. Timing does not matter:
   the owner may receive company cash before or after paying company expenses.
 - Invoiced, recognized or collected revenue does not reduce settlement merely because it is revenue.
   A reduction requires canonical evidence that the cash is held or withdrawn by the owner. Unsupported

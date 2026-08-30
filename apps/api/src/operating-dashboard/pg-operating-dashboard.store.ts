@@ -312,26 +312,45 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                     and e.expense_date<=$2::date
                     and l.funding_treatment='owner_paid_company_cost'
                     and e.funding_financial_account_id=(select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY')),0) amount
-           ), personal_withdrawals as (
-             select coalesce(sum(-bt.amount_minor),0) amount
-             from bank_transactions bt
-             join financial_accounts fa on fa.organization_id=bt.organization_id
-               and fa.id=bt.financial_account_id and fa.kind in ('bank','cash')
-               and fa.code<>'CASH-OWNER-CUSTODY'
-             join journal_entries j on j.organization_id=bt.organization_id
-               and j.id='owner-repayment-bank-' || bt.id
-               and j.state in ('posted','reversed') and j.journal_date<=$2::date
-             where bt.organization_id=$1 and bt.amount_minor<0
+           ), custody_transfers as (
+             select (select amount from custody_incoming) amount
+           ), company_repayments as (
+             select coalesce(sum(-owner_delta),0) amount
+             from (
+               select j.id,
+                 sum(case when l.account_code in (select account_code from owner_accounts)
+                   then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else 0 end) owner_delta,
+                 sum(case when l.account_code in (select ledger_account_code from financial_accounts
+                     where organization_id=$1 and kind in ('bank','cash'))
+                   then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else 0 end) company_delta
+               from journal_entries j
+               join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+               where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date<=$2::date
+               group by j.id
+             ) movements
+             where owner_delta < 0 and company_delta < 0
+               and not exists (
+                 select 1
+                 from internal_transfers it
+                 join internal_transfer_attempts ita on ita.organization_id=it.organization_id
+                   and ita.transfer_id=it.id and ita.attempt_number=it.current_attempt_number
+                   and ita.state='reconciled'
+                 join bank_transactions outgoing on outgoing.organization_id=ita.organization_id
+                   and outgoing.id=ita.outgoing_transaction_id
+                 where it.organization_id=$1
+                   and outgoing.booking_date=(select journal_date from journal_entries where id=movements.id and organization_id=$1)
+                   and it.transfer_amount_minor=(-owner_delta)
+               )
            ), totals as (
              select (select amount from eligible_owner_expenses)
-               - (select amount from custody)
-               - (select amount from personal_withdrawals) settlement
+               - (select amount from custody_transfers)
+               - (select amount from company_repayments) settlement
            )
            select settlement::text,
              greatest(settlement,0)::text company_owes_owner,
              greatest(-settlement,0)::text owner_holds_company_funds,
              (select amount from custody)::text custody,
-             (select amount from personal_withdrawals)::text personal_withdrawals
+             (select amount from company_repayments)::text personal_withdrawals
            from totals`,
         [org, q.asOf],
       ),

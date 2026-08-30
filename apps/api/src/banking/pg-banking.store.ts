@@ -125,6 +125,17 @@ export function classifyOwnerCurrentMovement(input: {
       needsReview: false,
     };
   }
+  // A posted journal that debits Owner Current and credits a configured
+  // company bank/cash account is canonical repayment evidence.  Do not
+  // require a synthetic withdrawal row: the balanced two-leg journal is
+  // the source-of-truth and repayments must reduce the owner liability.
+  if (ownerDelta < 0n && companyFundsDelta < 0n) {
+    return {
+      movementType: "company_repayment_to_owner",
+      classificationBasis: "company_funds_repayment_to_owner",
+      needsReview: false,
+    };
+  }
   const hasCanonicalOwnerPaidEvidence = input.sources.some((source) => {
     return (
       source.sourceType === "expense" &&
@@ -1134,7 +1145,10 @@ export class PgBankingStore implements BankingStore {
       });
       if (classification.movementType === "owner_paid_company_cost")
         ownerPaidCompanyCosts += ownerDelta;
-      if (classification.movementType === "owner_personal_withdrawal")
+      if (
+        classification.movementType === "owner_personal_withdrawal" ||
+        classification.movementType === "company_repayment_to_owner"
+      )
         companyPaymentsToOwner += -ownerDelta;
       if (classification.movementType === "owner_custody_cash") ownerCashCustody += -ownerDelta;
       if (classification.movementType === "owner_funding") ownerFunding += ownerDelta;
