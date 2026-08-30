@@ -64,8 +64,8 @@ suite("ERP-853 empty organization restore", () => {
     );
     await pool.query(
       `insert into commercial_documents
-       (organization_id,id,type,state,document_number,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,version,created_by)
-       values($1,'doc-1','sales_invoice','issued','INV-1',2026,'party-1','2026-08-08','2026-08-31','VND',100,0,100,'112',1,$2)`,
+       (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,version,created_by)
+       values($1,'doc-1','sales_invoice','issued','INV-1','A',2026,'party-1','2026-08-08','2026-08-31','VND',100,0,100,'112',1,$2)`,
       [source, actor],
     );
     await pool.query(
