@@ -197,20 +197,6 @@ describe("ERP-876 owner-current classification", () => {
     ).toMatchObject({ movementType: "adjustment", needsReview: true });
   });
 
-  it("recognizes a balanced owner-current debit/company-funds credit as repayment", () => {
-    expect(
-      classifyOwnerCurrentMovement({
-        ownerDelta: -13_000n,
-        companyFundsDelta: -13_000n,
-        sources: [],
-      }),
-    ).toMatchObject({
-      movementType: "company_repayment_to_owner",
-      classificationBasis: "company_funds_repayment_to_owner",
-      needsReview: false,
-    });
-  });
-
   it("distinguishes company repayment and owner funding using both journal legs", () => {
     expect(
       classifyOwnerCurrentMovement({
@@ -276,7 +262,7 @@ describe("ERP-876 owner-current classification", () => {
         companyFundsDelta: -100_000n,
         sources: [],
       }),
-    ).toMatchObject({ movementType: "company_repayment_to_owner", needsReview: false });
+    ).toMatchObject({ movementType: "adjustment", needsReview: true });
   });
 });
 

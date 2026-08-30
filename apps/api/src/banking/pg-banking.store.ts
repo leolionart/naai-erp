@@ -59,6 +59,7 @@ type OwnerCurrentClassificationBasis =
 type OwnerCurrentSource = Readonly<{
   sourceType?: unknown;
   fundingTreatments?: unknown;
+  fundingFinancialAccountCode?: unknown;
 }>;
 
 export function summarizeOwnerSettlement(input: {
@@ -125,22 +126,12 @@ export function classifyOwnerCurrentMovement(input: {
       needsReview: false,
     };
   }
-  // A posted journal that debits Owner Current and credits a configured
-  // company bank/cash account is canonical repayment evidence.  Do not
-  // require a synthetic withdrawal row: the balanced two-leg journal is
-  // the source-of-truth and repayments must reduce the owner liability.
-  if (ownerDelta < 0n && companyFundsDelta < 0n) {
-    return {
-      movementType: "company_repayment_to_owner",
-      classificationBasis: "company_funds_repayment_to_owner",
-      needsReview: false,
-    };
-  }
   const hasCanonicalOwnerPaidEvidence = input.sources.some((source) => {
     return (
       source.sourceType === "expense" &&
       Array.isArray(source.fundingTreatments) &&
-      source.fundingTreatments.includes("owner_paid_company_cost")
+      source.fundingTreatments.includes("owner_paid_company_cost") &&
+      source.fundingFinancialAccountCode !== "CASH-OWNER-CUSTODY"
     );
   });
   if (ownerDelta > 0n && hasCanonicalOwnerPaidEvidence) {
@@ -997,6 +988,7 @@ export class PgBankingStore implements BankingStore {
                left join expense_categories ec
                  on ec.organization_id=el.organization_id and ec.code=el.expense_category_code
                where el.organization_id=e.organization_id and el.expense_id=e.id),
+             'fundingFinancialAccountCode',(select fa.code from financial_accounts fa where fa.organization_id=e.organization_id and fa.id=e.funding_financial_account_id),
              'citState',e.cit_state::text,'vatState',e.vat_state::text,
              'payeeName',p.display_name
            ) source
@@ -1145,10 +1137,7 @@ export class PgBankingStore implements BankingStore {
       });
       if (classification.movementType === "owner_paid_company_cost")
         ownerPaidCompanyCosts += ownerDelta;
-      if (
-        classification.movementType === "owner_personal_withdrawal" ||
-        classification.movementType === "company_repayment_to_owner"
-      )
+      if (classification.movementType === "owner_personal_withdrawal")
         companyPaymentsToOwner += -ownerDelta;
       if (classification.movementType === "owner_custody_cash") ownerCashCustody += -ownerDelta;
       if (classification.movementType === "owner_funding") ownerFunding += ownerDelta;
