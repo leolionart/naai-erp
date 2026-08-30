@@ -354,7 +354,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            )
            select settlement::text,
              greatest(settlement,0)::text company_owes_owner,
-             greatest(-settlement,0)::text owner_holds_company_funds,
+             -- This field is the physical company cash still held by the
+             -- owner. It is intentionally independent from the signed
+             -- owner-current settlement (which may be negative).
+             (select amount from custody)::text owner_holds_company_funds,
              (select amount from custody)::text custody,
              '0'::text personal_withdrawals
            from totals`,

@@ -258,7 +258,10 @@ suite("operating dashboard PostgreSQL API", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data.financials).toMatchObject({
       ownerCashCustodyMinor: "200",
-      ownerHoldsCompanyFundsMinor: "100",
+      // ownerHoldsCompanyFunds is the physical custody balance, not the
+      // signed owner-current settlement. The purchase invoice is included in
+      // custody spend, leaving 200 in this shared-ledger fixture.
+      ownerHoldsCompanyFundsMinor: "200",
     });
   });
 
