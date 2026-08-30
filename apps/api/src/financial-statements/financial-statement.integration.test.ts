@@ -202,9 +202,11 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       insert into commercial_document_lines(organization_id,document_id,line_number,description,quantity,unit_price_minor,net_minor,tax_minor,gross_minor,primary_account_code,tax_account_code,tax_code)
       values ('org-erp630','purchase-credit-doc',1,'Purchase credit',1,20,20,2,22,'642-OPEX','1331-VAT','VAT10I');
       insert into expenses(organization_id,id,expense_class,state,payee_party_id,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,cit_state,vat_state,journal_id,created_by)
-      values ('org-erp630','expense630','invoice_backed','posted','supplier630','2026-08-16','Operations','VND',50,5,55,'331-AP','eligible','eligible','vat-expense','maker');
+      values ('org-erp630','expense630','invoice_backed','posted','supplier630','2026-08-16','Operations','VND',50,5,55,'331-AP','eligible','eligible','vat-expense','maker'),
+             ('org-erp630','expense630-unreviewed','non_documented','posted','supplier630','2026-08-16','Pending tax classification','VND',10,0,10,'331-AP','unreviewed','unreviewed','vat-expense','maker');
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,vat_account_code,management_state,cit_state,vat_state,cit_eligible_minor,vat_eligible_minor,reviewed_by,reviewed_at,review_reason,review_reference)
-      values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'owner630',now(),'Solopreneur persisted source decision','solopreneur_policy');
+      values ('org-erp630','expense630',1,'Operations',50,5,55,'642-OPEX','1331-VAT','valid','eligible','eligible',55,5,'owner630',now(),'Solopreneur persisted source decision','solopreneur_policy'),
+             ('org-erp630','expense630-unreviewed',1,'Pending tax classification',10,0,10,'642-OPEX',null,'unreviewed','unreviewed','unreviewed',0,0,null,null,null,null);
       insert into evidence_records(organization_id,id,subject_type,subject_id,evidence_type,current_version,created_by)
       values ('org-erp630','evidence-sale-630','commercial_document','sale-doc','invoice',1,'maker');
       insert into evidence_versions(organization_id,evidence_id,version_number,status,review_state,object_bucket,object_key,original_filename,declared_media_type,detected_media_type,byte_size,sha256,source,uploaded_by)
@@ -428,7 +430,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
   it("exposes tax expense exceptions with independent CIT/VAT review and source IDs", async () => {
     const response = await app.inject({
       method: "GET",
-      url: `/api/v1/organizations/org-erp630/reports/tax/expense-exceptions?${reportQuery}&state=exception`,
+      url: `/api/v1/organizations/org-erp630/reports/tax/expense-exceptions?${reportQuery}&state=reviewed`,
       headers: headers(),
     });
     expect(response.statusCode, response.body).toBe(200);
@@ -447,6 +449,32 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       sourceIds: { expenseId: "expense630", journalId: "vat-expense", lineId: "expense630:1" },
       exceptionCodes: [],
     });
+
+    const unreviewed = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/org-erp630/reports/tax/expense-exceptions?${reportQuery}&state=unreviewed`,
+      headers: headers(),
+    });
+    expect(unreviewed.statusCode, unreviewed.body).toBe(200);
+    expect(unreviewed.json().data).toMatchObject({
+      status: "review_required",
+      count: 1,
+      unreviewedItemIds: ["expense630-unreviewed:1"],
+    });
+    expect(unreviewed.json().data.items[0]).toMatchObject({
+      expense_id: "expense630-unreviewed",
+      cit_state: "unreviewed",
+      vat_state: "unreviewed",
+    });
+
+    const exception = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/org-erp630/reports/tax/expense-exceptions?${reportQuery}&state=exception`,
+      headers: headers(),
+    });
+    expect(exception.statusCode, exception.body).toBe(200);
+    expect(exception.json().data.count).toBe(1);
+    expect(exception.json().data.items[0].expense_id).toBe("expense630-unreviewed");
   });
 
   it("keeps a prior cutoff stable when a backdated journal is posted later", async () => {

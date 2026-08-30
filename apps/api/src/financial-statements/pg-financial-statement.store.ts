@@ -728,7 +728,7 @@ export class PgFinancialStatementStore {
   resolveSource(c: FinancialStatementContext, journalId: string, lineNumber: number) {
     return this.sourceResolver.resolve(c, journalId, lineNumber);
   }
-  async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, _state?: string) {
+  async expenseExceptions(c: FinancialStatementContext, q: StatementQuery, state = "all") {
     const result = await this.pool.query(
       `select e.id expense_id,e.expense_date::text,e.expense_class::text,e.state::text expense_state,e.currency,e.payee_party_id,e.journal_id,
         l.line_number,l.description,l.net_minor::text booked_net_minor,l.vat_minor::text booked_vat_minor,l.gross_minor::text booked_gross_minor,
@@ -760,7 +760,30 @@ export class PgFinancialStatementStore {
        order by expense_date,expense_id,line_number`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
     );
-    const items = result.rows.map((row) => ({
+    // Keep the report population and the summary in lockstep with the caller's
+    // state filter.  Previously the service validated `state` but the store
+    // ignored it, so every posted line was returned for every filter (including
+    // already reviewed lines).  An exception is a line that still needs a tax /
+    // management decision or has no source evidence; a reviewed line has none
+    // of those conditions.
+    const filteredRows = result.rows.filter((row) => {
+      const unresolved =
+        row.management_state === "unreviewed" ||
+        row.cit_state === "unreviewed" ||
+        row.vat_state === "unreviewed" ||
+        !row.source_evidence_present;
+      if (state === "all") return true;
+      if (state === "unreviewed")
+        return (
+          row.management_state === "unreviewed" ||
+          row.cit_state === "unreviewed" ||
+          row.vat_state === "unreviewed"
+        );
+      if (state === "exception") return unresolved;
+      if (state === "reviewed") return !unresolved;
+      return true;
+    });
+    const items = filteredRows.map((row) => ({
       ...row,
       sourceIds: {
         expenseId: row.expense_id,
