@@ -1143,7 +1143,10 @@ export function TaxExpenseExceptionsWorkspace() {
             : row.expenseId
               ? `/expenses/${encodeURIComponent(row.expenseId)}`
               : `/expenses`;
-          const canReview = row.citState === "unreviewed" || row.citState === "review";
+          const canReview =
+            row.nextActions?.includes("review-cit") ||
+            row.citState === "unreviewed" ||
+            row.citState === "review";
           const canReviewVat =
             row.nextActions?.includes("review-vat") || row.vatState === "unreviewed";
           return (
@@ -1156,7 +1159,7 @@ export function TaxExpenseExceptionsWorkspace() {
                     setReviewRow(row);
                     setReviewAxis("cit");
                     setReviewState("eligible");
-                    setReviewAmount(row.vatBasisMinor ?? "0");
+                    setReviewAmount(row.bookedMinor);
                     setReviewReason("AI audit: xác nhận phân loại CIT theo chứng từ đầu vào");
                   }}
                 >
@@ -1251,7 +1254,9 @@ export function TaxExpenseExceptionsWorkspace() {
       >(`${financialStatementsApi.expenseExceptions}?${query}`);
       setRows(refreshed.items.map((item) => normalizeTaxException(item)));
     } catch (e) {
-      setFinalizeNotice(e instanceof Error ? e.message : "Không thể review CIT");
+      setFinalizeNotice(
+        e instanceof Error ? e.message : `Không thể review ${reviewAxis.toUpperCase()}`,
+      );
     } finally {
       setReviewing(false);
     }
