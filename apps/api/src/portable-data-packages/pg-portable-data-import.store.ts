@@ -223,6 +223,23 @@ export class PgPortableDataImportStore implements PortableDataImportStore {
       "api_idempotency_records",
       "portable_data_packages",
       "portable_data_imports",
+      // Local reset intentionally preserves seeded accounting configuration.
+      // Those rows are environment bootstrap state, not business activity, so
+      // they must not make a reset target fail the empty-tenant guard.
+      "accounts",
+      "fiscal_years",
+      "fiscal_periods",
+      "tax_code_versions",
+      "dimension_values",
+      "dimension_requirement_versions",
+      "statutory_account_mappings",
+      "default_mapping_versions",
+      "posting_rule_versions",
+      "accounting_workflow_policies",
+      "financial_statement_mapping_versions",
+      "financial_statement_mapping_lines",
+      "executive_metric_policies",
+      "roi_definitions",
       "outbox_events",
       "outbound_deliveries",
       "outbound_delivery_attempts",

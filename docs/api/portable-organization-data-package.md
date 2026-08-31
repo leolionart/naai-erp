@@ -108,6 +108,12 @@ operations as individual commands. The target restore must satisfy the API's emp
 owner authorization checks; use `portable-data-reset local` only for an explicitly approved local
 recovery. The result includes the package ID, workbook SHA-256 and restore readback.
 
+The local reset intentionally keeps environment bootstrap configuration (seeded accounts, fiscal
+periods, statutory mappings and related policy tables) plus local authentication. These preserved
+configuration rows are excluded from the empty-target guard; business activity rows are still
+deleted and must be restored from the package. This lets the documented reset-then-restore flow
+refresh an existing local tenant without dropping its local owner credential.
+
 ### Dry-run response shape
 
 ```json
