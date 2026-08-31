@@ -257,6 +257,20 @@ export function ownerSettlementDashboardAmounts(financials?: {
 export function shouldShowNetCompanyFunds(companyOwesOwnerMinor: string) {
   return BigInt(companyOwesOwnerMinor) > 0n;
 }
+
+/**
+ * Build the URL for a dashboard metric drill-down while preserving the
+ * dashboard's active period and dimension filters. Keeping this in one place
+ * prevents KPI cards from silently dropping the selected reporting range.
+ */
+export function dashboardMetricDrilldownHref(
+  metricKey: string,
+  search: URLSearchParams | string = "",
+) {
+  const query = typeof search === "string" ? search : search.toString();
+  const suffix = query ? `?${query}` : "";
+  return `/dashboard/drilldown/${encodeURIComponent(metricKey)}${suffix}`;
+}
 type PeriodKind = "month" | "quarter" | "year";
 
 function periodRange(anchorMonth: string, kind: PeriodKind) {
@@ -1359,7 +1373,7 @@ export function ExecutiveDashboardWorkspace() {
                   title="Lợi nhuận tính thuế TNDN tạm tính"
                   value={money(taxableProfitMinor, profitAndLoss?.currency)}
                   description={`Lợi nhuận kế toán ${money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency)} + chi phí CIT không được trừ ${money(taxExpenses?.citIneligibleMinor, taxExpenses?.currency)}. Chi phí CIT chưa review: ${money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}.`}
-                  href={`/dashboard/drilldown/taxable-profit?${q}`}
+                  href={dashboardMetricDrilldownHref("taxable-profit", q)}
                   status={taxExpenses?.status}
                   provisional={taxExpenses?.status !== "ready"}
                   trend={operating?.financials.monthly?.map((row) =>
@@ -1374,7 +1388,7 @@ export function ExecutiveDashboardWorkspace() {
                       ? "N/A"
                       : `${operating.financials.corporateIncomeTaxRateBps / 100}%`
                   }`}
-                  href={`/dashboard/drilldown/corporate-income-tax?${q}`}
+                  href={dashboardMetricDrilldownHref("corporate-income-tax", q)}
                   status={
                     operating?.financials.corporateIncomeTaxRateBps == null
                       ? "Thiếu chính sách thuế TNDN"
@@ -1406,7 +1420,7 @@ export function ExecutiveDashboardWorkspace() {
                   title="Chi phí CIT chờ review"
                   value={money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}
                   description="Chi phí chưa xác định được trừ khi tính thuế TNDN; cần bổ sung hóa đơn, chứng từ hoặc kết luận kế toán"
-                  href={`/dashboard/drilldown/cit-unreviewed?${q}`}
+                  href={dashboardMetricDrilldownHref("cit-unreviewed", q)}
                   status={
                     taxExpenses?.unreviewedItemIds.length
                       ? `${taxExpenses.unreviewedItemIds.length} khoản`
@@ -1770,7 +1784,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       value: money(operating?.financials.corporateIncomeTaxMinor, operating?.currency),
       formula: "Operating Dashboard API: corporateIncomeTaxMinor",
       sourceIds: [],
-      canonicalHref: `/reports/tax/expense-exceptions?${q}`,
+      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
       facts: [
         {
           label: "Lợi nhuận tính thuế",

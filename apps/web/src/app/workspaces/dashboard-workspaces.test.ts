@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   actualSummaryQuery,
+  dashboardMetricDrilldownHref,
   effectiveEndsOn,
   ownerSettlementDashboardAmounts,
   projectQuery,
@@ -14,6 +15,18 @@ afterEach(() => {
 });
 
 describe("dashboard reporting cutoff", () => {
+  it("preserves the active dashboard query when opening a metric drill-down", () => {
+    const query = new URLSearchParams(
+      "periodId=CAL-2026-08&periodKind=year&startsOn=2026-01-01&endsOn=2026-12-31&asOfDate=2026-08-31&serviceLineCode=CONSULTING",
+    );
+    expect(dashboardMetricDrilldownHref("taxable-profit", query)).toBe(
+      "/dashboard/drilldown/taxable-profit?periodId=CAL-2026-08&periodKind=year&startsOn=2026-01-01&endsOn=2026-12-31&asOfDate=2026-08-31&serviceLineCode=CONSULTING",
+    );
+    expect(dashboardMetricDrilldownHref("corporate-income-tax")).toBe(
+      "/dashboard/drilldown/corporate-income-tax",
+    );
+  });
+
   it("never renders a negative company debt and separates company funds held by the owner", () => {
     expect(
       ownerSettlementDashboardAmounts({
