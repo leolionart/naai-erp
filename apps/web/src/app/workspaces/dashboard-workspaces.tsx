@@ -433,6 +433,9 @@ function formatStatusBadge(status?: string): string | null {
     missing_reviewed_burn: "Thiếu burn rate",
     out_of_balance: "Lệch đối soát",
     missing: "Thiếu dữ liệu",
+    review_required: "Cần review",
+    unreviewed: "Chưa review",
+    review: "Cần review",
     at_risk: "Cần lưu ý",
     on_track: "Đạt mục tiêu",
     "Cần rà soát": "Cần rà soát",
@@ -1698,6 +1701,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       formula: string;
       sourceIds: readonly string[];
       canonicalHref: string;
+      actionLabel?: string;
       facts?: readonly Readonly<{ label: string; value: string }>[];
     }
   > = {
@@ -1809,6 +1813,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       formula: "Tax Expense Review API: citUnreviewedMinor",
       sourceIds: data.taxExpenses?.unreviewedItemIds ?? [],
       canonicalHref: `/reports/tax/expense-exceptions?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(q)), state: "unreviewed" }).toString()}`,
+      actionLabel: "Mở hàng chờ và review",
     },
   };
   const detail = details[metricKey];
@@ -1859,7 +1864,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
               <CardFooter>
                 <Button asChild>
                   <Link href={detail.canonicalHref}>
-                    Mở báo cáo nguồn <ArrowRight data-icon="inline-end" />
+                    {detail.actionLabel ?? "Mở báo cáo nguồn"} <ArrowRight data-icon="inline-end" />
                   </Link>
                 </Button>
               </CardFooter>

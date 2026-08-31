@@ -15,6 +15,13 @@ const STATUS_LABELS: Readonly<Record<string, string>> = {
   completed: "Hoàn thành",
   inactive: "Ngừng hoạt động",
   pending: "Đang chờ",
+  review: "Cần review",
+  review_required: "Cần review",
+  unreviewed: "Chưa review",
+  eligible: "Đủ điều kiện",
+  partially_eligible: "Đủ điều kiện một phần",
+  ineligible: "Không đủ điều kiện",
+  accountant_override: "Kế toán ghi đè",
   retry_scheduled: "Chờ thử lại",
   quarantined: "Cần xử lý",
   needs_review: "Cần xem xét",
@@ -60,6 +67,8 @@ export function statusTone(value: string | null | undefined): StatusTone {
       "delivered",
       "verified",
       "reconciled",
+      "eligible",
+      "accountant_override",
     ].includes(status)
   )
     return "ready";
@@ -71,13 +80,19 @@ export function statusTone(value: string | null | undefined): StatusTone {
       "partially_paid",
       "retry_scheduled",
       "needs_review",
+      "review",
+      "review_required",
+      "unreviewed",
+      "partially_eligible",
       "suggested",
       "matched",
       "in_progress",
     ].includes(status)
   )
     return "warning";
-  if (["rejected", "quarantined", "dead_letter", "failed", "inactive"].includes(status))
+  if (
+    ["rejected", "quarantined", "dead_letter", "failed", "inactive", "ineligible"].includes(status)
+  )
     return "error";
   if (["draft", "reversed", "imported", "ignored"].includes(status)) return "muted";
   return "info";

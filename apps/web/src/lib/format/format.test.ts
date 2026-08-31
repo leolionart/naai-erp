@@ -26,5 +26,8 @@ describe("ERP-345 exact UI formatters", () => {
     expect(formatStatus("reconciled")).toBe("Đã đối soát");
     expect(statusTone("needs_review")).toBe("warning");
     expect(formatStatus("pending_counterpart")).toBe("Chờ đối ứng");
+    expect(formatStatus("review_required")).toBe("Cần review");
+    expect(formatStatus("unreviewed")).toBe("Chưa review");
+    expect(statusTone("review_required")).toBe("warning");
   });
 });
