@@ -910,6 +910,18 @@ export function FinancialStatementWorkspace({
             <Filter data-icon="inline-start" />
             Bộ lọc
           </Button>
+          {kind === "vat_reconciliation" && report?.status === "review_required" ? (
+            <Button variant="outline" asChild>
+              <Link
+                href={`/reports/tax/expense-exceptions?${new URLSearchParams({
+                  ...Object.fromEntries(query.entries()),
+                  state: "unreviewed",
+                }).toString()}`}
+              >
+                Mở hàng chờ review VAT
+              </Link>
+            </Button>
+          ) : null}
           {report && (
             <Button disabled={capturing} onClick={() => void captureSnapshot()}>
               <Camera data-icon="inline-start" />
