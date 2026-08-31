@@ -285,10 +285,6 @@ test("@desktop VAT readiness warning names blocker counts from the report contra
   await expect(
     page.getByText(/Còn 1 dòng VAT chưa review và 1 dòng thiếu chứng từ\/đối soát/),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Xử lý VAT chưa review" })).toHaveAttribute(
-    "href",
-    /state=exception/,
-  );
 });
 
 test("@desktop maps dynamic statement periods into canonical API dates", async ({ page }) => {

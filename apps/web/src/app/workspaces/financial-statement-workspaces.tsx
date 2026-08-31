@@ -1029,11 +1029,6 @@ export function FinancialStatementWorkspace({
             <Filter data-icon="inline-start" />
             Bộ lọc
           </Button>
-          {kind === "vat_reconciliation" && report?.status === "review_required" ? (
-            <Button variant="outline" asChild>
-              <Link href={vatSourceHref(report)}>Mở hàng chờ review VAT</Link>
-            </Button>
-          ) : null}
           {report && (
             <Button disabled={capturing} onClick={() => void captureSnapshot()}>
               <Camera data-icon="inline-start" />
@@ -1055,13 +1050,6 @@ export function FinancialStatementWorkspace({
                     ? vatReadinessMessage(report)
                     : "Còn mapping, evidence hoặc reconciliation exception cần xử lý trước khi dùng số liệu như bản final."}
               </span>
-              {kind === "vat_reconciliation" ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={vatSourceHref(report)}>
-                    Xử lý VAT chưa review <ChevronRight className="ml-1 size-3.5" />
-                  </Link>
-                </Button>
-              ) : null}
             </div>
           </AlertDescription>
         </Alert>
