@@ -465,6 +465,7 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       expense_id: "expense630-unreviewed",
       cit_state: "unreviewed",
       vat_state: "unreviewed",
+      nextActions: ["review-cit", "review-vat", "view-source"],
     });
 
     const exception = await app.inject({

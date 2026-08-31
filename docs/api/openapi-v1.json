@@ -5610,7 +5610,20 @@
           "startsOn": { "type": "string", "format": "date" },
           "endsOn": { "type": "string", "format": "date" },
           "status": { "type": "string", "enum": ["ready", "review_required"] },
-          "items": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nextActions": {
+                  "type": "array",
+                  "description": "Canonical operations available for this unresolved tax item.",
+                  "items": { "type": "string", "enum": ["review-cit", "review-vat", "view-source"] }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
           "count": { "type": "integer", "minimum": 0 }
         },
         "additionalProperties": true

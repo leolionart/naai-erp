@@ -791,6 +791,15 @@ export class PgFinancialStatementStore {
         journalId: row.journal_id,
         lineId: `${row.expense_id}:${row.line_number}`,
       },
+      // Keep the review queue actionable for every unresolved tax axis.  The
+      // UI must consume these canonical operations instead of guessing from
+      // presentation-only state labels (which previously produced a dead-end
+      // drill-down for `review_required`).
+      nextActions: [
+        ...(row.cit_state === "unreviewed" ? ["review-cit" as const] : []),
+        ...(row.vat_state === "unreviewed" ? ["review-vat" as const] : []),
+        "view-source" as const,
+      ],
       exceptionCodes: [
         row.cit_state === "unreviewed" ? "CIT_UNREVIEWED" : null,
         row.vat_state === "unreviewed" ? "VAT_UNREVIEWED" : null,

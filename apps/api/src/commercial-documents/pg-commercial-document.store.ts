@@ -176,6 +176,14 @@ export class PgCommercialDocumentStore {
         "update commercial_documents set version=version+1,updated_at=now() where organization_id=$1 and id=$2",
         [context.organizationId, id],
       );
+      const remainingReview = await client.query<{
+        cit_state: string;
+        vat_state: string;
+      }>(
+        `select cit_state,vat_state from commercial_document_lines
+          where organization_id=$1 and document_id=$2`,
+        [context.organizationId, id],
+      );
       const auditEventId = randomUUID(),
         outboxEventId = randomUUID();
       await client.query(
@@ -211,6 +219,15 @@ export class PgCommercialDocumentStore {
         resourceVersion: version,
         auditEventId,
         outboxEventId,
+        nextActions: [
+          ...(remainingReview.rows.some((row) => row.cit_state === "unreviewed")
+            ? ["review-cit"]
+            : []),
+          ...(remainingReview.rows.some((row) => row.vat_state === "unreviewed")
+            ? ["review-vat"]
+            : []),
+          "view-source",
+        ],
       };
       await this.saveReplay(
         client,

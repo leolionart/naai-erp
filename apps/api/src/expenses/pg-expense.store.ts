@@ -1820,6 +1820,14 @@ export class PgExpenseStore {
         );
       }
       await this.refreshSummary(c, context.organizationId, id);
+      const remainingReview = await c.query<{
+        cit_state: string;
+        vat_state: string;
+      }>(
+        `select cit_state,vat_state from expense_lines
+          where organization_id=$1 and expense_id=$2`,
+        [context.organizationId, id],
+      );
       const version = (BigInt(expense.version) + 1n).toString();
       await c.query("select set_config('app.tax_finalization','on',true)");
       await c.query(
@@ -1879,7 +1887,15 @@ export class PgExpenseStore {
         eventId: event,
         auditEventId: audit,
         outboxEventId: outbox,
-        nextActions: Object.keys(NEXT[expense.state] ?? {}),
+        nextActions: [
+          ...Object.keys(NEXT[expense.state] ?? {}),
+          ...(remainingReview.rows.some((row) => row.cit_state === "unreviewed")
+            ? ["review-cit"]
+            : []),
+          ...(remainingReview.rows.some((row) => row.vat_state === "unreviewed")
+            ? ["review-vat"]
+            : []),
+        ],
       };
       await this.save(c, context.organizationId, key, "expense:review", hash, response);
       await c.query("commit");
