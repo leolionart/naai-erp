@@ -1,3 +1,3 @@
-- Taxable profit, CIT and CIT-pending cards route to dedicated metric keys and preserve dashboard date filters.
+- Taxable profit and CIT cards route directly to the P&L source report; CIT-pending routes directly to the filtered tax-exception source report, preserving dashboard date filters.
 - Drill-down no longer immediately redirects away before showing the selected metric value.
 - Signed movement deltas show positive values in green and negative values in red; ordinary unsigned money remains neutral.

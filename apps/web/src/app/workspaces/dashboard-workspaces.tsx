@@ -1373,7 +1373,7 @@ export function ExecutiveDashboardWorkspace() {
                   title="Lợi nhuận tính thuế TNDN tạm tính"
                   value={money(taxableProfitMinor, profitAndLoss?.currency)}
                   description={`Lợi nhuận kế toán ${money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency)} + chi phí CIT không được trừ ${money(taxExpenses?.citIneligibleMinor, taxExpenses?.currency)}. Chi phí CIT chưa review: ${money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}.`}
-                  href={dashboardMetricDrilldownHref("taxable-profit", q)}
+                  href={`/reports/financial-statements/profit-and-loss/current?${q}`}
                   status={taxExpenses?.status}
                   provisional={taxExpenses?.status !== "ready"}
                   trend={operating?.financials.monthly?.map((row) =>
@@ -1388,7 +1388,7 @@ export function ExecutiveDashboardWorkspace() {
                       ? "N/A"
                       : `${operating.financials.corporateIncomeTaxRateBps / 100}%`
                   }`}
-                  href={dashboardMetricDrilldownHref("corporate-income-tax", q)}
+                  href={`/reports/financial-statements/profit-and-loss/current?${q}`}
                   status={
                     operating?.financials.corporateIncomeTaxRateBps == null
                       ? "Thiếu chính sách thuế TNDN"
@@ -1420,7 +1420,7 @@ export function ExecutiveDashboardWorkspace() {
                   title="Chi phí CIT chờ review"
                   value={money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}
                   description="Chi phí chưa xác định được trừ khi tính thuế TNDN; cần bổ sung hóa đơn, chứng từ hoặc kết luận kế toán"
-                  href={dashboardMetricDrilldownHref("cit-unreviewed", q)}
+                  href={`/reports/tax/expense-exceptions?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(q)), state: "unreviewed" }).toString()}`}
                   status={
                     taxExpenses?.unreviewedItemIds.length
                       ? `${taxExpenses.unreviewedItemIds.length} khoản`
