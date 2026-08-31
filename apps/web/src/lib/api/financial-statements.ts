@@ -94,6 +94,7 @@ export type TaxExpenseException = Readonly<{
   description: string;
   partyName?: string;
   bookedMinor: string;
+  vatBasisMinor?: string;
   citEligibleMinor: string;
   citIneligibleMinor: string;
   vatEligibleMinor: string;
@@ -107,6 +108,7 @@ export type TaxExpenseException = Readonly<{
   sourceIds: readonly string[];
   sourceType?: "expense" | "purchase_invoice";
   lineNumber?: number;
+  nextActions?: readonly ("review-cit" | "review-vat" | "view-source" | string)[];
 }>;
 
 export const financialStatementsApi = Object.freeze({

@@ -291,6 +291,7 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
     ...(item.party_name ? { partyName: String(item.party_name) } : {}),
     // CIT basis is net expense; VAT is tracked separately below.
     bookedMinor: String(item.booked_net_minor ?? item.booked_gross_minor ?? "0"),
+    vatBasisMinor: String(item.booked_vat_minor ?? "0"),
     citEligibleMinor: String(item.cit_eligible_minor ?? "0"),
     citIneligibleMinor: (
       BigInt(String(item.booked_gross_minor ?? "0")) -
@@ -306,6 +307,13 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
     ...(item.paperless_url ? { paperlessUrl: String(item.paperless_url) } : {}),
     ...(item.reviewed_by ? { reviewer: String(item.reviewed_by) } : {}),
     ...(item.review_reason ? { reason: String(item.review_reason) } : {}),
+    ...(Array.isArray(item.nextActions)
+      ? {
+          nextActions: item.nextActions.filter(
+            (value): value is string => typeof value === "string",
+          ),
+        }
+      : {}),
     sourceIds: Object.values(source).filter((value): value is string => typeof value === "string"),
   };
 }
@@ -1036,6 +1044,7 @@ export function TaxExpenseExceptionsWorkspace() {
   const [finalizing, setFinalizing] = useState(false);
   const [finalizeNotice, setFinalizeNotice] = useState("");
   const [reviewRow, setReviewRow] = useState<TaxExpenseException | null>(null);
+  const [reviewAxis, setReviewAxis] = useState<"cit" | "vat">("cit");
   const [reviewState, setReviewState] = useState<"eligible" | "partially_eligible" | "ineligible">(
     "eligible",
   );
@@ -1135,6 +1144,8 @@ export function TaxExpenseExceptionsWorkspace() {
               ? `/expenses/${encodeURIComponent(row.expenseId)}`
               : `/expenses`;
           const canReview = row.citState === "unreviewed" || row.citState === "review";
+          const canReviewVat =
+            row.nextActions?.includes("review-vat") || row.vatState === "unreviewed";
           return (
             <div className="flex items-center justify-end gap-1">
               {canReview ? (
@@ -1143,12 +1154,28 @@ export function TaxExpenseExceptionsWorkspace() {
                   size="sm"
                   onClick={() => {
                     setReviewRow(row);
+                    setReviewAxis("cit");
                     setReviewState("eligible");
-                    setReviewAmount(row.bookedMinor);
+                    setReviewAmount(row.vatBasisMinor ?? "0");
                     setReviewReason("AI audit: xác nhận phân loại CIT theo chứng từ đầu vào");
                   }}
                 >
                   Review CIT
+                </Button>
+              ) : null}
+              {canReviewVat ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setReviewRow(row);
+                    setReviewAxis("vat");
+                    setReviewState("eligible");
+                    setReviewAmount(row.vatBasisMinor ?? row.vatEligibleMinor ?? "0");
+                    setReviewReason("AI audit: xác nhận phân loại VAT theo chứng từ đầu vào");
+                  }}
+                >
+                  Review VAT
                 </Button>
               ) : null}
               <Button variant="ghost" size="sm" asChild>
@@ -1211,7 +1238,7 @@ export function TaxExpenseExceptionsWorkspace() {
       await api.data(endpoint, {
         method: "POST",
         body: {
-          axis: "cit",
+          axis: reviewAxis,
           lineNumber: reviewRow.lineNumber ?? 1,
           state: reviewState,
           eligibleMinor: reviewState === "ineligible" ? "0" : reviewAmount,
@@ -1364,14 +1391,14 @@ export function TaxExpenseExceptionsWorkspace() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Review CIT từng khoản</DialogTitle>
+            <DialogTitle>Review {reviewAxis === "vat" ? "VAT" : "CIT"} từng khoản</DialogTitle>
             <DialogDescription>
               {reviewRow?.description} ·{" "}
               {reviewRow ? <MoneyCell minor={reviewRow.bookedMinor} /> : null}
             </DialogDescription>
           </DialogHeader>
           <Field>
-            <FieldLabel>Trạng thái CIT</FieldLabel>
+            <FieldLabel>Trạng thái {reviewAxis === "vat" ? "VAT" : "CIT"}</FieldLabel>
             <Select
               value={reviewState}
               onValueChange={(value) => setReviewState(value as typeof reviewState)}
@@ -1388,7 +1415,9 @@ export function TaxExpenseExceptionsWorkspace() {
           </Field>
           {reviewState !== "ineligible" ? (
             <Field>
-              <FieldLabel htmlFor="cit-review-amount">Số tiền được tính CIT</FieldLabel>
+              <FieldLabel htmlFor="cit-review-amount">
+                Số tiền được tính {reviewAxis === "vat" ? "VAT" : "CIT"}
+              </FieldLabel>
               <Input
                 id="cit-review-amount"
                 inputMode="numeric"
