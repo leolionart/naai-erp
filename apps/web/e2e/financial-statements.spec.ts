@@ -259,12 +259,9 @@ test("@desktop VAT payable KPI opens the actionable tax-review queue", async ({ 
   await page.goto("http://localhost:3000/reports/tax/vat-reconciliation/current");
 
   const reviewLink = page.getByRole("link", { name: "Mở hàng chờ VAT" });
-  await expect(reviewLink).toHaveAttribute(
-    "href",
-    /\/reports\/tax\/expense-exceptions\?state=exception(?:&|%26).*endsOn=/,
-  );
+  await expect(reviewLink).toHaveAttribute("href", "#vat-source-items");
   await reviewLink.click();
-  await expect(page).toHaveURL(/\/reports\/tax\/expense-exceptions\?state=exception/);
+  await expect(page).toHaveURL(/#vat-source-items$/);
 });
 
 test("@desktop VAT reconciliation shows inline source actions", async ({ page }) => {
