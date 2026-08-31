@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <title>NAAI ERP</title>
+  <rect width="40" height="40" rx="11" fill="#20294a"/>
+  <path d="M11 29V11h4.8l9.2 11.76V11H29v18h-4.8L15.8 17.24V29H11Z" fill="#d9f99d"/>
+  <path d="M11 29h18" stroke="#a3e635" stroke-width="2"/>
+</svg>

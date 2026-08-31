@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 56" role="img" aria-labelledby="title desc">
+  <title id="title">NAAI ERP</title>
+  <desc id="desc">NAAI ERP — Finance operations</desc>
+  <rect x="2" y="2" width="52" height="52" rx="14" fill="#20294a"/>
+  <path d="M16 40V16h6.4l12.2 15.68V16H42v24h-6.4L23.4 24.32V40H16Z" fill="#d9f99d"/>
+  <path d="M16 40h26" stroke="#a3e635" stroke-width="2.5"/>
+  <text x="70" y="29" fill="#20294a" font-family="Arial, sans-serif" font-size="21" font-weight="700" letter-spacing="1">NAAI ERP</text>
+  <text x="70" y="45" fill="#667085" font-family="Arial, sans-serif" font-size="10" letter-spacing=".5">FINANCE OPERATIONS</text>
+</svg>

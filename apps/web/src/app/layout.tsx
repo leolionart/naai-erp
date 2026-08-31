@@ -9,8 +9,16 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin", "vietnamese"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
-  title: "NAAI ERP",
+  title: {
+    default: "NAAI ERP",
+    template: "%s | NAAI ERP",
+  },
   description: "Management accounting for NAAI Studio",
+  applicationName: "NAAI ERP",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

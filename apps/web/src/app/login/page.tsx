@@ -1,7 +1,7 @@
 "use client";
 
-import { GalleryVerticalEndIcon } from "lucide-react";
 import { Suspense } from "react";
+import { NaaiLogo } from "@/components/brand/naai-logo";
 import { LoginForm } from "@/components/login-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -12,11 +12,8 @@ export default function LoginPage() {
         <ThemeToggle />
       </div>
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <a href="/" className="flex items-center gap-2 self-center font-medium">
-          <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <GalleryVerticalEndIcon />
-          </div>
-          NAAI Studio
+        <a href="/" className="self-center" aria-label="NAAI ERP">
+          <NaaiLogo />
         </a>
         <Suspense>
           <LoginForm />

@@ -32,6 +32,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NaaiLogo } from "@/components/brand/naai-logo";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
@@ -254,13 +255,7 @@ export function AppNavigation() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  N
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">NAAI ERP</span>
-                  <span className="truncate text-xs">Finance operations</span>
-                </div>
+                <NaaiLogo className="text-sidebar-primary-foreground [&_svg]:text-sidebar-primary" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
