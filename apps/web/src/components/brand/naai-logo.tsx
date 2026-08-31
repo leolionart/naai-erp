@@ -17,12 +17,21 @@ export function NaaiMark({ title = "NAAI", className, ...props }: NaaiMarkProps)
       {...props}
     >
       {title ? <title>{title}</title> : null}
-      <rect width="40" height="40" rx="11" fill="currentColor" />
+      <rect
+        width="40"
+        height="40"
+        rx="11"
+        fill="var(--naai-mark-background, var(--primary, #20294a))"
+      />
       <path
         d="M11 29V11h4.8l9.2 11.76V11H29v18h-4.8L15.8 17.24V29H11Z"
-        fill="var(--naai-mark-foreground, #d9f99d)"
+        fill="var(--naai-mark-foreground, var(--primary-foreground, #d9f99d))"
       />
-      <path d="M11 29h18" stroke="var(--naai-mark-accent, #a3e635)" strokeWidth="2" />
+      <path
+        d="M11 29h18"
+        stroke="var(--naai-mark-accent, var(--accent-foreground, #a3e635))"
+        strokeWidth="2"
+      />
     </svg>
   );
 }
@@ -35,7 +44,12 @@ type NaaiLogoProps = {
 /** Shared wordmark so the sidebar and login surface cannot drift apart. */
 export function NaaiLogo({ compact = false, className }: NaaiLogoProps) {
   return (
-    <span className={cn("flex min-w-0 items-center gap-2", className)}>
+    <span
+      className={cn(
+        "flex min-w-0 items-center gap-2 [--naai-mark-background:var(--foreground)] [--naai-mark-foreground:var(--background)] [--naai-mark-accent:var(--primary)]",
+        className,
+      )}
+    >
       <NaaiMark title="NAAI ERP" className="size-8" />
       {compact ? null : (
         <span className="grid min-w-0 text-left leading-tight group-data-[collapsible=icon]:hidden">

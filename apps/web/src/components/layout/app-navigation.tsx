@@ -255,7 +255,7 @@ export function AppNavigation() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <NaaiLogo className="text-sidebar-primary-foreground [&_svg]:text-sidebar-primary" />
+                <NaaiLogo className="text-sidebar-foreground [--naai-mark-background:var(--sidebar-primary)] [--naai-mark-foreground:var(--sidebar-primary-foreground)] [--naai-mark-accent:var(--sidebar-primary-foreground)]" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

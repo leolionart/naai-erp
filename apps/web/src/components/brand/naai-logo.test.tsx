@@ -17,4 +17,10 @@ describe("NAAI brand assets", () => {
     expect(full).toContain("Finance operations");
     expect(compact).not.toContain("Finance operations");
   });
+
+  it("uses theme tokens so the mark stays high contrast in dark mode", () => {
+    const html = renderToStaticMarkup(<NaaiLogo />);
+    expect(html).toContain("--naai-mark-background:var(--foreground)");
+    expect(html).toContain("--naai-mark-foreground:var(--background)");
+  });
 });
