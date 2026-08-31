@@ -65,6 +65,7 @@ export type FinancialStatementReport = Readonly<{
     accountCodes?: readonly string[];
     itemCount?: number;
   }>[];
+  items?: VatReconciliationContract["items"];
 }>;
 
 export type FinancialStatementDrilldown = Readonly<{

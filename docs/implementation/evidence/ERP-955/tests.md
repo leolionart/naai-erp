@@ -6,3 +6,4 @@
 - `pnpm --filter @naai-erp/domain exec vitest run src/tax-reconciliation.test.ts` — 3 passed.
 - `pnpm --filter @naai-erp/web exec playwright test e2e/financial-statements.spec.ts --grep "VAT payable KPI|VAT readiness warning"` — 2 passed.
 - Local API readback for `demo-local`: VAT report returned 75 invalid tax-code rows and 75 source items; every item exposed `resolve-tax-code` and `view-source`; exception queue returned 69 rows with `review_required` status.
+- Inline VAT source/action Playwright journey passed with the source card and `Gán mã thuế` control visible.

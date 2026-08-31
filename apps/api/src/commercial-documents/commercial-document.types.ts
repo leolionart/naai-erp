@@ -96,6 +96,8 @@ export type CommercialDocumentTaxReviewInput = Readonly<{
 export type CommercialDocumentTaxCodeCorrectionInput = Readonly<{
   lineNumber: number;
   reason: string;
+  /** Optional explicit approved VAT code. When omitted, backend resolves by rate. */
+  taxCode?: string;
 }>;
 export type CommercialDocumentCorrectionInput = BusinessCorrectionRequestContract;
 

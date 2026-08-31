@@ -1003,7 +1003,12 @@
                 "required": ["lineNumber", "reason"],
                 "properties": {
                   "lineNumber": { "type": "integer", "minimum": 1 },
-                  "reason": { "type": "string", "minLength": 1 }
+                  "reason": { "type": "string", "minLength": 1 },
+                  "taxCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Explicit accountant-approved VAT code; when omitted, backend resolves uniquely by direction and rate."
+                  }
                 },
                 "additionalProperties": false
               }

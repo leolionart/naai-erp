@@ -270,6 +270,7 @@ function normalizeReport(
           BigInt(raw.outputDifferenceMinor) + BigInt(raw.inputDifferenceMinor)
         ).toString(),
       },
+      items: raw.items ?? [],
     };
   }
   throw new Error("API trả về contract báo cáo không phù hợp với route");
@@ -283,6 +284,10 @@ function taxReviewQueueHref(report: FinancialStatementReport) {
   });
   if (report.range.startsOn) params.set("startsOn", report.range.startsOn);
   return `/reports/tax/expense-exceptions?${params.toString()}`;
+}
+
+function vatSourceHref(report: FinancialStatementReport) {
+  return report.items?.length ? "#vat-source-items" : taxReviewQueueHref(report);
 }
 
 function vatReadinessMessage(report: FinancialStatementReport) {
@@ -703,7 +708,7 @@ function SourceDialog({
           {report?.statement === "vat_reconciliation" &&
           (line?.lineCode === "net_vat_payable" || line?.lineCode === "unreviewed_input_vat") ? (
             <Button variant="default" size="sm" asChild>
-              <Link href={taxReviewQueueHref(report)}>
+              <Link href={vatSourceHref(report)}>
                 Xử lý VAT chưa review <ChevronRight className="ml-1 size-3.5" />
               </Link>
             </Button>
@@ -721,7 +726,8 @@ function ReportKpis({ report }: Readonly<{ report: FinancialStatementReport }>) 
   const period = report.range.startsOn
     ? `${report.range.startsOn} → ${report.range.endsOn}`
     : `As of ${report.range.endsOn}`;
-  const taxReviewHref = taxReviewQueueHref(report);
+  const taxReviewHref =
+    report.statement === "vat_reconciliation" ? vatSourceHref(report) : taxReviewQueueHref(report);
   if (report.statement === "balance_sheet" && report.equation)
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -851,7 +857,16 @@ export function FinancialStatementWorkspace({
   const [capturing, setCapturing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedLine, setSelectedLine] = useState<FinancialStatementLine>();
-  useEffect(() => {
+  const [vatActionItem, setVatActionItem] =
+    useState<NonNullable<FinancialStatementReport["items"]>[number]>();
+  const [vatAction, setVatAction] = useState<"resolve-tax-code" | "review-vat">();
+  const [vatActionReason, setVatActionReason] = useState("");
+  const [vatActionTaxCode, setVatActionTaxCode] = useState("");
+  const [vatActionState, setVatActionState] = useState<
+    "eligible" | "partially_eligible" | "ineligible"
+  >("eligible");
+  const [vatActionSaving, setVatActionSaving] = useState(false);
+  const loadReport = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
     setError("");
@@ -861,19 +876,21 @@ export function FinancialStatementWorkspace({
       setLoading(false);
       return;
     }
-    api
-      .data<RawFinancialStatementReport | FinancialStatementReport>(
+    try {
+      const raw = await api.data<RawFinancialStatementReport | FinancialStatementReport>(
         `${endpointByKind[kind]}?${query}`,
-      )
-      .then((raw) => {
-        setReport(normalizeReport(kind, raw, query));
-        setError("");
-      })
-      .catch((reason: unknown) =>
-        setError(reason instanceof Error ? reason.message : "Không tải được báo cáo"),
-      )
-      .finally(() => setLoading(false));
+      );
+      setReport(normalizeReport(kind, raw, query));
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Không tải được báo cáo");
+    } finally {
+      setLoading(false);
+    }
   }, [api, hasToken, hydrated, kind, query]);
+  useEffect(() => {
+    void loadReport();
+  }, [loadReport]);
   const apply = useCallback(
     (form: FormData) => {
       const next = new URLSearchParams();
@@ -911,6 +928,55 @@ export function FinancialStatementWorkspace({
       setError(e instanceof Error ? e.message : "Chốt dữ liệu thất bại");
     } finally {
       setCapturing(false);
+    }
+  }
+  async function applyVatAction() {
+    if (!vatActionItem || !vatAction || !vatActionReason.trim() || vatActionSaving) return;
+    setVatActionSaving(true);
+    setError("");
+    try {
+      if (vatAction === "resolve-tax-code") {
+        await api.data(
+          `commercial-documents/${encodeURIComponent(vatActionItem.sourceId)}/tax-code`,
+          {
+            method: "POST",
+            body: {
+              lineNumber: vatActionItem.lineNumber ?? 1,
+              reason: vatActionReason.trim(),
+              ...(vatActionTaxCode.trim() ? { taxCode: vatActionTaxCode.trim() } : {}),
+            },
+          },
+        );
+      } else {
+        const isExpense = vatActionItem.sourceType === "expense";
+        await api.data(
+          isExpense
+            ? `expenses/${encodeURIComponent(vatActionItem.sourceId)}/review`
+            : `commercial-documents/${encodeURIComponent(vatActionItem.sourceId)}/review`,
+          {
+            method: "POST",
+            body: {
+              axis: "vat",
+              lineNumber: vatActionItem.lineNumber ?? 1,
+              state: vatActionState,
+              eligibleMinor: vatActionState === "ineligible" ? "0" : vatActionItem.taxMinor,
+              ...(isExpense
+                ? {}
+                : { taxCode: vatActionTaxCode.trim() || vatActionItem.taxCode || "VAT10_IN" }),
+              reason: vatActionReason.trim(),
+            },
+          },
+        );
+      }
+      setVatActionItem(undefined);
+      setVatAction(undefined);
+      setVatActionReason("");
+      setVatActionTaxCode("");
+      await loadReport();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Không thể xử lý dòng VAT");
+    } finally {
+      setVatActionSaving(false);
     }
   }
   const columns = useMemo<readonly FinancialColumn<FinancialStatementLine>[]>(
@@ -965,14 +1031,7 @@ export function FinancialStatementWorkspace({
           </Button>
           {kind === "vat_reconciliation" && report?.status === "review_required" ? (
             <Button variant="outline" asChild>
-              <Link
-                href={`/reports/tax/expense-exceptions?${new URLSearchParams({
-                  ...Object.fromEntries(query.entries()),
-                  state: "exception",
-                }).toString()}`}
-              >
-                Mở hàng chờ review VAT
-              </Link>
+              <Link href={vatSourceHref(report)}>Mở hàng chờ review VAT</Link>
             </Button>
           ) : null}
           {report && (
@@ -998,7 +1057,7 @@ export function FinancialStatementWorkspace({
               </span>
               {kind === "vat_reconciliation" ? (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={taxReviewQueueHref(report)}>
+                  <Link href={vatSourceHref(report)}>
                     Xử lý VAT chưa review <ChevronRight className="ml-1 size-3.5" />
                   </Link>
                 </Button>
@@ -1029,6 +1088,118 @@ export function FinancialStatementWorkspace({
           />
         </CardContent>
       </Card>
+      {kind === "vat_reconciliation" && report?.items?.length ? (
+        <Card id="vat-source-items" className="scroll-mt-6">
+          <CardHeader>
+            <CardTitle>Chi tiết nguồn VAT</CardTitle>
+            <CardDescription>
+              Xử lý mã thuế, trạng thái review và chứng từ ngay trên màn hình đối soát này.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y rounded-md border">
+              {report.items.map((item) => {
+                const invalidCode = item.taxCodeApproved === false;
+                const needsReview = item.nextActions?.includes("review-vat");
+                const sourceLabel =
+                  item.sourceType === "purchase_invoice"
+                    ? "Hóa đơn mua vào"
+                    : item.sourceType === "purchase_credit_note"
+                      ? "Điều chỉnh mua vào"
+                      : item.sourceType === "sales_invoice"
+                        ? "Hóa đơn bán ra"
+                        : item.sourceType === "sales_credit_note"
+                          ? "Điều chỉnh bán ra"
+                          : "Chi phí";
+                const sourceHref =
+                  item.sourceType === "expense"
+                    ? `/expenses/${encodeURIComponent(item.sourceId)}`
+                    : `/documents/${encodeURIComponent(item.sourceId)}`;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{sourceLabel}</span>
+                        <Badge variant="outline">Dòng {item.lineNumber ?? 1}</Badge>
+                        <StatusBadge status={item.reviewState ?? "eligible"} />
+                        {item.direction === "reversal" ? (
+                          <Badge variant="secondary">Đảo</Badge>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Nguồn: <span className="font-mono">{item.sourceId}</span>
+                        {item.journalId ? ` · Journal ${item.journalId}` : ""}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        <span>
+                          VAT: <MoneyCell minor={item.taxMinor} />
+                        </span>
+                        <span>
+                          Mã thuế: {item.taxCode ?? "Chưa gán"}
+                          {invalidCode ? (
+                            <span className="ml-1 text-destructive">(chưa được duyệt)</span>
+                          ) : null}
+                        </span>
+                        <span>
+                          Chứng từ: {item.presentEvidenceTypes?.length ? "Đã có" : "Thiếu"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {invalidCode && item.sourceType === "purchase_invoice" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setVatActionItem(item);
+                            setVatAction("resolve-tax-code");
+                            setVatActionTaxCode(item.taxCode ?? "");
+                            setVatActionReason(
+                              "Bổ sung mã thuế VAT theo chứng từ và chính sách đã duyệt",
+                            );
+                          }}
+                        >
+                          Gán mã thuế
+                        </Button>
+                      ) : null}
+                      {needsReview ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setVatActionItem(item);
+                            setVatAction("review-vat");
+                            setVatActionTaxCode(item.taxCode ?? "");
+                            setVatActionState("eligible");
+                            setVatActionReason("Xác nhận phân loại VAT theo chứng từ nguồn");
+                          }}
+                        >
+                          Review VAT
+                        </Button>
+                      ) : null}
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href={sourceHref}>
+                          Xem nguồn <ChevronRight className="ml-1 size-3.5" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : kind === "vat_reconciliation" && report ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Chi tiết nguồn VAT</CardTitle>
+            <CardDescription>Không có dòng VAT trong khoảng thời gian đã chọn.</CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
       {report?.unmappedAccountCodes?.length ? (
         <Alert>
           <AlertTitle>Tài khoản chưa mapping</AlertTitle>
@@ -1047,6 +1218,84 @@ export function FinancialStatementWorkspace({
         line={selectedLine}
         onClose={() => setSelectedLine(undefined)}
       />
+      <Dialog
+        open={Boolean(vatActionItem)}
+        onOpenChange={(open) => {
+          if (!open && !vatActionSaving) {
+            setVatActionItem(undefined);
+            setVatAction(undefined);
+            setVatActionTaxCode("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {vatAction === "resolve-tax-code" ? "Gán mã thuế VAT" : "Review VAT"}
+            </DialogTitle>
+            <DialogDescription>
+              {vatActionItem?.sourceId} · dòng {vatActionItem?.lineNumber ?? 1}
+            </DialogDescription>
+          </DialogHeader>
+          {vatAction === "review-vat" ? (
+            <Field>
+              <FieldLabel>Trạng thái VAT</FieldLabel>
+              <Select
+                value={vatActionState}
+                onValueChange={(value) =>
+                  setVatActionState(value as "eligible" | "partially_eligible" | "ineligible")
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="eligible">Đủ điều kiện</SelectItem>
+                  <SelectItem value="partially_eligible">Đủ một phần</SelectItem>
+                  <SelectItem value="ineligible">Không đủ điều kiện</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+          {vatAction === "resolve-tax-code" ? (
+            <Field>
+              <FieldLabel htmlFor="vat-action-tax-code">Mã số thuế VAT</FieldLabel>
+              <Input
+                id="vat-action-tax-code"
+                value={vatActionTaxCode}
+                onChange={(event) => setVatActionTaxCode(event.target.value)}
+                placeholder="Ví dụ: VAT8_IN hoặc VAT10_IN"
+              />
+              <p className="text-xs text-muted-foreground">
+                Nhập đúng mã đã được accountant duyệt và còn hiệu lực cho ngày chứng từ.
+              </p>
+            </Field>
+          ) : null}
+          <Field>
+            <FieldLabel htmlFor="vat-action-reason">Lý do</FieldLabel>
+            <Input
+              id="vat-action-reason"
+              value={vatActionReason}
+              onChange={(event) => setVatActionReason(event.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Hủy</Button>
+            </DialogClose>
+            <Button
+              onClick={() => void applyVatAction()}
+              disabled={
+                vatActionSaving ||
+                !vatActionReason.trim() ||
+                (vatAction === "resolve-tax-code" && !vatActionTaxCode.trim())
+              }
+            >
+              {vatActionSaving ? "Đang lưu…" : "Xác nhận"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1126,6 +1375,7 @@ export function TaxExpenseExceptionsWorkspace() {
   const [reviewTaxCode, setReviewTaxCode] = useState("VAT10_IN");
   const [taxCodeRow, setTaxCodeRow] = useState<TaxExpenseException | null>(null);
   const [taxCodeReason, setTaxCodeReason] = useState("Gán mã VAT đầu vào đã được kiểm tra");
+  const [taxCodeValue, setTaxCodeValue] = useState("");
   const [taxCodeSaving, setTaxCodeSaving] = useState(false);
   const [reviewState, setReviewState] = useState<"eligible" | "partially_eligible" | "ineligible">(
     "eligible",
@@ -1273,7 +1523,14 @@ export function TaxExpenseExceptionsWorkspace() {
                 </Button>
               ) : null}
               {canResolveTaxCode && row.sourceType === "purchase_invoice" ? (
-                <Button variant="outline" size="sm" onClick={() => setTaxCodeRow(row)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTaxCodeRow(row);
+                    setTaxCodeValue(row.taxCode ?? "");
+                  }}
+                >
                   Gán mã thuế
                 </Button>
               ) : null}
@@ -1364,9 +1621,14 @@ export function TaxExpenseExceptionsWorkspace() {
     try {
       await api.data(`commercial-documents/${encodeURIComponent(taxCodeRow.expenseId)}/tax-code`, {
         method: "POST",
-        body: { lineNumber: taxCodeRow.lineNumber ?? 1, reason: taxCodeReason.trim() },
+        body: {
+          lineNumber: taxCodeRow.lineNumber ?? 1,
+          reason: taxCodeReason.trim(),
+          ...(taxCodeValue.trim() ? { taxCode: taxCodeValue.trim() } : {}),
+        },
       });
       setTaxCodeRow(null);
+      setTaxCodeValue("");
       const refreshed = await api.data<
         RawTaxExpenseReview | { items: readonly TaxExpenseException[] }
       >(`${financialStatementsApi.expenseExceptions}?${query}`);
@@ -1581,7 +1843,12 @@ export function TaxExpenseExceptionsWorkspace() {
       </Dialog>
       <Dialog
         open={Boolean(taxCodeRow)}
-        onOpenChange={(open) => !open && !taxCodeSaving && setTaxCodeRow(null)}
+        onOpenChange={(open) => {
+          if (!open && !taxCodeSaving) {
+            setTaxCodeRow(null);
+            setTaxCodeValue("");
+          }
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -1591,6 +1858,18 @@ export function TaxExpenseExceptionsWorkspace() {
               {taxCodeRow?.taxCode ? `Mã hiện tại: ${taxCodeRow.taxCode}` : "Chưa có mã thuế"}
             </DialogDescription>
           </DialogHeader>
+          <Field>
+            <FieldLabel htmlFor="tax-code-value">Mã số thuế VAT</FieldLabel>
+            <Input
+              id="tax-code-value"
+              value={taxCodeValue}
+              onChange={(e) => setTaxCodeValue(e.target.value)}
+              placeholder="Ví dụ: VAT8_IN hoặc VAT10_IN"
+            />
+            <p className="text-xs text-muted-foreground">
+              Bắt buộc nhập mã đã được accountant duyệt và đúng loại/thuế suất chứng từ.
+            </p>
+          </Field>
           <p className="text-sm text-muted-foreground">
             Backend sẽ chọn mã VAT đầu vào đang được duyệt và ghi audit; không thay đổi số tiền hay
             journal đã post.
@@ -1609,7 +1888,7 @@ export function TaxExpenseExceptionsWorkspace() {
             </DialogClose>
             <Button
               onClick={() => void resolveTaxCode()}
-              disabled={taxCodeSaving || !taxCodeReason.trim()}
+              disabled={taxCodeSaving || !taxCodeReason.trim() || !taxCodeValue.trim()}
             >
               {taxCodeSaving ? "Đang lưu…" : "Gán mã thuế"}
             </Button>

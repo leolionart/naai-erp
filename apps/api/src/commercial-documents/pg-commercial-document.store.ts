@@ -272,7 +272,11 @@ export class PgCommercialDocumentStore {
     input: CommercialDocumentTaxCodeCorrectionInput,
     key: string,
   ) {
-    const normalizedInput = { lineNumber: input.lineNumber, reason: input.reason.trim() };
+    const normalizedInput = {
+      lineNumber: input.lineNumber,
+      reason: input.reason.trim(),
+      ...(input.taxCode?.trim() ? { taxCode: input.taxCode.trim() } : {}),
+    };
     const hash = createHash("sha256")
       .update(JSON.stringify({ id, input: normalizedInput }))
       .digest("hex");
@@ -340,6 +344,7 @@ export class PgCommercialDocumentStore {
            and review_state='accountant_approved'
            and effective_from <= $3::date
            and (effective_to is null or effective_to >= $3::date)
+           and ($6::text is null or code=$6::text)
            and abs($5::numeric - round($4::numeric * rate)) <= 1
          order by code,effective_from desc`,
         [
@@ -348,6 +353,7 @@ export class PgCommercialDocumentStore {
           found.document_date,
           source.net_minor,
           source.tax_minor,
+          normalizedInput.taxCode ?? null,
         ],
       );
       if (!candidates.rowCount) throw new Error("VAT_TAX_CODE_NO_MATCH");

@@ -82,13 +82,13 @@ describe("ERP-300 CommercialDocumentService", () => {
     const result = await service.resolveTaxCode(
       context,
       "purchase-1",
-      { lineNumber: 1, reason: "Map approved input VAT rate" },
+      { lineNumber: 1, reason: "Map approved input VAT rate", taxCode: "VAT10_IN" },
       "tax-code-1",
     );
     expect(store.resolveTaxCode).toHaveBeenCalledWith(
       context,
       "purchase-1",
-      { lineNumber: 1, reason: "Map approved input VAT rate" },
+      { lineNumber: 1, reason: "Map approved input VAT rate", taxCode: "VAT10_IN" },
       "tax-code-1",
     );
     expect(result.data).toMatchObject({ taxCode: "VAT10_IN", journalAmountsChanged: false });

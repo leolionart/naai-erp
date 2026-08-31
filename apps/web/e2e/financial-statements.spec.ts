@@ -101,6 +101,26 @@ const vat = {
     missingEvidenceExpenseCount: "1",
     differenceMinor: "0",
   },
+  items: [
+    {
+      id: "document:purchase-1:1",
+      sourceId: "purchase-1",
+      lineNumber: 1,
+      sourceType: "purchase_invoice",
+      taxKind: "input",
+      taxMinor: "4000000",
+      direction: "normal",
+      reviewState: "eligible",
+      taxCodeApproved: false,
+      postedToLedger: true,
+      journalId: "journal-purchase-1",
+      requiredEvidenceTypes: ["source_document"],
+      presentEvidenceTypes: [],
+      sourceIds: { documentId: "purchase-1", journalId: "journal-purchase-1" },
+      nextActions: ["resolve-tax-code", "view-source"],
+      exceptionCodes: ["VAT_TAX_CODE_INVALID"],
+    },
+  ],
 };
 const drilldown = {
   statement: "profit_and_loss",
@@ -245,6 +265,14 @@ test("@desktop VAT payable KPI opens the actionable tax-review queue", async ({ 
   );
   await reviewLink.click();
   await expect(page).toHaveURL(/\/reports\/tax\/expense-exceptions\?state=exception/);
+});
+
+test("@desktop VAT reconciliation shows inline source actions", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/reports/tax/vat-reconciliation/current");
+  await expect(page.getByText("Chi tiết nguồn VAT")).toBeVisible();
+  await expect(page.getByText(/Mã thuế: Chưa gán/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gán mã thuế" })).toBeVisible();
 });
 
 test("@desktop VAT readiness warning names blocker counts from the report contract", async ({

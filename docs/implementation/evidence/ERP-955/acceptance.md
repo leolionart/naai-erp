@@ -1,6 +1,7 @@
 - Queue no longer shows reviewed rows by default: UI sends `state=exception` for dashboard/VAT blockers; backend honors `all`, `unreviewed`, `exception`, and `reviewed`.
 - Each unresolved row has a Review CIT popup with state, amount and reason.
 - Each VAT-code blocker is labeled in Vietnamese and has a `Gán mã thuế` popup calling the audited resolver endpoint.
+- The VAT reconciliation screen itself contains the source rows and the `Mã số thuế VAT` input; users are not forced to navigate to a separate queue.
 - VAT reconciliation source items include `sourceIds`, line number, evidence state, exception codes and next actions.
 - Expense and purchase-invoice rows use their correct review endpoint and line number.
 - Review mutation is idempotent, audited and does not modify posted journal entries.

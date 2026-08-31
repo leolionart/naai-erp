@@ -182,7 +182,12 @@ export class CommercialDocumentService {
     if (!context.roles.some((role) => POST_ROLES.has(role) || role === "approver"))
       throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (!Number.isInteger(input.lineNumber) || input.lineNumber < 1 || !input.reason?.trim())
+    if (
+      !Number.isInteger(input.lineNumber) ||
+      input.lineNumber < 1 ||
+      !input.reason?.trim() ||
+      (input.taxCode !== undefined && !input.taxCode.trim())
+    )
       throw new Error("VALIDATION_FAILED");
     if (input.state === "accountant_override" && !input.reference?.trim())
       throw new Error("ACCOUNTANT_OVERRIDE_REFERENCE_REQUIRED");
