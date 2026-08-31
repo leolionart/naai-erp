@@ -1,0 +1,1 @@
+- Full browser E2E was not run in this turn; static route and component tests cover the regression.

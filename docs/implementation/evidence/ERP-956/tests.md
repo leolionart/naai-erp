@@ -1,0 +1,2 @@
+- `pnpm --filter @naai-erp/web exec vitest run src/components/financial/financial-components.test.tsx src/app/workspaces/dashboard-workspaces.test.ts` — 7 passed.
+- `pnpm --filter @naai-erp/web typecheck` — passed.

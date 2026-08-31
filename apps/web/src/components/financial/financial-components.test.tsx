@@ -54,4 +54,19 @@ describe("ERP-345 financial design-system compositions", () => {
     expect(html.match(/min-w-0/g)?.length).toBeGreaterThanOrEqual(3);
     expect(html).toContain("grid-cols-[minmax(0,1fr)_auto]");
   });
+
+  it("colors signed money consistently for inflows and outflows", () => {
+    const html = renderToStaticMarkup(
+      <div>
+        <MoneyCell signed minor="1200" />
+        <MoneyCell minor="-300" />
+        <MoneyCell minor="0" />
+      </div>,
+    );
+    expect(html).toContain('data-sign="inflow"');
+    expect(html).toContain('data-sign="outflow"');
+    expect(html).toContain('data-sign="zero"');
+    expect(html).toContain("text-emerald-700");
+    expect(html).toContain("text-destructive");
+  });
 });

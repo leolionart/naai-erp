@@ -3479,6 +3479,24 @@ tasks:
       - apps/web/src/lib/api/financial-statements.ts
       - docs/implementation/evidence/ERP-955/
 
+  - id: ERP-956
+    title: Dashboard tax and profit drill-down parity with signed amount presentation
+    phase: P16
+    status: review
+    dependencies: [ERP-955]
+    business_rules: [BR-RPT-002, BR-RPT-003, BR-UI-003]
+    tests: [T-UNIT-ERP-956-001, T-E2E-ERP-956-002]
+    evidence: docs/implementation/evidence/ERP-956/
+    agent: codex-root
+    started_at: 2026-08-31T07:40:00+07:00
+    planned_files:
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/src/components/financial/money-cell.tsx
+      - apps/web/src/app/workspaces/owner-current-workspace.tsx
+      - apps/web/src/app/workspaces/banking-workspace.tsx
+      - apps/web/src/components/financial/financial-components.test.tsx
+      - docs/implementation/evidence/ERP-956/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -472,7 +472,7 @@ export function BankingWorkspace() {
       id: "amount",
       header: "Số tiền",
       align: "right",
-      cell: (row) => <MoneyCell minor={signedAmount(row)} />,
+      cell: (row) => <MoneyCell signed minor={signedAmount(row)} />,
     },
     {
       id: "state",

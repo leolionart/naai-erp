@@ -297,13 +297,13 @@ export function OwnerCurrentWorkspace() {
       id: "delta",
       header: "Tăng/(giảm) quyết toán với chủ",
       align: "right",
-      cell: (row) => <MoneyCell minor={row.settlementDeltaMinor ?? row.ownerDeltaMinor} />,
+      cell: (row) => <MoneyCell signed minor={row.settlementDeltaMinor ?? row.ownerDeltaMinor} />,
     },
     {
       id: "cash",
       header: "Tăng/(giảm) tiền công ty",
       align: "right",
-      cell: (row) => <MoneyCell minor={row.companyFundsDeltaMinor} />,
+      cell: (row) => <MoneyCell signed minor={row.companyFundsDeltaMinor} />,
     },
     {
       id: "balance",

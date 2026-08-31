@@ -1359,7 +1359,7 @@ export function ExecutiveDashboardWorkspace() {
                   title="Lợi nhuận tính thuế TNDN tạm tính"
                   value={money(taxableProfitMinor, profitAndLoss?.currency)}
                   description={`Lợi nhuận kế toán ${money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency)} + chi phí CIT không được trừ ${money(taxExpenses?.citIneligibleMinor, taxExpenses?.currency)}. Chi phí CIT chưa review: ${money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}.`}
-                  href="/reports/tax/expense-exceptions"
+                  href={`/dashboard/drilldown/taxable-profit?${q}`}
                   status={taxExpenses?.status}
                   provisional={taxExpenses?.status !== "ready"}
                   trend={operating?.financials.monthly?.map((row) =>
@@ -1374,7 +1374,7 @@ export function ExecutiveDashboardWorkspace() {
                       ? "N/A"
                       : `${operating.financials.corporateIncomeTaxRateBps / 100}%`
                   }`}
-                  href="/reports/tax/expense-exceptions"
+                  href={`/dashboard/drilldown/corporate-income-tax?${q}`}
                   status={
                     operating?.financials.corporateIncomeTaxRateBps == null
                       ? "Thiếu chính sách thuế TNDN"
@@ -1406,7 +1406,7 @@ export function ExecutiveDashboardWorkspace() {
                   title="Chi phí CIT chờ review"
                   value={money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}
                   description="Chi phí chưa xác định được trừ khi tính thuế TNDN; cần bổ sung hóa đơn, chứng từ hoặc kết luận kế toán"
-                  href="/reports/tax/expense-exceptions"
+                  href={`/dashboard/drilldown/cit-unreviewed?${q}`}
                   status={
                     taxExpenses?.unreviewedItemIds.length
                       ? `${taxExpenses.unreviewedItemIds.length} khoản`
@@ -1666,12 +1666,12 @@ export function FinanceReviewWorkspace() {
 }
 
 export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: string }) {
-  const router = useRouter();
   const { data, loading, error, search } = useDashboardData();
   const q = search.toString();
   const executive = data.executive;
   const performance = data.performance;
   const operating = data.operating;
+  const profitAndLoss = data.profitAndLoss;
   const overdueMinor = data.operating?.collections.overdueMinor ?? "0";
   const topClientShare = data.operating?.clientConcentration.topClientShareBps
     ? ratio(data.operating.clientConcentration.topClientShareBps)
@@ -1684,6 +1684,7 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       formula: string;
       sourceIds: readonly string[];
       canonicalHref: string;
+      facts?: readonly Readonly<{ label: string; value: string }>[];
     }
   > = {
     revenue: {
@@ -1697,6 +1698,20 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       title: "ROS (Return on Sales)",
       value: ratio(operating?.financials.rosBps),
       formula: "Operating Dashboard API",
+      sourceIds: [],
+      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
+    },
+    profit: {
+      title: "Lợi nhuận trước thuế",
+      value: money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency),
+      formula: "Profit & Loss API: profitBeforeTaxMinor",
+      sourceIds: [],
+      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
+    },
+    "profit-before-tax": {
+      title: "Lợi nhuận trước thuế",
+      value: money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency),
+      formula: "Profit & Loss API: profitBeforeTaxMinor",
       sourceIds: [],
       canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
     },
@@ -1729,13 +1744,60 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       sourceIds: [],
       canonicalHref: "/customers",
     },
+    "taxable-profit": {
+      title: "Lợi nhuận tính thuế TNDN tạm tính",
+      value: money(operating?.financials.taxableProfitMinor, operating?.currency),
+      formula: "Operating Dashboard API: taxableProfitMinor",
+      sourceIds: [],
+      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
+      facts: [
+        {
+          label: "Lợi nhuận kế toán trước thuế",
+          value: money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency),
+        },
+        {
+          label: "Chi phí CIT không được trừ",
+          value: money(data.taxExpenses?.citIneligibleMinor, data.taxExpenses?.currency),
+        },
+        {
+          label: "Chi phí CIT chưa review",
+          value: money(data.taxExpenses?.citUnreviewedMinor, data.taxExpenses?.currency),
+        },
+      ],
+    },
+    "corporate-income-tax": {
+      title: "Thuế TNDN tạm tính",
+      value: money(operating?.financials.corporateIncomeTaxMinor, operating?.currency),
+      formula: "Operating Dashboard API: corporateIncomeTaxMinor",
+      sourceIds: [],
+      canonicalHref: `/reports/tax/expense-exceptions?${q}`,
+      facts: [
+        {
+          label: "Lợi nhuận tính thuế",
+          value: money(operating?.financials.taxableProfitMinor, operating?.currency),
+        },
+        {
+          label: "Thuế suất TNDN",
+          value:
+            operating?.financials.corporateIncomeTaxRateBps == null
+              ? "N/A"
+              : `${operating.financials.corporateIncomeTaxRateBps / 100}%`,
+        },
+        {
+          label: "Chi phí CIT chưa review",
+          value: money(data.taxExpenses?.citUnreviewedMinor, data.taxExpenses?.currency),
+        },
+      ],
+    },
+    "cit-unreviewed": {
+      title: "Chi phí CIT chờ review",
+      value: money(data.taxExpenses?.citUnreviewedMinor, data.taxExpenses?.currency),
+      formula: "Tax Expense Review API: citUnreviewedMinor",
+      sourceIds: data.taxExpenses?.unreviewedItemIds ?? [],
+      canonicalHref: `/reports/tax/expense-exceptions?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(q)), state: "unreviewed" }).toString()}`,
+    },
   };
   const detail = details[metricKey];
-  useEffect(() => {
-    if (detail?.canonicalHref) {
-      router.replace(detail.canonicalHref);
-    }
-  }, [detail?.canonicalHref, router]);
   return (
     <ModulePage
       title={detail?.title ?? "Dashboard drill-down"}
@@ -1762,6 +1824,18 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold tabular-nums">{detail.value}</p>
+                {detail.facts?.length ? (
+                  <dl className="mt-4 grid gap-2 border-t pt-4 text-sm sm:grid-cols-3">
+                    {detail.facts.map((fact) => (
+                      <div key={fact.label} className="min-w-0">
+                        <dt className="text-muted-foreground">{fact.label}</dt>
+                        <dd className="truncate font-medium tabular-nums" title={fact.value}>
+                          {fact.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
                 {executive?.sourceBoundary.ledgerCutoffFingerprint ? (
                   <p className="mt-3 break-all font-mono text-xs text-muted-foreground">
                     Fingerprint: {executive.sourceBoundary.ledgerCutoffFingerprint}
