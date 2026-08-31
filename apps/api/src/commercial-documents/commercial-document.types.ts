@@ -84,8 +84,18 @@ export type CommercialDocumentTaxReviewInput = Readonly<{
   lineNumber: number;
   state: "eligible" | "partially_eligible" | "ineligible" | "accountant_override";
   eligibleMinor?: string;
+  /** Approved VAT code to attach while reviewing the VAT axis. */
+  taxCode?: string;
   reason: string;
   reference?: string;
+}>;
+/**
+ * Resolve a missing/unapproved VAT code on an existing posted document line.
+ * This is metadata correction only: it never rewrites the posted journal.
+ */
+export type CommercialDocumentTaxCodeCorrectionInput = Readonly<{
+  lineNumber: number;
+  reason: string;
 }>;
 export type CommercialDocumentCorrectionInput = BusinessCorrectionRequestContract;
 

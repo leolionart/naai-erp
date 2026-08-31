@@ -50,6 +50,7 @@ export type FinancialStatementReport = Readonly<{
   controls?: Readonly<{
     unreviewedExpenseLineCount?: string;
     missingEvidenceExpenseCount?: string;
+    invalidTaxCodeLineCount?: string;
     differenceMinor?: string;
   }>;
   openingCashMinor?: string;
@@ -62,6 +63,7 @@ export type FinancialStatementReport = Readonly<{
     code: string;
     journalId?: string;
     accountCodes?: readonly string[];
+    itemCount?: number;
   }>[];
 }>;
 
@@ -101,6 +103,8 @@ export type TaxExpenseException = Readonly<{
   vatIneligibleMinor: string;
   citState: string;
   vatState: string;
+  taxCode?: string;
+  taxCodeApproved?: boolean;
   evidenceState: string;
   paperlessUrl?: string;
   reviewer?: string;
@@ -108,7 +112,10 @@ export type TaxExpenseException = Readonly<{
   sourceIds: readonly string[];
   sourceType?: "expense" | "purchase_invoice";
   lineNumber?: number;
-  nextActions?: readonly ("review-cit" | "review-vat" | "view-source" | string)[];
+  nextActions?: readonly (
+    "review-cit" | "review-vat" | "resolve-tax-code" | "view-source" | string
+  )[];
+  exceptionCodes?: readonly string[];
 }>;
 
 export const financialStatementsApi = Object.freeze({

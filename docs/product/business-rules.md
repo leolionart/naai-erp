@@ -649,6 +649,10 @@ Override requires reviewer, reason, timestamp and reference/evidence.
 - VAT report is not final while review thresholds are exceeded.
 - VAT payable is `output VAT - eligible input VAT`. Ineligible and unreviewed input VAT are shown
   separately and are not silently deducted.
+- Authorized reviewers can resolve a missing or invalid VAT code on an issued/posted commercial
+  document line through `POST .../commercial-documents/{id}/tax-code`. The backend selects one
+  effective accountant-approved code matching document direction and line rate, records audit and
+  outbox evidence, and never rewrites posted journal amounts; ambiguous/no matches are rejected.
 
 ### BR-TAX-004 — Provisional corporate income tax
 

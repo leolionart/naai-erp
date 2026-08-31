@@ -425,6 +425,22 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       journalIds: ["vat-expense", "vat-sale"],
     });
     expect(response.json().data.unreviewedItemIds).toEqual(["document:purchase-credit-doc:1"]);
+    expect(response.json().data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "document:purchase-doc:1",
+          sourceIds: expect.objectContaining({
+            documentId: "purchase-doc",
+            lineId: "document:purchase-doc:1",
+          }),
+          nextActions: expect.arrayContaining(["view-source"]),
+        }),
+        expect.objectContaining({
+          id: "document:purchase-credit-doc:1",
+          nextActions: expect.arrayContaining(["review-vat", "view-source"]),
+        }),
+      ]),
+    );
   });
 
   it("exposes tax expense exceptions with independent CIT/VAT review and source IDs", async () => {

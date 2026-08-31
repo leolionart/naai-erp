@@ -56,6 +56,35 @@ export type VatReconciliationContract = Readonly<{
     amountMinor?: string;
     itemIds: readonly string[];
   }>[];
+  /** Source rows exposed for actionable VAT drill-downs. */
+  items?: readonly Readonly<{
+    id: string;
+    sourceId: string;
+    lineNumber?: number;
+    sourceType:
+      | "sales_invoice"
+      | "sales_credit_note"
+      | "purchase_invoice"
+      | "purchase_credit_note"
+      | "expense";
+    taxKind: "output" | "input";
+    taxMinor: string;
+    direction: "normal" | "reversal";
+    reviewState?: TaxReviewStateContract;
+    eligibleMinor?: string;
+    reviewerId?: string;
+    reviewReason?: string;
+    reviewReferenceId?: string;
+    taxCode?: string;
+    taxCodeApproved: boolean;
+    postedToLedger: boolean;
+    journalId?: string;
+    requiredEvidenceTypes: readonly string[];
+    presentEvidenceTypes: readonly string[];
+    sourceIds: Readonly<Record<string, string>>;
+    nextActions: readonly string[];
+    exceptionCodes: readonly string[];
+  }>[];
 }>;
 
 export type TaxExpenseReviewContract = Readonly<{

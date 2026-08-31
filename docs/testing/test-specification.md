@@ -23,6 +23,12 @@ cases pass and its exact-commit evidence is recorded.
 - `T-PROD-ERP-954-003`: production readback reconciles the dashboard, financial-account balances,
   custody inflows/spending, Owner Current and balanced posted/reversal journals at one cutoff.
 
+### ERP-955 — Tax exception queue actionable VAT code resolution
+
+- `T-API-ERP-955-004`: resolving a missing/invalid VAT code on a posted commercial-document line
+  selects one effective accountant-approved code by direction and rate, is idempotent/audited,
+  leaves journal amounts unchanged, and rejects no-match or ambiguous mappings.
+
 ## 2. Required layers
 
 ### Unit and domain
@@ -117,13 +123,13 @@ cases pass and its exact-commit evidence is recorded.
 - `T-E2E-ERP-934-002`: the expense list renders those values and preserves the purchase/expense
   filters and detail workflow.
 
-
 ### ERP-935 — Canonical invoice category list/detail parity
 
 - `T-UNIT-ERP-935-001`: category presentation prefers the root projection and falls back to
   canonical line fields or line dimensions across camelCase and snake_case compatibility shapes.
 - `T-E2E-ERP-935-002`: the invoice list shows the same category that the detail form shows when the
   list response omits its root category projection.
+
 ### ERP-926 — Shadcn semantic color refresh
 
 ### ERP-936 — Production-backed invoice category hydration

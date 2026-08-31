@@ -10,6 +10,14 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-API-ERP-955-004
+    task: ERP-955
+    rules: [BR-TAX-003, BR-AUD-001, BR-ORG-001]
+    title: Resolve an invalid or missing VAT code on a posted commercial-document line without changing journal amounts
+    layer: api
+    command: pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.service.test.ts
+    blocking_gate: G93
+
   - id: T-UNIT-ERP-862-001
     task: ERP-862
     rules: [BR-SEC-002]

@@ -69,6 +69,39 @@ describe("ERP-300 CommercialDocumentService", () => {
     );
     expect(result.data).toMatchObject({ documentId: "purchase-1", category: "MEAL" });
   });
+  it("resolves a VAT code through the audited backend action", async () => {
+    const store = {
+      resolveTaxCode: vi.fn().mockResolvedValue({
+        documentId: "purchase-1",
+        lineNumber: 1,
+        taxCode: "VAT10_IN",
+        journalAmountsChanged: false,
+      }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    const result = await service.resolveTaxCode(
+      context,
+      "purchase-1",
+      { lineNumber: 1, reason: "Map approved input VAT rate" },
+      "tax-code-1",
+    );
+    expect(store.resolveTaxCode).toHaveBeenCalledWith(
+      context,
+      "purchase-1",
+      { lineNumber: 1, reason: "Map approved input VAT rate" },
+      "tax-code-1",
+    );
+    expect(result.data).toMatchObject({ taxCode: "VAT10_IN", journalAmountsChanged: false });
+  });
+
+  it("rejects an unreasoned VAT code correction before mutating the store", async () => {
+    const store = { resolveTaxCode: vi.fn() };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    await expect(
+      service.resolveTaxCode(context, "purchase-1", { lineNumber: 1, reason: " " }, "tax-code-2"),
+    ).rejects.toThrow("VALIDATION_FAILED");
+    expect(store.resolveTaxCode).not.toHaveBeenCalled();
+  });
   it("passes customer and project filters to the organization-scoped store", async () => {
     const store = { list: vi.fn().mockResolvedValue([]) };
     const service = new CommercialDocumentService(store as never, {} as never);

@@ -265,6 +265,7 @@ function normalizeReport(
       controls: {
         unreviewedExpenseLineCount: String(raw.unreviewedItemIds.length),
         missingEvidenceExpenseCount: String(raw.missingEvidenceItemIds.length),
+        invalidTaxCodeLineCount: String(raw.invalidTaxCodeItemIds.length),
         differenceMinor: (
           BigInt(raw.outputDifferenceMinor) + BigInt(raw.inputDifferenceMinor)
         ).toString(),
@@ -276,12 +277,27 @@ function normalizeReport(
 
 function taxReviewQueueHref(report: FinancialStatementReport) {
   const params = new URLSearchParams({
-    state: "unreviewed",
+    state: "exception",
     endsOn: report.range.endsOn,
     framework: report.framework,
   });
   if (report.range.startsOn) params.set("startsOn", report.range.startsOn);
   return `/reports/tax/expense-exceptions?${params.toString()}`;
+}
+
+function vatReadinessMessage(report: FinancialStatementReport) {
+  const unreviewed = Number(report.controls?.unreviewedExpenseLineCount ?? "0");
+  const missingEvidence = Number(report.controls?.missingEvidenceExpenseCount ?? "0");
+  const invalidTaxCodes = Number(report.controls?.invalidTaxCodeLineCount ?? "0");
+  const differenceMinor = report.controls?.differenceMinor ?? "0";
+  const blockers: string[] = [];
+  if (unreviewed > 0) blockers.push(`${unreviewed} dòng VAT chưa review`);
+  if (missingEvidence > 0) blockers.push(`${missingEvidence} dòng thiếu chứng từ/đối soát`);
+  if (invalidTaxCodes > 0) blockers.push(`${invalidTaxCodes} dòng thiếu hoặc sai mã thuế VAT`);
+  if (differenceMinor !== "0") blockers.push(`chênh lệch đối soát ${differenceMinor} minor units`);
+  return blockers.length
+    ? `Còn ${blockers.join(" và ")} cần xử lý trước khi dùng số liệu như bản final.`
+    : "Còn exception VAT cần xử lý trước khi dùng số liệu như bản final.";
 }
 
 function normalizeTaxException(value: unknown): TaxExpenseException {
@@ -313,6 +329,10 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
     ).toString(),
     citState: String(item.cit_state ?? "unreviewed"),
     vatState: String(item.vat_state ?? "unreviewed"),
+    ...(item.tax_code ? { taxCode: String(item.tax_code) } : {}),
+    ...(item.tax_code_approved !== undefined
+      ? { taxCodeApproved: Boolean(item.tax_code_approved) }
+      : {}),
     evidenceState: evidence.length ? "verified" : "missing",
     ...(item.paperless_url ? { paperlessUrl: String(item.paperless_url) } : {}),
     ...(item.reviewed_by ? { reviewer: String(item.reviewed_by) } : {}),
@@ -320,6 +340,13 @@ function normalizeTaxException(value: unknown): TaxExpenseException {
     ...(Array.isArray(item.nextActions)
       ? {
           nextActions: item.nextActions.filter(
+            (value): value is string => typeof value === "string",
+          ),
+        }
+      : {}),
+    ...(Array.isArray(item.exceptionCodes)
+      ? {
+          exceptionCodes: item.exceptionCodes.filter(
             (value): value is string => typeof value === "string",
           ),
         }
@@ -941,7 +968,7 @@ export function FinancialStatementWorkspace({
               <Link
                 href={`/reports/tax/expense-exceptions?${new URLSearchParams({
                   ...Object.fromEntries(query.entries()),
-                  state: "unreviewed",
+                  state: "exception",
                 }).toString()}`}
               >
                 Mở hàng chờ review VAT
@@ -965,7 +992,9 @@ export function FinancialStatementWorkspace({
               <span>
                 {report.equation?.balanced === false
                   ? `Balance Sheet lệch ${report.equation.differenceMinor} minor units. Không có hidden plug.`
-                  : "Còn mapping, evidence hoặc reconciliation exception cần xử lý trước khi dùng số liệu như bản final."}
+                  : kind === "vat_reconciliation"
+                    ? vatReadinessMessage(report)
+                    : "Còn mapping, evidence hoặc reconciliation exception cần xử lý trước khi dùng số liệu như bản final."}
               </span>
               {kind === "vat_reconciliation" ? (
                 <Button variant="outline" size="sm" asChild>
@@ -1094,6 +1123,10 @@ export function TaxExpenseExceptionsWorkspace() {
   const [finalizeNotice, setFinalizeNotice] = useState("");
   const [reviewRow, setReviewRow] = useState<TaxExpenseException | null>(null);
   const [reviewAxis, setReviewAxis] = useState<"cit" | "vat">("cit");
+  const [reviewTaxCode, setReviewTaxCode] = useState("VAT10_IN");
+  const [taxCodeRow, setTaxCodeRow] = useState<TaxExpenseException | null>(null);
+  const [taxCodeReason, setTaxCodeReason] = useState("Gán mã VAT đầu vào đã được kiểm tra");
+  const [taxCodeSaving, setTaxCodeSaving] = useState(false);
   const [reviewState, setReviewState] = useState<"eligible" | "partially_eligible" | "ineligible">(
     "eligible",
   );
@@ -1178,6 +1211,11 @@ export function TaxExpenseExceptionsWorkspace() {
           <div className="flex flex-col items-end gap-1">
             <MoneyCell minor={row.vatEligibleMinor} />
             <StatusBadge status={row.vatState} />
+            {row.taxCodeApproved === false ? (
+              <span className="text-[11px] text-destructive">
+                {row.taxCode ? `Mã ${row.taxCode} chưa được duyệt` : "Thiếu mã thuế VAT"}
+              </span>
+            ) : null}
           </div>
         ),
       },
@@ -1198,6 +1236,8 @@ export function TaxExpenseExceptionsWorkspace() {
             row.citState === "review";
           const canReviewVat =
             row.nextActions?.includes("review-vat") || row.vatState === "unreviewed";
+          const canResolveTaxCode =
+            row.nextActions?.includes("resolve-tax-code") || row.taxCodeApproved === false;
           return (
             <div className="flex items-center justify-end gap-1">
               {canReview ? (
@@ -1207,6 +1247,7 @@ export function TaxExpenseExceptionsWorkspace() {
                   onClick={() => {
                     setReviewRow(row);
                     setReviewAxis("cit");
+                    setReviewTaxCode("VAT10_IN");
                     setReviewState("eligible");
                     setReviewAmount(row.bookedMinor);
                     setReviewReason("AI audit: xác nhận phân loại CIT theo chứng từ đầu vào");
@@ -1222,12 +1263,18 @@ export function TaxExpenseExceptionsWorkspace() {
                   onClick={() => {
                     setReviewRow(row);
                     setReviewAxis("vat");
+                    setReviewTaxCode("VAT10_IN");
                     setReviewState("eligible");
                     setReviewAmount(row.vatBasisMinor ?? row.vatEligibleMinor ?? "0");
                     setReviewReason("AI audit: xác nhận phân loại VAT theo chứng từ đầu vào");
                   }}
                 >
                   Review VAT
+                </Button>
+              ) : null}
+              {canResolveTaxCode && row.sourceType === "purchase_invoice" ? (
+                <Button variant="outline" size="sm" onClick={() => setTaxCodeRow(row)}>
+                  Gán mã thuế
                 </Button>
               ) : null}
               <Button variant="ghost" size="sm" asChild>
@@ -1294,6 +1341,7 @@ export function TaxExpenseExceptionsWorkspace() {
           lineNumber: reviewRow.lineNumber ?? 1,
           state: reviewState,
           eligibleMinor: reviewState === "ineligible" ? "0" : reviewAmount,
+          ...(reviewAxis === "vat" ? { taxCode: reviewTaxCode } : {}),
           reason: reviewReason.trim(),
         },
       });
@@ -1308,6 +1356,25 @@ export function TaxExpenseExceptionsWorkspace() {
       );
     } finally {
       setReviewing(false);
+    }
+  }
+  async function resolveTaxCode() {
+    if (!taxCodeRow || !taxCodeReason.trim() || taxCodeSaving || !hasToken) return;
+    setTaxCodeSaving(true);
+    try {
+      await api.data(`commercial-documents/${encodeURIComponent(taxCodeRow.expenseId)}/tax-code`, {
+        method: "POST",
+        body: { lineNumber: taxCodeRow.lineNumber ?? 1, reason: taxCodeReason.trim() },
+      });
+      setTaxCodeRow(null);
+      const refreshed = await api.data<
+        RawTaxExpenseReview | { items: readonly TaxExpenseException[] }
+      >(`${financialStatementsApi.expenseExceptions}?${query}`);
+      setRows(refreshed.items.map((item) => normalizeTaxException(item)));
+    } catch (e) {
+      setFinalizeNotice(e instanceof Error ? e.message : "Không thể gán mã thuế VAT");
+    } finally {
+      setTaxCodeSaving(false);
     }
   }
   return (
@@ -1480,6 +1547,20 @@ export function TaxExpenseExceptionsWorkspace() {
               />
             </Field>
           ) : null}
+          {reviewAxis === "vat" ? (
+            <Field>
+              <FieldLabel htmlFor="vat-review-tax-code">Mã thuế VAT</FieldLabel>
+              <Select value={reviewTaxCode} onValueChange={setReviewTaxCode}>
+                <SelectTrigger id="vat-review-tax-code">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="VAT10_IN">VAT đầu vào 10%</SelectItem>
+                  <SelectItem value="VAT10_OUT">VAT đầu ra 10%</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
           <Field>
             <FieldLabel htmlFor="cit-review-reason">Lý do</FieldLabel>
             <Input
@@ -1494,6 +1575,43 @@ export function TaxExpenseExceptionsWorkspace() {
             </DialogClose>
             <Button onClick={() => void reviewCit()} disabled={reviewing || !reviewReason.trim()}>
               {reviewing ? "Đang lưu…" : "Xác nhận review"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(taxCodeRow)}
+        onOpenChange={(open) => !open && !taxCodeSaving && setTaxCodeRow(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gán mã thuế VAT</DialogTitle>
+            <DialogDescription>
+              {taxCodeRow?.description} ·{" "}
+              {taxCodeRow?.taxCode ? `Mã hiện tại: ${taxCodeRow.taxCode}` : "Chưa có mã thuế"}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Backend sẽ chọn mã VAT đầu vào đang được duyệt và ghi audit; không thay đổi số tiền hay
+            journal đã post.
+          </p>
+          <Field>
+            <FieldLabel htmlFor="tax-code-reason">Lý do</FieldLabel>
+            <Input
+              id="tax-code-reason"
+              value={taxCodeReason}
+              onChange={(e) => setTaxCodeReason(e.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Hủy</Button>
+            </DialogClose>
+            <Button
+              onClick={() => void resolveTaxCode()}
+              disabled={taxCodeSaving || !taxCodeReason.trim()}
+            >
+              {taxCodeSaving ? "Đang lưu…" : "Gán mã thuế"}
             </Button>
           </DialogFooter>
         </DialogContent>

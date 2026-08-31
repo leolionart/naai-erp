@@ -172,13 +172,10 @@ async function install(page: Page, requestedUrls: string[] = []) {
       return reply(route, cashFlow);
     },
   );
-  await page.route(
-    "http://localhost:3001/api/v1/organizations/naai/reports/tax/vat-reconciliation**",
-    (route) => {
-      requestedUrls.push(route.request().url());
-      return reply(route, vat);
-    },
-  );
+  await page.route("**/api/v1/organizations/*/reports/tax/vat-reconciliation**", (route) => {
+    requestedUrls.push(route.request().url());
+    return reply(route, vat);
+  });
   await page.route(
     "http://localhost:3001/api/v1/organizations/naai/reports/tax/expense-exceptions**",
     (route) => reply(route, exceptions),
@@ -232,6 +229,9 @@ test("@desktop separates direct cash flow and VAT readiness controls", async ({ 
   await page.goto("http://localhost:3000/reports/tax/vat-reconciliation/current");
   await expect(page.getByText("12.000.000 ₫").first()).toBeVisible();
   await expect(page.getByText("Báo cáo chưa sẵn sàng")).toBeVisible();
+  await expect(
+    page.getByText(/Còn 1 dòng VAT chưa review và 1 dòng thiếu chứng từ\/đối soát/),
+  ).toBeVisible();
 });
 
 test("@desktop VAT payable KPI opens the actionable tax-review queue", async ({ page }) => {
@@ -241,17 +241,26 @@ test("@desktop VAT payable KPI opens the actionable tax-review queue", async ({ 
   const reviewLink = page.getByRole("link", { name: "Mở hàng chờ VAT" });
   await expect(reviewLink).toHaveAttribute(
     "href",
-    /\/reports\/tax\/expense-exceptions\?state=unreviewed(?:&|%26).*endsOn=/,
+    /\/reports\/tax\/expense-exceptions\?state=exception(?:&|%26).*endsOn=/,
   );
-  await page.getByRole("button", { name: "Xem nguồn" }).last().click();
-  const sourceDialog = page.getByRole("dialog", { name: /Nguồn/ });
-  await expect(sourceDialog.getByRole("link", { name: /Xử lý VAT chưa review/ })).toHaveAttribute(
-    "href",
-    /\/reports\/tax\/expense-exceptions\?state=unreviewed/,
-  );
-  await page.keyboard.press("Escape");
   await reviewLink.click();
-  await expect(page).toHaveURL(/\/reports\/tax\/expense-exceptions\?state=unreviewed/);
+  await expect(page).toHaveURL(/\/reports\/tax\/expense-exceptions\?state=exception/);
+});
+
+test("@desktop VAT readiness warning names blocker counts from the report contract", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/reports/tax/vat-reconciliation/current");
+
+  await expect(page.getByText("Báo cáo chưa sẵn sàng")).toBeVisible();
+  await expect(
+    page.getByText(/Còn 1 dòng VAT chưa review và 1 dòng thiếu chứng từ\/đối soát/),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Xử lý VAT chưa review" })).toHaveAttribute(
+    "href",
+    /state=exception/,
+  );
 });
 
 test("@desktop maps dynamic statement periods into canonical API dates", async ({ page }) => {

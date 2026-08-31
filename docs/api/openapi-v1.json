@@ -983,6 +983,45 @@
         "summary": "Update only audited category metadata on a commercial document, including issued or posted records"
       }
     },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/tax-code": {
+      "post": {
+        "operationId": "resolveCommercialDocumentTaxCode",
+        "tags": ["commercial-documents", "tax", "review"],
+        "summary": "Resolve an invalid or missing VAT code on a posted document line",
+        "description": "Selects the single accountant-approved, effective VAT code whose rate matches the line tax amount, records an audited metadata correction and leaves the posted journal amounts unchanged. If no unique code matches, the operation returns an actionable validation error instead of guessing.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "documentId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["lineNumber", "reason"],
+                "properties": {
+                  "lineNumber": { "type": "integer", "minimum": 1 },
+                  "reason": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audited tax-code correction with the selected code and next actions",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/commercial-documents/relationship-backfill/inventory": {
       "get": {
         "operationId": "inventoryCommercialDocumentRelationshipBackfill",

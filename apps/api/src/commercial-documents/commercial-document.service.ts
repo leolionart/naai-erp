@@ -9,6 +9,7 @@ import type {
   CommercialDocumentMetadataInput,
   CommercialDocumentContext,
   CommercialDocumentTaxReviewInput,
+  CommercialDocumentTaxCodeCorrectionInput,
   CommercialDocumentLineInput,
   CreateCommercialDocumentInput,
   DocumentAllocationInput,
@@ -186,6 +187,22 @@ export class CommercialDocumentService {
     if (input.state === "accountant_override" && !input.reference?.trim())
       throw new Error("ACCOUNTANT_OVERRIDE_REFERENCE_REQUIRED");
     return this.envelope(context, await this.store.review(context, id, input, idempotencyKey));
+  }
+  async resolveTaxCode(
+    context: CommercialDocumentContext,
+    id: string,
+    input: CommercialDocumentTaxCodeCorrectionInput,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role) || role === "approver"))
+      throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!Number.isInteger(input.lineNumber) || input.lineNumber < 1 || !input.reason?.trim())
+      throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.resolveTaxCode(context, id, input, idempotencyKey),
+    );
   }
   async updateCategory(
     context: CommercialDocumentContext,
