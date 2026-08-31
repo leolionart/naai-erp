@@ -1,38 +1,20 @@
-import type { SVGProps } from "react";
+import type { ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-type NaaiMarkProps = SVGProps<SVGSVGElement> & {
+type NaaiMarkProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "title"> & {
   title?: string;
 };
 
-/** The compact NAAI mark used by the app shell and browser chrome. */
+/** The compact NAAI mark generated for the app brand and used by the app shell. */
 export function NaaiMark({ title = "NAAI", className, ...props }: NaaiMarkProps) {
   return (
-    <svg
-      viewBox="0 0 40 40"
+    <img
+      src="/naai-mark-gpt-256.png"
+      alt={title || undefined}
       role={title ? "img" : undefined}
-      aria-hidden={title ? undefined : true}
-      aria-label={title || undefined}
-      className={cn("size-8 shrink-0", className)}
+      className={cn("size-8 shrink-0 rounded-[22%] object-cover", className)}
       {...props}
-    >
-      {title ? <title>{title}</title> : null}
-      <rect
-        width="40"
-        height="40"
-        rx="11"
-        fill="var(--naai-mark-background, var(--primary, #20294a))"
-      />
-      <path
-        d="M11 29V11h4.8l9.2 11.76V11H29v18h-4.8L15.8 17.24V29H11Z"
-        fill="var(--naai-mark-foreground, var(--primary-foreground, #d9f99d))"
-      />
-      <path
-        d="M11 29h18"
-        stroke="var(--naai-mark-accent, var(--accent-foreground, #a3e635))"
-        strokeWidth="2"
-      />
-    </svg>
+    />
   );
 }
 
@@ -44,12 +26,7 @@ type NaaiLogoProps = {
 /** Shared wordmark so the sidebar and login surface cannot drift apart. */
 export function NaaiLogo({ compact = false, className }: NaaiLogoProps) {
   return (
-    <span
-      className={cn(
-        "flex min-w-0 items-center gap-2 [--naai-mark-background:var(--foreground)] [--naai-mark-foreground:var(--background)] [--naai-mark-accent:var(--primary)]",
-        className,
-      )}
-    >
+    <span className={cn("flex min-w-0 items-center gap-2", className)}>
       <NaaiMark title="NAAI ERP" className="size-8" />
       {compact ? null : (
         <span className="grid min-w-0 text-left leading-tight group-data-[collapsible=icon]:hidden">

@@ -16,3 +16,9 @@ Files changed:
 - `apps/web/public/naai-logo.svg`
 
 The logo is presentation-only: no accounting, API, authentication or organization behavior changes.
+
+## GPT Image refresh
+
+The original vector concept was replaced on 2026-08-31 with a mark generated through the
+authenticated `gpt-image-2` route on `https://llmproxy.vexere.net/v1`. The generated PNG is used for
+the shared inline mark and browser metadata; the original SVG remains as a deterministic fallback.

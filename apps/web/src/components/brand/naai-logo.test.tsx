@@ -7,7 +7,7 @@ describe("NAAI brand assets", () => {
     const html = renderToStaticMarkup(<NaaiMark title="NAAI ERP" />);
     expect(html).toContain('role="img"');
     expect(html).toContain("NAAI ERP");
-    expect(html).toContain("d9f99d");
+    expect(html).toContain("/naai-mark-gpt-256.png");
   });
 
   it("shares the NAAI ERP wordmark while supporting compact shells", () => {
@@ -18,9 +18,8 @@ describe("NAAI brand assets", () => {
     expect(compact).not.toContain("Finance operations");
   });
 
-  it("uses theme tokens so the mark stays high contrast in dark mode", () => {
+  it("uses the generated mark asset so the brand stays consistent in dark mode", () => {
     const html = renderToStaticMarkup(<NaaiLogo />);
-    expect(html).toContain("--naai-mark-background:var(--foreground)");
-    expect(html).toContain("--naai-mark-foreground:var(--background)");
+    expect(html).toContain("/naai-mark-gpt-256.png");
   });
 });
