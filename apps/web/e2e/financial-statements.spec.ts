@@ -234,6 +234,24 @@ test("@desktop separates direct cash flow and VAT readiness controls", async ({ 
   await expect(page.getByText("Báo cáo chưa sẵn sàng")).toBeVisible();
 });
 
+test("@desktop VAT report exposes actionable review links from warning and payable KPI", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/reports/tax/vat-reconciliation/current");
+
+  const reviewLinks = page.getByRole("link", { name: /VAT.*review|hàng chờ VAT/i });
+  await expect(reviewLinks).toHaveCount(2);
+  for (const link of await reviewLinks.all()) {
+    await expect(link).toHaveAttribute(
+      "href",
+      /\/reports\/tax\/expense-exceptions\?state=unreviewed(?:&|%26).*endsOn=2026-08-31/,
+    );
+  }
+  await reviewLinks.first().click();
+  await expect(page).toHaveURL(/\/reports\/tax\/expense-exceptions\?state=unreviewed/);
+});
+
 test("@desktop maps dynamic statement periods into canonical API dates", async ({ page }) => {
   const requestedUrls: string[] = [];
   await install(page, requestedUrls);

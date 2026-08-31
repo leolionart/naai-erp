@@ -676,6 +676,15 @@ function ReportKpis({ report }: Readonly<{ report: FinancialStatementReport }>) 
   const period = report.range.startsOn
     ? `${report.range.startsOn} → ${report.range.endsOn}`
     : `As of ${report.range.endsOn}`;
+  const taxReviewHref = (() => {
+    const params = new URLSearchParams({
+      state: "unreviewed",
+      endsOn: report.range.endsOn,
+      framework: report.framework,
+    });
+    if (report.range.startsOn) params.set("startsOn", report.range.startsOn);
+    return `/reports/tax/expense-exceptions?${params.toString()}`;
+  })();
   if (report.statement === "balance_sheet" && report.equation)
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -748,6 +757,13 @@ function ReportKpis({ report }: Readonly<{ report: FinancialStatementReport }>) 
           title="VAT phải nộp"
           period="Output − eligible input"
           value={<MoneyCell minor={report.totals?.netVatPayableMinor ?? "0"} />}
+          footer={
+            <Button variant="outline" size="sm" asChild>
+              <Link href={taxReviewHref}>
+                Mở hàng chờ VAT <ChevronRight className="ml-1 size-3.5" />
+              </Link>
+            </Button>
+          }
         />
       </div>
     );
@@ -935,9 +951,27 @@ export function FinancialStatementWorkspace({
           <AlertCircle />
           <AlertTitle>Báo cáo chưa sẵn sàng</AlertTitle>
           <AlertDescription>
-            {report.equation?.balanced === false
-              ? `Balance Sheet lệch ${report.equation.differenceMinor} minor units. Không có hidden plug.`
-              : "Còn mapping, evidence hoặc reconciliation exception cần xử lý trước khi dùng số liệu như bản final."}
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                {report.equation?.balanced === false
+                  ? `Balance Sheet lệch ${report.equation.differenceMinor} minor units. Không có hidden plug.`
+                  : "Còn mapping, evidence hoặc reconciliation exception cần xử lý trước khi dùng số liệu như bản final."}
+              </span>
+              {kind === "vat_reconciliation" ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    href={`/reports/tax/expense-exceptions?${new URLSearchParams({
+                      state: "unreviewed",
+                      ...(report.range.startsOn ? { startsOn: report.range.startsOn } : {}),
+                      endsOn: report.range.endsOn,
+                      framework: report.framework,
+                    }).toString()}`}
+                  >
+                    Xử lý VAT chưa review <ChevronRight className="ml-1 size-3.5" />
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           </AlertDescription>
         </Alert>
       ) : null}
