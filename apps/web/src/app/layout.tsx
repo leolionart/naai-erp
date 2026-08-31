@@ -16,10 +16,7 @@ export const metadata: Metadata = {
   description: "Management accounting for NAAI Studio",
   applicationName: "NAAI ERP",
   icons: {
-    icon: [
-      { url: "/naai-mark-gpt-256.png", type: "image/png", sizes: "256x256" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
+    icon: [{ url: "/icon.png", type: "image/png", sizes: "256x256" }],
     apple: [{ url: "/naai-mark-gpt-256.png", type: "image/png", sizes: "256x256" }],
   },
 };
