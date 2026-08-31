@@ -1078,6 +1078,9 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - API contracts must use the same field names as runtime responses. Compatibility query aliases may
   remain accepted and documented as deprecated, but first-party UI uses only the canonical names and
   does not render raw IDs, stale optional fields or literal `undefined` as business information.
+- The application shell and authentication surface use the shared NAAI mark/wordmark assets and
+  metadata favicon. Brand artwork is presentation-only and must not encode accounting status,
+  approval state or financial sign semantics.
 - Customer and project directory cards expose enough canonical context to distinguish records
   without opening each profile. Customer cards show tax and available contact/identity details;
   project cards show customer, service, budget and execution period. Missing values are stated

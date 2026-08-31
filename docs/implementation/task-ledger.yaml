@@ -3497,6 +3497,25 @@ tasks:
       - apps/web/src/components/financial/financial-components.test.tsx
       - docs/implementation/evidence/ERP-956/
 
+  - id: ERP-957
+    title: NAAI ERP favicon and shared application logo
+    phase: P16
+    status: review
+    dependencies: [ERP-956]
+    business_rules: [BR-UI-003]
+    tests: [T-UNIT-ERP-957-001]
+    evidence: docs/implementation/evidence/ERP-957/
+    agent: codex-root
+    started_at: 2026-08-31T07:53:00+07:00
+    planned_files:
+      - apps/web/src/app/icon.svg
+      - apps/web/src/app/layout.tsx
+      - apps/web/src/components/brand/
+      - apps/web/src/components/layout/app-navigation.tsx
+      - apps/web/src/app/login/page.tsx
+      - apps/web/public/
+      - docs/implementation/evidence/ERP-957/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
