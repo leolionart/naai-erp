@@ -274,6 +274,16 @@ function normalizeReport(
   throw new Error("API trả về contract báo cáo không phù hợp với route");
 }
 
+function taxReviewQueueHref(report: FinancialStatementReport) {
+  const params = new URLSearchParams({
+    state: "unreviewed",
+    endsOn: report.range.endsOn,
+    framework: report.framework,
+  });
+  if (report.range.startsOn) params.set("startsOn", report.range.startsOn);
+  return `/reports/tax/expense-exceptions?${params.toString()}`;
+}
+
 function normalizeTaxException(value: unknown): TaxExpenseException {
   const item = value as Record<string, unknown>;
   if ("bookedMinor" in item) return item as TaxExpenseException;
@@ -663,6 +673,14 @@ function SourceDialog({
           ) : null}
         </div>
         <DialogFooter className="border-t pt-3">
+          {report?.statement === "vat_reconciliation" &&
+          (line?.lineCode === "net_vat_payable" || line?.lineCode === "unreviewed_input_vat") ? (
+            <Button variant="default" size="sm" asChild>
+              <Link href={taxReviewQueueHref(report)}>
+                Xử lý VAT chưa review <ChevronRight className="ml-1 size-3.5" />
+              </Link>
+            </Button>
+          ) : null}
           <DialogClose asChild>
             <Button variant="outline">Đóng cửa sổ</Button>
           </DialogClose>
@@ -676,15 +694,7 @@ function ReportKpis({ report }: Readonly<{ report: FinancialStatementReport }>) 
   const period = report.range.startsOn
     ? `${report.range.startsOn} → ${report.range.endsOn}`
     : `As of ${report.range.endsOn}`;
-  const taxReviewHref = (() => {
-    const params = new URLSearchParams({
-      state: "unreviewed",
-      endsOn: report.range.endsOn,
-      framework: report.framework,
-    });
-    if (report.range.startsOn) params.set("startsOn", report.range.startsOn);
-    return `/reports/tax/expense-exceptions?${params.toString()}`;
-  })();
+  const taxReviewHref = taxReviewQueueHref(report);
   if (report.statement === "balance_sheet" && report.equation)
     return (
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -959,14 +969,7 @@ export function FinancialStatementWorkspace({
               </span>
               {kind === "vat_reconciliation" ? (
                 <Button variant="outline" size="sm" asChild>
-                  <Link
-                    href={`/reports/tax/expense-exceptions?${new URLSearchParams({
-                      state: "unreviewed",
-                      ...(report.range.startsOn ? { startsOn: report.range.startsOn } : {}),
-                      endsOn: report.range.endsOn,
-                      framework: report.framework,
-                    }).toString()}`}
-                  >
+                  <Link href={taxReviewQueueHref(report)}>
                     Xử lý VAT chưa review <ChevronRight className="ml-1 size-3.5" />
                   </Link>
                 </Button>
