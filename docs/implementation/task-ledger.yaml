@@ -3502,8 +3502,8 @@ tasks:
     phase: P16
     status: review
     dependencies: [ERP-956]
-    business_rules: [BR-UI-003]
-    tests: [T-UNIT-ERP-957-001]
+    business_rules: [BR-UI-004, BR-UI-007]
+    tests: [T-UNIT-ERP-957-001, T-DOC-ERP-957-002]
     evidence: docs/implementation/evidence/ERP-957/
     agent: codex-root
     started_at: 2026-08-31T07:53:00+07:00
@@ -3609,6 +3609,7 @@ gates:
   G91: [ERP-934]
   G92: done
   G93: [ERP-936]
+  G98: [ERP-957]
 
 gate_status:
   G0: done
@@ -3702,3 +3703,4 @@ gate_status:
   G91: done
   G92: done
   G93: done
+  G98: done

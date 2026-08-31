@@ -2701,6 +2701,22 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/commercial-document.integration.test.ts src/expenses/expense.integration.test.ts
     blocking_gate: G95
 
+  - id: T-UNIT-ERP-957-001
+    task: ERP-957
+    rules: [BR-UI-004, BR-UI-007]
+    title: Shared NAAI mark and wordmark render with accessible labels and compact support
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/components/brand/naai-logo.test.tsx
+    blocking_gate: G98
+
+  - id: T-DOC-ERP-957-002
+    task: ERP-957
+    rules: [BR-UI-004]
+    title: Brand asset usage and presentation-only boundary are documented
+    layer: documentation
+    command: pnpm test:docs
+    blocking_gate: G98
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001
