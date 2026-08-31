@@ -3,3 +3,6 @@
 - `pnpm --filter @naai-erp/web typecheck` — passed.
 - `pnpm exec prettier --write ...` and `git diff --check` — passed.
 - Backend state-filter integration coverage from commit `81c08fb` — 8/8 passed.
+- `pnpm --filter @naai-erp/domain exec vitest run src/tax-reconciliation.test.ts` — 3 passed.
+- `pnpm --filter @naai-erp/web exec playwright test e2e/financial-statements.spec.ts --grep "VAT payable KPI|VAT readiness warning"` — 2 passed.
+- Local API readback for `demo-local`: VAT report returned 75 invalid tax-code rows and 75 source items; every item exposed `resolve-tax-code` and `view-source`; exception queue returned 69 rows with `review_required` status.

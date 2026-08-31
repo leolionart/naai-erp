@@ -1,3 +1,3 @@
 # ERP-955
 
-Tax exception queue now defaults to unresolved rows, honors explicit state filters, and exposes an in-app per-line CIT review action for posted expenses and purchase invoices. Reviews update audited tax metadata only; posted journals remain immutable.
+Tax exception queue now defaults to unresolved rows, honors explicit state filters, and exposes concrete in-app actions for each blocker: CIT review, VAT review, and VAT tax-code resolution. VAT reconciliation also returns source rows with actions so KPI and source drill-downs cannot end in an empty screen. All corrections update audited tax metadata only; posted journals remain immutable.

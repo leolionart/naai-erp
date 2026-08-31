@@ -1,2 +1,2 @@
-- VAT and management remain separate axes; this screen currently provides CIT review only.
+- VAT and management remain separate axes; VAT code assignment is metadata-only and requires an effective accountant-approved code matching the line's direction/rate. If no matching policy exists, the resolver returns an explicit no-match error for tax-policy configuration.
 - Production data is unchanged by this code change; deployment is required before the UI is available live.
