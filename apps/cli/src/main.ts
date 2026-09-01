@@ -236,6 +236,25 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
       process.stdout.write(
         values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
       );
+    } else if (resource === "management-workbook") {
+      if (!["export", "download"].includes(action) || !values.output || !values.from || !values.to)
+        throw new Error(
+          "management-workbook download requires --from, --to, and explicit --output",
+        );
+      const file = await client.downloadManagementWorkbook({
+        startsOn: values.from,
+        endsOn: values.to,
+      });
+      await writeFile(values.output, file.content);
+      process.stdout.write(
+        JSON.stringify({
+          output: values.output,
+          bytes: file.content.byteLength,
+          contentType: file.contentType,
+          ...(file.filename ? { filename: file.filename } : {}),
+          ...(file.sha256 ? { sha256: file.sha256 } : {}),
+        }) + "\n",
+      );
     } else if (resource === "sales-invoice-export" || resource === "purchase-expense-export") {
       if (!["export", "download"].includes(action) || !values.output || !values.from || !values.to)
         throw new Error(`${resource} download requires --from, --to, and explicit --output`);

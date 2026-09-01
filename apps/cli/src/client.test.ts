@@ -160,6 +160,33 @@ describe("NAAI ERP JSON-first CLI client", () => {
     );
   });
 
+  it("downloads the management workbook used to reconcile dashboard metrics", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: {
+          "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": 'attachment; filename="management-workbook-2026.xlsx"',
+          "x-content-sha256": "b".repeat(64),
+        },
+      }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const file = await client.downloadManagementWorkbook({
+      startsOn: "2026-01-01",
+      endsOn: "2026-12-31",
+    });
+    expect(file.filename).toBe("management-workbook-2026.xlsx");
+    expect(file.sha256).toBe("b".repeat(64));
+    expect(fetchFn).toHaveBeenCalledWith(
+      "http://api/api/v1/organizations/org-a/accounting-list-exports/management-workbook?startsOn=2026-01-01&endsOn=2026-12-31",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("routes ERP-630 financial statements, VAT, drilldown, and mapping workflows", async () => {
     const fetchFn = vi.fn(() =>
       Promise.resolve(

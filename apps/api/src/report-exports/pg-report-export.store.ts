@@ -40,6 +40,7 @@ import {
   type ManagementReceivableRow,
   type ManagementRevenueRow,
 } from "./management-workbook.js";
+import type { OperatingDashboardReadModel } from "../operating-dashboard/operating-dashboard.types.js";
 import { pruneGeneratedExportContent } from "./export-retention.js";
 
 type SnapshotRow = Record<string, unknown> & {
@@ -716,7 +717,11 @@ export class PgReportExportStore {
       sha256: createHash("sha256").update(content).digest("hex"),
     };
   }
-  async exportManagementWorkbook(c: ReportExportContext, filters: ManagementWorkbookQuery) {
+  async exportManagementWorkbook(
+    c: ReportExportContext,
+    filters: ManagementWorkbookQuery,
+    dashboard?: OperatingDashboardReadModel,
+  ) {
     const params = [c.organizationId, filters.startsOn, filters.endsOn];
     const [
       organization,
@@ -845,7 +850,8 @@ export class PgReportExportStore {
                                 order by a.allocation_number limit 1) relation on true
              left join projects project on project.organization_id=d.organization_id and project.id=coalesce(relation.project_id,line.dimensions->>'projectId')
              left join dimension_values category on category.organization_id=d.organization_id and category.kind='category' and category.code=line.category_code
-            where d.organization_id=$1 and d.type='purchase_invoice' and d.state='posted'
+            where d.organization_id=$1 and d.type='purchase_invoice'
+              and d.state in ('posted','partially_paid','paid')
               and d.document_date between $2::date and $3::date order by d.document_date,d.id`,
         params,
       ),
@@ -868,7 +874,8 @@ export class PgReportExportStore {
                   coalesce(sum(case when account.root_type='expense' then coalesce(line.debit_minor,0)-coalesce(line.credit_minor,0) else 0 end),0)::text expense_minor
              from journal_entries j join journal_lines line on line.organization_id=j.organization_id and line.journal_id=j.id
              join accounts account on account.organization_id=line.organization_id and account.code=line.account_code
-            where j.organization_id=$1 and j.state='posted' and j.journal_date between $2::date and $3::date
+            where j.organization_id=$1 and j.state in ('posted','reversed')
+              and j.journal_date between $2::date and $3::date
             group by 1 order by 1`,
         params,
       ),
@@ -902,7 +909,9 @@ export class PgReportExportStore {
              select to_char(d.document_date,'YYYY-MM'),line.category_code,coalesce(category.name,'Chưa phân loại'),line.gross_minor
                from commercial_documents d join commercial_document_lines line on line.organization_id=d.organization_id and line.document_id=d.id
                left join dimension_values category on category.organization_id=line.organization_id and category.kind='category' and category.code=line.category_code
-              where d.organization_id=$1 and d.type='purchase_invoice' and d.state='posted' and d.document_date between $2::date and $3::date
+              where d.organization_id=$1 and d.type='purchase_invoice'
+                and d.state in ('posted','partially_paid','paid')
+                and d.document_date between $2::date and $3::date
            ) source group by source.period_month,source.category_code,source.category_name order by source.period_month,source.category_name`,
         params,
       ),
@@ -1016,6 +1025,7 @@ export class PgReportExportStore {
       monthlyMetrics: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
       plans,
       expenseCategories: categoryRows.rows as ManagementExpenseCategoryRow[],
+      ...(dashboard ? { dashboard } : {}),
       controls: [
         {
           name: "Nguồn kế toán",

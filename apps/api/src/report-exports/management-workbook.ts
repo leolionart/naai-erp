@@ -94,6 +94,30 @@ export type ManagementWorkbookInput = Readonly<{
   plans: readonly ManagementPlanRow[];
   expenseCategories: readonly ManagementExpenseCategoryRow[];
   controls?: readonly ManagementControl[];
+  dashboard?: Readonly<{
+    asOf: string;
+    financials: Readonly<{
+      revenueMinor: string;
+      expenseMinor: string;
+      netProfitMinor: string;
+      cashAndBankMinor: string;
+      bankAvailableMinor?: string;
+      cashOnHandMinor?: string;
+      ownerPayableMinor: string;
+      ownerHoldsCompanyFundsMinor?: string;
+      netCompanyFundsMinor: string;
+      taxableProfitMinor: string;
+      corporateIncomeTaxMinor: string | null;
+      corporateIncomeTaxRateBps?: number | null;
+      monthly: readonly Readonly<{
+        period: string;
+        revenueMinor: string;
+        expenseMinor: string;
+        netProfitMinor: string;
+      }>[];
+    }>;
+    collections: Readonly<{ receivablesMinor: string }>;
+  }>;
 }>;
 
 const HEADER_FILL = "FF17365D";
@@ -479,6 +503,141 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
     (row) =>
       `SUMIFS('Công nợ'!$H$4:$H$${receivableEnd},'Công nợ'!$D$4:$D$${receivableEnd},">="&${revenueMonth(row)},'Công nợ'!$D$4:$D$${receivableEnd},"<"&${monthEndFormula(`$A${row}`)})`,
   );
+
+  if (input.dashboard) {
+    const source = book.addWorksheet("Dashboard nguồn");
+    title(source, input, "DASHBOARD — NGUỒN CANONICAL API", 3);
+    header(source, 3, ["Tham số", "Giá trị API", "Ghi chú"]);
+    const sourceRows = [
+      [
+        "bankAvailableMinor",
+        input.dashboard.financials.bankAvailableMinor ?? "0",
+        "Tiền ngân hàng",
+      ],
+      ["cashOnHandMinor", input.dashboard.financials.cashOnHandMinor ?? "0", "Tiền mặt công ty"],
+      ["cashAndBankMinor", input.dashboard.financials.cashAndBankMinor, "Tổng bank + cash"],
+      ["ownerPayableMinor", input.dashboard.financials.ownerPayableMinor, "Công ty nợ chủ"],
+      [
+        "ownerHoldsCompanyFundsMinor",
+        input.dashboard.financials.ownerHoldsCompanyFundsMinor ?? "0",
+        "Tiền công ty chủ đang giữ",
+      ],
+      [
+        "netCompanyFundsMinor",
+        input.dashboard.financials.netCompanyFundsMinor,
+        "Tiền công ty ròng",
+      ],
+      ["taxableProfitMinor", input.dashboard.financials.taxableProfitMinor, "Lợi nhuận tính thuế"],
+      [
+        "corporateIncomeTaxMinor",
+        input.dashboard.financials.corporateIncomeTaxMinor ?? "0",
+        "Thuế TNDN",
+      ],
+      [
+        "corporateIncomeTaxRateBps",
+        String(input.dashboard.financials.corporateIncomeTaxRateBps ?? 0),
+        "Thuế suất (bps)",
+      ],
+      ["receivablesMinor", input.dashboard.collections.receivablesMinor, "Công nợ phải thu"],
+    ] as const;
+    const sourceRow = new Map<string, number>();
+    sourceRows.forEach(([key, value, note]) => {
+      const row = source.rowCount + 1;
+      sourceRow.set(key, row);
+      source.addRow([key, /^-?\d+$/.test(value) ? exactMoney(value) : value, note]);
+    });
+    finish(source, [34, 28, 48], [], [2]);
+    const dashboard = book.addWorksheet("Dashboard metrics");
+    title(dashboard, input, "DASHBOARD — GIÁ TRỊ CANONICAL VÀ ĐỐI SOÁT", 5);
+    header(dashboard, 3, [
+      "Metric",
+      "Giá trị dashboard API",
+      "Công thức Excel",
+      "Chênh lệch",
+      "Trạng thái",
+    ]);
+    const rows: readonly Readonly<{ key: string; value: string; formula: string }>[] = [
+      // Use the dashboard's own monthly projection as the formula source. The
+      // management `Chỉ số tháng` sheet intentionally mixes document and ledger
+      // controls and is therefore not a safe source for dashboard parity.
+      {
+        key: "Doanh thu",
+        value: input.dashboard.financials.revenueMinor,
+        formula: "=SUM('Dashboard tháng'!B4:B200)",
+      },
+      {
+        key: "Chi phí",
+        value: input.dashboard.financials.expenseMinor,
+        formula: "=SUM('Dashboard tháng'!C4:C200)",
+      },
+      {
+        key: "Lợi nhuận ròng",
+        value: input.dashboard.financials.netProfitMinor,
+        formula: "=SUM('Dashboard tháng'!D4:D200)",
+      },
+      {
+        key: "Công nợ phải thu",
+        value: input.dashboard.collections.receivablesMinor,
+        formula: "=SUM('Công nợ'!H4:H200)",
+      },
+      {
+        key: "Tiền công ty (bank + cash)",
+        value: input.dashboard.financials.cashAndBankMinor,
+        formula: `='Dashboard nguồn'!B${sourceRow.get("bankAvailableMinor")}+'Dashboard nguồn'!B${sourceRow.get("cashOnHandMinor")}`,
+      },
+      {
+        key: "Công ty nợ chủ",
+        value: input.dashboard.financials.ownerPayableMinor,
+        formula: `='Dashboard nguồn'!B${sourceRow.get("ownerPayableMinor")}`,
+      },
+      {
+        key: "Tiền công ty ròng",
+        value: input.dashboard.financials.netCompanyFundsMinor,
+        formula: "=C8-C9",
+      },
+      {
+        key: "Lợi nhuận tính thuế",
+        value: input.dashboard.financials.taxableProfitMinor,
+        formula: `='Dashboard nguồn'!B${sourceRow.get("taxableProfitMinor")}`,
+      },
+      {
+        key: "Thuế TNDN",
+        value: input.dashboard.financials.corporateIncomeTaxMinor ?? "0",
+        formula: `=MAX(0,C11)*'Dashboard nguồn'!B${sourceRow.get("corporateIncomeTaxRateBps")}/10000`,
+      },
+    ];
+    rows.forEach((item, index) => {
+      const row = index + 4;
+      dashboard.addRow([
+        item.key,
+        exactMoney(item.value),
+        { formula: item.formula, result: 0 },
+        { formula: `=C${row}-B${row}`, result: 0 },
+        { formula: `=IF(ABS(D${row})<0.5,"PASS","CHECK")`, result: "PASS" },
+      ]);
+    });
+    finish(dashboard, [32, 24, 50, 20, 16], [], [2, 3, 4]);
+    const monthly = book.addWorksheet("Dashboard tháng");
+    title(monthly, input, "DASHBOARD — P&L THEO THÁNG", 5);
+    header(monthly, 3, [
+      "Tháng",
+      "Doanh thu API",
+      "Chi phí API",
+      "Lợi nhuận API",
+      "Công thức lợi nhuận",
+    ]);
+    input.dashboard.financials.monthly.forEach((item) => {
+      const row = monthly.rowCount + 1;
+      monthly.addRow([
+        item.period,
+        exactMoney(item.revenueMinor),
+        exactMoney(item.expenseMinor),
+        exactMoney(item.netProfitMinor),
+        { formula: `=B${row}-C${row}`, result: 0 },
+      ]);
+    });
+    finish(monthly, [14, 22, 22, 22, 28], [], [2, 3, 4, 5]);
+  }
 
   const controls = book.addWorksheet("Controls");
   title(controls, input, "KIỂM SOÁT NGUỒN VÀ PHẠM VI WORKBOOK", 4);

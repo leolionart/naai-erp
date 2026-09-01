@@ -318,6 +318,28 @@ describe("ERP-640 CLI executable", () => {
       await rm(directory, { recursive: true, force: true });
     }
   }, 15_000);
+
+  it("downloads the management workbook with backend/dashboard formula controls", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "naai-erp-management-export-"));
+    try {
+      const result = await invoke([
+        "management-workbook",
+        "download",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2026-12-31",
+        "--output",
+        join(directory, "management.xlsx"),
+      ]);
+      expect(result.requestedUrl).toBe(
+        "/api/v1/organizations/org-a/accounting-list-exports/management-workbook?startsOn=2026-01-01&endsOn=2026-12-31",
+      );
+      expect(result.requestMethod).toBe("GET");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 15_000);
   it("maps report options to the executive metrics projection query", async () => {
     const result = await invoke([
       "executive-metrics",

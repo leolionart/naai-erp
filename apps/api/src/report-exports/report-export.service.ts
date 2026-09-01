@@ -3,6 +3,10 @@ import { API_VERSION } from "@naai-erp/contracts";
 import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
+  OPERATING_DASHBOARD_STORE,
+  type OperatingDashboardStore,
+} from "../operating-dashboard/operating-dashboard.types.js";
+import {
   REPORT_EXPORT_STORE,
   type ExportInput,
   type ManagementWorkbookQuery,
@@ -28,6 +32,7 @@ export class ReportExportService {
   constructor(
     @Inject(REPORT_EXPORT_STORE) private readonly store: ReportExportStore,
     @Inject(MasterDataService) private readonly master: MasterDataService,
+    @Inject(OPERATING_DASHBOARD_STORE) private readonly dashboard: OperatingDashboardStore,
   ) {}
   authenticate(auth: string | undefined, org: string, correlation: string) {
     return this.master.authenticate(auth, org, correlation);
@@ -142,9 +147,15 @@ export class ReportExportService {
     if (!c.roles.some((r) => EXPORT_ROLES.has(r))) throw new Error("FORBIDDEN");
     return this.store.exportPurchaseInvoicesExpenses(c, filters);
   }
-  exportManagementWorkbook(c: ReportExportContext, filters: ManagementWorkbookQuery) {
+  async exportManagementWorkbook(c: ReportExportContext, filters: ManagementWorkbookQuery) {
     if (!c.roles.some((r) => EXPORT_ROLES.has(r))) throw new Error("FORBIDDEN");
-    return this.store.exportManagementWorkbook(c, filters);
+    const dashboard = await this.dashboard.read(c.organizationId, {
+      asOf: filters.endsOn,
+      startsOn: filters.startsOn,
+      endsOn: filters.endsOn,
+      limit: 50,
+    });
+    return this.store.exportManagementWorkbook(c, filters, dashboard);
   }
   async supersede(
     c: ReportExportContext,

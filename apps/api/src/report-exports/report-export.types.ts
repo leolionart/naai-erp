@@ -1,5 +1,6 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
 import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
+import type { OperatingDashboardReadModel } from "../operating-dashboard/operating-dashboard.types.js";
 
 export type ReportExportContext = JournalActorContext;
 export type ManagementWorkbookQuery = Readonly<{ startsOn: string; endsOn: string }>;
@@ -55,6 +56,7 @@ export type ReportExportStore = Readonly<{
   exportManagementWorkbook(
     c: ReportExportContext,
     filters: ManagementWorkbookQuery,
+    dashboard?: OperatingDashboardReadModel,
   ): Promise<{ content: Buffer; mediaType: string; filename: string; sha256: string }>;
 }>;
 export const REPORT_EXPORT_STORE = Symbol("REPORT_EXPORT_STORE");

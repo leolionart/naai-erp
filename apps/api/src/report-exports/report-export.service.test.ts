@@ -17,7 +17,26 @@ const store = {
   supersedeExport: vi.fn(),
 } satisfies ReportExportStore;
 const master = { authenticate: vi.fn() };
-const service = new ReportExportService(store, master as never);
+const dashboard = {
+  read: vi.fn().mockResolvedValue({
+    schemaVersion: 1,
+    asOf: "2026-12-31",
+    currency: "VND",
+    financials: {
+      revenueMinor: "0",
+      expenseMinor: "0",
+      netProfitMinor: "0",
+      cashAndBankMinor: "0",
+      ownerPayableMinor: "0",
+      netCompanyFundsMinor: "0",
+      taxableProfitMinor: "0",
+      corporateIncomeTaxMinor: "0",
+      monthly: [],
+    },
+    collections: { receivablesMinor: "0" },
+  }),
+};
+const service = new ReportExportService(store, master as never, dashboard as never);
 const context = {
   organizationId: "org-1",
   actorId: "maker",
@@ -91,9 +110,13 @@ describe("ERP-650 report export service", () => {
       service.parseManagementExport({ startsOn: "2026-12-31", endsOn: "2026-01-01" }),
     ).toThrow("VALIDATION_FAILED");
     await service.exportManagementWorkbook(context, filters);
-    expect(store.exportManagementWorkbook).toHaveBeenCalledWith(context, filters);
-    expect(() =>
+    expect(store.exportManagementWorkbook).toHaveBeenCalledWith(
+      context,
+      filters,
+      expect.anything(),
+    );
+    await expect(
       service.exportManagementWorkbook({ ...context, roles: ["viewer"] }, filters),
-    ).toThrow("FORBIDDEN");
+    ).rejects.toThrow("FORBIDDEN");
   });
 });

@@ -121,7 +121,11 @@ describe("ERP-857 management workbook", () => {
     expect(revenue.autoFilter).toBeTruthy();
 
     const receivables = book.getWorksheet("Công nợ")!;
+    expect(receivables.getCell("D4").value).toBeInstanceOf(Date);
+    expect(receivables.getCell("E4").value).toBeInstanceOf(Date);
+    expect(receivables.getCell("F4").value).toBe(6_142_500);
     expect(receivables.getCell("H4").value).toBe(2_100_000);
+    expect(receivables.getCell("J4").value).toBe("partial");
     expect(receivables.getCell("H5").value).toMatchObject({ formula: "SUM(H4:H4)" });
 
     const expenses = book.getWorksheet("Chi phí")!;
@@ -152,5 +156,44 @@ describe("ERP-857 management workbook", () => {
         revenue: [{ ...unsafe.revenue[0]!, invoicedMinor: "9007199254740992" }],
       }),
     ).toThrow("UNSAFE_EXCEL_AMOUNT");
+  });
+
+  it("uses the dashboard monthly projection for parity checks", async () => {
+    const created = createManagementWorkbook({
+      ...input(),
+      dashboard: {
+        asOf: "2026-08-09",
+        financials: {
+          revenueMinor: "4000000",
+          expenseMinor: "1940371",
+          netProfitMinor: "2059629",
+          cashAndBankMinor: "1000000",
+          ownerPayableMinor: "500000",
+          netCompanyFundsMinor: "1500000",
+          taxableProfitMinor: "2059629",
+          corporateIncomeTaxMinor: "411926",
+          monthly: [
+            {
+              period: "2026-05",
+              revenueMinor: "4000000",
+              expenseMinor: "1940371",
+              netProfitMinor: "2059629",
+            },
+          ],
+        },
+        collections: { receivablesMinor: "2100000" },
+      },
+    });
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load((await created.xlsx.writeBuffer()) as never);
+    expect(book.getWorksheet("Dashboard metrics")?.getCell("C4").value).toMatchObject({
+      formula: "=SUM('Dashboard tháng'!B4:B200)",
+    });
+    expect(book.getWorksheet("Dashboard metrics")?.getCell("C6").value).toMatchObject({
+      formula: "=SUM('Dashboard tháng'!D4:D200)",
+    });
+    expect(book.getWorksheet("Dashboard metrics")?.getCell("E8").value).toMatchObject({
+      formula: '=IF(ABS(D8)<0.5,"PASS","CHECK")',
+    });
   });
 });

@@ -21,6 +21,10 @@ Purchase invoices and non-invoice expenses share a workbook for accountant revie
 keeps its canonical `sourceType`, stable ID, lifecycle state and detail URL. Similar supplier, date
 or amount values are never used to merge or deduplicate records.
 
+The management workbook includes purchase invoices in `posted`, `partially_paid` and `paid` states;
+cancelled documents remain excluded from operational totals while their immutable history stays
+available through the canonical document API.
+
 ## Workbook format
 
 Both endpoints return XLSX attachments and an `X-Content-Sha256` response header. Canonical machine
@@ -39,10 +43,29 @@ of silently rounding an unsafe amount.
 ```bash
 naai-erp sales-invoice-export download --from 2026-01-01 --to 2026-12-31 --party party-1 --project-id project-1 --output sales-invoices.xlsx
 naai-erp purchase-expense-export download --from 2026-01-01 --to 2026-12-31 --payee-party-id supplier-1 --invoice-presence all --output purchase-invoices-expenses.xlsx
+naai-erp management-workbook download --from 2026-01-01 --to 2026-12-31 --output management-workbook.xlsx
 ```
 
 The CLI refuses to write without explicit `--output`. JSON written to stdout reports the output
 path, byte size, content type, filename and SHA-256 when supplied by the API.
+
+`management-workbook` is the machine-facing export for dashboard reconciliation. It calls the
+same organization-scoped REST endpoint as the Web dashboard and preserves the backend metric
+values alongside recalculating Excel formulas. AI and automation clients can use the CLI command
+or call the documented `GET .../accounting-list-exports/management-workbook` endpoint directly;
+all other dashboard projections remain available through the generic CLI resource/action contract
+(for example `executive-metrics`, `financial-statements` and `vat-reconciliation`).
+
+For a raw JSON dashboard read (without generating a workbook), use the same versioned API/CLI
+contract:
+
+```bash
+naai-erp operating-dashboard read --as-of 2026-12-31 --from 2026-01-01 --to 2026-12-31 --human
+```
+
+The JSON response is the canonical backend projection. Compare its financial and collection
+fields with the `Dashboard metrics` sheet in the management workbook; the workbook's `Giá trị
+dashboard API` column is populated from this projection at export time.
 
 ## Management formula audit
 
