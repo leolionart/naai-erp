@@ -221,7 +221,7 @@ suite("operating dashboard PostgreSQL API", () => {
     });
   });
 
-  it("reduces owner custody when custody cash pays a posted expense", async () => {
+  it("reduces owner custody without double-counting a shared cash ledger", async () => {
     // Keep this scenario independent from the preceding owner-mode test so
     // the provenance warning assertion is exercised whenever this case runs.
     await pool.query(
