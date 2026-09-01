@@ -199,6 +199,7 @@ export function directExpenseCurl(credential: RevealedCredential) {
   --data '{
     "id": "direct-expense-2026-0001",
     "payeePartyId": "party-supplier-id",
+    "expenseClass": "receipt_backed",
     "expenseDate": "2026-08-12",
     "businessPurpose": "Chi phí vận hành có chứng từ nhưng không phải hóa đơn VAT",
     "grossMinor": "500000",
@@ -206,8 +207,11 @@ export function directExpenseCurl(credential: RevealedCredential) {
       "description": "Chi phí vận hành",
       "netMinor": "500000",
       "vatMinor": "0",
-      "grossMinor": "500000"
-    }]
+      "grossMinor": "500000",
+      "postingAccountCode": "642-OPEX",
+      "allocations": [{ "id": "direct-expense-2026-0001-line-1", "amountMinor": "500000", "dimensions": { "projectId": "project-id" } }]
+    }],
+    "externalReference": { "system": "n8n", "externalId": "direct-expense-2026-0001" }
   }'`;
 }
 
@@ -275,9 +279,16 @@ export function quickOcrPurchaseInvoiceIngestionCurl(credential: RevealedCredent
     "supplierName": "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
     "documentNumber": "00250571",
     "documentDate": "2026-07-27",
+    "category": "EV_BATTERY_CHARGING",
     "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
+    "netMinor": "371455",
+    "taxMinor": "37146",
     "grossMinor": "408601",
-    "currency": "VND"
+    "taxAccountCode": "1331-VAT-IN",
+    "taxCode": "VAT10_IN",
+    "vatState": "unreviewed",
+    "currency": "VND",
+    "externalReference": { "system": "paperless-ngx", "externalId": "{{$json.id}}" }
   }'`;
 }
 
@@ -327,6 +338,13 @@ export function n8nOcrMappingExpression() {
     );
     const sourceDocumentId = text($json.id);
     const totalPaymentMinor = moneyMinor(output["Tổng cộng tiền thanh toán"]);
+    const explicitNetMinor = moneyMinor(output["Tiền hàng"] ?? output["Cộng tiền hàng"] ?? output["Giá tính thuế"] ?? output["Tổng tiền trước thuế"]);
+    const explicitTaxMinor = moneyMinor(output["Tiền thuế GTGT"] ?? output["Tiền thuế"] ?? output["Thuế GTGT"] ?? output["VAT"]);
+    const taxCode = text(output["Mã thuế"] ?? output["Mã số thuế suất"] ?? output["VAT code"]);
+    const taxAccountCode = text(output["Tài khoản thuế"] ?? output["VAT account"]);
+    const netMinor = explicitNetMinor || (totalPaymentMinor && explicitTaxMinor
+      ? String(BigInt(totalPaymentMinor) - BigInt(explicitTaxMinor))
+      : null);
     const series = text(output["Ký hiệu (Serial)"] ?? output["Ký hiệu"] ?? output["Serial"]).replace(/\\s/g, "");
     const category = text(output["Hạng mục"] ?? output["Danh mục"] ?? output["Loại chi phí"]);
     const description = text(output["Tên hàng hóa, dịch vụ"] ?? output["Nội dung"] ?? output["Diễn giải"]);
@@ -342,6 +360,9 @@ export function n8nOcrMappingExpression() {
       "documentDate": documentDate,
       ...(category ? { "category": category } : {}),
       "description": description,
+      ...(netMinor && explicitTaxMinor ? { "netMinor": netMinor, "taxMinor": explicitTaxMinor } : {}),
+      ...(taxAccountCode ? { "taxAccountCode": taxAccountCode } : {}),
+      ...(taxCode ? { "taxCode": taxCode } : {}),
       "grossMinor": totalPaymentMinor,
       "currency": "VND",
       "externalReference": {
@@ -355,6 +376,9 @@ export function n8nOcrMappingExpression() {
           originalFileName: text($json.original_file_name),
           archivedFileName: text($json.archived_file_name),
           rawCategory: category || null,
+          rawNetMinor: explicitNetMinor,
+          rawTaxMinor: explicitTaxMinor,
+          rawTaxCode: taxCode || null,
           sourceCreatedAt: text($json.created),
           sourceModifiedAt: text($json.modified)
         }
@@ -450,7 +474,7 @@ function definitionsFor(
       {
         title: "Tạo hóa đơn đầu vào",
         description:
-          "Request REST tối thiểu cho hóa đơn mua vào. ERP tự tìm hoặc tạo nhà cung cấp và áp dụng danh mục đã khai báo.",
+          "Request REST cho hóa đơn mua vào. ERP tự tìm hoặc tạo nhà cung cấp và áp dụng danh mục đã khai báo. Nếu Paperless có tiền trước thuế, VAT và mã thuế, hãy gửi thêm netMinor, taxMinor, taxAccountCode và taxCode để không bị ghi nhận thành VAT 0.",
         value: quickOcrPurchaseInvoiceIngestionCurl(credential),
         method: "POST",
         path: "/commercial-documents/purchase-invoice-ingestion",
@@ -461,7 +485,18 @@ function definitionsFor(
           "description",
           "grossMinor",
         ],
-        optional: ["category", "dueDate", "currency", "externalReference"],
+        optional: [
+          "category",
+          "dueDate",
+          "currency",
+          "netMinor",
+          "taxMinor",
+          "taxAccountCode",
+          "taxCode",
+          "vatState",
+          "vatEligibleMinor",
+          "externalReference",
+        ],
         response: '{ "data": { "documentId": "…", "status": "draft" } }',
       },
       {

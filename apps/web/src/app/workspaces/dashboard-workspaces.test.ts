@@ -8,6 +8,7 @@ import {
   reportQuery,
   resolvedDashboardSearch,
   shouldShowNetCompanyFunds,
+  metricCardVariantStyles,
 } from "./dashboard-workspaces";
 
 afterEach(() => {
@@ -15,6 +16,19 @@ afterEach(() => {
 });
 
 describe("dashboard reporting cutoff", () => {
+  it("keeps metric card variants contrast-safe for badges, arrows and trends", () => {
+    expect(metricCardVariantStyles.primary.card).toContain("text-primary-foreground");
+    expect(metricCardVariantStyles.primary.trend).toContain("primary-foreground");
+    expect(metricCardVariantStyles.primary.badge).toContain("text-primary-foreground");
+    expect(metricCardVariantStyles.primary.arrow).toContain("text-primary");
+    expect(metricCardVariantStyles.danger.card).toContain("text-destructive-foreground");
+    expect(metricCardVariantStyles.danger.trend).toContain("destructive-foreground");
+    expect(metricCardVariantStyles.danger.badge).toContain("text-destructive-foreground");
+    expect(metricCardVariantStyles.danger.arrow).toContain("text-destructive");
+    expect(metricCardVariantStyles.surface.card).toContain("text-card-foreground");
+    expect(metricCardVariantStyles.muted.card).toContain("text-card-foreground");
+  });
+
   it("preserves the active dashboard query when opening a metric drill-down", () => {
     const query = new URLSearchParams(
       "periodId=CAL-2026-08&periodKind=year&startsOn=2026-01-01&endsOn=2026-12-31&asOfDate=2026-08-31&serviceLineCode=CONSULTING",

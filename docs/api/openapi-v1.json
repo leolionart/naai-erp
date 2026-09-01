@@ -7972,6 +7972,25 @@
                   "description": "Optional active organization expense-category code or human-readable OCR label. Exact code/name matches win; similar labels are accepted only when one strong unique match exists."
                 },
                 "description": { "type": "string", "minLength": 1 },
+                "netMinor": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*$",
+                  "description": "Optional pre-tax amount. Required to reconcile with taxMinor and grossMinor when VAT evidence is supplied."
+                },
+                "taxMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                "taxAccountCode": { "type": "string", "minLength": 1 },
+                "taxCode": { "type": "string", "minLength": 1 },
+                "vatState": {
+                  "type": "string",
+                  "enum": [
+                    "unreviewed",
+                    "eligible",
+                    "partially_eligible",
+                    "ineligible",
+                    "accountant_override"
+                  ]
+                },
+                "vatEligibleMinor": { "type": "string", "pattern": "^[0-9]+$" },
                 "grossMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
                 "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "VND" },
                 "externalReference": {

@@ -131,28 +131,28 @@ Never choose the nearest party/project/account by name similarity alone.
 
 ## 7. Core field-to-resource map
 
-| Request field                                                         | Target                                 | Required behavior                                                        |
-| --------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
-| `party_id`                                                            | Generic party master ID                | Used by party roles                                                      |
-| `client_party_id`                                                     | Party with client role                 | Used by projects                                                         |
-| `project_id`                                                          | Project ID                             | Used by contracts and master-data milestones indirectly                  |
-| `contract_id`                                                         | Contract ID                            | Used by milestones                                                       |
-| `partyId`                                                             | Party ID                               | Commercial-document counterparty                                         |
-| `lines[].dimensions.projectId` or allocation `dimensions.projectId`   | Project stable `id`                    | Project attribution; resolve project code to its stable ID first         |
-| `lines[].dimensions.contractId` or allocation `dimensions.contractId` | Contract stable `id`                   | Optional; requires project attribution and must belong to that project   |
-| `payeePartyId`                                                        | Party ID                               | Expense payee; unresolved identity stays reviewable                      |
-| `employeePartyId`                                                     | Party ID                               | Required for employee reimbursement                                      |
-| `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`      | Account `code`                         | Must exist and be allowed by posting rules                               |
-| `fundingFinancialAccountId`                                            | Financial account `id`                 | Optional payment-provenance link; required when funding is company bank or owner custody cash |
-| `taxAccountCode`, `vatAccountCode`                                    | Account `code`                         | Optional only when tax treatment permits                                 |
-| `taxCode`                                                             | Effective tax-code version             | Resolve using document/expense date                                      |
-| `dimensions`                                                          | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values |
-| `originalDocumentId`                                                  | Existing commercial-document ID        | Required for credit/correction relationship                              |
-| `ledgerAccountCode`                                                   | Account `code`                         | Links financial account to ledger control account                        |
-| `financialAccountId`                                                  | Financial-account response `accountId` | Required by bank import                                                  |
-| `allocations[].targetId`                                              | `documentId` or `expenseId`            | Must match `targetType` exactly                                          |
-| `reversalOfId`                                                        | Posted journal ID                      | Application creates linked reversal history                              |
-| `resourceType + resourceId`                                           | Canonical resource                     | Evidence generic link; application validates ownership/type              |
+| Request field                                                         | Target                                 | Required behavior                                                                             |
+| --------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `party_id`                                                            | Generic party master ID                | Used by party roles                                                                           |
+| `client_party_id`                                                     | Party with client role                 | Used by projects                                                                              |
+| `project_id`                                                          | Project ID                             | Used by contracts and master-data milestones indirectly                                       |
+| `contract_id`                                                         | Contract ID                            | Used by milestones                                                                            |
+| `partyId`                                                             | Party ID                               | Commercial-document counterparty                                                              |
+| `lines[].dimensions.projectId` or allocation `dimensions.projectId`   | Project stable `id`                    | Project attribution; resolve project code to its stable ID first                              |
+| `lines[].dimensions.contractId` or allocation `dimensions.contractId` | Contract stable `id`                   | Optional; requires project attribution and must belong to that project                        |
+| `payeePartyId`                                                        | Party ID                               | Expense payee; unresolved identity stays reviewable                                           |
+| `employeePartyId`                                                     | Party ID                               | Required for employee reimbursement                                                           |
+| `primaryAccountCode`, `postingAccountCode`, `counterAccountCode`      | Account `code`                         | Must exist and be allowed by posting rules                                                    |
+| `fundingFinancialAccountId`                                           | Financial account `id`                 | Optional payment-provenance link; required when funding is company bank or owner custody cash |
+| `taxAccountCode`, `vatAccountCode`                                    | Account `code`                         | Optional only when tax treatment permits                                                      |
+| `taxCode`                                                             | Effective tax-code version             | Resolve using document/expense date                                                           |
+| `dimensions`                                                          | Map of dimension `kind -> code`        | Every pair must resolve; JSON storage is not permission to invent values                      |
+| `originalDocumentId`                                                  | Existing commercial-document ID        | Required for credit/correction relationship                                                   |
+| `ledgerAccountCode`                                                   | Account `code`                         | Links financial account to ledger control account                                             |
+| `financialAccountId`                                                  | Financial-account response `accountId` | Required by bank import                                                                       |
+| `allocations[].targetId`                                              | `documentId` or `expenseId`            | Must match `targetType` exactly                                                               |
+| `reversalOfId`                                                        | Posted journal ID                      | Application creates linked reversal history                                                   |
+| `resourceType + resourceId`                                           | Canonical resource                     | Evidence generic link; application validates ownership/type                                   |
 
 ## Owner personal cash withdrawal
 
@@ -400,9 +400,13 @@ The operation performs one organization-scoped relationship sequence:
 Retain `data.supplier.partyId`, `data.document.documentId`, `resourceVersion`, `auditEventId` and
 `nextActions`. Retry the exact payload with the exact `Idempotency-Key`; a changed payload under the
 same key is a conflict. The operation does not also create an Expense, does not guess a project or
-payment account, and records gross as management cost with zero input VAT and unreviewed tax state
-until real VAT evidence is supplied. Follow only returned `nextActions`: solopreneur owner policy may
-finish the record as posted or paid atomically, while controlled/integration mode can return a draft.
+payment account. The legacy gross-only shape records gross as management cost with zero input VAT and
+an unreviewed tax state. When the caller supplies `netMinor`, `taxMinor`, `taxAccountCode` and
+`taxCode`, the API preserves those values and requires `netMinor + taxMinor = grossMinor`; VAT
+eligibility remains unreviewed unless an explicit `vatState`/`vatEligibleMinor` is supplied. Invalid
+or incomplete VAT fields return a structured validation error instead of silently dropping source tax
+values. Follow only returned `nextActions`: solopreneur owner policy may finish the record as posted
+or paid atomically, while controlled/integration mode can return a draft.
 
 #### Deleting an accidental draft
 

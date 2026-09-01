@@ -35,6 +35,22 @@ export class QuickPurchaseInvoiceService {
       .update(`${idempotencyKey}:${normalized.documentNumber}`)
       .digest("hex")
       .slice(0, 24)}`;
+    const taxMinor = normalized.taxMinor ?? "0";
+    const netMinor =
+      normalized.netMinor ?? (BigInt(normalized.grossMinor) - BigInt(taxMinor)).toString();
+    const vatState =
+      normalized.vatState ??
+      (normalized.vatEligibleMinor !== undefined
+        ? BigInt(normalized.vatEligibleMinor) === BigInt(taxMinor)
+          ? "eligible"
+          : BigInt(normalized.vatEligibleMinor) > 0n
+            ? "partially_eligible"
+            : "ineligible"
+        : normalized.taxMinor !== undefined
+          ? BigInt(taxMinor) > 0n
+            ? "unreviewed"
+            : "ineligible"
+          : "unreviewed");
     const documentInput: CreateCommercialDocumentInput = {
       type: "purchase_invoice",
       documentNumber: normalized.documentNumber,
@@ -44,8 +60,8 @@ export class QuickPurchaseInvoiceService {
       documentDate: normalized.documentDate,
       dueDate: normalized.dueDate ?? normalized.documentDate,
       currency: normalized.currency ?? "VND",
-      netMinor: normalized.grossMinor,
-      taxMinor: "0",
+      netMinor,
+      taxMinor,
       grossMinor: normalized.grossMinor,
       controlAccountCode: accounts.controlAccountCode,
       // Quick ingestion represents the common case where the owner paid the
@@ -56,17 +72,24 @@ export class QuickPurchaseInvoiceService {
         {
           description: normalized.description,
           quantity: "1",
-          unitPriceMinor: normalized.grossMinor,
-          netMinor: normalized.grossMinor,
-          taxMinor: "0",
+          unitPriceMinor: netMinor,
+          netMinor,
+          taxMinor,
           grossMinor: normalized.grossMinor,
           primaryAccountCode: accounts.primaryAccountCode,
+          ...(normalized.taxAccountCode ? { taxAccountCode: normalized.taxAccountCode } : {}),
+          ...(normalized.taxCode ? { taxCode: normalized.taxCode } : {}),
           categoryCode: category.code,
           allocations: [
             {
               id: allocationId,
-              amountMinor: normalized.grossMinor,
-              dimensions: { taxState: "unreviewed" },
+              amountMinor: netMinor,
+              dimensions: {
+                taxState: vatState,
+                ...(normalized.vatEligibleMinor !== undefined
+                  ? { vatEligibleMinor: normalized.vatEligibleMinor }
+                  : {}),
+              },
             },
           ],
         },
@@ -110,6 +133,12 @@ export class QuickPurchaseInvoiceService {
     const description = input?.description?.trim();
     const category = input?.category?.trim();
     const grossMinor = String(input?.grossMinor ?? "");
+    const taxMinor = input?.taxMinor === undefined ? "0" : String(input.taxMinor);
+    const netMinor = input?.netMinor === undefined ? undefined : String(input.netMinor);
+    const vatEligibleMinor =
+      input?.vatEligibleMinor === undefined ? undefined : String(input.vatEligibleMinor);
+    const taxCode = input?.taxCode?.trim();
+    const taxAccountCode = input?.taxAccountCode?.trim();
     if (
       (input.schemaVersion !== undefined && input.schemaVersion !== 1) ||
       (!supplierTaxId && !supplierName) ||
@@ -118,6 +147,22 @@ export class QuickPurchaseInvoiceService {
       !description ||
       !/^\d+$/.test(grossMinor) ||
       BigInt(grossMinor) <= 0n ||
+      !/^\d+$/.test(taxMinor) ||
+      BigInt(taxMinor) >= BigInt(grossMinor) ||
+      (netMinor !== undefined && (!/^\d+$/.test(netMinor) || BigInt(netMinor) <= 0n)) ||
+      (vatEligibleMinor !== undefined && !/^\d+$/.test(vatEligibleMinor)) ||
+      (input.vatState !== undefined &&
+        ![
+          "unreviewed",
+          "eligible",
+          "partially_eligible",
+          "ineligible",
+          "accountant_override",
+        ].includes(input.vatState)) ||
+      (BigInt(taxMinor) > 0n && !taxAccountCode) ||
+      (BigInt(taxMinor) === 0n && taxAccountCode) ||
+      (netMinor !== undefined && BigInt(netMinor) + BigInt(taxMinor) !== BigInt(grossMinor)) ||
+      (vatEligibleMinor !== undefined && BigInt(vatEligibleMinor) > BigInt(taxMinor)) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(input.documentDate ?? "") ||
       (input.dueDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) ||
       (input.currency !== undefined && !/^[A-Z]{3}$/.test(input.currency))
@@ -132,6 +177,12 @@ export class QuickPurchaseInvoiceService {
       description,
       ...(category ? { category } : {}),
       grossMinor,
+      ...(netMinor !== undefined ? { netMinor } : {}),
+      ...(input.taxMinor !== undefined ? { taxMinor } : {}),
+      ...(taxCode ? { taxCode } : {}),
+      ...(taxAccountCode ? { taxAccountCode } : {}),
+      ...(input.vatState ? { vatState: input.vatState } : {}),
+      ...(vatEligibleMinor !== undefined ? { vatEligibleMinor } : {}),
     };
   }
 

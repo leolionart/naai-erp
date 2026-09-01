@@ -112,6 +112,18 @@ export type QuickPurchaseInvoiceInput = Readonly<{
   dueDate?: string;
   category?: string;
   description: string;
+  /**
+   * Optional tax-aware totals. When omitted the quick path keeps its legacy
+   * gross-only behaviour (net = gross, VAT = 0). When supplied, net and tax
+   * are retained verbatim and must reconcile to gross.
+   */
+  netMinor?: string;
+  taxMinor?: string;
+  taxAccountCode?: string;
+  taxCode?: string;
+  vatState?:
+    "unreviewed" | "eligible" | "partially_eligible" | "ineligible" | "accountant_override";
+  vatEligibleMinor?: string;
   grossMinor: string;
   currency?: string;
   externalReference?: ExternalReferenceInput;

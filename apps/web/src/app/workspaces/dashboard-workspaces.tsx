@@ -464,6 +464,55 @@ function formatStatusBadge(status?: string): string | null {
   return map[status] ?? status;
 }
 
+export type MetricCardVariant = "surface" | "primary" | "muted" | "danger";
+
+export const metricCardVariantStyles: Record<
+  MetricCardVariant,
+  Readonly<{
+    card: string;
+    title: string;
+    description: string;
+    trend: string;
+    badge: string;
+    arrow: string;
+  }>
+> = {
+  surface: {
+    card: "border-border/60 bg-card/90 text-card-foreground hover:border-primary/50 hover:bg-accent/30",
+    title: "group-hover:text-primary",
+    description: "text-muted-foreground",
+    trend: "var(--color-trend)",
+    badge: "",
+    arrow: "bg-foreground text-background",
+  },
+  primary: {
+    card: "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
+    title: "text-primary-foreground",
+    description: "text-primary-foreground/80",
+    trend: "var(--primary-foreground)",
+    badge:
+      "border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/20",
+    arrow: "bg-primary-foreground text-primary",
+  },
+  muted: {
+    card: "border-border/60 bg-muted/70 text-card-foreground hover:border-primary/50 hover:bg-muted",
+    title: "group-hover:text-primary",
+    description: "text-muted-foreground",
+    trend: "var(--color-trend)",
+    badge: "",
+    arrow: "bg-foreground text-background",
+  },
+  danger: {
+    card: "border-destructive/40 bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    title: "text-destructive-foreground",
+    description: "text-destructive-foreground/80",
+    trend: "var(--destructive-foreground)",
+    badge:
+      "border-destructive-foreground/30 bg-destructive-foreground/15 text-destructive-foreground hover:bg-destructive-foreground/20",
+    arrow: "bg-destructive-foreground text-destructive",
+  },
+};
+
 function MetricCard({
   title,
   value,
@@ -472,6 +521,7 @@ function MetricCard({
   status,
   provisional = false,
   primary = false,
+  variant,
   onQuick,
   trend,
 }: {
@@ -482,33 +532,32 @@ function MetricCard({
   status?: string;
   provisional?: boolean;
   primary?: boolean;
+  variant?: MetricCardVariant;
   onQuick?: () => void;
   trend?: readonly number[];
 }) {
   const formattedStatus = formatStatusBadge(status);
   const trendGradientId = `metric-trend-${useId().replace(/:/g, "")}`;
+  const resolvedVariant: MetricCardVariant = variant ?? (primary ? "primary" : "surface");
+  const styles = metricCardVariantStyles[resolvedVariant];
 
   const cardElement = (
     <Card
       className={cn(
         "group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-3xl shadow-sm backdrop-blur transition-all hover:-translate-y-1 hover:shadow-lg active:scale-[0.99]",
-        primary
-          ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
-          : "border-border/60 bg-card/75 hover:border-primary/50 hover:bg-accent/30",
+        styles.card,
       )}
     >
       <CardHeader className="gap-2 pb-2">
         <CardTitle
           className={cn(
             "line-clamp-2 min-h-10 text-base leading-5 transition-colors",
-            primary ? "text-primary-foreground" : "group-hover:text-primary",
+            styles.title,
           )}
         >
           {title}
         </CardTitle>
-        <CardDescription
-          className={cn("line-clamp-2 min-h-10", primary && "text-primary-foreground/80")}
-        >
+        <CardDescription className={cn("line-clamp-2 min-h-10", styles.description)}>
           {description}
         </CardDescription>
       </CardHeader>
@@ -526,14 +575,14 @@ function MetricCard({
               <AreaChart data={trend.map((point, index) => ({ index, value: point }))}>
                 <defs>
                   <linearGradient id={trendGradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-trend)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="var(--color-trend)" stopOpacity={0} />
+                    <stop offset="0%" stopColor={styles.trend} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={styles.trend} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="var(--color-trend)"
+                  stroke={styles.trend}
                   fill={`url(#${trendGradientId})`}
                   strokeWidth={2}
                   dot={false}
@@ -546,20 +595,34 @@ function MetricCard({
       </CardContent>
       <CardFooter className="min-h-10 min-w-0 gap-1.5 overflow-hidden pb-4 pt-0">
         {provisional ? (
-          <Badge variant="secondary" className="shrink-0 text-xs font-normal">
+          <Badge
+            variant="secondary"
+            className={cn(
+              "shrink-0 text-xs font-normal",
+              resolvedVariant === "primary" &&
+                "bg-primary-foreground/15 text-primary-foreground ring-primary-foreground/25",
+              resolvedVariant === "danger" &&
+                "bg-destructive-foreground/15 text-destructive-foreground ring-destructive-foreground/25",
+            )}
+          >
             Tạm tính
           </Badge>
         ) : null}
         {formattedStatus ? (
           <Badge
             variant="outline"
-            className="min-w-0 max-w-full truncate text-xs font-normal"
+            className={cn("min-w-0 max-w-full truncate text-xs font-normal", styles.badge)}
             title={formattedStatus}
           >
             {formattedStatus}
           </Badge>
         ) : null}
-        <span className="ml-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform group-hover:translate-x-0.5">
+        <span
+          className={cn(
+            "ml-auto flex size-8 shrink-0 items-center justify-center rounded-full transition-transform group-hover:translate-x-0.5",
+            styles.arrow,
+          )}
+        >
           <ArrowRight className="size-4" />
         </span>
       </CardFooter>
@@ -1404,6 +1467,7 @@ export function ExecutiveDashboardWorkspace() {
                   href={`/reports/financial-statements/profit-and-loss/current?${q}`}
                   status={taxExpenses?.status}
                   provisional={taxExpenses?.status !== "ready"}
+                  variant="surface"
                   trend={operating?.financials.monthly?.map((row) =>
                     Number(BigInt(row.netProfitMinor ?? "0")),
                   )}
@@ -1423,6 +1487,7 @@ export function ExecutiveDashboardWorkspace() {
                       : taxExpenses?.status
                   }
                   provisional={taxExpenses?.status !== "ready"}
+                  variant="surface"
                 />
                 <MetricCard
                   title="VAT phải nộp"
@@ -1431,6 +1496,7 @@ export function ExecutiveDashboardWorkspace() {
                   href={`/reports/tax/vat-reconciliation/current?${q}`}
                   status={vat?.status}
                   provisional={vat?.status !== "ready"}
+                  variant="surface"
                 />
                 <MetricCard
                   title="VAT đầu vào chờ review"
@@ -1443,6 +1509,7 @@ export function ExecutiveDashboardWorkspace() {
                       : "Đã review hết"
                   }
                   provisional={Boolean(vat?.unreviewedItemIds.length)}
+                  variant="muted"
                 />
                 <MetricCard
                   title="Chi phí CIT chờ review"
@@ -1455,6 +1522,7 @@ export function ExecutiveDashboardWorkspace() {
                       : "Đã review hết"
                   }
                   provisional={Boolean(taxExpenses?.unreviewedItemIds.length)}
+                  variant="muted"
                 />
                 <MetricCard
                   title="Công nợ cần thu"
@@ -1463,6 +1531,7 @@ export function ExecutiveDashboardWorkspace() {
                   href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
                   status={overdueCount ? `${overdueCount} khoản quá hạn` : data.aging?.tieStatus}
                   provisional={usingOperatingFallback}
+                  variant={overdueCount > 0 ? "danger" : "surface"}
                 />
                 <MetricCard
                   title="Tiền công ty hiện có"
@@ -1470,7 +1539,7 @@ export function ExecutiveDashboardWorkspace() {
                   description={`Tổng tài sản tiền của công ty, gồm ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt công ty ${money(operating?.financials.companyCashOnHandMinor ?? operating?.financials.cashOnHandMinor, operating?.currency)} và tiền chủ đang giữ ${money(operating?.financials.ownerHoldsCompanyFundsMinor, operating?.currency)}. Chênh lệch provenance theo sổ: ${money(companyFundsReconciliationGapMinor, operating?.currency)}.`}
                   href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
                   status="Gồm tiền chủ đang giữ"
-                  primary
+                  variant="primary"
                   trend={operating?.financials.monthly?.map((row) =>
                     Number(BigInt(row.revenueMinor ?? "0")),
                   )}
@@ -1481,6 +1550,7 @@ export function ExecutiveDashboardWorkspace() {
                   description="Số quyết toán dòng tiền đã xác nhận mà công ty còn phải trả chủ. Không hiển thị số âm như một khoản nợ."
                   href="/banking/owner-current"
                   status="Nguồn: quyết toán đã xác nhận"
+                  variant="surface"
                 />
                 <MetricCard
                   title="Tiền công ty chủ đang giữ"
@@ -1491,6 +1561,7 @@ export function ExecutiveDashboardWorkspace() {
                   description="Phần tiền công ty đã giao hoặc rút cho chủ giữ vượt quá các khoản công ty còn nợ chủ. Đây là tài sản/tiền công ty, không phải nợ âm."
                   href="/banking/owner-current"
                   status="Chủ đang giữ tiền công ty"
+                  variant="muted"
                 />
                 {showNetCompanyFunds ? (
                   <MetricCard
@@ -1499,6 +1570,7 @@ export function ExecutiveDashboardWorkspace() {
                     description={`Tổng tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
                     href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
                     status="Sau nghĩa vụ với chủ"
+                    variant={BigInt(netCompanyFundsMinor) < 0n ? "danger" : "surface"}
                   />
                 ) : null}
               </div>

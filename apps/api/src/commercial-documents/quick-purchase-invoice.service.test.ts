@@ -129,6 +129,62 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
     );
   });
 
+  it("preserves explicit VAT totals and tax identifiers instead of silently zeroing them", async () => {
+    const master = masterWith({
+      parties: [{ id: "supplier-vat", normalized_tax_id: "0110660175", status: "active" }],
+      "party-roles": [{ party_id: "supplier-vat", role: "supplier" }],
+      dimensions: [{ kind: "category", code: "BATTERY_RENTAL", is_active: true }],
+      "default-mappings": [],
+      accounts: [
+        { code: "642-COST", root_type: "expense", is_active: true },
+        { code: "331-AP", root_type: "liability", is_control_account: true, is_active: true },
+      ],
+    });
+    const documents = {
+      create: vi.fn().mockResolvedValue({ data: { documentId: "purchase-vat" } }),
+    };
+    const service = new QuickPurchaseInvoiceService(master as never, documents as never);
+
+    await service.create(
+      context,
+      {
+        ...input,
+        netMinor: "1000000",
+        taxMinor: "100000",
+        grossMinor: "1100000",
+        taxAccountCode: "1331-VAT-IN",
+        taxCode: "VAT10",
+        vatState: "eligible",
+      },
+      "paperless-vat-v1",
+    );
+
+    expect(documents.create).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({
+        netMinor: "1000000",
+        taxMinor: "100000",
+        grossMinor: "1100000",
+        lines: [
+          expect.objectContaining({
+            netMinor: "1000000",
+            taxMinor: "100000",
+            grossMinor: "1100000",
+            taxAccountCode: "1331-VAT-IN",
+            taxCode: "VAT10",
+            allocations: [
+              expect.objectContaining({
+                amountMinor: "1000000",
+                dimensions: { taxState: "eligible" },
+              }),
+            ],
+          }),
+        ],
+      }),
+      "paperless-vat-v1",
+    );
+  });
+
   it("matches a supplier by normalized name when the UI omits tax ID", async () => {
     const master = masterWith({
       parties: [{ id: "supplier-name", display_name: "Công ty Ánh Dương", status: "active" }],
