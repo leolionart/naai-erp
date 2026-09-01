@@ -728,8 +728,11 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   when its explicit funding financial account is `CASH-OWNER-CUSTODY`; an Owner Current credit alone
   is not evidence of custody cash. `owner_personal_advance` increases the owner payable and leaves
   custody unchanged. The dashboard counts the shared cash ledger once; owner custody is a separate
-  component and is never added again. A derived company-held cash residual is exposed for
-  reconciliation when legacy shared-ledger provenance makes it negative.
+  component and is never added again. The dashboard also exposes `totalCompanyFundsMinor` as the
+  non-overlapping physical partition of bank, non-negative company-held cash residual and owner
+  custody, while `companyFundsReconciliationGapMinor` shows any difference from the canonical
+  shared-ledger total. A derived company-held cash residual is exposed for reconciliation when
+  legacy shared-ledger provenance makes it negative.
 - Payment: Dr employee payable, Cr bank/cash.
 - Avoid duplicate booking from company-card/bank import and employee claim.
 

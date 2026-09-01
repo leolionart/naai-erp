@@ -196,9 +196,9 @@ describe("ERP-857 management workbook", () => {
       formula: "=SUM('Dashboard tháng'!D4:D200)",
     });
     expect(book.getWorksheet("Dashboard metrics")?.getCell("C8").value).toMatchObject({
-      // Source rows are bank (4), cash (5), residual company cash (6), then
-      // canonical shared cash+bank (7). Custody is deliberately not added.
-      formula: "='Dashboard nguồn'!B7",
+      // Source rows include the physical total at row 8. Custody is included
+      // exactly once through that backend-derived metric.
+      formula: "='Dashboard nguồn'!B8",
     });
     expect(book.getWorksheet("Dashboard metrics")?.getCell("E8").value).toMatchObject({
       formula: '=IF(ABS(D8)<0.5,"PASS","CHECK")',

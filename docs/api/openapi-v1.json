@@ -7333,12 +7333,30 @@
         "type": "object",
         "additionalProperties": true,
         "required": [
+          "cashAndBankMinor",
+          "totalCompanyFundsMinor",
+          "companyFundsReconciliationGapMinor",
           "companyOwesOwnerMinor",
           "ownerHoldsCompanyFundsMinor",
           "statutoryOwnerCurrentBalanceMinor",
           "ownerSettlementDrilldownHref"
         ],
         "properties": {
+          "cashAndBankMinor": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$",
+            "description": "Canonical shared-ledger bank and cash total, counted once."
+          },
+          "totalCompanyFundsMinor": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "Physical company funds: bank plus nonnegative company-held cash residual plus company cash held by the owner."
+          },
+          "companyFundsReconciliationGapMinor": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$",
+            "description": "Canonical shared-ledger total minus the physical non-overlapping funds partition; a non-zero value requires provenance reconciliation."
+          },
           "companyOwesOwnerMinor": {
             "type": "string",
             "pattern": "^[0-9]+$",

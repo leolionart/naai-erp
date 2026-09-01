@@ -3558,6 +3558,8 @@ tasks:
       - apps/api/src/report-exports/management-workbook.ts
       - apps/api/src/report-exports/management-workbook.test.ts
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - packages/contracts/src/operating-dashboard.ts
+      - docs/api/openapi-v1.json
       - docs/product/business-rules.md
       - docs/implementation/evidence/ERP-959/
 

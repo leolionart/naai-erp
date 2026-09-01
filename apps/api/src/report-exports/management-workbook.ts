@@ -101,6 +101,8 @@ export type ManagementWorkbookInput = Readonly<{
       expenseMinor: string;
       netProfitMinor: string;
       cashAndBankMinor: string;
+      totalCompanyFundsMinor?: string;
+      companyFundsReconciliationGapMinor?: string;
       bankAvailableMinor?: string;
       cashOnHandMinor?: string;
       ownerPayableMinor: string;
@@ -539,6 +541,17 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
         "Tiền mặt còn lại của công ty sau khi tách tiền chủ giữ; âm là dấu hiệu thiếu provenance lịch sử",
       ],
       ["cashAndBankMinor", input.dashboard.financials.cashAndBankMinor, "Tổng bank + cash"],
+      [
+        "totalCompanyFundsMinor",
+        input.dashboard.financials.totalCompanyFundsMinor ??
+          input.dashboard.financials.cashAndBankMinor,
+        "Tổng tiền vật lý của công ty, gồm ngân hàng + tiền mặt công ty + tiền chủ giữ, không cộng trùng",
+      ],
+      [
+        "companyFundsReconciliationGapMinor",
+        input.dashboard.financials.companyFundsReconciliationGapMinor ?? "0",
+        "Chênh lệch giữa sổ tiền canonical và phân rã vật lý; khác 0 cần đối soát provenance",
+      ],
       ["ownerPayableMinor", input.dashboard.financials.ownerPayableMinor, "Công ty nợ chủ"],
       [
         "ownerHoldsCompanyFundsMinor",
@@ -604,13 +617,11 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
         formula: "=SUM('Công nợ'!H4:H200)",
       },
       {
-        key: "Tiền công ty (bank + cash)",
-        value: input.dashboard.financials.cashAndBankMinor,
-        // `cashAndBankMinor` is the canonical shared-ledger total returned by
-        // the dashboard API. Owner custody is already represented in that
-        // shared ledger and is exposed separately for reconciliation only;
-        // adding the custody component here would double-count it.
-        formula: `='Dashboard nguồn'!B${sourceRow.get("cashAndBankMinor")}`,
+        key: "Tiền công ty (gồm tiền chủ giữ)",
+        value:
+          input.dashboard.financials.totalCompanyFundsMinor ??
+          input.dashboard.financials.cashAndBankMinor,
+        formula: `='Dashboard nguồn'!B${sourceRow.get("totalCompanyFundsMinor")}`,
       },
       {
         key: "Công ty nợ chủ",

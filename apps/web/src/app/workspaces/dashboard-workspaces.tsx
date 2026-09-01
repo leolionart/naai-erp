@@ -178,6 +178,8 @@ type OperatingDashboardWire = Readonly<{
     cashOnHandMinor: string;
     companyCashOnHandMinor?: string;
     cashAndBankMinor: string;
+    totalCompanyFundsMinor?: string;
+    companyFundsReconciliationGapMinor?: string;
     ownerPayableMinor: string;
     companyOwesOwnerMinor?: string;
     ownerHoldsCompanyFundsMinor?: string;
@@ -469,6 +471,7 @@ function MetricCard({
   href,
   status,
   provisional = false,
+  primary = false,
   onQuick,
   trend,
 }: {
@@ -478,6 +481,7 @@ function MetricCard({
   href: string;
   status?: string;
   provisional?: boolean;
+  primary?: boolean;
   onQuick?: () => void;
   trend?: readonly number[];
 }) {
@@ -485,12 +489,28 @@ function MetricCard({
   const trendGradientId = `metric-trend-${useId().replace(/:/g, "")}`;
 
   const cardElement = (
-    <Card className="group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-3xl border-border/60 bg-card/75 shadow-sm backdrop-blur transition-all hover:-translate-y-1 hover:border-primary/50 hover:bg-accent/30 hover:shadow-lg active:scale-[0.99]">
+    <Card
+      className={cn(
+        "group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-3xl shadow-sm backdrop-blur transition-all hover:-translate-y-1 hover:shadow-lg active:scale-[0.99]",
+        primary
+          ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+          : "border-border/60 bg-card/75 hover:border-primary/50 hover:bg-accent/30",
+      )}
+    >
       <CardHeader className="gap-2 pb-2">
-        <CardTitle className="line-clamp-2 min-h-10 text-base leading-5 transition-colors group-hover:text-primary">
+        <CardTitle
+          className={cn(
+            "line-clamp-2 min-h-10 text-base leading-5 transition-colors",
+            primary ? "text-primary-foreground" : "group-hover:text-primary",
+          )}
+        >
           {title}
         </CardTitle>
-        <CardDescription className="line-clamp-2 min-h-10">{description}</CardDescription>
+        <CardDescription
+          className={cn("line-clamp-2 min-h-10", primary && "text-primary-foreground/80")}
+        >
+          {description}
+        </CardDescription>
       </CardHeader>
       <CardContent className="mt-auto pb-4 pt-0">
         <p className="text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
@@ -994,6 +1014,10 @@ export function ExecutiveDashboardWorkspace() {
       : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(operating.collections.dsoDays)} ngày`;
   const companyOwesOwnerMinor = operating?.financials.companyOwesOwnerMinor ?? "0";
   const ownerHoldsCompanyFundsMinor = operating?.financials.ownerHoldsCompanyFundsMinor ?? "0";
+  const totalCompanyFundsMinor =
+    operating?.financials.totalCompanyFundsMinor ?? operating?.financials.cashAndBankMinor ?? "0";
+  const companyFundsReconciliationGapMinor =
+    operating?.financials.companyFundsReconciliationGapMinor ?? "0";
   // Owner-settlement and net-funds values are canonical backend read-model fields.
   // Keep the frontend presentation-only: do not recalculate dashboard metrics here.
   const netCompanyFundsMinor = operating?.financials.netCompanyFundsMinor ?? "0";
@@ -1442,10 +1466,11 @@ export function ExecutiveDashboardWorkspace() {
                 />
                 <MetricCard
                   title="Tiền công ty hiện có"
-                  value={money(operating?.financials.cashAndBankMinor, operating?.currency)}
-                  description={`Tổng tiền canonical theo sổ tiền dùng chung (không cộng đúp tiền chủ giữ): Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt còn lại theo provenance ${money(operating?.financials.companyCashOnHandMinor ?? operating?.financials.cashOnHandMinor, operating?.currency)}, chủ đang giữ ${money(operating?.financials.ownerHoldsCompanyFundsMinor, operating?.currency)}.`}
+                  value={money(totalCompanyFundsMinor, operating?.currency)}
+                  description={`Tổng tài sản tiền của công ty, gồm ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt công ty ${money(operating?.financials.companyCashOnHandMinor ?? operating?.financials.cashOnHandMinor, operating?.currency)} và tiền chủ đang giữ ${money(operating?.financials.ownerHoldsCompanyFundsMinor, operating?.currency)}. Chênh lệch provenance theo sổ: ${money(companyFundsReconciliationGapMinor, operating?.currency)}.`}
                   href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                  status="Tiền của công ty"
+                  status="Gồm tiền chủ đang giữ"
+                  primary
                   trend={operating?.financials.monthly?.map((row) =>
                     Number(BigInt(row.revenueMinor ?? "0")),
                   )}
