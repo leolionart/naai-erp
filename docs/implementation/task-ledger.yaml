@@ -3294,7 +3294,7 @@ tasks:
   - id: ERP-937
     title: Unified revenue and expense category catalog
     phase: P16
-    status: review
+    status: done
     dependencies: [ERP-936]
     business_rules: [BR-MVP-003, BR-MVP-007, BR-AI-005, BR-AI-006, BR-ORG-001, BR-AUD-001]
     tests: [T-API-ERP-937-001, T-INT-ERP-937-002, T-E2E-ERP-937-003]
@@ -3518,6 +3518,27 @@ tasks:
       - apps/web/public/
       - docs/implementation/evidence/ERP-957/
 
+  - id: ERP-958
+    title: Excel formula audit sheets for management metrics
+    phase: P16
+    status: done
+    dependencies: [ERP-841]
+    business_rules: [BR-EXPOR-003, BR-MVP-004, BR-AI-003]
+    tests: [T-UNIT-ERP-958-001, T-INT-ERP-958-002]
+    evidence: docs/implementation/evidence/ERP-958/
+    agent: codex-root
+    started_at: 2026-09-01T12:35:00+07:00
+    completed_at: 2026-09-01T12:44:00+07:00
+    completion_basis: formula_audit_workbook_sheets_with_backend_controls_and_tests
+    planned_files:
+      - apps/api/src/report-exports/management-workbook.ts
+      - apps/api/src/report-exports/management-workbook.test.ts
+      - apps/api/src/report-exports/management-workbook.integration.test.ts
+      - docs/api/accounting-list-exports.md
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-958/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3612,6 +3633,7 @@ gates:
   G92: done
   G93: [ERP-936]
   G98: [ERP-957]
+  G99: [ERP-958]
 
 gate_status:
   G0: done
@@ -3706,3 +3728,4 @@ gate_status:
   G92: done
   G93: done
   G98: done
+  G99: done

@@ -3626,6 +3626,23 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/accounting-list-exports/management-workbook": {
+      "get": {
+        "operationId": "exportManagementWorkbook",
+        "tags": ["accounting-list-exports"],
+        "summary": "Download management workbook with backend values and Excel formula audit sheets",
+        "description": "The workbook contains canonical revenue, receivables, expense and monthly metric sheets plus independent SUMIFS formula-audit sheets. Backend values remain canonical; Excel formulas are reconciliation evidence and never mutate ERP data.",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/AccountingExportStartsOn" },
+          { "$ref": "#/components/parameters/AccountingExportEndsOn" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/AccountingListWorkbook" },
+          "400": { "description": "Invalid date range" }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/portable-data-packages/local-admin/reset": {
       "post": {
         "operationId": "resetLocalOrganizationFromPortableBackup",

@@ -102,6 +102,13 @@ describe("ERP-857 management workbook", () => {
       "Chỉ số tháng",
       "Kế hoạch & mục tiêu",
       "Hạng mục chi",
+      "Đối soát doanh thu",
+      "Đối soát chi phí",
+      "Đối soát xuất HĐ",
+      "Đối soát tiền thu",
+      "Đối soát lợi nhuận",
+      "Đối soát VAT",
+      "Đối soát công nợ",
       "Controls",
     ]);
     expect(book.getWorksheet("Bảng lương")).toBeUndefined();
@@ -120,6 +127,16 @@ describe("ERP-857 management workbook", () => {
     const expenses = book.getWorksheet("Chi phí")!;
     expect(expenses.getCell("D4").value).toBe("EVN");
     expect(expenses.getCell("J5").value).toMatchObject({ formula: "SUM(J4:J4)" });
+
+    const profitCheck = book.getWorksheet("Đối soát lợi nhuận")!;
+    expect(profitCheck.getCell("C4").value).toMatchObject({
+      formula: expect.stringContaining("SUMIFS('Doanh thu'!$H$4:$H$4"),
+    });
+    expect(profitCheck.getCell("D4").value).toMatchObject({ formula: "=C4-B4" });
+    const vatCheck = book.getWorksheet("Đối soát VAT")!;
+    expect(vatCheck.getCell("I4").value).toMatchObject({
+      formula: '=IF(ABS(H4)<0.5,"PASS","CHECK")',
+    });
 
     const controls = book.getWorksheet("Controls")!;
     expect(controls.getColumn(1).values).toContain("Payroll / Bảng lương");

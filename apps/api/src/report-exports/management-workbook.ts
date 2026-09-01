@@ -10,6 +10,8 @@ export type ManagementRevenueRow = Readonly<{
   invoicedMinor: string;
   recognizedMinor: string;
   collectedMinor: string;
+  /** Output VAT from the canonical sales document; zero for non-invoice sources. */
+  taxMinor?: string;
   state: string;
 }>;
 
@@ -202,7 +204,7 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
   book.calcProperties.fullCalcOnLoad = true;
 
   const revenue = book.addWorksheet("Doanh thu");
-  title(revenue, input, "DOANH THU THEO NGUỒN GHI NHẬN", 12);
+  title(revenue, input, "DOANH THU THEO NGUỒN GHI NHẬN", 13);
   header(revenue, 3, [
     "Ngày",
     "Nguồn",
@@ -216,6 +218,7 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
     "Trạng thái",
     "Từ ngày",
     "Đến ngày",
+    "VAT đầu ra",
   ]);
   for (const item of input.revenue)
     revenue.addRow([
@@ -231,9 +234,10 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
       item.state,
       typedDate(input.startsOn),
       typedDate(input.endsOn),
+      exactMoney(item.taxMinor ?? "0"),
     ]);
   totalRow(revenue, 4, [7, 8, 9]);
-  finish(revenue, [14, 22, 24, 32, 28, 22, 18, 18, 18, 16, 14, 14], [1, 11, 12], [7, 8, 9]);
+  finish(revenue, [14, 22, 24, 32, 28, 22, 18, 18, 18, 16, 14, 14, 16], [1, 11, 12], [7, 8, 9, 13]);
 
   const receivables = book.addWorksheet("Công nợ");
   title(receivables, input, "CÔNG NỢ PHẢI THU THEO KHÁCH HÀNG VÀ HÓA ĐƠN", 10);
@@ -367,6 +371,114 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
     ]);
   totalRow(categories, 4, [4]);
   finish(categories, [14, 20, 34, 20], [], [4]);
+
+  // These sheets intentionally retain the backend value and add an independent
+  // Excel calculation over the typed source rows. This makes the workbook useful
+  // for accountant reconciliation without turning Excel into the system of record.
+  const monthStartFormula = (cell: string) =>
+    `DATE(VALUE(LEFT(${cell},4)),VALUE(RIGHT(${cell},2)),1)`;
+  const monthEndFormula = (cell: string) => `EDATE(${monthStartFormula(cell)},1)`;
+  const addCheckSheet = (
+    name: string,
+    label: string,
+    backend: readonly string[],
+    formula: (row: number) => string,
+  ) => {
+    const sheet = book.addWorksheet(name);
+    title(sheet, input, `${label.toUpperCase()} — ĐỐI SOÁT CÔNG THỨC EXCEL`, 5);
+    header(sheet, 3, ["Tháng", "Giá trị backend", "Công thức Excel", "Chênh lệch", "Trạng thái"]);
+    backend.forEach((value, index) => {
+      const row = index + 4;
+      sheet.addRow([
+        input.monthlyMetrics[index]?.month ?? "",
+        exactMoney(value),
+        { formula: formula(row), result: 0 },
+        { formula: `=C${row}-B${row}`, result: 0 },
+        { formula: `=IF(ABS(D${row})<0.5,"PASS","CHECK")`, result: "PASS" },
+      ]);
+    });
+    totalRow(sheet, 4, [2, 3, 4]);
+    finish(sheet, [14, 20, 56, 20, 16], [], [2, 3, 4]);
+    return sheet;
+  };
+  const metricMonths = input.monthlyMetrics.map((row) => row.month);
+  const revenueEnd = Math.max(4, 3 + input.revenue.length);
+  const expenseEnd = Math.max(4, 3 + input.expenses.length);
+  const receivableEnd = Math.max(4, 3 + input.receivables.length);
+  const revenueMonth = (row: number) => monthStartFormula(`$A${row}`);
+  const revenueCriteria = (row: number) =>
+    `'Doanh thu'!$A$4:$A$${revenueEnd},">="&${revenueMonth(row)},'Doanh thu'!$A$4:$A$${revenueEnd},"<"&${monthEndFormula(`$A${row}`)}`;
+  const expenseCriteria = (row: number) =>
+    `'Chi phí'!$A$4:$A$${expenseEnd},">="&${revenueMonth(row)},'Chi phí'!$A$4:$A$${expenseEnd},"<"&${monthEndFormula(`$A${row}`)}`;
+  addCheckSheet(
+    "Đối soát doanh thu",
+    "Doanh thu ghi nhận",
+    input.monthlyMetrics.map((row) => row.recognizedRevenueMinor),
+    (row) => `SUMIFS('Doanh thu'!$H$4:$H$${revenueEnd},${revenueCriteria(row)})`,
+  );
+  addCheckSheet(
+    "Đối soát chi phí",
+    "Tổng chi phí",
+    input.monthlyMetrics.map((row) => row.expenseMinor),
+    (row) => `SUMIFS('Chi phí'!$H$4:$H$${expenseEnd},${expenseCriteria(row)})`,
+  );
+  addCheckSheet(
+    "Đối soát xuất HĐ",
+    "Doanh thu xuất hóa đơn",
+    input.monthlyMetrics.map((row) => row.invoicedRevenueMinor),
+    (row) => `SUMIFS('Doanh thu'!$G$4:$G$${revenueEnd},${revenueCriteria(row)})`,
+  );
+  addCheckSheet(
+    "Đối soát tiền thu",
+    "Tiền đã thu",
+    input.monthlyMetrics.map((row) => row.collectedRevenueMinor),
+    (row) => `SUMIFS('Doanh thu'!$I$4:$I$${revenueEnd},${revenueCriteria(row)})`,
+  );
+  addCheckSheet(
+    "Đối soát lợi nhuận",
+    "Lợi nhuận kế toán",
+    input.monthlyMetrics.map((row) => row.accountingProfitMinor),
+    (row) =>
+      `SUMIFS('Doanh thu'!$H$4:$H$${revenueEnd},${revenueCriteria(row)})-SUMIFS('Chi phí'!$H$4:$H$${expenseEnd},${expenseCriteria(row)})`,
+  );
+  const vatSheet = book.addWorksheet("Đối soát VAT");
+  title(vatSheet, input, "VAT — ĐỐI SOÁT CÔNG THỨC EXCEL", 9);
+  header(vatSheet, 3, [
+    "Tháng",
+    "VAT đầu ra backend",
+    "VAT đầu ra Excel",
+    "Chênh lệch đầu ra",
+    "VAT đầu vào backend",
+    "VAT đầu vào Excel",
+    "Chênh lệch đầu vào",
+    "Chênh lệch ròng",
+    "Trạng thái",
+  ]);
+  metricMonths.forEach((month, index) => {
+    const row = index + 4;
+    const output = `SUMIFS('Doanh thu'!$M$4:$M$${revenueEnd},${revenueCriteria(row)})`;
+    const inputVat = `SUMIFS('Chi phí'!$I$4:$I$${expenseEnd},${expenseCriteria(row)})`;
+    vatSheet.addRow([
+      month,
+      exactMoney(input.monthlyMetrics[index]!.outputVatMinor),
+      { formula: output, result: 0 },
+      { formula: `=C${row}-B${row}`, result: 0 },
+      exactMoney(input.monthlyMetrics[index]!.inputVatMinor),
+      { formula: inputVat, result: 0 },
+      { formula: `=F${row}-E${row}`, result: 0 },
+      { formula: `=D${row}-G${row}`, result: 0 },
+      { formula: `=IF(ABS(H${row})<0.5,"PASS","CHECK")`, result: "PASS" },
+    ]);
+  });
+  totalRow(vatSheet, 4, [2, 3, 4, 5, 6, 7, 8]);
+  finish(vatSheet, [14, 20, 20, 18, 20, 20, 18, 18, 16], [], [2, 3, 4, 5, 6, 7, 8]);
+  addCheckSheet(
+    "Đối soát công nợ",
+    "Công nợ phải thu",
+    input.monthlyMetrics.map((row) => row.receivableMinor),
+    (row) =>
+      `SUMIFS('Công nợ'!$H$4:$H$${receivableEnd},'Công nợ'!$D$4:$D$${receivableEnd},">="&${revenueMonth(row)},'Công nợ'!$D$4:$D$${receivableEnd},"<"&${monthEndFormula(`$A${row}`)})`,
+  );
 
   const controls = book.addWorksheet("Controls");
   title(controls, input, "KIỂM SOÁT NGUỒN VÀ PHẠM VI WORKBOOK", 4);

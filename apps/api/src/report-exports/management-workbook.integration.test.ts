@@ -62,8 +62,18 @@ describeIntegration("ERP-857 management workbook API", () => {
       "Chỉ số tháng",
       "Kế hoạch & mục tiêu",
       "Hạng mục chi",
+      "Đối soát doanh thu",
+      "Đối soát chi phí",
+      "Đối soát xuất HĐ",
+      "Đối soát tiền thu",
+      "Đối soát lợi nhuận",
+      "Đối soát VAT",
+      "Đối soát công nợ",
       "Controls",
     ]);
+    expect(workbook.getWorksheet("Đối soát lợi nhuận")?.getCell("C4").value).toMatchObject({
+      formula: expect.stringContaining("SUMIFS('Doanh thu'!$H$4:$H$"),
+    });
     expect(workbook.getWorksheet("Controls")?.getColumn(1).values).toContain(
       "Payroll / Bảng lương",
     );

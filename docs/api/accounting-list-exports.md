@@ -43,6 +43,23 @@ naai-erp purchase-expense-export download --from 2026-01-01 --to 2026-12-31 --pa
 
 The CLI refuses to write without explicit `--output`. JSON written to stdout reports the output
 path, byte size, content type, filename and SHA-256 when supplied by the API.
+
+## Management formula audit
+
+The management workbook endpoint (`accounting-list-exports/management-workbook`) contains the
+canonical source sheets plus dedicated formula-audit sheets. For every month returned by the
+backend, Excel recalculates published metrics from typed source rows with `SUMIFS` and shows:
+
+- the backend value (canonical);
+- the independently calculated Excel value;
+- the signed difference; and
+- `PASS` when the difference is zero, otherwise `CHECK`.
+
+The workbook is configured to recalculate when opened. This is an accountant reconciliation aid,
+not a second accounting engine: formulas do not write back to ERP and do not replace the backend
+report API. VAT output/input, profit, revenue invoiced/recognized/collected, expense and
+receivable controls each have their own audit sheet.
+
 ## Workbook layout
 
 Both endpoints return a workbook with six sheets:

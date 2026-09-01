@@ -2725,6 +2725,22 @@ tests:
     command: pnpm test:docs
     blocking_gate: G98
 
+  - id: T-UNIT-ERP-958-001
+    task: ERP-958
+    rules: [BR-EXPOR-003, BR-MVP-004, BR-AI-003]
+    title: Management workbook formula audit sheets recalculate metrics from typed source rows
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/report-exports/management-workbook.test.ts
+    blocking_gate: G99
+
+  - id: T-INT-ERP-958-002
+    task: ERP-958
+    rules: [BR-EXPOR-003, BR-MVP-004]
+    title: Management workbook API exposes formula audit sheets and deterministic bytes
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/report-exports/management-workbook.integration.test.ts
+    blocking_gate: G99
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

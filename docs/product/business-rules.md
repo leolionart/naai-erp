@@ -1194,6 +1194,12 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Stored accountant workbook blobs use the same bounded, organization-scoped retention policy as
   portable packages. Retention runs only after a successful new export and never removes canonical
   documents, journal history or audit evidence.
+- The management workbook also includes one Excel formula-audit sheet per published monthly metric
+  (revenue, invoiced/collected revenue, expenses, profit, receivables and VAT). Each audit sheet
+  keeps the backend value as the canonical control, recalculates the value with `SUMIFS` over the
+  typed source sheets, and exposes a signed difference plus `PASS`/`CHECK` status. Excel formulas
+  are reproducibility evidence only; they never replace backend report calculations or mutate ERP
+  data. Workbooks request full recalculation on open.
 
 ### BR-SNP-001 — Report snapshot
 

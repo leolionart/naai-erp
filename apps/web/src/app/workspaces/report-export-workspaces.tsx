@@ -90,7 +90,7 @@ const directWorkbookOptions: readonly {
     kind: "management",
     title: "Workbook quản trị tổng hợp",
     description:
-      "Tổng hợp doanh thu, công nợ, chi phí và chỉ số theo kỳ. Payroll/bonus chưa được hỗ trợ sẽ được công khai trong sheet Controls.",
+      "Tổng hợp doanh thu, công nợ, chi phí và chỉ số theo kỳ; có thêm các sheet đối soát công thức Excel (giá trị backend, công thức SUMIFS, chênh lệch và PASS/CHECK). Payroll/bonus chưa được hỗ trợ sẽ được công khai trong sheet Controls.",
     path: "accounting-list-exports/management-workbook",
     fallbackName: "quan-tri-tong-hop",
   },
