@@ -222,6 +222,16 @@ suite("operating dashboard PostgreSQL API", () => {
   });
 
   it("reduces owner custody when custody cash pays a posted expense", async () => {
+    // Keep this scenario independent from the preceding owner-mode test so
+    // the provenance warning assertion is exercised whenever this case runs.
+    await pool.query(
+      `insert into accounting_workflow_policies
+       (organization_id,operating_mode,allow_self_approval,soft_lock_posting_roles,updated_by)
+       values($1,'solopreneur',false,'["owner"]',$2)
+       on conflict(organization_id) do update
+       set operating_mode='solopreneur',updated_by=excluded.updated_by,updated_at=now()`,
+      [org, owner],
+    );
     await pool.query(`
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting)
         values('${org}','111','Custody cash','asset',false,true)
@@ -257,18 +267,32 @@ suite("operating dashboard PostgreSQL API", () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.financials).toMatchObject({
+    const financials = response.json().data.financials;
+    expect(financials).toMatchObject({
       ownerCashCustodyMinor: "200",
       // ownerHoldsCompanyFunds is the physical custody balance, not the
       // signed owner-current settlement. The purchase invoice is included in
       // custody spend, leaving 200 in this shared-ledger fixture.
       ownerHoldsCompanyFundsMinor: "200",
-      // Total company funds includes the remaining custody cash once. The
-      // ledger bank/cash pool is 10 after the custody-paid journal, so 10 +
-      // 200 custody = 210.
-      cashAndBankMinor: "210",
-      netCompanyFundsMinor: "110",
+      // The shared 111 ledger is canonical and is counted exactly once. The
+      // fixture's posted custody expense credits 111 by 200 while the bank
+      // balance remains 210, so the aggregate ledger total is 10. Custody is
+      // exposed separately and must not be added again (10 + 200 would be a
+      // double count).
+      bankAvailableMinor: "210",
+      cashOnHandMinor: "-200",
+      cashAndBankMinor: "10",
+      companyCashOnHandMinor: "-400",
+      netCompanyFundsMinor: "10",
+      configurationWarnings: expect.arrayContaining(["shared_cash_ledger_unreconciled"]),
     });
+    // The total is an additive partition of bank, provenance-derived
+    // company-held cash and owner-held cash. Custody appears exactly once.
+    expect(BigInt(financials.cashAndBankMinor)).toBe(
+      BigInt(financials.bankAvailableMinor) +
+        BigInt(financials.companyCashOnHandMinor) +
+        BigInt(financials.ownerHoldsCompanyFundsMinor),
+    );
   });
 
   it("does not infer custody spend from the shared 111 ledger without explicit funding", async () => {

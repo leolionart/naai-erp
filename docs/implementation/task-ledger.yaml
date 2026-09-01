@@ -3555,6 +3555,8 @@ tasks:
       - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
       - apps/api/src/operating-dashboard/operating-dashboard.types.ts
       - apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts
+      - apps/api/src/report-exports/management-workbook.ts
+      - apps/api/src/report-exports/management-workbook.test.ts
       - apps/web/src/app/workspaces/dashboard-workspaces.tsx
       - docs/product/business-rules.md
       - docs/implementation/evidence/ERP-959/

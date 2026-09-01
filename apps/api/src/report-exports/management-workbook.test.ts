@@ -168,7 +168,10 @@ describe("ERP-857 management workbook", () => {
           expenseMinor: "1940371",
           netProfitMinor: "2059629",
           cashAndBankMinor: "1000000",
+          bankAvailableMinor: "0",
+          cashOnHandMinor: "1000000",
           ownerPayableMinor: "500000",
+          ownerHoldsCompanyFundsMinor: "750000",
           netCompanyFundsMinor: "1500000",
           taxableProfitMinor: "2059629",
           corporateIncomeTaxMinor: "411926",
@@ -191,6 +194,11 @@ describe("ERP-857 management workbook", () => {
     });
     expect(book.getWorksheet("Dashboard metrics")?.getCell("C6").value).toMatchObject({
       formula: "=SUM('Dashboard tháng'!D4:D200)",
+    });
+    expect(book.getWorksheet("Dashboard metrics")?.getCell("C8").value).toMatchObject({
+      // Source rows are bank (4), cash (5), residual company cash (6), then
+      // canonical shared cash+bank (7). Custody is deliberately not added.
+      formula: "='Dashboard nguồn'!B7",
     });
     expect(book.getWorksheet("Dashboard metrics")?.getCell("E8").value).toMatchObject({
       formula: '=IF(ABS(D8)<0.5,"PASS","CHECK")',

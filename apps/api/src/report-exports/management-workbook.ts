@@ -530,6 +530,14 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
         "Tiền ngân hàng",
       ],
       ["cashOnHandMinor", input.dashboard.financials.cashOnHandMinor ?? "0", "Tiền mặt công ty"],
+      [
+        "companyCashOnHandMinor",
+        (
+          BigInt(input.dashboard.financials.cashOnHandMinor ?? "0") -
+          BigInt(input.dashboard.financials.ownerHoldsCompanyFundsMinor ?? "0")
+        ).toString(),
+        "Tiền mặt còn lại của công ty sau khi tách tiền chủ giữ; âm là dấu hiệu thiếu provenance lịch sử",
+      ],
       ["cashAndBankMinor", input.dashboard.financials.cashAndBankMinor, "Tổng bank + cash"],
       ["ownerPayableMinor", input.dashboard.financials.ownerPayableMinor, "Công ty nợ chủ"],
       [
@@ -598,7 +606,11 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
       {
         key: "Tiền công ty (bank + cash)",
         value: input.dashboard.financials.cashAndBankMinor,
-        formula: `='Dashboard nguồn'!B${sourceRow.get("bankAvailableMinor")}+'Dashboard nguồn'!B${sourceRow.get("cashOnHandMinor")}`,
+        // `cashAndBankMinor` is the canonical shared-ledger total returned by
+        // the dashboard API. Owner custody is already represented in that
+        // shared ledger and is exposed separately for reconciliation only;
+        // adding the custody component here would double-count it.
+        formula: `='Dashboard nguồn'!B${sourceRow.get("cashAndBankMinor")}`,
       },
       {
         key: "Công ty nợ chủ",
