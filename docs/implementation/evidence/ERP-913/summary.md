@@ -11,3 +11,7 @@ creation so invalid classification cannot leave supplier master data behind.
 
 Main changed surfaces: commercial-document API/store, quick-ingestion service, CLI, Expense Quick
 View, automation dialog, OpenAPI/relationship docs and task/test catalogs.
+
+Follow-up hardening preserves explicit OCR/Paperless `netMinor`, `taxMinor`, `taxCode`,
+`taxAccountCode`, `vatState` and `vatEligibleMinor` values. The endpoint now rejects inconsistent
+or incomplete VAT payloads rather than silently recording gross-only tax values.

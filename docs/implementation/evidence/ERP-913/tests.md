@@ -14,3 +14,10 @@
 
 The initial parallel Playwright attempt shared a dev server and produced unrelated token-fixture
 timeouts. The affected Expense desktop/mobile cases were rerun sequentially and passed.
+
+# Follow-up regression evidence
+
+- `pnpm --filter @naai-erp/api exec vitest run src/commercial-documents/quick-purchase-invoice.service.test.ts` — 8 tests passed.
+- `pnpm --filter @naai-erp/web exec vitest run src/components/automation-api-dialog.test.ts` — 13 tests passed.
+- `pnpm --filter @naai-erp/api exec tsc --noEmit` and `pnpm --filter @naai-erp/web exec tsc --noEmit` — passed.
+- Prettier check for all changed API/web/docs files — passed.

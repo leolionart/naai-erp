@@ -11,3 +11,5 @@
 - Deletion requires current version, idempotency key and reason, keeps audit evidence, refreshes the
   UI and is rejected for progressed/referenced documents.
 - OpenAPI, relationship manifest, CLI and contextual automation examples describe the same contract.
+- Explicit VAT totals and identifiers are retained by quick ingestion; `netMinor + taxMinor = grossMinor`
+  is enforced and incomplete VAT payloads return structured validation errors.

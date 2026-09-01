@@ -2814,7 +2814,7 @@ tasks:
       - docs/testing/test-specification.md
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-913/
-    notes: Add one idempotent REST and CLI operation that accepts basic OCR invoice fields, resolves an exact or uniquely similar active expense category before mutation, resolves the supplier by normalized tax ID, creates the party and supplier role when absent, and creates the canonical purchase invoice without requiring project or payment-account input. The expense automation dialog exposes one directly copyable cURL for this operation. Expense Quick View exposes audited deletion only for canonical draft purchase invoices that have no journal or downstream reference.
+    notes: Add one idempotent REST and CLI operation that accepts basic OCR invoice fields, resolves an exact or uniquely similar active expense category before mutation, resolves the supplier by normalized tax ID, creates the party and supplier role when absent, and creates the canonical purchase invoice without requiring project or payment-account input. The quick path also preserves explicit net/VAT totals, VAT code and tax account, validates net plus VAT equals gross, and returns structured errors for incomplete tax payloads instead of silently zeroing VAT. The expense automation dialog exposes one directly copyable cURL for this operation. Expense Quick View exposes audited deletion only for canonical draft purchase invoices that have no journal or downstream reference.
 
   - id: ERP-914
     title: Normalize Paperless OCR input in the one-call n8n expression
