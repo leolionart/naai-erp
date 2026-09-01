@@ -516,7 +516,7 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
     "Công nợ phải thu",
     input.monthlyMetrics.map((row) => row.receivableMinor),
     (row) =>
-      `SUMIFS('Công nợ'!$I$4:$I$${receivableEnd},'Công nợ'!$E$4:$E$${receivableEnd},">="&${revenueMonth(row)},'Công nợ'!$E$4:$E$${receivableEnd},"<"&${monthEndFormula(`$A${row}`)})`,
+      `SUMIFS('Công nợ'!$H$4:$H$${receivableEnd},'Công nợ'!$D$4:$D$${receivableEnd},">="&${revenueMonth(row)},'Công nợ'!$D$4:$D$${receivableEnd},"<"&${monthEndFormula(`$A${row}`)})`,
   );
 
   if (input.dashboard) {
@@ -593,7 +593,7 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
       {
         key: "Công nợ phải thu",
         value: input.dashboard.collections.receivablesMinor,
-        formula: "=SUM('Công nợ'!I4:I200)",
+        formula: "=SUM('Công nợ'!H4:H200)",
       },
       {
         key: "Tiền công ty (bank + cash)",
