@@ -434,17 +434,29 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
     `'Doanh thu'!$A$4:$A$${revenueEnd},">="&${revenueMonth(row)},'Doanh thu'!$A$4:$A$${revenueEnd},"<"&${monthEndFormula(`$A${row}`)}`;
   const expenseCriteria = (row: number) =>
     `'Chi phí'!$A$4:$A$${expenseEnd},">="&${revenueMonth(row)},'Chi phí'!$A$4:$A$${expenseEnd},"<"&${monthEndFormula(`$A${row}`)}`;
+  const dashboardMetricFormula = (column: string, row: number) =>
+    input.dashboard
+      ? `SUMIFS('Dashboard tháng'!$${column}$4:$${column}$${Math.max(4, 3 + input.dashboard.financials.monthly.length)},'Dashboard tháng'!$A$4:$A$${Math.max(4, 3 + input.dashboard.financials.monthly.length)},$A${row})`
+      : undefined;
   addCheckSheet(
     "Đối soát doanh thu",
     "Doanh thu ghi nhận",
-    input.monthlyMetrics.map((row) => row.recognizedRevenueMinor),
-    (row) => `SUMIFS('Doanh thu'!$H$4:$H$${revenueEnd},${revenueCriteria(row)})`,
+    input.dashboard
+      ? input.dashboard.financials.monthly.map((row) => row.revenueMinor)
+      : input.monthlyMetrics.map((row) => row.recognizedRevenueMinor),
+    (row) =>
+      dashboardMetricFormula("B", row) ??
+      `SUMIFS('Doanh thu'!$H$4:$H$${revenueEnd},${revenueCriteria(row)})`,
   );
   addCheckSheet(
     "Đối soát chi phí",
     "Tổng chi phí",
-    input.monthlyMetrics.map((row) => row.expenseMinor),
-    (row) => `SUMIFS('Chi phí'!$H$4:$H$${expenseEnd},${expenseCriteria(row)})`,
+    input.dashboard
+      ? input.dashboard.financials.monthly.map((row) => row.expenseMinor)
+      : input.monthlyMetrics.map((row) => row.expenseMinor),
+    (row) =>
+      dashboardMetricFormula("C", row) ??
+      `SUMIFS('Chi phí'!$H$4:$H$${expenseEnd},${expenseCriteria(row)})`,
   );
   addCheckSheet(
     "Đối soát xuất HĐ",
@@ -461,8 +473,11 @@ export function createManagementWorkbook(input: ManagementWorkbookInput) {
   addCheckSheet(
     "Đối soát lợi nhuận",
     "Lợi nhuận kế toán",
-    input.monthlyMetrics.map((row) => row.accountingProfitMinor),
+    input.dashboard
+      ? input.dashboard.financials.monthly.map((row) => row.netProfitMinor)
+      : input.monthlyMetrics.map((row) => row.accountingProfitMinor),
     (row) =>
+      dashboardMetricFormula("D", row) ??
       `SUMIFS('Doanh thu'!$H$4:$H$${revenueEnd},${revenueCriteria(row)})-SUMIFS('Chi phí'!$H$4:$H$${expenseEnd},${expenseCriteria(row)})`,
   );
   const vatSheet = book.addWorksheet("Đối soát VAT");
