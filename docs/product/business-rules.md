@@ -727,8 +727,9 @@ Override requires reviewer, reason, timestamp and reference/evidence.
   `owner_custody_cash`, or `owner_personal_advance`. A purchase invoice reduces owner custody only
   when its explicit funding financial account is `CASH-OWNER-CUSTODY`; an Owner Current credit alone
   is not evidence of custody cash. `owner_personal_advance` increases the owner payable and leaves
-  custody unchanged. The dashboard excludes owner custody from company available cash to prevent
-  double counting, while preserving the original funding treatment and audit provenance.
+  custody unchanged. The dashboard counts the shared cash ledger once; owner custody is a separate
+  component and is never added again. A derived company-held cash residual is exposed for
+  reconciliation when legacy shared-ledger provenance makes it negative.
 - Payment: Dr employee payable, Cr bank/cash.
 - Avoid duplicate booking from company-card/bank import and employee claim.
 
@@ -999,9 +1000,12 @@ Opening cash + expected collections + financing − payroll − AP due − recur
   company currently owes the owner. When the position is negative, the debt card is zero and the
   dashboard separately shows the absolute company funds held by the owner. The statutory
   `owner_current` Balance Sheet balance remains available through reconciliation drill-down.
-- The three liquidity controls are shown together: mapped company cash and bank, company amount owed
-  to the owner, and net company funds after that owner obligation. Net company funds equals mapped
-  cash and bank less the positive closing owner-current liability.
+- The three liquidity controls are shown together: company bank, the shared company cash ledger,
+  confirmed cash held in owner custody, company amount owed to the owner, and net company funds.
+  Because legacy company and custody accounts can share one ledger code, the shared ledger total is
+  counted once; the derived company-held residual is shown for reconciliation and may be negative
+  until provenance is corrected. Net company funds subtracts only the positive confirmed
+  owner-settlement liability from the canonical shared ledger total.
 - Executive metrics require an approved, organization-scoped policy covering the complete requested
   period. The policy maps each semantic to a real chart-of-accounts code; `owner_loan` remains a
   liability semantic and never increases contributed capital.

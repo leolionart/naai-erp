@@ -448,12 +448,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const expense = monthlyResult.rows.reduce((sum, row) => sum + amount(row.expense), 0n);
     const netProfit = revenue - expense;
     const ownerCustodyMinor = amount(ownerSettlement.rows[0]?.custody);
-    // Custody cash remains company cash; it is only held outside the company
-    // bank/company-cash account. Include it in total company funds while
-    // keeping bank availability separate.
-    // The ledger balance already contains the complete physical cash pool,
-    // including cash held by the owner.  Do not add custody a second time.
-    const cashAndBankMinor = amount(cashAndBank.rows[0]?.amount);
+    // Custody cash remains company cash, but it is not posted to the company
+    // bank/cash ledger account in historical data. Keep the ledger cash and
+    // owner-held custody separate. The shared ledger total remains canonical;
+    // custody is already represented there and must not be added again.
+    const ledgerCashAndBankMinor = amount(cashAndBank.rows[0]?.amount);
     const bankAvailableMinor = amount(cashAndBank.rows[0]?.bank_amount);
     const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
     const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
@@ -461,6 +460,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const confirmedOwnerSettlementMinor = amount(ownerSettlement.rows[0]?.settlement);
     const companyOwesOwnerMinor = amount(ownerSettlement.rows[0]?.company_owes_owner);
     const ownerHoldsCompanyFundsMinor = amount(ownerSettlement.rows[0]?.owner_holds_company_funds);
+    // The shared 111 ledger is already the complete physical cash pool. Do not
+    // add owner custody a second time; expose the residual company-held cash as
+    // a separate diagnostic component for legacy provenance gaps.
+    const cashAndBankMinor = ledgerCashAndBankMinor;
+    const companyCashOnHandMinor = cashOnHandMinor - ownerHoldsCompanyFundsMinor;
     const actualOwnerPaidCompanyCostMinor = amount(expenseFunding.rows[0]?.owner_paid);
     const unclassifiedOwnerPaidCount = expenseFunding.rows[0]?.unclassified_count ?? 0;
     const unclassifiedOwnerPaidMinor = amount(expenseFunding.rows[0]?.unclassified_minor);
@@ -472,7 +476,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           ? ("review_required" as const)
           : ("ready" as const);
     const config = readiness.rows[0];
-    const configurationWarnings =
+    const configurationWarnings: string[] =
       config?.operating_mode === "solopreneur"
         ? [
             ...(config.approved_statement_mapping_count === 0
@@ -498,6 +502,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
               : []),
           ]
         : [];
+    if (companyCashOnHandMinor < 0n) configurationWarnings.push("shared_cash_ledger_unreconciled");
     const citIneligible = amount(expenseFunding.rows[0]?.cit_ineligible);
     const taxableProfit = netProfit + citIneligible;
     // Preserve the signed taxable result for reporting.  Only the CIT tax
@@ -515,6 +520,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       unrestrictedCashMinor: cash.rows[0]?.amount ?? null,
       bankAvailableMinor: bankAvailableMinor.toString(),
       cashOnHandMinor: cashOnHandMinor.toString(),
+      companyCashOnHandMinor: companyCashOnHandMinor.toString(),
       cashAndBankMinor: cashAndBankMinor.toString(),
       ownerPayableMinor: companyOwesOwnerMinor.toString(),
       statutoryOwnerCurrentBalanceMinor: ownerPayableMinor.toString(),

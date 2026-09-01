@@ -2741,6 +2741,14 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/report-exports/management-workbook.integration.test.ts
     blocking_gate: G99
 
+  - id: T-INT-ERP-959-001
+    task: ERP-959
+    rules: [BR-BNK-002, BR-BNK-004, BR-KPI-005]
+    title: Shared cash ledger counts owner custody once and exposes residual provenance warning
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/operating-dashboard/operating-dashboard.integration.test.ts
+    blocking_gate: G100
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

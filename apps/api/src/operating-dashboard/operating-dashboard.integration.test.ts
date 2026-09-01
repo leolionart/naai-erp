@@ -263,6 +263,11 @@ suite("operating dashboard PostgreSQL API", () => {
       // signed owner-current settlement. The purchase invoice is included in
       // custody spend, leaving 200 in this shared-ledger fixture.
       ownerHoldsCompanyFundsMinor: "200",
+      // Total company funds includes the remaining custody cash once. The
+      // ledger bank/cash pool is 10 after the custody-paid journal, so 10 +
+      // 200 custody = 210.
+      cashAndBankMinor: "210",
+      netCompanyFundsMinor: "110",
     });
   });
 

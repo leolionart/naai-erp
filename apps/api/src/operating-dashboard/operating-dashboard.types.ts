@@ -102,6 +102,7 @@ export type OperatingDashboardReadModel = Readonly<{
     unrestrictedCashMinor: string | null;
     bankAvailableMinor: string;
     cashOnHandMinor: string;
+    companyCashOnHandMinor?: string;
     cashAndBankMinor: string;
     ownerPayableMinor: string;
     ownerOperatingPayableMinor: string;

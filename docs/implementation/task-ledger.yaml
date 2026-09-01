@@ -3539,6 +3539,26 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-958/
 
+  - id: ERP-959
+    title: Reconcile shared cash ledger and owner custody presentation
+    phase: P16
+    status: done
+    dependencies: [ERP-954]
+    business_rules: [BR-BNK-002, BR-BNK-004, BR-KPI-005]
+    tests: [T-INT-ERP-959-001]
+    evidence: docs/implementation/evidence/ERP-959/
+    agent: codex-root
+    started_at: 2026-09-01T17:35:00+07:00
+    completed_at: 2026-09-01T17:50:00+07:00
+    completion_basis: shared_cash_ledger_no_double_count_and_provenance_residual_warning
+    planned_files:
+      - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
+      - apps/api/src/operating-dashboard/operating-dashboard.types.ts
+      - apps/api/src/operating-dashboard/operating-dashboard.integration.test.ts
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - docs/product/business-rules.md
+      - docs/implementation/evidence/ERP-959/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
@@ -3634,6 +3654,7 @@ gates:
   G93: [ERP-936]
   G98: [ERP-957]
   G99: [ERP-958]
+  G100: [ERP-959]
 
 gate_status:
   G0: done
@@ -3729,3 +3750,4 @@ gate_status:
   G93: done
   G98: done
   G99: done
+  G100: done
