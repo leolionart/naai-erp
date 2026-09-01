@@ -12,6 +12,23 @@ import type {
 const amount = (value: unknown) => BigInt(String(value ?? 0));
 const ratioBps = (part: bigint, total: bigint) =>
   total > 0n ? Number((part * 10_000n + total / 2n) / total) : null;
+
+/** Derive physical company funds from non-overlapping components. */
+export function deriveCompanyFunds(input: {
+  bankAvailableMinor: bigint;
+  companyCashOnHandMinor: bigint;
+  ownerHoldsCompanyFundsMinor: bigint;
+  cashAndBankMinor: bigint;
+}) {
+  const totalMinor =
+    input.bankAvailableMinor +
+    (input.companyCashOnHandMinor > 0n ? input.companyCashOnHandMinor : 0n) +
+    input.ownerHoldsCompanyFundsMinor;
+  return {
+    totalMinor,
+    reconciliationGapMinor: input.cashAndBankMinor - totalMinor,
+  };
+}
 const controlKinds: readonly WorkbookSourceControlKind[] = [
   "bonus_control",
   "debt_control",
@@ -465,6 +482,16 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     // a separate diagnostic component for legacy provenance gaps.
     const cashAndBankMinor = ledgerCashAndBankMinor;
     const companyCashOnHandMinor = cashOnHandMinor - ownerHoldsCompanyFundsMinor;
+    // Physical company funds are partitioned into bank, company-held cash
+    // residual and owner-held custody.  A negative residual indicates that
+    // legacy shared-ledger provenance is incomplete; do not let that
+    // unresolved bookkeeping gap make the physical-funds headline negative.
+    const companyFunds = deriveCompanyFunds({
+      bankAvailableMinor,
+      companyCashOnHandMinor,
+      ownerHoldsCompanyFundsMinor,
+      cashAndBankMinor,
+    });
     const actualOwnerPaidCompanyCostMinor = amount(expenseFunding.rows[0]?.owner_paid);
     const unclassifiedOwnerPaidCount = expenseFunding.rows[0]?.unclassified_count ?? 0;
     const unclassifiedOwnerPaidMinor = amount(expenseFunding.rows[0]?.unclassified_minor);
@@ -522,6 +549,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       cashOnHandMinor: cashOnHandMinor.toString(),
       companyCashOnHandMinor: companyCashOnHandMinor.toString(),
       cashAndBankMinor: cashAndBankMinor.toString(),
+      totalCompanyFundsMinor: companyFunds.totalMinor.toString(),
+      companyFundsReconciliationGapMinor: companyFunds.reconciliationGapMinor.toString(),
       ownerPayableMinor: companyOwesOwnerMinor.toString(),
       statutoryOwnerCurrentBalanceMinor: ownerPayableMinor.toString(),
       ownerOperatingPayableMinor: companyOwesOwnerMinor.toString(),

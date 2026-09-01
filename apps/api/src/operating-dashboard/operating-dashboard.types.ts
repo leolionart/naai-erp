@@ -104,6 +104,14 @@ export type OperatingDashboardReadModel = Readonly<{
     cashOnHandMinor: string;
     companyCashOnHandMinor?: string;
     cashAndBankMinor: string;
+    /**
+     * Physical company funds split into non-overlapping components:
+     * bank + non-negative company-held cash residual + owner-held custody cash.
+     * A negative residual is excluded from this total and exposed through the
+     * reconciliation gap/warning instead of making physical funds negative.
+     */
+    totalCompanyFundsMinor: string;
+    companyFundsReconciliationGapMinor: string;
     ownerPayableMinor: string;
     ownerOperatingPayableMinor: string;
     netAvailableCashMinor: string;
