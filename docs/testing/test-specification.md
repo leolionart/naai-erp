@@ -526,6 +526,14 @@ Gate G8 is complete only after ERP-800 evidence, exact-commit CI and post-push r
   a foreign Origin; normal CLI Bearer authentication remains unchanged.
 - Logout clears the cookie and a deliberate secret rotation invalidates all existing sessions.
 
+### ERP-960 — Google sign-in upcoming state
+
+- The login screen presents a clearly labeled `Đăng nhập với Google` control for the planned Google
+  identity provider integration.
+- The control is disabled, has an accessible status description stating `Sắp ra mắt`, and does not
+  initiate an OAuth request or alter the existing username/password session flow.
+- Desktop and mobile login layouts keep the upcoming control within the viewport.
+
 ### ERP-855 — Purchase product VAT catalog
 
 - Empty-database migration creates an organization-scoped purchase-product catalog.

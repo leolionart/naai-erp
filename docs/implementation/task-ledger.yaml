@@ -3561,7 +3561,25 @@ tasks:
       - packages/contracts/src/operating-dashboard.ts
       - docs/api/openapi-v1.json
       - docs/product/business-rules.md
-      - docs/implementation/evidence/ERP-959/
+
+  - id: ERP-960
+    title: Show Google sign-in as upcoming on login screen
+    phase: P16
+    status: done
+    dependencies: [ERP-959]
+    business_rules: [BR-UI-003, BR-UI-004, BR-SEC-001, BR-SEC-002]
+    tests: [T-UNIT-ERP-960-001, T-E2E-ERP-960-002]
+    evidence: docs/implementation/evidence/ERP-960/
+    agent: codex-root
+    started_at: 2026-09-04T00:00:00+07:00
+    completed_at: 2026-09-04T00:30:00+07:00
+    completion_basis: disabled_google_upcoming_login_ui_with_accessibility_and_e2e_evidence
+    planned_files:
+      - apps/web/src/components/login-form.tsx
+      - apps/web/e2e/login-theme.spec.ts
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-960/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]

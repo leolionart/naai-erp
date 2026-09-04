@@ -10,6 +10,22 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-UNIT-ERP-960-001
+    task: ERP-960
+    rules: [BR-UI-003, BR-UI-004, BR-SEC-001, BR-SEC-002]
+    title: Login presents Google sign-in as a disabled upcoming capability without an OAuth request
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run --passWithNoTests
+    blocking_gate: G100
+
+  - id: T-E2E-ERP-960-002
+    task: ERP-960
+    rules: [BR-UI-003, BR-UI-004, BR-SEC-001, BR-SEC-002]
+    title: Desktop and mobile login show an accessible disabled Google sign-in button marked upcoming
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/login-theme.spec.ts --project=desktop-chromium
+    blocking_gate: G100
+
   - id: T-API-ERP-955-004
     task: ERP-955
     rules: [BR-TAX-003, BR-AUD-001, BR-ORG-001]
