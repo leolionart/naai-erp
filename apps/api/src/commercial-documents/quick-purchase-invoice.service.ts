@@ -28,6 +28,7 @@ export class QuickPurchaseInvoiceService {
       context,
       normalized.category,
       normalized.description,
+      normalized.supplierTaxId,
     );
     const accounts = await this.resolveAccounts(context, category.code, normalized.documentDate);
     const supplier = await this.ensureSupplier(context, normalized, idempotencyKey);
@@ -35,15 +36,40 @@ export class QuickPurchaseInvoiceService {
       .update(`${idempotencyKey}:${normalized.documentNumber}`)
       .digest("hex")
       .slice(0, 24)}`;
-    const taxMinor = normalized.taxMinor ?? "0";
-    const netMinor =
-      normalized.netMinor ?? (BigInt(normalized.grossMinor) - BigInt(taxMinor)).toString();
-    const vatState =
-      normalized.vatState ??
-      (normalized.vatEligibleMinor !== undefined
-        ? BigInt(normalized.vatEligibleMinor) === BigInt(taxMinor)
+    let taxMinor = normalized.taxMinor;
+    let netMinor = normalized.netMinor;
+    let taxAccountCode = normalized.taxAccountCode;
+    let taxCode = normalized.taxCode;
+    let vatState = normalized.vatState;
+    let vatEligibleMinor = normalized.vatEligibleMinor;
+
+    // Auto-derive standard VAT for known utility suppliers when OCR omitted net/tax
+    if (taxMinor === undefined && netMinor === undefined) {
+      const isEvn =
+        normalized.supplierTaxId.startsWith("0300951119") ||
+        normalized.supplierTaxId.startsWith("0300942001");
+      if (isEvn) {
+        const gross = BigInt(normalized.grossMinor);
+        // Round to nearest VND integer: (gross * 100 + 54) / 108
+        const derivedNet = (gross * 100n + 54n) / 108n;
+        const derivedTax = gross - derivedNet;
+        netMinor = derivedNet.toString();
+        taxMinor = derivedTax.toString();
+        taxAccountCode = taxAccountCode ?? "1331-VAT";
+        taxCode = taxCode ?? "VAT8_IN";
+        vatState = vatState ?? "eligible";
+        vatEligibleMinor = vatEligibleMinor ?? taxMinor;
+      }
+    }
+
+    taxMinor = taxMinor ?? "0";
+    netMinor = netMinor ?? (BigInt(normalized.grossMinor) - BigInt(taxMinor)).toString();
+    vatState =
+      vatState ??
+      (vatEligibleMinor !== undefined
+        ? BigInt(vatEligibleMinor) === BigInt(taxMinor)
           ? "eligible"
-          : BigInt(normalized.vatEligibleMinor) > 0n
+          : BigInt(vatEligibleMinor) > 0n
             ? "partially_eligible"
             : "ineligible"
         : normalized.taxMinor !== undefined
@@ -77,8 +103,8 @@ export class QuickPurchaseInvoiceService {
           taxMinor,
           grossMinor: normalized.grossMinor,
           primaryAccountCode: accounts.primaryAccountCode,
-          ...(normalized.taxAccountCode ? { taxAccountCode: normalized.taxAccountCode } : {}),
-          ...(normalized.taxCode ? { taxCode: normalized.taxCode } : {}),
+          ...(taxAccountCode ? { taxAccountCode } : {}),
+          ...(taxCode ? { taxCode } : {}),
           categoryCode: category.code,
           allocations: [
             {
@@ -86,9 +112,7 @@ export class QuickPurchaseInvoiceService {
               amountMinor: netMinor,
               dimensions: {
                 taxState: vatState,
-                ...(normalized.vatEligibleMinor !== undefined
-                  ? { vatEligibleMinor: normalized.vatEligibleMinor }
-                  : {}),
+                ...(vatEligibleMinor !== undefined ? { vatEligibleMinor } : {}),
               },
             },
           ],
@@ -302,6 +326,7 @@ export class QuickPurchaseInvoiceService {
     context: CommercialDocumentContext,
     categoryInput: string | undefined,
     description: string,
+    supplierTaxId?: string,
   ) {
     const categories = await this.rows("categories", context);
     const legacy = categories.length ? categories : await this.rows("dimensions", context);
@@ -318,6 +343,20 @@ export class QuickPurchaseInvoiceService {
         };
       });
     if (candidates.length === 0) throw new Error("CATEGORY_NOT_FOUND");
+
+    // Rule 1: Utility supplier tax ID recognition (EVN, Telecom, etc.)
+    if (supplierTaxId) {
+      if (supplierTaxId.startsWith("0300951119") || supplierTaxId.startsWith("0300942001")) {
+        const evn = candidates.find((c) => c.code === "ELECTRICITY_WATER");
+        if (evn) return { code: evn.code, name: evn.name, disposition: "exact" as const };
+      }
+      if (supplierTaxId.startsWith("0101778163")) {
+        const telecom = candidates.find((c) => c.code === "INTERNET_TELECOM");
+        if (telecom)
+          return { code: telecom.code, name: telecom.name, disposition: "exact" as const };
+      }
+    }
+
     const explicit = this.normalizedSearch(categoryInput);
     if (explicit) {
       const exact = candidates.find((candidate) =>
@@ -402,7 +441,14 @@ export class QuickPurchaseInvoiceService {
       : undefined;
     const primary =
       mappedAccount ??
+      activeAccounts.find((row) => String(row.code) === "642-OPEX") ??
       activeAccounts.find((row) => String(row.code) === "642-COST") ??
+      activeAccounts.find(
+        (row) =>
+          String(row.root_type) === "expense" &&
+          row.is_control_account !== true &&
+          String(row.code) !== "632-COGS",
+      ) ??
       activeAccounts.find(
         (row) => String(row.root_type) === "expense" && row.is_control_account !== true,
       );

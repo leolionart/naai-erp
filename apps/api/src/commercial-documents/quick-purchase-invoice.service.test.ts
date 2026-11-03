@@ -354,4 +354,132 @@ describe("ERP-913 QuickPurchaseInvoiceService", () => {
     expect(master.mutate).not.toHaveBeenCalled();
     expect(documents.create).not.toHaveBeenCalled();
   });
+
+  it("auto-resolves EVN supplier tax ID to ELECTRICITY_WATER, splits 8% VAT, and routes to 642-OPEX", async () => {
+    const master = masterWith({
+      parties: [],
+      "party-roles": [],
+      categories: [
+        {
+          kind: "expense",
+          code: "ELECTRICITY_WATER",
+          name: "Chi phí Điện / Nước",
+          is_active: true,
+        },
+      ],
+      "default-mappings": [
+        {
+          category_code: "ELECTRICITY_WATER",
+          account_code: "642-OPEX",
+          effective_from: "2024-01-01",
+        },
+      ],
+      accounts: [
+        { code: "632-COGS", root_type: "expense", is_active: true },
+        { code: "642-OPEX", root_type: "expense", is_active: true },
+        { code: "331-AP", root_type: "liability", is_control_account: true, is_active: true },
+      ],
+    });
+    const documents = {
+      create: vi.fn().mockResolvedValue({
+        data: { documentId: "purchase-evn-auto" },
+      }),
+    };
+    const service = new QuickPurchaseInvoiceService(master as never, documents as never);
+
+    const result = await service.create(
+      context,
+      {
+        supplierTaxId: "0300951119-002",
+        supplierName: "CHI NHÁNH TỔNG CÔNG TY ĐIỆN LỰC THÀNH PHỐ HỒ CHÍ MINH TNHH",
+        documentNumber: "1684805",
+        documentDate: "2026-08-02",
+        description: "Tiền điện tháng 07/2026",
+        grossMinor: "1770163", // Net: 1639040, Tax: 131123
+      },
+      "paperless-evn-v1",
+    );
+
+    expect(documents.create).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({
+        netMinor: "1639040",
+        taxMinor: "131123",
+        grossMinor: "1770163",
+        controlAccountCode: "331-AP",
+        lines: [
+          expect.objectContaining({
+            primaryAccountCode: "642-OPEX",
+            categoryCode: "ELECTRICITY_WATER",
+            taxAccountCode: "1331-VAT",
+            taxCode: "VAT8_IN",
+            allocations: [
+              expect.objectContaining({
+                amountMinor: "1639040",
+                dimensions: {
+                  taxState: "eligible",
+                  vatEligibleMinor: "131123",
+                },
+              }),
+            ],
+          }),
+        ],
+      }),
+      "paperless-evn-v1",
+    );
+    expect(result.data.category).toEqual({
+      code: "ELECTRICITY_WATER",
+      name: "Chi phí Điện / Nước",
+      disposition: "exact",
+    });
+  });
+
+  it("falls back to 642-OPEX instead of 632-COGS when default mapping is missing", async () => {
+    const master = masterWith({
+      parties: [],
+      "party-roles": [],
+      categories: [
+        { kind: "expense", code: "OTHER_EXPENSE", name: "Chi phí khác", is_active: true },
+      ],
+      "default-mappings": [], // No mapping
+      accounts: [
+        { code: "632-COGS", root_type: "expense", is_active: true },
+        { code: "642-OPEX", root_type: "expense", is_active: true },
+        { code: "331-AP", root_type: "liability", is_control_account: true, is_active: true },
+      ],
+    });
+    const documents = {
+      create: vi.fn().mockResolvedValue({
+        data: { documentId: "purchase-fallback" },
+      }),
+    };
+    const service = new QuickPurchaseInvoiceService(master as never, documents as never);
+
+    await service.create(
+      context,
+      {
+        supplierTaxId: "0100000000",
+        supplierName: "Nhà cung cấp khác",
+        documentNumber: "00001",
+        documentDate: "2026-08-02",
+        category: "OTHER_EXPENSE",
+        description: "Chi phí linh tinh",
+        grossMinor: "100000",
+      },
+      "fallback-test-v1",
+    );
+
+    expect(documents.create).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({
+        lines: [
+          expect.objectContaining({
+            primaryAccountCode: "642-OPEX", // Must be 642-OPEX, NOT 632-COGS!
+            categoryCode: "OTHER_EXPENSE",
+          }),
+        ],
+      }),
+      "fallback-test-v1",
+    );
+  });
 });
