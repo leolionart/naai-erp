@@ -1594,7 +1594,20 @@ export class PgExpenseStore {
       await c.query(
         `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
          values($1,$2,'expense',$3,'expense.discarded',1,$4,$5)`,
-        [context.organizationId, outbox, id, { expenseId: id, reason }, context.correlationId],
+        [
+          context.organizationId,
+          outbox,
+          id,
+          {
+            expenseId: id,
+            expenseDate: expense.expense_date,
+            currency: expense.currency,
+            grossMinor: expense.gross_minor,
+            payeePartyId: expense.payee_party_id,
+            reason,
+          },
+          context.correlationId,
+        ],
       );
       const response = {
         expenseId: id,

@@ -59,6 +59,35 @@ describe("telegram message", () => {
       formatTelegramMessage({ ...base, revenueMinor: 0n, expenseMinor: 500n, currency: "USD" }),
     ).toContain("Chi phí ghi nhận:</b> 5,00 USD");
   });
+  it("labels updated, deleted, and reversed/cancelled actions", () => {
+    expect(
+      formatTelegramMessage({
+        ...base,
+        revenueMinor: 0n,
+        expenseMinor: 1_000_000n,
+        draft: true,
+        action: "updated",
+      }),
+    ).toContain("Đã sửa chi phí (bản nháp)");
+    expect(
+      formatTelegramMessage({
+        ...base,
+        revenueMinor: 0n,
+        expenseMinor: 1_000_000n,
+        action: "deleted",
+        reason: "Nhập trùng",
+      }),
+    ).toContain("Đã xóa bản nháp chi phí");
+    expect(
+      formatTelegramMessage({
+        ...base,
+        revenueMinor: 0n,
+        expenseMinor: 1_000_000n,
+        action: "cancelled",
+        reason: "Chuyển nguồn chi",
+      }),
+    ).toContain("Đã hủy / đảo sổ chi phí");
+  });
   it("redacts the bot token", () => {
     expect(redactTelegramError(`fail https://x/bot${token}/sendMessage`, token)).not.toContain(
       token,

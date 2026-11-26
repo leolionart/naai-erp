@@ -16,6 +16,8 @@ export type JournalNotification = Readonly<{
   expenseMinor: bigint;
   /** True for a record created as a draft (not yet in the ledger); `journalId` is then its id. */
   draft?: boolean;
+  action?: "created" | "updated" | "deleted" | "reversed" | "cancelled";
+  reason?: string;
   reference?: string;
   party?: string;
 }>;
@@ -58,22 +60,49 @@ function formatMinor(minor: bigint, currency: string) {
   return `${minor < 0n ? "-" : ""}${text} ${currency}`;
 }
 
+function actionLabel(kind: "revenue" | "expense", notification: JournalNotification): string {
+  const action = notification.action ?? "created";
+  const draft = notification.draft === true;
+  if (action === "deleted") {
+    return kind === "revenue" ? "Đã xóa bản nháp doanh thu" : "Đã xóa bản nháp chi phí";
+  }
+  if (action === "reversed" || action === "cancelled") {
+    return kind === "revenue" ? "Đã hủy / đảo sổ doanh thu" : "Đã hủy / đảo sổ chi phí";
+  }
+  if (action === "updated") {
+    return kind === "revenue"
+      ? draft
+        ? "Đã sửa doanh thu (bản nháp)"
+        : "Đã sửa doanh thu"
+      : draft
+        ? "Đã sửa chi phí (bản nháp)"
+        : "Đã sửa chi phí";
+  }
+  return kind === "revenue"
+    ? draft
+      ? "Đã thêm doanh thu (bản nháp, chưa ghi sổ)"
+      : "Doanh thu ghi nhận"
+    : draft
+      ? "Đã thêm chi phí (bản nháp, chưa ghi sổ)"
+      : "Chi phí ghi nhận";
+}
+
 export function formatTelegramMessage(notification: JournalNotification): string {
   const lines: string[] = [];
-  const draft = notification.draft === true;
   if (notification.revenueMinor !== 0n)
     lines.push(
-      `💰 <b>${draft ? "Đã thêm doanh thu (bản nháp, chưa ghi sổ)" : "Doanh thu ghi nhận"}:</b> ${escapeHtml(formatMinor(notification.revenueMinor, notification.currency))}`,
+      `💰 <b>${actionLabel("revenue", notification)}:</b> ${escapeHtml(formatMinor(notification.revenueMinor, notification.currency))}`,
     );
   if (notification.expenseMinor !== 0n)
     lines.push(
-      `💸 <b>${draft ? "Đã thêm chi phí (bản nháp, chưa ghi sổ)" : "Chi phí ghi nhận"}:</b> ${escapeHtml(formatMinor(notification.expenseMinor, notification.currency))}`,
+      `💸 <b>${actionLabel("expense", notification)}:</b> ${escapeHtml(formatMinor(notification.expenseMinor, notification.currency))}`,
     );
   lines.push(`📅 ${escapeHtml(notification.journalDate)}`);
   if (notification.reference) lines.push(`🧾 ${escapeHtml(notification.reference)}`);
   if (notification.party) lines.push(`👤 ${escapeHtml(notification.party)}`);
   if (notification.description)
     lines.push(`📝 ${escapeHtml(notification.description.slice(0, 300))}`);
+  if (notification.reason) lines.push(`📌 ${escapeHtml(notification.reason.slice(0, 200))}`);
   lines.push(
     `🏢 ${escapeHtml(notification.organizationId)} · ${escapeHtml(notification.journalId)}`,
   );
@@ -97,7 +126,7 @@ export class TelegramNotifier {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async runBatch(limit = 20, lookbackMinutes = 60) {
+  async runBatch(limit = 20, lookbackMinutes = 1440) {
     const enqueued = await this.store.enqueueRecent(lookbackMinutes);
     const leased = await this.store.lease(limit);
     let sent = 0;
@@ -185,8 +214,13 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
       `insert into telegram_notifications(organization_id,outbox_event_id)
        select e.organization_id,e.id from outbox_events e
        join telegram_settings s on s.organization_id=e.organization_id and s.enabled
-       where e.event_type in ('journal.posted','expense.created','sales_invoice.created',
-                              'purchase_invoice.created','credit_note.created')
+       where e.event_type in (
+               'journal.posted','journal.reversed',
+               'expense.created','expense.updated','expense.discarded','expense.reversed',
+               'sales_invoice.created','sales_invoice.updated','sales_invoice.deleted','sales_invoice.cancelled',
+               'purchase_invoice.created','purchase_invoice.updated','purchase_invoice.deleted','purchase_invoice.cancelled',
+               'credit_note.created','credit_note.updated','credit_note.deleted','credit_note.cancelled'
+             )
          and e.occurred_at > now() - make_interval(mins => $1::int)
          and e.occurred_at >= coalesce(s.enabled_at,'-infinity')
        on conflict do nothing`,
@@ -234,6 +268,7 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
         const event = await client.query<{
           event_type: string;
           aggregate_id: string;
+          payload: Record<string, unknown> | null;
           enabled: boolean | null;
           notify_revenue: boolean | null;
           notify_expense: boolean | null;
@@ -242,7 +277,7 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
           chat_id: string | null;
           thread_id: string | null;
         }>(
-          `select e.event_type,e.aggregate_id,s.enabled,s.notify_revenue,s.notify_expense,s.notify_drafts,
+          `select e.event_type,e.aggregate_id,e.payload,s.enabled,s.notify_revenue,s.notify_expense,s.notify_drafts,
                   s.bot_token_encrypted,s.chat_id,s.thread_id::text
              from outbox_events e
              left join telegram_settings s on s.organization_id=e.organization_id
@@ -271,22 +306,38 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
           notifications.push(none);
           continue;
         }
-        const draftKind = settings.event_type !== "journal.posted";
-        if (draftKind && settings.notify_drafts !== true) {
+        const eventType = settings.event_type;
+        const isJournal = eventType === "journal.posted" || eventType === "journal.reversed";
+        const isVoidOrReverse =
+          eventType === "journal.reversed" ||
+          eventType.endsWith(".reversed") ||
+          eventType.endsWith(".cancelled");
+        const isDeleted = eventType === "expense.discarded" || eventType.endsWith(".deleted");
+        const action: JournalNotification["action"] = eventType.endsWith(".updated")
+          ? "updated"
+          : isDeleted
+            ? "deleted"
+            : eventType.endsWith(".reversed")
+              ? "reversed"
+              : eventType.endsWith(".cancelled")
+                ? "cancelled"
+                : "created";
+        if (!isJournal && !isVoidOrReverse && settings.notify_drafts !== true) {
           notifications.push(none);
           continue;
         }
-        const loaded = draftKind
-          ? await this.loadDraft(
-              client,
-              row.organization_id,
-              settings.event_type,
-              settings.aggregate_id,
-            )
-          : await this.loadJournal(client, row.organization_id, settings.aggregate_id);
+        const loaded = isJournal
+          ? await this.loadJournal(client, row.organization_id, settings.aggregate_id)
+          : isDeleted
+            ? this.loadDeleted(eventType, settings.aggregate_id, settings.payload)
+            : await this.loadDraft(client, row.organization_id, eventType, settings.aggregate_id);
         notifications.push({
           ...base,
           ...(loaded ?? none),
+          action,
+          ...(typeof settings.payload?.reason === "string" && settings.payload.reason
+            ? { reason: settings.payload.reason }
+            : {}),
           revenueMinor: active && settings.notify_revenue ? (loaded?.revenueMinor ?? 0n) : 0n,
           expenseMinor: active && settings.notify_expense ? (loaded?.expenseMinor ?? 0n) : 0n,
         });
@@ -335,23 +386,51 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
       : undefined;
   }
 
-  /** A record created as a draft (API/n8n ingestion): report its gross amount, flagged as a draft. */
+  private loadDeleted(
+    eventType: string,
+    recordId: string,
+    payload: Record<string, unknown> | null,
+  ) {
+    if (!payload) return undefined;
+    const gross = BigInt(String(payload.grossMinor ?? "0"));
+    if (gross === 0n) return undefined;
+    const isExpense = eventType.startsWith("expense.");
+    const docType = String(payload.type ?? eventType.split(".")[0] ?? "");
+    return {
+      draft: true,
+      journalId: recordId,
+      journalDate: String(payload.expenseDate ?? payload.documentDate ?? "").slice(0, 10),
+      description: String(payload.description ?? ""),
+      currency: String(payload.currency ?? "VND"),
+      ...(payload.documentNumber ? { reference: String(payload.documentNumber) } : {}),
+      revenueMinor:
+        !isExpense && docType === "sales_invoice"
+          ? gross
+          : !isExpense && docType === "credit_note"
+            ? -gross
+            : 0n,
+      expenseMinor: isExpense || docType === "purchase_invoice" ? gross : 0n,
+    };
+  }
+
+  /** A record created, updated or reversed/cancelled: report its gross amount. */
   private async loadDraft(
     client: pg.PoolClient,
     organizationId: string,
     eventType: string,
     recordId: string,
   ) {
-    if (eventType === "expense.created") {
+    if (eventType.startsWith("expense.")) {
       const result = await client.query<{
         id: string;
+        state: string;
         date: string;
         purpose: string | null;
         currency: string;
         gross: string;
         party: string | null;
       }>(
-        `select e.id,e.expense_date::text date,e.business_purpose purpose,e.currency,e.gross_minor::text gross,
+        `select e.id,e.state::text,e.expense_date::text date,e.business_purpose purpose,e.currency,e.gross_minor::text gross,
                 p.display_name party
            from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id
           where e.organization_id=$1 and e.id=$2`,
@@ -360,7 +439,7 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
       const found = result.rows[0];
       return found
         ? {
-            draft: true,
+            draft: found.state === "draft",
             journalId: found.id,
             journalDate: found.date,
             description: found.purpose ?? "",
@@ -374,13 +453,14 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
     const result = await client.query<{
       id: string;
       type: string;
+      state: string;
       number: string;
       date: string;
       currency: string;
       gross: string;
       party: string | null;
     }>(
-      `select d.id,d.type::text,d.document_number number,d.document_date::text date,d.currency,
+      `select d.id,d.type::text,d.state::text,d.document_number number,d.document_date::text date,d.currency,
               d.gross_minor::text gross,p.display_name party
          from commercial_documents d left join parties p on p.organization_id=d.organization_id and p.id=d.party_id
         where d.organization_id=$1 and d.id=$2`,
@@ -390,7 +470,7 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
     if (!found) return undefined;
     const gross = BigInt(found.gross);
     return {
-      draft: true,
+      draft: found.state === "draft",
       journalId: found.id,
       journalDate: found.date,
       description: "",

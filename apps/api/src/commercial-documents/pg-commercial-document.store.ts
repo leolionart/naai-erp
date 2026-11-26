@@ -1477,8 +1477,13 @@ export class PgCommercialDocumentStore {
         state: string;
         version: string;
         journal_id: string | null;
+        document_number: string;
+        document_date: string;
+        currency: string;
+        gross_minor: string;
+        party_id: string;
       }>(
-        `select id,type::text,state::text,version::text,journal_id
+        `select id,type::text,state::text,version::text,journal_id,document_number,document_date::text,currency,gross_minor::text,party_id
            from commercial_documents
           where organization_id=$1 and id=$2 for update`,
         [context.organizationId, id],
@@ -1532,6 +1537,29 @@ export class PgCommercialDocumentStore {
           context.actorId,
           context.correlationId,
           { ...document, deletionReason: reason },
+        ],
+      );
+      await client.query(
+        `insert into outbox_events
+         (organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+         values($1,$2,$3,$4,$5,1,$6,$7)`,
+        [
+          context.organizationId,
+          randomUUID(),
+          document.type,
+          id,
+          `${document.type}.deleted`,
+          {
+            documentId: id,
+            type: document.type,
+            documentNumber: document.document_number,
+            documentDate: document.document_date,
+            currency: document.currency,
+            grossMinor: document.gross_minor,
+            partyId: document.party_id,
+            reason,
+          },
+          context.correlationId,
         ],
       );
       const response = {
