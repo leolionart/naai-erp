@@ -59,6 +59,19 @@ export async function createApp(
     },
   );
   const origin = webOrigin(environment);
+  // OWASP A05: API responses are JSON only; forbid sniffing, framing and caching of sensitive data.
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook("onSend", async (_request, reply) => {
+      reply.header("X-Content-Type-Options", "nosniff");
+      reply.header("X-Frame-Options", "DENY");
+      reply.header("Referrer-Policy", "no-referrer");
+      reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+      if (!reply.hasHeader("Cache-Control")) reply.header("Cache-Control", "no-store");
+      if ((environment.NODE_ENV ?? "development") === "production")
+        reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    });
   app
     .getHttpAdapter()
     .getInstance()

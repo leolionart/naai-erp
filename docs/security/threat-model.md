@@ -27,8 +27,14 @@
 | Evidence disclosure             | Authorized signed URLs, object-key indirection, encryption and access audit          |
 | Secret leakage                  | Secret manager/runtime injection, scanning, redaction and no secrets in artifacts    |
 | Duplicate/missing events        | Inbox/outbox, atomic transaction, retry and dead-letter evidence                     |
+| Login brute force               | Per-client and global failed-login limiter on the web session route                  |
+| SSRF through webhook targets    | HTTPS-only endpoints; private/loopback/link-local/CGNAT/IPv6 literals rejected       |
 | Supply-chain compromise         | Frozen lockfile, dependency/image scanning, SBOM, provenance and signatures          |
 | Destructive migration/data loss | Expand/contract migration, backup, restore drill and release approval                |
+
+## Telegram integration
+
+The worker and API call `api.telegram.org` with a bot token that users enter in the app; it is stored encrypted (AES-256-GCM, key derived from `SESSION_SECRET`), is write-only through the API and is redacted from errors and logs. Messages contain amounts, journal date, description and ids; use a private chat. See `docs/runbooks/telegram-notifications.md`.
 
 ## Required reviews
 

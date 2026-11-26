@@ -68,4 +68,18 @@ describe("API CORS bootstrap", () => {
     });
     expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
+
+  it("sets baseline security headers on every response", async () => {
+    const app = await createApp({
+      environment: { NODE_ENV: "production", WEB_ORIGIN: "https://erp.example.com" },
+    });
+    apps.push(app);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+    const response = await app.inject({ method: "GET", url: "/health" });
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers["x-frame-options"]).toBe("DENY");
+    expect(response.headers["strict-transport-security"]).toContain("max-age=");
+    expect(response.headers["cache-control"]).toBeDefined();
+  });
 });

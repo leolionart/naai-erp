@@ -148,19 +148,55 @@ export class OutboundEventService {
     } catch {
       throw new Error("OUTBOUND_ENDPOINT_INVALID");
     }
-    const host = url.hostname.toLowerCase();
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      host === "localhost" ||
-      host === "::1" ||
-      /^127\./.test(host) ||
-      /^10\./.test(host) ||
-      /^192\.168\./.test(host) ||
-      /^169\.254\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-    )
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (url.protocol !== "https:" || url.username || url.password || isPrivateHost(host))
       throw new Error("OUTBOUND_ENDPOINT_INVALID");
   }
+}
+
+/**
+ * OWASP A10 (SSRF): reject literal loopback, private, link-local, CGNAT and metadata targets,
+ * including IPv6 and IPv4-mapped forms. Hostnames that merely resolve privately are additionally
+ * blocked by network policy at the worker egress boundary.
+ */
+export function isPrivateHost(host: string): boolean {
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host === "metadata.google.internal"
+  )
+    return true;
+  const mapped = host.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
+  const ipv4 = mapped ?? host;
+  const octets = ipv4
+    .match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+    ?.slice(1)
+    .map(Number);
+  if (octets) {
+    const [a, b] = octets as [number, number, number, number];
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224
+    );
+  }
+  if (host.includes(":")) {
+    return (
+      host === "::" ||
+      host === "::1" ||
+      /^f[cd]/.test(host) ||
+      /^fe[89ab]/.test(host) ||
+      host.startsWith("::ffff:")
+    );
+  }
+  return false;
 }

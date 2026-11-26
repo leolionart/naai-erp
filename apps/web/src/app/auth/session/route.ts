@@ -11,6 +11,12 @@ import {
   authenticateEnvironmentLogin,
   loadEnvironmentLoginConfig,
 } from "@/lib/auth/environment-login";
+import {
+  clientAddress,
+  loginRetryAfterSeconds,
+  recordLoginFailure,
+  resetLoginFailures,
+} from "@/lib/auth/login-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -53,6 +59,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Đăng nhập chưa được cấu hình." }, { status: 503 });
   }
 
+  const client = clientAddress(request.headers);
+  const retryAfter = loginRetryAfterSeconds(client);
+  if (retryAfter > 0) {
+    return NextResponse.json(
+      { error: "Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau." },
+      { status: 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -69,8 +84,10 @@ export async function POST(request: Request) {
       config,
     )
   ) {
+    recordLoginFailure(client);
     return NextResponse.json({ error: "Tài khoản hoặc mật khẩu không đúng." }, { status: 401 });
   }
+  resetLoginFailures(client);
 
   const response = NextResponse.json(
     { organizationId: config.organizationId },

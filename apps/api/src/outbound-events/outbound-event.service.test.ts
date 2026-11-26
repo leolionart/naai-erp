@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { OutboundEventService } from "./outbound-event.service.js";
+import { isPrivateHost, OutboundEventService } from "./outbound-event.service.js";
 
 const context = {
   organizationId: "org-a",
@@ -91,4 +91,25 @@ describe("ERP-340 outbound event admin service", () => {
     );
     expect(result.data).toMatchObject({ auditEventId: "audit-1", idempotencyReplayed: false });
   });
+});
+
+describe("isPrivateHost", () => {
+  it.each([
+    "localhost",
+    "0.0.0.0",
+    "100.64.0.1",
+    "169.254.169.254",
+    "::1",
+    "::",
+    "fd00::1",
+    "fe80::1",
+    "::ffff:7f00:1",
+    "::ffff:127.0.0.1",
+    "metadata.google.internal",
+    "db.internal",
+  ])("blocks %s", (host) => expect(isPrivateHost(host)).toBe(true));
+
+  it.each(["hooks.example.com", "8.8.8.8", "172.32.0.1"])("allows %s", (host) =>
+    expect(isPrivateHost(host)).toBe(false),
+  );
 });
