@@ -43,6 +43,10 @@ describeIntegration("ERP-885 service-plan quick create", () => {
     await pool.query("delete from service_plans where organization_id=$1", [organizationId]);
     await pool.query("delete from api_credentials where organization_id=$1", [organizationId]);
     await pool.query("delete from dimension_values where organization_id=$1", [organizationId]);
+    // The request lifecycle interceptor writes activity logs for every organization-scoped call.
+    await pool.query("delete from operational_activity_logs where organization_id=$1", [
+      organizationId,
+    ]);
     await pool.query("delete from organizations where id=$1", [organizationId]);
     await pool.end();
   });

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../bootstrap.js";
@@ -8,8 +8,9 @@ const describeIntegration = enabled ? describe : describe.skip;
 
 describeIntegration("ERP-851 local organization reset", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  const organizationId = `org-erp851-reset-${process.pid}`;
-  const token = `erp851-reset-owner-${process.pid}`;
+  const suffix = randomUUID();
+  const organizationId = `org-erp851-reset-${suffix}`;
+  const token = `erp851-reset-owner-${suffix}`;
   const packageId = "erp851-full-backup";
   const content = Buffer.from("complete portable workbook fixture");
   const workbookSha256 = createHash("sha256").update(content).digest("hex");
@@ -95,6 +96,9 @@ describeIntegration("ERP-851 local organization reset", () => {
     ]);
     await pool.query("delete from accounts where organization_id=$1", [organizationId]);
     await pool.query("delete from api_credentials where organization_id=$1", [organizationId]);
+    await pool.query("delete from operational_activity_logs where organization_id=$1", [
+      organizationId,
+    ]);
     await pool.query("delete from organizations where id=$1", [organizationId]);
     await app?.close();
     await pool.end();

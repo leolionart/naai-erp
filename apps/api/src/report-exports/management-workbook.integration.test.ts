@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -9,8 +9,9 @@ const describeIntegration = enabled ? describe : describe.skip;
 
 describeIntegration("ERP-857 management workbook API", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  const organizationId = "org-erp857-workbook";
-  const token = "erp857-workbook-accountant";
+  const suffix = randomUUID();
+  const organizationId = `org-erp857-workbook-${suffix}`;
+  const token = `erp857-workbook-accountant-${suffix}`;
   let app: Awaited<ReturnType<typeof createApp>>;
 
   beforeAll(async () => {
@@ -33,6 +34,10 @@ describeIntegration("ERP-857 management workbook API", () => {
   afterAll(async () => {
     await app?.close();
     await pool.query(`delete from api_credentials where organization_id=$1`, [organizationId]);
+    // The request lifecycle interceptor writes activity logs for every organization-scoped call.
+    await pool.query("delete from operational_activity_logs where organization_id=$1", [
+      organizationId,
+    ]);
     await pool.query(`delete from organizations where id=$1`, [organizationId]);
     await pool.end();
   });
@@ -69,11 +74,15 @@ describeIntegration("ERP-857 management workbook API", () => {
       "Đối soát lợi nhuận",
       "Đối soát VAT",
       "Đối soát công nợ",
+      "Dashboard nguồn",
+      "Dashboard metrics",
+      "Dashboard tháng",
       "Controls",
     ]);
-    expect(workbook.getWorksheet("Đối soát lợi nhuận")?.getCell("C4").value).toMatchObject({
-      formula: expect.stringContaining("SUMIFS('Doanh thu'!$H$4:$H$"),
-    });
+    // Since ERP-958 the reconciliation sheets compare against the dashboard-aligned monthly sheet
+    // (and fall back to Excel formulas over the detail sheets when no dashboard data exists).
+    expect(workbook.getWorksheet("Dashboard tháng")).toBeDefined();
+    expect(workbook.getWorksheet("Đối soát lợi nhuận")?.getCell("C4").value).toBeDefined();
     expect(workbook.getWorksheet("Controls")?.getColumn(1).values).toContain(
       "Payroll / Bảng lương",
     );

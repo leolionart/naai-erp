@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -10,8 +10,11 @@ const describeIntegration = enabled ? describe : describe.skip;
 describeIntegration("ERP-650 immutable report snapshots and accountant exports", () => {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   let app: Awaited<ReturnType<typeof createApp>>;
-  const token = "erp650-accountant";
-  const otherToken = "erp650-other-accountant";
+  const suffix = randomUUID();
+  const org = `org-erp650-${suffix}`;
+  const otherOrg = `org-erp650-other-${suffix}`;
+  const token = `erp650-accountant-${suffix}`;
+  const otherToken = `erp650-other-accountant-${suffix}`;
   const headers = (key?: string) => ({
     authorization: `Bearer ${token}`,
     ...(key ? { "idempotency-key": key } : {}),
@@ -32,35 +35,35 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
   beforeAll(async () => {
     await pool.query(`
       insert into organizations(id,legal_name,base_currency,timezone)
-      values ('org-erp650','ERP 650 Org','VND','Asia/Ho_Chi_Minh'),
-             ('org-erp650-other','ERP 650 Other','VND','Asia/Ho_Chi_Minh');
+      values ('${org}','ERP 650 Org','VND','Asia/Ho_Chi_Minh'),
+             ('${otherOrg}','ERP 650 Other','VND','Asia/Ho_Chi_Minh');
       insert into api_credentials(organization_id,id,actor_id,token_hash,roles)
-      values ('org-erp650','cred-650','accountant-650','${createHash("sha256").update(token).digest("hex")}',
+      values ('${org}','cred-650','accountant-650','${createHash("sha256").update(token).digest("hex")}',
               '["accountant","finance_admin"]'),
-             ('org-erp650-other','cred-650-other','accountant-650-other','${createHash("sha256").update(otherToken).digest("hex")}',
+             ('${otherOrg}','cred-650-other','accountant-650-other','${createHash("sha256").update(otherToken).digest("hex")}',
               '["accountant"]');
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting)
-      values ('org-erp650','111','Bank','asset',false,true),
-             ('org-erp650','511','Revenue','revenue',false,true),
-             ('org-erp650','642','Expense','expense',false,true);
+      values ('${org}','111','Bank','asset',false,true),
+             ('${org}','511','Revenue','revenue',false,true),
+             ('${org}','642','Expense','expense',false,true);
       insert into financial_statement_mapping_versions
         (organization_id,id,version,framework,state,effective_from,change_reason,report_policy,created_by,approved_by,approved_at)
-      values ('org-erp650','map-650',1,'TT133','approved','2026-01-01','ERP-650 fixture',
+      values ('${org}','map-650',1,'TT133','approved','2026-01-01','ERP-650 fixture',
         '{"maxLedgerDifferenceMinor":"0","maxUnreviewedInputMinor":"0","maxUnresolvedItemCount":0,"maxMissingEvidenceCount":0}',
         'fixture-maker','fixture-approver',now());
       insert into financial_statement_mapping_lines
         (organization_id,mapping_id,mapping_version,line_number,statement,line_code,label,account_code,display_order,sign)
-      values ('org-erp650','map-650',1,1,'profit_and_loss','revenue','Revenue','511',10,1),
-             ('org-erp650','map-650',1,2,'profit_and_loss','opex','Operating expense','642',20,1);
+      values ('${org}','map-650',1,1,'profit_and_loss','revenue','Revenue','511',10,1),
+             ('${org}','map-650',1,2,'profit_and_loss','opex','Operating expense','642',20,1);
       insert into journal_entries
         (organization_id,id,journal_date,description,currency,state,posted_at,posted_by,approved_at,approved_by,approval_reason)
-      values ('org-erp650','sale-650','2026-08-10','Sale','VND','posted','2026-08-10T10:00:00Z','fixture','2026-08-10T09:00:00Z','fixture','Fixture'),
-             ('org-erp650','expense-650','2026-08-11','Expense','VND','posted','2026-08-11T10:00:00Z','fixture','2026-08-11T09:00:00Z','fixture','Fixture');
+      values ('${org}','sale-650','2026-08-10','Sale','VND','posted','2026-08-10T10:00:00Z','fixture','2026-08-10T09:00:00Z','fixture','Fixture'),
+             ('${org}','expense-650','2026-08-11','Expense','VND','posted','2026-08-11T10:00:00Z','fixture','2026-08-11T09:00:00Z','fixture','Fixture');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
-      values ('org-erp650','sale-650',1,'111',100,null,'Cash','{}'),
-             ('org-erp650','sale-650',2,'511',null,100,'Revenue','{}'),
-             ('org-erp650','expense-650',1,'642',20,null,'Expense','{}'),
-             ('org-erp650','expense-650',2,'111',null,20,'Cash','{}');
+      values ('${org}','sale-650',1,'111',100,null,'Cash','{}'),
+             ('${org}','sale-650',2,'511',null,100,'Revenue','{}'),
+             ('${org}','expense-650',1,'642',20,null,'Expense','{}'),
+             ('${org}','expense-650',2,'111',null,20,'Cash','{}');
     `);
     app = await createApp();
     await app.init();
@@ -74,7 +77,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
   it("captures an immutable organization-scoped snapshot and reproduces it", async () => {
     const request = {
       method: "POST" as const,
-      url: "/api/v1/organizations/org-erp650/report-snapshots",
+      url: `/api/v1/organizations/${org}/report-snapshots`,
       headers: headers("snapshot-create"),
       payload: snapshotPayload,
     };
@@ -92,14 +95,14 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
 
     const other = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-erp650-other/report-snapshots/erp650-august?version=1",
+      url: `/api/v1/organizations/${otherOrg}/report-snapshots/erp650-august?version=1`,
       headers: { authorization: `Bearer ${otherToken}` },
     });
     expect(other.statusCode).toBe(404);
 
     const reproduced = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-erp650/report-snapshots/erp650-august/versions/1/reproduce",
+      url: `/api/v1/organizations/${org}/report-snapshots/erp650-august/versions/1/reproduce`,
       headers: headers(),
     });
     expect(reproduced.statusCode, reproduced.body).toBe(201);
@@ -110,7 +113,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
     });
     await expect(
       pool.query(
-        `update report_snapshots set accounting_basis='cash' where organization_id='org-erp650' and id='erp650-august'`,
+        `update report_snapshots set accounting_basis='cash' where organization_id='${org}' and id='erp650-august'`,
       ),
     ).rejects.toThrow(/immutable/i);
   });
@@ -119,7 +122,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
     const create = async (format: "csv" | "xlsx") => {
       const response = await app.inject({
         method: "POST",
-        url: "/api/v1/organizations/org-erp650/accountant-exports",
+        url: `/api/v1/organizations/${org}/accountant-exports`,
         headers: headers(`export-${format}`),
         payload: {
           snapshotId: "erp650-august",
@@ -139,7 +142,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
     expect(String(xlsx.contentHash)).toHaveLength(64);
     const repeatedCsv = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-erp650/accountant-exports",
+      url: `/api/v1/organizations/${org}/accountant-exports`,
       headers: headers("export-csv-repeat"),
       payload: {
         snapshotId: "erp650-august",
@@ -155,7 +158,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
     });
     const repeatedXlsx = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-erp650/accountant-exports",
+      url: `/api/v1/organizations/${org}/accountant-exports`,
       headers: headers("export-xlsx-repeat"),
       payload: {
         snapshotId: "erp650-august",
@@ -213,7 +216,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
 
     const audits = await pool.query(
       `select resource_type,action,after_state from resource_audit_events
-       where organization_id='org-erp650' and resource_type in ('report_snapshot','accountant_export')`,
+       where organization_id='${org}' and resource_type in ('report_snapshot','accountant_export')`,
     );
     expect(audits.rows.map((row) => `${row.resource_type}:${row.action}`).sort()).toEqual([
       "accountant_export:generate",
@@ -228,17 +231,17 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
 
     await pool.query(`
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting)
-      values ('org-erp650','699','Unmapped expense','expense',false,true);
+      values ('${org}','699','Unmapped expense','expense',false,true);
       insert into journal_entries
         (organization_id,id,journal_date,description,currency,state,posted_at,posted_by,approved_at,approved_by,approval_reason)
-      values ('org-erp650','unmapped-650','2026-09-01','Unmapped','VND','posted','2026-09-01T10:00:00Z','fixture','2026-09-01T09:00:00Z','fixture','Fixture');
+      values ('${org}','unmapped-650','2026-09-01','Unmapped','VND','posted','2026-09-01T10:00:00Z','fixture','2026-09-01T09:00:00Z','fixture','Fixture');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
-      values ('org-erp650','unmapped-650',1,'699',1,null,'Unmapped expense','{}'),
-             ('org-erp650','unmapped-650',2,'111',null,1,'Cash','{}');
+      values ('${org}','unmapped-650',1,'699',1,null,'Unmapped expense','{}'),
+             ('${org}','unmapped-650',2,'111',null,1,'Cash','{}');
     `);
     const reviewSnapshot = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-erp650/report-snapshots",
+      url: `/api/v1/organizations/${org}/report-snapshots`,
       headers: headers("review-snapshot"),
       payload: {
         ...snapshotPayload,
@@ -257,7 +260,7 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
     expect(reviewSnapshot.json().data.readiness).toBe("review_required");
     const reviewExport = await app.inject({
       method: "POST",
-      url: "/api/v1/organizations/org-erp650/accountant-exports",
+      url: `/api/v1/organizations/${org}/accountant-exports`,
       headers: headers("review-export"),
       payload: {
         snapshotId: "erp650-review",
@@ -273,13 +276,13 @@ describeIntegration("ERP-650 immutable report snapshots and accountant exports",
   it("supersedes an export without deleting its immutable bytes", async () => {
     const listed = await app.inject({
       method: "GET",
-      url: "/api/v1/organizations/org-erp650/accountant-exports",
+      url: `/api/v1/organizations/${org}/accountant-exports`,
       headers: headers(),
     });
     const target = listed.json().data.items[0];
     const response = await app.inject({
       method: "POST",
-      url: `/api/v1/organizations/org-erp650/accountant-exports/${target.id}/versions/${target.version}/supersede`,
+      url: `/api/v1/organizations/${org}/accountant-exports/${target.id}/versions/${target.version}/supersede`,
       headers: headers("supersede-export"),
       payload: { reason: "Replaced by accountant-reviewed package" },
     });

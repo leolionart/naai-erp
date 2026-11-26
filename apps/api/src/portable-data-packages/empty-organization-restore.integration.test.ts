@@ -47,6 +47,12 @@ suite("ERP-853 empty organization restore", () => {
       "insert into accounts(organization_id,code,name,root_type) values($1,'112','Bank','asset'),($1,'411','Capital','equity')",
       [source],
     );
+    // The chart of accounts is bootstrap configuration that a restore does not copy; the target
+    // organization must already have the accounts the restored rows refer to.
+    await pool.query(
+      "insert into accounts(organization_id,code,name,root_type) values($1,'112','Bank','asset'),($1,'411','Capital','equity')",
+      [target],
+    );
     await pool.query(
       "insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,status,created_by,updated_by) values($1,'bank-1','BANK','bank','Company bank','VND','112','VCB','active',$2,$2)",
       [source, actor],

@@ -4125,14 +4125,27 @@ tasks:
   - id: ERP-992
     title: Repair stale integration and Playwright tests using the reference patch
     phase: P17
-    status: ready
+    status: done
     dependencies: []
     business_rules: [BR-EDIT-001]
     tests: [T-INT-REPAIR-001]
     plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-992/
+    agent: antigravity
+    started_at: 2026-11-26T18:48:00+07:00
+    completed_at: 2026-11-26T19:18:00+07:00
+    completion_basis: implemented_with_scratch_database_and_playwright_evidence
     planned_files:
-      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+      - apps/api/src/customer-service-subscriptions/customer-service-subscription.integration.test.ts
+      - apps/api/src/portable-data-packages/empty-organization-restore.integration.test.ts
+      - apps/api/src/portable-data-packages/local-organization-reset.integration.test.ts
+      - apps/api/src/report-exports/management-workbook.integration.test.ts
+      - apps/api/src/report-exports/accountant-exports.integration.test.ts
+      - apps/web/playwright.config.ts
+      - apps/web/e2e/focused-records.fixtures.ts
+      - apps/web/e2e/focused-records.spec.ts
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-992/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]

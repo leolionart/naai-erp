@@ -18,6 +18,14 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/common/base-currency-guard.test.ts src/common/base-currency.integration.test.ts
     blocking_gate: G100
 
+  - id: T-INT-REPAIR-001
+    task: ERP-992
+    rules: [BR-EDIT-001]
+    title: Integration fixtures clean up activity logs seed target accounts use unique organization IDs and Playwright focused-record specs pass against mocked API env
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/customer-service-subscriptions/customer-service-subscription.integration.test.ts src/portable-data-packages/empty-organization-restore.integration.test.ts src/portable-data-packages/local-organization-reset.integration.test.ts src/report-exports/management-workbook.integration.test.ts src/report-exports/accountant-exports.integration.test.ts && pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts
+    blocking_gate: G100
+
   - id: T-UNIT-ERP-960-001
     task: ERP-960
     rules: [BR-UI-003, BR-UI-004, BR-SEC-001, BR-SEC-002]
