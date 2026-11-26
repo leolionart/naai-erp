@@ -552,7 +552,12 @@ export class ExpenseService {
     context: ExpenseContext,
     id: string,
     expectedVersion: string,
-    input: { financialAccountId?: string; counterAccountCode?: string; reason?: string },
+    input: {
+      financialAccountId?: string;
+      counterAccountCode?: string;
+      postReplacement?: boolean;
+      reason?: string;
+    },
     key?: string,
   ) {
     if (!context.roles.some((role) => POST.has(role))) throw new Error("FORBIDDEN");
@@ -584,7 +589,61 @@ export class ExpenseService {
       id: this.replacementId(context.organizationId, id, key),
       ...(financialAccountId ? { fundingFinancialAccountId: financialAccountId } : {}),
     };
-    return this.reverseReplace(context, id, expectedVersion, replacement, reason, key);
+    const replaced = await this.reverseReplace(
+      context,
+      id,
+      expectedVersion,
+      replacement,
+      reason,
+      key,
+    );
+    const shouldAutoPost =
+      input.postReplacement ??
+      (context.roles.includes("owner") &&
+        (await this.store.isSolopreneur?.(context.organizationId)));
+    const replacementId = (replaced.data as { replacementExpenseId?: string }).replacementExpenseId;
+    if (
+      shouldAutoPost &&
+      replacementId &&
+      !(replaced.data as { idempotencyReplayed?: boolean }).idempotencyReplayed
+    ) {
+      await this.transition(context, replacementId, "submit", { reason }, `${key}:submit`);
+      await this.transition(context, replacementId, "approve", { reason }, `${key}:approve`);
+      await this.transition(context, replacementId, "post", { reason }, `${key}:post`);
+      return {
+        ...replaced,
+        data: { ...(replaced.data as Record<string, unknown>), replacementState: "posted" },
+      };
+    }
+    return {
+      ...replaced,
+      data: {
+        ...(replaced.data as Record<string, unknown>),
+        replacementState: shouldAutoPost ? "posted" : "draft",
+      },
+    };
+  }
+  async reclassifyFundingByExternal(
+    context: ExpenseContext,
+    system: string,
+    externalId: string,
+    expectedVersion: string,
+    input: {
+      financialAccountId?: string;
+      counterAccountCode?: string;
+      postReplacement?: boolean;
+      reason?: string;
+    },
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => POST.has(role))) throw new Error("FORBIDDEN");
+    const id = await this.store.findIdByExternalReference?.(
+      context.organizationId,
+      system,
+      externalId,
+    );
+    if (!id) throw new Error("RESOURCE_NOT_FOUND");
+    return this.reclassifyFunding(context, id, expectedVersion, input, key);
   }
   private replacementId(organizationId: string, id: string, key: string) {
     const hex = createHash("sha256").update(`${organizationId}:${id}:${key}`).digest("hex");

@@ -249,7 +249,13 @@ export class CommercialDocumentController {
   async reclassifyFunding(
     @Param("organizationId") organizationId: string,
     @Param("id") id: string,
-    @Body() input: { targetControlAccountCode: string; reason: string },
+    @Body()
+    input: {
+      targetControlAccountCode?: string;
+      financialAccountId?: string;
+      postReplacement?: boolean;
+      reason: string;
+    },
     @Headers("if-match") expectedVersion?: string,
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
@@ -258,6 +264,32 @@ export class CommercialDocumentController {
     return this.service.reclassifyFunding(
       await this.context(organizationId, authorization, correlationId),
       id,
+      expectedVersion ?? "",
+      input,
+      idempotencyKey,
+    );
+  }
+  @Post("by-external/:system/:externalId/reclassify-funding")
+  async reclassifyFundingByExternal(
+    @Param("organizationId") organizationId: string,
+    @Param("system") system: string,
+    @Param("externalId") externalId: string,
+    @Body()
+    input: {
+      targetControlAccountCode?: string;
+      financialAccountId?: string;
+      postReplacement?: boolean;
+      reason: string;
+    },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.reclassifyFundingByExternal(
+      await this.context(organizationId, authorization, correlationId),
+      system,
+      externalId,
       expectedVersion ?? "",
       input,
       idempotencyKey,

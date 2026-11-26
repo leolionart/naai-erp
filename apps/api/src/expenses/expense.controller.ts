@@ -231,7 +231,13 @@ export class ExpenseController {
   @Post(":id/reclassify-funding") async reclassifyFunding(
     @Param("organizationId") org: string,
     @Param("id") id: string,
-    @Body() input: { financialAccountId?: string; counterAccountCode?: string; reason?: string },
+    @Body()
+    input: {
+      financialAccountId?: string;
+      counterAccountCode?: string;
+      postReplacement?: boolean;
+      reason?: string;
+    },
     @Headers("if-match") expectedVersion?: string,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
@@ -240,6 +246,32 @@ export class ExpenseController {
     return this.service.reclassifyFunding(
       await this.context(org, auth, corr),
       id,
+      expectedVersion ?? "",
+      input ?? {},
+      key,
+    );
+  }
+  @Post("by-external/:system/:externalId/reclassify-funding")
+  async reclassifyFundingByExternal(
+    @Param("organizationId") org: string,
+    @Param("system") system: string,
+    @Param("externalId") externalId: string,
+    @Body()
+    input: {
+      financialAccountId?: string;
+      counterAccountCode?: string;
+      postReplacement?: boolean;
+      reason?: string;
+    },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.reclassifyFundingByExternal(
+      await this.context(org, auth, corr),
+      system,
+      externalId,
       expectedVersion ?? "",
       input ?? {},
       key,

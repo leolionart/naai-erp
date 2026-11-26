@@ -1496,16 +1496,24 @@ No task may be marked done with orphan business rules or untested behavior.
   the payment source of newly ingested purchase invoices and expenses when the payload does not state
   one; an explicit `funding` in the payload always wins. Rules and defaults are managed through
   `/funding-rules` and testable via `POST /funding-rules/test`.
-- `BR-FUND-004` (planned): a change of payment source is one command that posts an adjusting journal in the
-  open period (history is never edited), records who/when/why in a funding-change history, keeps amounts, VAT,
-  tax states and allocations, and can address records by external reference.
+- `BR-FUND-004`: a change of payment source (`POST /expenses/{id}/reclassify-funding`,
+  `POST /commercial-documents/{id}/reclassify-funding`, and their `by-external/{system}/{externalId}`
+  variants) accepts `financialAccountId` (including `company_cash`, `owner_custody_cash`, `company_bank`)
+  or control/counter account, keeps amounts, VAT, tax states and allocations, and auto-posts the
+  replacement when `postReplacement` is true or when an `owner` runs in `solopreneur` mode.
 - `BR-FUND-005` (planned): bulk funding changes use dry-run → `planHash` → idempotent commit with a per-row
   result and a before/after journal and dashboard impact; blocked rows (closed period, reconciled, paid) are
   reported, never forced.
 - `BR-FUND-006` (planned): expense and revenue accounts of posted records are changed by an adjusting journal
   in the open period; reversing and replacing is reserved for changes to amount, VAT, date, party or allocations.
-- `BR-FUND-007` (planned, blocked until the accountant confirms the account code): owner-held company cash
-  has its own ledger account; balances are derived from the ledger at any as-of date; the dashboard shows the
-  net owner-current balance (company owes owner minus owner-held company cash).
+- `BR-FUND-007` (planned): company cash held by the owner is company cash kept in its own cash account
+  (`111-OWNER-CUSTODY`, a sub-account of 111) with a cash book and a monthly cash count; balances come from the
+  ledger at any as-of date. Owner-paid costs stay in 3388 (company owes owner); the owner's personal spending
+  taken from company money goes to 1388 (owner owes company), never to expenses, VAT credit or deductible costs.
+  Account 141 is not used because it is for employees.
+- `BR-FUND-009` (planned): purchases of 5,000,000 VND or more (total payment including VAT; same-day same-seller
+  invoices are added together for VAT) without a non-cash payment method raise a configurable warning that VAT
+  and CIT deduction may be lost; the warning never blocks posting. Owner-paid bank or card payments count as
+  non-cash when evidence is kept.
 - `BR-FUND-008` (planned): records without a funding link are reported and can be inferred from rules,
   categories or bank reconciliation through a reviewed plan.

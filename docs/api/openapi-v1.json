@@ -2059,6 +2059,16 @@
         "summary": "Dry-run funding rule evaluation for a sample ingestion payload"
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/by-external/{system}/{externalId}/reclassify-funding": {
+      "post": {
+        "summary": "Reclassify an expense payment source by external reference and optionally post the replacement"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/by-external/{system}/{externalId}/reclassify-funding": {
+      "post": {
+        "summary": "Reclassify a purchase invoice payment source by external reference (supporting financialAccountId) and optionally post the replacement"
+      }
+    },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {
       "get": {
         "summary": "List organization-scoped outbound endpoint metadata without returning secrets"

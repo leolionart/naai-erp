@@ -2361,6 +2361,26 @@ export class PgCommercialDocumentStore {
     }
   }
 
+  async isSolopreneur(organizationId: string): Promise<boolean> {
+    return (
+      (await resolveOrganizationWorkflowPolicy(organizationId, this.pool)).operatingMode ===
+      "solopreneur"
+    );
+  }
+
+  async findIdByExternalReference(
+    organizationId: string,
+    system: string,
+    externalId: string,
+  ): Promise<string | undefined> {
+    const result = await this.pool.query<{ document_id: string | null }>(
+      `select document_id from external_references
+        where organization_id=$1 and system=$2 and external_id=$3`,
+      [organizationId, system, externalId],
+    );
+    return result.rows[0]?.document_id ?? undefined;
+  }
+
   async reclassifyFunding(
     context: CommercialDocumentContext,
     id: string,
@@ -2368,10 +2388,43 @@ export class PgCommercialDocumentStore {
     targetControlAccountCode: string,
     reason: string,
     idempotencyKey: string,
+    options?: { financialAccountId?: string },
   ) {
     const existing = await this.get(context.organizationId, id);
     if (!existing) throw new Error("RESOURCE_NOT_FOUND");
     if (existing.type !== "purchase_invoice") throw new Error("VALIDATION_FAILED");
+    const financialAccountId = options?.financialAccountId?.trim();
+    let effectiveControl = targetControlAccountCode;
+    let fundingSource: CreateCommercialDocumentInput["fundingSource"] | undefined;
+    let funding: CreateCommercialDocumentInput["funding"] | undefined;
+    if (financialAccountId) {
+      const account = await this.pool.query<{
+        id: string;
+        code: string;
+        kind: string;
+        currency: string;
+        ledger_account_code: string;
+      }>(
+        `select id,code,kind::text,currency,ledger_account_code from financial_accounts
+          where organization_id=$1 and id=$2 and status='active'`,
+        [context.organizationId, financialAccountId],
+      );
+      const acct = account.rows[0];
+      if (!acct || acct.currency !== existing.currency) {
+        throw new Error("PURCHASE_FUNDING_SOURCE_INVALID");
+      }
+      effectiveControl = effectiveControl || acct.ledger_account_code;
+      fundingSource = { type: "financial_account", financialAccountId };
+      funding = {
+        type:
+          acct.code === "CASH-OWNER-CUSTODY"
+            ? "owner_custody_cash"
+            : acct.kind === "cash"
+              ? "company_cash"
+              : "company_bank",
+        financialAccountId,
+      };
+    }
     const replacement = {
       id: randomUUID(),
       type: "purchase_invoice" as const,
@@ -2385,7 +2438,9 @@ export class PgCommercialDocumentStore {
       netMinor: String(existing.net_minor),
       taxMinor: String(existing.tax_minor),
       grossMinor: String(existing.gross_minor),
-      controlAccountCode: targetControlAccountCode,
+      controlAccountCode: effectiveControl,
+      ...(fundingSource ? { fundingSource } : {}),
+      ...(funding ? { funding } : {}),
       lines: (existing.lines ?? []).map((line: Record<string, unknown>) => ({
         description: line.description,
         quantity: String(line.quantity ?? "1"),

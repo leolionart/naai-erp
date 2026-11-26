@@ -68,9 +68,11 @@ lịch sử không bị sửa.
 1. **Tách bạch tiền cá nhân và tiền công ty.** Mọi khoản chi phải thuộc đúng một trong bốn nhóm: chủ chi hộ
    (công ty nợ chủ), tiền công ty do chủ giữ/ứng (chủ nợ lại công ty phần chưa chi), két/ngân hàng công ty, hoặc
    chi tiêu cá nhân của chủ (không phải chi phí, đi qua `owner_draw`/phải thu chủ sở hữu, không vào lãi lỗ).
-2. **Một tài khoản vãng lai chủ sở hữu.** Quan hệ với chủ là một số dư duy nhất: _công ty nợ chủ_ (chi hộ,
-   TK 3388) trừ _chủ đang giữ tiền công ty_ (tạm ứng). Dashboard hiển thị số ròng; sổ cái giữ hai tài khoản riêng để
-   truy vết. Định kỳ đối chiếu và quyết toán (hoàn tiền chủ, hoặc cấn trừ vốn/vay chủ).
+2. **Theo dõi rõ quan hệ tiền với chủ**, mỗi loại một tài khoản (không bù trừ trong sổ cái, chỉ bù trừ khi trình bày):
+   _công ty nợ chủ_ (chủ chi hộ, TK 3388), _tiền mặt của công ty do chủ giữ_ (tài sản tiền mặt, tài khoản chi tiết của TK 111,
+   mục 4.5) và _chủ nợ công ty_ (chi tiêu cá nhân đã lấy từ công ty, TK 1388). Dashboard hiển thị cả ba và vị thế ròng với chủ =
+   3388 − 1388; tiền mặt chủ đang giữ là tiền của công ty nên **không** nằm trong vị thế ròng. Định kỳ đối chiếu và quyết toán
+   (hoàn tiền chủ, cấn trừ, hoặc chủ quyết định chia lợi nhuận).
 3. **Số dư phải suy ra từ sổ cái, không từ bảng phụ.** Số dư "chủ đang giữ" cần đúng tại _mọi ngày_ (as-of). Nếu chỉ
    dựa liên kết `funding_financial_account_id`, đổi liên kết sẽ làm số liệu quá khứ thay đổi ngầm và không khớp
    bút toán. Vì vậy quỹ chủ giữ cần **tài khoản sổ cái riêng** (xem 4.5).
@@ -82,11 +84,13 @@ lịch sử không bị sửa.
 5. **Chủ tự duyệt nhưng có dấu vết.** Không cần người duyệt thứ hai; bắt buộc lý do, audit, idempotency và khóa kỳ.
    Một lệnh phải đi đến trạng thái cuối (đã ghi sổ), không để "nháp thay thế" treo.
 6. **Bằng chứng nằm ở hệ thống nguồn** (Paperless/n8n): tham chiếu ngoài đủ làm chứng từ; ERP lưu liên kết, không nhân bản file.
-7. **Chứng từ thanh toán quyết định khấu trừ.** Hóa đơn giá trị lớn chỉ được khấu trừ VAT/chi phí khi có thanh toán không
-   dùng tiền mặt; chủ chi hộ bằng thẻ/chuyển khoản cá nhân vẫn đạt nếu có bằng chứng. Cần cột **phương thức thanh toán**
-   (`cash | bank_transfer | card | other`) và **ngưỡng cảnh báo cấu hình theo tổ chức** (mặc định do kế toán đặt theo quy định
-   hiện hành, ví dụ ngưỡng 5 triệu đồng/hóa đơn theo Luật Thuế GTGT 2024 — **cần kế toán xác nhận**); chỉ _cảnh báo_,
-   không chặn ghi sổ.
+7. **Chứng từ thanh toán quyết định khấu trừ.** Từ 01/07/2025 (Luật Thuế GTGT 48/2024/QH15, hướng dẫn NĐ 181/2025) hóa đơn mua vào có
+   tổng thanh toán **từ 5 triệu đồng (đã gồm VAT)** phải có chứng từ thanh toán không dùng tiền mặt mới được khấu trừ VAT; nhiều hóa đơn
+   cùng người bán trong cùng ngày được cộng dồn. Với thuế TNDN, NĐ 320/2025 (hiệu lực 15/12/2025, áp dụng kỳ tính thuế 2025) đặt
+   cùng ngưỡng 5 triệu cho từng lần chi để được tính vào chi phí được trừ. Do đó cần cột **phương thức thanh toán**
+   (`cash | bank_transfer | card | other`) và **ngưỡng cảnh báo** mặc định 5.000.000 VND (cấu hình được vì quy định còn thay đổi),
+   kiểm tra cộng dồn theo ngày + người bán cho VAT. Hệ thống chỉ _cảnh báo_, không chặn ghi sổ. Chủ chi hộ bằng thẻ/chuyển khoản
+   cá nhân được coi là thanh toán không dùng tiền mặt **nếu có bằng chứng** — điểm này chưa tìm được văn bản chính thức, hãy giữ sao kê/biên lai.
 8. **Quỹ tiền mặt không âm.** Chi từ quỹ chủ giữ vượt số dư là dấu hiệu sai nguồn tiền; hệ thống cảnh báo khi số dư quỹ âm
    và đề xuất chuyển phần vượt sang "chủ chi hộ".
 9. **Kiểm quỹ định kỳ.** Mỗi cuối tháng chủ nhập số tiền mặt thực tế đang giữ; hệ thống so với sổ cái và ghi chênh lệch vào
@@ -144,20 +148,24 @@ Quy trình chủ sử dụng:
 - Lưu ý báo cáo: bút toán điều chỉnh làm báo cáo _theo kỳ_ thể hiện chênh lệch ở kỳ điều chỉnh; báo cáo "theo ngày chứng từ" của dashboard
   cần hiển thị đúng phân loại mới (đọc danh mục dòng đã cập nhật, không suy từ bút toán).
 
-### 4.5 Quỹ tiền công ty do chủ giữ có tài khoản sổ cái riêng — ERP-980
+### 4.5 Quỹ tiền mặt do chủ giữ là một quỹ riêng trong sổ cái — ERP-980 (đã quyết định)
 
-**Quyết định theo thông lệ (3A.2, 3A.3): chọn phương án B — tài khoản sổ cái riêng.**
+**Quyết định:** tiền công ty do chủ cầm vẫn là **tiền mặt của công ty (nhóm TK 111)**, nhưng hạch toán ở **tài khoản chi tiết riêng**
+`111-OWNER-CUSTODY` ("Quỹ tiền mặt do chủ giữ"), tách khỏi `111-CASH` (két công ty).
 
-- Đề xuất hạch toán: khi công ty giao tiền cho chủ cầm để chi hộ, ghi **Nợ tạm ứng chủ sở hữu (TK 141) / Có 111 hoặc 112**; mỗi
-  khoản chi từ quỹ đó ghi **Nợ chi phí / Có TK 141**; số dư 141 = tiền công ty chủ còn giữ. (Phương án thay thế: tài khoản con của 111,
-  ví dụ `1111-CHU-GIU`. **Cần kế toán xác nhận** mã tài khoản và cách trình bày trên bảng cân đối TT133.)
-- Ánh xạ `CASH-OWNER-CUSTODY` → tài khoản này; `CASH-COMPANY` giữ TK 111 riêng. Liên kết `funding_financial_account_id` vẫn tồn tại để
-  truy vết nhưng **số dư và dashboard tính từ sổ cái** theo từng tài khoản (đúng tại mọi ngày as-of).
+- Lý do: (a) chủ là người đại diện giữ quỹ nên tiền vẫn thuộc công ty — chỉ cần sổ quỹ và kiểm quỹ; (b) TK 141 (tạm ứng) dành cho
+  _người lao động_, còn chủ không phải nhân viên, dùng 141 sẽ sai bản chất; (c) chế độ kế toán doanh nghiệp nhỏ và vừa (TT133) cho phép
+  mở thêm tài khoản chi tiết; TT 99/2025 chỉ thay TT 200 và doanh nghiệp nhỏ vừa vẫn được dùng TT133; (d) số dư tính thẳng từ sổ cái, đúng tại mọi ngày.
+- Hạch toán: rút ngân hàng/két giao chủ giữ = chuyển nội bộ **Nợ 111-OWNER-CUSTODY / Có 112 (hoặc 111-CASH)**; chi từ quỹ này =
+  **Nợ chi phí / Có 111-OWNER-CUSTODY**; kiểm quỹ chênh lệch ghi vào tài khoản thừa/thiếu quỹ có lý do.
+- Ánh xạ `CASH-OWNER-CUSTODY` → `111-OWNER-CUSTODY`; `CASH-COMPANY` → `111-CASH`. Liên kết `funding_financial_account_id` giữ để truy vết;
+  **số dư và dashboard tính từ sổ cái**.
 - Migration: chuyển các bút toán cũ dùng 111 có liên kết `CASH-OWNER-CUSTODY` sang tài khoản mới bằng bút toán điều chỉnh có kiểm soát
-  (dry-run/commit, tổng nợ = tổng có), sau đó dashboard bỏ nhánh suy luận từ liên kết.
-- Báo cáo: dashboard hiển thị _số dư vãng lai chủ sở hữu ròng_ = TK 3388 − TK 141, kèm hai thành phần.
-- Quỹ không âm và kiểm quỹ định kỳ (3A.8–3A.9) là cảnh báo/biểu mẫu trên số dư này.
-- Task đang `blocked` cho tới khi kế toán xác nhận mã tài khoản; sau đó chuyển `ready`.
+  (dry-run/commit, tổng nợ = tổng có, báo cáo trước/sau), rồi dashboard bỏ nhánh suy luận từ liên kết.
+- Báo cáo: nhóm TK 111 cộng cả hai quỹ trên bảng cân đối; phần quản trị hiển thị riêng "tiền mặt chủ đang giữ".
+- Chi tiêu cá nhân của chủ lấy từ tiền công ty: ghi **Nợ 1388 (phải thu chủ sở hữu) / Có nguồn tiền**, **không** vào chi phí, không khấu trừ VAT,
+  không tính vào thuế TNDN; giải quyết bằng chủ hoàn tiền, cấn trừ với 3388, hoặc chủ quyết định chia lợi nhuận (Nợ 421 / Có 1388) khi quyết toán.
+  Lương/thù lao của chủ công ty một thành viên thường không được trừ khi tính thuế TNDN nên không nên ghi như chi phí lương.
 
 ### 4.6 Dữ liệu cũ — ERP-981
 
@@ -200,18 +208,37 @@ Bất biến mỗi lần đổi: tổng nợ = tổng có; tổng chi phí/VAT k
 Mỗi task phải: viết test lỗi trước (T-INT cho bất biến mục 5), cập nhật OpenAPI + gate matrix + CLI + business rules + docs,
 chạy test tích hợp trên Postgres tạm, thêm evidence theo `AGENTS.md`.
 
-## 8. Quyết định đã chốt theo thông lệ và phần còn cần xác nhận
+## 8. Quyết định đã chốt (không cần kế toán)
 
-Đã chốt (có thể thực hiện ngay):
+Các quyết định dưới đây được chốt dựa trên nghiên cứu quy định hiện hành và thông lệ doanh nghiệp một người; xem mục 9 về giới hạn.
 
-1. Đổi nguồn tiền/tài khoản = **bút toán điều chỉnh ở kỳ đang mở** + lịch sử thay đổi, kết thúc ở trạng thái đã ghi sổ (không nháp thay thế).
-2. Quỹ chủ giữ dùng **tài khoản sổ cái riêng**; số dư tính từ sổ cái; dashboard hiển thị số dư vãng lai chủ ròng.
-3. Mặc định tổ chức là `owner_paid`; quy tắc nguồn tiền theo nhà cung cấp/danh mục/nguồn nhập; `funding` trong payload luôn thắng.
-4. Thêm phương thức thanh toán và cảnh báo (không chặn) theo ngưỡng cấu hình; cảnh báo quỹ chủ giữ âm; biểu mẫu kiểm quỹ cuối tháng.
+1. **Hệ thống tài khoản:** tiếp tục TT133 (TT 99/2025 chỉ thay TT 200; doanh nghiệp nhỏ và vừa được chọn TT99 hoặc giữ TT133). Không đổi.
+2. **Đổi nguồn tiền/tài khoản** = bút toán điều chỉnh ở kỳ đang mở + lịch sử thay đổi, kết thúc ở trạng thái đã ghi sổ (không có nháp thay thế).
+3. **Quỹ tiền công ty do chủ giữ** = tài khoản chi tiết riêng `111-OWNER-CUSTODY` (mục 4.5), không dùng TK 141.
+4. **Chủ chi hộ** = TK 3388; **chi tiêu cá nhân lấy từ tiền công ty** = TK 1388, ngoài lãi lỗ.
+5. **Ngưỡng thanh toán không dùng tiền mặt** = 5.000.000 VND (tổng thanh toán gồm VAT), cộng dồn trong ngày theo người bán cho VAT; chỉ cảnh báo; cấu hình được.
+6. **Mặc định nguồn tiền tổ chức** = `owner_paid`; `funding` trong payload luôn thắng; quy tắc theo nhà cung cấp/danh mục/nguồn nhập.
+7. **Quy tắc ban đầu:** chưa cần nhập sẵn danh sách. Quy trình bảng tính (4.3) cho phép chủ đánh dấu hàng loạt; sau vài tháng dùng
+   `funding-rules test` để chuyển các lựa chọn lặp lại thành quy tắc.
+8. **Cảnh báo quỹ chủ giữ âm** và **kiểm quỹ cuối tháng** là bắt buộc trong ERP-981.
 
-Cần kế toán/chủ xác nhận trước khi code phần liên quan:
+## 9. Giới hạn của các quyết định này
 
-1. Mã tài khoản cho quỹ chủ giữ (TK 141 tạm ứng hay tài khoản con của 111) và cách trình bày trên bảng cân đối.
-2. Ngưỡng thanh toán không dùng tiền mặt áp dụng cho khấu trừ VAT và chi phí được trừ hiện hành.
-3. Cách xử lý chi tiêu cá nhân của chủ (rút vốn, tạm ứng hay phải thu chủ sở hữu) phù hợp loại hình công ty.
-4. Danh sách quy tắc nguồn tiền ban đầu (nhà cung cấp/danh mục nào → nguồn nào).
+- Đây là kết quả nghiên cứu từ nguồn công khai (xem mục 10), **không phải tư vấn thuế/kế toán chính thức**. Các điểm chưa xác minh được từ văn bản gốc:
+  (a) thanh toán từ tài khoản cá nhân của chủ có được coi là "không dùng tiền mặt" cho công ty hay không; (b) dự thảo sửa NĐ 320/2025 về lương dưới 5 triệu;
+  (c) hạch toán chi tiết chi tiêu cá nhân của chủ theo loại hình công ty cụ thể.
+- Thiết kế đã giữ các quyết định này **cấu hình được hoặc chỉ cảnh báo** (ngưỡng, nhãn TK, ánh xạ), nên đổi quy định không cần viết lại logic.
+- Khi công ty có doanh thu/rủi ro thuế đáng kể, nên nhờ kế toán thuế rà soát một lần các mã tài khoản và cách trình bày; hệ thống hỗ trợ xuất dữ liệu
+  để việc đó nhanh (accountant export).
+
+## 10. Nguồn tham khảo
+
+- Luật Thuế GTGT 48/2024/QH15 và điều kiện thanh toán không dùng tiền mặt từ 5 triệu: [MISA](https://amis.misa.vn/51249/quy-dinh-thanh-toan-khong-dung-tien-mat/),
+  [Luật Việt Nam](https://luatvietnam.vn/thue-phi-le-phi/hoa-don-tren-5-trieu-phai-chuyen-khoan-duoc-quy-dinh-o-dau-565-102223-article.html),
+  [Deloitte](https://www2.deloitte.com/content/dam/Deloitte/vn/Documents/tax/vn-tax-alert-new-law-on-vat-vi.pdf).
+- NĐ 320/2025/NĐ-CP, chi phí được trừ từ 5 triệu: [Luật Việt Nam](https://luatvietnam.vn/tin-van-ban-moi/hoa-don-tu-5-trieu-dong-phai-thanh-toan-khong-tien-mat-de-duoc-tru-thue-tndn-186-106006-article.html),
+  [MISA](https://sme.misa.vn/350011/nghi-dinh-320-ve-thue-tndn/).
+- Luật Thuế TNDN 67/2025/QH15 (hiệu lực 01/10/2025): [Crowe](https://www.crowe.com/vn/vi-vn/news/key-highlights-of-the-2025-corporate-income-tax-law).
+- Thông tư 99/2025/TT-BTC và quan hệ với TT133: [KPMG](https://kpmg.com/vn/vi/home/phan-tich-chuyen-sau/2025/11/key-changes-in-vietnamese-accounting-system-for-enterprises.html),
+  [Thư viện pháp luật](https://thuvienphapluat.vn/hoi-dap-phap-luat/thong-tu-99-2025-cua-bo-tai-chinh-thay-the-nhung-thong-tu-nao-138068177.html).
+- TK 141 chỉ cho người lao động, chi cho đối tượng khác theo dõi ở TK 1388: [MISA](https://amis.misa.vn/26138/hach-toan-tai-khoan-141-khoan-tam-ung/).

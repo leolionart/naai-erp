@@ -519,24 +519,99 @@ export class CommercialDocumentService {
     context: CommercialDocumentContext,
     id: string,
     expectedVersion: string,
-    input: { targetControlAccountCode: string; reason: string },
+    input: {
+      targetControlAccountCode?: string;
+      financialAccountId?: string;
+      postReplacement?: boolean;
+      reason: string;
+    },
     idempotencyKey?: string,
   ) {
     if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (!expectedVersion || !input.targetControlAccountCode?.trim() || !input.reason?.trim())
+    const targetControl = input.targetControlAccountCode?.trim() ?? "";
+    const financialAccountId = input.financialAccountId?.trim();
+    const reason = input.reason?.trim() ?? "";
+    if (!expectedVersion || (!targetControl && !financialAccountId) || !reason)
       throw new Error("VALIDATION_FAILED");
-    return this.envelope(
-      context,
-      await this.store.reclassifyFunding(
+    const result = financialAccountId
+      ? await this.store.reclassifyFunding(
+          context,
+          id,
+          expectedVersion,
+          targetControl,
+          reason,
+          idempotencyKey,
+          { financialAccountId },
+        )
+      : await this.store.reclassifyFunding(
+          context,
+          id,
+          expectedVersion,
+          targetControl,
+          reason,
+          idempotencyKey,
+        );
+    const shouldAutoPost =
+      input.postReplacement ??
+      (context.roles.includes("owner") &&
+        Boolean(await this.store.isSolopreneur?.(context.organizationId)));
+    const replacementId = (result as { replacementDocumentId?: string }).replacementDocumentId;
+    if (
+      shouldAutoPost &&
+      replacementId &&
+      !(result as { idempotencyReplayed?: boolean }).idempotencyReplayed
+    ) {
+      await this.transition(
         context,
-        id,
-        expectedVersion,
-        input.targetControlAccountCode.trim(),
-        input.reason.trim(),
-        idempotencyKey,
-      ),
+        replacementId,
+        "capture",
+        { reason },
+        `${idempotencyKey}:capture`,
+      );
+      await this.transition(
+        context,
+        replacementId,
+        "verify",
+        { reason },
+        `${idempotencyKey}:verify`,
+      );
+      await this.transition(
+        context,
+        replacementId,
+        "approve",
+        { reason },
+        `${idempotencyKey}:approve`,
+      );
+      await this.transition(context, replacementId, "post", { reason }, `${idempotencyKey}:post`);
+      return this.envelope(context, { ...result, replacementState: "posted" });
+    }
+    return this.envelope(context, {
+      ...result,
+      ...(shouldAutoPost ? { replacementState: "posted" } : {}),
+    });
+  }
+  async reclassifyFundingByExternal(
+    context: CommercialDocumentContext,
+    system: string,
+    externalId: string,
+    expectedVersion: string,
+    input: {
+      targetControlAccountCode?: string;
+      financialAccountId?: string;
+      postReplacement?: boolean;
+      reason: string;
+    },
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
+    const id = await this.store.findIdByExternalReference?.(
+      context.organizationId,
+      system,
+      externalId,
     );
+    if (!id) throw new Error("RESOURCE_NOT_FOUND");
+    return this.reclassifyFunding(context, id, expectedVersion, input, idempotencyKey);
   }
   async commitRelationshipBackfill(
     context: CommercialDocumentContext,

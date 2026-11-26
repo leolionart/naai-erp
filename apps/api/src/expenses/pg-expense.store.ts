@@ -454,6 +454,26 @@ export class PgExpenseStore {
     return result.rows[0];
   }
 
+  async isSolopreneur(organizationId: string): Promise<boolean> {
+    return (
+      (await resolveOrganizationWorkflowPolicy(organizationId, this.pool)).operatingMode ===
+      "solopreneur"
+    );
+  }
+
+  async findIdByExternalReference(
+    organizationId: string,
+    system: string,
+    externalId: string,
+  ): Promise<string | undefined> {
+    const result = await this.pool.query<{ expense_id: string | null }>(
+      `select expense_id from external_references
+        where organization_id=$1 and system=$2 and external_id=$3`,
+      [organizationId, system, externalId],
+    );
+    return result.rows[0]?.expense_id ?? undefined;
+  }
+
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {
     if (input.fundingFinancialAccountId) {
       const funding = await this.pool.query<{ ledger_account_code: string }>(

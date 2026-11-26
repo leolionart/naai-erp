@@ -45,9 +45,10 @@ Controlled mode remains unchanged.
 
 The forward-looking plan in
 [`docs/implementation/plans/funding-and-account-reclassification.md`](../implementation/plans/funding-and-account-reclassification.md)
-applies one-person-company practice to this policy: personal and company money stay separate; the owner has one
-current-account relationship (company owes owner minus owner-held company cash); balances are derived from the
-ledger at any date; a change of payment source or account is an adjusting journal in the open period with a
-reason and history instead of editing or backdating posted entries; the owner self-approves with an audit trail
-and every command ends in a posted state. Account codes and tax thresholds named there require accountant
-confirmation before implementation.
+applies one-person-company practice to this policy: personal and company money stay separate; owner-paid costs are owed
+to the owner (3388); company cash the owner holds is its own cash account (`111-OWNER-CUSTODY`); the owner's personal
+spending from company money is a receivable from the owner (1388) and never an expense; balances are derived from the
+ledger at any date; a change of payment source or account is an adjusting journal in the open period with a reason and
+history instead of editing or backdating posted entries; non-cash payment warnings use the 5,000,000 VND threshold; the
+owner self-approves with an audit trail and every command ends in a posted state. The decisions rest on public sources
+listed in the plan and are configurable; they are not formal tax advice.

@@ -251,6 +251,7 @@ describeIntegration("ERP-310 expense workflow", () => {
     ).toBe(409);
     const moved = await reclassify({
       financialAccountId: "fa-owner-custody",
+      postReplacement: false,
       reason: "Chi từ tiền công ty do chủ giữ hộ",
     });
     expect(moved.statusCode, moved.body).toBe(201);
@@ -284,10 +285,79 @@ describeIntegration("ERP-310 expense workflow", () => {
       (
         await reclassify({
           financialAccountId: "fa-owner-custody",
+          postReplacement: false,
           reason: "Chi từ tiền công ty do chủ giữ hộ",
         })
       ).json().data.idempotencyReplayed,
     ).toBe(true);
+  });
+
+  it("reclassifies an expense by externalReference and auto-posts the replacement when requested", async () => {
+    const extId = `n8n-ext-${randomUUID()}`;
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses`,
+      headers: headers(ownerToken, `ext-reclass-create-${extId}`),
+      payload: {
+        id: `exp-ext-${extId}`,
+        expenseClass: "invoice_backed",
+        payeePartyId: "SUP-01",
+        expenseDate: "2026-08-22",
+        businessPurpose: "Chi phí đẩy từ n8n",
+        currency: "VND",
+        netMinor: "2000",
+        vatMinor: "0",
+        grossMinor: "2000",
+        counterAccountCode: "331-AP",
+        evidenceChecklist: { invoice: true },
+        externalReference: { system: "n8n", externalId: extId },
+        lines: [
+          {
+            description: "Chi phí đẩy từ n8n",
+            netMinor: "2000",
+            vatMinor: "0",
+            grossMinor: "2000",
+            postingAccountCode: "642-OPEX",
+            allocations: [
+              { id: `alloc-${extId}`, amountMinor: "2000", dimensions: { costCenter: "ADMIN" } },
+            ],
+          },
+        ],
+      },
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const expId = (created.json().data.expenseId ?? created.json().data.id) as string;
+    if (created.json().data.state !== "posted") {
+      await command(expId, "submit", ownerToken, `ext-sub-${extId}`);
+      await command(expId, "approve", ownerToken, `ext-app-${extId}`);
+      await command(expId, "post", ownerToken, `ext-post-${extId}`);
+    }
+    const vRow = await pool.query(
+      "select version::text from expenses where organization_id=$1 and id=$2",
+      [organizationId, expId],
+    );
+    const ver = vRow.rows[0].version as string;
+    const moved = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${organizationId}/expenses/by-external/n8n/${extId}/reclassify-funding`,
+      headers: { ...headers(ownerToken, `ext-move-${extId}`), "if-match": ver },
+      payload: {
+        financialAccountId: "fa-owner-custody",
+        postReplacement: true,
+        reason: "Chuyển sang quỹ chủ giữ hộ và ghi sổ ngay",
+      },
+    });
+    expect(moved.statusCode, moved.body).toBe(201);
+    expect(moved.json().data.replacementState).toBe("posted");
+    const repId = moved.json().data.replacementExpenseId as string;
+    const repRow = await pool.query(
+      `select state::text,funding_financial_account_id from expenses where organization_id=$1 and id=$2`,
+      [organizationId, repId],
+    );
+    expect(repRow.rows[0]).toEqual({
+      state: "posted",
+      funding_financial_account_id: "fa-owner-custody",
+    });
   });
 
   it("defaults documented expenses to final tax states in owner-final mode while preserving overrides", async () => {
