@@ -4355,6 +4355,90 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-992/
 
+  - id: ERP-993
+    title: File size ratchet with baseline script, hook and CI check
+    phase: P17
+    status: ready
+    dependencies: []
+    business_rules: [BR-SIZE-001]
+    tests: [T-UNIT-SIZE-001]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
+  - id: ERP-994
+    title: Split oversized files by domain without behavior change in batches
+    phase: P17
+    status: ready
+    dependencies: [ERP-993]
+    business_rules: [BR-SIZE-001]
+    tests: [T-INT-SPLIT-001]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
+  - id: ERP-995
+    title: Bounded read contract with keyset cursor, size budget, list inventory and contract tests
+    phase: P17
+    status: ready
+    dependencies: []
+    business_rules: [BR-READ-001, BR-READ-002, BR-READ-003]
+    tests: [T-UNIT-READ-001, T-INT-READ-001]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
+  - id: ERP-996
+    title: Paginate critical lists with summary view, count and summary endpoints and move the web to server side paging
+    phase: P17
+    status: ready
+    dependencies: [ERP-995]
+    business_rules: [BR-READ-001, BR-READ-002, BR-READ-004, BR-READ-005]
+    tests: [T-INT-READ-002, T-E2E-READ-003]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
+  - id: ERP-997
+    title: Complete remaining list routes from the inventory or document capped exceptions
+    phase: P17
+    status: ready
+    dependencies: [ERP-996]
+    business_rules: [BR-READ-001, BR-READ-002]
+    tests: [T-INT-READ-004]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
+  - id: ERP-998
+    title: CLI output controls, describe command and routing table with golden tests
+    phase: P17
+    status: ready
+    dependencies: [ERP-995]
+    business_rules: [BR-READ-006]
+    tests: [T-UNIT-READ-005, T-INT-READ-006]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
+  - id: ERP-999
+    title: AI reading guide, skill updates and large response logging
+    phase: P17
+    status: ready
+    dependencies: [ERP-996, ERP-998]
+    business_rules: [BR-READ-003, BR-READ-006]
+    tests: [T-INT-READ-007]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/bounded-reads-and-file-size.md
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
