@@ -2805,6 +2805,14 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/owner-funding/owner-funding.integration.test.ts
     blocking_gate: G100
 
+  - id: T-E2E-EDIT-003
+    task: ERP-991
+    rules: [BR-EDIT-001, BR-FUND-001, BR-FUND-004, BR-VOID-001, BR-UI-VOID-001, BR-WFL-003]
+    title: Real-UI Playwright journeys against the real API and a disposable PostgreSQL scratch database with zero mocks
+    layer: e2e
+    command: pnpm test:e2e:real
+    blocking_gate: G100
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

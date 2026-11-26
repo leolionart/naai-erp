@@ -23,5 +23,6 @@ PW_CHROMIUM=<path to chromium or headless shell> node docs/implementation/plans/
 `seed_records.py` creates a posted expense (owner), a draft expense (integration token), a posted sales invoice and a draft
 purchase invoice through the ingestion endpoint. `ui-verify.mjs` is a starting point: extend it with one step per UI action
 (edit, change category, reclassify funding, void, delete draft, record). The scripts read nothing from the real environment;
-`playwright-core` and its browser come from the repository `node_modules`. Scripts live here as references: when ERP-991 turns
-them into a proper spec, move them under `apps/web/e2e/real/`.
+`playwright-core` and its browser come from the repository `node_modules`.
+
+Automated in CI (ERP-991): run `pnpm test:e2e:real` (`scripts/run-real-ui-e2e.mjs` + `apps/web/e2e/real-ui-operations.spec.ts` via `apps/web/playwright.real.config.ts`) to provision a disposable PostgreSQL database, apply migrations, seed canonical organization catalogs, boot the real API and Next.js web servers, and execute the full Playwright spec suite with zero mocks.

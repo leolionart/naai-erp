@@ -4144,14 +4144,34 @@ tasks:
   - id: ERP-991
     title: Real-UI Playwright specs against the real API and a scratch database in CI
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-988]
     business_rules: [BR-EDIT-001]
     tests: [T-E2E-EDIT-003]
     plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-991/
+    agent: antigravity
+    started_at: 2026-11-26T19:21:00+07:00
+    completed_at: 2026-11-26T19:38:00+07:00
+    completion_basis: implemented_with_real_api_scratch_db_playwright_evidence
     planned_files:
-      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+      - apps/web/playwright.config.ts
+      - apps/web/playwright.real.config.ts
+      - apps/web/package.json
+      - apps/web/e2e/real-ui-helpers.ts
+      - apps/web/e2e/real-ui-operations.spec.ts
+      - apps/web/src/components/forms/record-allocation-normalizer.ts
+      - apps/web/src/components/forms/record-allocation-normalizer.test.ts
+      - apps/web/src/components/forms/document-expense-forms.tsx
+      - scripts/run-real-ui-e2e.mjs
+      - package.json
+      - .github/workflows/ci.yml
+      - docs/implementation/plans/ui-verification-harness/README.md
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-991/
 
   - id: ERP-992
     title: Repair stale integration and Playwright tests using the reference patch

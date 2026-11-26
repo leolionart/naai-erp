@@ -769,3 +769,8 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   internal transfers, expenses and purchase invoices, keeps `1388` excluded from P&L, VAT and CIT,
   derives custody and company cash balances directly from the ledger at any `asOf` date, and verifies
   controlled dry-run/commit reclassification of historical `111-CASH` entries (`owner-custody.integration.test.ts`).
+- `T-E2E-EDIT-003`: Real-UI Playwright specs execute against the real API and a migrated scratch
+  PostgreSQL database (zero mocks) for Expense and Revenue listings, posted/draft metadata and
+  canonical category edits, funding reclassification, voiding posted records, deleting drafts,
+  single/batch recording, and Vietnamese action-error translation (`real-ui-operations.spec.ts`,
+  `scripts/run-real-ui-e2e.mjs`).

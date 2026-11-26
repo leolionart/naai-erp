@@ -50,3 +50,4 @@ jobs:
           RUN_DB_INTEGRATION: "1"
       - run: pnpm --filter @naai-erp/web exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - run: pnpm test:e2e:real

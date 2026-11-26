@@ -4,6 +4,7 @@ const port = Number(process.env.PLAYWRIGHT_PORT ?? "3000");
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["**/real-ui-*.spec.ts", "**/real/**"],
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? "/tmp/naai-erp-playwright-results",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),

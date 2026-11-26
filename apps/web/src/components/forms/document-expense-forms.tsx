@@ -15,6 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import { recordCategory } from "@/lib/records/category";
+import { normalizeExistingAllocations } from "./record-allocation-normalizer";
 
 type Row = Record<string, unknown>;
 type ExpenseCategoryPolicy = Readonly<{
@@ -700,15 +701,9 @@ export function DocumentForm({
             ),
           ),
           allocations: existingAllocations.length
-            ? existingAllocations.map((allocation) => ({
-                ...allocation,
-                ...(existingAllocations.length === 1 ? { amountMinor: netMinor || "0" } : {}),
-                dimensions: canonicalRelationshipDimensions(
-                  allocation.dimensions as Row | undefined,
-                  {},
-                  projectId,
-                ),
-              }))
+            ? normalizeExistingAllocations(existingAllocations, netMinor, (dims) =>
+                canonicalRelationshipDimensions(dims, {}, projectId),
+              )
             : [
                 {
                   id: crypto.randomUUID(),
@@ -1295,15 +1290,9 @@ export function ExpenseForm({
           grossMinor: grossMinor || "0",
           dimensions: { ...((initialLine?.dimensions as Row | undefined) ?? {}), category },
           allocations: existingAllocations.length
-            ? existingAllocations.map((allocation) => ({
-                ...allocation,
-                ...(existingAllocations.length === 1 ? { amountMinor: netMinor || "0" } : {}),
-                dimensions: canonicalRelationshipDimensions(
-                  allocation.dimensions as Row | undefined,
-                  allocationDimensions,
-                  projectId,
-                ),
-              }))
+            ? normalizeExistingAllocations(existingAllocations, netMinor, (dims) =>
+                canonicalRelationshipDimensions(dims, allocationDimensions, projectId),
+              )
             : [
                 {
                   id: crypto.randomUUID(),

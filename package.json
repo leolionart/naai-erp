@@ -32,6 +32,7 @@
     "prod:update": "node scripts/update-production-latest.mjs",
     "db:storage-report": "node scripts/database-maintenance.mjs report",
     "test:e2e": "pnpm --filter @naai-erp/web test:e2e",
+    "test:e2e:real": "node scripts/run-real-ui-e2e.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:docs && pnpm test:security-baseline && pnpm test:fixtures && pnpm test:native-db && pnpm test && pnpm build",
     "db:generate": "pnpm --filter @naai-erp/database db:generate",
     "db:migrate": "pnpm --filter @naai-erp/database db:migrate",

@@ -1609,7 +1609,8 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
   the category code is absent from canonical catalogs, so a deactivated canonical category cannot be
   bypassed by a stale legacy row. Revenue and expense UI surfaces query canonical
   `master-data/expense-categories` and `master-data/party-roles` without calling obsolete workforce
-  endpoints, translate raw API error codes (`CATEGORY_NOT_FOUND`, `EXPENSE_REVIEW_INCOMPLETE`,
+  endpoints, preserve canonical line-allocation identifiers when updating draft records, translate
+  raw API error codes (`CATEGORY_NOT_FOUND`, `EXPENSE_REVIEW_INCOMPLETE`,
   `INVALID_EXPENSE_TRANSITION`, etc.) into clear Vietnamese messages, and visibly distinguish load
   errors from action errors.
 - `BR-REC-001` (planned): for an owner in solopreneur mode, "Ghi sổ" is one atomic action taking an eligible draft to
