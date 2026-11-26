@@ -1425,3 +1425,23 @@ No task may be marked done with orphan business rules or untested behavior.
 - `BR-STAT-004`: document-based client revenue (client concentration) is VAT-inclusive, consistent
   with the revenue/expense list charts. Ledger-based revenue, expense and profit remain net of VAT
   because output/input VAT is a liability/asset, never income or cost.
+
+### Removing a wrong transaction (void / delete)
+
+- `BR-VOID-001`: a wrong transaction is removed by the action that matches its state, always with a
+  mandatory reason that is written to the audit log: a **draft** (no journal) is deleted/discarded;
+  an unposted workflow document (captured, validated, verified, approved) is **cancelled**; an
+  **issued/posted** document or **posted** expense is **voided** by a reversing journal dated like the
+  original, which sets the original journal to `reversed` and the record to `cancelled` (documents)
+  or `reversed` (expenses). Posted journals are never edited or deleted.
+- `BR-VOID-002`: voiding requires the current resource version (`If-Match`) and an idempotency key,
+  is restricted to posting roles, and is rejected for closed periods, documents with receipts or bank
+  reconciliation, documents that already have a credit note/replacement, and paid or partially paid
+  documents until those applications are unwound. Expenses already reconciled with the bank are
+  rejected for the same reason.
+- `BR-UI-VOID-001`: the expense and revenue quick view and detail pages offer only the action the
+  API will accept for the record's state ("Xóa bản nháp", "Hủy chứng từ" or "Void (đảo bút toán)") and
+  explain why a paid document cannot be voided.
+- `BR-UI-TABLE-001`: hidden table columns are remembered per route and per column label in browser
+  storage, so the choice survives reloads, filter changes and added or reordered columns; at least one
+  column always stays visible.

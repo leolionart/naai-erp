@@ -317,6 +317,20 @@ async function install(
       expect(body.lines[0]?.allocations[0]?.dimensions).not.toHaveProperty("contractId");
       return reply(route, currentExpense);
     }
+    if (route.request().method() === "POST" && url.pathname.endsWith("/expense-720/reverse")) {
+      expect(route.request().headers()["if-match"]).toBe("1");
+      expect(route.request().headers()["idempotency-key"]).toMatch(
+        /^reverse-expenses-expense-720-/,
+      );
+      expect(route.request().postDataJSON()).toEqual({ reason: "Nhập nhầm số tiền" });
+      currentExpense = { ...currentExpense, state: "reversed", resourceVersion: "2" };
+      return reply(route, {
+        expenseId: "expense-720",
+        state: "reversed",
+        reversalJournalId: "journal-reversal-720",
+        idempotencyReplayed: false,
+      });
+    }
     if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
     return reply(route, { items: [currentExpense] });
   });
@@ -488,7 +502,7 @@ test("@desktop T-E2E-ERP-877-002 posted expense metadata uses one clear save act
   const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
   await expect(quickView.getByRole("button", { name: "Lưu danh mục" })).toHaveCount(0);
   await expect(quickView.getByRole("link", { name: "Mở trang chi tiết" })).toHaveCount(0);
-  await expect(quickView.getByRole("button")).toHaveCount(2); // Save + dialog close.
+  await expect(quickView.getByRole("button", { name: "Lưu thay đổi" })).toHaveCount(1);
   await quickView.getByLabel("Đối tác thụ hưởng").fill("hạ tầng");
   await quickView.getByText("Nhà cung cấp hạ tầng 721", { exact: true }).click();
   await quickView.getByLabel("Mục đích chi / Diễn giải").fill("Gia hạn hạ tầng vận hành");
@@ -499,23 +513,25 @@ test("@desktop T-E2E-ERP-877-002 posted expense metadata uses one clear save act
   await expect(quickView.getByText("Giá trị & Hạch toán")).toHaveCount(0);
 });
 
-test("@desktop table column visibility persists in application configuration", async ({ page }) => {
+test("@desktop table search and column visibility persist in application configuration", async ({
+  page,
+}) => {
   await install(page);
-  await page.goto("http://localhost:3000/documents");
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=present");
   const tableSearch = page.getByRole("searchbox", { name: "Tìm kiếm trong bảng" });
   const columnButton = page.getByRole("button", { name: "Cột hiển thị" });
   await expect(tableSearch).toBeVisible();
   await expect(columnButton).toHaveAttribute("data-size", "sm");
-  await tableSearch.fill("INV-720");
-  await expect(page.getByText("INV-720")).toBeVisible();
-  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeHidden();
+  await expect(page.getByText("PINV-720")).toBeVisible();
+  await tableSearch.fill("khong-co-ban-ghi-nay");
+  await expect(page.getByText("PINV-720")).toBeHidden();
   await tableSearch.clear();
-  await expect(page.getByText("Ghi nhận doanh thu thiết kế web")).toBeVisible();
+  await expect(page.getByText("PINV-720")).toBeVisible();
   await columnButton.click();
-  await page.getByRole("menuitemcheckbox", { name: "Đối tượng" }).click();
-  await expect(page.getByRole("columnheader", { name: "Đối tượng" })).toBeHidden();
+  await page.getByRole("menuitemcheckbox", { name: "Chi cho ai" }).click();
+  await expect(page.getByRole("columnheader", { name: "Chi cho ai" })).toBeHidden();
   await page.reload();
-  await expect(page.getByRole("columnheader", { name: "Đối tượng" })).toBeHidden();
+  await expect(page.getByRole("columnheader", { name: "Chi cho ai" })).toBeHidden();
 });
 
 test("@desktop revenue invoice-presence filter isolates recognition activity", async ({ page }) => {
@@ -793,4 +809,57 @@ test("@mobile focused invoice and expense routes do not overflow", async ({ page
     );
     expect(overflow).toBeLessThanOrEqual(1);
   }
+});
+
+test("@desktop voids a posted expense with a reason through a reversing journal", async ({
+  page,
+}) => {
+  await install(page, undefined, "posted");
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=missing");
+  await page.getByRole("button", { name: "Xem" }).click();
+  const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
+  await quickView.getByRole("button", { name: "Void (đảo bút toán)" }).click();
+  const confirmation = page.getByRole("dialog", { name: "Void chi phí đã ghi sổ?" });
+  await expect(confirmation.getByRole("button", { name: "Xác nhận" })).toBeDisabled();
+  await confirmation.getByLabel("Lý do (bắt buộc)").fill("Nhập nhầm số tiền");
+  await confirmation.getByRole("button", { name: "Xác nhận" }).click();
+  await expect(page.getByText("Đã void chi phí bằng bút toán đảo.")).toBeVisible();
+  await expect(confirmation).not.toBeVisible();
+  await expect(quickView).not.toBeVisible();
+});
+
+test("@desktop offers no void for a draft expense other than discarding it", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=missing");
+  await page.getByRole("button", { name: "Xem" }).click();
+  const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
+  await expect(quickView.getByRole("button", { name: "Xóa bản nháp" })).toBeVisible();
+  await expect(quickView.getByRole("button", { name: "Void (đảo bút toán)" })).toHaveCount(0);
+});
+
+test("@desktop remembers hidden table columns across reloads and route changes", async ({
+  page,
+}) => {
+  await install(page);
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=missing");
+  await page.getByRole("button", { name: "Cột hiển thị" }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Nội dung / Diễn giải" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("columnheader", { name: "Nội dung / Diễn giải" })).toBeHidden();
+  // The choice is stored by column label under the route, so it survives reloads...
+  await page.reload();
+  await expect(page.getByRole("columnheader", { name: "Mã bản ghi" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Nội dung / Diễn giải" })).toBeHidden();
+  // ...and a different filter on the same route (different URL query) keeps it too.
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=present");
+  await expect(page.getByRole("columnheader", { name: "Mã bản ghi" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Nội dung / Diễn giải" })).toBeHidden();
+  const stored = await page.evaluate(() =>
+    Object.fromEntries(
+      Object.entries(window.localStorage).filter(([key]) =>
+        key.startsWith("naai-erp-table-columns"),
+      ),
+    ),
+  );
+  expect(stored).toEqual({ "naai-erp-table-columns-v2:/expenses": '["Nội dung / Diễn giải"]' });
 });

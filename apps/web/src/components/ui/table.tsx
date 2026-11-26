@@ -15,9 +15,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  columnStorageKey,
+  hiddenIndexes,
+  parseHiddenLabels,
+  serializeHiddenLabels,
+  toggleLabel,
+} from "@/lib/table-columns";
 import { cn } from "@/lib/utils";
-
-const STORAGE_PREFIX = "naai-erp-table-columns-v1";
 
 function Table({
   className,
@@ -27,51 +32,38 @@ function Table({
   const tableRef = React.useRef<HTMLTableElement>(null);
   const pathname = usePathname();
   const [columns, setColumns] = React.useState<readonly string[]>([]);
-  const [hidden, setHidden] = React.useState<ReadonlySet<number>>(new Set());
-  const [loadedKey, setLoadedKey] = React.useState("");
+  const [hidden, setHidden] = React.useState<ReadonlySet<string>>(new Set());
   const [search, setSearch] = React.useState("");
   const deferredSearch = React.useDeferredValue(search);
-  const storageKey = React.useMemo(() => {
-    if (!columns.length) return "";
-    const identity = columnVisibilityKey ?? `${pathname}:${columns.join("|")}`;
-    return `${STORAGE_PREFIX}:${identity}`;
-  }, [columnVisibilityKey, columns, pathname]);
+  const storageKey = columnStorageKey(columnVisibilityKey ?? pathname);
 
   React.useEffect(() => {
     const labels = Array.from(tableRef.current?.querySelectorAll("thead th") ?? []).map(
       (cell, index) => cell.textContent?.trim() || `Cột ${index + 1}`,
     );
-    setColumns(labels);
+    // Avoid re-rendering on every parent render when the header did not change.
+    setColumns((current) =>
+      current.length === labels.length && current.every((label, i) => label === labels[i])
+        ? current
+        : labels,
+    );
   }, [props.children]);
 
-  React.useEffect(() => {
-    if (!storageKey) return;
-    try {
-      const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as unknown;
-      setHidden(
-        new Set(
-          Array.isArray(parsed)
-            ? parsed.filter((value): value is number => Number.isInteger(value) && value >= 0)
-            : [],
-        ),
-      );
-    } catch {
-      setHidden(new Set());
-    }
-    setLoadedKey(storageKey);
+  // Load the remembered choice before paint so hidden columns never flash back on screen.
+  React.useLayoutEffect(() => {
+    setHidden(parseHiddenLabels(window.localStorage.getItem(storageKey)));
   }, [storageKey]);
 
   React.useEffect(() => {
     const table = tableRef.current;
     if (!table) return;
+    const indexes = hiddenIndexes(columns, hidden);
     for (const row of table.rows) {
       Array.from(row.cells).forEach((cell, index) => {
-        cell.style.display = hidden.has(index) ? "none" : "";
+        cell.style.display = indexes.has(index) ? "none" : "";
       });
     }
-    if (storageKey && loadedKey === storageKey)
-      window.localStorage.setItem(storageKey, JSON.stringify([...hidden]));
-  }, [hidden, loadedKey, props.children, storageKey]);
+  }, [columns, hidden, props.children]);
 
   React.useEffect(() => {
     const query = deferredSearch.trim().toLocaleLowerCase("vi");
@@ -82,13 +74,15 @@ function Table({
     }
   }, [deferredSearch, props.children]);
 
-  function setColumn(index: number, visible: boolean) {
-    setHidden((current) => {
-      const next = new Set(current);
-      if (visible) next.delete(index);
-      else if (columns.length - next.size > 1) next.add(index);
-      return next;
-    });
+  function setColumn(label: string, visible: boolean) {
+    const next = toggleLabel(columns, hidden, label, visible);
+    setHidden(next);
+    // Persist immediately on the user's action instead of from a render effect.
+    try {
+      window.localStorage.setItem(storageKey, serializeHiddenLabels(next));
+    } catch {
+      // Storage may be unavailable (private mode); the choice still applies for this session.
+    }
   }
 
   return (
@@ -118,8 +112,8 @@ function Table({
                 {columns.map((label, index) => (
                   <DropdownMenuCheckboxItem
                     key={`${label}-${index}`}
-                    checked={!hidden.has(index)}
-                    onCheckedChange={(checked) => setColumn(index, checked === true)}
+                    checked={!hidden.has(label)}
+                    onCheckedChange={(checked) => setColumn(label, checked === true)}
                   >
                     {label}
                   </DropdownMenuCheckboxItem>

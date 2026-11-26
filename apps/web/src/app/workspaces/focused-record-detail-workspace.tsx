@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RecordVoidControl } from "./focused-record-void-control";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { ModulePage } from "@/components/layout/module-page";
@@ -375,6 +376,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
               </CardContent>
             </Card>
             <SourceCard source={source} record={record} />
+            <RecordVoidControl source={kind} record={record} onDone={load} />
           </>
         ) : null}
       </div>

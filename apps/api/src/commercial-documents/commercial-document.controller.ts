@@ -208,6 +208,24 @@ export class CommercialDocumentController {
       idempotencyKey,
     );
   }
+  @Post(":id/reverse")
+  async reverse(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: { reason?: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.reverse(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input?.reason ?? "",
+      idempotencyKey,
+    );
+  }
   @Post(":id/reverse-replace")
   async reverseReplace(
     @Param("organizationId") organizationId: string,

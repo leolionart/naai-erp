@@ -441,6 +441,28 @@ describe("ERP-300 CommercialDocumentService", () => {
     expect(result.data).toMatchObject({ replacementDocumentId: "sales-2" });
   });
 
+  it("voids a document only for posting roles with a reason, version and idempotency key", async () => {
+    const store = {
+      reverse: vi.fn().mockResolvedValue({ documentId: "sales-1", state: "cancelled" }),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    const result = await service.reverse(context, "sales-1", "3", "  Nhập nhầm  ", "void-1");
+    expect(store.reverse).toHaveBeenCalledWith(context, "sales-1", "3", "Nhập nhầm", "void-1");
+    expect(result.data).toMatchObject({ state: "cancelled" });
+    await expect(
+      service.reverse({ ...context, roles: ["viewer"] }, "sales-1", "3", "x", "k"),
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(service.reverse(context, "sales-1", "3", "x")).rejects.toThrow(
+      "IDEMPOTENCY_KEY_REQUIRED",
+    );
+    await expect(service.reverse(context, "sales-1", "", "x", "k")).rejects.toThrow(
+      "VERSION_CONFLICT",
+    );
+    await expect(service.reverse(context, "sales-1", "3", "  ", "k")).rejects.toThrow(
+      "VALIDATION_FAILED",
+    );
+  });
+
   it("allows authorized funding reclassification with optimistic version and idempotency", async () => {
     const store = {
       reclassifyFunding: vi.fn().mockResolvedValue({ replacementDocumentId: "pi-2" }),

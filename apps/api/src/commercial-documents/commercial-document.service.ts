@@ -452,6 +452,23 @@ export class CommercialDocumentService {
   validatePortableInput(input: CreateCommercialDocumentInput) {
     this.validate(input);
   }
+  /** Void a posted/issued document without a replacement (journal reversal, state cancelled). */
+  async reverse(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    if (!reason.trim()) throw new Error("VALIDATION_FAILED");
+    return this.envelope(
+      context,
+      await this.store.reverse(context, id, expectedVersion, reason.trim(), idempotencyKey),
+    );
+  }
   async reverseReplace(
     context: CommercialDocumentContext,
     id: string,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RecordVoidControl } from "./focused-record-void-control";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Eye, Plus, Trash2 } from "lucide-react";
@@ -1182,6 +1183,16 @@ export function FocusedRecordListWorkspace({
                     </Link>
                   </Button>
                 </div>
+              )}
+              {canDeleteQuickPurchaseInvoice ? null : (
+                <RecordVoidControl
+                  source={sourceKind(quickRecord)}
+                  record={quickRecord}
+                  onDone={async () => {
+                    setQuickRecord(undefined);
+                    await load();
+                  }}
+                />
               )}
             </div>
           ) : null}

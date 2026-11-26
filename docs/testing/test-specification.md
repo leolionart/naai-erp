@@ -720,3 +720,11 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
 - `T-UNIT-STAT-002`: chart points net credit notes and skip cancelled/rejected records
   (`focused-record-chart.test.ts`).
 - `T-UNIT-CLI-PROFILE-001`: CLI profiles (`profiles.test.ts`, `main.test.ts`).
+- `T-INT-VOID-001`: voiding an issued invoice reverses its journal, cancels it, is idempotent,
+  requires a reason and the current version, and cannot be repeated (`commercial-document.integration.test.ts`).
+- `T-UNIT-VOID-002`: `voidPlan` offers delete / cancel / void / blocked exactly per state
+  (`focused-record-void-plan.test.ts`); service permission and validation rules.
+- `T-E2E-VOID-003`: a posted expense is voided from the quick view with a reason, version and
+  idempotency headers (`focused-records.spec.ts`).
+- `T-UNIT-TABLE-001` / `T-E2E-TABLE-002`: column visibility persistence by label and route
+  (`table-columns.test.ts`, `focused-records.spec.ts`).

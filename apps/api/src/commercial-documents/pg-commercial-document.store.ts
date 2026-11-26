@@ -2204,6 +2204,152 @@ export class PgCommercialDocumentStore {
     }
   }
 
+  /**
+   * Voids a posted/issued document without a replacement: the original journal is reversed (history
+   * preserved, net effect zero) and the document becomes `cancelled`. Documents that already have
+   * receipts or bank reconciliation are rejected so cash applications are never orphaned.
+   */
+  async reverse(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    reason: string,
+    idempotencyKey: string,
+  ) {
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({ id, expectedVersion, reason, op: "reverse" }))
+      .digest("hex");
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const replay = await this.lockReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        requestHash,
+      );
+      if (replay) {
+        await client.query("rollback");
+        return { ...replay, idempotencyReplayed: true };
+      }
+      const found = await client.query<{
+        type: string;
+        state: string;
+        version: string;
+        journal_id: string | null;
+        document_date: string;
+      }>(
+        `select type::text,state::text,version::text,journal_id,document_date::text
+           from commercial_documents where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, id],
+      );
+      const original = found.rows[0];
+      if (!original) throw new Error("RESOURCE_NOT_FOUND");
+      if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
+      if (!original.journal_id || !["issued", "posted"].includes(original.state))
+        throw new Error("INVALID_DOCUMENT_TRANSITION");
+      const applied = await client.query(
+        `select 1 from reconciliation_allocations where organization_id=$1 and commercial_document_id=$2
+         union all
+         select 1 from customer_receipt_allocations where organization_id=$1 and sales_invoice_id=$2
+         union all
+         select 1 from commercial_documents where organization_id=$1 and original_document_id=$2
+         limit 1`,
+        [context.organizationId, id],
+      );
+      if (applied.rows[0]) throw new Error("INVALID_DOCUMENT_TRANSITION");
+      await this.assertPostingPeriod(client, context, original.document_date);
+      const journal = await client.query<{ state: string; currency: string }>(
+        `select state,currency from journal_entries where organization_id=$1 and id=$2 for update`,
+        [context.organizationId, original.journal_id],
+      );
+      if (journal.rows[0]?.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
+      const reversalJournalId = randomUUID();
+      await client.query(
+        `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
+         values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
+        [
+          context.organizationId,
+          reversalJournalId,
+          original.document_date,
+          `Reversal of ${original.journal_id}: ${reason}`,
+          journal.rows[0].currency,
+          context.actorId,
+          reason,
+          original.journal_id,
+        ],
+      );
+      await client.query(
+        `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+         select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
+         from journal_lines where organization_id=$1 and journal_id=$2`,
+        [context.organizationId, original.journal_id, reversalJournalId],
+      );
+      await client.query(
+        `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+        [context.organizationId, original.journal_id],
+      );
+      await client.query(
+        `update commercial_documents set state='cancelled',version=version+1,updated_at=now()
+          where organization_id=$1 and id=$2`,
+        [context.organizationId, id],
+      );
+      const version = (BigInt(original.version) + 1n).toString();
+      const auditEventId = randomUUID();
+      await client.query(
+        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,before_state,after_state)
+         values($1,$2,'commercial_document',$3,$4,'reverse',$5,$6,$7,$8)`,
+        [
+          context.organizationId,
+          auditEventId,
+          id,
+          version,
+          context.actorId,
+          context.correlationId,
+          { state: original.state, journalId: original.journal_id },
+          { state: "cancelled", reversalJournalId, reason },
+        ],
+      );
+      const outboxEventId = randomUUID();
+      await client.query(
+        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
+         values($1,$2,'commercial_document',$3,$4,1,$5,$6)`,
+        [
+          context.organizationId,
+          outboxEventId,
+          id,
+          `${original.type}.cancelled`,
+          { documentId: id, type: original.type, state: "cancelled", reversalJournalId },
+          context.correlationId,
+        ],
+      );
+      const response = {
+        documentId: id,
+        state: "cancelled",
+        resourceVersion: version,
+        reversalJournalId,
+        auditEventId,
+        outboxEventId,
+        nextActions: [],
+      };
+      await this.saveReplay(
+        client,
+        context.organizationId,
+        idempotencyKey,
+        "commercial-document:reverse",
+        requestHash,
+        response,
+      );
+      await client.query("commit");
+      return { ...response, idempotencyReplayed: false };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async reclassifyFunding(
     context: CommercialDocumentContext,
     id: string,

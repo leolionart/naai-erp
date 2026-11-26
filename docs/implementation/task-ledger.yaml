@@ -3686,6 +3686,21 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-967/
 
+  - id: ERP-968
+    title: Void and delete UI for wrong transactions, document void API, persistent table columns
+    phase: P16
+    status: done
+    dependencies: [ERP-967]
+    business_rules: [BR-VOID-001, BR-VOID-002, BR-UI-VOID-001, BR-UI-TABLE-001]
+    tests: [T-INT-VOID-001, T-UNIT-VOID-002, T-E2E-VOID-003, T-UNIT-TABLE-001, T-E2E-TABLE-002]
+    evidence: docs/implementation/evidence/ERP-968/
+    agent: claude
+    started_at: 2026-11-26T16:30:00+07:00
+    completed_at: 2026-11-26T19:00:00+07:00
+    completion_basis: implemented_with_scratch_database_and_browser_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-968/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

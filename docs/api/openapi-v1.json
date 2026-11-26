@@ -984,6 +984,11 @@
         "summary": "Update only audited category metadata on a commercial document, including issued or posted records"
       }
     },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/reverse": {
+      "post": {
+        "summary": "Void an issued or posted document without a replacement: reverse its journal, set state cancelled, require reason, If-Match and idempotency key; rejected once receipts or reconciliation are applied"
+      }
+    },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/tax-code": {
       "post": {
         "operationId": "resolveCommercialDocumentTaxCode",

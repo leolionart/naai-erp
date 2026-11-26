@@ -839,6 +839,84 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(rejected.json().error.code).toBe("CREDIT_EXCEEDS_REMAINING");
   });
 
+  it("voids an issued invoice without a replacement and keeps history", async () => {
+    const invoice = {
+      ...sales,
+      id: "sales-void-1",
+      documentNumber: "SI-VOID-1",
+      netMinor: "1000",
+      taxMinor: "0",
+      grossMinor: "1000",
+      lines: [
+        {
+          ...sales.lines[0],
+          unitPriceMinor: "1000",
+          netMinor: "1000",
+          taxMinor: "0",
+          grossMinor: "1000",
+          taxAccountCode: undefined,
+          allocations: [{ id: "void-a", amountMinor: "1000", dimensions: { projectId: "A" } }],
+        },
+      ],
+    };
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/api/v1/organizations/${org}/commercial-documents`,
+          headers: headers(integrationToken, "void-create"),
+          payload: invoice,
+        })
+      ).statusCode,
+    ).toBe(201);
+    await command(invoice.id, "validate", integrationToken, "void-validate");
+    expect((await command(invoice.id, "issue", financeToken, "void-issue")).statusCode).toBe(201);
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/${invoice.id}`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    const version = detail.json().data.version;
+    const reverse = (key: string, reason = "Nhập nhầm hóa đơn", ifMatch = version) =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${org}/commercial-documents/${invoice.id}/reverse`,
+        headers: { ...headers(financeToken, key), "if-match": ifMatch },
+        payload: { reason },
+      });
+    expect((await reverse("void-blank", " ")).statusCode).toBe(400);
+    expect((await reverse("void-stale", "x", "999")).statusCode).toBe(409);
+    const voided = await reverse("void-ok");
+    expect(voided.statusCode, voided.body).toBe(201);
+    expect(voided.json().data).toMatchObject({
+      state: "cancelled",
+      idempotencyReplayed: false,
+      reversalJournalId: expect.any(String),
+    });
+    expect((await reverse("void-ok")).json().data.idempotencyReplayed).toBe(true);
+    const originalJournalId = (
+      await pool.query(
+        "select journal_id from commercial_documents where organization_id=$1 and id=$2",
+        [org, invoice.id],
+      )
+    ).rows[0].journal_id;
+    const journals = await pool.query(
+      `select j.state,j.reversal_of_id,
+              coalesce(sum(l.debit_minor),0)::text debit,coalesce(sum(l.credit_minor),0)::text credit
+         from journal_entries j left join journal_lines l
+           on l.organization_id=j.organization_id and l.journal_id=j.id
+        where j.organization_id=$1 and (j.id=$2 or j.reversal_of_id=$2)
+        group by j.id,j.state,j.reversal_of_id order by j.reversal_of_id nulls first`,
+      [org, originalJournalId],
+    );
+    expect(journals.rows.map((row) => row.state)).toEqual(["reversed", "posted"]);
+    expect(journals.rows[0].debit).toBe(journals.rows[1].credit);
+    // A voided document cannot be voided again.
+    expect(
+      (await reverse("void-again", "again", voided.json().data.resourceVersion)).statusCode,
+    ).toBe(409);
+  });
+
   it("dry-runs and commits an idempotent relationship backfill through reverse replacement", async () => {
     await pool.query(
       `insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency)
