@@ -3749,6 +3749,25 @@ tasks:
       - docs/product/business-rules.md
       - docs/implementation/evidence/ERP-971/
 
+  - id: ERP-972
+    title: Reconcile void/reverse when linked journal was already reversed
+    phase: P16
+    status: done
+    dependencies: [ERP-971]
+    business_rules: [BR-VOID-003]
+    tests: [T-INT-VOID-002]
+    evidence: docs/implementation/evidence/ERP-972/
+    agent: antigravity
+    started_at: 2026-11-26T09:01:00+07:00
+    completed_at: 2026-11-26T09:05:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
+    planned_files:
+      - apps/api/src/commercial-documents/pg-commercial-document.store.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/commercial-documents/commercial-document.integration.test.ts
+      - docs/product/business-rules.md
+      - docs/implementation/evidence/ERP-972/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -978,6 +978,64 @@ describeIntegration("ERP-300 commercial documents", () => {
     expect(
       (await reverse("void-again", "again", voided.json().data.resourceVersion)).statusCode,
     ).toBe(409);
+
+    // If a posted document's journal was already reversed directly, voiding reconciles the
+    // document to `cancelled` using the existing reversal journal without double-reversing.
+    const prereversed = {
+      ...invoice,
+      id: "sales-void-prereversed",
+      documentNumber: "SI-VOID-PRE",
+    };
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/api/v1/organizations/${org}/commercial-documents`,
+          headers: headers(integrationToken, "void-pre-create"),
+          payload: prereversed,
+        })
+      ).statusCode,
+    ).toBe(201);
+    await command(prereversed.id, "validate", integrationToken, "void-pre-validate");
+    expect(
+      (await command(prereversed.id, "issue", financeToken, "void-pre-issue")).statusCode,
+    ).toBe(201);
+    const preDetail = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/commercial-documents/${prereversed.id}`,
+      headers: { authorization: `Bearer ${financeToken}` },
+    });
+    const preVersion = preDetail.json().data.version as string;
+    const preJournalId = (
+      await pool.query(
+        "select journal_id from commercial_documents where organization_id=$1 and id=$2",
+        [org, prereversed.id],
+      )
+    ).rows[0].journal_id as string;
+    const directReverse = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/journals/${preJournalId}/reverse`,
+      headers: { ...headers(financeToken, "void-pre-direct-rev"), "if-match": "3" },
+      payload: { reversalDate: prereversed.documentDate, reason: "Reversed directly from journal" },
+    });
+    expect(directReverse.statusCode, directReverse.body).toBe(201);
+    const existingReversalId = directReverse.json().data.reversalJournalId as string;
+    const voidPre = await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/commercial-documents/${prereversed.id}/reverse`,
+      headers: { ...headers(financeToken, "void-pre-doc"), "if-match": preVersion },
+      payload: { reason: "Sync document after journal reversal" },
+    });
+    expect(voidPre.statusCode, voidPre.body).toBe(201);
+    expect(voidPre.json().data).toMatchObject({
+      state: "cancelled",
+      reversalJournalId: existingReversalId,
+    });
+    const reversalCount = await pool.query<{ c: string }>(
+      `select count(*)::text c from journal_entries where organization_id=$1 and reversal_of_id=$2`,
+      [org, preJournalId],
+    );
+    expect(reversalCount.rows[0]?.c).toBe("1");
   });
 
   it("dry-runs and commits an idempotent relationship backfill through reverse replacement", async () => {

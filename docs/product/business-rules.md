@@ -1439,6 +1439,9 @@ No task may be marked done with orphan business rules or untested behavior.
   reconciliation, documents that already have a credit note/replacement, and paid or partially paid
   documents until those applications are unwound. Expenses already reconciled with the bank are
   rejected for the same reason.
+- `BR-VOID-003`: if a posted document or expense's linked journal was already `reversed` directly
+  (leaving a single existing reversal journal), voiding reconciles the source record to `cancelled`
+  or `reversed` against that existing reversal journal without creating a second reversal journal.
 - `BR-UI-VOID-001`: the expense and revenue quick view and detail pages offer only the action the
   API will accept for the record's state ("Xóa bản nháp", "Hủy chứng từ" or "Void (đảo bút toán)") and
   explain why a paid document cannot be voided.

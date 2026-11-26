@@ -2060,35 +2060,12 @@ export class PgCommercialDocumentStore {
         throw new Error("INVALID_DOCUMENT_TRANSITION");
       if ((input.id ?? "") === id) throw new Error("VALIDATION_FAILED");
       await this.assertPostingPeriod(client, context, input.documentDate);
-      const journal = await client.query<{ state: string; currency: string; version: string }>(
-        `select state,currency,version::text from journal_entries where organization_id=$1 and id=$2 for update`,
-        [context.organizationId, original.journal_id],
-      );
-      if (journal.rows[0]?.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
-      const reversalJournalId = randomUUID();
-      await client.query(
-        `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
-         values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
-        [
-          context.organizationId,
-          reversalJournalId,
-          input.documentDate,
-          `Reversal of ${original.journal_id}: ${reason}`,
-          journal.rows[0].currency,
-          context.actorId,
-          reason,
-          original.journal_id,
-        ],
-      );
-      await client.query(
-        `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
-         select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
-         from journal_lines where organization_id=$1 and journal_id=$2`,
-        [context.organizationId, original.journal_id, reversalJournalId],
-      );
-      await client.query(
-        `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
-        [context.organizationId, original.journal_id],
+      const reversalJournalId = await this.ensureJournalReversed(
+        client,
+        context,
+        original.journal_id,
+        input.documentDate,
+        reason,
       );
       await client.query(
         `update commercial_documents set state='cancelled',version=version+1,updated_at=now()
@@ -2206,6 +2183,62 @@ export class PgCommercialDocumentStore {
   }
 
   /**
+   * Ensures the linked journal is reversed once: posts a balancing reversal when `posted`, or
+   * returns the existing reversal journal ID when the journal was already `reversed` directly.
+   */
+  private async ensureJournalReversed(
+    client: PoolClient,
+    context: CommercialDocumentContext,
+    journalId: string,
+    reversalDate: string,
+    reason: string,
+  ): Promise<string> {
+    const journal = await client.query<{ state: string; currency: string }>(
+      `select state,currency from journal_entries where organization_id=$1 and id=$2 for update`,
+      [context.organizationId, journalId],
+    );
+    const row = journal.rows[0];
+    if (!row) throw new Error("INVALID_JOURNAL_STATE");
+    if (row.state === "reversed") {
+      const existing = await client.query<{ id: string }>(
+        `select id from journal_entries
+          where organization_id=$1 and reversal_of_id=$2
+          order by created_at desc limit 1`,
+        [context.organizationId, journalId],
+      );
+      if (!existing.rows[0]) throw new Error("INVALID_JOURNAL_STATE");
+      return existing.rows[0].id;
+    }
+    if (row.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
+    const reversalJournalId = randomUUID();
+    await client.query(
+      `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
+       values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
+      [
+        context.organizationId,
+        reversalJournalId,
+        reversalDate,
+        `Reversal of ${journalId}: ${reason}`,
+        row.currency,
+        context.actorId,
+        reason,
+        journalId,
+      ],
+    );
+    await client.query(
+      `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
+       select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
+       from journal_lines where organization_id=$1 and journal_id=$2`,
+      [context.organizationId, journalId, reversalJournalId],
+    );
+    await client.query(
+      `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
+      [context.organizationId, journalId],
+    );
+    return reversalJournalId;
+  }
+
+  /**
    * Voids a posted/issued document without a replacement: the original journal is reversed (history
    * preserved, net effect zero) and the document becomes `cancelled`. Documents that already have
    * receipts or bank reconciliation are rejected so cash applications are never orphaned.
@@ -2260,35 +2293,12 @@ export class PgCommercialDocumentStore {
       );
       if (applied.rows[0]) throw new Error("INVALID_DOCUMENT_TRANSITION");
       await this.assertPostingPeriod(client, context, original.document_date);
-      const journal = await client.query<{ state: string; currency: string }>(
-        `select state,currency from journal_entries where organization_id=$1 and id=$2 for update`,
-        [context.organizationId, original.journal_id],
-      );
-      if (journal.rows[0]?.state !== "posted") throw new Error("INVALID_JOURNAL_STATE");
-      const reversalJournalId = randomUUID();
-      await client.query(
-        `insert into journal_entries(organization_id,id,journal_date,description,currency,state,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by,reversal_of_id,version)
-         values($1,$2,$3,$4,$5,'posted',$6,now(),$6,$7,now(),$6,$8,3)`,
-        [
-          context.organizationId,
-          reversalJournalId,
-          original.document_date,
-          `Reversal of ${original.journal_id}: ${reason}`,
-          journal.rows[0].currency,
-          context.actorId,
-          reason,
-          original.journal_id,
-        ],
-      );
-      await client.query(
-        `insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
-         select organization_id,$3,line_number,account_code,credit_minor,debit_minor,description,dimensions
-         from journal_lines where organization_id=$1 and journal_id=$2`,
-        [context.organizationId, original.journal_id, reversalJournalId],
-      );
-      await client.query(
-        `update journal_entries set state='reversed',version=version+1,updated_at=now() where organization_id=$1 and id=$2`,
-        [context.organizationId, original.journal_id],
+      const reversalJournalId = await this.ensureJournalReversed(
+        client,
+        context,
+        original.journal_id,
+        original.document_date,
+        reason,
       );
       await client.query(
         `update commercial_documents set state='cancelled',version=version+1,updated_at=now()
