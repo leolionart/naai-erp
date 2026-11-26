@@ -19,6 +19,7 @@ export type NavigationIcon =
   | "purchase-products"
   | "portable-data"
   | "activity-log"
+  | "notification"
   | "accountant-exports"
   | "subscription";
 
@@ -336,6 +337,14 @@ export const adminNavigation = [
         description: "Xem thao tác nghiệp vụ, API và hoạt động vận hành theo thời gian.",
         href: "/settings/background-activities",
         icon: "activity-log",
+        status: "available",
+      },
+      {
+        key: "telegram-notifications",
+        label: "Thông báo Telegram",
+        description: "Nhận thông báo Telegram khi có doanh thu hoặc chi phí được ghi sổ.",
+        href: "/settings/telegram",
+        icon: "notification",
         status: "available",
       },
     ],

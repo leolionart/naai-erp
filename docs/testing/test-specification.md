@@ -705,3 +705,18 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   before/after states or credentials.
 - `T-E2E-ERP-927-002`: the settings workspace presents one simple activity timeline and source/event
   filters on desktop and mobile while retaining the operational retention explanation.
+
+### Security hardening and Telegram notifications
+
+- `T-UNIT-NOTIFY-001`: HTML escaping, amount formatting, skip/retry/
+  permanent-failure handling and token redaction (`apps/worker/src/telegram-notifier.test.ts`).
+- `T-UNIT-SEC-001`: login limiter, SSRF host blocklist and API security headers.
+- `T-UNIT-NOTIFY-002`: settings service encrypts the token, never returns it, validates input,
+  enforces roles and redacts test-message failures (`telegram-settings.service.test.ts`); secret box
+  round-trip and tamper detection; CLI `telegram-settings` get/update/test routing.
+- `T-INT-STAT-001`: a foreign-currency invoice does not change dashboard revenue, client
+  concentration or credit sales, and raises `foreign_currency_excluded_from_totals`; DSO uses gross
+  sales (`operating-dashboard.integration.test.ts`).
+- `T-UNIT-STAT-002`: chart points net credit notes and skip cancelled/rejected records
+  (`focused-record-chart.test.ts`).
+- `T-UNIT-CLI-PROFILE-001`: CLI profiles (`profiles.test.ts`, `main.test.ts`).

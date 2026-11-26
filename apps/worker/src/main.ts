@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { createHeartbeat } from "./heartbeat.js";
 import { OutboundDeliveryRunner } from "./outbound-delivery.js";
 import { PgOutboundDeliveryStore } from "./pg-outbound-delivery-store.js";
+import pg from "pg";
+import { PgTelegramNotificationStore, TelegramNotifier } from "./telegram-notifier.js";
 
 const heartbeatIntervalMs = Number.parseInt(
   process.env.WORKER_HEARTBEAT_INTERVAL_MS ?? "30000",
@@ -80,8 +82,47 @@ const operationalLogPurgeTimer = setInterval(
   operationalLogPurgeIntervalMs,
 );
 
+// Telegram alerts for posted revenue/expense journals. Per-organization settings live in the
+// database (configured in the app); the bot token is decrypted with SESSION_SECRET and never logged.
+const telegramPool = process.env.DATABASE_URL
+  ? new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 2 })
+  : undefined;
+const telegramNotifier = telegramPool
+  ? new TelegramNotifier(
+      new PgTelegramNotificationStore(telegramPool, process.env.SESSION_SECRET?.trim()),
+      fetch,
+    )
+  : undefined;
+let telegramRunning = false;
+
+async function pollTelegramNotifications() {
+  if (!telegramNotifier || telegramRunning) return;
+  telegramRunning = true;
+  try {
+    const result = await telegramNotifier.runBatch();
+    if (result.enqueued || result.leased)
+      process.stdout.write(
+        `${JSON.stringify({ service: "worker", operation: "telegram_notification", workerId, ...result })}\n`,
+      );
+  } catch (error) {
+    process.stderr.write(
+      `${JSON.stringify({ service: "worker", operation: "telegram_notification", workerId, error: error instanceof Error ? error.message.replace(/bot\d+:[A-Za-z0-9_-]+/g, "bot[REDACTED]") : "unknown" })}\n`,
+    );
+  } finally {
+    telegramRunning = false;
+  }
+}
+if (telegramNotifier) {
+  void pollTelegramNotifications();
+}
+const telegramTimer = telegramNotifier
+  ? setInterval(() => void pollTelegramNotifications(), deliveryPollIntervalMs)
+  : undefined;
+
 async function shutdown(): Promise<void> {
   clearInterval(heartbeatTimer);
+  if (telegramTimer) clearInterval(telegramTimer);
+  await telegramPool?.end();
   clearInterval(deliveryTimer);
   clearInterval(operationalLogPurgeTimer);
   await deliveryStore?.close();

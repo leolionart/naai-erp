@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 104,
+  "mutationCount": 112,
   "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
@@ -20,6 +20,8 @@
     "banking/statement-sessions",
     "banking/transactions",
     "commercial-documents",
+    "commercial-documents/purchase-invoice-ingestion",
+    "commercial-documents/sales-invoice-ingestion",
     "commercial-documents/{documentId}",
     "customer-receipts",
     "customer-service-subscriptions",
@@ -69,6 +71,8 @@
     "scope-changes/{id}",
     "service-plans",
     "service-plans/{servicePlanId}",
+    "telegram-settings",
+    "telegram-settings/test",
     "workbook-imports/commit",
     "workbook-imports/dry-run",
     "workbook-imports/review-rows"
@@ -112,6 +116,33 @@
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
       "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "service-plans/{servicePlanId}"
+    },
+    {
+      "id": "DELETE:/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationId}/service-plans/{servicePlanId}",
+      "operationId": "deleteServicePlan",
+      "resource": "service-plans",
+      "action": "{servicePlanId}",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
       "uiActionFamily": "service-plans/{servicePlanId}"
     },
     {
@@ -650,6 +681,73 @@
       "uiActionFamily": "commercial-documents/{documentId}"
     },
     {
+      "id": "DELETE:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}",
+      "operationId": "deleteDraftCommercialDocument",
+      "resource": "commercial-documents",
+      "action": "{documentId}",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/purchase-invoice-ingestion",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/purchase-invoice-ingestion",
+      "operationId": "createQuickPurchaseInvoice",
+      "resource": "commercial-documents",
+      "action": "purchase-invoice-ingestion",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/purchase-invoice-ingestion"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/sales-invoice-ingestion",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/sales-invoice-ingestion",
+      "operationId": "createQuickSalesInvoice",
+      "resource": "commercial-documents",
+      "action": "sales-invoice-ingestion",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/sales-invoice-ingestion"
+    },
+    {
       "id": "PATCH:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category",
       "method": "PATCH",
       "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category",
@@ -663,6 +761,26 @@
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/tax-code",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/tax-code",
+      "operationId": "resolveCommercialDocumentTaxCode",
+      "resource": "commercial-documents",
+      "action": "tax-code",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
@@ -850,6 +968,34 @@
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
       "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{expenseId}/reverse",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/reverse",
+      "operationId": "reversePostedExpense",
+      "resource": "expenses",
+      "action": "reverse",
+      "possibleActions": [],
+      "financialEffect": "correction",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "period_lock",
+        "balanced_posting",
+        "posted_immutability"
+      ],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1423,6 +1569,46 @@
         "posted_immutability"
       ],
       "uiActionFamily": "banking/internal-transfers"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/telegram-settings",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/telegram-settings",
+      "operationId": null,
+      "resource": "telegram-settings",
+      "action": "telegram-settings",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "telegram-settings"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/telegram-settings/test",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/telegram-settings/test",
+      "operationId": null,
+      "resource": "telegram-settings",
+      "action": "test",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "telegram-settings/test"
     },
     {
       "id": "POST:/api/v1/organizations/{organizationId}/outbound-events/endpoints",

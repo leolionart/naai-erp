@@ -3581,6 +3581,81 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-960/
 
+  - id: ERP-961
+    title: OWASP hardening - dependency upgrades, login throttling, security headers, SSRF
+    phase: P16
+    status: done
+    dependencies: [ERP-960]
+    business_rules: [BR-SEC-001, BR-SEC-002]
+    tests: [T-UNIT-SEC-001]
+    evidence: docs/implementation/evidence/ERP-961/
+    agent: claude
+    started_at: 2026-11-26T00:00:00+07:00
+    completed_at: 2026-11-26T12:00:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-961/
+
+  - id: ERP-962
+    title: In-app Telegram notifications for posted revenue/expense journals
+    phase: P16
+    status: done
+    dependencies: [ERP-960]
+    business_rules: [BR-NOTIFY-001, BR-NOTIFY-002]
+    tests: [T-UNIT-NOTIFY-001, T-UNIT-NOTIFY-002]
+    evidence: docs/implementation/evidence/ERP-962/
+    agent: claude
+    started_at: 2026-11-26T00:00:00+07:00
+    completed_at: 2026-11-26T12:00:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-962/
+
+  - id: ERP-963
+    title: Revenue/expense statistics accuracy
+    phase: P16
+    status: done
+    dependencies: [ERP-960]
+    business_rules: [BR-STAT-001, BR-STAT-002, BR-STAT-003]
+    tests: [T-INT-STAT-001, T-UNIT-STAT-002]
+    evidence: docs/implementation/evidence/ERP-963/
+    agent: claude
+    started_at: 2026-11-26T00:00:00+07:00
+    completed_at: 2026-11-26T12:00:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-963/
+
+  - id: ERP-964
+    title: CLI remembered organization profiles
+    phase: P16
+    status: done
+    dependencies: [ERP-960]
+    business_rules: [BR-AI-001]
+    tests: [T-UNIT-CLI-PROFILE-001]
+    evidence: docs/implementation/evidence/ERP-964/
+    agent: claude
+    started_at: 2026-11-26T00:00:00+07:00
+    completed_at: 2026-11-26T12:00:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-964/
+
+  - id: ERP-965
+    title: Split focused-record workspace into modules
+    phase: P16
+    status: done
+    dependencies: [ERP-960]
+    business_rules: [BR-UI-003]
+    tests: [T-UNIT-ERP-965-001]
+    evidence: docs/implementation/evidence/ERP-965/
+    agent: claude
+    started_at: 2026-11-26T00:00:00+07:00
+    completed_at: 2026-11-26T12:00:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-965/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -33,6 +33,13 @@ import { OutboundEventController } from "./outbound-events/outbound-event.contro
 import { OutboundEventService } from "./outbound-events/outbound-event.service.js";
 import { OUTBOUND_EVENT_ADMIN_STORE } from "./outbound-events/outbound-event.types.js";
 import { PgOutboundEventStore } from "./outbound-events/pg-outbound-event.store.js";
+import { TelegramSettingsController } from "./telegram-settings/telegram-settings.controller.js";
+import { TelegramSettingsService } from "./telegram-settings/telegram-settings.service.js";
+import { PgTelegramSettingsStore } from "./telegram-settings/pg-telegram-settings.store.js";
+import {
+  TELEGRAM_FETCH,
+  TELEGRAM_SETTINGS_STORE,
+} from "./telegram-settings/telegram-settings.types.js";
 import { BankingController } from "./banking/banking.controller.js";
 import { BankingService } from "./banking/banking.service.js";
 import { BANKING_STORE } from "./banking/banking.types.js";
@@ -142,6 +149,7 @@ import { TimeController } from "./time/time.controller.js";
     EvidenceController,
     InboundWebhookController,
     OutboundEventController,
+    TelegramSettingsController,
     BankingController,
     ReconciliationController,
     InternalTransferController,
@@ -193,6 +201,10 @@ import { TimeController } from "./time/time.controller.js";
     EvidenceObjectStorage,
     InboundWebhookService,
     PgInboundWebhookStore,
+    TelegramSettingsService,
+    PgTelegramSettingsStore,
+    { provide: TELEGRAM_SETTINGS_STORE, useExisting: PgTelegramSettingsStore },
+    { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,
     { provide: OUTBOUND_EVENT_ADMIN_STORE, useExisting: PgOutboundEventStore },

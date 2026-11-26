@@ -477,6 +477,20 @@
       "when": 1788138000000,
       "tag": "0068_allow_tax_code_metadata_correction",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1788224400000,
+      "tag": "0069_telegram_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1788224460000,
+      "tag": "0070_telegram_settings",
+      "breakpoints": true
     }
   ]
 }

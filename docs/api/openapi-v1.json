@@ -30,7 +30,8 @@
     "projects",
     "contracts",
     "milestones",
-    "posting-rule-versions"
+    "posting-rule-versions",
+    "workforce-profiles"
   ],
   "x-naai-workflows": [
     "journals/approve",
@@ -2007,6 +2008,19 @@
         "tags": ["discovery"],
         "summary": "Read a compact operation and resource index derived from the canonical OpenAPI contract",
         "security": []
+      }
+    },
+    "/api/v1/organizations/{organizationId}/telegram-settings": {
+      "get": {
+        "summary": "Read the organization's Telegram revenue/expense notification settings; the bot token is never returned, only hasBotToken and a 4-character hint"
+      },
+      "patch": {
+        "summary": "Update Telegram notification settings (enabled, botToken, chatId, threadId, notifyRevenue, notifyExpense); the bot token is stored encrypted and omitted fields keep their saved value"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/telegram-settings/test": {
+      "post": {
+        "summary": "Send a test message with the saved Telegram settings and report success or a redacted failure"
       }
     },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {

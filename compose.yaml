@@ -79,6 +79,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-naai_erp}:${POSTGRES_PASSWORD:-naai_erp_secret}@postgres:5432/${POSTGRES_DB:-naai_erp}
+      SESSION_SECRET: ${SESSION_SECRET:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

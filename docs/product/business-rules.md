@@ -1399,3 +1399,24 @@ Every implemented feature must trace:
 `ERP task → BR rule → API/domain operation → database invariant → tests → evidence → affected report`
 
 No task may be marked done with orphan business rules or untested behavior.
+
+### Telegram revenue/expense notifications
+
+- `BR-NOTIFY-001`: when an organization enables Telegram notifications in the app (bot token and
+  chat configured), each journal posted afterwards with revenue (`5xx`/`7xx` net credit) or expense
+  (`6xx`/`8xx` net debit) effect produces exactly one Telegram message, subject to the organization's
+  revenue/expense toggles; zero-effect journals and reversals are skipped. Notification never alters
+  the ledger, and delivery failure never blocks posting (retry with backoff, then `failed`).
+- `BR-NOTIFY-002`: only `owner` and `finance_admin` may change or test Telegram settings. The bot
+  token is write-only: stored encrypted, never returned, logged or audited in clear text.
+
+### Revenue and expense statistics (operating dashboard)
+
+- `BR-STAT-001`: dashboard revenue, expense, client concentration and DSO are expressed in the
+  organization's base currency only. Journals and documents in another currency are excluded from
+  these totals (they are not converted) and the dashboard returns the configuration warning
+  `foreign_currency_excluded_from_totals` so the omission is visible.
+- `BR-STAT-002`: DSO = receivables ÷ credit sales over the trailing 90 days × 90. Receivables are
+  VAT-inclusive (gross), so credit sales use gross amounts (invoices minus credit notes) as well.
+- `BR-STAT-003`: monthly category charts on the revenue/expense lists net credit notes as negative
+  amounts and omit cancelled, rejected, discarded and reversed records.

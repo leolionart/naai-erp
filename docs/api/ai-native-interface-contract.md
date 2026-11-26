@@ -47,3 +47,12 @@ Before chaining mutations, clients must read:
 
 The relationship contract is application-level. It does not authorize direct database access or
 make a known API/CLI parity gap callable.
+
+## CLI connection profiles
+
+To avoid retyping the organization, `naai-erp profile set <name> --organization <id> [--base-url <url>] [--use]`
+saves a non-secret profile in `~/.config/naai-erp/profiles.json` (override with `NAAI_ERP_CONFIG`, mode 0600).
+`profile list|show|use <name>|remove <name>` manage it; `--profile <name>` or `NAAI_ERP_PROFILE` picks one for a
+single command. Resolution order for organization and base URL: flag → `NAAI_ERP_ORGANIZATION`/`NAAI_ERP_BASE_URL` →
+active profile. The API token is never stored; keep it in `NAAI_ERP_TOKEN`. Keep one profile per company to switch
+between organizations without re-entering them.

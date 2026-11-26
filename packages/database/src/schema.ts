@@ -2509,6 +2509,65 @@ export const outboxEvents = pgTable(
   ],
 );
 
+export const telegramSettings = pgTable(
+  "telegram_settings",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organizations.id),
+    enabled: boolean("enabled").notNull().default(false),
+    enabledAt: timestamp("enabled_at", { withTimezone: true }),
+    chatId: text("chat_id"),
+    threadId: bigint("thread_id", { mode: "number" }),
+    botTokenEncrypted: text("bot_token_encrypted"),
+    botTokenHint: text("bot_token_hint"),
+    notifyRevenue: boolean("notify_revenue").notNull().default(true),
+    notifyExpense: boolean("notify_expense").notNull().default(true),
+    version: bigint("version", { mode: "number" }).notNull().default(1),
+    updatedBy: text("updated_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("telegram_settings_version_positive", sql`${table.version} > 0`),
+    check(
+      "telegram_settings_enabled_complete",
+      sql`NOT ${table.enabled} OR (${table.chatId} IS NOT NULL AND ${table.botTokenEncrypted} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const telegramNotifications = pgTable(
+  "telegram_notifications",
+  {
+    organizationId: text("organization_id").notNull(),
+    outboxEventId: text("outbox_event_id").notNull(),
+    state: text("state").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: "telegram_notifications_pk",
+      columns: [table.organizationId, table.outboxEventId],
+    }),
+    foreignKey({
+      name: "telegram_notifications_event_fk",
+      columns: [table.organizationId, table.outboxEventId],
+      foreignColumns: [outboxEvents.organizationId, outboxEvents.id],
+    }),
+    check(
+      "telegram_notifications_state_valid",
+      sql`${table.state} in ('pending','sent','skipped','failed')`,
+    ),
+    check("telegram_notifications_attempts_nonnegative", sql`${table.attempts} >= 0`),
+    index("telegram_notifications_due_idx").on(table.state, table.nextAttemptAt),
+  ],
+);
+
 export const outboundWebhookSubscriptions = pgTable(
   "outbound_webhook_subscriptions",
   {
@@ -4807,6 +4866,8 @@ export const schema = {
   inboundMessages,
   inboundMessageAttempts,
   outboxEvents,
+  telegramSettings,
+  telegramNotifications,
   outboundWebhookSubscriptions,
   outboundDeliveries,
   outboundDeliveryAttempts,
