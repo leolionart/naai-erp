@@ -139,4 +139,44 @@ describe("focused revenue and expense category chart", () => {
       )[0]?.categories,
     ).toEqual({ "Doanh thu chưa phân loại": 90n });
   });
+
+  it("nets credit notes and skips cancelled or rejected records", () => {
+    const points = buildFocusedRecordChartPoints(
+      [
+        {
+          __sourceKind: "documents",
+          type: "sales_invoice",
+          state: "posted",
+          document_date: "2026-06-01",
+          gross_minor: "1000",
+        },
+        {
+          __sourceKind: "documents",
+          type: "credit_note",
+          state: "posted",
+          document_date: "2026-06-02",
+          gross_minor: "300",
+        },
+        {
+          __sourceKind: "documents",
+          type: "sales_invoice",
+          state: "cancelled",
+          document_date: "2026-06-03",
+          gross_minor: "9999",
+        },
+        {
+          __sourceKind: "expenses",
+          state: "rejected",
+          expense_date: "2026-06-04",
+          gross_minor: "7777",
+        },
+      ],
+      name,
+    );
+    expect(points).toHaveLength(1);
+    expect(points[0]?.categories).toEqual({
+      "Doanh thu chưa phân loại": 1000n,
+      "Giảm trừ hóa đơn": -300n,
+    });
+  });
 });

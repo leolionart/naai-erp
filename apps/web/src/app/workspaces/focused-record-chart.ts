@@ -11,6 +11,13 @@ function text(row: Row | undefined, ...keys: string[]) {
   return "";
 }
 
+/** Records that no longer represent real revenue/cost must never be charted. */
+const EXCLUDED_STATES = new Set(["cancelled", "rejected", "discarded", "reversed"]);
+
+function isCreditNote(row: Row) {
+  return text(row, "type") === "credit_note";
+}
+
 function sourceKind(row: Row) {
   const source = row.__sourceKind;
   return source === "expenses" || source === "recognition" ? source : "documents";
@@ -101,12 +108,16 @@ export function buildFocusedRecordChartPoints(
   }
 
   for (const row of rows) {
+    if (EXCLUDED_STATES.has(text(row, "state"))) continue;
+    // A credit note reduces revenue, so it is stacked as a negative amount.
+    const sign = isCreditNote(row) ? -1n : 1n;
+    const signedAdd = (m: string, c: string, a: bigint) => add(m, c, a * sign);
     const date = text(row, "documentDate", "expenseDate", "effectiveOn", "issueDate", "createdAt");
     const month = date && /^\d{4}-\d{2}/.test(date) ? date.substring(0, 7) : "Khác";
     const lines = Array.isArray(row.lines) ? (row.lines as Row[]) : [];
 
     if ((sourceKind(row) === "documents" || sourceKind(row) === "expenses") && lines.length) {
-      addRecordLines(row, lines, categoryName, add, month);
+      addRecordLines(row, lines, categoryName, signedAdd, month);
       continue;
     }
     const code = text(row, "category", "categoryCode", "expenseCategoryCode", "serviceLineCode");
@@ -114,7 +125,7 @@ export function buildFocusedRecordChartPoints(
     const amount = BigInt(
       text(row, "grossMinor", "totalAmountMinor", "amountMinor", "totalMinor") || "0",
     );
-    add(month, label, amount);
+    signedAdd(month, label, amount);
   }
 
   return [...monthly.entries()]
