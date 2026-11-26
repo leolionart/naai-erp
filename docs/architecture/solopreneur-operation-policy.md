@@ -40,3 +40,14 @@ The first-party UI should carry them automatically and show readable names; tech
 remain available in advanced audit and drill-down views.
 
 Controlled mode remains unchanged.
+
+## Owner funding and corrections (planned, ERP-976 to ERP-981)
+
+The forward-looking plan in
+[`docs/implementation/plans/funding-and-account-reclassification.md`](../implementation/plans/funding-and-account-reclassification.md)
+applies one-person-company practice to this policy: personal and company money stay separate; the owner has one
+current-account relationship (company owes owner minus owner-held company cash); balances are derived from the
+ledger at any date; a change of payment source or account is an adjusting journal in the open period with a
+reason and history instead of editing or backdating posted entries; the owner self-approves with an audit trail
+and every command ends in a posted state. Account codes and tax thresholds named there require accountant
+confirmation before implementation.

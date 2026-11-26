@@ -59,6 +59,41 @@ owner_custody_cash`; hai loại đầu cần `financialAccountId`. **Không có 
 6. Giữ bất biến kế toán: không sửa/xóa bút toán đã ghi; đảo + thay thế; kỳ khóa, đối soát, đa tiền tệ,
    idempotency, RBAC, audit vẫn áp dụng.
 
+## 3A. Thông lệ cho doanh nghiệp một người (cơ sở của các quyết định bên dưới)
+
+Các nguyên tắc này là thông lệ kế toán quản trị/thuế cho công ty một chủ; mỗi điểm có ghi **cần kế toán xác nhận**
+nếu liên quan quy định pháp luật hoặc mã tài khoản cụ thể. Mục tiêu: ít khái niệm, số liệu luôn suy ra từ sổ cái,
+lịch sử không bị sửa.
+
+1. **Tách bạch tiền cá nhân và tiền công ty.** Mọi khoản chi phải thuộc đúng một trong bốn nhóm: chủ chi hộ
+   (công ty nợ chủ), tiền công ty do chủ giữ/ứng (chủ nợ lại công ty phần chưa chi), két/ngân hàng công ty, hoặc
+   chi tiêu cá nhân của chủ (không phải chi phí, đi qua `owner_draw`/phải thu chủ sở hữu, không vào lãi lỗ).
+2. **Một tài khoản vãng lai chủ sở hữu.** Quan hệ với chủ là một số dư duy nhất: _công ty nợ chủ_ (chi hộ,
+   TK 3388) trừ _chủ đang giữ tiền công ty_ (tạm ứng). Dashboard hiển thị số ròng; sổ cái giữ hai tài khoản riêng để
+   truy vết. Định kỳ đối chiếu và quyết toán (hoàn tiền chủ, hoặc cấn trừ vốn/vay chủ).
+3. **Số dư phải suy ra từ sổ cái, không từ bảng phụ.** Số dư "chủ đang giữ" cần đúng tại _mọi ngày_ (as-of). Nếu chỉ
+   dựa liên kết `funding_financial_account_id`, đổi liên kết sẽ làm số liệu quá khứ thay đổi ngầm và không khớp
+   bút toán. Vì vậy quỹ chủ giữ cần **tài khoản sổ cái riêng** (xem 4.5).
+4. **Không sửa lịch sử, sửa bằng bút toán điều chỉnh ở kỳ đang mở.** Khi chỉ đổi _nguồn tiền_ hoặc _tài khoản_
+   (số tiền, VAT, ngày chứng từ giữ nguyên), thông lệ là một **bút toán điều chỉnh/phân loại lại** ghi ngày hiện tại
+   (ví dụ Nợ 3388 / Có tài khoản chủ giữ), không đảo và ghi lại chứng từ gốc. Ưu điểm: không bị chặn bởi kỳ đã khóa, không
+   cần duyệt lại, đối soát ngân hàng cũ không bị hủy, kiểm toán thấy đúng "ai đổi gì, khi nào, vì sao".
+   Đảo + thay thế chỉ dùng khi đổi số tiền, VAT, ngày, đối tác hoặc chia lại phân bổ.
+5. **Chủ tự duyệt nhưng có dấu vết.** Không cần người duyệt thứ hai; bắt buộc lý do, audit, idempotency và khóa kỳ.
+   Một lệnh phải đi đến trạng thái cuối (đã ghi sổ), không để "nháp thay thế" treo.
+6. **Bằng chứng nằm ở hệ thống nguồn** (Paperless/n8n): tham chiếu ngoài đủ làm chứng từ; ERP lưu liên kết, không nhân bản file.
+7. **Chứng từ thanh toán quyết định khấu trừ.** Hóa đơn giá trị lớn chỉ được khấu trừ VAT/chi phí khi có thanh toán không
+   dùng tiền mặt; chủ chi hộ bằng thẻ/chuyển khoản cá nhân vẫn đạt nếu có bằng chứng. Cần cột **phương thức thanh toán**
+   (`cash | bank_transfer | card | other`) và **ngưỡng cảnh báo cấu hình theo tổ chức** (mặc định do kế toán đặt theo quy định
+   hiện hành, ví dụ ngưỡng 5 triệu đồng/hóa đơn theo Luật Thuế GTGT 2024 — **cần kế toán xác nhận**); chỉ _cảnh báo_,
+   không chặn ghi sổ.
+8. **Quỹ tiền mặt không âm.** Chi từ quỹ chủ giữ vượt số dư là dấu hiệu sai nguồn tiền; hệ thống cảnh báo khi số dư quỹ âm
+   và đề xuất chuyển phần vượt sang "chủ chi hộ".
+9. **Kiểm quỹ định kỳ.** Mỗi cuối tháng chủ nhập số tiền mặt thực tế đang giữ; hệ thống so với sổ cái và ghi chênh lệch vào
+   tài khoản thừa/thiếu quỹ có lý do (hoặc dẫn tới phân loại lại các khoản chi).
+10. **Ít cấu hình, mặc định thông minh.** Quy tắc nguồn tiền theo nhà cung cấp/danh mục/nguồn nhập; mặc định tổ chức là
+    `owner_paid` (an toàn: không làm giảm tiền công ty khi chưa chắc).
+
 ## 4. Giải pháp đề xuất
 
 ### 4.1 Quy tắc nguồn tiền khi nhập (phòng ngừa) — ERP-976
@@ -69,14 +104,20 @@ amount range, target: type + financialAccountId)` và một `default_funding` (t
 - API/CLI: `funding-rules list|create|update|delete|test` (`test` nhận một payload mẫu, trả nguồn tiền sẽ chọn).
 - Ví dụ: "mọi hóa đơn từ n8n có category `PARKING` → quỹ chủ giữ"; "nhà cung cấp 0110660175 → chủ chi hộ".
 
-### 4.2 Đổi nguồn tiền từng khoản, một lệnh — ERP-977
+### 4.2 Đổi nguồn tiền từng khoản bằng bút toán điều chỉnh, một lệnh — ERP-977
 
-- `POST /expenses/{id}/reclassify-funding` (đã có) mở rộng: `postReplacement` (mặc định `true` khi owner ở solopreneur)
-  và tham chiếu bằng `externalReference` (`POST /expenses/by-external/{system}/{externalId}/reclassify-funding`).
-- Thêm tương đương cho hóa đơn mua: `POST /commercial-documents/{id}/reclassify-funding` nhận
-  `financialAccountId` (gắn quỹ chủ giữ / ngân hàng / quỹ công ty), không chỉ `targetControlAccountCode`.
-- Thêm loại nguồn `company_cash` vào hợp đồng (chi từ két công ty) để hết nhập nhằng với quỹ chủ giữ.
-- Bắt buộc `If-Match`, `Idempotency-Key`, `reason`; trả `reversalJournalId`, `replacementId`, `replacementState`.
+- Lệnh `reclassify-funding` (chi phí **và** hóa đơn mua) thực hiện trong **một giao dịch**:
+  1. ghi **bút toán điều chỉnh** ngày hiện tại (hoặc `effectiveOn` trong kỳ đang mở): Nợ tài khoản nguồn cũ / Có tài khoản nguồn mới,
+     đúng số tiền thanh toán (gồm VAT nếu đã tính vào khoản phải trả/chi);
+  2. cập nhật liên kết nguồn tiền của bản ghi (ghi lịch sử `funding_changes`: từ → sang, ai, khi nào, lý do, journal id);
+  3. không đổi số tiền/VAT/ngày/phân bổ/trạng thái thuế, không tạo bản nháp, không cần duyệt lại.
+- Trả `adjustmentJournalId`, `fundingChangeId`; idempotent theo `Idempotency-Key`; bắt buộc `If-Match` và `reason`.
+- Khoản đã đối soát với giao dịch ngân hàng: chỉ cho đổi sang/giữa các tài khoản _ngân hàng/tiền mặt đúng với giao dịch_; nếu không, báo
+  "cần hủy đối soát". Hóa đơn đã thanh toán một phần: chỉ đổi phần chưa thanh toán (hoặc chặn, ghi rõ).
+- Địa chỉ bằng `externalReference` (`system` + `externalId`) ngoài id nội bộ.
+- Thêm loại nguồn `company_cash` (két công ty) vào hợp đồng để không nhầm với quỹ chủ giữ.
+- Đảo + thay thế (`reverse-replace`, đã có từ ERP-975) chỉ còn dùng khi đổi nội dung chứng từ; replacement ghi sổ ngay cho owner ở
+  solopreneur để không treo nháp.
 
 ### 4.3 Sửa hàng loạt bằng bảng tính — ERP-978
 
@@ -95,23 +136,28 @@ Quy trình chủ sử dụng:
 
 ### 4.4 Đổi tài khoản chi phí / doanh thu — ERP-979
 
-- `POST …/{expenses|commercial-documents}/{id}/reclassify-accounts` với
-  `lines: [{ lineNumber, postingAccountCode?, categoryCode? }]` (doanh thu: `primaryAccountCode` theo danh mục dịch vụ).
-- Dựng lại bản thay thế giữ nguyên số tiền, VAT, phân bổ, tham chiếu ngoài; cùng cơ chế dry-run/commit hàng loạt
-  (`account-plans`) và cùng cột trong bảng tính (`targetAccount`).
-- Bắt buộc TK đích đang hoạt động, đúng loại (doanh thu ↔ chi phí), và hợp lệ với danh mục.
+- Cùng nguyên tắc 3A.4: đổi _tài khoản_ (chi phí 642 ↔ 632, doanh thu 511x ↔ 511y) là **bút toán điều chỉnh ở kỳ đang mở**
+  (Nợ TK mới / Có TK cũ với chi phí; ngược lại với doanh thu), kèm cập nhật danh mục/dòng; số tiền, VAT, kỳ phát sinh của chứng từ gốc không đổi.
+- `POST …/{expenses|commercial-documents}/{id}/reclassify-accounts` với `lines: [{ lineNumber, postingAccountCode?, categoryCode? }]`
+  và `effectiveOn?`; hàng loạt qua `account-plans` (cùng cột `targetAccount` trong bảng tính).
+- Ràng buộc: TK đích đang hoạt động, đúng loại (doanh thu ↔ chi phí), phù hợp danh mục; không đổi TK thuế (VAT) bằng lệnh này.
+- Lưu ý báo cáo: bút toán điều chỉnh làm báo cáo _theo kỳ_ thể hiện chênh lệch ở kỳ điều chỉnh; báo cáo "theo ngày chứng từ" của dashboard
+  cần hiển thị đúng phân loại mới (đọc danh mục dòng đã cập nhật, không suy từ bút toán).
 
-### 4.5 Phân biệt quỹ chủ giữ trong sổ cái (quyết định cần chủ + kế toán) — ERP-980
+### 4.5 Quỹ tiền công ty do chủ giữ có tài khoản sổ cái riêng — ERP-980
 
-Hai phương án:
+**Quyết định theo thông lệ (3A.2, 3A.3): chọn phương án B — tài khoản sổ cái riêng.**
 
-- **A. Giữ như hiện nay** (chung TK 111, tách bằng liên kết tài khoản tài chính). Ít thay đổi nhưng báo cáo chỉ dựa sổ cái
-  không thấy quỹ chủ giữ; phụ thuộc liên kết `funding_financial_account_id` luôn đúng.
-- **B. Tạo TK riêng cho quỹ chủ giữ** (tài khoản con của 111 hoặc khoản "phải thu khác" tùy kế toán), ánh xạ vào
-  `CASH-OWNER-CUSTODY`. Sổ cái và bảng cân đối thể hiện trực tiếp; cần migration chuyển các bút toán cũ và cập nhật
-  bản đồ báo cáo TT133.
-- Khuyến nghị: **B** nếu báo cáo tài chính chính thức cần thấy số dư quỹ chủ giữ; **A** nếu chỉ phục vụ quản trị.
-  Không thực hiện cho đến khi kế toán xác nhận cách hạch toán.
+- Đề xuất hạch toán: khi công ty giao tiền cho chủ cầm để chi hộ, ghi **Nợ tạm ứng chủ sở hữu (TK 141) / Có 111 hoặc 112**; mỗi
+  khoản chi từ quỹ đó ghi **Nợ chi phí / Có TK 141**; số dư 141 = tiền công ty chủ còn giữ. (Phương án thay thế: tài khoản con của 111,
+  ví dụ `1111-CHU-GIU`. **Cần kế toán xác nhận** mã tài khoản và cách trình bày trên bảng cân đối TT133.)
+- Ánh xạ `CASH-OWNER-CUSTODY` → tài khoản này; `CASH-COMPANY` giữ TK 111 riêng. Liên kết `funding_financial_account_id` vẫn tồn tại để
+  truy vết nhưng **số dư và dashboard tính từ sổ cái** theo từng tài khoản (đúng tại mọi ngày as-of).
+- Migration: chuyển các bút toán cũ dùng 111 có liên kết `CASH-OWNER-CUSTODY` sang tài khoản mới bằng bút toán điều chỉnh có kiểm soát
+  (dry-run/commit, tổng nợ = tổng có), sau đó dashboard bỏ nhánh suy luận từ liên kết.
+- Báo cáo: dashboard hiển thị _số dư vãng lai chủ sở hữu ròng_ = TK 3388 − TK 141, kèm hai thành phần.
+- Quỹ không âm và kiểm quỹ định kỳ (3A.8–3A.9) là cảnh báo/biểu mẫu trên số dư này.
+- Task đang `blocked` cho tới khi kế toán xác nhận mã tài khoản; sau đó chuyển `ready`.
 
 ### 4.6 Dữ liệu cũ — ERP-981
 
@@ -133,7 +179,7 @@ Bất biến mỗi lần đổi: tổng nợ = tổng có; tổng chi phí/VAT k
 
 ## 6. Giới hạn và rủi ro cần xử lý khi implement
 
-- Kỳ đã khóa: dry-run báo "bị chặn"; không tự mở kỳ. Cân nhắc cho phép bút toán đảo vào kỳ mở hiện tại (cần quyết định kế toán).
+- Kỳ đã khóa: bút toán điều chỉnh luôn ghi ở kỳ đang mở nên không bị chặn; chỉ đảo + thay thế (đổi số tiền/ngày) mới bị chặn và phải báo rõ.
 - Đã đối soát ngân hàng / hóa đơn đã thanh toán: yêu cầu hủy đối soát trước (đã sửa lỗi hủy đối soát ở migration `0072`).
 - Thuế: trạng thái CIT/VAT của dòng được giữ nguyên khi thay thế (không để quay về "chưa rà soát").
 - Telegram/outbox: mỗi lần đổi sinh sự kiện hợp lệ; không gửi thông báo "doanh thu/chi phí mới" cho bản thay thế.
@@ -154,9 +200,18 @@ Bất biến mỗi lần đổi: tổng nợ = tổng có; tổng chi phí/VAT k
 Mỗi task phải: viết test lỗi trước (T-INT cho bất biến mục 5), cập nhật OpenAPI + gate matrix + CLI + business rules + docs,
 chạy test tích hợp trên Postgres tạm, thêm evidence theo `AGENTS.md`.
 
-## 8. Câu hỏi cần chủ quyết định trước khi làm
+## 8. Quyết định đã chốt theo thông lệ và phần còn cần xác nhận
 
-1. Replacement có nên **ghi sổ ngay** cho mọi owner solopreneur (đề xuất: có)?
-2. Phương án quỹ chủ giữ **A hay B** (mục 4.5) — cần ý kiến kế toán.
-3. Có cho phép bút toán đảo vào **kỳ đang mở** khi kỳ gốc đã khóa không?
-4. Danh sách quy tắc nguồn tiền ban đầu (nhà cung cấp/danh mục nào → nguồn nào) để cấu hình sẵn.
+Đã chốt (có thể thực hiện ngay):
+
+1. Đổi nguồn tiền/tài khoản = **bút toán điều chỉnh ở kỳ đang mở** + lịch sử thay đổi, kết thúc ở trạng thái đã ghi sổ (không nháp thay thế).
+2. Quỹ chủ giữ dùng **tài khoản sổ cái riêng**; số dư tính từ sổ cái; dashboard hiển thị số dư vãng lai chủ ròng.
+3. Mặc định tổ chức là `owner_paid`; quy tắc nguồn tiền theo nhà cung cấp/danh mục/nguồn nhập; `funding` trong payload luôn thắng.
+4. Thêm phương thức thanh toán và cảnh báo (không chặn) theo ngưỡng cấu hình; cảnh báo quỹ chủ giữ âm; biểu mẫu kiểm quỹ cuối tháng.
+
+Cần kế toán/chủ xác nhận trước khi code phần liên quan:
+
+1. Mã tài khoản cho quỹ chủ giữ (TK 141 tạm ứng hay tài khoản con của 111) và cách trình bày trên bảng cân đối.
+2. Ngưỡng thanh toán không dùng tiền mặt áp dụng cho khấu trừ VAT và chi phí được trừ hiện hành.
+3. Cách xử lý chi tiêu cá nhân của chủ (rút vốn, tạm ứng hay phải thu chủ sở hữu) phù hợp loại hình công ty.
+4. Danh sách quy tắc nguồn tiền ban đầu (nhà cung cấp/danh mục nào → nguồn nào).

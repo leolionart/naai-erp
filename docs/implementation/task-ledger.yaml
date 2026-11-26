@@ -3796,7 +3796,7 @@ tasks:
       - docs/implementation/plans/funding-and-account-reclassification.md
 
   - id: ERP-977
-    title: Single-command funding change for expenses and purchase invoices (company_cash, auto-post, externalReference)
+    title: Funding change by adjusting journal for expenses and purchase invoices with company_cash, funding history and externalReference
     phase: P17
     status: ready
     dependencies: [ERP-975]
@@ -3820,7 +3820,7 @@ tasks:
       - docs/implementation/plans/funding-and-account-reclassification.md
 
   - id: ERP-979
-    title: Reclassify expense and revenue accounts with account plans
+    title: Reclassify expense and revenue accounts by adjusting journal with account plans
     phase: P17
     status: ready
     dependencies: [ERP-977]
@@ -3832,7 +3832,7 @@ tasks:
       - docs/implementation/plans/funding-and-account-reclassification.md
 
   - id: ERP-980
-    title: Distinguish owner-held custody cash in the ledger (needs owner and accountant decision)
+    title: Dedicated ledger account for owner-held company cash and net owner-current balance (blocked until accountant confirms the account code)
     phase: P17
     status: blocked
     dependencies: [ERP-977]
@@ -3844,7 +3844,7 @@ tasks:
       - docs/implementation/plans/funding-and-account-reclassification.md
 
   - id: ERP-981
-    title: Funding inference for legacy records and unknown-funding report
+    title: Legacy funding inference, payment method warnings, negative custody fund alert and cash count
     phase: P17
     status: ready
     dependencies: [ERP-976, ERP-978]
