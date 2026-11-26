@@ -101,6 +101,7 @@ export function FocusedRecordListWorkspace({
   const [freelancers, setFreelancers] = useState<Row[]>([]);
   const [projects, setProjects] = useState<Row[]>([]);
   const [financialAccounts, setFinancialAccounts] = useState<Row[] | undefined>();
+  const [categoryNames, setCategoryNames] = useState<Readonly<Record<string, string>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState(false);
@@ -483,6 +484,22 @@ export function FocusedRecordListWorkspace({
       .catch(() => {
         if (!cancelled) setFinancialAccounts([]);
       });
+    void Promise.allSettled([
+      client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/categories"),
+      client.data<readonly Row[] | { items?: readonly Row[] }>("expense-categories"),
+    ]).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        for (const row of items(result.value)) {
+          const code = text(row, "code");
+          const name = text(row, "name");
+          if (code && name) next[code] = name;
+        }
+      }
+      setCategoryNames(next);
+    });
     return () => {
       cancelled = true;
     };
@@ -781,9 +798,13 @@ export function FocusedRecordListWorkspace({
       setQuickBusy(false);
     }
   }
+  const resolveCategoryName = (code?: string) => {
+    if (!code) return "";
+    return categoryNames[code] || getCategoryName(code);
+  };
   const points: readonly StackedCategoryPoint[] = buildFocusedRecordChartPoints(
     rows,
-    getCategoryName,
+    resolveCategoryName,
   );
 
   return (
@@ -931,7 +952,7 @@ export function FocusedRecordListWorkspace({
                     : rawParty || "—";
                   const docNumber = text(row, "documentNumber") || id;
                   const catCode = expensePresentation?.category || recordCategory(row);
-                  const catName = getCategoryName(catCode);
+                  const catName = resolveCategoryName(catCode);
                   const projectIds =
                     revenuePresentation?.projectIds ?? relationshipIdList(row, "projectId");
                   const projectNames =

@@ -328,6 +328,7 @@ export const INBOUND_CATEGORIES = [
   { code: "DEPOSIT_REFUND", name: "Chi phí Hoàn tiền cọc / Đặt cọc", defaultAccount: "642-OPEX" },
   { code: "TAX", name: "Chi phí Thuế & Phí nhà nước", defaultAccount: "642-OPEX" },
   { code: "OWNER_DRAWING", name: "Chi tiêu cá nhân chủ sở hữu", defaultAccount: "642-OPEX" },
+  { code: "ACCOUNTING_SERVICES", name: "Chi phí dịch vụ kế toán", defaultAccount: "642-OPEX" },
   { code: "OTHER_EXPENSE", name: "Chi phí mua vào khác", defaultAccount: "642-OPEX" },
 ] as const;
 
