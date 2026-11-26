@@ -13,22 +13,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -81,7 +71,13 @@ import {
   queryFor,
 } from "./focused-record-shared";
 import { FocusedRecordErrorAlert } from "./focused-record-alerts";
+import { QuickViewOneClickRecordBar } from "./focused-record-action-bar";
+import { canRecordInOneClick, formatRecordActionError } from "./focused-record-actions";
 import { FilterPopover } from "./focused-record-filter-popover";
+import {
+  DeleteDraftPurchaseInvoiceDialog,
+  ReclassifyFundingDialog,
+} from "./focused-record-quick-view-dialogs";
 
 export function FocusedRecordListWorkspace({
   kind,
@@ -644,6 +640,34 @@ export function FocusedRecordListWorkspace({
     text(quickRecord, "type") === "purchase_invoice" &&
     text(quickRecord, "state") === "draft" &&
     !text(quickRecord, "journalId");
+  const canOneClickRecordQuick =
+    quickRecord !== undefined &&
+    canRecordInOneClick(sourceKind(quickRecord), quickRecord, workflowCapabilities);
+
+  async function recordQuickDraft(recordReason: string) {
+    if (!quickRecord || !canOneClickRecordQuick) return;
+    const id = text(quickRecord, "id");
+    const source = sourceKind(quickRecord);
+    if (source === "recognition") return;
+    setQuickBusy(true);
+    setActionError("");
+    try {
+      await client.data(`${sourceEndpoint(source)}/${encodeURIComponent(id)}/record`, {
+        method: "POST",
+        idempotencyKey: `record-${source}-${id}-${crypto.randomUUID()}`,
+        body: { reason: recordReason },
+      });
+      toast.success("Đã ghi sổ thành công.");
+      setQuickRecord(undefined);
+      await load();
+    } catch (cause) {
+      const message = formatRecordActionError(cause);
+      setActionError(message);
+      toast.error(message);
+    } finally {
+      setQuickBusy(false);
+    }
+  }
 
   async function deleteQuickPurchaseInvoice() {
     if (!quickRecord || !canDeleteQuickPurchaseInvoice || !deleteInvoiceReason.trim()) return;
@@ -1047,6 +1071,12 @@ export function FocusedRecordListWorkspace({
                   </CardContent>
                 </Card>
               ) : null}
+              {canOneClickRecordQuick ? (
+                <QuickViewOneClickRecordBar
+                  busy={quickBusy}
+                  onRecord={(recordReason) => void recordQuickDraft(recordReason)}
+                />
+              ) : null}
               {canReclassifyFunding ? (
                 <div className="flex justify-end">
                   <Button
@@ -1150,7 +1180,7 @@ export function FocusedRecordListWorkspace({
           ) : null}
         </DialogContent>
       </Dialog>
-      <Dialog
+      <DeleteDraftPurchaseInvoiceDialog
         open={deleteInvoiceOpen}
         onOpenChange={(open) => {
           setDeleteInvoiceOpen(open);
@@ -1159,47 +1189,13 @@ export function FocusedRecordListWorkspace({
             setActionError("");
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Xóa hóa đơn mua vào bản nháp?</DialogTitle>
-            <DialogDescription>
-              Chỉ bản nháp chưa có journal mới được xóa. Thao tác được ghi audit và không thể hoàn
-              tác.
-            </DialogDescription>
-          </DialogHeader>
-          <FocusedRecordErrorAlert kind="action" message={actionError} />
-          <Field data-invalid={deleteInvoiceReason.length > 0 && !deleteInvoiceReason.trim()}>
-            <FieldLabel htmlFor="delete-purchase-invoice-reason">Lý do xóa</FieldLabel>
-            <Textarea
-              id="delete-purchase-invoice-reason"
-              value={deleteInvoiceReason}
-              onChange={(event) => setDeleteInvoiceReason(event.target.value)}
-              placeholder="Ví dụ: Hóa đơn nhập nhầm hoặc bị trùng"
-              aria-invalid={deleteInvoiceReason.length > 0 && !deleteInvoiceReason.trim()}
-            />
-          </Field>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={quickBusy}
-              onClick={() => setDeleteInvoiceOpen(false)}
-            >
-              Giữ lại
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={quickBusy || !deleteInvoiceReason.trim()}
-              onClick={() => void deleteQuickPurchaseInvoice()}
-            >
-              {quickBusy ? "Đang xóa…" : "Xác nhận xóa"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog
+        reason={deleteInvoiceReason}
+        onReasonChange={setDeleteInvoiceReason}
+        busy={quickBusy}
+        error={actionError}
+        onConfirm={() => void deleteQuickPurchaseInvoice()}
+      />
+      <ReclassifyFundingDialog
         open={reclassifyOpen}
         onOpenChange={(open) => {
           setReclassifyOpen(open);
@@ -1208,64 +1204,16 @@ export function FocusedRecordListWorkspace({
             setActionError("");
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Đổi sang nguồn thanh toán khác?</DialogTitle>
-            <DialogDescription>
-              Bút toán đã ghi sổ sẽ được đảo và tạo bản thay thế ở trạng thái nháp. Lịch sử và đối
-              soát cũ được giữ nguyên; bản thay thế sẽ ghi nhận theo nguồn bạn chọn.
-            </DialogDescription>
-          </DialogHeader>
-          <FocusedRecordErrorAlert kind="action" message={actionError} />
-          <Field>
-            <FieldLabel htmlFor="reclassify-funding-target">Nguồn thanh toán mới</FieldLabel>
-            <Select value={reclassifyTargetAccount} onValueChange={setReclassifyTargetAccount}>
-              <SelectTrigger id="reclassify-funding-target" className="w-full min-w-0">
-                <SelectValue placeholder="Chọn nguồn thanh toán" />
-              </SelectTrigger>
-              <SelectContent>
-                {reclassifyFundingOptions
-                  .filter((option) => !isCurrentFunding(option, quickRecord))
-                  .map((option) => (
-                    <SelectItem key={fundingOptionValue(option)} value={fundingOptionValue(option)}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">
-              Sẽ chuyển sang: {fundingLabel(reclassifyTargetAccount, reclassifyFundingOptions)}
-            </p>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="reclassify-funding-reason">Lý do điều chỉnh</FieldLabel>
-            <Textarea
-              id="reclassify-funding-reason"
-              value={reclassifyReason}
-              onChange={(event) => setReclassifyReason(event.target.value)}
-              placeholder="Ví dụ: Hóa đơn do chủ doanh nghiệp thanh toán bằng tiền cá nhân"
-            />
-          </Field>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={quickBusy}
-              onClick={() => setReclassifyOpen(false)}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="button"
-              disabled={quickBusy || !reclassifyReason.trim()}
-              onClick={() => void reclassifyFunding()}
-            >
-              {quickBusy ? "Đang xử lý…" : "Xác nhận đổi nguồn"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        quickRecord={quickRecord}
+        options={reclassifyFundingOptions}
+        targetAccount={reclassifyTargetAccount}
+        onTargetAccountChange={setReclassifyTargetAccount}
+        reason={reclassifyReason}
+        onReasonChange={setReclassifyReason}
+        busy={quickBusy}
+        error={actionError}
+        onConfirm={() => void reclassifyFunding()}
+      />
     </div>
   );
 }

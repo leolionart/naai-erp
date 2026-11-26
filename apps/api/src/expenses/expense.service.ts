@@ -2,6 +2,10 @@ import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
 import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
+import {
+  ROUTINE_EXPENSE_ACTIONS,
+  resolveRoutineActionReason,
+} from "../draft-recording/draft-recording.types.js";
 import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { normalizeExpenseRelationships } from "./expense-relationships.js";
@@ -615,7 +619,12 @@ export class ExpenseService {
       action === "approve" ? REVIEW : ["post", "cancel"].includes(action) ? POST : WRITE;
     if (!context.roles.some((r) => roles.has(r))) throw new Error("FORBIDDEN");
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
+    const allowDefault =
+      ROUTINE_EXPENSE_ACTIONS.has(action) &&
+      context.roles.includes("owner") &&
+      Boolean(await this.store.isSolopreneur?.(context.organizationId));
+    const effectiveReason = resolveRoutineActionReason(input?.reason, allowDefault);
+    if (!effectiveReason) throw new Error("VALIDATION_FAILED");
     if (action === "post") {
       const existing = await this.store.get?.(context.organizationId, id);
       if (existing?.currency)
@@ -627,8 +636,8 @@ export class ExpenseService {
         context,
         id,
         action,
-        input.reason.trim(),
-        input.missingEvidenceTypes ?? [],
+        effectiveReason,
+        input?.missingEvidenceTypes ?? [],
         key,
       ),
     );

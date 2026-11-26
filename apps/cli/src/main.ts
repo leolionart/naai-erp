@@ -6,6 +6,7 @@ import { NaaiErpClient } from "./client.js";
 import { executeCrossEnvironmentClone } from "./cli-http-helpers.js";
 import { writeDownloadedWorkbookOutput } from "./payment-evidence-cli.js";
 import { runWorkbookImport } from "./import-workbooks.js";
+import { buildDraftsRecordCliPayload } from "./draft-recording-cli.js";
 import { buildOwnerFundingCliPayload, isOwnerFundingResource } from "./owner-funding-cli.js";
 import {
   loadProfiles,
@@ -83,6 +84,7 @@ const { values, positionals } = parseArgs({
     human: { type: "boolean", default: false },
     "project-workbook": { type: "string" },
     "finance-workbook": { type: "string" },
+    "dry-run": { type: "boolean", default: false },
     commit: { type: "boolean", default: false },
     "dry-run-id": { type: "string" },
     "workbook-sha256": { type: "string" },
@@ -228,6 +230,19 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
       });
       process.stdout.write(
         values.human ? `${JSON.stringify(cloned, null, 2)}\n` : `${JSON.stringify(cloned)}\n`,
+      );
+    } else if (resource === "drafts") {
+      const batchPayload = await buildDraftsRecordCliPayload(action, values);
+      const result = await client.request(
+        "drafts",
+        action,
+        batchPayload,
+        undefined,
+        undefined,
+        values["idempotency-key"],
+      );
+      process.stdout.write(
+        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
       );
     } else if (isOwnerFundingResource(resource)) {
       const result = await client.request(

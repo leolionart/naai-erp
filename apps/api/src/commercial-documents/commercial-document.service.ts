@@ -2,6 +2,10 @@ import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
 import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
+import {
+  ROUTINE_DOCUMENT_ACTIONS,
+  resolveRoutineActionReason,
+} from "../draft-recording/draft-recording.types.js";
 import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { validateCommercialDocumentFunding } from "./commercial-document-funding.validator.js";
@@ -607,7 +611,12 @@ export class CommercialDocumentService {
           : WRITE_ROLES;
     if (!context.roles.some((role) => roles.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
+    const allowDefault =
+      ROUTINE_DOCUMENT_ACTIONS.has(action) &&
+      context.roles.includes("owner") &&
+      Boolean(await this.store.isSolopreneur?.(context.organizationId));
+    const effectiveReason = resolveRoutineActionReason(input?.reason, allowDefault);
+    if (!effectiveReason) throw new Error("VALIDATION_FAILED");
     if (action === "issue" || action === "post") {
       const existing = await this.store.get?.(context.organizationId, id);
       if (existing?.currency)
@@ -615,7 +624,7 @@ export class CommercialDocumentService {
     }
     return this.envelope(
       context,
-      await this.store.transition(context, id, action, input.reason.trim(), idempotencyKey),
+      await this.store.transition(context, id, action, effectiveReason, idempotencyKey),
     );
   }
   private validate(input: CreateCommercialDocumentInput) {

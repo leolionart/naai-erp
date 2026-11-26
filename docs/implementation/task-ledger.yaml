@@ -4188,14 +4188,55 @@ tasks:
   - id: ERP-989
     title: One-click record for drafts with batch dry-run and commit for solopreneur owners
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-982, ERP-988]
     business_rules: [BR-REC-001, BR-REC-003]
     tests: [T-INT-REC-001, T-INT-REC-002]
     plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-989/
+    agent: antigravity
+    started_at: 2026-11-26T19:58:00+07:00
+    completed_at: 2026-11-26T20:26:00+07:00
+    completion_basis: implemented_with_scratch_database_cli_and_real_ui_evidence
     planned_files:
-      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+      - apps/api/src/draft-recording/draft-recording.types.ts
+      - apps/api/src/draft-recording/draft-recording-checks.helper.ts
+      - apps/api/src/draft-recording/draft-recording-journals.helper.ts
+      - apps/api/src/draft-recording/draft-recording-batch.helper.ts
+      - apps/api/src/draft-recording/expense-record.helper.ts
+      - apps/api/src/draft-recording/commercial-document-record.helper.ts
+      - apps/api/src/draft-recording/draft-recording.service.ts
+      - apps/api/src/draft-recording/draft-recording.controller.ts
+      - apps/api/src/draft-recording/draft-recording.test-helper.ts
+      - apps/api/src/draft-recording/draft-recording.integration.test.ts
+      - apps/api/src/expenses/expense.controller.ts
+      - apps/api/src/expenses/expense.service.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/commercial-documents/commercial-document.controller.ts
+      - apps/api/src/commercial-documents/commercial-document.service.ts
+      - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
+      - apps/api/src/api-exception.filter.ts
+      - apps/api/src/app.module.ts
+      - apps/cli/src/draft-recording-cli.ts
+      - apps/cli/src/draft-recording-cli.test.ts
+      - apps/cli/src/cit-client.ts
+      - apps/cli/src/main.ts
+      - apps/web/src/app/workspaces/focused-record-actions.ts
+      - apps/web/src/app/workspaces/focused-record-actions.test.ts
+      - apps/web/src/app/workspaces/focused-record-action-bar.tsx
+      - apps/web/src/app/workspaces/focused-record-quick-view-dialogs.tsx
+      - apps/web/src/app/workspaces/focused-record-detail-workspace.tsx
+      - apps/web/src/app/workspaces/focused-record-list-workspace.tsx
+      - apps/web/src/lib/api/error-messages.ts
+      - db/migrations/meta/_journal.json
+      - scripts/verify-solopreneur-gate-matrix.mjs
+      - docs/api/openapi-v1.json
+      - docs/implementation/solopreneur-gate-matrix.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-989/
 
   - id: ERP-990
     title: Auto-record flag for integration sources with visible draft reasons

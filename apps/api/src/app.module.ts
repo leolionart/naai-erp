@@ -158,6 +158,8 @@ import { PeriodCloseController } from "./period-close/period-close.controller.js
 import { PeriodCloseChecklistService } from "./period-close/period-close-checklist.service.js";
 import { CashCountService } from "./period-close/cash-count.service.js";
 import { OwnerSettlementService } from "./period-close/owner-settlement.service.js";
+import { DraftRecordingController } from "./draft-recording/draft-recording.controller.js";
+import { DraftRecordingService } from "./draft-recording/draft-recording.service.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -208,6 +210,7 @@ import { OwnerSettlementService } from "./period-close/owner-settlement.service.
     OwnerFundingController,
     OwnerCustodyMigrationController,
     PeriodCloseController,
+    DraftRecordingController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -254,6 +257,7 @@ import { OwnerSettlementService } from "./period-close/owner-settlement.service.
     PeriodCloseChecklistService,
     CashCountService,
     OwnerSettlementService,
+    DraftRecordingService,
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

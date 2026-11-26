@@ -42,6 +42,9 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   OWNER_SETTLEMENT_CUSTODY_ACCOUNT_NOT_ALLOWED: 422,
   OWNER_SETTLEMENT_RETAINED_EARNINGS_NOT_CONFIGURED: 422,
   OWNER_RECEIVABLE_ACCOUNT_NOT_CONFIGURED: 422,
+  SOLOPRENEUR_POLICY_REQUIRED: 409,
+  DRAFT_RECORD_BLOCKED: 422,
+  DRAFT_RECORD_PLAN_MISMATCH: 409,
   OWNER_PERSONAL_REQUIRES_RECEIVABLE_ACCOUNT: 422,
   OWNER_PERSONAL_REQUIRES_COMPANY_FUNDS: 422,
   JOURNAL_UNBALANCED: 422,
@@ -250,6 +253,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
       exception && typeof exception === "object" && "details" in exception
         ? (exception as { details?: unknown }).details
         : undefined;
+    const reasons =
+      details &&
+      typeof details === "object" &&
+      "reasons" in details &&
+      Array.isArray((details as { reasons?: unknown }).reasons)
+        ? (details as { reasons: unknown[] }).reasons
+        : undefined;
     const status = STATUS_BY_CODE[codeKey] ?? STATUS_BY_CODE[rawMessage] ?? 400;
     response.status(status).send({
       apiVersion: "v1",
@@ -258,7 +268,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
         message,
         retryable: status >= 500,
         ...(details !== undefined ? { details } : {}),
+        ...(reasons !== undefined ? { reasons } : {}),
       },
+      ...(reasons !== undefined ? { reasons } : {}),
     });
   }
 }

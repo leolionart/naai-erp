@@ -4,13 +4,17 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
   Inject,
+  Optional,
   Param,
   Patch,
   Post,
   Query,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { DraftRecordingService } from "../draft-recording/draft-recording.service.js";
+import type { RecordSingleDraftInput } from "../draft-recording/draft-recording.types.js";
 import { ExpenseService } from "./expense.service.js";
 import type {
   CreateExpenseInput,
@@ -24,7 +28,12 @@ import type {
 
 @Controller("api/v1/organizations/:organizationId/expenses")
 export class ExpenseController {
-  constructor(@Inject(ExpenseService) private readonly service: ExpenseService) {}
+  constructor(
+    @Inject(ExpenseService) private readonly service: ExpenseService,
+    @Optional()
+    @Inject(DraftRecordingService)
+    private readonly draftRecording?: DraftRecordingService,
+  ) {}
   private context(org: string, auth?: string, corr?: string) {
     return this.service.authenticate(auth, org, corr ?? randomUUID());
   }
@@ -353,6 +362,24 @@ export class ExpenseController {
       input.replacement,
       input.reason ?? "",
       input.planHash ?? "",
+      key,
+    );
+  }
+  @Post(":id/record")
+  @HttpCode(200)
+  async record(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: RecordSingleDraftInput,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    if (!this.draftRecording) throw new Error("INTERNAL_ERROR");
+    return this.draftRecording.recordExpense(
+      await this.context(org, auth, corr),
+      id,
+      input ?? {},
       key,
     );
   }

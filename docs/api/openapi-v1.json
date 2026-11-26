@@ -1267,6 +1267,13 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/record": {
+      "post": {
+        "operationId": "recordCommercialDocument",
+        "tags": ["commercial-documents"],
+        "summary": "Atomically self-approve, apply solopreneur tax/payment-evidence defaults, and issue/post a draft commercial document in one transaction, returning journalId or structured blocking reasons"
+      }
+    },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/{action}": {
       "post": {
         "summary": "Run a controlled lifecycle command; issue/post atomically creates the balanced linked journal"
@@ -1487,9 +1494,23 @@
         "summary": "Review management CIT or VAT independently with eligible amount reason and reference"
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/record": {
+      "post": {
+        "operationId": "recordExpense",
+        "tags": ["expenses"],
+        "summary": "Atomically self-approve, apply solopreneur tax/payment-evidence defaults, treat external reference as evidence, and post a draft expense in one transaction, returning journalId or structured blocking reasons"
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/{action}": {
       "post": {
         "summary": "Submit request evidence approve reject or atomically post an expense"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/drafts/record": {
+      "post": {
+        "operationId": "recordDraftsBatch",
+        "tags": ["drafts"],
+        "summary": "Dry-run or commit batch draft recording for solopreneur owners using planHash verification and per-item succeeded/blocked results"
       }
     },
     "/api/v1/organizations/{organizationId}/evidence": {

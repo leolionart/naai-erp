@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { RecordVoidControl } from "./focused-record-void-control";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { ModulePage } from "@/components/layout/module-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,20 +12,9 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -41,6 +30,12 @@ import {
   ExpenseForm,
   getFundingSourceLabel,
 } from "@/components/forms/document-expense-forms";
+import { FocusedRecordDetailToolbar, ReviewExpenseDialog } from "./focused-record-action-bar";
+import {
+  defaultActionReason,
+  formatRecordActionError,
+  resolveDetailActionPlan,
+} from "./focused-record-actions";
 import { FocusedRecordErrorAlert } from "./focused-record-alerts";
 import { ActionDialog, SourceCard } from "./focused-record-detail-dialogs";
 import { presentRevenueRecord } from "./focused-record-presentation";
@@ -49,14 +44,14 @@ import {
   FOCUSED_RECORD_MASTER_DATA_ENDPOINTS,
   nonNullRow,
   config,
-  documentActions,
-  expenseActions,
   partiesByRole,
   text,
   items,
   money,
   human,
 } from "./focused-record-shared";
+import { RecordVoidControl } from "./focused-record-void-control";
+import type { WorkflowCreateCapabilities } from "./solopreneur-create-policy";
 
 function externalReference(record?: Row) {
   const single = record?.externalReference ?? record?.external_reference;
@@ -77,6 +72,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const [employees, setEmployees] = useState<readonly Row[]>([]);
   const [freelancers, setFreelancers] = useState<readonly Row[]>([]);
   const [projects, setProjects] = useState<readonly Row[]>([]);
+  const [workflowCapabilities, setWorkflowCapabilities] = useState<WorkflowCreateCapabilities>();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -87,6 +83,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const [reviewOpen, setReviewOpen] = useState(false);
   const [axis, setAxis] = useState("management");
   const [reviewState, setReviewState] = useState("valid");
+
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
@@ -98,7 +95,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       return;
     }
     try {
-      const [resRecord, partiesRes, rolesRes, projectsRes] = await Promise.all([
+      const [resRecord, partiesRes, rolesRes, projectsRes, workflowRes] = await Promise.all([
         client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`),
         client.data<readonly Row[] | { items: readonly Row[] }>(
           FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.parties,
@@ -109,8 +106,10 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
         client.data<readonly Row[] | { items: readonly Row[] }>(
           FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.projects,
         ),
+        client.data<WorkflowCreateCapabilities>("organization-workflow-policy").catch(() => ({})),
       ]);
       setRecord(resRecord);
+      setWorkflowCapabilities(workflowRes);
       const listedParties = items(partiesRes);
       const listedRoles = items(rolesRes);
       setParties(listedParties);
@@ -125,16 +124,38 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setLoading(false);
     }
   }, [client, current, hasToken, hydrated, recordId]);
+
   useEffect(() => void load(), [load]);
+
   const state = text(record, "state");
   const type = text(record, "type");
   const detailPresentation =
     kind === "documents" && record
       ? presentRevenueRecord(record, "documents", projects, parties)
       : undefined;
-  const actions =
-    kind === "documents" ? (documentActions[type]?.[state] ?? []) : (expenseActions[state] ?? []);
+  const actionPlan = resolveDetailActionPlan(kind, record, workflowCapabilities);
   const source = externalReference(record);
+
+  async function recordOneClick(recordReason: string) {
+    setBusy(true);
+    setActionError("");
+    try {
+      await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}/record`, {
+        method: "POST",
+        idempotencyKey: `record-${kind}-${recordId}-${crypto.randomUUID()}`,
+        body: { reason: recordReason },
+      });
+      toast.success("Đã ghi sổ thành công.");
+      await load();
+    } catch (cause) {
+      const msg = formatRecordActionError(cause);
+      setActionError(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function transition() {
     if (!action || !reason.trim()) return;
     setBusy(true);
@@ -156,6 +177,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setBusy(false);
     }
   }
+
   async function review() {
     if (!reason.trim()) return;
     setBusy(true);
@@ -174,6 +196,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setBusy(false);
     }
   }
+
   async function update(body: Row) {
     if (!record) return;
     setBusy(true);
@@ -192,6 +215,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setBusy(false);
     }
   }
+
   return (
     <ModulePage
       title={current.detailTitle}
@@ -206,42 +230,26 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
               Danh sách {current.singular}
             </Link>
           </Button>
-          <div className="flex flex-wrap gap-2">
-            {state === "draft" ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setActionError("");
-                  setEditOpen(true);
-                }}
-              >
-                Sửa draft
-              </Button>
-            ) : null}
-            {actions.map((name) => (
-              <Button
-                key={name}
-                variant={name === "cancel" || name === "reject" ? "destructive" : "outline"}
-                onClick={() => {
-                  setActionError("");
-                  setAction(name);
-                }}
-              >
-                {human(name)}
-              </Button>
-            ))}
-            {kind === "expenses" && record ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setActionError("");
-                  setReviewOpen(true);
-                }}
-              >
-                Review quản trị / thuế
-              </Button>
-            ) : null}
-          </div>
+          <FocusedRecordDetailToolbar
+            state={state}
+            plan={actionPlan}
+            busy={busy}
+            onOpenEdit={() => {
+              setActionError("");
+              setEditOpen(true);
+            }}
+            onRecord={(recordReason) => void recordOneClick(recordReason)}
+            onSelectLifecycleAction={(selected) => {
+              setActionError("");
+              setReason(defaultActionReason(selected, workflowCapabilities));
+              setAction(selected);
+            }}
+            onOpenReview={() => {
+              setActionError("");
+              setReason(defaultActionReason("approve", workflowCapabilities));
+              setReviewOpen(true);
+            }}
+          />
         </div>
         <FocusedRecordErrorAlert kind="load" message={loadError} />
         {!editOpen && !reviewOpen && !action ? (
@@ -420,80 +428,25 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           ) : null}
         </DialogContent>
       </Dialog>
-      <Dialog
+      <ReviewExpenseDialog
         open={reviewOpen}
         onOpenChange={(open) => {
           setReviewOpen(open);
           if (!open) setActionError("");
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Review chi phí</DialogTitle>
-            <DialogDescription>Trạng thái quản trị, CIT và VAT độc lập.</DialogDescription>
-          </DialogHeader>
-          <FocusedRecordErrorAlert kind="action" message={actionError} />
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Trục review</FieldLabel>
-              <Select
-                value={axis}
-                onValueChange={(value) => {
-                  setAxis(value);
-                  setReviewState(value === "management" ? "valid" : "eligible");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="management">Quản trị</SelectItem>
-                    <SelectItem value="cit">CIT</SelectItem>
-                    <SelectItem value="vat">VAT</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>Kết quả</FieldLabel>
-              <Select value={reviewState} onValueChange={setReviewState}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {(axis === "management"
-                      ? ["valid", "invalid", "accountant_override"]
-                      : ["eligible", "partially_eligible", "ineligible", "accountant_override"]
-                    ).map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {human(value)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="review-reason">Lý do</FieldLabel>
-              <Input
-                id="review-reason"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewOpen(false)}>
-              Hủy
-            </Button>
-            <Button disabled={busy || !reason.trim()} onClick={() => void review()}>
-              Lưu review
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        axis={axis}
+        onAxisChange={(value) => {
+          setAxis(value);
+          setReviewState(value === "management" ? "valid" : "eligible");
+        }}
+        reviewState={reviewState}
+        onReviewStateChange={setReviewState}
+        reason={reason}
+        onReasonChange={setReason}
+        busy={busy}
+        error={actionError}
+        onConfirm={() => void review()}
+      />
     </ModulePage>
   );
 }

@@ -114,6 +114,19 @@ export const VIETNAMESE_API_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   DOCUMENT_ALLOCATION_MISMATCH: "Tổng tiền phân bổ không khớp với số tiền dòng chứng từ.",
   DOCUMENT_CONTROL_TOTAL_MISMATCH: "Tổng tiền chứng từ không khớp với tổng các dòng hạch toán.",
   PURCHASE_PRODUCT_VAT_RATE_INVALID: "Thuế suất GTGT hàng mua vào chỉ hỗ trợ 8% hoặc 10%.",
+  SOLOPRENEUR_POLICY_REQUIRED:
+    "Thao tác ghi sổ một bước chỉ áp dụng cho chủ doanh nghiệp ở chế độ vận hành một người.",
+  DRAFT_RECORD_BLOCKED: "Bản nháp chưa đủ điều kiện ghi sổ. Vui lòng kiểm tra các lý do chi tiết.",
+  DRAFT_RECORD_PLAN_MISMATCH:
+    "Danh sách bản nháp đã thay đổi so với bước kiểm tra trước (planHash không khớp). Vui lòng chạy kiểm tra lại.",
+  PAYMENT_EVIDENCE_REQUIRED:
+    "Thiếu chứng từ thanh toán không dùng tiền mặt hợp lệ cho khoản chi từ ngưỡng quy định.",
+  COUNTER_ACCOUNT_MISSING: "Thiếu hoặc không tìm thấy tài khoản kế toán đối ứng đang hoạt động.",
+  CONTROL_ACCOUNT_MISSING: "Thiếu hoặc không tìm thấy tài khoản công nợ / đối ứng đang hoạt động.",
+  POSTING_ACCOUNT_MISSING: "Thiếu hoặc không tìm thấy tài khoản hạch toán chi phí đang hoạt động.",
+  PRIMARY_ACCOUNT_MISSING: "Thiếu hoặc không tìm thấy tài khoản hạch toán chính đang hoạt động.",
+  VAT_ACCOUNT_MISSING:
+    "Dòng có thuế GTGT nhưng thiếu hoặc không tìm thấy tài khoản thuế GTGT đang hoạt động.",
   EXPORT_CONTENT_PRUNED: "Bản xuất dữ liệu cũ đã hết hạn lưu trữ. Vui lòng tạo bản xuất mới.",
   NETWORK_ERROR: "Không thể kết nối tới máy chủ API. Vui lòng kiểm tra kết nối mạng và thử lại.",
   INVALID_JSON_RESPONSE: "Máy chủ trả về phản hồi không đúng định dạng JSON.",

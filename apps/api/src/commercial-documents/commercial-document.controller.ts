@@ -4,13 +4,17 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
   Inject,
+  Optional,
   Param,
   Patch,
   Post,
   Query,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { DraftRecordingService } from "../draft-recording/draft-recording.service.js";
+import type { RecordSingleDraftInput } from "../draft-recording/draft-recording.types.js";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import { QuickPurchaseInvoiceService } from "./quick-purchase-invoice.service.js";
 import { QuickSalesInvoiceService } from "./quick-sales-invoice.service.js";
@@ -33,6 +37,9 @@ export class CommercialDocumentController {
     @Inject(QuickPurchaseInvoiceService)
     private readonly quickPurchaseInvoices: QuickPurchaseInvoiceService,
     @Inject(QuickSalesInvoiceService) private readonly quickSalesInvoices: QuickSalesInvoiceService,
+    @Optional()
+    @Inject(DraftRecordingService)
+    private readonly draftRecording?: DraftRecordingService,
   ) {}
   private context(organizationId: string, authorization?: string, correlationId?: string) {
     return this.service.authenticate(authorization, organizationId, correlationId ?? randomUUID());
@@ -389,6 +396,24 @@ export class CommercialDocumentController {
       input.replacement,
       input.reason ?? "",
       input.planHash ?? "",
+      idempotencyKey,
+    );
+  }
+  @Post(":id/record")
+  @HttpCode(200)
+  async record(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() input: RecordSingleDraftInput,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    if (!this.draftRecording) throw new Error("INTERNAL_ERROR");
+    return this.draftRecording.recordCommercialDocument(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      input ?? {},
       idempotencyKey,
     );
   }

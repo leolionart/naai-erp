@@ -775,3 +775,15 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   (`3388`, `1388`, `111-OWNER-CUSTODY`, `421`) settled via `offset_3388_1388`, `profit_distribution`
   (`Dr 421 / Cr 1388`) and `repayment` with full audit trail (`apps/api/src/period-close/period-close.integration.test.ts`,
   `apps/api/src/period-close/owner-settlement.integration.test.ts`, `apps/cli/src/period-close-cli.test.ts`).
+### ERP-989 — One-click draft recording and batch dry-run/commit for solopreneur owners
+
+- `T-INT-REC-001`: `POST /expenses/:id/record` and `POST /commercial-documents/:id/record` atomically self-approve,
+  apply `ERP-971` and `ERP-982` tax/payment-evidence defaults, accept `external_references` as source evidence,
+  default routine audit reason to `"Chủ ghi sổ"`, post balanced journals idempotently, enforce `owner` +
+  `solopreneur` mode, keep explicit reason mandatory on void/reverse and funding/account reclassification
+  (`BR-REC-003`), and roll back completely with all structured `reasons` when blocked (`draft-recording.integration.test.ts`).
+- `T-INT-REC-002`: `POST /drafts/record` (`dryRun` and `commit` with `planHash`) and CLI `drafts record --dry-run|--commit`
+  evaluate drafts without mutating on dry-run, reject mismatched `planHash` (`409 DRAFT_RECORD_PLAN_MISMATCH`),
+  record eligible items while leaving blocked items untouched with structured `reasons`, replay idempotently, and
+  enforce solopreneur owner gating (`draft-recording.integration.test.ts`, `draft-recording-cli.test.ts`,
+  `focused-record-actions.test.ts`).

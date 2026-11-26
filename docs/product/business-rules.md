@@ -1645,10 +1645,27 @@ other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_eviden
   raw API error codes (`CATEGORY_NOT_FOUND`, `EXPENSE_REVIEW_INCOMPLETE`,
   `INVALID_EXPENSE_TRANSITION`, etc.) into clear Vietnamese messages, and visibly distinguish load
   errors from action errors.
-- `BR-REC-001` (planned): for an owner in solopreneur mode, "Ghi sổ" is one atomic action taking an eligible draft to
-  posted (self-approval, tax defaults, external reference as evidence); when not eligible nothing changes and every
-  reason is returned.
+- `BR-REC-001`: for an owner in `solopreneur` operating mode, "Ghi sổ" (`POST /expenses/:id/record` and
+  `POST /commercial-documents/:id/record`) is one atomic database transaction taking an eligible non-final record
+  (`draft`/`submitted`/`evidence_pending`/`approved` expenses; `draft`/`captured`/`verified`/`approved` purchase
+  invoices; `draft`/`validated` sales invoices and credit notes) directly to its posted/issued ledger state:
+  self-approving, applying `ERP-971` tax defaults and `ERP-982` non-cash payment-evidence deductibility rules,
+  accepting linked `external_references` (Paperless-ngx/n8n) as source evidence for invoice/contract/freelancer
+  expenses, and creating a balanced posted journal (`journalId`). When any prerequisite fails (closed period,
+  foreign currency, missing/inactive counter or posting/VAT account, allocation mismatch, missing evidence, or
+  payment-evidence gate when `requirePaymentEvidence=true` or non-policy tax eligibility was claimed), the
+  transaction rolls back completely with zero partial state changes and returns every structured blocker in
+  `reasons`. Batch draft recording (`POST /drafts/record` and CLI `drafts record --dry-run|--commit`) evaluates
+  each draft inside an isolated savepoint: `dryRun` performs zero mutations and returns a deterministic `planHash`
+  with per-item ready/blocked diagnostics, while `commit` verifies `planHash` and idempotently records all eligible
+  items while leaving blocked items untouched with structured `reasons`. In `solopreneur` owner UI, the primary
+  action collapses to a single "Ghi sổ" button (hiding intermediate submit/approve/verify/issue steps and the
+  maker-checker warning while keeping secondary exception actions such as marking missing evidence or rejecting in
+  an overflow menu); `controlled` mode remains unchanged.
 - `BR-REC-002` (planned): an integration source with `autoRecord` records valid items on ingestion and leaves invalid
   ones as drafts with visible reasons; every action is audited under the integration identity.
-- `BR-REC-003` (planned): routine actions get a default reason; actions that change the ledger (void, reverse,
-  funding or account changes) always require one.
+- `BR-REC-003`: for an owner in `solopreneur` operating mode, routine draft recording and workflow transitions
+  (`record`, `submit`, `approve`, `post`, `capture`, `verify`, `validate`, `issue`) default their audit reason to
+  `"Chủ ghi sổ"` when omitted while remaining editable inline; actions that alter, reverse, discard, or reclassify
+  accounting facts (`reverse`/void, `cancel`, `delete` draft, `request-evidence`, `reject`, `reclassify-funding`,
+  `reclassify-accounts`) always require an explicit non-empty reason.
