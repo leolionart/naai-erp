@@ -8,6 +8,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { OperatingModeBadge } from "./operating-mode-badge";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -72,12 +73,11 @@ export function PageHeader({
             </Breadcrumb>
           </>
         ) : null}
-        {status || actions ? (
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
-            {status}
-            {actions}
-          </div>
-        ) : null}
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <OperatingModeBadge />
+          {status}
+          {actions}
+        </div>
       </div>
       <div className="flex min-w-0 flex-col gap-3 px-4 py-3">
         <div className="flex min-w-0 flex-col gap-1">

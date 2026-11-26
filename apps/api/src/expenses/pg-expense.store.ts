@@ -2607,7 +2607,8 @@ export class PgExpenseStore {
          select 1 from financial_statement_mapping_versions v
          join financial_statement_mapping_lines l
            on l.organization_id=v.organization_id and l.mapping_id=v.id and l.mapping_version=v.version
-         where v.organization_id=$1 and v.state='approved' and v.framework='TT133'
+         where v.organization_id=$1 and v.framework='TT133'
+           and (v.state='approved' or exists(select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur'))
            and v.effective_from<=$3::date and (v.effective_to is null or v.effective_to>=$3::date)
            and l.statement='balance_sheet' and l.line_code='owner_current' and l.account_code=$2
        ) exists`,

@@ -732,3 +732,8 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   messages; the drafts toggle skips them (`telegram-notifier.integration.test.ts`).
 - `T-INT-ACT-001`: the unified activity timeline lists inbound webhook receipts with failed status for
   quarantined payloads and supports the `inbound` source filter (`pg-operational-log.integration.test.ts`).
+- `T-INT-MODE-001`: owner-funded purchase ingestion succeeds on a draft statement mapping in
+  solopreneur mode and still returns `OWNER_CURRENT_ACCOUNT_NOT_CONFIGURED` in controlled mode
+  (`commercial-document.integration.test.ts`).
+- `T-UNIT-MODE-002` / `T-E2E-MODE-003`: operating-mode wording and the header badge
+  (`operating-mode.test.ts`, `focused-records.spec.ts`).

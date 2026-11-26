@@ -162,7 +162,7 @@ export class PgCommercialDocumentStore {
         const validCode = await client.query(
           `select 1 from tax_code_versions
              where organization_id=$1 and code=$2 and kind=case when (select type from commercial_documents where organization_id=$1 and id=$3)='sales_invoice' then 'vat_output'::tax_kind else 'vat_input'::tax_kind end
-             and review_state='accountant_approved'
+             and (review_state='accountant_approved' or (review_state='draft' and exists(select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur')))
              and effective_from <= (select document_date from commercial_documents where organization_id=$1 and id=$3)
              and (effective_to is null or effective_to >= (select document_date from commercial_documents where organization_id=$1 and id=$3))
            limit 1`,
@@ -341,7 +341,7 @@ export class PgCommercialDocumentStore {
         `select distinct on (code) code,name,kind::text,rate::text
          from tax_code_versions
          where organization_id=$1 and kind=$2::tax_kind
-           and review_state='accountant_approved'
+           and (review_state='accountant_approved' or (review_state='draft' and exists(select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur')))
            and effective_from <= $3::date
            and (effective_to is null or effective_to >= $3::date)
            and ($6::text is null or code=$6::text)
@@ -452,9 +452,10 @@ export class PgCommercialDocumentStore {
     const result = await client.query<{ account_code: string }>(
       `with selected_mapping as (
          select id,version from financial_statement_mapping_versions
-          where organization_id=$1 and framework='TT133' and state='approved'
+          where organization_id=$1 and framework='TT133'
+            and (state='approved' or exists(select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur'))
             and effective_from <= $2::date and (effective_to is null or effective_to >= $2::date)
-          order by effective_from desc,version desc limit 1
+          order by (state='approved') desc,effective_from desc,version desc limit 1
        )
        select ml.account_code from selected_mapping sm
        join financial_statement_mapping_lines ml on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version

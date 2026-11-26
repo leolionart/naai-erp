@@ -334,6 +334,9 @@ async function install(
     if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
     return reply(route, { items: [currentExpense] });
   });
+  await page.route("**/api/v1/organizations/naai/organization-workflow-policy**", (route) =>
+    reply(route, { operatingMode: "solopreneur", allowSelfApproval: false }),
+  );
   await page.route("**/api/v1/organizations/naai/revenue-recognition-events**", (route) =>
     reply(route, { items: [recognition] }),
   );
@@ -862,4 +865,13 @@ test("@desktop remembers hidden table columns across reloads and route changes",
     ),
   );
   expect(stored).toEqual({ "naai-erp-table-columns-v2:/expenses": '["Nội dung / Diễn giải"]' });
+});
+
+test("@desktop shows the organization's operating mode in the page header", async ({ page }) => {
+  await install(page);
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=present");
+  const badge = page.getByTestId("operating-mode-badge");
+  await expect(badge).toHaveText(/Chế độ: Một người/);
+  await badge.hover();
+  await expect(page.getByRole("tooltip").first()).toContainText("Lưu và ghi nhận");
 });

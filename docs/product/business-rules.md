@@ -1458,3 +1458,15 @@ No task may be marked done with orphan business rules or untested behavior.
 - `BR-ACT-001`: the unified activity timeline includes every inbound webhook receipt (source
   `inbound`): processed items are succeeded, quarantined/dead-letter items are failed with the error
   code, so an invoice or expense pushed from n8n that was rejected is visible next to API activity.
+
+### Operating mode (solopreneur / controlled)
+
+- `BR-MODE-001`: the organization's operating mode is shown on every page header as a badge
+  ("Chế độ: Một người" / "Chế độ: Kiểm soát") with a tooltip explaining what it changes.
+- `BR-MODE-002`: in solopreneur mode an owner's "Lưu và ghi nhận" posts at creation, while records
+  created by integration identities (n8n/API tokens that are not `owner`, and inbound webhooks) stay
+  drafts until an owner posts them. Self-approval by the owner is always allowed.
+- `BR-MODE-003`: in solopreneur mode a draft (not yet approved) financial-statement mapping or tax
+  code version is usable wherever the owner-current account, VAT tax-code resolution/review or owner
+  cash movements need one; controlled mode still requires `approved` / `accountant_approved`. Without
+  this an owner-funded purchase invoice could not be ingested until an accountant approved the mapping.

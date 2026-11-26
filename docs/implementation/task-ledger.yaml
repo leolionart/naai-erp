@@ -3716,6 +3716,21 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-969/
 
+  - id: ERP-970
+    title: Operating mode badge and solopreneur-mode logic fixes
+    phase: P16
+    status: done
+    dependencies: [ERP-969]
+    business_rules: [BR-MODE-001, BR-MODE-002, BR-MODE-003]
+    tests: [T-INT-MODE-001, T-UNIT-MODE-002, T-E2E-MODE-003]
+    evidence: docs/implementation/evidence/ERP-970/
+    agent: claude
+    started_at: 2026-11-26T22:30:00+07:00
+    completed_at: 2026-11-26T23:30:00+07:00
+    completion_basis: implemented_with_scratch_database_and_browser_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-970/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -749,10 +749,11 @@ export class PgBankingStore implements BankingStore {
       const ownerAccount = await client.query<{ account_code: string }>(
         `with selected_mapping as (
            select id,version from financial_statement_mapping_versions
-           where organization_id=$1 and framework='TT133' and state='approved'
+           where organization_id=$1 and framework='TT133'
+             and (state='approved' or exists(select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur'))
              and effective_from <= $2::date
              and (effective_to is null or effective_to >= $2::date)
-           order by effective_from desc,version desc limit 1
+           order by (state='approved') desc,effective_from desc,version desc limit 1
          )
          select ml.account_code
          from selected_mapping sm
@@ -932,8 +933,9 @@ export class PgBankingStore implements BankingStore {
       `with selected_mapping as (
          select id,version
          from financial_statement_mapping_versions
-         where organization_id=$1 and framework='TT133' and state='approved'
-         order by effective_from desc,version desc limit 1
+         where organization_id=$1 and framework='TT133'
+           and (state='approved' or exists(select 1 from accounting_workflow_policies w where w.organization_id=$1 and w.operating_mode='solopreneur'))
+         order by (state='approved') desc,effective_from desc,version desc limit 1
        ), owner_accounts as (
          select distinct ml.account_code
          from selected_mapping sm

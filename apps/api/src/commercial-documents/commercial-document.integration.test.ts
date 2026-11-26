@@ -40,6 +40,14 @@ describeIntegration("ERP-300 commercial documents", () => {
        ('${org}','112-BANK','Bank','asset',false,true);
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,created_by,updated_by) values
        ('${org}','bank-vnd','BANK','bank','Bank VND','VND','112-BANK','BANK','test','test');
+      insert into accounts (organization_id,code,name,root_type,is_control_account,allow_manual_posting) values
+       ('${org}','3388-OWNER','Owner current','liability',false,true);
+      insert into business_categories(organization_id,kind,code,name,is_active)
+        values('${org}','expense','BATTERY_RENTAL','Thuê pin',true);
+      insert into financial_statement_mapping_versions(organization_id,id,version,framework,state,effective_from,change_reason,created_by,approved_by,approved_at)
+        values('${org}','erp300-map',1,'TT133','approved','2026-01-01','Owner current mapping for funding tests','test','approver',now());
+      insert into financial_statement_mapping_lines(organization_id,mapping_id,mapping_version,line_number,statement,line_code,label,account_code,display_order,sign)
+        values('${org}','erp300-map',1,1,'balance_sheet','owner_current','Owner current','3388-OWNER',10,1);
     `);
     const values = [integrationToken, financeToken, approverToken, ownerToken].map((token) =>
       createHash("sha256").update(token).digest("hex"),
@@ -577,6 +585,50 @@ describeIntegration("ERP-300 commercial documents", () => {
     );
   });
 
+  it("lets a solopreneur ingest owner-funded purchases on a draft statement mapping, controlled mode still requires approval", async () => {
+    const setMapping = (state: "draft" | "approved") =>
+      pool.query(
+        state === "draft"
+          ? `update financial_statement_mapping_versions set state='draft',approved_by=null,approved_at=null where organization_id=$1 and id='erp300-map'`
+          : `update financial_statement_mapping_versions set state='approved',approved_by='approver',approved_at=now() where organization_id=$1 and id='erp300-map'`,
+        [org],
+      );
+    const setMode = (mode: "solopreneur" | "controlled") =>
+      pool.query(
+        `insert into accounting_workflow_policies(organization_id,operating_mode,allow_self_approval,self_approval_max_minor,updated_by)
+         values($1,$2,false,null,'test')
+         on conflict(organization_id) do update set operating_mode=$2,updated_by='test'`,
+        [org, mode],
+      );
+    const ingest = (number: string) =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${org}/commercial-documents/purchase-invoice-ingestion`,
+        headers: headers(integrationToken, `owner-funded-${number}`),
+        payload: {
+          supplierTaxId: "0312345678",
+          supplierName: "Nhà cung cấp mode",
+          documentNumber: number,
+          documentDate: "2026-02-10",
+          category: "BATTERY_RENTAL",
+          description: "Chi hộ bởi chủ doanh nghiệp",
+          grossMinor: "110000",
+        },
+      });
+    try {
+      await setMapping("draft");
+      await setMode("controlled");
+      const blocked = await ingest("MODE-1");
+      expect(blocked.statusCode).toBe(422);
+      expect(blocked.json().error.code).toBe("OWNER_CURRENT_ACCOUNT_NOT_CONFIGURED");
+      await setMode("solopreneur");
+      expect((await ingest("MODE-2")).statusCode).toBe(201);
+    } finally {
+      await setMode("controlled");
+      await setMapping("approved");
+    }
+  });
+
   it("filters documents by project allocation without leaking sibling projects", async () => {
     const projectA = await app.inject({
       method: "GET",
@@ -840,6 +892,17 @@ describeIntegration("ERP-300 commercial documents", () => {
   });
 
   it("voids an issued invoice without a replacement and keeps history", async () => {
+    // A dedicated project/contract so the capacity consumed by other tests cannot affect this one.
+    await pool.query(
+      `insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
+         values($1,'VOID','VOID','Void project','CLIENT-A',$2,'fixed_fee','VND',100000,'2026-01-01','active')`,
+      [org, integrationUser],
+    );
+    await pool.query(
+      `insert into contracts(organization_id,id,project_id,reference,signed_on,value_minor,currency)
+         values($1,'CONTRACT-VOID','VOID','CONTRACT-VOID','2026-01-01',100000,'VND')`,
+      [org],
+    );
     const invoice = {
       ...sales,
       id: "sales-void-1",
@@ -855,7 +918,7 @@ describeIntegration("ERP-300 commercial documents", () => {
           taxMinor: "0",
           grossMinor: "1000",
           taxAccountCode: undefined,
-          allocations: [{ id: "void-a", amountMinor: "1000", dimensions: { projectId: "A" } }],
+          allocations: [{ id: "void-a", amountMinor: "1000", dimensions: { projectId: "VOID" } }],
         },
       ],
     };
