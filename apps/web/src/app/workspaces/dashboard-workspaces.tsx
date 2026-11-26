@@ -56,6 +56,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { useAuthenticatedApiClient } from "@/lib/api";
+import {
+  buildCitCardDescription,
+  buildDashboardCitDrilldownEntries,
+} from "./cit-estimate-presentation";
 import { recordCategory } from "@/lib/records/category";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
 import { StatusBadge } from "@/components/financial/status-badge";
@@ -206,6 +210,10 @@ type OperatingDashboardWire = Readonly<{
     }>[];
     taxableProfitMinor?: string;
     corporateIncomeTaxMinor?: string;
+    corporateIncomeTaxAssumption?: string;
+    corporateIncomeTaxBasis?: string;
+    priorYearRevenueMinor?: string | null;
+    citSmallEnterpriseIneligible?: boolean;
   }>;
   dataQuality: Readonly<{
     pendingCount: number;
@@ -1488,18 +1496,20 @@ export function ExecutiveDashboardWorkspace() {
                 <MetricCard
                   title="Thuế TNDN tạm tính"
                   value={money(corporateIncomeTaxMinor, profitAndLoss?.currency)}
-                  description={`Lợi nhuận tính thuế tạm tính ${money(taxableProfitMinor, profitAndLoss?.currency)} × thuế suất đã duyệt ${
-                    operating?.financials.corporateIncomeTaxRateBps == null
-                      ? "N/A"
-                      : `${operating.financials.corporateIncomeTaxRateBps / 100}%`
-                  }`}
+                  description={buildCitCardDescription({
+                    taxableProfitFormatted: money(taxableProfitMinor, profitAndLoss?.currency),
+                    financials: operating?.financials,
+                  })}
                   href={`/reports/financial-statements/profit-and-loss/current?${q}`}
                   status={
                     operating?.financials.corporateIncomeTaxRateBps == null
                       ? "Thiếu chính sách thuế TNDN"
                       : taxExpenses?.status
                   }
-                  provisional={taxExpenses?.status !== "ready"}
+                  provisional={
+                    taxExpenses?.status !== "ready" ||
+                    operating?.financials.corporateIncomeTaxBasis === "no_prior_year_revenue"
+                  }
                   variant="surface"
                 />
                 <MetricCard
@@ -1873,51 +1883,32 @@ export function DashboardMetricDrilldownWorkspace({ metricKey }: { metricKey: st
       sourceIds: [],
       canonicalHref: "/customers",
     },
-    "taxable-profit": {
-      title: "Lợi nhuận tính thuế TNDN tạm tính",
-      value: money(operating?.financials.taxableProfitMinor, operating?.currency),
-      formula: "Operating Dashboard API: taxableProfitMinor",
-      sourceIds: [],
-      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
-      facts: [
-        {
-          label: "Lợi nhuận kế toán trước thuế",
-          value: money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency),
-        },
-        {
-          label: "Chi phí CIT không được trừ",
-          value: money(data.taxExpenses?.citIneligibleMinor, data.taxExpenses?.currency),
-        },
-        {
-          label: "Chi phí CIT chưa review",
-          value: money(data.taxExpenses?.citUnreviewedMinor, data.taxExpenses?.currency),
-        },
-      ],
-    },
-    "corporate-income-tax": {
-      title: "Thuế TNDN tạm tính",
-      value: money(operating?.financials.corporateIncomeTaxMinor, operating?.currency),
-      formula: "Operating Dashboard API: corporateIncomeTaxMinor",
-      sourceIds: [],
-      canonicalHref: `/reports/financial-statements/profit-and-loss/current?${q}`,
-      facts: [
-        {
-          label: "Lợi nhuận tính thuế",
-          value: money(operating?.financials.taxableProfitMinor, operating?.currency),
-        },
-        {
-          label: "Thuế suất TNDN",
-          value:
-            operating?.financials.corporateIncomeTaxRateBps == null
-              ? "N/A"
-              : `${operating.financials.corporateIncomeTaxRateBps / 100}%`,
-        },
-        {
-          label: "Chi phí CIT chưa review",
-          value: money(data.taxExpenses?.citUnreviewedMinor, data.taxExpenses?.currency),
-        },
-      ],
-    },
+    ...buildDashboardCitDrilldownEntries({
+      queryString: q,
+      taxableProfitFormatted: money(operating?.financials.taxableProfitMinor, operating?.currency),
+      corporateIncomeTaxFormatted: money(
+        operating?.financials.corporateIncomeTaxMinor,
+        operating?.currency,
+      ),
+      profitBeforeTaxFormatted: money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency),
+      citIneligibleFormatted: money(
+        data.taxExpenses?.citIneligibleMinor,
+        data.taxExpenses?.currency,
+      ),
+      citUnreviewedFormatted: money(
+        data.taxExpenses?.citUnreviewedMinor,
+        data.taxExpenses?.currency,
+      ),
+      ...(operating?.financials.priorYearRevenueMinor != null
+        ? {
+            priorYearRevenueFormatted: money(
+              operating.financials.priorYearRevenueMinor,
+              operating.currency,
+            ),
+          }
+        : {}),
+      financials: operating?.financials,
+    }),
     "cit-unreviewed": {
       title: "Chi phí CIT chờ review",
       value: money(data.taxExpenses?.citUnreviewedMinor, data.taxExpenses?.currency),

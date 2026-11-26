@@ -2,6 +2,7 @@ import { ModulePage } from "@/components/layout/module-page";
 import { LedgerMasterWorkspace } from "../../../workspaces/ledger-master-workspace";
 import { ExpenseCategoryPolicyWorkspace } from "../../../workspaces/expense-category-policy-workspace";
 import { BusinessModeWorkspace } from "../../../workspaces/business-mode-workspace";
+import { CitPolicyWorkspace } from "../../../workspaces/cit-policy-workspace";
 import { CategoryCatalogWorkspace } from "../../../workspaces/category-catalog-workspace";
 
 export default function MasterDataPage() {
@@ -13,6 +14,7 @@ export default function MasterDataPage() {
     >
       <div className="flex flex-col gap-6">
         <BusinessModeWorkspace />
+        <CitPolicyWorkspace />
         <ExpenseCategoryPolicyWorkspace />
         <CategoryCatalogWorkspace />
         <LedgerMasterWorkspace

@@ -154,7 +154,10 @@ suite("operating dashboard PostgreSQL API", () => {
           unclassifiedOwnerPaidCount: 1,
           unclassifiedOwnerPaidMinor: "50",
           ownerPaidClassificationStatus: "review_required",
-          corporateIncomeTaxRateBps: null,
+          corporateIncomeTaxRateBps: 1500,
+          corporateIncomeTaxMinor: "53",
+          corporateIncomeTaxTierCode: "small_15",
+          corporateIncomeTaxBasis: "no_prior_year_revenue",
           rosBps: 3500,
           recognitionEventCount: 0,
           approvedBudgetCount: 0,
@@ -246,7 +249,6 @@ suite("operating dashboard PostgreSQL API", () => {
       configurationWarnings: expect.arrayContaining([
         "financial_statement_mapping_unapproved",
         "executive_metric_policy_missing",
-        "cit_policy_missing",
       ]),
     });
   });

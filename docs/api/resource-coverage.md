@@ -79,6 +79,7 @@ through the CLI; the aging party/item drill-down exception is recorded under kno
 | Cash Flow                                      | `/reports/financial-statements/cash-flow`                            |
 | Financial statement drill-down/source resolver | `/reports/financial-statements/drilldown`, `/source-resolver`        |
 | VAT reconciliation and expense exceptions      | `/reports/tax/vat-reconciliation`, `/reports/tax/expense-exceptions` |
+| Estimated corporate income tax                 | `/reports/tax/estimated-cit`, `/cit-policy`                          |
 | Performance comparisons                        | `/reports/performance-comparisons`                                   |
 | Executive metrics                              | `/reports/executive-metrics`                                         |
 | Operating dashboard                            | `/reports/operating-dashboard`                                       |

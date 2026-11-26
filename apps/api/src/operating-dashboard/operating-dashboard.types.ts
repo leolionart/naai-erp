@@ -123,6 +123,11 @@ export type OperatingDashboardReadModel = Readonly<{
     corporateIncomeTaxRateBps: number | null;
     taxableProfitMinor: string;
     corporateIncomeTaxMinor: string | null;
+    corporateIncomeTaxTierCode?: string | null;
+    corporateIncomeTaxBasis?: string;
+    corporateIncomeTaxAssumption?: string;
+    priorYearRevenueMinor?: string | null;
+    citSmallEnterpriseIneligible?: boolean;
     rosBps: number | null;
     recognitionEventCount: number;
     approvedBudgetCount: number;

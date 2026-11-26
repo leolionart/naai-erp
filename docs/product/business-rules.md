@@ -681,9 +681,11 @@ Override requires reviewer, reason, timestamp and reference/evidence.
 - Provisional taxable profit starts from posted-ledger accounting profit before tax and adds reviewed
   CIT-ineligible expense adjustments. CIT-unreviewed expense remains visible and keeps the result in
   review-required state.
-- Provisional CIT equals positive provisional taxable profit multiplied by the effective,
-  accountant-approved organization CIT tax-code rate. The UI reads the rate from the policy record;
-  it never embeds a tax rate or a demo tax amount.
+- Provisional CIT equals positive provisional taxable profit multiplied by the effective CIT rate
+  resolved under `BR-TAX-102` (prior-year revenue tier under Law 67/2025/QH15 from tax year 2025, or
+  the effective accountant-approved organization CIT tax-code rate for periods without a tiered
+  schedule). The UI reads the rate and assumption from the API; it never embeds a tax rate or a demo
+  tax amount.
 - Taxable profit and accounting profit are distinct. Purchase invoices without CIT review remain
   unreviewed rather than being assumed deductible merely because an invoice exists.
 
@@ -1566,9 +1568,17 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
   amounts stay separate in the position with the owner, `company_*` paid invoices carry zero AP
   balance, and `tieStatus` reconciles ledger account 331 against the AP aging detail total.
 - `BR-CUR-002`: until multi-currency (`BR-CUR-001`, unimplemented) exists, postings and ingestion across `commercial-documents`, `expenses`, `journals`, `workbook-imports` and `inbound-webhooks` in a currency other than the organization's base currency are rejected with HTTP `422 FOREIGN_CURRENCY_NOT_SUPPORTED` and guidance `"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"`, while historical foreign-currency rows remain untouched and excluded per `BR-STAT-001`.
-- `BR-TAX-102` (planned): estimated corporate income tax uses 15% when the previous year's total revenue is up to 3 billion
-  VND, 17% above 3 and up to 50 billion, 20% above 50 billion (Law 67/2025/QH15), unless the owner declares a related-party
-  exclusion; the assumption is shown on the report and the table is configurable by year.
+- `BR-TAX-102`: estimated corporate income tax on the operating dashboard, P&L and
+  `GET /reports/tax/estimated-cit` selects the CIT rate from the prior calendar year's posted
+  base-currency ledger revenue under Law 67/2025/QH15 (from tax year 2025): `<= 3,000,000,000 VND ->
+15%`, `> 3,000,000,000 and <= 50,000,000,000 VND -> 17%`, `> 50,000,000,000 VND -> 20%`. When the
+  prior year has no posted ledger entries and no `priorYearRevenueOverrideMinor` is declared, the tier
+  is provisionally estimated from current-year posted revenue with `basis = no_prior_year_revenue` and
+  `status = review_required`. An audited, idempotent organization declaration (`PUT /cit-policy`,
+  `citSmallEnterpriseIneligible = true`, e.g. subsidiary/related-party exclusion) forces the standard
+  20% rate (`basis = ineligible_override`). Rate tiers are year-configurable via
+  `statutory_cit_rate_tiers` and organization overrides (`PUT /cit-policy/rate-tiers/{effectiveFromYear}`),
+  and the effective rate and assumption are exposed on the report and dashboard.
 - `BR-CLOSE-001` (planned): month close shows a checklist (no unlinked funding, payment-evidence gaps handled, AP tied,
   tax finalization done, bank reconciled, owner-held cash not negative); a cash count compares counted cash with
   `111-OWNER-CUSTODY` and posts the difference with a reason; year-end settlement offers repayment, offset of 3388 against

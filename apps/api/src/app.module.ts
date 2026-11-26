@@ -141,6 +141,10 @@ import { FundingPlansController } from "./funding-plans/funding-plans.controller
 import { FundingPlansService } from "./funding-plans/funding-plans.service.js";
 import { AccountPlansController } from "./funding-plans/account-plans.controller.js";
 import { AccountPlansService } from "./funding-plans/account-plans.service.js";
+import { CitPolicyController } from "./cit-policy/cit-policy.controller.js";
+import { CitPolicyService } from "./cit-policy/cit-policy.service.js";
+import { PgCitPolicyStore } from "./cit-policy/pg-cit-policy.store.js";
+import { CIT_POLICY_STORE } from "./cit-policy/cit-policy.types.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -186,6 +190,7 @@ import { AccountPlansService } from "./funding-plans/account-plans.service.js";
     FundingRulesController,
     FundingPlansController,
     AccountPlansController,
+    CitPolicyController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -220,6 +225,9 @@ import { AccountPlansService } from "./funding-plans/account-plans.service.js";
     { provide: FUNDING_RULES_STORE, useExisting: PgFundingRulesStore },
     FundingPlansService,
     AccountPlansService,
+    CitPolicyService,
+    PgCitPolicyStore,
+    { provide: CIT_POLICY_STORE, useExisting: PgCitPolicyStore },
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

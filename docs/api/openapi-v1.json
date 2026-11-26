@@ -2086,6 +2086,32 @@
         "summary": "Dry-run funding rule evaluation for a sample ingestion payload"
       }
     },
+    "/api/v1/organizations/{organizationId}/cit-policy": {
+      "get": {
+        "operationId": "getOrganizationCitPolicy",
+        "tags": ["tax", "cit-policy"],
+        "summary": "Read organization CIT eligibility declaration and year-configured statutory/organization CIT rate tiers"
+      },
+      "put": {
+        "operationId": "upsertOrganizationCitPolicy",
+        "tags": ["tax", "cit-policy"],
+        "summary": "Set organization CIT small-enterprise ineligibility override or declared prior-year revenue with audit and idempotency"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/cit-policy/rate-tiers/{effectiveFromYear}": {
+      "put": {
+        "operationId": "upsertOrganizationCitRateTiers",
+        "tags": ["tax", "cit-policy"],
+        "summary": "Configure organization-scoped CIT revenue rate tiers starting from a calendar tax year"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/reports/tax/estimated-cit": {
+      "get": {
+        "operationId": "getEstimatedCitReport",
+        "tags": ["tax", "reports"],
+        "summary": "Compute provisional corporate income tax by prior-year revenue tier (Law 67/2025/QH15) with assumption and override disclosure"
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses/by-external/{system}/{externalId}/reclassify-funding": {
       "post": {
         "summary": "Reclassify an expense payment source by external reference and optionally post the replacement"
@@ -7505,7 +7531,14 @@
             "pattern": "^-?[0-9]+$",
             "description": "Statutory Owner Current control retained for drill-down, not used as the dashboard payable metric."
           },
-          "ownerSettlementDrilldownHref": { "type": "string" }
+          "ownerSettlementDrilldownHref": { "type": "string" },
+          "corporateIncomeTaxRateBps": { "type": ["integer", "null"] },
+          "corporateIncomeTaxMinor": { "type": ["string", "null"] },
+          "corporateIncomeTaxTierCode": { "type": ["string", "null"] },
+          "corporateIncomeTaxBasis": { "type": "string" },
+          "corporateIncomeTaxAssumption": { "type": "string" },
+          "priorYearRevenueMinor": { "type": ["string", "null"] },
+          "citSmallEnterpriseIneligible": { "type": "boolean" }
         }
       },
       "OperatingDashboardEnvelope": {

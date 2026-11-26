@@ -10,6 +10,7 @@ import {
   shouldShowNetCompanyFunds,
   metricCardVariantStyles,
 } from "./dashboard-workspaces";
+import { buildCitCardDescription, buildCitDrilldownFacts } from "./cit-estimate-presentation";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -81,5 +82,37 @@ describe("dashboard reporting cutoff", () => {
     expect(resolved.get("asOfDate")).toBe("2026-08-10");
     expect(resolved.get("endsOn")).toBe("2026-12-31");
     expect(effectiveEndsOn(resolved)).toBe("2026-08-10");
+  });
+
+  it("formats tiered CIT rate and assumption on dashboard card and drill-down facts", () => {
+    expect(
+      buildCitCardDescription({
+        taxableProfitFormatted: "200.000.000 ₫",
+        financials: {
+          corporateIncomeTaxRateBps: 1500,
+          corporateIncomeTaxAssumption:
+            "Áp dụng bậc 15% theo Law 67/2025/QH15 căn cứ tổng doanh thu năm 2025 trên sổ cái: 1.500.000.000 ₫",
+        },
+      }),
+    ).toBe(
+      "Lợi nhuận tính thuế tạm tính 200.000.000 ₫ × thuế suất đã duyệt 15% · Áp dụng bậc 15% theo Law 67/2025/QH15 căn cứ tổng doanh thu năm 2025 trên sổ cái: 1.500.000.000 ₫",
+    );
+
+    const facts = buildCitDrilldownFacts({
+      taxableProfitFormatted: "200.000.000 ₫",
+      citUnreviewedFormatted: "0 ₫",
+      priorYearRevenueFormatted: "1.500.000.000 ₫",
+      financials: {
+        corporateIncomeTaxRateBps: 1500,
+        corporateIncomeTaxAssumption: "Áp dụng bậc 15% theo Law 67/2025/QH15",
+      },
+    });
+    expect(facts).toEqual(
+      expect.arrayContaining([
+        { label: "Thuế suất TNDN", value: "15%" },
+        { label: "Doanh thu năm trước liền kề", value: "1.500.000.000 ₫" },
+        { label: "Giả định & căn cứ thuế suất", value: "Áp dụng bậc 15% theo Law 67/2025/QH15" },
+      ]),
+    );
   });
 });

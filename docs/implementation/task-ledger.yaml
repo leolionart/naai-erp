@@ -3986,14 +3986,32 @@ tasks:
   - id: ERP-986
     title: Estimated corporate income tax rate by prior-year revenue tier
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-975]
     business_rules: [BR-TAX-102]
     tests: [T-UNIT-TAX-102]
     plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-986/
+    agent: antigravity
+    started_at: 2026-11-26T18:45:00+07:00
+    completed_at: 2026-11-26T19:06:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/funding-and-account-reclassification.md
+      - db/migrations/0074_cit_revenue_tiers.sql
+      - db/migrations/meta/_journal.json
+      - packages/database/src/cit-policy-schema.ts
+      - packages/domain/src/cit-rate.ts
+      - packages/domain/src/cit-rate.test.ts
+      - packages/contracts/src/cit-policy.ts
+      - apps/api/src/cit-policy/
+      - apps/api/src/operating-dashboard/
+      - apps/api/src/financial-statements/
+      - apps/cli/src/cit-client.ts
+      - apps/web/src/app/workspaces/
+      - docs/api/openapi-v1.json
+      - docs/implementation/solopreneur-gate-matrix.json
+      - docs/product/business-rules.md
+      - docs/implementation/evidence/ERP-986/
 
   - id: ERP-987
     title: Monthly close checklist, cash count, negative custody alert and year-end owner settlement

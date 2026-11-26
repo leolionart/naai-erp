@@ -1,5 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
+import { CIT_POLICY_STORE, type CitPolicyStore } from "../cit-policy/cit-policy.types.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   FINANCIAL_STATEMENT_STORE,
@@ -21,6 +22,7 @@ export class FinancialStatementService {
   constructor(
     @Inject(FINANCIAL_STATEMENT_STORE) private readonly store: FinancialStatementStore,
     @Inject(MasterDataService) private readonly master: MasterDataService,
+    @Optional() @Inject(CIT_POLICY_STORE) private readonly citPolicy?: CitPolicyStore,
   ) {}
   authenticate(auth: string | undefined, org: string, correlation: string) {
     return this.master.authenticate(auth, org, correlation);
@@ -134,8 +136,16 @@ export class FinancialStatementService {
       throw new Error("VALIDATION_FAILED");
     return this.envelope(c, await this.store.approveMapping(c, id, version, reason, key));
   }
-  report(c: FinancialStatementContext, kind: StatementKind, q: StatementQuery) {
-    return this.store.report(c, kind, q).then((x) => this.envelope(c, x));
+  async report(c: FinancialStatementContext, kind: StatementKind, q: StatementQuery) {
+    const base = await this.store.report(c, kind, q);
+    if (kind === "profit_and_loss" && this.citPolicy && q.startsOn) {
+      const estimatedCit = await this.citPolicy.estimateReport(c.organizationId, {
+        startsOn: q.startsOn,
+        endsOn: q.endsOn,
+      });
+      return this.envelope(c, { ...(base as Record<string, unknown>), estimatedCit });
+    }
+    return this.envelope(c, base);
   }
   drilldown(c: FinancialStatementContext, q: DrilldownQuery) {
     return this.store.drilldown(c, q).then((x) => this.envelope(c, x));

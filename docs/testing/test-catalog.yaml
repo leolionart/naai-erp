@@ -2781,6 +2781,14 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/aging/aging.integration.test.ts
     blocking_gate: G54
 
+  - id: T-UNIT-TAX-102
+    task: ERP-986
+    rules: [BR-TAX-102]
+    title: Estimated CIT rate resolves 3B and 50B prior-year revenue boundaries, missing prior-year revenue, override, and custom year schedules
+    layer: unit
+    command: pnpm --filter @naai-erp/domain exec vitest run src/cit-rate.test.ts
+    blocking_gate: G100
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

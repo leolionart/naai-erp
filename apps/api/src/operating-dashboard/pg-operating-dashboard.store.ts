@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import pg from "pg";
 import { AGING_STORE, type AgingStore } from "../aging/aging.types.js";
+import { resolvePgCitEstimate } from "../cit-policy/pg-cit-estimate.js";
 import type {
   OperatingDashboardQuery,
   OperatingDashboardReadModel,
@@ -170,7 +171,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       ownerCurrent,
       ownerSettlement,
       expenseFunding,
-      taxPolicy,
       readiness,
     ] = await Promise.all([
       this.pool.query<{ period: string; revenue: string; expense: string }>(
@@ -427,15 +427,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
              and j.state in ('posted','reversed')`,
         [org, q.startsOn, q.endsOn],
       ),
-      this.pool.query<{ rate_bps: number | null }>(
-        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1)
-         select round(rate*10000)::int rate_bps
-         from tax_code_versions
-         where organization_id=$1 and kind='cit' and (review_state='accountant_approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
-           and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-         order by (review_state='accountant_approved') desc,effective_from desc,code limit 1`,
-        [org, q.asOf],
-      ),
       this.pool.query<{
         recognition_count: number;
         budget_count: number;
@@ -525,13 +516,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                     : "executive_metric_policy_missing",
                 ]
               : []),
-            ...(config.approved_cit_policy_count === 0
-              ? [
-                  config.effective_cit_policy_count > 0
-                    ? "cit_policy_unapproved"
-                    : "cit_policy_missing",
-                ]
-              : []),
           ]
         : [];
     if (companyCashOnHandMinor < 0n) configurationWarnings.push("shared_cash_ledger_unreconciled");
@@ -550,15 +534,21 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     if ((foreign.rows[0]?.count ?? 0) > 0)
       configurationWarnings.push("foreign_currency_excluded_from_totals");
     const citIneligible = amount(expenseFunding.rows[0]?.cit_ineligible);
-    const taxableProfit = netProfit + citIneligible;
-    // Preserve the signed taxable result for reporting.  Only the CIT tax
-    // base is floored at zero; a loss must remain visible to users.
-    const taxableProfitMinor = taxableProfit.toString();
-    const taxableBaseMinor = taxableProfit > 0n ? taxableProfit : 0n;
-    const corporateIncomeTaxMinor =
-      taxPolicy.rows[0]?.rate_bps == null
-        ? null
-        : ((taxableBaseMinor * BigInt(taxPolicy.rows[0].rate_bps)) / 10_000n).toString();
+    const citEstimate = await resolvePgCitEstimate(this.pool, org, {
+      startsOn: q.startsOn,
+      endsOn: q.endsOn,
+      asOf: q.asOf,
+      baseCurrency,
+      accountingRevenueMinor: revenue,
+      accountingExpenseMinor: expense,
+      citIneligibleMinor: citIneligible,
+      citUnreviewedMinor: 0n,
+    });
+    if (config?.operating_mode === "solopreneur" && citEstimate.effectiveRateBps === null) {
+      configurationWarnings.push(
+        config.effective_cit_policy_count > 0 ? "cit_policy_unapproved" : "cit_policy_missing",
+      );
+    }
     return {
       revenueMinor: revenue.toString(),
       expenseMinor: expense.toString(),
@@ -586,9 +576,14 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       unclassifiedOwnerPaidCount,
       unclassifiedOwnerPaidMinor: unclassifiedOwnerPaidMinor.toString(),
       ownerPaidClassificationStatus,
-      corporateIncomeTaxRateBps: taxPolicy.rows[0]?.rate_bps ?? null,
-      taxableProfitMinor,
-      corporateIncomeTaxMinor,
+      corporateIncomeTaxRateBps: citEstimate.effectiveRateBps,
+      taxableProfitMinor: citEstimate.taxableProfitMinor,
+      corporateIncomeTaxMinor: citEstimate.estimatedCitMinor,
+      corporateIncomeTaxTierCode: citEstimate.tierCode,
+      corporateIncomeTaxBasis: citEstimate.basis,
+      corporateIncomeTaxAssumption: citEstimate.assumption,
+      priorYearRevenueMinor: citEstimate.referenceRevenueMinor,
+      citSmallEnterpriseIneligible: citEstimate.citSmallEnterpriseIneligible,
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
       approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,

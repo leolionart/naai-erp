@@ -512,6 +512,13 @@
       "when": 1788224640000,
       "tag": "0073_funding_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1788224700000,
+      "tag": "0074_cit_revenue_tiers",
+      "breakpoints": true
     }
   ]
 }

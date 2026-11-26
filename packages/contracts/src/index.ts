@@ -360,3 +360,13 @@ export {
   type UpdateCustomerServiceSubscriptionRequest,
   type UpdateServicePlanRequest,
 } from "./customer-service-subscriptions.js";
+export {
+  CIT_POLICY_CONTRACT_VERSION,
+  type CitRateBasisContract,
+  type CitRateScheduleContract,
+  type CitRateTierContract,
+  type EstimatedCitReportContract,
+  type OrganizationCitPolicyContract,
+  type UpdateOrganizationCitPolicyRequest,
+  type UpsertOrganizationCitRateTiersRequest,
+} from "./cit-policy.js";
