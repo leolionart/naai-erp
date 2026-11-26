@@ -591,6 +591,91 @@ export class CommercialDocumentService {
       ...(shouldAutoPost ? { replacementState: "posted" } : {}),
     });
   }
+  async reclassifyAccounts(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    input: {
+      lines: ReadonlyArray<{
+        lineNumber: number;
+        primaryAccountCode?: string;
+        categoryCode?: string;
+      }>;
+      postReplacement?: boolean;
+      reason: string;
+    },
+    idempotencyKey?: string,
+  ) {
+    if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    const reason = input.reason?.trim() ?? "";
+    if (!expectedVersion || !Array.isArray(input.lines) || input.lines.length === 0 || !reason)
+      throw new Error("VALIDATION_FAILED");
+    const result = await this.store.reclassifyAccounts(
+      context,
+      id,
+      expectedVersion,
+      input.lines,
+      reason,
+      idempotencyKey,
+    );
+    const shouldAutoPost =
+      input.postReplacement ??
+      (context.roles.includes("owner") &&
+        Boolean(await this.store.isSolopreneur?.(context.organizationId)));
+    const replacementId = (result as { replacementDocumentId?: string }).replacementDocumentId;
+    if (
+      shouldAutoPost &&
+      replacementId &&
+      !(result as { idempotencyReplayed?: boolean }).idempotencyReplayed
+    ) {
+      const rep = await this.store.get(context.organizationId, replacementId);
+      if (rep?.type === "sales_invoice") {
+        await this.transition(
+          context,
+          replacementId,
+          "validate",
+          { reason },
+          `${idempotencyKey}:validate`,
+        );
+        await this.transition(
+          context,
+          replacementId,
+          "issue",
+          { reason },
+          `${idempotencyKey}:issue`,
+        );
+        return this.envelope(context, { ...result, replacementState: "issued" });
+      }
+      await this.transition(
+        context,
+        replacementId,
+        "capture",
+        { reason },
+        `${idempotencyKey}:capture`,
+      );
+      await this.transition(
+        context,
+        replacementId,
+        "verify",
+        { reason },
+        `${idempotencyKey}:verify`,
+      );
+      await this.transition(
+        context,
+        replacementId,
+        "approve",
+        { reason },
+        `${idempotencyKey}:approve`,
+      );
+      await this.transition(context, replacementId, "post", { reason }, `${idempotencyKey}:post`);
+      return this.envelope(context, { ...result, replacementState: "posted" });
+    }
+    return this.envelope(context, {
+      ...result,
+      ...(shouldAutoPost ? { replacementState: "posted" } : {}),
+    });
+  }
   async reclassifyFundingByExternal(
     context: CommercialDocumentContext,
     system: string,

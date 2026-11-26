@@ -474,6 +474,15 @@ export class PgExpenseStore {
     return result.rows[0]?.expense_id ?? undefined;
   }
 
+  async accountRootType(organizationId: string, code: string): Promise<string | undefined> {
+    const result = await this.pool.query<{ root_type: string; is_active: boolean }>(
+      `select root_type::text,is_active from accounts where organization_id=$1 and code=$2`,
+      [organizationId, code],
+    );
+    const row = result.rows[0];
+    return row?.is_active ? row.root_type : undefined;
+  }
+
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {
     if (input.fundingFinancialAccountId) {
       const funding = await this.pool.query<{ ledger_account_code: string }>(

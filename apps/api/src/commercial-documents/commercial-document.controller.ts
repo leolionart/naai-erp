@@ -295,6 +295,33 @@ export class CommercialDocumentController {
       idempotencyKey,
     );
   }
+  @Post(":id/reclassify-accounts")
+  async reclassifyAccounts(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body()
+    input: {
+      lines: ReadonlyArray<{
+        lineNumber: number;
+        primaryAccountCode?: string;
+        categoryCode?: string;
+      }>;
+      postReplacement?: boolean;
+      reason: string;
+    },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
+    return this.service.reclassifyAccounts(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      expectedVersion ?? "",
+      input ?? { lines: [], reason: "" },
+      idempotencyKey,
+    );
+  }
   @Post(":id/review")
   async review(
     @Param("organizationId") organizationId: string,

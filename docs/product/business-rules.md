@@ -1505,8 +1505,11 @@ No task may be marked done with orphan business rules or untested behavior.
   → `planHash` → idempotent `POST /funding-plans/commit` (up to 200 rows) with a per-row result and a
   before/after journal and dashboard impact; blocked rows (closed period, reconciled, paid) are reported,
   never forced.
-- `BR-FUND-006` (planned): expense and revenue accounts of posted records are changed by an adjusting journal
-  in the open period; reversing and replacing is reserved for changes to amount, VAT, date, party or allocations.
+- `BR-FUND-006`: expense and revenue accounts of posted records are changed via
+  `POST /expenses/{id}/reclassify-accounts`, `POST /commercial-documents/{id}/reclassify-accounts`,
+  and bulk `POST /account-plans/{dry-run|commit}`; target accounts must be active and match the record's
+  root type (expense/asset vs revenue/income/liability), while amounts, VAT, tax states and allocations
+  are preserved.
 - `BR-FUND-007` (planned): company cash held by the owner is company cash kept in its own cash account
   (`111-OWNER-CUSTODY`, a sub-account of 111) with a cash book and a monthly cash count; balances come from the
   ledger at any as-of date. Owner-paid costs stay in 3388 (company owes owner); the owner's personal spending

@@ -277,6 +277,33 @@ export class ExpenseController {
       key,
     );
   }
+  @Post(":id/reclassify-accounts")
+  async reclassifyAccounts(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body()
+    input: {
+      lines: ReadonlyArray<{
+        lineNumber: number;
+        postingAccountCode?: string;
+        categoryCode?: string;
+      }>;
+      postReplacement?: boolean;
+      reason?: string;
+    },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.reclassifyAccounts(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input ?? { lines: [] },
+      key,
+    );
+  }
   @Post(":id/reverse") async reverse(
     @Param("organizationId") org: string,
     @Param("id") id: string,

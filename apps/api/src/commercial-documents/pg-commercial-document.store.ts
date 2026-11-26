@@ -2381,6 +2381,98 @@ export class PgCommercialDocumentStore {
     return result.rows[0]?.document_id ?? undefined;
   }
 
+  async accountRootType(organizationId: string, code: string): Promise<string | undefined> {
+    const result = await this.pool.query<{ root_type: string; is_active: boolean }>(
+      `select root_type::text,is_active from accounts where organization_id=$1 and code=$2`,
+      [organizationId, code],
+    );
+    const row = result.rows[0];
+    return row?.is_active ? row.root_type : undefined;
+  }
+
+  async reclassifyAccounts(
+    context: CommercialDocumentContext,
+    id: string,
+    expectedVersion: string,
+    linesPatch: ReadonlyArray<{
+      lineNumber: number;
+      primaryAccountCode?: string;
+      categoryCode?: string;
+    }>,
+    reason: string,
+    idempotencyKey: string,
+  ) {
+    const existing = await this.get(context.organizationId, id);
+    if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+    const allowedRoots =
+      existing.type === "purchase_invoice"
+        ? ["expense", "asset"]
+        : ["revenue", "income", "liability"];
+    const patchByLine = new Map(linesPatch.map((l) => [l.lineNumber, l]));
+    for (const patch of linesPatch) {
+      const code = patch.primaryAccountCode?.trim();
+      if (code) {
+        const root = await this.accountRootType(context.organizationId, code);
+        if (!root || !allowedRoots.includes(root)) throw new Error("VALIDATION_FAILED");
+      }
+    }
+    const replacement = {
+      id: randomUUID(),
+      type: existing.type as CommercialDocumentType,
+      documentNumber: existing.document_number,
+      ...(existing.series ? { series: existing.series } : {}),
+      fiscalYear: Number(existing.fiscal_year),
+      partyId: existing.party_id,
+      documentDate: String(existing.document_date).slice(0, 10),
+      dueDate: String(existing.due_date).slice(0, 10),
+      currency: existing.currency,
+      netMinor: String(existing.net_minor),
+      taxMinor: String(existing.tax_minor),
+      grossMinor: String(existing.gross_minor),
+      controlAccountCode: existing.control_account_code,
+      ...(existing.funding_financial_account_id
+        ? {
+            fundingSource: {
+              type: "financial_account" as const,
+              financialAccountId: existing.funding_financial_account_id,
+            },
+          }
+        : {}),
+      lines: (existing.lines ?? []).map((line: Record<string, unknown>, idx: number) => {
+        const patch = patchByLine.get(Number(line.lineNumber ?? idx + 1));
+        return {
+          description: line.description,
+          quantity: String(line.quantity ?? "1"),
+          unitPriceMinor: String(line.unitPriceMinor ?? line.grossMinor ?? "0"),
+          netMinor: String(line.netMinor ?? line.grossMinor ?? "0"),
+          taxMinor: String(line.taxMinor ?? "0"),
+          grossMinor: String(line.grossMinor ?? "0"),
+          primaryAccountCode: patch?.primaryAccountCode?.trim() || line.primaryAccountCode,
+          categoryCode: patch?.categoryCode?.trim() || line.categoryCode || undefined,
+          taxAccountCode: line.taxAccountCode ?? undefined,
+          taxCode: line.taxCode ?? undefined,
+          dimensions: line.dimensions ?? {},
+          allocations: (Array.isArray(line.allocations) ? line.allocations : []).map(
+            (a: Record<string, unknown>) => ({
+              id: a.id ?? a.allocation_id ?? randomUUID(),
+              amountMinor: String(a.amountMinor ?? a.amount_minor),
+              dimensions: a.dimensions ?? {},
+            }),
+          ),
+        };
+      }),
+    } satisfies CreateCommercialDocumentInput;
+    return this.reverseReplace(
+      context,
+      id,
+      expectedVersion,
+      replacement,
+      reason,
+      idempotencyKey,
+      true,
+    );
+  }
+
   async reclassifyFunding(
     context: CommercialDocumentContext,
     id: string,

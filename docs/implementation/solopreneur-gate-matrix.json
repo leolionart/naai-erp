@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 122,
+  "mutationCount": 126,
   "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
@@ -11,6 +11,8 @@
   },
   "uiActionFamilies": [
     "/api",
+    "account-plans/commit",
+    "account-plans/dry-run",
     "accountant-exports",
     "accountant-exports/{id}",
     "banking/accounts",
@@ -24,6 +26,7 @@
     "commercial-documents/purchase-invoice-ingestion",
     "commercial-documents/sales-invoice-ingestion",
     "commercial-documents/{documentId}",
+    "commercial-documents/{id}",
     "customer-receipts",
     "customer-service-subscriptions",
     "customer-service-subscriptions/{subscriptionId}",
@@ -34,6 +37,7 @@
     "expenses",
     "expenses/by-external",
     "expenses/{expenseId}",
+    "expenses/{id}",
     "financial-statement-mappings",
     "financial-statement-mappings/{mappingVersionId}",
     "fiscal-periods/close",
@@ -1831,6 +1835,86 @@
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
       "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-plans/commit"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{id}/reclassify-accounts",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{id}/reclassify-accounts",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "reclassify-accounts",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/{id}/reclassify-accounts",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{id}/reclassify-accounts",
+      "operationId": null,
+      "resource": "commercial-documents",
+      "action": "reclassify-accounts",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "commercial-documents/{id}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/account-plans/dry-run",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/account-plans/dry-run",
+      "operationId": null,
+      "resource": "account-plans",
+      "action": "dry-run",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "account-plans/dry-run"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/account-plans/commit",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/account-plans/commit",
+      "operationId": null,
+      "resource": "account-plans",
+      "action": "commit",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "account-plans/commit"
     },
     {
       "id": "POST:/api/v1/organizations/{organizationId}/outbound-events/endpoints",

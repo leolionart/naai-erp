@@ -2084,6 +2084,26 @@
         "summary": "Commit a reviewed bulk funding reclassification plan idempotently when planHash matches"
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/{id}/reclassify-accounts": {
+      "post": {
+        "summary": "Reclassify posting account or category codes on an expense by reversing and replacing"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{id}/reclassify-accounts": {
+      "post": {
+        "summary": "Reclassify revenue or expense primary account or category codes on a commercial document"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/account-plans/dry-run": {
+      "post": {
+        "summary": "Preview bulk expense and revenue account reclassification with blocked rows and planHash"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/account-plans/commit": {
+      "post": {
+        "summary": "Commit a reviewed bulk account reclassification plan idempotently when planHash matches"
+      }
+    },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {
       "get": {
         "summary": "List organization-scoped outbound endpoint metadata without returning secrets"

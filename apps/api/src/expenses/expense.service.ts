@@ -645,6 +645,94 @@ export class ExpenseService {
     if (!id) throw new Error("RESOURCE_NOT_FOUND");
     return this.reclassifyFunding(context, id, expectedVersion, input, key);
   }
+  async reclassifyAccounts(
+    context: ExpenseContext,
+    id: string,
+    expectedVersion: string,
+    input: {
+      lines: ReadonlyArray<{
+        lineNumber: number;
+        postingAccountCode?: string;
+        categoryCode?: string;
+      }>;
+      postReplacement?: boolean;
+      reason?: string;
+    },
+    key?: string,
+  ) {
+    if (!context.roles.some((role) => POST.has(role))) throw new Error("FORBIDDEN");
+    if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (!expectedVersion) throw new Error("VERSION_CONFLICT");
+    const reason = input.reason?.trim() ?? "";
+    if (!reason || !Array.isArray(input.lines) || input.lines.length === 0) {
+      throw new Error("VALIDATION_FAILED");
+    }
+    const existing = await this.store.get(context.organizationId, id);
+    if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+
+    const patchByLine = new Map(input.lines.map((l) => [l.lineNumber, l]));
+    for (const patch of input.lines) {
+      if (patch.postingAccountCode) {
+        const root = await this.store.accountRootType?.(
+          context.organizationId,
+          patch.postingAccountCode.trim(),
+        );
+        if (!root || !["expense", "asset"].includes(root)) {
+          throw new Error("VALIDATION_FAILED");
+        }
+      }
+    }
+    const baseMerged = this.mergeExpense(existing, {});
+    const updatedLines = baseMerged.lines.map((line, index) => {
+      const patch = patchByLine.get(index + 1);
+      if (!patch) return line;
+      const nextCode = patch.postingAccountCode?.trim() || line.postingAccountCode;
+      const nextCat = patch.categoryCode?.trim() || line.expenseCategoryCode;
+      return {
+        ...line,
+        postingAccountCode: nextCode,
+        ...(nextCat ? { expenseCategoryCode: nextCat } : {}),
+      };
+    });
+    const replacement: CreateExpenseInput = {
+      ...baseMerged,
+      id: this.replacementId(context.organizationId, id, key),
+      lines: updatedLines,
+    };
+    const replaced = await this.reverseReplace(
+      context,
+      id,
+      expectedVersion,
+      replacement,
+      reason,
+      key,
+    );
+    const shouldAutoPost =
+      input.postReplacement ??
+      (context.roles.includes("owner") &&
+        (await this.store.isSolopreneur?.(context.organizationId)));
+    const replacementId = (replaced.data as { replacementExpenseId?: string }).replacementExpenseId;
+    if (
+      shouldAutoPost &&
+      replacementId &&
+      !(replaced.data as { idempotencyReplayed?: boolean }).idempotencyReplayed
+    ) {
+      await this.transition(context, replacementId, "submit", { reason }, `${key}:submit`);
+      await this.transition(context, replacementId, "approve", { reason }, `${key}:approve`);
+      await this.transition(context, replacementId, "post", { reason }, `${key}:post`);
+      return {
+        ...replaced,
+        data: { ...(replaced.data as Record<string, unknown>), replacementState: "posted" },
+      };
+    }
+    return {
+      ...replaced,
+      data: {
+        ...(replaced.data as Record<string, unknown>),
+        replacementState: shouldAutoPost ? "posted" : "draft",
+      },
+    };
+  }
   private replacementId(organizationId: string, id: string, key: string) {
     const hex = createHash("sha256").update(`${organizationId}:${id}:${key}`).digest("hex");
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
