@@ -9,6 +9,7 @@ import type {
   OperatingDashboardQuery,
   OperatingDashboardReadModel,
   OperatingDashboardStore,
+  WorkbookSourceControlKind,
   WorkbookSourceControls,
 } from "./operating-dashboard.types.js";
 
@@ -155,7 +156,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
    * adding USD and VND minor units would silently produce a meaningless total.
    */
   private async financials(org: string, q: OperatingDashboardQuery, baseCurrency: string) {
-    const [monthlyResult, cash, liquiditySnapshot, expenseFunding, readiness] =
+    const [monthlyResult, cash, liquiditySnapshot, ownerSettlement, expenseFunding, readiness] =
       await Promise.all([
         this.pool.query<{ period: string; revenue: string; expense: string }>(
           `select

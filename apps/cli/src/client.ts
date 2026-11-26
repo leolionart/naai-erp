@@ -7,7 +7,11 @@ import type {
 import { executeExtendedCliRoute, resolveExtendedCliRoute } from "./cit-client.js";
 import { downloadXlsxAttachment, sendJsonSubresourceRequest } from "./cli-http-helpers.js";
 import { isOwnerFundingResource, requestOwnerFunding } from "./owner-funding-cli.js";
-import { tryResolvePaymentEvidenceRoute } from "./payment-evidence-cli.js";
+import {
+  downloadBinaryFromApi,
+  tryResolvePaymentEvidenceRoute,
+  type BinaryDownloadResult,
+} from "./payment-evidence-cli.js";
 
 export type CliOptions = Readonly<{
   baseUrl: string;
