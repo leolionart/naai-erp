@@ -2,6 +2,11 @@ import { readFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import process from "node:process";
+import {
+  demoAccountHierarchyEdges,
+  demoAccounts as accounts,
+  demoMappingLines as mappingLines,
+} from "./seed-local-demo-accounts.mjs";
 
 const args = new Set(process.argv.slice(2));
 const verifyOnly = args.has("--verify");
@@ -152,67 +157,6 @@ const startsOn = "2026-01-01";
 const endsOn = "2026-12-31";
 const asOfInstant = "2026-12-31T16:59:59.000Z";
 
-const accounts = [
-  ["111-CASH", "Tiền mặt", "asset", false, true],
-  ["112-BANK", "Tiền gửi ngân hàng", "asset", false, true],
-  ["113-TRANSIT", "Tiền đang chuyển", "asset", false, true],
-  ["131-AR", "Phải thu khách hàng", "asset", true, false],
-  ["1368-CONTRACT", "Tài sản hợp đồng chưa xuất hóa đơn", "asset", false, true],
-  ["1331-VAT", "Thuế GTGT được khấu trừ", "asset", false, true],
-  ["211-EQUIP", "Tài sản cố định", "asset", false, true],
-  ["331-AP", "Phải trả nhà cung cấp", "liability", true, false],
-  ["3331-VAT", "Thuế GTGT phải nộp", "liability", false, true],
-  ["3387-DEFERRED", "Doanh thu chưa thực hiện", "liability", false, true],
-  ["3388-OWNER", "Tài khoản vãng lai chủ doanh nghiệp", "liability", false, true],
-  ["341-LOAN", "Vay chủ doanh nghiệp", "liability", false, true],
-  ["411-CAPITAL", "Vốn chủ sở hữu", "equity", false, true],
-  ["421-RE", "Lợi nhuận chưa phân phối", "equity", false, true],
-  ["511-REV", "Doanh thu dịch vụ", "revenue", false, true],
-  ["515-OTHER", "Thu nhập khác", "revenue", false, true],
-  ["632-COGS", "Giá vốn dịch vụ", "expense", false, true],
-  ["635-OTHER", "Chi phí khác", "expense", false, true],
-  ["642-OPEX", "Chi phí quản lý", "expense", false, true],
-  ["821-TAX", "Chi phí thuế TNDN", "expense", false, true],
-];
-
-const mappingLines = [
-  ["profit_and_loss", "revenue", "Doanh thu", "511-REV", 10],
-  ["profit_and_loss", "direct_cost", "Giá vốn", "632-COGS", 20],
-  ["profit_and_loss", "opex", "Chi phí quản lý", "642-OPEX", 30],
-  ["profit_and_loss", "other_income", "Thu nhập khác", "515-OTHER", 40],
-  ["profit_and_loss", "other_expense", "Chi phí khác", "635-OTHER", 50],
-  ["profit_and_loss", "tax_expense", "Thuế TNDN", "821-TAX", 60],
-  ["balance_sheet", "cash", "Tiền mặt", "111-CASH", 10],
-  ["balance_sheet", "cash", "Tiền gửi", "112-BANK", 11],
-  ["balance_sheet", "receivables", "Phải thu", "131-AR", 20],
-  ["balance_sheet", "contract_assets", "Tài sản hợp đồng", "1368-CONTRACT", 21],
-  ["balance_sheet", "input_vat", "VAT đầu vào", "1331-VAT", 30],
-  ["balance_sheet", "equipment", "Tài sản cố định", "211-EQUIP", 40],
-  ["balance_sheet", "payables", "Phải trả", "331-AP", 50],
-  ["balance_sheet", "output_vat", "VAT đầu ra", "3331-VAT", 60],
-  ["balance_sheet", "owner_current", "Vãng lai chủ doanh nghiệp", "3388-OWNER", 70],
-  ["balance_sheet", "owner_loan", "Vay chủ doanh nghiệp", "341-LOAN", 71],
-  ["balance_sheet", "capital", "Vốn chủ sở hữu", "411-CAPITAL", 80],
-  ["balance_sheet", "retained_earnings", "Lợi nhuận giữ lại", "421-RE", 90],
-  ["cash_flow", "operating", "Kinh doanh", "511-REV", 10, "operating"],
-  ["cash_flow", "operating", "Kinh doanh", "632-COGS", 20, "operating"],
-  ["cash_flow", "operating", "Kinh doanh", "642-OPEX", 30, "operating"],
-  ["cash_flow", "investing", "Đầu tư", "211-EQUIP", 40, "investing"],
-  ["cash_flow", "financing", "Tài chính", "3388-OWNER", 50, "financing"],
-  ["cash_flow", "financing", "Tài chính", "341-LOAN", 51, "financing"],
-  ["cash_flow", "financing", "Tài chính", "411-CAPITAL", 52, "financing"],
-  ["vat_reconciliation", "output_vat", "VAT đầu ra", "3331-VAT", 10, null, "output"],
-  ["vat_reconciliation", "input_vat", "VAT đầu vào", "1331-VAT", 20, null, "input_eligible"],
-].map(([statement, lineCode, label, accountCode, displayOrder, cashFlowClass, vatTreatment]) => ({
-  statement,
-  lineCode,
-  label,
-  accountCode,
-  displayOrder,
-  ...(cashFlowClass ? { cashFlowClass } : {}),
-  ...(vatTreatment ? { vatTreatment } : {}),
-}));
-
 async function seedMasterData() {
   await createMaster("fiscal-years", { year, starts_on: startsOn, ends_on: endsOn }, "fy-2026");
   for (let month = 1; month <= 12; month += 1) {
@@ -235,6 +179,8 @@ async function seedMasterData() {
       { code, name, root_type, is_control_account, allow_manual_posting, is_active: true },
       `account-${code}`,
     );
+  for (const edge of demoAccountHierarchyEdges)
+    await createMaster("account-hierarchy-edges", edge, `account-edge-${edge.child_code}`);
   for (const [code, name, kind, rate] of [
     ["VAT10_OUT", "VAT đầu ra 10%", "vat_output", "0.10"],
     ["VAT10_IN", "VAT đầu vào 10%", "vat_input", "0.10"],
@@ -1355,13 +1301,23 @@ async function seedBanking() {
     },
     {
       id: "demo-cash",
-      code: "CASH-DEMO",
+      code: "CASH-COMPANY",
       kind: "cash",
       displayName: "Quỹ tiền mặt demo",
       currency: "VND",
       ledgerAccountCode: "111-CASH",
       maskedIdentifier: "CASH",
       accountIdentity: "NAAI-CASH-DEMO",
+    },
+    {
+      id: "demo-owner-custody-cash",
+      code: "CASH-OWNER-CUSTODY",
+      kind: "cash",
+      displayName: "Quỹ tiền mặt do chủ giữ",
+      currency: "VND",
+      ledgerAccountCode: "111-OWNER-CUSTODY",
+      maskedIdentifier: "OWNER-CASH",
+      accountIdentity: "NAAI-OWNER-CUSTODY-CASH",
     },
   ]) {
     const listed = await request("/banking/accounts");

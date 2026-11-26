@@ -764,3 +764,8 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   `master-data/party-roles` without calling obsolete `time/workers`, translate raw API error codes into
   Vietnamese, and render distinct headings for load errors versus action errors
   (`error-messages.test.ts`, `focused-record-shared.test.ts`, `focused-record-alerts.test.tsx`).
+- `T-INT-FUND-007`: seeds `111-OWNER-CUSTODY` under `111` separate from `111-CASH` and `1388` owner
+  receivables, maps `CASH-OWNER-CUSTODY -> 111-OWNER-CUSTODY` and `CASH-COMPANY -> 111-CASH` across
+  internal transfers, expenses and purchase invoices, keeps `1388` excluded from P&L, VAT and CIT,
+  derives custody and company cash balances directly from the ledger at any `asOf` date, and verifies
+  controlled dry-run/commit reclassification of historical `111-CASH` entries (`owner-custody.integration.test.ts`).

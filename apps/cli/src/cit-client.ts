@@ -55,6 +55,17 @@ export function resolveExtendedCliRoute(input: {
     return { method: "GET", url: qs ? `${base}?${qs}` : base, includeBody: false };
   }
 
+  if (resource === "owner-custody-migration") {
+    if (!["dry-run", "commit"].includes(action)) {
+      throw new Error(`Unsupported owner-custody-migration action: ${action}`);
+    }
+    return {
+      method: "POST",
+      url: `${orgRoot}/funding-plans/owner-custody-migration/${action}`,
+      includeBody: true,
+    };
+  }
+
   if (resource === "account-plans") {
     if (!["dry-run", "commit"].includes(action)) {
       throw new Error(`Unsupported account-plans action: ${action}`);

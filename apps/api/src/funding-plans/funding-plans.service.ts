@@ -31,42 +31,8 @@ type ResolvedTarget = Readonly<{
   ledgerAccountCode: string;
 }>;
 
-function csvEscape(value: string): string {
-  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
-}
-
-export function formatFundingPlanCsv(rows: readonly FundingPlanExportRow[]): string {
-  const header = [
-    "kind",
-    "id",
-    "externalId",
-    "date",
-    "payee",
-    "description",
-    "grossMinor",
-    "currentFunding",
-    "currentAccount",
-    "targetFunding",
-  ].join(",");
-  const lines = rows.map((r) =>
-    [
-      r.kind,
-      r.id,
-      r.externalId,
-      r.date,
-      r.payee,
-      r.description,
-      r.grossMinor,
-      r.currentFunding,
-      r.currentAccount,
-      r.targetFunding,
-    ]
-      .map(csvEscape)
-      .join(","),
-  );
-  return [header, ...lines].join("\n");
-}
+import { classifyFundingBucket, formatFundingPlanCsv } from "./funding-plans.helpers.js";
+export { formatFundingPlanCsv };
 
 @Injectable()
 export class FundingPlansService {
@@ -96,12 +62,8 @@ export class FundingPlansService {
     accountCode: string,
     financialAccountCode: string | null,
     financialKind: string | null,
-  ): "owner_paid" | "owner_custody_cash" | "company_cash" | "company_bank" {
-    if (financialAccountCode === "CASH-OWNER-CUSTODY") return "owner_custody_cash";
-    if (financialKind === "cash") return "company_cash";
-    if (financialKind === "bank" || accountCode.startsWith("112")) return "company_bank";
-    if (accountCode.startsWith("111")) return "company_cash";
-    return "owner_paid";
+  ) {
+    return classifyFundingBucket(accountCode, financialAccountCode, financialKind);
   }
 
   async exportPlan(context: Context, filters: { from?: string; to?: string; format?: string }) {

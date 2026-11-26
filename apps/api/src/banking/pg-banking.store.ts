@@ -45,6 +45,11 @@ import {
   queryOwnerCurrentMovements,
   summarizeOwnerSettlement,
 } from "./owner-current-read-model.js";
+import {
+  ensureDefaultCashAccountLedger,
+  readOwnerCurrentLedgerBalances,
+} from "./owner-custody-banking.js";
+
 export { classifyOwnerCurrentMovement, summarizeOwnerSettlement };
 
 @Injectable()
@@ -79,9 +84,16 @@ export class PgBankingStore implements BankingStore {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
+      const resolvedLedgerCode = await ensureDefaultCashAccountLedger(
+        client,
+        context.organizationId,
+        input.code,
+        input.ledgerAccountCode,
+        context.actorId,
+      );
       const ledger = await client.query<{ root_type: string }>(
         "select root_type from accounts where organization_id=$1 and code=$2",
-        [context.organizationId, input.ledgerAccountCode],
+        [context.organizationId, resolvedLedgerCode],
       );
       if (ledger.rows[0]?.root_type !== "asset") throw new Error("BANK_LEDGER_ACCOUNT_INVALID");
       const id = input.id ?? randomUUID();
@@ -102,7 +114,7 @@ export class PgBankingStore implements BankingStore {
           input.kind,
           input.displayName.trim(),
           input.currency,
-          input.ledgerAccountCode.trim(),
+          resolvedLedgerCode,
           input.bankCode?.trim().toUpperCase() ?? null,
           input.maskedIdentifier?.trim() ?? null,
           identityHash,
@@ -812,7 +824,23 @@ export class PgBankingStore implements BankingStore {
     }
   }
   async listOwnerCurrentMovements(organizationId: string) {
-    return queryOwnerCurrentMovements(this.pool, organizationId);
+    const movements = await queryOwnerCurrentMovements(this.pool, organizationId);
+    const ledgerClosing = BigInt(movements.summary.statutoryOwnerCurrentBalanceMinor);
+    const ledgerInfo = await readOwnerCurrentLedgerBalances(
+      this.pool,
+      organizationId,
+      ledgerClosing,
+    );
+    return {
+      ...movements,
+      summary: {
+        ...movements.summary,
+        ...(ledgerInfo.hasDedicatedCustodyLedger
+          ? { ledgerCustodyCashMinor: ledgerInfo.ownerCustodyMinor.toString() }
+          : {}),
+      },
+      ledgerBalances: ledgerInfo.ledgerBalances,
+    };
   }
   async getTransaction(organizationId: string, id: string) {
     const result = await this.pool.query(

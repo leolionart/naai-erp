@@ -2221,6 +2221,18 @@
         "summary": "Commit a reviewed bulk funding reclassification plan idempotently when planHash matches"
       }
     },
+    "/api/v1/organizations/{organizationId}/funding-plans/owner-custody-migration/dry-run": {
+      "post": {
+        "operationId": "dryRunOwnerCustodyLedgerMigration",
+        "summary": "Preview controlled ledger reclassification of historical 111-CASH journal lines linked to CASH-OWNER-CUSTODY into 111-OWNER-CUSTODY with debit=credit verification and before/after balances"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/funding-plans/owner-custody-migration/commit": {
+      "post": {
+        "operationId": "commitOwnerCustodyLedgerMigration",
+        "summary": "Commit reviewed historical 111-CASH to 111-OWNER-CUSTODY ledger reclassification journals idempotently when planHash matches"
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses/{id}/reclassify-accounts": {
       "post": {
         "summary": "Reclassify posting account or category codes on an expense by reversing and replacing"

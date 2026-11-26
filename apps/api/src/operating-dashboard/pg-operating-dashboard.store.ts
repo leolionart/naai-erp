@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import pg from "pg";
 import { AGING_STORE, type AgingStore } from "../aging/aging.types.js";
 import { resolvePgCitEstimate } from "../cit-policy/pg-cit-estimate.js";
+import { readLedgerLiquidityAndOwnerSnapshot } from "./owner-custody-ledger.js";
 import type {
   OperatingDashboardQuery,
   OperatingDashboardReadModel,
@@ -153,17 +154,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
    * adding USD and VND minor units would silently produce a meaningless total.
    */
   private async financials(org: string, q: OperatingDashboardQuery, baseCurrency: string) {
-    const [
-      monthlyResult,
-      cash,
-      cashAndBank,
-      ownerCurrent,
-      ownerSettlement,
-      expenseFunding,
-      readiness,
-    ] = await Promise.all([
-      this.pool.query<{ period: string; revenue: string; expense: string }>(
-        `select
+    const [monthlyResult, cash, liquiditySnapshot, expenseFunding, readiness] =
+      await Promise.all([
+        this.pool.query<{ period: string; revenue: string; expense: string }>(
+          `select
            to_char(j.journal_date, 'YYYY-MM') period,
            coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)) filter (where a.root_type='revenue'),0)::text revenue,
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where a.root_type='expense'),0)::text expense
@@ -175,10 +169,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           and j.journal_date between $2::date and $3::date
         group by to_char(j.journal_date, 'YYYY-MM')
         order by to_char(j.journal_date, 'YYYY-MM')`,
-        [org, q.startsOn, q.endsOn, baseCurrency],
-      ),
-      this.pool.query<{ amount: string | null }>(
-        `with workflow_policy as (
+          [org, q.startsOn, q.endsOn, baseCurrency],
+        ),
+        this.pool.query<{ amount: string | null }>(
+          `with workflow_policy as (
            select operating_mode from accounting_workflow_policies where organization_id=$1
          ), selected_policy as (
            select * from executive_metric_policy_versions
@@ -200,53 +194,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           and j.state in ('posted','reversed') and j.journal_date<=$2::date`,
         [org, q.asOf],
       ),
-      this.pool.query<{ bank_amount: string; cash_amount: string; amount: string }>(
-        `with cash_accounts as (
-           /*
-            * A financial account is a view over a ledger account.  Several
-            * account records (notably CASH-COMPANY and CASH-OWNER-CUSTODY)
-            * may intentionally share 111-CASH, so grouping by the ledger
-            * account prevents counting that balance twice while retaining
-            * the complete physical cash pool.
-            */
-           select ledger_account_code account_code,
-                  bool_or(kind='bank') as is_bank,
-                  bool_or(kind='cash') as is_cash
-           from financial_accounts
-           where organization_id=$1 and status='active' and kind in ('bank','cash')
-           group by ledger_account_code
-         )
-         select
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.is_bank),0)::text bank_amount,
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where ca.is_cash),0)::text cash_amount,
-           coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)),0)::text amount
-         from cash_accounts ca
-         join journal_lines l on l.organization_id=$1 and l.account_code=ca.account_code
-         join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
-         where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
-        [org, q.asOf],
-      ),
-      this.pool.query<{ amount: string }>(
-        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1), selected_mapping as (
-           select id,version
-           from financial_statement_mapping_versions
-           where organization_id=$1 and framework='TT133' and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
-             and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-           order by (state='approved') desc,effective_from desc,version desc limit 1
-         ), owner_accounts as (
-           select distinct ml.account_code
-           from selected_mapping sm
-           join financial_statement_mapping_lines ml
-             on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
-           where ml.statement='balance_sheet' and ml.line_code='owner_current'
-         )
-         select coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)),0)::text amount
-         from owner_accounts oa
-         join journal_lines l on l.organization_id=$1 and l.account_code=oa.account_code
-         join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
-         where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
-        [org, q.asOf],
-      ),
+      readLedgerLiquidityAndOwnerSnapshot(this.pool, org, q.asOf),
       queryDashboardOwnerSettlement(this.pool, org, q.asOf),
       this.pool.query<{
         owner_paid: string;
@@ -283,10 +231,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                  and e.counter_account_code in (select account_code from owner_accounts)
                  and coalesce((select operating_mode from workflow_policy),'controlled')<>'solopreneur'
              ),0)::text unclassified_minor,
-             (coalesce(sum(l.net_minor) filter (where l.cit_state='ineligible' and j.state in ('posted','reversed')),0) + coalesce((select sum(cl.net_minor) from commercial_document_lines cl join commercial_documents cd on cd.organization_id=cl.organization_id and cd.id=cl.document_id where cl.organization_id=$1 and cl.cit_state='ineligible' and cd.type='purchase_invoice' and cd.state in ('issued','posted','partially_paid','paid') and cd.document_date between $2::date and $3::date),0))::text cit_ineligible,
+             (coalesce(sum(l.net_minor) filter (where l.cit_state='ineligible' and j.state in ('posted','reversed') and pa.root_type='expense'),0) + coalesce((select sum(cl.net_minor) from commercial_document_lines cl join commercial_documents cd on cd.organization_id=cl.organization_id and cd.id=cl.document_id left join accounts cpa on cpa.organization_id=cl.organization_id and cpa.code=cl.primary_account_code where cl.organization_id=$1 and cl.cit_state='ineligible' and coalesce(cpa.root_type,'expense')='expense' and cd.type='purchase_invoice' and cd.state in ('issued','posted','partially_paid','paid') and cd.document_date between $2::date and $3::date),0))::text cit_ineligible,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
            join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
+           left join accounts pa on pa.organization_id=l.organization_id and pa.code=l.posting_account_code
            left join expense_categories c on c.organization_id=l.organization_id and c.code=l.expense_category_code
            join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
            where e.organization_id=$1 and e.state='posted' and e.expense_date between $2::date and $3::date
@@ -314,9 +263,9 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           (select count(*)::int from executive_metric_policy_versions where organization_id=$1 and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_executive_policy_count,
           (select count(*)::int from tax_code_versions where organization_id=$1 and kind='cit' and review_state='accountant_approved' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) approved_cit_policy_count,
           (select count(*)::int from tax_code_versions where organization_id=$1 and kind='cit' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_cit_policy_count`,
-        [org, q.startsOn, q.endsOn],
-      ),
-    ]);
+          [org, q.startsOn, q.endsOn],
+        ),
+      ]);
     const monthly = monthlyResult.rows.map((row) => ({
       period: row.period,
       revenueMinor: amount(row.revenue).toString(),
@@ -326,28 +275,20 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     const revenue = monthlyResult.rows.reduce((sum, row) => sum + amount(row.revenue), 0n);
     const expense = monthlyResult.rows.reduce((sum, row) => sum + amount(row.expense), 0n);
     const netProfit = revenue - expense;
-    const ownerCustodyMinor = amount(ownerSettlement.rows[0]?.custody);
-    // Custody cash remains company cash, but it is not posted to the company
-    // bank/cash ledger account in historical data. Keep the ledger cash and
-    // owner-held custody separate. The shared ledger total remains canonical;
-    // custody is already represented there and must not be added again.
-    const ledgerCashAndBankMinor = amount(cashAndBank.rows[0]?.amount);
-    const bankAvailableMinor = amount(cashAndBank.rows[0]?.bank_amount);
-    const cashOnHandMinor = amount(cashAndBank.rows[0]?.cash_amount);
-    const ownerCurrentMinor = amount(ownerCurrent.rows[0]?.amount);
-    const ownerPayableMinor = ownerCurrentMinor > 0n ? ownerCurrentMinor : 0n;
-    const confirmedOwnerSettlementMinor = amount(ownerSettlement.rows[0]?.settlement);
-    const companyOwesOwnerMinor = amount(ownerSettlement.rows[0]?.company_owes_owner);
-    const ownerHoldsCompanyFundsMinor = amount(ownerSettlement.rows[0]?.owner_holds_company_funds);
-    // The shared 111 ledger is already the complete physical cash pool. Do not
-    // add owner custody a second time; expose the residual company-held cash as
-    // a separate diagnostic component for legacy provenance gaps.
-    const cashAndBankMinor = ledgerCashAndBankMinor;
-    const companyCashOnHandMinor = cashOnHandMinor - ownerHoldsCompanyFundsMinor;
-    // Physical company funds are partitioned into bank, company-held cash
-    // residual and owner-held custody.  A negative residual indicates that
-    // legacy shared-ledger provenance is incomplete; do not let that
-    // unresolved bookkeeping gap make the physical-funds headline negative.
+    const {
+      bankAvailableMinor,
+      companyCashOnHandMinor,
+      ownerCashCustodyMinor,
+      cashOnHandMinor,
+      cashAndBankMinor,
+      ownerPayableMinor,
+      confirmedOwnerSettlementMinor,
+      companyOwesOwnerMinor,
+      ownerHoldsCompanyFundsMinor,
+      ownerReceivableMinor,
+      netOwnerPositionMinor,
+      hasUnmigratedCustodyEntries,
+    } = liquiditySnapshot;
     const companyFunds = deriveCompanyFunds({
       bankAvailableMinor,
       companyCashOnHandMinor,
@@ -385,6 +326,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           ]
         : [];
     if (companyCashOnHandMinor < 0n) configurationWarnings.push("shared_cash_ledger_unreconciled");
+    if (hasUnmigratedCustodyEntries)
+      configurationWarnings.push("owner_custody_ledger_migration_required");
     // Foreign-currency items are excluded from base-currency totals; tell the user so the omission
     // is never silent.
     const foreign = await this.pool.query<{ count: number }>(
@@ -432,10 +375,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       confirmedOwnerSettlementMinor: confirmedOwnerSettlementMinor.toString(),
       ownerHoldsCompanyFundsMinor: ownerHoldsCompanyFundsMinor.toString(),
       ownerSettlementDrilldownHref: "/banking/owner-current",
-      ownerCashCustodyMinor: ownerCustodyMinor.toString(),
-      ownerPersonalWithdrawalMinor: amount(
-        ownerSettlement.rows[0]?.personal_withdrawals,
-      ).toString(),
+      ownerCashCustodyMinor: ownerCashCustodyMinor.toString(),
+      ownerReceivableMinor: ownerReceivableMinor.toString(),
+      netOwnerPositionMinor: netOwnerPositionMinor.toString(),
+      ownerPersonalWithdrawalMinor: "0",
       netAvailableCashMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),
       actualOwnerPaidCompanyCostMinor: actualOwnerPaidCompanyCostMinor.toString(),
       netCompanyFundsMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),

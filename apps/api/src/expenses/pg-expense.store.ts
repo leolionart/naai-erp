@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import { buildExpenseFundingInferencePlan } from "./expense-funding.js";
 import {
   applyExpenseLineCategoryUpdate,
   resolveExpenseCategory,
@@ -429,6 +430,22 @@ export class PgExpenseStore {
     );
     const row = result.rows[0];
     return row?.is_active ? row.root_type : undefined;
+  }
+
+  async resolveOwnerCurrentAccount(organizationId: string, expenseDate: string) {
+    const r = await this.pool.query<{ account_code: string }>(
+      `select l.account_code from financial_statement_mapping_versions v join financial_statement_mapping_lines l on l.organization_id=v.organization_id and l.mapping_id=v.id and l.mapping_version=v.version join accounts a on a.organization_id=l.organization_id and a.code=l.account_code where v.organization_id=$1 and v.framework='TT133' and l.statement='balance_sheet' and l.line_code='owner_current' and a.is_active=true and v.effective_from<=$2::date and (v.effective_to is null or v.effective_to>=$2::date) order by (v.state='approved') desc,v.effective_from desc,v.version desc limit 1`,
+      [organizationId, expenseDate],
+    );
+    return r.rows[0]?.account_code;
+  }
+
+  async resolveOwnerReceivableAccount(organizationId: string) {
+    const r = await this.pool.query<{ code: string }>(
+      `select code from accounts where organization_id=$1 and root_type='asset' and is_active=true and code in ('1388','1388-OWNER') order by (code='1388') desc, code asc limit 1`,
+      [organizationId],
+    );
+    return r.rows[0]?.code;
   }
 
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {
@@ -1205,7 +1222,9 @@ export class PgExpenseStore {
           input.counterAccountCode,
           effectiveFundingAccountId,
           ownerFundingTrace?.movementId ?? null,
-          input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
+          ["non_documented", "owner_personal", "petty_cash"].includes(input.expenseClass)
+            ? "ineligible"
+            : "unreviewed",
           input.evidenceChecklist ?? {},
           context.actorId,
         ],
@@ -1308,6 +1327,7 @@ export class PgExpenseStore {
           await this.createFreelancePayable(c, context, expense, journalId);
         finalState = "posted";
         resourceVersion = "4";
+        await this.refreshSummary(c, context.organizationId, id);
         await c.query(
           `update expenses set state='posted',version=4,updated_at=now(),approved_by=$3,approved_at=now(),
              posted_by=$3,posted_at=now(),journal_id=$4 where organization_id=$1 and id=$2`,
@@ -2476,7 +2496,8 @@ export class PgExpenseStore {
       r.rows.length === 0 ||
       r.rows.some(
         (line) =>
-          !["valid", "accountant_override"].includes(line.management_state) ||
+          (!["valid", "accountant_override"].includes(line.management_state) &&
+            e.expense_class !== "owner_personal") ||
           line.cit_state === "unreviewed" ||
           line.vat_state === "unreviewed",
       )

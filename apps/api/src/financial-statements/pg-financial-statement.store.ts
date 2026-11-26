@@ -573,7 +573,7 @@ export class PgFinancialStatementStore {
           and not exists (select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id)
           and not exists (select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id))::text missing_evidence
        from expense_lines l join expenses e on e.organization_id=l.organization_id and e.id=l.expense_id
-       where l.organization_id=$1 and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz`,
+       where l.organization_id=$1 and e.expense_class<>'owner_personal' and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
     );
     return {
@@ -621,7 +621,7 @@ export class PgFinancialStatementStore {
         l.reviewed_by,l.review_reason,l.review_reference,null::text,true,e.journal_id is not null,e.journal_id,
         array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id) then array['source_document']::text[] else array[]::text[] end
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-       where e.organization_id=$1 and e.state<>'reversed' and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz and l.vat_minor>0`,
+       where e.organization_id=$1 and e.state<>'reversed' and e.expense_class<>'owner_personal' and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz and l.vat_minor>0`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
     );
     const items = source.rows.map((r) => ({
@@ -780,7 +780,7 @@ export class PgFinancialStatementStore {
           or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id)) source_evidence_present
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
        join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
-       where e.organization_id=$1 and e.state='posted'
+       where e.organization_id=$1 and e.state='posted' and e.expense_class<>'owner_personal'
          and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz
          and j.state in ('posted','reversed') and j.posted_at <= $4::timestamptz
        union all

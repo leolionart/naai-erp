@@ -45,12 +45,14 @@ export class BankingService {
   async createAccount(context: BankingContext, input: CreateFinancialAccountInput, key?: string) {
     this.authorize(context, MANAGE);
     this.requireKey(key);
+    const defaultCashCode =
+      input.code?.trim() === "CASH-OWNER-CUSTODY" || input.code?.trim() === "CASH-COMPANY";
     if (
       !input.code?.trim() ||
       !["bank", "cash"].includes(input.kind) ||
       !input.displayName?.trim() ||
       !/^[A-Z]{3}$/.test(input.currency) ||
-      !input.ledgerAccountCode?.trim() ||
+      (!input.ledgerAccountCode?.trim() && !defaultCashCode) ||
       (input.kind === "bank" && !input.bankCode?.trim())
     )
       throw new Error("VALIDATION_FAILED");

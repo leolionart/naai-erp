@@ -149,6 +149,8 @@ import { OwnerFundingController } from "./owner-funding/owner-funding.controller
 import { OwnerFundingService } from "./owner-funding/owner-funding.service.js";
 import { PgOwnerFundingStore } from "./owner-funding/pg-owner-funding.store.js";
 import { OWNER_FUNDING_STORE } from "./owner-funding/owner-funding.types.js";
+import { OwnerCustodyMigrationController } from "./funding-plans/owner-custody-migration.controller.js";
+import { OwnerCustodyMigrationService } from "./funding-plans/owner-custody-migration.service.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -196,6 +198,7 @@ import { OWNER_FUNDING_STORE } from "./owner-funding/owner-funding.types.js";
     AccountPlansController,
     CitPolicyController,
     OwnerFundingController,
+    OwnerCustodyMigrationController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -236,6 +239,7 @@ import { OWNER_FUNDING_STORE } from "./owner-funding/owner-funding.types.js";
     OwnerFundingService,
     PgOwnerFundingStore,
     { provide: OWNER_FUNDING_STORE, useExisting: PgOwnerFundingStore },
+    OwnerCustodyMigrationService,
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

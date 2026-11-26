@@ -11,6 +11,10 @@ import {
 } from "../workflow-policy/organization-workflow-policy.service.js";
 import { resolveOwnerFundingTraceability } from "../owner-funding/owner-funding-traceability.js";
 import { purchaseLineTaxDecision } from "./commercial-document-tax.helper.js";
+import {
+  buildPurchaseFundingReplacement,
+  resolvePurchaseControlAccountCode,
+} from "./document-funding.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentContext,
@@ -955,13 +959,12 @@ export class PgCommercialDocumentStore {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
-      // Resolve owner-paid control account before any draft upsert path so a
-      // retried external reference cannot retain the legacy AP account.
-      const effectiveControlAccountCode =
-        input.type === "purchase_invoice" &&
-        (input.funding?.type === "owner_paid" || input.funding?.type === "owner_custody_cash")
-          ? await this.ownerCurrentAccount(client, context.organizationId, input.documentDate)
-          : input.controlAccountCode;
+      const effectiveControlAccountCode = await resolvePurchaseControlAccountCode(
+        client,
+        context.organizationId,
+        input,
+        (c, orgId, docDate) => this.ownerCurrentAccount(c, orgId, docDate),
+      );
       if (input.externalReference) {
         const extRefResult = await client.query<{
           document_id: string | null;
@@ -1328,12 +1331,20 @@ export class PgCommercialDocumentStore {
               : "issued";
         resourceVersion = input.type === "purchase_invoice" ? "5" : "3";
         await client.query(
-          `update commercial_documents set state=$3,version=$4,updated_at=now(),
+          `update commercial_documents set state=$3,version=$4,updated_at=now(),control_account_code=$7,
              approved_by=case when type='purchase_invoice' then $5 else approved_by end,
              approved_at=case when type='purchase_invoice' then now() else approved_at end,
              issued_or_posted_by=$5,issued_or_posted_at=now(),journal_id=$6
            where organization_id=$1 and id=$2`,
-          [context.organizationId, id, finalState, resourceVersion, context.actorId, journalId],
+          [
+            context.organizationId,
+            id,
+            finalState,
+            resourceVersion,
+            context.actorId,
+            journalId,
+            document.control_account_code,
+          ],
         );
         await client.query(
           `insert into commercial_document_events
@@ -1867,14 +1878,22 @@ export class PgCommercialDocumentStore {
       }
       const version = (BigInt(document.version) + 1n).toString();
       await client.query(
-        `update commercial_documents set state=$3,version=version+1,updated_at=now(),
+        `update commercial_documents set state=$3,version=version+1,updated_at=now(),control_account_code=$7,
           approved_by=case when $4='approve' then $5 else approved_by end,
           approved_at=case when $4='approve' then now() else approved_at end,
           issued_or_posted_by=case when $4 in ('issue','post') then $5 else issued_or_posted_by end,
           issued_or_posted_at=case when $4 in ('issue','post') then now() else issued_or_posted_at end,
           journal_id=coalesce($6::text,journal_id)
          where organization_id=$1 and id=$2`,
-        [context.organizationId, id, next, action, context.actorId, journalId ?? null],
+        [
+          context.organizationId,
+          id,
+          next,
+          action,
+          context.actorId,
+          journalId ?? null,
+          document.control_account_code,
+        ],
       );
       const eventId = randomUUID();
       const auditEventId = randomUUID();
@@ -2422,75 +2441,13 @@ export class PgCommercialDocumentStore {
     const existing = await this.get(context.organizationId, id);
     if (!existing) throw new Error("RESOURCE_NOT_FOUND");
     if (existing.type !== "purchase_invoice") throw new Error("VALIDATION_FAILED");
-    const financialAccountId = options?.financialAccountId?.trim();
-    let effectiveControl = targetControlAccountCode;
-    let fundingSource: CreateCommercialDocumentInput["fundingSource"] | undefined;
-    let funding: CreateCommercialDocumentInput["funding"] | undefined;
-    if (financialAccountId) {
-      const account = await this.pool.query<{
-        id: string;
-        code: string;
-        kind: string;
-        currency: string;
-        ledger_account_code: string;
-      }>(
-        `select id,code,kind::text,currency,ledger_account_code from financial_accounts
-          where organization_id=$1 and id=$2 and status='active'`,
-        [context.organizationId, financialAccountId],
-      );
-      const acct = account.rows[0];
-      if (!acct || acct.currency !== existing.currency) {
-        throw new Error("PURCHASE_FUNDING_SOURCE_INVALID");
-      }
-      effectiveControl = effectiveControl || acct.ledger_account_code;
-      fundingSource = { type: "financial_account", financialAccountId };
-      funding = {
-        type:
-          acct.code === "CASH-OWNER-CUSTODY"
-            ? "owner_custody_cash"
-            : acct.kind === "cash"
-              ? "company_cash"
-              : "company_bank",
-        financialAccountId,
-      };
-    }
-    const replacement = {
-      id: randomUUID(),
-      type: "purchase_invoice" as const,
-      documentNumber: existing.document_number,
-      series: existing.series ?? undefined,
-      fiscalYear: Number(existing.fiscal_year),
-      partyId: existing.party_id,
-      documentDate: String(existing.document_date).slice(0, 10),
-      dueDate: String(existing.due_date).slice(0, 10),
-      currency: existing.currency,
-      netMinor: String(existing.net_minor),
-      taxMinor: String(existing.tax_minor),
-      grossMinor: String(existing.gross_minor),
-      controlAccountCode: effectiveControl,
-      ...(fundingSource ? { fundingSource } : {}),
-      ...(funding ? { funding } : {}),
-      lines: (existing.lines ?? []).map((line: Record<string, unknown>) => ({
-        description: line.description,
-        quantity: String(line.quantity ?? "1"),
-        unitPriceMinor: String(line.unitPriceMinor ?? line.grossMinor ?? "0"),
-        netMinor: String(line.netMinor ?? line.grossMinor ?? "0"),
-        taxMinor: String(line.taxMinor ?? "0"),
-        grossMinor: String(line.grossMinor ?? "0"),
-        primaryAccountCode: line.primaryAccountCode,
-        categoryCode: line.categoryCode ?? undefined,
-        taxAccountCode: line.taxAccountCode ?? undefined,
-        taxCode: line.taxCode ?? undefined,
-        dimensions: line.dimensions ?? {},
-        allocations: (Array.isArray(line.allocations) ? line.allocations : []).map(
-          (a: Record<string, unknown>) => ({
-            id: a.id ?? a.allocation_id ?? randomUUID(),
-            amountMinor: String(a.amountMinor ?? a.amount_minor),
-            dimensions: a.dimensions ?? {},
-          }),
-        ),
-      })),
-    } satisfies CreateCommercialDocumentInput;
+    const replacement = await buildPurchaseFundingReplacement(
+      this.pool,
+      context.organizationId,
+      existing as unknown as Record<string, unknown>,
+      targetControlAccountCode,
+      options?.financialAccountId?.trim(),
+    );
     return this.reverseReplace(
       context,
       id,

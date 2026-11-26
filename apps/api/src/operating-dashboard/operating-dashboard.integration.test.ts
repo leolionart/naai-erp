@@ -253,9 +253,7 @@ suite("operating dashboard PostgreSQL API", () => {
     });
   });
 
-  it("reduces owner custody without double-counting a shared cash ledger", async () => {
-    // Keep this scenario independent from the preceding owner-mode test so
-    // the provenance warning assertion is exercised whenever this case runs.
+  it("derives owner custody and company cash directly from 111-OWNER-CUSTODY and 111 without double-counting", async () => {
     await pool.query(
       `insert into accounting_workflow_policies
        (organization_id,operating_mode,allow_self_approval,soft_lock_posting_roles,updated_by)
@@ -266,32 +264,40 @@ suite("operating dashboard PostgreSQL API", () => {
     );
     await pool.query(`
       insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting)
-        values('${org}','111','Custody cash','asset',false,true)
+        values('${org}','111','Company cash','asset',false,true),
+              ('${org}','111-OWNER-CUSTODY','Quỹ tiền mặt do chủ giữ','asset',false,true)
         on conflict (organization_id,code) do nothing;
+      insert into account_hierarchy_edges(organization_id,child_code,child_root_type,parent_code,parent_root_type)
+        values('${org}','111-OWNER-CUSTODY','asset','111','asset')
+        on conflict (organization_id,child_code) do nothing;
       insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,status,created_by,updated_by)
-        values('${org}','custody','CASH-OWNER-CUSTODY','cash','Owner custody','VND','111','active','${owner}','${owner}')
+        values('${org}','company-cash','CASH-COMPANY','cash','Company cash','VND','111','active','${owner}','${owner}'),
+              ('${org}','custody','CASH-OWNER-CUSTODY','cash','Owner custody','VND','111-OWNER-CUSTODY','active','${owner}','${owner}')
         on conflict (organization_id,id) do nothing;
       insert into parties(organization_id,id,display_name,status)
         values('${org}','custody-supplier','Custody supplier','active')
         on conflict (organization_id,id) do nothing;
-      insert into bank_transactions(organization_id,id,financial_account_id,fingerprint,booking_date,amount_minor,currency,description,state)
-        values('${org}','custody-out','bank','${"a".repeat(64)}','2026-07-01',-500,'VND','Transfer to owner custody','imported'),
-              ('${org}','custody-in','custody','${"b".repeat(64)}','2026-07-01',500,'VND','Transfer to owner custody','imported');
-      insert into internal_transfers(organization_id,id,state,currency,transfer_amount_minor,base_principal_amount_minor,transit_account_code,created_by)
-        values('${org}','custody-transfer','reconciled','VND',500,500,'111','${owner}');
-      insert into internal_transfer_attempts(organization_id,id,transfer_id,attempt_number,state,posting_mode,outgoing_transaction_id,incoming_transaction_id,correlation_id,created_by,matched_by,matched_at)
-        values('${org}','custody-attempt','custody-transfer',1,'reconciled','direct','custody-out','custody-in','custody-correlation','${owner}','${owner}',now());
       insert into journal_entries(organization_id,id,journal_date,description,currency,state,version,created_by,approved_at,approved_by,approval_reason,posted_at,posted_by)
-        values('${org}','custody-expense-journal','2026-07-02','Custody paid expense','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
+        values('${org}','custody-funding-in','2026-07-01','Owner funds bank for custody','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+              ('${org}','custody-transfer-journal','2026-07-01','Transfer to owner custody','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+              ('${org}','custody-expense-journal','2026-07-02','Custody paid expense','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}'),
+              ('${org}','custody-purchase-journal','2026-07-03','Custody purchase invoice','VND','posted',2,'${owner}',now(),'${owner}','fixture',now(),'${owner}');
       insert into journal_lines(organization_id,journal_id,line_number,account_code,debit_minor,credit_minor,description,dimensions)
-        values('${org}','custody-expense-journal',1,'642',200,null,'Custody cost','{}'),('${org}','custody-expense-journal',2,'111',null,200,'Custody cash','{}');
+        values('${org}','custody-funding-in',1,'112',500,null,'Bank deposit','{}'),
+              ('${org}','custody-funding-in',2,'131',null,500,'AR collection','{}'),
+              ('${org}','custody-transfer-journal',1,'111-OWNER-CUSTODY',500,null,'Custody in','{}'),
+              ('${org}','custody-transfer-journal',2,'112',null,500,'Bank out','{}'),
+              ('${org}','custody-expense-journal',1,'642',200,null,'Custody cost','{}'),
+              ('${org}','custody-expense-journal',2,'111-OWNER-CUSTODY',null,200,'Custody cash','{}'),
+              ('${org}','custody-purchase-journal',1,'642',100,null,'Custody purchase','{}'),
+              ('${org}','custody-purchase-journal',2,'111-OWNER-CUSTODY',null,100,'Custody cash','{}');
       insert into expenses(organization_id,id,expense_class,state,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,journal_id,created_by)
-        values('${org}','custody-expense','invoice_backed','posted','2026-07-02','Custody cost','VND',200,0,200,'111','custody-expense-journal','${owner}');
+        values('${org}','custody-expense','invoice_backed','posted','2026-07-02','Custody cost','VND',200,0,200,'111-OWNER-CUSTODY','custody-expense-journal','${owner}');
       update expenses set funding_financial_account_id='custody' where organization_id='${org}' and id='custody-expense';
       insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,dimensions)
         values('${org}','custody-expense',1,'Custody cost',200,0,200,'642','COMPANY','company_funds','{}');
-      insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,created_by)
-        values('${org}','custody-purchase','purchase_invoice','paid','CUST-1',null,2026,'custody-supplier','2026-07-03','2026-07-03','VND',100,0,100,'3388','custody','${owner}');
+      insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,journal_id,created_by)
+        values('${org}','custody-purchase','purchase_invoice','paid','CUST-1',null,2026,'custody-supplier','2026-07-03','2026-07-03','VND',100,0,100,'111-OWNER-CUSTODY','custody','custody-purchase-journal','${owner}');
     `);
     const response = await app.inject({
       method: "GET",
@@ -302,26 +308,14 @@ suite("operating dashboard PostgreSQL API", () => {
     const financials = response.json().data.financials;
     expect(financials).toMatchObject({
       ownerCashCustodyMinor: "200",
-      // ownerHoldsCompanyFunds is the physical custody balance, not the
-      // signed owner-current settlement. The purchase invoice is included in
-      // custody spend, leaving 200 in this shared-ledger fixture.
       ownerHoldsCompanyFundsMinor: "200",
-      // The shared 111 ledger is canonical and is counted exactly once. The
-      // fixture's posted custody expense credits 111 by 200 while the bank
-      // balance remains 210, so the aggregate ledger total is 10. Custody is
-      // exposed separately and must not be added again (10 + 200 would be a
-      // double count).
       bankAvailableMinor: "210",
-      cashOnHandMinor: "-200",
-      cashAndBankMinor: "10",
+      companyCashOnHandMinor: "0",
+      cashOnHandMinor: "200",
+      cashAndBankMinor: "410",
       totalCompanyFundsMinor: "410",
-      companyFundsReconciliationGapMinor: "-400",
-      companyCashOnHandMinor: "-400",
-      netCompanyFundsMinor: "10",
-      configurationWarnings: expect.arrayContaining(["shared_cash_ledger_unreconciled"]),
+      companyFundsReconciliationGapMinor: "0",
     });
-    // The total is an additive partition of bank, provenance-derived
-    // company-held cash and owner-held cash. Custody appears exactly once.
     expect(BigInt(financials.cashAndBankMinor)).toBe(
       BigInt(financials.bankAvailableMinor) +
         BigInt(financials.companyCashOnHandMinor) +

@@ -113,7 +113,13 @@ export type OperatingDashboardReadModel = Readonly<{
     totalCompanyFundsMinor: string;
     companyFundsReconciliationGapMinor: string;
     ownerPayableMinor: string;
+    statutoryOwnerCurrentBalanceMinor?: string;
     ownerOperatingPayableMinor: string;
+    confirmedOwnerSettlementMinor?: string;
+    ownerHoldsCompanyFundsMinor?: string;
+    ownerCashCustodyMinor?: string;
+    ownerReceivableMinor?: string;
+    netOwnerPositionMinor?: string;
     netAvailableCashMinor: string;
     actualOwnerPaidCompanyCostMinor: string;
     netCompanyFundsMinor: string;

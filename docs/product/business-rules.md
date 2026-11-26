@@ -1534,11 +1534,20 @@ No task may be marked done with orphan business rules or untested behavior.
   and bulk `POST /account-plans/{dry-run|commit}`; target accounts must be active and match the record's
   root type (expense/asset vs revenue/income/liability), while amounts, VAT, tax states and allocations
   are preserved.
-- `BR-FUND-007` (planned): company cash held by the owner is company cash kept in its own cash account
-  (`111-OWNER-CUSTODY`, a sub-account of 111) with a cash book and a monthly cash count; balances come from the
-  ledger at any as-of date. Owner-paid costs stay in 3388 (company owes owner); the owner's personal spending
-  taken from company money goes to 1388 (owner owes company), never to expenses, VAT credit or deductible costs.
-  Account 141 is not used because it is for employees.
+- `BR-FUND-007`: company cash held by the owner is company cash kept in its own dedicated ledger
+  sub-account `111-OWNER-CUSTODY` ("Quỹ tiền mặt do chủ giữ") under `111`, separate from company
+  safe cash `111-CASH` (`CASH-OWNER-CUSTODY` -> `111-OWNER-CUSTODY`; `CASH-COMPANY` -> `111-CASH`).
+  Internal transfers into owner custody post `Dr 111-OWNER-CUSTODY / Cr 112` (or `111-CASH`), and
+  expenses/purchase invoices paid from owner custody post `Dr expense (+ VAT) / Cr 111-OWNER-CUSTODY`.
+  Historical `111`/`111-CASH` entries linked to `CASH-OWNER-CUSTODY` are reclassified through
+  `POST /funding-plans/owner-custody-migration/{dry-run,commit}` with balanced (`debit = credit`)
+  adjusting journals and a before/after report; dashboard and owner-current balances derive
+  `111-OWNER-CUSTODY` and `111-CASH` directly from the ledger at any `asOf` date without
+  link-inference workarounds. Owner-paid costs remain in `3388` (company owes owner), while personal
+  spending taken from company funds (`expenseClass = owner_personal`) posts to owner receivable
+  `1388` / `1388-OWNER` (owner owes company), excluded from P&L, VAT credit, and CIT deductions,
+  with net owner position reported as `3388 - 1388` (excluding `111-OWNER-CUSTODY`). Account `141`
+  is not used because it is reserved for employees.
 - `BR-FUND-009` (planned): purchases of 5,000,000 VND or more (total payment including VAT; same-day same-seller
   invoices are added together for VAT) without a non-cash payment method raise a configurable warning that VAT
   and CIT deduction may be lost; the warning never blocks posting. Owner-paid bank or card payments count as

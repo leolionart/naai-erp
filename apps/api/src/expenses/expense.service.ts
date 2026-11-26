@@ -6,6 +6,7 @@ import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { normalizeExpenseRelationships } from "./expense-relationships.js";
 import { validateExpensePayload } from "./expense-validation.js";
+import { applyExpenseFundingAndOwnerPersonalPolicy } from "./expense-funding.js";
 import { PgExpenseStore } from "./pg-expense.store.js";
 import type {
   CreateExpenseInput,
@@ -484,23 +485,13 @@ export class ExpenseService {
       });
       resolvedFunding = resolution.resolvedFunding;
     }
-    const derivedCounter =
-      input.counterAccountCode?.trim() ||
-      (resolvedFunding
-        ? resolvedFunding.type === "owner_paid"
-          ? "3388-OWNER"
-          : resolvedFunding.type === "company_bank"
-            ? "112-BANK"
-            : "111-CASH"
-        : "");
-    const normalized = normalizeExpenseRelationships({
-      ...input,
-      ...(resolvedFunding ? { funding: resolvedFunding } : {}),
-      ...(derivedCounter ? { counterAccountCode: derivedCounter } : {}),
-      ...(resolvedFunding?.financialAccountId && !input.fundingFinancialAccountId
-        ? { fundingFinancialAccountId: resolvedFunding.financialAccountId }
-        : {}),
-    });
+    const prepared = await applyExpenseFundingAndOwnerPersonalPolicy(
+      context.organizationId,
+      input,
+      resolvedFunding,
+      this.store,
+    );
+    const normalized = normalizeExpenseRelationships(prepared);
     this.validate(normalized);
     await assertMasterBaseCurrency(this.master, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);

@@ -16,7 +16,7 @@ for (const [path, item] of Object.entries(openapi.paths))
 
 const destructive = /\/local-admin\/reset|\bdelete\b|\/master-data\/.+\/{key}$/;
 const correction =
-  /reverse|repost|unreconcile|unmatch|relationship-backfill\/commit|supersede|fiscal-periods\/(close|reopen)/;
+  /reverse|repost|unreconcile|unmatch|relationship-backfill\/commit|owner-custody-migration\/commit|supersede|fiscal-periods\/(close|reopen)/;
 const posted =
   /\/journals\/.+\/post$|\/opening-balances$|owner-cash-withdrawals|owner-funding$|customer-receipts$|project-freelance-payables\/.+\/pay$|\/reconcile$|internal-transfers\/.+\/match$|\/(commercial-documents|expenses|revenue-recognition-events)\/.+\/\{action\}$/;
 const financialSurface =
