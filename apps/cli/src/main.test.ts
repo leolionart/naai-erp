@@ -695,4 +695,48 @@ describe("ERP-740 workbook-import CLI executable", () => {
       await rm(fixture.directory, { recursive: true, force: true });
     }
   });
+
+  it("remembers organizations in profiles and resolves them without flags", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "naai-cli-profile-"));
+    const config = join(directory, "profiles.json");
+    const tsx = fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url));
+    const run = (args: string[], extra: Record<string, string> = {}) =>
+      execFileAsync(tsx, ["src/main.ts", ...args], {
+        cwd: cliDirectory,
+        env: {
+          PATH: process.env.PATH ?? "",
+          HOME: directory,
+          NAAI_ERP_CONFIG: config,
+          NAAI_ERP_TOKEN: "secret",
+          ...extra,
+        },
+      });
+    try {
+      await run([
+        "profile",
+        "set",
+        "naai",
+        "--organization",
+        "org-naai",
+        "--base-url",
+        "http://one.test",
+      ]);
+      await run(["profile", "set", "second", "--organization", "org-second"]);
+      const listed = JSON.parse((await run(["profile", "list"])).stdout);
+      expect(listed.active).toBe("naai");
+      expect(Object.keys(listed.profiles)).toEqual(["naai", "second"]);
+      await run(["profile", "use", "second"]);
+      expect(JSON.parse((await run(["profile", "show"])).stdout)).toMatchObject({
+        name: "second",
+        profile: { organization: "org-second" },
+      });
+      expect(JSON.parse(await readFile(config, "utf8")).profiles.naai.baseUrl).toBe(
+        "http://one.test",
+      );
+      const missing = await run(["profile", "use", "nope"]).catch((error) => error);
+      expect(missing.code).toBe(2);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 });

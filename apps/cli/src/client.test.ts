@@ -935,6 +935,29 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(fetchFn).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({ method: "GET" }));
   });
 
+  it("reads, updates and tests Telegram settings through the singleton REST resource", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const url = "http://api/api/v1/organizations/org-a/telegram-settings";
+    await client.request("telegram-settings", "get");
+    await client.request("telegram-settings", "update", { enabled: false });
+    await client.request("telegram-settings", "test", {});
+    expect(fetchFn.mock.calls.map(([u, init]) => [u, init.method])).toEqual([
+      [url, "GET"],
+      [url, "PATCH"],
+      [`${url}/test`, "POST"],
+    ]);
+  });
+
   it("lists background activities through the canonical operational log API", async () => {
     const fetchFn = vi
       .fn()

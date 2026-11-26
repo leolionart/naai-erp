@@ -4,15 +4,23 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
 import { runWorkbookImport } from "./import-workbooks.js";
+import {
+  loadProfiles,
+  profileStorePath,
+  removeProfile,
+  resolveProfile,
+  saveProfiles,
+  setProfile,
+  useProfile,
+} from "./profiles.js";
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     organization: { type: "string" },
-    "base-url": {
-      type: "string",
-      default: process.env.NAAI_ERP_BASE_URL ?? "http://localhost:3001",
-    },
+    "base-url": { type: "string" },
+    profile: { type: "string" },
+    use: { type: "boolean", default: false },
     data: { type: "string" },
     key: { type: "string" },
     version: { type: "string" },
@@ -89,8 +97,54 @@ const { values, positionals } = parseArgs({
   },
 });
 
-const [resource, action = "list"] = positionals;
-const organizationId = values.organization ?? process.env.NAAI_ERP_ORGANIZATION;
+const [resource, action = "list", profileName] = positionals;
+
+if (resource === "profile") {
+  // Remembered connection profiles: `profile list|show|set <name>|use <name>|remove <name>`.
+  try {
+    let store = await loadProfiles();
+    const print = (value: unknown) => process.stdout.write(`${JSON.stringify(value)}\n`);
+    if (action === "list") print({ path: profileStorePath(), ...store });
+    else if (action === "show") print(resolveProfile(store, values.profile ?? profileName) ?? null);
+    else if (["set", "use", "remove"].includes(action)) {
+      if (!profileName) throw new Error(`profile ${action} requires a profile name`);
+      store =
+        action === "set"
+          ? setProfile(
+              store,
+              profileName,
+              {
+                organization: values.organization ?? "",
+                ...(values["base-url"] ? { baseUrl: values["base-url"] } : {}),
+              },
+              values.use,
+            )
+          : action === "use"
+            ? useProfile(store, profileName)
+            : removeProfile(store, profileName);
+      await saveProfiles(store);
+      print({ path: profileStorePath(), ...store });
+    } else throw new Error(`Unsupported profile action: ${action}`);
+  } catch (error) {
+    process.stderr.write(
+      `${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`,
+    );
+    process.exitCode = 2;
+  }
+  process.exit();
+}
+
+// Resolution order: explicit flag, environment, then the remembered (active or --profile) profile.
+const rememberedProfile = resolveProfile(
+  await loadProfiles(),
+  values.profile ?? process.env.NAAI_ERP_PROFILE,
+);
+values["base-url"] ??=
+  process.env.NAAI_ERP_BASE_URL ?? rememberedProfile?.profile.baseUrl ?? "http://localhost:3001";
+const organizationId =
+  values.organization ??
+  process.env.NAAI_ERP_ORGANIZATION ??
+  rememberedProfile?.profile.organization;
 const token = process.env.NAAI_ERP_TOKEN;
 const discovery = resource === "discovery" && ["openapi", "capabilities"].includes(action);
 const crossEnvironmentClone = resource === "portable-data-clone" && action === "run";
@@ -98,7 +152,7 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
   process.stderr.write(
     JSON.stringify({
       error:
-        "resource, and for organization-scoped commands --organization/NAAI_ERP_ORGANIZATION plus NAAI_ERP_TOKEN, are required",
+        "resource, and for organization-scoped commands an organization (--organization, NAAI_ERP_ORGANIZATION or a saved `profile`) plus NAAI_ERP_TOKEN, are required",
     }) + "\n",
   );
   process.exitCode = 2;
