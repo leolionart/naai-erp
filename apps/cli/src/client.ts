@@ -469,6 +469,7 @@ export class NaaiErpClient {
                 action === "inventory") ||
               action === "get" ||
               action === "export" ||
+              (isFundingPlans && action === "unlinked") ||
               (isBankTransaction && action === "candidates") ||
               (isBankTransaction && action === "transfer-candidates") ||
               isReport ||
@@ -499,8 +500,8 @@ export class NaaiErpClient {
               throw new Error(`Unsupported account-plans action: ${action}`);
             })()
         : isFundingPlans
-          ? action === "export"
-            ? `${base}/export`
+          ? action === "export" || action === "unlinked"
+            ? `${base}/${action}`
             : ["dry-run", "commit"].includes(action)
               ? `${base}/${action}`
               : (() => {

@@ -2074,6 +2074,11 @@
         "summary": "Export posted expenses and purchase invoices as JSON or CSV for bulk funding reclassification"
       }
     },
+    "/api/v1/organizations/{organizationId}/funding-plans/unlinked": {
+      "get": {
+        "summary": "List posted expenses and purchase invoices without an explicit funding financial account link and suggest targets from reconciliation, rules or category treatment"
+      }
+    },
     "/api/v1/organizations/{organizationId}/funding-plans/dry-run": {
       "post": {
         "summary": "Preview bulk funding reclassification with before/after accounts, dashboard impact, blocked rows and planHash"

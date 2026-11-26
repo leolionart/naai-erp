@@ -26,6 +26,17 @@ export class FundingPlansController {
     );
   }
 
+  @Get("unlinked")
+  async listUnlinked(
+    @Param("organizationId") organizationId: string,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.listUnlinked(
+      await this.context(organizationId, authorization, correlationId),
+    );
+  }
+
   @Post("dry-run")
   async dryRun(
     @Param("organizationId") organizationId: string,

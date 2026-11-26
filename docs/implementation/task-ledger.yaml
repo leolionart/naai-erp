@@ -3881,14 +3881,22 @@ tasks:
   - id: ERP-981
     title: Legacy funding inference, payment method warnings, negative custody fund alert and cash count
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-976, ERP-978]
     business_rules: [BR-FUND-008]
     tests: [T-INT-FUND-008]
     plan: docs/implementation/plans/funding-and-account-reclassification.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-981/
+    agent: antigravity
+    started_at: 2026-11-26T18:07:00+07:00
+    completed_at: 2026-11-26T18:10:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/funding-and-account-reclassification.md
+      - apps/api/src/funding-plans/
+      - apps/cli/src/client.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/implementation/evidence/ERP-981/
 
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]

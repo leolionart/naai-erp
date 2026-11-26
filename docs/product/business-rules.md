@@ -1519,5 +1519,7 @@ No task may be marked done with orphan business rules or untested behavior.
   invoices are added together for VAT) without a non-cash payment method raise a configurable warning that VAT
   and CIT deduction may be lost; the warning never blocks posting. Owner-paid bank or card payments count as
   non-cash when evidence is kept.
-- `BR-FUND-008` (planned): records without a funding link are reported and can be inferred from rules,
-  categories or bank reconciliation through a reviewed plan.
+- `BR-FUND-008`: records without a funding link (`funding_financial_account_id is null`) are reported
+  via `GET /funding-plans/unlinked` with suggested targets inferred from bank reconciliation,
+  `funding_rules` or category treatment (`expense_categories.funding_treatment`), and can be applied
+  through a reviewed `funding-plans` dry-run/commit plan.

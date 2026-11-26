@@ -173,5 +173,32 @@ describeIntegration("ERP-978 bulk funding plans", () => {
       blocked: 1,
       failed: 0,
     });
+
+    // ERP-981: unlinked report + rule-based suggestion
+    const unlinkedExp = await createExp("exp-unlinked-1", "2026-08-14");
+    expect(unlinkedExp.statusCode).toBe(201);
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/organizations/${org}/funding-rules`,
+      headers: headers("fp-rule-unlinked"),
+      payload: {
+        name: "Unlinked keyword rule",
+        priority: 1,
+        match: { keyword: "exp-unlinked-1" },
+        target: { type: "owner_custody_cash", financialAccountId: "cash-owner-custody" },
+      },
+    });
+    const unlinked = await app.inject({
+      method: "GET",
+      url: `/api/v1/organizations/${org}/funding-plans/unlinked`,
+      headers: headers(),
+    });
+    expect(unlinked.statusCode, unlinked.body).toBe(200);
+    expect(unlinked.json().data.summary.totalCount).toBeGreaterThanOrEqual(1);
+    const match = unlinked.json().data.items.find((i: { id: string }) => i.id === "exp-unlinked-1");
+    expect(match).toMatchObject({
+      suggestedTargetFunding: "owner_custody_cash:cash-owner-custody",
+      suggestionSource: "funding_rule",
+    });
   });
 });
