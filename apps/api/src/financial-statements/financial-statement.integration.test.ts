@@ -216,6 +216,13 @@ describeIntegration("ERP-630 financial statements and tax reconciliation", () =>
       ["997-UNMAPPED-EXP", "d", "1"],
       ["998-UNMAPPED-REV", "c", "1"],
     ]);
+    // Report cutoffs compare source created_at with asOfInstant (2026-08-31). Fixtures default to
+    // now(), which silently becomes "created after the cutoff" once real time passes the fixture
+    // period, so pin them to the fixture dates instead of wall-clock time.
+    await pool.query(
+      `update expenses set created_at='2026-08-16T10:00:00Z' where organization_id='org-erp630';
+       update commercial_documents set created_at='2026-08-15T10:00:00Z' where organization_id='org-erp630'`,
+    );
     app = await createApp();
     await app.init();
     await app.getHttpAdapter().getInstance().ready();

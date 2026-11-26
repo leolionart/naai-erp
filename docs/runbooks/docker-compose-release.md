@@ -80,9 +80,16 @@ The ordering is deliberate:
 4. API, worker and web are force-recreated only after migration succeeds.
 5. Compose health, migration exit code, API readiness and web health are verified.
 
-Do not rely on Watchtower to run migrations. A one-shot `migrate` container is normally exited, so
-updating its image does not execute it. Watchtower may pull or recreate long-running containers, but
-the repository update command remains the required production upgrade path.
+A one-shot `migrate` container is normally exited, so an image watcher (Watchtower, Dockge update)
+that only recreates long-running containers never executes it. To keep the schema in step with the
+code in that case, **the API applies any pending migrations itself on startup**: it takes a
+PostgreSQL advisory lock (safe with several replicas or while `migrate` runs), applies forward
+migrations from `/db/migrations`, and exits non-zero (so the orchestrator retries and no traffic is
+served) if a migration fails. The API image is rebuilt whenever `db/migrations/**` changes, so a
+watcher-pulled API image always carries the migrations it needs. Set `MIGRATE_ON_START=0` on the
+API to opt out and rely solely on the `migrate` job. The worker may log transient "relation does not
+exist" errors until the API has finished migrating. The repository update command below remains the
+recommended production path because it also stops the app during the schema change.
 
 Inspect the one-shot migration and runtime health:
 

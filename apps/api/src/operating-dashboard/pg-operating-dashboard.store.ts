@@ -195,7 +195,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
            select * from executive_metric_policy_versions
            where organization_id=$1 and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
              and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-           order by (state='approved') desc,effective_from desc,version desc limit 1
+           order by (state='approved') desc,effective_from desc,version desc,approved_at desc nulls last,id desc limit 1
          ) select sum(
            (case when a.root_type in ('liability','equity','revenue')
              then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)

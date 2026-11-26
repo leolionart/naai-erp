@@ -3671,6 +3671,21 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-966/
 
+  - id: ERP-967
+    title: API applies pending migrations on startup; fix stale integration fixtures
+    phase: P16
+    status: done
+    dependencies: [ERP-966]
+    business_rules: [BR-AI-001]
+    tests: [T-INT-MIGRATE-001]
+    evidence: docs/implementation/evidence/ERP-967/
+    agent: claude
+    started_at: 2026-11-26T15:00:00+07:00
+    completed_at: 2026-11-26T16:00:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-967/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

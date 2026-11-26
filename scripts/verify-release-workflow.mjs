@@ -155,6 +155,17 @@ assert.match(
   "API image must include the versioned OpenAPI document used by discovery",
 );
 
+assert.match(
+  apiDockerfile,
+  /COPY --chown=node:node db\/migrations \/db\/migrations/,
+  "API image must include the migrations it applies on startup",
+);
+assert.match(
+  workflow,
+  /api:[\s\S]*?'db\/migrations\/\*\*'[\s\S]*?web:/,
+  "new migrations must rebuild the API image that applies them",
+);
+
 console.log(
   `Release workflow verified: ${manifest.images.length} images, main + sha-<12> tags, exact OCI revision.`,
 );

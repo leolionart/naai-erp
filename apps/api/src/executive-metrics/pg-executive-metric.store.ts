@@ -293,7 +293,7 @@ export class PgExecutiveMetricStore {
           .slice(0, 10),
       }),
       this.pool.query(
-        `select * from executive_metric_policy_versions where organization_id=$1 and state='approved' and effective_from<=$2 and(effective_to is null or effective_to>=$3) order by effective_from desc,version desc limit 1`,
+        `select * from executive_metric_policy_versions where organization_id=$1 and state='approved' and effective_from<=$2 and(effective_to is null or effective_to>=$3) order by effective_from desc,version desc,approved_at desc nulls last,id desc limit 1`,
         [c.organizationId, q.startsOn, q.endsOn],
       ),
     ]);

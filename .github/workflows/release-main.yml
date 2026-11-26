@@ -48,6 +48,7 @@ jobs:
               - 'packages/contracts/**'
               - 'packages/domain/**'
               - 'docker/Dockerfile.api'
+              - 'db/migrations/**'
               - 'docs/api/openapi-v1.json'
               - 'package.json'
               - 'pnpm-lock.yaml'
