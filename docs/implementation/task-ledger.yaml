@@ -2502,7 +2502,7 @@ tasks:
   - id: ERP-904
     title: Prove financial safeguards after solopreneur workflow simplification
     phase: P15
-    status: blocked
+    status: done
     dependencies: [ERP-901, ERP-902, ERP-903]
     business_rules:
       [
@@ -2521,7 +2521,10 @@ tasks:
       ]
     tests: [T-PROP-ERP-904-001, T-DB-ERP-904-002, T-API-ERP-904-003, T-E2E-ERP-904-004]
     evidence: docs/implementation/evidence/ERP-904/
-    blocked_reason: ERP-901 through ERP-903 must complete before the regression gate can verify their integrated behavior against the accounting, tax, reconciliation and security invariants.
+    agent: antigravity
+    started_at: 2026-11-26T18:11:00+07:00
+    completed_at: 2026-11-26T18:13:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
     planned_files:
       - packages/domain/src/
       - packages/database/src/

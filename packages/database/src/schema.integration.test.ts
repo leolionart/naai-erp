@@ -56,9 +56,10 @@ describeDatabase("ERP-100 database tenant constraints", () => {
     );
     await expect(
       pool!.query(
-        "update accounting_workflow_policies set operating_mode='solopreneur' where organization_id='org-a'",
+        "update accounting_workflow_policies set operating_mode='owner_final' where organization_id='org-a'",
       ),
     ).rejects.toMatchObject({ code: "23514" });
+    await pool!.query("delete from accounting_workflow_policies where organization_id='org-a'");
   });
 
   it("round-trips exchange rates as exact decimal strings", async () => {
