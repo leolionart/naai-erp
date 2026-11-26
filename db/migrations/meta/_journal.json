@@ -516,9 +516,6 @@
     {
       "idx": 73,
       "version": "7",
-    {
-      "idx": 73,
-      "version": "7",
       "when": 1788224700000,
       "tag": "0074_cit_revenue_tiers",
       "breakpoints": true
@@ -542,6 +539,13 @@
       "version": "7",
       "when": 1788224880000,
       "tag": "0077_owner_funding_and_repayment",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1788224940000,
+      "tag": "0078_period_close_cash_count_and_owner_settlement",
       "breakpoints": true
     }
   ]

@@ -2837,6 +2837,14 @@ tests:
     command: pnpm --filter @naai-erp/domain exec vitest run src/payment-evidence.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/payment-evidence-cli.test.ts
     blocking_gate: P17
 
+  - id: T-INT-CLOSE-001
+    task: ERP-987
+    rules: [BR-CLOSE-001, BR-FUND-007, BR-PAY-002, BR-PER-001, BR-LED-001, BR-AUD-001]
+    title: Monthly close checklist soft-warning close, negative custody alert, cash count over/short journal and year-end owner settlement options
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/period-close/period-close.integration.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/period-close-cli.test.ts
+    blocking_gate: P17
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

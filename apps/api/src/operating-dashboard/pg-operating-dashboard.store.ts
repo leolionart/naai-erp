@@ -3,13 +3,13 @@ import pg from "pg";
 import { AGING_STORE, type AgingStore } from "../aging/aging.types.js";
 import { resolvePgCitEstimate } from "../cit-policy/pg-cit-estimate.js";
 import { readLedgerLiquidityAndOwnerSnapshot } from "./owner-custody-ledger.js";
+import { buildNegativeCustodyAlert } from "../period-close/period-close-accounts.helper.js";
 import { summarizePaymentEvidenceGaps } from "../payment-evidence/tax-report-enrichment.js";
 import { queryWorkbookSourceControls } from "./workbook-source-controls.helper.js";
 import type {
   OperatingDashboardQuery,
   OperatingDashboardReadModel,
   OperatingDashboardStore,
-  WorkbookSourceControlKind,
   WorkbookSourceControls,
 } from "./operating-dashboard.types.js";
 
@@ -17,24 +17,8 @@ const amount = (value: unknown) => BigInt(String(value ?? 0));
 const ratioBps = (part: bigint, total: bigint) =>
   total > 0n ? Number((part * 10_000n + total / 2n) / total) : null;
 
-import {
-  deriveCompanyFunds,
-  queryDashboardOwnerSettlement,
-} from "./operating-dashboard-settlement.sql.js";
+import { deriveCompanyFunds } from "./operating-dashboard-settlement.sql.js";
 export { deriveCompanyFunds };
-const controlKinds: readonly WorkbookSourceControlKind[] = [
-  "bonus_control",
-  "debt_control",
-  "expense_category_control",
-  "payroll_master",
-  "planning_control",
-  "profitability_control",
-];
-const controlMoney = (value: unknown) =>
-  typeof value === "string" && /^-?\d+$/.test(value) ? value : "0";
-const controlText = (value: unknown) => (typeof value === "string" ? value : "");
-const controlPeriod = (value: unknown) =>
-  typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : undefined;
 
 @Injectable()
 export class PgOperatingDashboardStore implements OperatingDashboardStore {
@@ -156,10 +140,9 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
    * adding USD and VND minor units would silently produce a meaningless total.
    */
   private async financials(org: string, q: OperatingDashboardQuery, baseCurrency: string) {
-    const [monthlyResult, cash, liquiditySnapshot, ownerSettlement, expenseFunding, readiness] =
-      await Promise.all([
-        this.pool.query<{ period: string; revenue: string; expense: string }>(
-          `select
+    const [monthlyResult, cash, liquiditySnapshot, expenseFunding, readiness] = await Promise.all([
+      this.pool.query<{ period: string; revenue: string; expense: string }>(
+        `select
            to_char(j.journal_date, 'YYYY-MM') period,
            coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0)) filter (where a.root_type='revenue'),0)::text revenue,
            coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0)) filter (where a.root_type='expense'),0)::text expense
@@ -171,10 +154,10 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           and j.journal_date between $2::date and $3::date
         group by to_char(j.journal_date, 'YYYY-MM')
         order by to_char(j.journal_date, 'YYYY-MM')`,
-          [org, q.startsOn, q.endsOn, baseCurrency],
-        ),
-        this.pool.query<{ amount: string | null }>(
-          `with workflow_policy as (
+        [org, q.startsOn, q.endsOn, baseCurrency],
+      ),
+      this.pool.query<{ amount: string | null }>(
+        `with workflow_policy as (
            select operating_mode from accounting_workflow_policies where organization_id=$1
          ), selected_policy as (
            select * from executive_metric_policy_versions
@@ -197,7 +180,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
         [org, q.asOf],
       ),
       readLedgerLiquidityAndOwnerSnapshot(this.pool, org, q.asOf),
-      queryDashboardOwnerSettlement(this.pool, org, q.asOf),
       this.pool.query<{
         owner_paid: string;
         cit_ineligible: string;
@@ -265,9 +247,9 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           (select count(*)::int from executive_metric_policy_versions where organization_id=$1 and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_executive_policy_count,
           (select count(*)::int from tax_code_versions where organization_id=$1 and kind='cit' and review_state='accountant_approved' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) approved_cit_policy_count,
           (select count(*)::int from tax_code_versions where organization_id=$1 and kind='cit' and effective_from<=$3::date and (effective_to is null or effective_to>=$3::date)) effective_cit_policy_count`,
-          [org, q.startsOn, q.endsOn],
-        ),
-      ]);
+        [org, q.startsOn, q.endsOn],
+      ),
+    ]);
     const monthly = monthlyResult.rows.map((row) => ({
       period: row.period,
       revenueMinor: amount(row.revenue).toString(),
@@ -328,6 +310,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           ]
         : [];
     if (companyCashOnHandMinor < 0n) configurationWarnings.push("shared_cash_ledger_unreconciled");
+    if (ownerCashCustodyMinor < 0n) configurationWarnings.push("owner_custody_negative");
     if (hasUnmigratedCustodyEntries)
       configurationWarnings.push("owner_custody_ledger_migration_required");
     // Foreign-currency items are excluded from base-currency totals; tell the user so the omission
@@ -382,6 +365,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       ownerCashCustodyMinor: ownerCashCustodyMinor.toString(),
       ownerReceivableMinor: ownerReceivableMinor.toString(),
       netOwnerPositionMinor: netOwnerPositionMinor.toString(),
+      negativeOwnerCustodyAlert: buildNegativeCustodyAlert(ownerCashCustodyMinor),
       ownerPersonalWithdrawalMinor: "0",
       netAvailableCashMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),
       actualOwnerPaidCompanyCostMinor: actualOwnerPaidCompanyCostMinor.toString(),

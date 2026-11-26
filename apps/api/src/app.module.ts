@@ -154,6 +154,10 @@ import { OwnerCustodyMigrationService } from "./funding-plans/owner-custody-migr
 import { PaymentEvidenceController } from "./payment-evidence/payment-evidence.controller.js";
 import { PaymentEvidenceService } from "./payment-evidence/payment-evidence.service.js";
 import { PgPaymentEvidenceStore } from "./payment-evidence/pg-payment-evidence.store.js";
+import { PeriodCloseController } from "./period-close/period-close.controller.js";
+import { PeriodCloseChecklistService } from "./period-close/period-close-checklist.service.js";
+import { CashCountService } from "./period-close/cash-count.service.js";
+import { OwnerSettlementService } from "./period-close/owner-settlement.service.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -203,6 +207,7 @@ import { PgPaymentEvidenceStore } from "./payment-evidence/pg-payment-evidence.s
     CitPolicyController,
     OwnerFundingController,
     OwnerCustodyMigrationController,
+    PeriodCloseController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -246,6 +251,9 @@ import { PgPaymentEvidenceStore } from "./payment-evidence/pg-payment-evidence.s
     OwnerCustodyMigrationService,
     PaymentEvidenceService,
     PgPaymentEvidenceStore,
+    PeriodCloseChecklistService,
+    CashCountService,
+    OwnerSettlementService,
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

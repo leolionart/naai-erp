@@ -764,3 +764,14 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
 - `T-UNIT-PAY-003`: pure domain threshold boundary, owner-paid evidence ref rule, same-day supplier VAT
   aggregation and bank reconciliation inference (`packages/domain/src/payment-evidence.test.ts`,
   `apps/cli/src/payment-evidence-cli.test.ts`).
+
+### ERP-987 — Monthly close checklist, cash count, negative custody alert and year-end owner settlement
+
+- `T-INT-CLOSE-001`: scratch-PostgreSQL integration verifies the 6-item monthly close checklist
+  (`unlinked_funding`, `payment_evidence_gaps` handled or noted, `ap_tied`, `tax_finalization`,
+  `bank_reconciled`, `111-OWNER-CUSTODY >= 0`), soft-warning period close with mandatory reason,
+  dashboard and checklist negative-custody alert recommending `owner_paid`, owner-custody cash count
+  (`kiểm quỹ`) overage/shortage/exact-match postings and idempotency, and year-end owner position
+  (`3388`, `1388`, `111-OWNER-CUSTODY`, `421`) settled via `offset_3388_1388`, `profit_distribution`
+  (`Dr 421 / Cr 1388`) and `repayment` with full audit trail (`apps/api/src/period-close/period-close.integration.test.ts`,
+  `apps/cli/src/period-close-cli.test.ts`).

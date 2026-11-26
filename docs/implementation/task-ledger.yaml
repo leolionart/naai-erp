@@ -4092,14 +4092,57 @@ tasks:
   - id: ERP-987
     title: Monthly close checklist, cash count, negative custody alert and year-end owner settlement
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-980, ERP-982]
     business_rules: [BR-CLOSE-001]
     tests: [T-INT-CLOSE-001]
     plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-987/
+    agent: antigravity
+    started_at: 2026-11-26T19:55:00+07:00
+    completed_at: 2026-11-26T20:19:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/funding-and-account-reclassification.md
+      - db/migrations/0078_period_close_cash_count_and_owner_settlement.sql
+      - db/migrations/meta/_journal.json
+      - packages/database/src/period-close-schema.ts
+      - packages/database/src/index.ts
+      - packages/contracts/src/period-close.ts
+      - packages/contracts/src/index.ts
+      - apps/api/src/period-close/period-close-accounts.helper.ts
+      - apps/api/src/period-close/period-close-checklist.service.ts
+      - apps/api/src/period-close/cash-count.service.ts
+      - apps/api/src/period-close/owner-settlement.service.ts
+      - apps/api/src/period-close/period-close.controller.ts
+      - apps/api/src/period-close/period-close-test-fixture.ts
+      - apps/api/src/period-close/period-close.integration.test.ts
+      - apps/api/src/fiscal-periods/fiscal-period.service.ts
+      - apps/api/src/fiscal-periods/pg-fiscal-period.store.ts
+      - apps/api/src/operating-dashboard/operating-dashboard.types.ts
+      - apps/api/src/operating-dashboard/pg-operating-dashboard.store.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/api-exception.filter.ts
+      - apps/api/src/app.module.ts
+      - apps/cli/src/period-close-cli.ts
+      - apps/cli/src/period-close-cli.test.ts
+      - apps/cli/src/cit-client.ts
+      - apps/web/src/components/dashboard/negative-custody-alert.tsx
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/src/app/workspaces/period-close-workspace.tsx
+      - apps/web/src/app/workspaces/period-close/period-close-checklist-section.tsx
+      - apps/web/src/app/workspaces/period-close/cash-count-section.tsx
+      - apps/web/src/app/workspaces/period-close/owner-settlement-section.tsx
+      - apps/web/src/app/(app)/accounting/period-close/page.tsx
+      - apps/web/src/lib/navigation.ts
+      - apps/web/src/lib/api/error-messages.ts
+      - scripts/seed-local-demo-accounts.mjs
+      - scripts/verify-solopreneur-gate-matrix.mjs
+      - docs/api/openapi-v1.json
+      - docs/implementation/solopreneur-gate-matrix.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-987/
 
   - id: ERP-988
     title: Fix expense and document edit failures on real data and clear UI error messages

@@ -1558,10 +1558,10 @@ No task may be marked done with orphan business rules or untested behavior.
   `funding_rules` or category treatment (`expense_categories.funding_treatment`), and can be applied
   through a reviewed `funding-plans` dry-run/commit plan.
 
-### Payment evidence, deduction and company boundaries (ERP-982 implemented; ERP-983 to ERP-987 planned)
+### Payment evidence, deduction and company boundaries (ERP-982 to ERP-987 implemented)
 
 - `BR-PAY-001`: expenses and purchase invoices record `payment_method` (`cash | bank_transfer | card |
-  other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_evidence_ref`, and
+other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_evidence_ref`, and
   `transaction_evidence` (`contract | purchase_order | email | acceptance | quote | none`, default `none`),
   editable on draft records and updatable on posted/issued records via audited, idempotent
   `PATCH /expenses/{id}/payment-evidence` and `PATCH /commercial-documents/{id}/payment-evidence`.
@@ -1608,10 +1608,30 @@ No task may be marked done with orphan business rules or untested behavior.
   20% rate (`basis = ineligible_override`). Rate tiers are year-configurable via
   `statutory_cit_rate_tiers` and organization overrides (`PUT /cit-policy/rate-tiers/{effectiveFromYear}`),
   and the effective rate and assumption are exposed on the report and dashboard.
-- `BR-CLOSE-001` (planned): month close shows a checklist (no unlinked funding, payment-evidence gaps handled, AP tied,
-  tax finalization done, bank reconciled, owner-held cash not negative); a cash count compares counted cash with
-  `111-OWNER-CUSTODY` and posts the difference with a reason; year-end settlement offers repayment, offset of 3388 against
-  1388, or owner-decided profit distribution (Dr 421 / Cr 1388), each with audit.
+- `BR-CLOSE-001`: monthly close (`GET /fiscal-periods/{fiscalYear}/{periodNumber}/close-checklist` and the
+  `/accounting/period-close` workspace) evaluates six readiness controls as of the period cutoff:
+  (1) zero unlinked funding records (`funding-plans/unlinked` through the period end),
+  (2) non-cash payment-evidence gaps (`ERP-982`) either resolved (`0`) or explicitly noted via
+  audited `POST /fiscal-periods/{fiscalYear}/{periodNumber}/close-checklist/notes`,
+  (3) AP subledger `tied` to control account `331`,
+  (4) non-payment-gated expense/purchase-invoice lines tax-finalized,
+  (5) active bank transactions reconciled/ignored with zero open statement exceptions, and
+  (6) `111-OWNER-CUSTODY` ledger balance `>= 0`.
+  Closing (`POST /fiscal-periods/close`) warns without blocking when the owner supplies a mandatory
+  reason, recording `checklistWarnings` in the audit trail. Whenever `111-OWNER-CUSTODY < 0`, both
+  the operating dashboard (`configurationWarnings: ["owner_custody_negative"]`,
+  `negativeOwnerCustodyAlert`) and the close checklist raise an explicit negative-custody alert
+  recommending reclassification of excess spend to `owner_paid` (`TK 3388`). Periodic cash counts
+  (`POST /banking/cash-counts`, `kiểm quỹ`) compare non-negative physical cash held by the owner
+  against the `111-OWNER-CUSTODY` ledger balance on `countedOn`, atomically post any overage
+  (`Dr 111-OWNER-CUSTODY / Cr 711-CASH-OVER`) or shortage (`Dr 811-CASH-SHORT / Cr 111-OWNER-CUSTODY`)
+  with a mandatory reason in an open period, and persist the audited count record. Year-end owner
+  settlement (`GET /banking/owner-settlements/position`, `POST /banking/owner-settlements`) reports
+  `3388` (company owes owner), `1388` (owner owes company), `111-OWNER-CUSTODY` (company cash held by
+  owner, excluded from net owner position) and `421` retained earnings, and executes audited,
+  idempotent settlements with mandatory reason via company bank/safe-cash repayment (`company_to_owner`
+  or `owner_to_company`, rejecting `111-OWNER-CUSTODY`), `3388` vs `1388` offset
+  (`Dr 3388 / Cr 1388`), or owner profit distribution (`Dr 421 / Cr 1388`).
 
 ### Editing reliability and one-click recording (ERP-988 to ERP-992)
 

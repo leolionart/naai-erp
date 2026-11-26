@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
-import { buildExpenseFundingInferencePlan } from "./expense-funding.js";
 import {
   applyExpenseLineCategoryUpdate,
   resolveExpenseCategory,

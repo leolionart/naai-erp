@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { resolvePeriodCloseCliRoute } from "./period-close-cli.js";
 
 export type ExtendedCliRoute = Readonly<{
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -86,6 +87,20 @@ export function resolveExtendedCliRoute(input: {
     if (action === "dry-run" || action === "commit") {
       return { method: "POST", url: `${base}/${action}`, includeBody: true };
     }
+    if (action === "owner-custody-dry-run") {
+      return {
+        method: "POST",
+        url: `${base}/owner-custody-migration/dry-run`,
+        includeBody: true,
+      };
+    }
+    if (action === "owner-custody-commit") {
+      return {
+        method: "POST",
+        url: `${base}/owner-custody-migration/commit`,
+        includeBody: true,
+      };
+    }
     throw new Error(`Unsupported funding-plans action: ${action}`);
   }
 
@@ -114,6 +129,8 @@ export function resolveExtendedCliRoute(input: {
     throw new Error(`Unsupported funding-rules action: ${action}`);
   }
 
+  const periodCloseRoute = resolvePeriodCloseCliRoute(input);
+  if (periodCloseRoute) return periodCloseRoute;
   return null;
 }
 

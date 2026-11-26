@@ -7,6 +7,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import type {
   AgingReportContract,
   ExecutiveMetricsContract,
+  NegativeCustodyAlertContract,
   PerformanceComparisonContract,
   ProfitAndLossContract,
   TaxExpenseReviewContract,
@@ -59,6 +60,7 @@ import {
   type DashboardPreview as Preview,
 } from "@/components/dashboard/dashboard-preview-dialog";
 import { StatusBadge } from "@/components/financial/status-badge";
+import { DashboardOperatingAlerts } from "@/components/dashboard/negative-custody-alert";
 import { PaymentEvidenceGapsCard } from "@/components/tax/payment-evidence-gaps-card";
 import { cn } from "@/lib/utils";
 import { Area, AreaChart } from "recharts";
@@ -184,6 +186,8 @@ type OperatingDashboardWire = Readonly<{
     ownerPayableMinor: string;
     companyOwesOwnerMinor?: string;
     ownerHoldsCompanyFundsMinor?: string;
+    ownerCashCustodyMinor?: string;
+    negativeOwnerCustodyAlert?: NegativeCustodyAlertContract | null;
     statutoryOwnerCurrentBalanceMinor?: string;
     ownerOperatingPayableMinor?: string;
     netAvailableCashMinor: string;
@@ -1108,17 +1112,12 @@ export function ExecutiveDashboardWorkspace() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
-          {!loading &&
-          operating?.financials.configurationWarnings?.includes(
-            "foreign_currency_excluded_from_totals",
-          ) ? (
-            <Alert>
-              <AlertTitle>Có chứng từ/bút toán ngoại tệ chưa được tính vào tổng</AlertTitle>
-              <AlertDescription>
-                Doanh thu, chi phí và DSO chỉ cộng các khoản bằng đồng tiền gốc của công ty. Các
-                khoản ngoại tệ trong kỳ được loại khỏi tổng thay vì cộng lẫn đồng tiền.
-              </AlertDescription>
-            </Alert>
+          {!loading ? (
+            <DashboardOperatingAlerts
+              configurationWarnings={operating?.financials.configurationWarnings}
+              ownerCashCustodyMinor={operating?.financials.ownerCashCustodyMinor}
+              negativeOwnerCustodyAlert={operating?.financials.negativeOwnerCustodyAlert}
+            />
           ) : null}
           {!loading ? (
             <PaymentEvidenceGapsCard

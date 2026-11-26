@@ -22,6 +22,8 @@ export const demoAccounts = [
   ["632-COGS", "Giá vốn dịch vụ", "expense", false, true],
   ["635-OTHER", "Chi phí khác", "expense", false, true],
   ["642-OPEX", "Chi phí quản lý", "expense", false, true],
+  ["711-CASH-OVER", "Thu nhập khác - Thừa quỹ kiểm kê", "revenue", false, true],
+  ["811-CASH-SHORT", "Chi phí khác - Thiếu quỹ kiểm kê", "expense", false, true],
   ["821-TAX", "Chi phí thuế TNDN", "expense", false, true],
 ];
 
@@ -51,7 +53,9 @@ export const demoMappingLines = [
   ["profit_and_loss", "direct_cost", "Giá vốn", "632-COGS", 20],
   ["profit_and_loss", "opex", "Chi phí quản lý", "642-OPEX", 30],
   ["profit_and_loss", "other_income", "Thu nhập khác", "515-OTHER", 40],
+  ["profit_and_loss", "other_income", "Thu nhập khác - Thừa quỹ", "711-CASH-OVER", 45],
   ["profit_and_loss", "other_expense", "Chi phí khác", "635-OTHER", 50],
+  ["profit_and_loss", "other_expense", "Chi phí khác - Thiếu quỹ", "811-CASH-SHORT", 55],
   ["profit_and_loss", "tax_expense", "Thuế TNDN", "821-TAX", 60],
   ["balance_sheet", "cash", "Tiền mặt", "111-CASH", 10],
   ["balance_sheet", "cash", "Quỹ tiền mặt do chủ giữ", "111-OWNER-CUSTODY", 11],

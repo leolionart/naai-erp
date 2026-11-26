@@ -86,6 +86,27 @@ export const VIETNAMESE_API_ERROR_MESSAGES: Readonly<Record<string, string>> = {
     "Chưa cấu hình tài khoản công nợ chủ sở hữu (TK 3388) trong mapping báo cáo tài chính.",
   OWNER_CURRENT_ACCOUNT_REQUIRED:
     "Chi phí chủ doanh nghiệp chi hộ yêu cầu tài khoản đối ứng công nợ chủ sở hữu (TK 3388).",
+  CASH_COUNT_CUSTODY_ACCOUNT_NOT_CONFIGURED:
+    "Chưa cấu hình tài khoản quỹ tiền mặt do chủ giữ (111-OWNER-CUSTODY).",
+  CASH_COUNT_ADJUSTMENT_ACCOUNT_INVALID:
+    "Tài khoản hạch toán thừa/thiếu quỹ không hợp lệ hoặc đã ngừng hoạt động.",
+  CASH_COUNT_NEGATIVE_PHYSICAL_BALANCE: "Số tiền mặt thực đếm không thể nhỏ hơn 0.",
+  OWNER_SETTLEMENT_OPTION_INVALID: "Phương án quyết toán cuối năm không hợp lệ.",
+  OWNER_SETTLEMENT_AMOUNT_INVALID: "Số tiền quyết toán phải là số nguyên dương hợp lệ.",
+  OWNER_SETTLEMENT_AMOUNT_EXCEEDS_BALANCE:
+    "Số tiền quyết toán vượt quá số dư công nợ hiện có trên sổ cái.",
+  OWNER_SETTLEMENT_NOTHING_TO_SETTLE:
+    "Không còn số dư công nợ đủ điều kiện để thực hiện phương án quyết toán này.",
+  OWNER_SETTLEMENT_DIRECTION_AMBIGUOUS:
+    "Cả TK 3388 và TK 1388 đều đang có số dư; vui lòng chọn rõ chiều hoàn tiền hoặc thực hiện cấn trừ trước.",
+  OWNER_SETTLEMENT_FINANCIAL_ACCOUNT_REQUIRED:
+    "Phương án hoàn tiền yêu cầu chọn một tài khoản ngân hàng hoặc két tiền mặt công ty.",
+  OWNER_SETTLEMENT_CUSTODY_ACCOUNT_NOT_ALLOWED:
+    "Không dùng quỹ tiền mặt do chủ giữ (111-OWNER-CUSTODY) làm tài khoản hoàn tiền quyết toán.",
+  OWNER_SETTLEMENT_RETAINED_EARNINGS_NOT_CONFIGURED:
+    "Chưa cấu hình tài khoản lợi nhuận chưa phân phối (TK 421) đang hoạt động.",
+  OWNER_RECEIVABLE_ACCOUNT_NOT_CONFIGURED:
+    "Chưa cấu hình tài khoản phải thu / phải trả chủ sở hữu đang hoạt động.",
   EXPENSE_ALLOCATION_INVALID: "Phân bổ chi phí không hợp lệ.",
   EXPENSE_ALLOCATION_MISMATCH: "Tổng tiền phân bổ không khớp với số tiền dòng chi phí.",
   EXPENSE_CONTROL_TOTAL_MISMATCH: "Tổng tiền chi phí không khớp với tổng các dòng hạch toán.",

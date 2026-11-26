@@ -18,9 +18,9 @@ const destructive = /\/local-admin\/reset|\bdelete\b|\/master-data\/.+\/{key}$/;
 const correction =
   /reverse|repost|unreconcile|unmatch|relationship-backfill\/commit|owner-custody-migration\/commit|supersede|fiscal-periods\/(close|reopen)/;
 const posted =
-  /\/journals\/.+\/post$|\/opening-balances$|owner-cash-withdrawals|owner-funding$|customer-receipts$|project-freelance-payables\/.+\/pay$|\/reconcile$|internal-transfers\/.+\/match$|\/(commercial-documents|expenses|revenue-recognition-events)\/.+\/\{action\}$/;
+  /\/journals\/.+\/post$|\/opening-balances$|owner-cash-withdrawals|owner-funding$|cash-counts$|owner-settlements$|customer-receipts$|project-freelance-payables\/.+\/pay$|\/reconcile$|internal-transfers\/.+\/match$|\/(commercial-documents|expenses|revenue-recognition-events)\/.+\/\{action\}$/;
 const financialSurface =
-  /journals|fiscal-periods|opening-balances|commercial-documents|expenses|owner-funding|customer-receipts|project-freelance-payables|reconcil|internal-transfers|revenue-recognition|workbook-imports\/commit|portable-data-packages\/imports\/.+\/commit/;
+  /journals|fiscal-periods|opening-balances|commercial-documents|expenses|owner-funding|cash-counts|owner-settlements|customer-receipts|project-freelance-payables|reconcil|internal-transfers|revenue-recognition|workbook-imports\/commit|portable-data-packages\/imports\/.+\/commit/;
 
 function effect(row) {
   const key = `${row.method} ${row.path} ${row.operationId ?? ""}`;

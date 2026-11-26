@@ -19,6 +19,7 @@ export class PgFiscalPeriodStore {
     context: ActorContext,
     input: PeriodCommandInput,
     idempotencyKey: string,
+    checklistWarnings?: readonly string[],
   ) {
     const requestHash = createHash("sha256")
       .update(JSON.stringify({ action, input }))
@@ -112,7 +113,12 @@ export class PgFiscalPeriodStore {
           context.actorId,
           context.correlationId,
           { state: current.state },
-          { state: input.targetState, reason: input.reason, eventId },
+          {
+            state: input.targetState,
+            reason: input.reason,
+            eventId,
+            ...(checklistWarnings ? { checklistWarnings } : {}),
+          },
         ],
       );
       await client.query(

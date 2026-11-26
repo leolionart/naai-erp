@@ -1,3 +1,4 @@
+import type { NegativeCustodyAlertContract } from "@naai-erp/contracts";
 import type { JournalActorContext } from "../journals/journal.types.js";
 
 export type OperatingDashboardQuery = Readonly<{
@@ -120,6 +121,7 @@ export type OperatingDashboardReadModel = Readonly<{
     ownerCashCustodyMinor?: string;
     ownerReceivableMinor?: string;
     netOwnerPositionMinor?: string;
+    negativeOwnerCustodyAlert?: NegativeCustodyAlertContract | null;
     netAvailableCashMinor: string;
     actualOwnerPaidCompanyCostMinor: string;
     netCompanyFundsMinor: string;

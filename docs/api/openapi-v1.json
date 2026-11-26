@@ -40,6 +40,9 @@
     "journals/repost",
     "fiscal-periods/close",
     "fiscal-periods/reopen",
+    "fiscal-periods/close-checklist",
+    "banking/cash-counts/record",
+    "banking/owner-settlements/execute",
     "posting-rules/evaluate",
     "reports/trial-balance",
     "reports/general-ledger",
@@ -578,14 +581,68 @@
         "summary": "Evaluate effective posting rules into an exact balanced draft without posting"
       }
     },
+    "/api/v1/organizations/{organizationId}/fiscal-periods": {
+      "get": {
+        "operationId": "listFiscalPeriods",
+        "summary": "List fiscal periods and their lock states for an organization",
+        "tags": ["fiscal-periods"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/fiscal-periods/{fiscalYear}/{periodNumber}/close-checklist": {
+      "get": {
+        "operationId": "getPeriodCloseChecklist",
+        "summary": "Evaluate the 6-point monthly close checklist and negative owner-custody alert for a fiscal period",
+        "tags": ["fiscal-periods"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/fiscal-periods/{fiscalYear}/{periodNumber}/close-checklist/notes": {
+      "post": {
+        "operationId": "recordPeriodCloseChecklistNote",
+        "summary": "Record an audited acknowledgement note on a monthly close checklist item such as payment-evidence gaps",
+        "tags": ["fiscal-periods"]
+      }
+    },
     "/api/v1/organizations/{organizationId}/fiscal-periods/close": {
       "post": {
-        "summary": "Move an open period to soft lock or a soft-locked period to hard lock"
+        "summary": "Move an open period to soft lock or a soft-locked period to hard lock (evaluates close checklist and warns without blocking when reason is provided)"
       }
     },
     "/api/v1/organizations/{organizationId}/fiscal-periods/reopen": {
       "post": {
         "summary": "Privileged audited stepwise reopen of a locked fiscal period"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/cash-counts": {
+      "get": {
+        "operationId": "listOwnerCustodyCashCounts",
+        "summary": "List owner-custody cash count records and current 111-OWNER-CUSTODY ledger balance",
+        "tags": ["banking", "period-close"]
+      },
+      "post": {
+        "operationId": "recordOwnerCustodyCashCount",
+        "summary": "Record an owner-custody cash count, compare against 111-OWNER-CUSTODY ledger balance, and post any over/short difference with reason",
+        "tags": ["banking", "period-close"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/cash-counts/{id}": {
+      "get": {
+        "operationId": "getOwnerCustodyCashCount",
+        "summary": "Read a single owner-custody cash count record",
+        "tags": ["banking", "period-close"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/owner-settlements/position": {
+      "get": {
+        "operationId": "getOwnerYearEndPosition",
+        "summary": "Read the year-end owner position report (3388, 1388, 111-OWNER-CUSTODY, 421) and eligible settlement options",
+        "tags": ["banking", "period-close"]
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/owner-settlements": {
+      "post": {
+        "operationId": "executeOwnerYearEndSettlement",
+        "summary": "Execute an audited year-end owner settlement journal via company repayment, 3388/1388 offset, or profit distribution (Dr 421 / Cr 1388)",
+        "tags": ["banking", "period-close"]
       }
     },
     "/api/v1/organizations/{organizationId}/reports/trial-balance": {

@@ -285,6 +285,14 @@ export const adminNavigation = [
             description: "Danh sách toàn bộ bút toán kế toán đã ghi nhận.",
             status: "available",
           },
+          {
+            key: "period-close",
+            label: "Đóng kỳ, kiểm quỹ & quyết toán",
+            href: "/accounting/period-close",
+            description:
+              "Checklist đóng sổ hàng tháng, kiểm quỹ tiền mặt chủ giữ và quyết toán cuối năm với chủ.",
+            status: "available",
+          },
         ],
       },
     ],
