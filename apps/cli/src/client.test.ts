@@ -956,9 +956,21 @@ describe("NAAI ERP JSON-first CLI client", () => {
       "k1",
     );
     await client.request("expenses", "reverse", { reason: "Nhập nhầm" }, "exp-1", "3", "k2");
+    await client.request(
+      "commercial-documents",
+      "reclassify-funding",
+      { targetControlAccountCode: "3388-OWNER", reason: "Chủ thanh toán hộ" },
+      "doc-1",
+      "6",
+      "k3",
+    );
     expect(fetchFn.mock.calls.map(([u, init]) => [u, init.method])).toEqual([
       ["http://api/api/v1/organizations/org-a/expenses/exp-1/reclassify-funding", "POST"],
       ["http://api/api/v1/organizations/org-a/expenses/exp-1/reverse", "POST"],
+      [
+        "http://api/api/v1/organizations/org-a/commercial-documents/doc-1/reclassify-funding",
+        "POST",
+      ],
     ]);
   });
 

@@ -740,6 +740,8 @@ export class NaaiErpClient {
                                                                             "issue",
                                                                             "post",
                                                                             "cancel",
+                                                                            "reclassify-funding",
+                                                                            "reclassify-accounts",
                                                                           ].includes(action)
                                                                         ? `${base}/${key}/${action}`
                                                                         : isBankImport &&

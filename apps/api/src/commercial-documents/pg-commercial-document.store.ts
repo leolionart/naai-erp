@@ -2045,7 +2045,10 @@ export class PgCommercialDocumentStore {
       const original = found.rows[0];
       if (!original) throw new Error("RESOURCE_NOT_FOUND");
       if (original.version !== expectedVersion) throw new Error("VERSION_CONFLICT");
-      if (!original.journal_id || !["issued", "posted"].includes(original.state))
+      const allowedStates = allowReconciliation
+        ? ["issued", "posted", "partially_paid", "paid"]
+        : ["issued", "posted"];
+      if (!original.journal_id || !allowedStates.includes(original.state))
         throw new Error("INVALID_DOCUMENT_TRANSITION");
       const reconciliation = await client.query(
         `select 1 from reconciliation_allocations

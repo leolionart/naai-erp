@@ -74,7 +74,7 @@ export class PgOperationalLogStore implements OperationalLogStore {
   }
   async list(organizationId: string, filters: OperationalLogFilters) {
     const values: unknown[] = [organizationId];
-    const where = ["organization_id=$1"];
+    const where = ["organization_id=$1", "upper(operation) not in ('GET','HEAD','OPTIONS')"];
     for (const [column, value] of [
       ["status", filters.status],
       ["service", filters.service],
@@ -133,6 +133,7 @@ export class PgOperationalLogStore implements OperationalLogStore {
              'completedAt',completed_at,'expiresAt',expires_at) details,
            created_at occurred_at
          from operational_activity_logs
+         where upper(operation) not in ('GET','HEAD','OPTIONS')
          union all
          select organization_id,id,'resource_audit'::text source,action event_type,
            actor_id,resource_type,resource_key,correlation_id,'succeeded'::text status,

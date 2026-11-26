@@ -4,7 +4,9 @@ import { catchError, defer, mergeMap, of, throwError } from "rxjs";
 import { randomUUID } from "node:crypto";
 import { OPERATIONAL_LOG_STORE, type OperationalLogStore } from "./operational-log.types.js";
 
-/** Records one lifecycle activity for organization-scoped HTTP requests. */
+const READ_ONLY_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** Records one lifecycle activity for state-changing organization-scoped HTTP requests. */
 @Injectable()
 export class RequestLifecycleInterceptor implements NestInterceptor {
   constructor(@Inject(OPERATIONAL_LOG_STORE) private readonly store: OperationalLogStore) {}
@@ -17,9 +19,16 @@ export class RequestLifecycleInterceptor implements NestInterceptor {
       headers?: Record<string, string | undefined>;
     }>();
     const organizationId = request.params?.organizationId;
-    if (!organizationId || !this.store.start || !this.store.finish) return next.handle();
+    const method = (request.method ?? "REQUEST").toUpperCase();
+    if (
+      !organizationId ||
+      READ_ONLY_HTTP_METHODS.has(method) ||
+      !this.store.start ||
+      !this.store.finish
+    ) {
+      return next.handle();
+    }
     const id = randomUUID();
-    const method = request.method ?? "REQUEST";
     const operation = `${method} ${request.url ?? ""}`.slice(0, 240);
     const correlationId =
       request.headers?.["x-correlation-id"] ?? request.headers?.["X-Correlation-Id"];
