@@ -2861,6 +2861,14 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/draft-recording/draft-recording.integration.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/draft-recording-cli.test.ts && pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/focused-record-actions.test.ts
     blocking_gate: P17
 
+  - id: T-INT-REC-003
+    task: ERP-990
+    rules: [BR-REC-002]
+    title: Integration autoRecord flag for API credentials and webhook sources with atomic solopreneur auto-recording, visible draft reasons, and controlled-mode gating
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/integration-settings/auto-record.integration.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/integration-sources-cli.test.ts && pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/draft-reasons-banner.test.ts
+    blocking_gate: P17
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

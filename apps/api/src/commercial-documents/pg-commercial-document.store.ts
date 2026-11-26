@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
 import { applySolopreneurPurchaseDocumentDefaults } from "../payment-evidence/payment-evidence-evaluator.js";
+import { finalizeDocumentCreateAuditAndOutbox } from "../draft-recording/auto-record-ingestion.helper.js";
 import { mergePaymentEvidenceFields } from "../payment-evidence/payment-input.helper.js";
 import {
   applyDocumentLineCategoryUpdate,
@@ -858,6 +859,8 @@ export class PgCommercialDocumentStore {
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,d.paid_on::text paid_on,
        d.payment_method "paymentMethod",d.paid_on::text "paidOn",d.payment_evidence_ref "paymentEvidenceRef",
        d.transaction_evidence "transactionEvidence",d.payment_evidence_missing "paymentEvidenceMissing",
+       coalesce(d.draft_reasons,'[]'::jsonb) "draftReasons",
+       case when d.state='draft' then coalesce(d.draft_reasons,'[]'::jsonb) else '[]'::jsonb end reasons,
        case when d.state='cancelled' and exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace') then 'corrected' when exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id) then 'replacement' else null end correction_status,
        (select ra.after_state->>'replacementId' from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace' order by ra.occurred_at desc limit 1) replacement_id,
        (select ra.resource_key from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id order by ra.occurred_at desc limit 1) corrected_from_id,
@@ -931,6 +934,8 @@ export class PgCommercialDocumentStore {
       `select d.*,d.document_date::text document_date,d.due_date::text due_date,d.paid_on::text paid_on,
        d.payment_method "paymentMethod",d.paid_on::text "paidOn",d.payment_evidence_ref "paymentEvidenceRef",
        d.transaction_evidence "transactionEvidence",d.payment_evidence_missing "paymentEvidenceMissing",
+       coalesce(d.draft_reasons,'[]'::jsonb) "draftReasons",
+       case when d.state='draft' then coalesce(d.draft_reasons,'[]'::jsonb) else '[]'::jsonb end reasons,
        case when d.state='cancelled' and exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace') then 'corrected' when exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id) then 'replacement' else null end correction_status,
        (select ra.after_state->>'replacementId' from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace' order by ra.occurred_at desc limit 1) replacement_id,
        (select ra.resource_key from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id order by ra.occurred_at desc limit 1) corrected_from_id,
@@ -1409,63 +1414,22 @@ export class PgCommercialDocumentStore {
           ],
         );
       }
-
-      const auditEventId = randomUUID();
-      const outboxEventId = randomUUID();
-      await client.query(
-        `insert into resource_audit_events
-         (organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state)
-         values ($1,$2,'commercial_document',$3,$4,'create',$5,$6,$7)`,
-        [
-          context.organizationId,
-          auditEventId,
-          id,
-          resourceVersion,
-          context.actorId,
-          context.correlationId,
-          {
-            type: input.type,
-            state: finalState,
-            journalId,
-            autoCompleted: autoComplete,
-            ...(input.migrationSourceExpenseId
-              ? {
-                  migrationSourceExpenseId: input.migrationSourceExpenseId,
-                  migrationSourceExpenseDate: input.migrationSourceExpenseDate,
-                }
-              : {}),
-          },
-        ],
-      );
-      await client.query(
-        `insert into outbox_events
-         (organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id)
-         values ($1,$2,'commercial_document',$3,$4,1,$5,$6)`,
-        [
-          context.organizationId,
-          outboxEventId,
-          id,
-          autoComplete ? `${input.type}.${finalState}` : `${input.type}.created`,
-          {
-            documentId: id,
-            type: input.type,
-            state: finalState,
-            journalId,
-            autoCompleted: autoComplete,
-          },
-          context.correlationId,
-        ],
-      );
-      const response = {
-        documentId: id,
+      const response = await finalizeDocumentCreateAuditAndOutbox(client, context, {
+        id,
         type: input.type,
-        state: finalState,
+        operatingMode,
+        autoComplete,
+        finalState,
         resourceVersion,
         journalId,
-        auditEventId,
-        outboxEventId,
-        nextActions: this.nextActions(input.type, finalState),
-      };
+        ...(input.migrationSourceExpenseId
+          ? {
+              migrationSourceExpenseId: input.migrationSourceExpenseId,
+              migrationSourceExpenseDate: input.migrationSourceExpenseDate,
+            }
+          : {}),
+        nextActionsForState: (state) => this.nextActions(input.type, state),
+      });
       await this.saveReplay(
         client,
         context.organizationId,
@@ -1765,7 +1729,7 @@ export class PgCommercialDocumentStore {
           document_number=$3, series=$4, fiscal_year=$5, party_id=$6, document_date=$7, due_date=$8,
           currency=$9, net_minor=$10, tax_minor=$11, gross_minor=$12, control_account_code=$13,
           funding_financial_account_id=$14, original_document_id=$15, reason=$16, version=$17,
-          payment_method=$18, paid_on=$19::date, payment_evidence_ref=$20, transaction_evidence=$21, updated_at=now()
+          payment_method=$18, paid_on=$19::date, payment_evidence_ref=$20, transaction_evidence=$21, draft_reasons='[]'::jsonb, updated_at=now()
          where organization_id=$1 and id=$2`,
         [
           context.organizationId,
@@ -1954,6 +1918,7 @@ export class PgCommercialDocumentStore {
       const version = (BigInt(document.version) + 1n).toString();
       await client.query(
         `update commercial_documents set state=$3,version=version+1,updated_at=now(),control_account_code=$7,
+          draft_reasons=case when $4 in ('issue','post') then '[]'::jsonb else draft_reasons end,
           approved_by=case when $4='approve' then $5 else approved_by end,
           approved_at=case when $4='approve' then now() else approved_at end,
           issued_or_posted_by=case when $4 in ('issue','post') then $5 else issued_or_posted_by end,

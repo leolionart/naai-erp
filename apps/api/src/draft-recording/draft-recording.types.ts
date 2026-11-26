@@ -1,4 +1,5 @@
 export const DEFAULT_SOLOPRENEUR_RECORD_REASON = "Chủ ghi sổ";
+export const DEFAULT_AUTO_RECORD_REASON = "Tự động ghi sổ từ nguồn tích hợp";
 
 export const ROUTINE_EXPENSE_ACTIONS = new Set(["submit", "approve", "post"]);
 export const ROUTINE_DOCUMENT_ACTIONS = new Set([

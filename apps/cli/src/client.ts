@@ -9,9 +9,12 @@ import { downloadXlsxAttachment, sendJsonSubresourceRequest } from "./cli-http-h
 import { isOwnerFundingResource, requestOwnerFunding } from "./owner-funding-cli.js";
 import {
   downloadBinaryFromApi,
+  downloadOrgAccountingExport,
+  executePaymentEvidenceRoute,
   tryResolvePaymentEvidenceRoute,
   type BinaryDownloadResult,
 } from "./payment-evidence-cli.js";
+import { requestIntegrationSettings } from "./integration-sources-cli.js";
 
 export type CliOptions = Readonly<{
   baseUrl: string;
@@ -87,6 +90,40 @@ export class NaaiErpClient {
   async listOwnerFunding(filters: Readonly<Record<string, string>> = {}): Promise<unknown> {
     return requestOwnerFunding(this.fetchFn, this.options, "owner-funding", "list", filters);
   }
+  async listIntegrationSources(): Promise<unknown> {
+    return requestIntegrationSettings(this.fetchFn, this.options, "integration-sources", "GET");
+  }
+  async updateIntegrationSource(
+    id: string,
+    input: Readonly<Record<string, unknown>>,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    return requestIntegrationSettings(
+      this.fetchFn,
+      this.options,
+      `integration-sources/${encodeURIComponent(id)}`,
+      "PATCH",
+      input,
+      idempotencyKey,
+    );
+  }
+  async listApiCredentials(): Promise<unknown> {
+    return requestIntegrationSettings(this.fetchFn, this.options, "api-credentials", "GET");
+  }
+  async updateApiCredential(
+    id: string,
+    input: Readonly<Record<string, unknown>>,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    return requestIntegrationSettings(
+      this.fetchFn,
+      this.options,
+      `api-credentials/${encodeURIComponent(id)}`,
+      "PATCH",
+      input,
+      idempotencyKey,
+    );
+  }
   async getOwnerFunding(id: string): Promise<unknown> {
     return requestOwnerFunding(this.fetchFn, this.options, "owner-funding", "get", undefined, id);
   }
@@ -122,29 +159,23 @@ export class NaaiErpClient {
     kind: "sales-invoices" | "purchase-invoices-expenses",
     filters: Readonly<Record<string, string>>,
   ): Promise<BinaryDownloadResult> {
-    if (!this.options.organizationId || !this.options.token)
-      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
-    const query = new URLSearchParams(filters).toString();
-    return downloadXlsxAttachment(
+    return downloadOrgAccountingExport(
       this.fetchFn,
-      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/accounting-list-exports/${kind}?${query}`,
-      this.options.token,
+      this.options,
+      kind,
+      filters,
+      downloadXlsxAttachment,
     );
   }
-
-  /**
-   * Download the canonical management workbook.
-   */
   async downloadManagementWorkbook(
     filters: Readonly<{ startsOn: string; endsOn: string }>,
   ): Promise<BinaryDownloadResult> {
-    if (!this.options.organizationId || !this.options.token)
-      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
-    const query = new URLSearchParams(filters).toString();
-    return downloadXlsxAttachment(
+    return downloadOrgAccountingExport(
       this.fetchFn,
-      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/accounting-list-exports/management-workbook?${query}`,
-      this.options.token,
+      this.options,
+      "management-workbook",
+      filters,
+      downloadXlsxAttachment,
     );
   }
   constructor(
@@ -373,31 +404,13 @@ export class NaaiErpClient {
       key,
     );
     if (paymentEvidenceRoute) {
-      const qs =
-        paymentEvidenceRoute.method === "GET" && payload && typeof payload === "object"
-          ? new URLSearchParams(
-              Object.entries(payload as Record<string, unknown>)
-                .filter(([, value]) => value !== undefined && value !== null)
-                .map(([name, value]): [string, string] => [name, String(value)]),
-            ).toString()
-          : "";
-      const routeUrl = qs ? `${paymentEvidenceRoute.path}?${qs}` : paymentEvidenceRoute.path;
-      return this.fetchFn(routeUrl, {
-        method: paymentEvidenceRoute.method,
-        headers: {
-          authorization: `Bearer ${this.options.token}`,
-          "content-type": "application/json",
-          "x-correlation-id": randomUUID(),
-          ...(paymentEvidenceRoute.method !== "GET"
-            ? { "idempotency-key": idempotencyKey ?? randomUUID() }
-            : {}),
-          ...(expectedVersion ? { "if-match": expectedVersion } : {}),
-        },
-        ...(paymentEvidenceRoute.method !== "GET" ? { body: JSON.stringify(payload ?? {}) } : {}),
-      }).then(async (response) => {
-        const body: unknown = await response.json();
-        if (!response.ok) throw new Error(JSON.stringify(body));
-        return body;
+      return executePaymentEvidenceRoute({
+        route: paymentEvidenceRoute,
+        fetchFn: this.fetchFn,
+        token: this.options.token,
+        payload,
+        ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+        ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
       });
     }
     const isJournal = resource === "journals";

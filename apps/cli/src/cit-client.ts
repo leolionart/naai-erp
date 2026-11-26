@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { resolvePeriodCloseCliRoute } from "./period-close-cli.js";
 import { resolveDraftRecordingCliRoute } from "./draft-recording-cli.js";
+import { resolveIntegrationSourcesCliRoute } from "./integration-sources-cli.js";
 
 export type ExtendedCliRoute = Readonly<{
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -134,6 +135,8 @@ export function resolveExtendedCliRoute(input: {
   if (periodCloseRoute) return periodCloseRoute;
   const draftRoute = resolveDraftRecordingCliRoute(input);
   if (draftRoute) return draftRoute;
+  const integrationRoute = resolveIntegrationSourcesCliRoute(input);
+  if (integrationRoute) return integrationRoute;
 
   return null;
 }

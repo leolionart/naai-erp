@@ -29,7 +29,14 @@ export class MasterDataService {
     const effectiveToken = token ?? "dev-token";
     const identity = await this.store.authenticate(effectiveToken, organizationId);
     if (!identity) throw new Error("FORBIDDEN");
-    return { organizationId, actorId: identity.actorId, roles: identity.roles, correlationId };
+    return {
+      organizationId,
+      actorId: identity.actorId,
+      roles: identity.roles,
+      correlationId,
+      ...(identity.credentialId ? { credentialId: identity.credentialId } : {}),
+      ...(identity.autoRecord !== undefined ? { autoRecord: identity.autoRecord } : {}),
+    };
   }
 
   async list(

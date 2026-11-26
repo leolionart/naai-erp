@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { RecordVoidControl } from "./focused-record-void-control";
+import { DraftReasonsAlert, DraftReasonsBadge } from "./draft-reasons-banner";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Eye, Plus, Trash2 } from "lucide-react";
@@ -76,6 +76,7 @@ import { canRecordInOneClick, formatRecordActionError } from "./focused-record-a
 import { FilterPopover } from "./focused-record-filter-popover";
 import {
   DeleteDraftPurchaseInvoiceDialog,
+  RecognitionQuickViewSummary,
   ReclassifyFundingDialog,
 } from "./focused-record-quick-view-dialogs";
 
@@ -974,6 +975,7 @@ export function FocusedRecordListWorkspace({
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{human(text(row, "state"))}</Badge>
+                        <DraftReasonsBadge record={row} />
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => void openQuickView(row)}>
@@ -1057,6 +1059,7 @@ export function FocusedRecordListWorkspace({
                   </CardHeader>
                 </Card>
               </div>
+              <DraftReasonsAlert record={quickRecord} />
               {sourceKind(quickRecord) !== "recognition" &&
               (kind === "expenses" || text(quickRecord, "type") === "purchase_invoice") ? (
                 <Card>
@@ -1151,20 +1154,7 @@ export function FocusedRecordListWorkspace({
                   )}
                 </>
               ) : (
-                <div className="grid gap-3 rounded-lg border p-4">
-                  <p className="font-medium">Trục doanh thu: Đã ghi nhận</p>
-                  <p className="text-sm text-muted-foreground">
-                    Đây là nghiệp vụ ghi nhận doanh thu chưa có quan hệ hóa đơn rõ ràng. Hệ thống
-                    không suy đoán liên kết từ số tiền, ngày hoặc dự án.
-                  </p>
-                  <Button asChild variant="outline" className="w-fit">
-                    <Link
-                      href={`/revenue-recognition/${encodeURIComponent(text(quickRecord, "id"))}`}
-                    >
-                      Mở trang chi tiết
-                    </Link>
-                  </Button>
-                </div>
+                <RecognitionQuickViewSummary recordId={text(quickRecord, "id")} />
               )}
               {canDeleteQuickPurchaseInvoice ? null : (
                 <RecordVoidControl

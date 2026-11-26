@@ -37,6 +37,7 @@ import {
   resolveDetailActionPlan,
 } from "./focused-record-actions";
 import { FocusedRecordErrorAlert } from "./focused-record-alerts";
+import { DraftReasonsAlert } from "./draft-reasons-banner";
 import { ActionDialog, SourceCard } from "./focused-record-detail-dialogs";
 import { presentRevenueRecord } from "./focused-record-presentation";
 import type { Kind, Row } from "./focused-record-shared";
@@ -259,6 +260,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           <Skeleton className="h-96 w-full" />
         ) : record ? (
           <>
+            <DraftReasonsAlert record={record} />
             <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader>

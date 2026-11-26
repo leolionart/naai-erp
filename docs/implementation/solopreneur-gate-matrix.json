@@ -2,14 +2,8 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 138,
-  "effectEnum": [
-    "none",
-    "draft",
-    "posted",
-    "correction",
-    "destructive"
-  ],
+  "mutationCount": 141,
+  "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
     "controlledMode": "unchanged",
@@ -21,6 +15,7 @@
     "account-plans/dry-run",
     "accountant-exports",
     "accountant-exports/{id}",
+    "api-credentials/{credentialId}",
     "banking/accounts",
     "banking/cash-counts",
     "banking/imports",
@@ -62,6 +57,8 @@
     "funding-rules",
     "funding-rules/test",
     "funding-rules/{ruleId}",
+    "integration-sources",
+    "integration-sources/{sourceId}",
     "journals",
     "journals/{journalId}",
     "master-data/{resource}",
@@ -112,21 +109,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "service-plans"
     },
     {
@@ -139,21 +129,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "service-plans/{servicePlanId}"
     },
     {
@@ -166,9 +149,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
@@ -195,21 +176,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "service-plans/{servicePlanId}"
     },
     {
@@ -222,21 +196,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "customer-service-subscriptions"
     },
     {
@@ -249,21 +216,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "customer-service-subscriptions/{subscriptionId}"
     },
     {
@@ -273,26 +233,17 @@
       "operationId": "transitionCustomerServiceSubscription",
       "resource": "customer-service-subscriptions",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "customer-service-subscriptions/{subscriptionId}"
     },
     {
@@ -305,21 +256,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "portable-data-packages/imports"
     },
     {
@@ -332,21 +276,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "master-data/{resource}"
     },
     {
@@ -359,21 +296,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "master-data/{resource}"
     },
     {
@@ -386,9 +316,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
@@ -415,21 +343,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "master-data/{resource}"
     },
     {
@@ -442,21 +363,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "master-data/{resource}"
     },
     {
@@ -469,21 +383,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "journals"
     },
     {
@@ -496,9 +403,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -526,21 +431,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "journals/{journalId}"
     },
     {
@@ -553,9 +451,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -583,9 +479,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -613,21 +507,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "posting-rules/evaluate"
     },
     {
@@ -640,21 +527,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "fiscal-periods/{fiscalYear}"
     },
     {
@@ -667,9 +547,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
@@ -697,9 +575,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
@@ -727,9 +603,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -757,9 +631,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -787,21 +659,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "financial-statement-mappings"
     },
     {
@@ -814,21 +679,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "financial-statement-mappings/{mappingVersionId}"
     },
     {
@@ -841,21 +699,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "opening-balances/dry-run"
     },
     {
@@ -868,9 +719,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -898,21 +747,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents"
     },
     {
@@ -925,21 +767,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/{documentId}"
     },
     {
@@ -952,9 +787,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
@@ -981,21 +814,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/purchase-invoice-ingestion"
     },
     {
@@ -1008,21 +834,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/sales-invoice-ingestion"
     },
     {
@@ -1035,21 +854,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/{documentId}"
     },
     {
@@ -1062,21 +874,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/{documentId}"
     },
     {
@@ -1089,21 +894,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1116,9 +914,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1146,21 +942,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/{documentId}"
     },
     {
@@ -1173,21 +962,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/{documentId}"
     },
     {
@@ -1200,9 +982,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1230,9 +1010,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1257,20 +1035,10 @@
       "operationId": null,
       "resource": "commercial-documents",
       "action": "{action}",
-      "possibleActions": [
-        "capture",
-        "validate",
-        "verify",
-        "approve",
-        "issue",
-        "post",
-        "cancel"
-      ],
+      "possibleActions": ["capture", "validate", "verify", "approve", "issue", "post", "cancel"],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1298,21 +1066,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses"
     },
     {
@@ -1325,21 +1086,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1352,9 +1106,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
@@ -1381,21 +1133,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1408,21 +1153,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1435,21 +1173,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1462,9 +1193,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1492,21 +1221,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1519,9 +1241,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1549,21 +1269,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{expenseId}"
     },
     {
@@ -1576,9 +1289,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1603,18 +1314,10 @@
       "operationId": null,
       "resource": "expenses",
       "action": "{action}",
-      "possibleActions": [
-        "submit",
-        "approve",
-        "post",
-        "reject",
-        "discard"
-      ],
+      "possibleActions": ["submit", "approve", "post", "reject", "discard"],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1642,9 +1345,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1663,6 +1364,66 @@
       "uiActionFamily": "drafts/record"
     },
     {
+      "id": "POST:/api/v1/organizations/{organizationId}/integration-sources",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/integration-sources",
+      "operationId": "createIntegrationSource",
+      "resource": "integration-sources",
+      "action": "integration-sources",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "integration-sources"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/integration-sources/{sourceId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/integration-sources/{sourceId}",
+      "operationId": "updateIntegrationSource",
+      "resource": "integration-sources",
+      "action": "{sourceId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "integration-sources/{sourceId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/api-credentials/{credentialId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/api-credentials/{credentialId}",
+      "operationId": "updateApiCredential",
+      "resource": "api-credentials",
+      "action": "{credentialId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "api-credentials/{credentialId}"
+    },
+    {
       "id": "POST:/api/v1/organizations/{organizationId}/evidence",
       "method": "POST",
       "path": "/api/v1/organizations/{organizationId}/evidence",
@@ -1672,21 +1433,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "evidence"
     },
     {
@@ -1699,21 +1453,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "evidence/{evidenceId}"
     },
     {
@@ -1726,21 +1473,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "evidence/{evidenceId}"
     },
     {
@@ -1753,21 +1493,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "/api"
     },
     {
@@ -1780,21 +1513,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/accounts"
     },
     {
@@ -1807,21 +1533,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/accounts"
     },
     {
@@ -1834,21 +1553,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/accounts"
     },
     {
@@ -1861,21 +1573,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/imports"
     },
     {
@@ -1888,21 +1593,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/imports"
     },
     {
@@ -1915,9 +1613,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1945,9 +1641,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -1975,9 +1669,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2005,9 +1697,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2035,21 +1725,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/transactions"
     },
     {
@@ -2062,21 +1745,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/transactions"
     },
     {
@@ -2089,21 +1765,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/transactions"
     },
     {
@@ -2116,21 +1785,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/transactions"
     },
     {
@@ -2143,9 +1805,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2173,9 +1833,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2203,21 +1861,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/internal-transfers"
     },
     {
@@ -2230,9 +1881,7 @@
       "possibleActions": [],
       "financialEffect": "posted",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2260,9 +1909,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2290,21 +1937,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "telegram-settings"
     },
     {
@@ -2317,21 +1957,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "telegram-settings/test"
     },
     {
@@ -2344,21 +1977,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-rules"
     },
     {
@@ -2371,21 +1997,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-rules/{ruleId}"
     },
     {
@@ -2398,9 +2017,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
@@ -2427,21 +2044,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-rules/test"
     },
     {
@@ -2454,21 +2064,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/by-external"
     },
     {
@@ -2481,21 +2084,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/by-external"
     },
     {
@@ -2508,21 +2104,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-plans/dry-run"
     },
     {
@@ -2535,21 +2124,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-plans/commit"
     },
     {
@@ -2562,21 +2144,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "funding-plans/owner-custody-migration"
     },
     {
@@ -2589,9 +2164,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -2619,21 +2192,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "expenses/{id}"
     },
     {
@@ -2646,21 +2212,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "commercial-documents/{id}"
     },
     {
@@ -2673,21 +2232,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "account-plans/dry-run"
     },
     {
@@ -2700,21 +2252,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "account-plans/commit"
     },
     {
@@ -2727,21 +2272,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "outbound-events/endpoints"
     },
     {
@@ -2754,21 +2292,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "outbound-events/endpoints"
     },
     {
@@ -2781,21 +2312,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "outbound-events/outbox"
     },
     {
@@ -2808,21 +2332,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/statement-sessions"
     },
     {
@@ -2835,21 +2352,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/statement-sessions"
     },
     {
@@ -2862,21 +2372,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/statement-sessions"
     },
     {
@@ -2889,21 +2392,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/statement-sessions"
     },
     {
@@ -2913,26 +2409,17 @@
       "operationId": "reviewStatementSuspenseException",
       "resource": "banking",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "banking/statement-sessions"
     },
     {
@@ -2945,21 +2432,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "scope-changes"
     },
     {
@@ -2969,26 +2449,17 @@
       "operationId": "transitionScopeChange",
       "resource": "scope-changes",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "scope-changes/{id}"
     },
     {
@@ -3001,21 +2472,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "project-budgets"
     },
     {
@@ -3025,26 +2489,17 @@
       "operationId": "transitionProjectBudget",
       "resource": "project-budgets",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "project-budgets/{id}"
     },
     {
@@ -3057,21 +2512,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "recognition-policies"
     },
     {
@@ -3081,26 +2529,17 @@
       "operationId": "transitionRecognitionPolicy",
       "resource": "recognition-policies",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "recognition-policies/{id}"
     },
     {
@@ -3113,21 +2552,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "milestone-acceptances"
     },
     {
@@ -3137,26 +2569,17 @@
       "operationId": "transitionMilestoneAcceptance",
       "resource": "milestone-acceptances",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "milestone-acceptances/{id}"
     },
     {
@@ -3169,21 +2592,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "revenue-recognition-events"
     },
     {
@@ -3193,17 +2609,10 @@
       "operationId": "transitionRevenueRecognitionEvent",
       "resource": "revenue-recognition-events",
       "action": "{action}",
-      "possibleActions": [
-        "submit",
-        "approve",
-        "post",
-        "reverse"
-      ],
+      "possibleActions": ["submit", "approve", "post", "reverse"],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -3231,21 +2640,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "revenue-targets"
     },
     {
@@ -3255,26 +2657,17 @@
       "operationId": "transitionRevenueTarget",
       "resource": "revenue-targets",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "revenue-targets/{id}"
     },
     {
@@ -3287,21 +2680,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "forecast-versions"
     },
     {
@@ -3311,26 +2697,17 @@
       "operationId": "transitionForecastVersion",
       "resource": "forecast-versions",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "forecast-versions/{id}"
     },
     {
@@ -3343,21 +2720,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "forecast-versions/{forecastId}"
     },
     {
@@ -3370,21 +2740,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "forecast-versions/{forecastId}"
     },
     {
@@ -3397,9 +2760,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
@@ -3423,26 +2784,17 @@
       "operationId": "transitionForecastComponent",
       "resource": "forecast-versions",
       "action": "{action}",
-      "possibleActions": [
-        "route-dependent"
-      ],
+      "possibleActions": ["route-dependent"],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "route-dependent"
-        ],
+        "lifecycleStates": ["route-dependent"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "forecast-versions/{forecastId}"
     },
     {
@@ -3455,21 +2807,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "organization-workflow-policy"
     },
     {
@@ -3482,21 +2827,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "executive-metric-policies"
     },
     {
@@ -3509,21 +2847,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "executive-metric-policies/{id}"
     },
     {
@@ -3536,21 +2867,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "roi-definitions"
     },
     {
@@ -3563,21 +2887,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "policy-controlled",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "roi-definitions/{id}"
     },
     {
@@ -3590,21 +2907,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "roi-input-facts"
     },
     {
@@ -3617,21 +2927,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "roi-input-facts/{id}"
     },
     {
@@ -3644,21 +2947,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "report-snapshots"
     },
     {
@@ -3671,21 +2967,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "report-snapshots/{id}"
     },
     {
@@ -3698,21 +2987,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "accountant-exports"
     },
     {
@@ -3725,9 +3007,7 @@
       "possibleActions": [],
       "financialEffect": "correction",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -3755,21 +3035,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "workbook-imports/dry-run"
     },
     {
@@ -3782,21 +3055,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "workbook-imports/commit"
     },
     {
@@ -3809,21 +3075,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "workbook-imports/review-rows"
     },
     {
@@ -3836,9 +3095,7 @@
       "possibleActions": [],
       "financialEffect": "destructive",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "required",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
@@ -3865,21 +3122,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "portable-data-packages/exports"
     },
     {
@@ -3892,21 +3142,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "portable-data-packages/imports"
     },
     {
@@ -3919,21 +3162,14 @@
       "possibleActions": [],
       "financialEffect": "none",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "portable-data-packages/imports"
     },
     {
@@ -3946,21 +3182,14 @@
       "possibleActions": [],
       "financialEffect": "draft",
       "current": {
-        "lifecycleStates": [
-          "endpoint-defined"
-        ],
+        "lifecycleStates": ["endpoint-defined"],
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
-      "retainedSafeguards": [
-        "organization_scope",
-        "rbac",
-        "audit",
-        "idempotency"
-      ],
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "portable-data-packages/imports"
     }
   ]

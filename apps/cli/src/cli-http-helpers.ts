@@ -5,7 +5,7 @@ export async function sendJsonSubresourceRequest(
   fetchFn: typeof fetch,
   options: CliOptions,
   subpath: string,
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   payload?: unknown,
   idempotencyKey?: string,
 ) {
@@ -23,7 +23,7 @@ export async function sendJsonSubresourceRequest(
       "x-correlation-id": randomUUID(),
       ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
     },
-    ...(method === "POST" ? { body: JSON.stringify(payload) } : {}),
+    ...(method !== "GET" ? { body: JSON.stringify(payload) } : {}),
   });
   const body: unknown = await response.json();
   if (!response.ok) throw new Error(JSON.stringify(body));

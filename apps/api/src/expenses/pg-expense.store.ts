@@ -5,6 +5,7 @@ import {
   applyExpenseLineCategoryUpdate,
   resolveExpenseCategory,
 } from "../master-data/canonical-category-validation.js";
+import { finalizeExpenseCreateAuditAndOutbox } from "../draft-recording/auto-record-ingestion.helper.js";
 import { applySolopreneurExpenseDefaults } from "../payment-evidence/payment-evidence-evaluator.js";
 import { mergePaymentEvidenceFields } from "../payment-evidence/payment-input.helper.js";
 import {
@@ -429,6 +430,8 @@ export class PgExpenseStore {
        (select m.bank_transaction_id from owner_funding_movements m where m.organization_id=e.organization_id and m.id=e.owner_funding_movement_id) "ownerFundingTransactionId",
        e.payment_method "paymentMethod",e.paid_on::text "paidOn",e.payment_evidence_ref "paymentEvidenceRef",
        e.transaction_evidence "transactionEvidence",e.payment_evidence_missing "paymentEvidenceMissing",
+       coalesce(e.draft_reasons,'[]'::jsonb) "draftReasons",
+       case when e.state='draft' then coalesce(e.draft_reasons,'[]'::jsonb) else '[]'::jsonb end reasons,
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
@@ -494,6 +497,8 @@ export class PgExpenseStore {
        (select m.bank_transaction_id from owner_funding_movements m where m.organization_id=e.organization_id and m.id=e.owner_funding_movement_id) "ownerFundingTransactionId",
        e.payment_method "paymentMethod",e.paid_on::text "paidOn",e.payment_evidence_ref "paymentEvidenceRef",
        e.transaction_evidence "transactionEvidence",e.payment_evidence_missing "paymentEvidenceMissing",
+       coalesce(e.draft_reasons,'[]'::jsonb) "draftReasons",
+       case when e.state='draft' then coalesce(e.draft_reasons,'[]'::jsonb) else '[]'::jsonb end reasons,
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
@@ -1238,52 +1243,16 @@ export class PgExpenseStore {
           ],
         );
       }
-
-      const audit = randomUUID(),
-        outbox = randomUUID();
-      await c.query(
-        `insert into resource_audit_events(organization_id,id,resource_type,resource_key,resource_version,action,actor_id,correlation_id,after_state) values($1,$2,'expense',$3,$4,'create',$5,$6,$7)`,
-        [
-          context.organizationId,
-          audit,
-          id,
-          resourceVersion,
-          context.actorId,
-          context.correlationId,
-          {
-            state: finalState,
-            expenseClass: input.expenseClass,
-            journalId,
-            autoCompleted: autoComplete,
-          },
-        ],
-      );
-      await c.query(
-        `insert into outbox_events(organization_id,id,aggregate_type,aggregate_id,event_type,schema_version,payload,correlation_id) values($1,$2,'expense',$3,$4,1,$5,$6)`,
-        [
-          context.organizationId,
-          outbox,
-          id,
-          autoComplete ? `expense.${finalState}` : "expense.created",
-          {
-            expenseId: id,
-            state: finalState,
-            expenseClass: input.expenseClass,
-            journalId,
-            autoCompleted: autoComplete,
-          },
-          context.correlationId,
-        ],
-      );
-      const response = {
-        expenseId: id,
-        state: finalState,
+      const response = await finalizeExpenseCreateAuditAndOutbox(c, context, {
+        id,
+        expenseClass: input.expenseClass,
+        operatingMode,
+        autoComplete,
+        finalState,
         resourceVersion,
         journalId,
-        auditEventId: audit,
-        outboxEventId: outbox,
-        nextActions: Object.keys(NEXT[finalState] ?? {}),
-      };
+        nextActionsForState: (state) => Object.keys(NEXT[state] ?? {}),
+      });
       await this.save(c, context.organizationId, key, "expense:create", hash, response);
       await c.query("commit");
       return { ...response, idempotencyReplayed: false };
@@ -1443,7 +1412,7 @@ export class PgExpenseStore {
           net_minor=$11, vat_minor=$12, gross_minor=$13, counter_account_code=$14,
           funding_financial_account_id=$15, evidence_checklist=$16, version=$17,
           payment_method=$18, paid_on=$19::date, payment_evidence_ref=$20, transaction_evidence=$21,
-          updated_at=now()
+          draft_reasons='[]'::jsonb, updated_at=now()
          where organization_id=$1 and id=$2`,
         [
           context.organizationId,
@@ -1865,7 +1834,7 @@ export class PgExpenseStore {
       }
       const version = (BigInt(e.version) + 1n).toString();
       await c.query(
-        `update expenses set state=$3,version=version+1,updated_at=now(),approved_by=case when $4='approve' then $5 else approved_by end,approved_at=case when $4='approve' then now() else approved_at end,posted_by=case when $4='post' then $5 else posted_by end,posted_at=case when $4='post' then now() else posted_at end,journal_id=coalesce($6::text,journal_id),evidence_checklist=case when $4='mark-evidence-pending' then evidence_checklist||$7::jsonb else evidence_checklist end where organization_id=$1 and id=$2`,
+        `update expenses set state=$3,version=version+1,updated_at=now(),draft_reasons=case when $4='post' then '[]'::jsonb else draft_reasons end,approved_by=case when $4='approve' then $5 else approved_by end,approved_at=case when $4='approve' then now() else approved_at end,posted_by=case when $4='post' then $5 else posted_by end,posted_at=case when $4='post' then now() else posted_at end,journal_id=coalesce($6::text,journal_id),evidence_checklist=case when $4='mark-evidence-pending' then evidence_checklist||$7::jsonb else evidence_checklist end where organization_id=$1 and id=$2`,
         [
           context.organizationId,
           id,

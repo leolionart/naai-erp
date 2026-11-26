@@ -6,12 +6,14 @@ export type IntegrationSource = Readonly<{
   organizationId: string;
   id: string;
   publicId: string;
+  name?: string;
   actorId: string;
   secretRef: string;
   status: string;
   allowedEventTypes: readonly string[];
   timestampToleranceSeconds: number;
   maxAttempts: number;
+  autoRecord: boolean;
 }>;
 export type VerifiedInbound = Readonly<{
   source: IntegrationSource;

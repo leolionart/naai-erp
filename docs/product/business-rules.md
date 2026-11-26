@@ -1492,7 +1492,8 @@ No task may be marked done with orphan business rules or untested behavior.
   ("Chế độ: Một người" / "Chế độ: Kiểm soát") with a tooltip explaining what it changes.
 - `BR-MODE-002`: in solopreneur mode an owner's "Lưu và ghi nhận" posts at creation, while records
   created by integration identities (n8n/API tokens that are not `owner`, and inbound webhooks) stay
-  drafts until an owner posts them. Self-approval by the owner is always allowed.
+  drafts until an owner posts them unless that integration source explicitly enables `autoRecord = true`
+  (`BR-REC-002`). Self-approval by the owner is always allowed.
 - `BR-MODE-003`: in solopreneur mode a draft (not yet approved) financial-statement mapping or tax
   code version is usable wherever the owner-current account, VAT tax-code resolution/review or owner
   cash movements need one; controlled mode still requires `approved` / `accountant_approved`. Without
@@ -1662,8 +1663,25 @@ other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_eviden
   action collapses to a single "Ghi sổ" button (hiding intermediate submit/approve/verify/issue steps and the
   maker-checker warning while keeping secondary exception actions such as marking missing evidence or rejecting in
   an overflow menu); `controlled` mode remains unchanged.
-- `BR-REC-002` (planned): an integration source with `autoRecord` records valid items on ingestion and leaves invalid
-  ones as drafts with visible reasons; every action is audited under the integration identity.
+- `BR-REC-002`: organization-scoped integration sources — both API credentials / service identities
+  (`api_credentials.auto_record`, managed via `GET/PATCH /api-credentials/:id`) and inbound webhook
+  sources (`integration_sources.auto_record`, managed via `GET/POST/PATCH /integration-sources`),
+  configurable via REST API, first-party CLI (`integration-sources`, `api-credentials`) and Web UI
+  (`/settings/automation` and `/settings/master-data`) — default `autoRecord = false` and never expose
+  raw token hashes or signing secrets. When `autoRecord = true` and the organization's workflow policy
+  is `operatingMode = 'solopreneur'`, newly ingested expenses and commercial documents from that
+  integration source attempt atomic single-transaction recording (`recordExpenseOnClient` /
+  `recordCommercialDocumentOnClient` inside an isolated PostgreSQL savepoint) immediately upon
+  ingestion without requiring an `owner` token: eligible records reach `posted` / `paid` / `issued`
+  with balanced double-entry journals (`debit = credit`), `ERP-971`/`ERP-982` tax and payment-evidence
+  defaults, and append-only audit events recorded under the integration identity (`actorId`,
+  `autoRecorded: true`, default reason `"Tự động ghi sổ từ nguồn tích hợp"`). Ineligible records roll
+  back the recording savepoint cleanly with zero partial ledger mutations, remain in `draft` state
+  (`autoRecorded: false`), record an `auto_record_blocked` audit event under the integration identity,
+  and persist structured blocking `reasons` (`draft_reasons`) exposed on ingestion responses, list/detail
+  API reads (`reasons`, `draftReasons`), and Web UI list badges, quick-view alerts, and detail banners
+  until edited or recorded. In `controlled` mode or when `autoRecord = false`, ingested records always
+  stay `draft`.
 - `BR-REC-003`: for an owner in `solopreneur` operating mode, routine draft recording and workflow transitions
   (`record`, `submit`, `approve`, `post`, `capture`, `verify`, `validate`, `issue`) default their audit reason to
   `"Chủ ghi sổ"` when omitted while remaining editable inline; actions that alter, reverse, discard, or reclassify

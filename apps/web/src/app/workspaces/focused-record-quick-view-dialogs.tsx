@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -168,5 +169,20 @@ export function ReclassifyFundingDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function RecognitionQuickViewSummary({ recordId }: Readonly<{ recordId: string }>) {
+  return (
+    <div className="grid gap-3 rounded-lg border p-4">
+      <p className="font-medium">Trục doanh thu: Đã ghi nhận</p>
+      <p className="text-sm text-muted-foreground">
+        Đây là nghiệp vụ ghi nhận doanh thu chưa có quan hệ hóa đơn rõ ràng. Hệ thống không suy đoán
+        liên kết từ số tiền, ngày hoặc dự án.
+      </p>
+      <Button asChild variant="outline" className="w-fit">
+        <Link href={`/revenue-recognition/${encodeURIComponent(recordId)}`}>Mở trang chi tiết</Link>
+      </Button>
+    </div>
   );
 }

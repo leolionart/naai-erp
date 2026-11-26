@@ -355,6 +355,15 @@ export const adminNavigation = [
         icon: "notification",
         status: "available",
       },
+      {
+        key: "automation-settings",
+        label: "Nguồn tích hợp & Tự ghi sổ",
+        description:
+          "Cấu hình cờ autoRecord cho token tích hợp và nguồn webhook đầu vào để tự động ghi sổ.",
+        href: "/settings/automation",
+        icon: "review",
+        status: "available",
+      },
     ],
   },
 ] as const satisfies readonly NavigationGroup[];

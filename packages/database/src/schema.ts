@@ -1496,12 +1496,18 @@ export const apiCredentials = pgTable(
       .notNull()
       .references(() => organizations.id),
     id: text("id").notNull(),
+    name: text("name"),
     actorId: text("actor_id").notNull(),
     tokenHash: text("token_hash").notNull(),
     roles: jsonb("roles").$type<string[]>().notNull().default([]),
     status: text("status").notNull().default("active"),
+    autoRecord: boolean("auto_record").notNull().default(false),
+    version: bigint("version", { mode: "bigint" })
+      .notNull()
+      .default(sql`1`),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     primaryKey({ columns: [table.organizationId, table.id] }),
@@ -1745,6 +1751,10 @@ export const commercialDocuments = pgTable(
     ...paymentEvidenceHeaderColumns,
     originalDocumentId: text("original_document_id"),
     reason: text("reason"),
+    draftReasons: jsonb("draft_reasons")
+      .$type<readonly Record<string, unknown>[]>()
+      .notNull()
+      .default([]),
     journalId: text("journal_id"),
     version: bigint("version", { mode: "bigint" })
       .notNull()
@@ -1985,6 +1995,10 @@ export const expenses = pgTable(
       .$type<Record<string, boolean>>()
       .notNull()
       .default({}),
+    draftReasons: jsonb("draft_reasons")
+      .$type<readonly Record<string, unknown>[]>()
+      .notNull()
+      .default([]),
     journalId: text("journal_id"),
     /** Original posted expense superseded by this correction replacement. */
     originalExpenseId: text("original_expense_id"),
@@ -2387,6 +2401,7 @@ export const integrationSources = pgTable(
     allowedEventTypes: jsonb("allowed_event_types").$type<readonly string[]>().notNull(),
     timestampToleranceSeconds: integer("timestamp_tolerance_seconds").notNull().default(300),
     maxAttempts: integer("max_attempts").notNull().default(5),
+    autoRecord: boolean("auto_record").notNull().default(false),
     version: bigint("version", { mode: "bigint" })
       .notNull()
       .default(sql`1`),

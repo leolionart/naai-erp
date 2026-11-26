@@ -3,6 +3,8 @@ export type ActorContext = Readonly<{
   actorId: string;
   roles: readonly string[];
   correlationId: string;
+  credentialId?: string;
+  autoRecord?: boolean;
 }>;
 
 export type MutationInput = Readonly<{

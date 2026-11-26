@@ -160,6 +160,9 @@ import { CashCountService } from "./period-close/cash-count.service.js";
 import { OwnerSettlementService } from "./period-close/owner-settlement.service.js";
 import { DraftRecordingController } from "./draft-recording/draft-recording.controller.js";
 import { DraftRecordingService } from "./draft-recording/draft-recording.service.js";
+import { IntegrationSettingsController } from "./integration-settings/integration-settings.controller.js";
+import { IntegrationSettingsService } from "./integration-settings/integration-settings.service.js";
+import { PgIntegrationSettingsStore } from "./integration-settings/pg-integration-settings.store.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -211,6 +214,7 @@ import { DraftRecordingService } from "./draft-recording/draft-recording.service
     OwnerCustodyMigrationController,
     PeriodCloseController,
     DraftRecordingController,
+    IntegrationSettingsController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -258,6 +262,8 @@ import { DraftRecordingService } from "./draft-recording/draft-recording.service
     CashCountService,
     OwnerSettlementService,
     DraftRecordingService,
+    IntegrationSettingsService,
+    PgIntegrationSettingsStore,
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

@@ -83,7 +83,7 @@ export async function recordExpenseOnClient(
   client: PoolClient,
   context: DraftRecordingActorContext,
   id: string,
-  options: { reason: string; requirePaymentEvidence?: boolean },
+  options: { reason: string; requirePaymentEvidence?: boolean; autoRecorded?: boolean },
 ): Promise<ExpenseRecordOutcome> {
   const locked = await client.query<LockedExpenseRow>(
     `select id, expense_class::text, state::text, expense_date::text, freelance_due_date::text,
@@ -342,7 +342,7 @@ export async function recordExpenseOnClient(
   const paymentEvidenceMissing = refreshedLines.rows.some((line) => line.payment_evidence_missing);
   await client.query(
     `update expenses set
-       state = 'posted', version = $3::bigint, updated_at = now(),
+       state = 'posted', version = $3::bigint, updated_at = now(), draft_reasons = '[]'::jsonb,
        approved_by = $4, approved_at = now(), posted_by = $4, posted_at = now(), journal_id = $5
      where organization_id = $1 and id = $2`,
     [context.organizationId, id, resourceVersion, context.actorId, journalId],
@@ -363,7 +363,12 @@ export async function recordExpenseOnClient(
       context.actorId,
       options.reason,
       context.correlationId,
-      { journalId, selfApproved: true, externalReferenceUsedAsEvidence },
+      {
+        journalId,
+        selfApproved: true,
+        autoRecorded: Boolean(options.autoRecorded),
+        externalReferenceUsedAsEvidence,
+      },
     ],
   );
   await client.query(
@@ -383,6 +388,7 @@ export async function recordExpenseOnClient(
         journalId,
         reason: options.reason,
         selfApproved: true,
+        autoRecorded: Boolean(options.autoRecorded),
         externalReferenceUsedAsEvidence,
       },
     ],

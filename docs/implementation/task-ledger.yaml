@@ -4241,14 +4241,62 @@ tasks:
   - id: ERP-990
     title: Auto-record flag for integration sources with visible draft reasons
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-989]
     business_rules: [BR-REC-002]
     tests: [T-INT-REC-003]
     plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-990/
+    agent: antigravity
+    started_at: 2026-11-26T20:40:00+07:00
+    completed_at: 2026-11-26T21:00:00+07:00
+    completion_basis: implemented_with_scratch_database_cli_and_ui_evidence
     planned_files:
-      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+      - db/migrations/0079_integration_auto_record_and_draft_reasons.sql
+      - db/migrations/meta/_journal.json
+      - packages/database/src/schema.ts
+      - apps/api/src/journals/journal.types.ts
+      - apps/api/src/master-data/master-data.types.ts
+      - apps/api/src/master-data/master-data.service.ts
+      - apps/api/src/master-data/pg-master-data.store.ts
+      - apps/api/src/inbound-webhooks/inbound-webhook.types.ts
+      - apps/api/src/inbound-webhooks/pg-inbound-webhook.store.ts
+      - apps/api/src/inbound-webhooks/inbound-webhook.service.ts
+      - apps/api/src/draft-recording/draft-recording.types.ts
+      - apps/api/src/draft-recording/expense-record.helper.ts
+      - apps/api/src/draft-recording/commercial-document-record.helper.ts
+      - apps/api/src/draft-recording/auto-record-ingestion.helper.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/commercial-documents/pg-commercial-document.store.ts
+      - apps/api/src/integration-settings/integration-settings.types.ts
+      - apps/api/src/integration-settings/pg-integration-settings.store.ts
+      - apps/api/src/integration-settings/integration-settings.service.ts
+      - apps/api/src/integration-settings/integration-settings.controller.ts
+      - apps/api/src/integration-settings/auto-record.integration.test.ts
+      - apps/api/src/app.module.ts
+      - apps/cli/src/cli-http-helpers.ts
+      - apps/cli/src/payment-evidence-cli.ts
+      - apps/cli/src/integration-sources-cli.ts
+      - apps/cli/src/integration-sources-cli.test.ts
+      - apps/cli/src/cit-client.ts
+      - apps/cli/src/client.ts
+      - apps/cli/src/main.ts
+      - apps/web/src/lib/navigation.ts
+      - apps/web/src/app/(app)/settings/automation/page.tsx
+      - apps/web/src/app/(app)/settings/master-data/page.tsx
+      - apps/web/src/app/workspaces/integration-settings-workspace.tsx
+      - apps/web/src/app/workspaces/draft-reasons-banner.tsx
+      - apps/web/src/app/workspaces/draft-reasons-banner.test.ts
+      - apps/web/src/app/workspaces/focused-record-quick-view-dialogs.tsx
+      - apps/web/src/app/workspaces/focused-record-list-workspace.tsx
+      - apps/web/src/app/workspaces/focused-record-detail-workspace.tsx
+      - docs/api/openapi-v1.json
+      - docs/implementation/solopreneur-gate-matrix.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-990/
 
   - id: ERP-991
     title: Real-UI Playwright specs against the real API and a scratch database in CI

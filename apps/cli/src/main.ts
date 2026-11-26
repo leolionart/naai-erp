@@ -7,6 +7,10 @@ import { executeCrossEnvironmentClone } from "./cli-http-helpers.js";
 import { writeDownloadedWorkbookOutput } from "./payment-evidence-cli.js";
 import { runWorkbookImport } from "./import-workbooks.js";
 import { buildDraftsRecordCliPayload } from "./draft-recording-cli.js";
+import {
+  buildIntegrationSourcesCliPayload,
+  isIntegrationSettingsResource,
+} from "./integration-sources-cli.js";
 import { buildOwnerFundingCliPayload, isOwnerFundingResource } from "./owner-funding-cli.js";
 import {
   loadProfiles,
@@ -106,6 +110,8 @@ const { values, positionals } = parseArgs({
     reference: { type: "string" },
     description: { type: "string" },
     "movement-type": { type: "string" },
+    "auto-record": { type: "string" },
+    name: { type: "string" },
   },
 });
 
@@ -231,26 +237,23 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
       process.stdout.write(
         values.human ? `${JSON.stringify(cloned, null, 2)}\n` : `${JSON.stringify(cloned)}\n`,
       );
-    } else if (resource === "drafts") {
-      const batchPayload = await buildDraftsRecordCliPayload(action, values);
-      const result = await client.request(
-        "drafts",
-        action,
-        batchPayload,
-        undefined,
-        undefined,
-        values["idempotency-key"],
-      );
-      process.stdout.write(
-        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
-      );
-    } else if (isOwnerFundingResource(resource)) {
+    } else if (
+      resource === "drafts" ||
+      isOwnerFundingResource(resource) ||
+      isIntegrationSettingsResource(resource)
+    ) {
+      const subPayload =
+        resource === "drafts"
+          ? await buildDraftsRecordCliPayload(action, values)
+          : isOwnerFundingResource(resource)
+            ? buildOwnerFundingCliPayload(action, values)
+            : await buildIntegrationSourcesCliPayload(action, values);
       const result = await client.request(
         resource,
         action,
-        buildOwnerFundingCliPayload(action, values),
-        values.key,
-        values.version,
+        subPayload,
+        resource === "drafts" ? undefined : values.key,
+        resource === "drafts" ? undefined : values.version,
         values["idempotency-key"],
       );
       process.stdout.write(

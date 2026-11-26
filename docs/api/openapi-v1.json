@@ -1513,6 +1513,44 @@
         "summary": "Dry-run or commit batch draft recording for solopreneur owners using planHash verification and per-item succeeded/blocked results"
       }
     },
+    "/api/v1/organizations/{organizationId}/integration-sources": {
+      "get": {
+        "operationId": "listIntegrationSources",
+        "tags": ["integrations"],
+        "summary": "List organization-scoped API credentials and inbound webhook sources with redacted credentials and autoRecord configuration"
+      },
+      "post": {
+        "operationId": "createIntegrationSource",
+        "tags": ["integrations"],
+        "summary": "Create an organization-scoped inbound webhook integration source with optional autoRecord flag"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/integration-sources/{sourceId}": {
+      "get": {
+        "operationId": "getIntegrationSource",
+        "tags": ["integrations"],
+        "summary": "Read one organization-scoped inbound webhook integration source"
+      },
+      "patch": {
+        "operationId": "updateIntegrationSource",
+        "tags": ["integrations"],
+        "summary": "Update mutable metadata and autoRecord flag on an organization-scoped inbound webhook integration source"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/api-credentials": {
+      "get": {
+        "operationId": "listApiCredentials",
+        "tags": ["integrations"],
+        "summary": "List organization-scoped API credentials and service identities without exposing token hashes"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/api-credentials/{credentialId}": {
+      "patch": {
+        "operationId": "updateApiCredential",
+        "tags": ["integrations"],
+        "summary": "Update display name or autoRecord flag on an organization-scoped API credential with optimistic concurrency and audit"
+      }
+    },
     "/api/v1/organizations/{organizationId}/evidence": {
       "get": {
         "summary": "List organization-scoped evidence metadata and current versions"

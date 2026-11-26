@@ -19,4 +19,6 @@ export type JournalActorContext = Readonly<{
   actorId: string;
   roles: readonly string[];
   correlationId: string;
+  credentialId?: string;
+  autoRecord?: boolean;
 }>;

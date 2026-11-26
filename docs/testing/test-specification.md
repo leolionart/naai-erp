@@ -775,6 +775,7 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   (`3388`, `1388`, `111-OWNER-CUSTODY`, `421`) settled via `offset_3388_1388`, `profit_distribution`
   (`Dr 421 / Cr 1388`) and `repayment` with full audit trail (`apps/api/src/period-close/period-close.integration.test.ts`,
   `apps/api/src/period-close/owner-settlement.integration.test.ts`, `apps/cli/src/period-close-cli.test.ts`).
+
 ### ERP-989 — One-click draft recording and batch dry-run/commit for solopreneur owners
 
 - `T-INT-REC-001`: `POST /expenses/:id/record` and `POST /commercial-documents/:id/record` atomically self-approve,
@@ -787,3 +788,14 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   record eligible items while leaving blocked items untouched with structured `reasons`, replay idempotently, and
   enforce solopreneur owner gating (`draft-recording.integration.test.ts`, `draft-recording-cli.test.ts`,
   `focused-record-actions.test.ts`).
+
+### ERP-990 — Auto-record flag for integration sources with visible draft reasons
+
+- `T-INT-REC-003`: API credentials (`api_credentials`) and inbound webhook sources (`integration_sources`) default
+  `autoRecord = false` and support audited, idempotent, secret-redacted configuration across REST, CLI and Web UI;
+  when `autoRecord = true` in `solopreneur` mode, eligible expenses and commercial documents ingested via integration
+  Bearer tokens or HMAC-signed inbound webhooks atomically record (`posted`/`paid`/`issued`) with balanced journals
+  under the integration identity without an `owner` token, while blocked items roll back cleanly to `draft` with
+  persisted structured `reasons` visible on API list/detail reads and cleared once recorded, and `controlled` mode
+  preserves draft gating (`auto-record.integration.test.ts`, `integration-sources-cli.test.ts`,
+  `draft-reasons-banner.test.ts`).

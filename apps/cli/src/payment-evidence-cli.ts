@@ -69,6 +69,58 @@ export function tryResolvePaymentEvidenceRoute(
   return null;
 }
 
+export async function executePaymentEvidenceRoute(input: {
+  route: { method: "GET" | "PATCH"; path: string };
+  fetchFn: typeof fetch;
+  token: string;
+  payload?: unknown;
+  expectedVersion?: string;
+  idempotencyKey?: string;
+}): Promise<unknown> {
+  const { route, fetchFn, token, payload, expectedVersion, idempotencyKey } = input;
+  const qs =
+    route.method === "GET" && payload && typeof payload === "object"
+      ? new URLSearchParams(
+          Object.entries(payload as Record<string, unknown>)
+            .filter(([, value]) => value !== undefined && value !== null)
+            .map(([name, value]): [string, string] => [name, String(value)]),
+        ).toString()
+      : "";
+  const routeUrl = qs ? `${route.path}?${qs}` : route.path;
+  const response = await fetchFn(routeUrl, {
+    method: route.method,
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "x-correlation-id": randomUUID(),
+      ...(route.method !== "GET" ? { "idempotency-key": idempotencyKey ?? randomUUID() } : {}),
+      ...(expectedVersion ? { "if-match": expectedVersion } : {}),
+    },
+    ...(route.method !== "GET" ? { body: JSON.stringify(payload ?? {}) } : {}),
+  });
+  const body: unknown = await response.json();
+  if (!response.ok) throw new Error(JSON.stringify(body));
+  return body;
+}
+
+export async function downloadOrgAccountingExport(
+  fetchFn: typeof fetch,
+  options: CliOptions,
+  subpath: string,
+  filters: Readonly<Record<string, string>>,
+  downloadFn: (fetchFn: typeof fetch, url: string, token: string) => Promise<BinaryDownloadResult>,
+): Promise<BinaryDownloadResult> {
+  if (!options.organizationId || !options.token) {
+    throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+  }
+  const query = new URLSearchParams(filters).toString();
+  return downloadFn(
+    fetchFn,
+    `${options.baseUrl}/api/v1/organizations/${encodeURIComponent(options.organizationId)}/accounting-list-exports/${subpath}?${query}`,
+    options.token,
+  );
+}
+
 export async function writeDownloadedWorkbookOutput(
   output: string,
   file: BinaryDownloadResult,

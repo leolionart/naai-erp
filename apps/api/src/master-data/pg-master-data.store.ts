@@ -18,16 +18,31 @@ export class PgMasterDataStore {
   async authenticate(
     rawToken: string,
     organizationId: string,
-  ): Promise<{ actorId: string; roles: readonly string[] } | undefined> {
+  ): Promise<
+    | { credentialId?: string; actorId: string; roles: readonly string[]; autoRecord?: boolean }
+    | undefined
+  > {
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-    const result = await this.pool.query<{ actor_id: string; roles: string[] }>(
-      `select actor_id, roles from api_credentials
+    const result = await this.pool.query<{
+      id: string;
+      actor_id: string;
+      roles: string[];
+      auto_record: boolean;
+    }>(
+      `select id, actor_id, roles, auto_record from api_credentials
        where organization_id=$1 and token_hash=$2 and status='active'
          and (expires_at is null or expires_at > now())`,
       [organizationId, tokenHash],
     );
     const row = result.rows[0];
-    if (row) return { actorId: row.actor_id, roles: row.roles };
+    if (row) {
+      return {
+        credentialId: row.id,
+        actorId: row.actor_id,
+        roles: row.roles,
+        autoRecord: Boolean(row.auto_record),
+      };
+    }
     if (process.env.NODE_ENV === "development" || !process.env.NODE_ENV) {
       return { actorId: "dev-owner", roles: ["owner", "finance_admin", "accountant", "approver"] };
     }

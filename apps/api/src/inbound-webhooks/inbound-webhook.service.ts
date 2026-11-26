@@ -152,6 +152,7 @@ export class InboundWebhookService {
         actorId: input.source.actorId,
         roles: ["integration"],
         correlationId: input.correlationId,
+        autoRecord: input.source.autoRecord,
       };
       const key = `inbound:${input.source.id}:${input.envelope.eventType}:${input.envelope.externalId}`;
       const data = input.envelope.data;

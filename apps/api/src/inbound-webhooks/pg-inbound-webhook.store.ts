@@ -11,14 +11,16 @@ export class PgInboundWebhookStore {
       organization_id: string;
       id: string;
       public_id: string;
+      name: string;
       actor_id: string;
       secret_ref: string;
       status: string;
       allowed_event_types: string[];
       timestamp_tolerance_seconds: number;
       max_attempts: number;
+      auto_record: boolean;
     }>(
-      "select organization_id,id,public_id,actor_id,secret_ref,status,allowed_event_types,timestamp_tolerance_seconds,max_attempts from integration_sources where public_id=$1",
+      "select organization_id,id,public_id,name,actor_id,secret_ref,status,allowed_event_types,timestamp_tolerance_seconds,max_attempts,auto_record from integration_sources where public_id=$1",
       [publicId],
     );
     const row = result.rows[0];
@@ -27,12 +29,14 @@ export class PgInboundWebhookStore {
       organizationId: row.organization_id,
       id: row.id,
       publicId: row.public_id,
+      name: row.name,
       actorId: row.actor_id,
       secretRef: row.secret_ref,
       status: row.status,
       allowedEventTypes: row.allowed_event_types,
       timestampToleranceSeconds: row.timestamp_tolerance_seconds,
       maxAttempts: row.max_attempts,
+      autoRecord: Boolean(row.auto_record),
     } satisfies IntegrationSource;
   }
   async receive(input: VerifiedInbound) {

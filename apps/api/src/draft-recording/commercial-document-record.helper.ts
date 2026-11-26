@@ -86,7 +86,7 @@ export async function recordCommercialDocumentOnClient(
   client: PoolClient,
   context: DraftRecordingActorContext,
   id: string,
-  options: { reason: string; requirePaymentEvidence?: boolean },
+  options: { reason: string; requirePaymentEvidence?: boolean; autoRecorded?: boolean },
 ): Promise<DocumentRecordOutcome> {
   const locked = await client.query<LockedDocumentRow>(
     `select id, type, state::text, document_date::text, due_date::text, currency,
@@ -282,7 +282,7 @@ export async function recordCommercialDocumentOnClient(
 
   await client.query(
     `update commercial_documents set
-       state = $3, version = $4::bigint, updated_at = now(), control_account_code = $7,
+       state = $3, version = $4::bigint, updated_at = now(), control_account_code = $7, draft_reasons = '[]'::jsonb,
        approved_by = case when type = 'purchase_invoice' then $5 else approved_by end,
        approved_at = case when type = 'purchase_invoice' then now() else approved_at end,
        issued_or_posted_by = $5, issued_or_posted_at = now(), journal_id = $6
@@ -333,6 +333,7 @@ export async function recordCommercialDocumentOnClient(
         journalId,
         reason: options.reason,
         selfApproved: document.type === "purchase_invoice",
+        autoRecorded: Boolean(options.autoRecorded),
         externalReferenceUsedAsEvidence,
       },
     ],
