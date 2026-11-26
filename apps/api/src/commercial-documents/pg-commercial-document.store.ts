@@ -5,6 +5,8 @@ import {
   canSelfApprove,
   resolveOrganizationWorkflowPolicy,
 } from "../workflow-policy/organization-workflow-policy.service.js";
+import { resolveOwnerFundingTraceability } from "../owner-funding/owner-funding-traceability.js";
+import { purchaseLineTaxDecision } from "./commercial-document-tax.helper.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentContext,
@@ -32,68 +34,6 @@ type StoredDocument = {
   created_by: string;
   version: string;
 };
-
-type PurchaseLineTaxDecision = Readonly<{
-  managementState: string;
-  citState: string;
-  vatState: string;
-  citEligibleMinor: string;
-  vatEligibleMinor: string;
-  reviewed: boolean;
-}>;
-
-function purchaseLineTaxDecision(
-  input: CreateCommercialDocumentInput,
-  line: CreateCommercialDocumentInput["lines"][number],
-  operatingMode: string | null,
-): PurchaseLineTaxDecision {
-  if (input.type !== "purchase_invoice")
-    return {
-      managementState: "unreviewed",
-      citState: "unreviewed",
-      vatState: "unreviewed",
-      citEligibleMinor: "0",
-      vatEligibleMinor: "0",
-      reviewed: false,
-    };
-
-  const explicit = line.allocations.some(
-    (allocation) => allocation.dimensions.taxState !== undefined,
-  );
-  let vatEligible = 0n;
-  if (explicit && BigInt(line.taxMinor) > 0n) {
-    let allocatedTax = 0n;
-    for (const [index, allocation] of line.allocations.entries()) {
-      const tax =
-        index === line.allocations.length - 1
-          ? BigInt(line.taxMinor) - allocatedTax
-          : (BigInt(line.taxMinor) * BigInt(allocation.amountMinor)) / BigInt(line.netMinor);
-      allocatedTax += tax;
-      const state = allocation.dimensions.taxState;
-      if (["eligible", "accountant_override"].includes(state ?? "")) vatEligible += tax;
-      else if (state === "partially_eligible") {
-        const requested = BigInt(allocation.dimensions.vatEligibleMinor ?? "0");
-        vatEligible += requested > tax ? tax : requested;
-      }
-    }
-  }
-
-  const vatMinor = BigInt(line.taxMinor);
-  const vatState =
-    vatMinor === 0n || vatEligible === 0n
-      ? "ineligible"
-      : vatEligible === vatMinor
-        ? "eligible"
-        : "partially_eligible";
-  return {
-    managementState: operatingMode === "solopreneur" ? "valid" : "unreviewed",
-    citState: "unreviewed",
-    vatState: explicit ? vatState : "unreviewed",
-    citEligibleMinor: "0",
-    vatEligibleMinor: explicit ? vatEligible.toString() : "0",
-    reviewed: explicit,
-  };
-}
 
 const NEXT: Record<CommercialDocumentType, Record<string, Record<string, string>>> = {
   sales_invoice: {
@@ -1275,14 +1215,26 @@ export class PgCommercialDocumentStore {
       // Owner-paid/custody purchases credit the configured owner-current ledger
       // account. Company-bank purchases continue to resolve their financial
       // account's ledger code below.
+      const ownerFundingTrace =
+        input.type === "purchase_invoice"
+          ? await resolveOwnerFundingTraceability(client, context.organizationId, {
+              ownerFundingId: input.ownerFundingId ?? input.funding?.ownerFundingId,
+              ownerFundingTransactionId:
+                input.ownerFundingTransactionId ?? input.funding?.ownerFundingTransactionId,
+              fundingType: input.funding?.type,
+              fundingFinancialAccountId:
+                input.fundingSource?.financialAccountId ?? input.funding?.financialAccountId,
+              currency: input.currency,
+            })
+          : undefined;
       const id = input.id ?? randomUUID();
       if (input.type === "credit_note")
         await this.assertCreditAllowed(client, context.organizationId, input);
       await client.query(
         `insert into commercial_documents
          (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,
-          currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,original_document_id,reason,created_by)
-         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+          currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,owner_funding_movement_id,original_document_id,reason,created_by)
+         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [
           context.organizationId,
           id,
@@ -1298,7 +1250,8 @@ export class PgCommercialDocumentStore {
           input.taxMinor,
           input.grossMinor,
           effectiveControlAccountCode,
-          input.fundingSource?.financialAccountId ?? null,
+          input.fundingSource?.financialAccountId ?? ownerFundingTrace?.financialAccountId ?? null,
+          ownerFundingTrace?.movementId ?? null,
           input.originalDocumentId ?? null,
           input.reason ?? null,
           context.actorId,

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { buildOwnerFundingTables } from "./owner-funding-schema.js";
 import {
   boolean,
   bigint,
@@ -1749,6 +1750,7 @@ export const commercialDocuments = pgTable(
     grossMinor: bigint("gross_minor", { mode: "bigint" }).notNull(),
     controlAccountCode: text("control_account_code").notNull(),
     fundingFinancialAccountId: text("funding_financial_account_id"),
+    ownerFundingMovementId: text("owner_funding_movement_id"),
     originalDocumentId: text("original_document_id"),
     reason: text("reason"),
     journalId: text("journal_id"),
@@ -1982,6 +1984,7 @@ export const expenses = pgTable(
     counterAccountCode: text("counter_account_code").notNull(),
     /** Financial account that funded the expense when payment provenance is known. */
     fundingFinancialAccountId: text("funding_financial_account_id"),
+    ownerFundingMovementId: text("owner_funding_movement_id"),
     citState: eligibilityState("cit_state").notNull().default("unreviewed"),
     vatState: eligibilityState("vat_state").notNull().default("unreviewed"),
     evidenceChecklist: jsonb("evidence_checklist")
@@ -3104,45 +3107,12 @@ export const bankTransactions = pgTable(
   ],
 );
 
-export const ownerCashWithdrawals = pgTable(
-  "owner_cash_withdrawals",
-  {
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id),
-    id: text("id").notNull(),
-    bankTransactionId: text("bank_transaction_id").notNull(),
-    journalId: text("journal_id").notNull(),
-    movementType: text("movement_type").notNull().default("owner_personal_withdrawal"),
-    reason: text("reason").notNull(),
-    createdBy: text("created_by").notNull(),
-    correlationId: text("correlation_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.organizationId, table.id] }),
-    unique("owner_cash_withdrawals_transaction_unique").on(
-      table.organizationId,
-      table.bankTransactionId,
-    ),
-    unique("owner_cash_withdrawals_journal_unique").on(table.organizationId, table.journalId),
-    foreignKey({
-      columns: [table.organizationId, table.bankTransactionId],
-      foreignColumns: [bankTransactions.organizationId, bankTransactions.id],
-      name: "owner_cash_withdrawals_transaction_fk",
-    }).onDelete("restrict"),
-    foreignKey({
-      columns: [table.organizationId, table.journalId],
-      foreignColumns: [journalEntries.organizationId, journalEntries.id],
-      name: "owner_cash_withdrawals_journal_fk",
-    }).onDelete("restrict"),
-    check(
-      "owner_cash_withdrawals_movement_type",
-      sql`${table.movementType} = 'owner_personal_withdrawal'`,
-    ),
-    check("owner_cash_withdrawals_reason", sql`btrim(${table.reason}) <> ''`),
-  ],
-);
+export const { ownerCashWithdrawals, ownerFundingMovements } = buildOwnerFundingTables({
+  organizations,
+  financialAccounts,
+  bankTransactions,
+  journalEntries,
+});
 
 export const bankTransactionNormalizations = pgTable(
   "bank_transaction_normalizations",
@@ -4879,6 +4849,7 @@ export const schema = {
   bankControlExceptions,
   bankTransactions,
   ownerCashWithdrawals,
+  ownerFundingMovements,
   bankTransactionNormalizations,
   bankStatementImportRows,
   bankTransactionEvents,

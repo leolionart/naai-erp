@@ -751,3 +751,7 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   `expenses`, `journals`, `workbook-imports` (`dry-run` and `commit`) and `inbound-webhooks` return
   HTTP `422 FOREIGN_CURRENCY_NOT_SUPPORTED` with VND conversion guidance (`"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"`),
   while VND behavior and historical `BR-STAT-001` exclusion remain unchanged (`base-currency-guard.test.ts`, `base-currency.integration.test.ts`).
+- `T-INT-PAY-004`: classifying an imported bank deposit or manual referenced entry as `owner_funding` posts
+  `Dr 112 / Cr 3388` with zero revenue, reconciles the bank transaction, reflects in `owner-current-movements`
+  and `operating-dashboard`, allows `company_bank` expenses to link `ownerFundingTransactionId` for traceability,
+  and exposes `owner_repayment` (`Dr 3388 / Cr 112`) on the same API/CLI surface (`owner-funding.integration.test.ts`).

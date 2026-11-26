@@ -57,6 +57,7 @@ export {
   bankControlExceptions,
   bankTransactions,
   ownerCashWithdrawals,
+  ownerFundingMovements,
   bankTransactionNormalizations,
   bankStatementImportRows,
   bankTransactionEvents,

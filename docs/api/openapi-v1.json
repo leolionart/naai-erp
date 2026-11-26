@@ -94,6 +94,8 @@
     "banking/imports/dry-run",
     "banking/imports/create",
     "banking/owner-cash-withdrawals/create",
+    "banking/owner-funding/record",
+    "banking/owner-funding/list",
     "banking/transactions/ignore",
     "banking/transactions/mark-needs-review",
     "banking/transactions/candidates",
@@ -1469,6 +1471,83 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/OwnerCashWithdrawalEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/owner-funding": {
+      "get": {
+        "operationId": "listOwnerFundingMovements",
+        "tags": ["banking"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "movementType",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["owner_funding", "owner_repayment"] }
+          },
+          { "name": "financialAccountId", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "summary": "List canonical owner bank funding deposits and owner bank repayments with linked spend traceability",
+        "responses": {
+          "200": {
+            "description": "Owner funding and repayment movements with summary totals and linked spend",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OwnerFundingListEnvelope" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "recordOwnerFundingMovement",
+        "tags": ["banking"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "summary": "Record an owner bank funding deposit (Dr 112 / Cr 3388) or owner repayment (Dr 3388 / Cr 112)",
+        "description": "Classifies an imported bank transaction or records a manual bank entry with reference as owner_funding (financing, never revenue) or owner_repayment (clearing owner payable, never expense), posting a balanced journal and updating the confirmed owner-current settlement position.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RecordOwnerFundingRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Posted owner funding or repayment movement with transaction and journal links",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecordOwnerFundingEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/banking/owner-funding/{id}": {
+      "get": {
+        "operationId": "getOwnerFundingMovement",
+        "tags": ["banking"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "summary": "Read one owner funding or repayment movement and its linked company_bank expenses/invoices",
+        "responses": {
+          "200": {
+            "description": "Owner funding or repayment movement detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OwnerFundingMovementEnvelope" }
               }
             }
           }
@@ -7566,7 +7645,8 @@
           "owner_paid_company_cost",
           "owner_custody_cash",
           "owner_personal_withdrawal",
-          "owner_funding"
+          "owner_funding",
+          "owner_repayment"
         ]
       },
       "OwnerSettlementClassificationBasis": {
@@ -7575,7 +7655,8 @@
           "canonical_owner_paid_expense",
           "canonical_owner_custody_receipt",
           "company_funds_withdrawn_by_owner",
-          "owner_funding_to_company_funds"
+          "owner_funding_to_company_funds",
+          "company_funds_repayment_to_owner"
         ]
       },
       "OwnerSettlementReviewReason": {
@@ -7764,8 +7845,184 @@
           "ownerCustodyCashMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "ownerPersonalWithdrawalMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "ownerFundingMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "ownerRepaymentMinor": { "type": "string", "pattern": "^[0-9]+$" },
           "reviewMinor": { "type": "string", "pattern": "^-?[0-9]+$" },
           "reviewCount": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "RecordOwnerFundingRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string", "minLength": 1 },
+          "movementType": { "type": "string", "enum": ["owner_funding", "owner_repayment"] },
+          "bankTransactionId": { "type": "string", "minLength": 1 },
+          "financialAccountId": { "type": "string", "minLength": 1 },
+          "bookingDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "reference": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "RecordOwnerFundingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "movementId",
+          "movementType",
+          "entryMode",
+          "financialAccountId",
+          "transactionId",
+          "journalId",
+          "bookingDate",
+          "amountMinor",
+          "currency",
+          "reference",
+          "status",
+          "resourceVersion",
+          "eventId",
+          "auditEventId",
+          "outboxEventId",
+          "idempotencyReplayed",
+          "nextActions"
+        ],
+        "properties": {
+          "movementId": { "type": "string" },
+          "movementType": { "type": "string", "enum": ["owner_funding", "owner_repayment"] },
+          "entryMode": { "type": "string", "enum": ["bank_transaction", "manual"] },
+          "financialAccountId": { "type": "string" },
+          "transactionId": { "type": "string" },
+          "journalId": { "type": "string" },
+          "bookingDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "reference": { "type": ["string", "null"] },
+          "status": { "const": "posted" },
+          "resourceVersion": { "type": "string" },
+          "eventId": { "type": "string" },
+          "auditEventId": { "type": "string" },
+          "outboxEventId": { "type": "string" },
+          "idempotencyReplayed": { "type": "boolean" },
+          "nextActions": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "RecordOwnerFundingEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/RecordOwnerFundingResponse" }
+        }
+      },
+      "OwnerFundingLinkedRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "id", "date", "grossMinor", "currency", "state", "description"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["expense", "purchase_invoice"] },
+          "id": { "type": "string" },
+          "date": { "type": "string", "format": "date" },
+          "grossMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "state": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "OwnerFundingMovement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "movementId",
+          "movementType",
+          "entryMode",
+          "financialAccountId",
+          "financialAccountCode",
+          "bankTransactionId",
+          "journalId",
+          "bookingDate",
+          "amountMinor",
+          "currency",
+          "reference",
+          "description",
+          "reason",
+          "linkedSpendMinor",
+          "linkedRecords",
+          "createdBy",
+          "createdAt"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "movementId": { "type": "string" },
+          "movementType": { "type": "string", "enum": ["owner_funding", "owner_repayment"] },
+          "entryMode": { "type": "string", "enum": ["bank_transaction", "manual"] },
+          "financialAccountId": { "type": "string" },
+          "financialAccountCode": { "type": "string" },
+          "bankTransactionId": { "type": "string" },
+          "journalId": { "type": "string" },
+          "bookingDate": { "type": "string", "format": "date" },
+          "amountMinor": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "reference": { "type": ["string", "null"] },
+          "description": { "type": "string" },
+          "reason": { "type": "string" },
+          "linkedSpendMinor": { "type": "string", "pattern": "^[0-9]+$" },
+          "linkedRecords": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OwnerFundingLinkedRecord" }
+          },
+          "createdBy": { "type": "string" },
+          "createdAt": { "type": "string" }
+        }
+      },
+      "OwnerFundingMovementEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/OwnerFundingMovement" }
+        }
+      },
+      "OwnerFundingListEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["items", "summary"],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/OwnerFundingMovement" }
+              },
+              "summary": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "ownerFundingMinor",
+                  "ownerRepaymentMinor",
+                  "netOwnerBankFundingMinor"
+                ],
+                "properties": {
+                  "ownerFundingMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                  "ownerRepaymentMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                  "netOwnerBankFundingMinor": { "type": "string", "pattern": "^-?[0-9]+$" }
+                }
+              }
+            }
+          }
         }
       },
       "OwnerSettlementPosition": {

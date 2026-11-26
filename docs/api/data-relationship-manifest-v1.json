@@ -870,14 +870,15 @@
     },
     {
       "activity": "owner_funding_company_account",
-      "status": "manual_only_reviewed_owner_balance_classification_required",
-      "resources": ["party", "financial_account", "account", "journal"]
+      "status": "supported",
+      "resources": ["financial_account", "bank_transaction", "account", "journal"]
     },
     {
       "activity": "company_large_invoice_payment_after_owner_funding",
-      "status": "invoice_payment_supported_funding_recorded_separately",
+      "status": "supported_with_optional_owner_funding_traceability",
       "resources": [
         "commercial_document",
+        "expense",
         "financial_account",
         "bank_transaction",
         "reconciliation"
@@ -895,13 +896,13 @@
     },
     {
       "activity": "owner_withdrawal_from_company",
-      "status": "manual_only_reviewed_owner_balance_classification_required",
+      "status": "supported",
       "resources": ["party", "financial_account", "account", "journal", "report"]
     },
     {
       "activity": "owner_reimbursement",
-      "status": "manual_only_no_dedicated_api",
-      "resources": ["account", "journal", "financial_account"]
+      "status": "supported",
+      "resources": ["account", "journal", "financial_account", "bank_transaction"]
     }
   ]
 }

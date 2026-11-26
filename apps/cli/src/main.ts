@@ -3,7 +3,9 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
+import { executeCrossEnvironmentClone } from "./cli-http-helpers.js";
 import { runWorkbookImport } from "./import-workbooks.js";
+import { buildOwnerFundingCliPayload, isOwnerFundingResource } from "./owner-funding-cli.js";
 import {
   loadProfiles,
   profileStorePath,
@@ -94,6 +96,13 @@ const { values, positionals } = parseArgs({
     "target-token": { type: "string" },
     reason: { type: "string" },
     "plan-hash": { type: "string" },
+    "transaction-id": { type: "string" },
+    date: { type: "string" },
+    "amount-minor": { type: "string" },
+    currency: { type: "string" },
+    reference: { type: "string" },
+    description: { type: "string" },
+    "movement-type": { type: "string" },
   },
 });
 
@@ -205,64 +214,31 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
       );
       process.stdout.write(JSON.stringify(result) + "\n");
     } else if (crossEnvironmentClone) {
-      const sourceBaseUrl = values["source-base-url"];
-      const sourceOrganization = values["source-organization"];
-      const sourceToken = values["source-token"] ?? process.env.NAAI_ERP_SOURCE_TOKEN;
-      const targetBaseUrl = values["target-base-url"] ?? values["base-url"];
-      const targetOrganization = values["target-organization"] ?? organizationId;
-      const targetToken = values["target-token"] ?? token;
-      if (
-        !sourceBaseUrl ||
-        !sourceOrganization ||
-        !sourceToken ||
-        !targetBaseUrl ||
-        !targetOrganization ||
-        !targetToken
-      )
-        throw new Error(
-          "portable-data-clone run requires source/target base URL, organization, and token",
-        );
-      if (!values.reason?.trim() || !values["idempotency-key"])
-        throw new Error("portable-data-clone run requires --reason and --idempotency-key");
-      const source = new NaaiErpClient({
-        baseUrl: sourceBaseUrl,
-        organizationId: sourceOrganization,
-        token: sourceToken,
+      const cloned = await executeCrossEnvironmentClone(NaaiErpClient, {
+        sourceBaseUrl: values["source-base-url"],
+        sourceOrganization: values["source-organization"],
+        sourceToken: values["source-token"] ?? process.env.NAAI_ERP_SOURCE_TOKEN,
+        targetBaseUrl: values["target-base-url"] ?? values["base-url"],
+        targetOrganization: values["target-organization"] ?? organizationId,
+        targetToken: values["target-token"] ?? token,
+        reason: values.reason,
+        idempotencyKey: values["idempotency-key"],
+        asOf: values["as-of"],
       });
-      const target = new NaaiErpClient({
-        baseUrl: targetBaseUrl,
-        organizationId: targetOrganization,
-        token: targetToken,
-      });
-      const exportResponse = (await source.portableDataRequest(
-        "exports",
-        "POST",
-        { asOf: values["as-of"] ?? new Date().toISOString().slice(0, 10) },
-        `${values["idempotency-key"]}:export`,
-      )) as { data?: { packageId?: string }; packageId?: string };
-      const packageId = exportResponse.data?.packageId ?? exportResponse.packageId;
-      if (!packageId)
-        throw new Error("portable-data-clone export response did not include packageId");
-      const file = await source.downloadPortableDataPackage(packageId);
-      const workbookSha256 = createHash("sha256").update(file.content).digest("hex");
-      const restore = await target.portableDataRequest(
-        "imports/restore-empty",
-        "POST",
-        {
-          sourceOrganizationId: sourceOrganization,
-          confirmTargetOrganizationId: targetOrganization,
-          packageId,
-          workbookSha256,
-          reason: values.reason.trim(),
-          workbookBase64: Buffer.from(file.content).toString("base64"),
-          mapSourceActorsToTargetActor: true,
-        },
-        `${values["idempotency-key"]}:restore`,
+      process.stdout.write(
+        values.human ? `${JSON.stringify(cloned, null, 2)}\n` : `${JSON.stringify(cloned)}\n`,
+      );
+    } else if (isOwnerFundingResource(resource)) {
+      const result = await client.request(
+        resource,
+        action,
+        buildOwnerFundingCliPayload(action, values),
+        values.key,
+        values.version,
+        values["idempotency-key"],
       );
       process.stdout.write(
-        values.human
-          ? `${JSON.stringify({ packageId, workbookSha256, restore }, null, 2)}\n`
-          : `${JSON.stringify({ packageId, workbookSha256, restore })}\n`,
+        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
       );
     } else if (resource === "portable-data-reset") {
       if (

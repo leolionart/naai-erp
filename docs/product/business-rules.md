@@ -1560,9 +1560,17 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
   `accountant_override` can force eligibility, with a reference.
 - `BR-PAY-003` (planned): the system records only real transactions. It offers no way to mark an invoice without an
   underlying transaction as a deductible cost. A real purchase not yet paid is an accounts-payable liability, not a paid cost.
-- `BR-PAY-004` (planned): when the owner pays company costs from a personal account the record needs a company-named
-  invoice, payment evidence and a contract substitute; the preferred flow is the owner funding the company bank account
-  (Dr 112 / Cr 3388) and the company paying from it, with repayments as Dr 3388 / Cr 112.
+- `BR-PAY-004`: when the owner pays company costs from a personal account the record needs a company-named
+  invoice, payment evidence and a contract substitute; the preferred flow is the owner funding an active company
+  bank account via `POST /banking/owner-funding` (`movementType: "owner_funding"`, from an imported positive bank
+  transaction or a manual entry with a mandatory `reference`), which posts a balanced `Dr 112 / Cr 3388` journal
+  (financing, never revenue), reconciles the bank transaction, and increases the confirmed owner-current position.
+  Subsequent company expenses or purchase invoices paid from that same bank account use `company_bank` and may
+  optionally link `ownerFundingId` or `ownerFundingTransactionId` for spend traceability without creating a second
+  `3388` credit; linking a different bank account, cash account or non-`owner_funding` movement is rejected.
+  Repaying the owner from a company bank account uses the same surface (`movementType: "owner_repayment"` /
+  CLI `owner-funding repay`), posting `Dr 3388 / Cr 112` (never an expense) and reducing the confirmed owner-current
+  settlement and operating-dashboard payable.
 - `BR-AP-001`: AP aging contains unpaid supplier invoices (account 331, remaining balance after
   payments/reconciliation) and freelancer payables; owner-paid (3388) and owner receivable (1388)
   amounts stay separate in the position with the owner, `company_*` paid invoices carry zero AP

@@ -55,6 +55,8 @@ export type CreateCommercialDocumentInput = Readonly<{
   fundingSource?: Readonly<{ type: "financial_account"; financialAccountId: string }>;
   /** Canonical funding contract. fundingSource is retained as a legacy alias. */
   funding?: FundingInputContract;
+  ownerFundingId?: string;
+  ownerFundingTransactionId?: string;
   originalDocumentId?: string;
   migrationSourceExpenseId?: string;
   migrationSourceExpenseDate?: string;

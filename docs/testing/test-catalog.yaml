@@ -2789,6 +2789,14 @@ tests:
     command: pnpm --filter @naai-erp/domain exec vitest run src/cit-rate.test.ts
     blocking_gate: G100
 
+  - id: T-INT-PAY-004
+    task: ERP-983
+    rules: [BR-PAY-004, BR-BNK-004, BR-AI-001, BR-LED-001]
+    title: Owner funding deposit into company bank account, company_bank spend traceability and owner repayment tie across ledger, owner-current and dashboard
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/owner-funding/owner-funding.integration.test.ts
+    blocking_gate: G100
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

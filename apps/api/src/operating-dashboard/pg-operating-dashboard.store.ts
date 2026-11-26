@@ -14,22 +14,11 @@ const amount = (value: unknown) => BigInt(String(value ?? 0));
 const ratioBps = (part: bigint, total: bigint) =>
   total > 0n ? Number((part * 10_000n + total / 2n) / total) : null;
 
-/** Derive physical company funds from non-overlapping components. */
-export function deriveCompanyFunds(input: {
-  bankAvailableMinor: bigint;
-  companyCashOnHandMinor: bigint;
-  ownerHoldsCompanyFundsMinor: bigint;
-  cashAndBankMinor: bigint;
-}) {
-  const totalMinor =
-    input.bankAvailableMinor +
-    (input.companyCashOnHandMinor > 0n ? input.companyCashOnHandMinor : 0n) +
-    input.ownerHoldsCompanyFundsMinor;
-  return {
-    totalMinor,
-    reconciliationGapMinor: input.cashAndBankMinor - totalMinor,
-  };
-}
+import {
+  deriveCompanyFunds,
+  queryDashboardOwnerSettlement,
+} from "./operating-dashboard-settlement.sql.js";
+export { deriveCompanyFunds };
 const controlKinds: readonly WorkbookSourceControlKind[] = [
   "bonus_control",
   "debt_control",
@@ -258,130 +247,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          where j.state in ('posted','reversed') and j.journal_date<=$2::date`,
         [org, q.asOf],
       ),
-      this.pool.query<{
-        settlement: string;
-        company_owes_owner: string;
-        owner_holds_company_funds: string;
-        custody: string;
-        personal_withdrawals: string;
-      }>(
-        `with workflow_policy as (select operating_mode from accounting_workflow_policies where organization_id=$1), selected_mapping as (
-             select id,version
-             from financial_statement_mapping_versions
-             where organization_id=$1 and framework='TT133' and (state='approved' or coalesce((select operating_mode from workflow_policy),'controlled')='solopreneur')
-               and effective_from<=$2::date and (effective_to is null or effective_to>=$2::date)
-             order by (state='approved') desc,effective_from desc,version desc limit 1
-           ), owner_accounts as (
-             select distinct ml.account_code
-             from selected_mapping sm
-             join financial_statement_mapping_lines ml
-               on ml.organization_id=$1 and ml.mapping_id=sm.id and ml.mapping_version=sm.version
-             where ml.statement='balance_sheet' and ml.line_code='owner_current'
-           ), eligible_owner_expenses as (
-             select coalesce(sum(l.gross_minor),0) amount
-             from expenses e
-             join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-             left join expense_categories c on c.organization_id=l.organization_id
-               and c.code=coalesce(l.expense_category_code,l.dimensions->>'category')
-             join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
-             where e.organization_id=$1 and e.state='posted' and j.state in ('posted','reversed')
-               and e.expense_date<=$2::date
-               and e.counter_account_code in (select account_code from owner_accounts)
-               and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
-               and (e.funding_financial_account_id is null or e.funding_financial_account_id<> (select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY'))
-           ), custody_incoming as (
-             select coalesce(sum(it.transfer_amount_minor),0) amount
-             from internal_transfers it
-             join internal_transfer_attempts ita on ita.organization_id=it.organization_id
-               and ita.transfer_id=it.id and ita.attempt_number=it.current_attempt_number
-               and ita.state='reconciled'
-             join bank_transactions incoming on incoming.organization_id=ita.organization_id
-               and incoming.id=ita.incoming_transaction_id and incoming.booking_date<=$2::date
-             join financial_accounts fa on fa.organization_id=incoming.organization_id
-               and fa.id=incoming.financial_account_id
-             where it.organization_id=$1 and fa.code='CASH-OWNER-CUSTODY'
-           ), custody_expenses as (
-             /*
-             * Costs paid directly from the owner's custody cash reduce the
-             * amount of company money still held by the owner.  Do not infer
-             * this from the shared 111 ledger/counter account: legacy rows can
-             * use the same ledger for company cash. Only an explicit funding
-             * financial-account link is authoritative.
-              */
-             select coalesce(sum(e.gross_minor),0) amount
-             from expenses e
-             join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
-             join financial_accounts fa on fa.organization_id=e.organization_id
-               and fa.code='CASH-OWNER-CUSTODY'
-               and e.funding_financial_account_id=fa.id
-             where e.organization_id=$1 and e.state='posted'
-               and j.state in ('posted','reversed')
-               and e.expense_date<=$2::date
-           ), custody_purchase_invoices as (
-             /*
-              * Purchase invoices are a canonical spend source and do not
-              * necessarily have a row in expenses. When their reviewed
-              * funding account is CASH-OWNER-CUSTODY, the invoice itself
-              * consumes the owner-held company cash.  Include only
-              * progressed, non-cancelled invoices and use the document date
-              * for the dashboard cutoff.
-              */
-             select coalesce(sum(d.gross_minor),0) amount
-             from commercial_documents d
-             join financial_accounts fa on fa.organization_id=d.organization_id
-               and fa.id=d.funding_financial_account_id
-               and fa.code='CASH-OWNER-CUSTODY'
-             where d.organization_id=$1 and d.type='purchase_invoice'
-               and d.state in ('posted','partially_paid','paid')
-               and d.document_date<=$2::date
-           ), custody as (
-             select greatest((select amount from custody_incoming)
-               - (select amount from custody_expenses)
-               - (select amount from custody_purchase_invoices)
-               ) amount
-           ), custody_transfers as (
-             select (select amount from custody_incoming) amount
-           ), company_repayments as (
-             select coalesce(sum(-owner_delta),0) amount
-             from (
-               select j.id,
-                 sum(case when l.account_code in (select account_code from owner_accounts)
-                   then coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) else 0 end) owner_delta,
-                 sum(case when l.account_code in (select ledger_account_code from financial_accounts
-                     where organization_id=$1 and kind in ('bank','cash'))
-                   then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else 0 end) company_delta
-               from journal_entries j
-               join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
-               where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date<=$2::date
-               group by j.id
-             ) movements
-             where owner_delta < 0 and company_delta < 0
-               and not exists (
-                 select 1
-                 from internal_transfers it
-                 join internal_transfer_attempts ita on ita.organization_id=it.organization_id
-                   and ita.transfer_id=it.id and ita.attempt_number=it.current_attempt_number
-                   and ita.state='reconciled'
-                 join bank_transactions outgoing on outgoing.organization_id=ita.organization_id
-                   and outgoing.id=ita.outgoing_transaction_id
-                 where it.organization_id=$1
-                   and it.transfer_amount_minor=(-owner_delta)
-               )
-           ), totals as (
-             select (select amount from eligible_owner_expenses)
-               - (select amount from custody_transfers) settlement
-           )
-           select settlement::text,
-             greatest(settlement,0)::text company_owes_owner,
-             -- This field is the physical company cash still held by the
-             -- owner. It is intentionally independent from the signed
-             -- owner-current settlement (which may be negative).
-             (select amount from custody)::text owner_holds_company_funds,
-             (select amount from custody)::text custody,
-             '0'::text personal_withdrawals
-           from totals`,
-        [org, q.asOf],
-      ),
+      queryDashboardOwnerSettlement(this.pool, org, q.asOf),
       this.pool.query<{
         owner_paid: string;
         cit_ineligible: string;

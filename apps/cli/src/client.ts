@@ -2,8 +2,11 @@ import { randomUUID } from "node:crypto";
 import type {
   CreateCustomerReceiptRequest,
   RecordFreelancePayablePaymentRequest,
+  RecordOwnerFundingRequest,
 } from "@naai-erp/contracts";
 import { executeExtendedCliRoute, resolveExtendedCliRoute } from "./cit-client.js";
+import { downloadXlsxAttachment, sendJsonSubresourceRequest } from "./cli-http-helpers.js";
+import { isOwnerFundingResource, requestOwnerFunding } from "./owner-funding-cli.js";
 
 export type CliOptions = Readonly<{
   baseUrl: string;
@@ -36,49 +39,27 @@ export class NaaiErpClient {
     payload?: unknown,
     idempotencyKey?: string,
   ) {
-    if (!this.options.organizationId || !this.options.token)
-      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
-    const base = `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/project-freelance-payables${path ? `/${path}` : ""}`;
-    const query =
-      method === "GET" && payload && typeof payload === "object"
-        ? new URLSearchParams(payload as Record<string, string>).toString()
-        : "";
-    const response = await this.fetchFn(query ? `${base}?${query}` : base, {
+    return sendJsonSubresourceRequest(
+      this.fetchFn,
+      this.options,
+      `project-freelance-payables${path ? `/${path}` : ""}`,
       method,
-      headers: {
-        authorization: `Bearer ${this.options.token}`,
-        "content-type": "application/json",
-        "x-correlation-id": randomUUID(),
-        ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
-      },
-      ...(method === "POST" ? { body: JSON.stringify(payload) } : {}),
-    });
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
+      payload,
+      idempotencyKey,
+    );
   }
   async createCustomerReceipt(
     input: CreateCustomerReceiptRequest,
     idempotencyKey: string,
   ): Promise<unknown> {
-    if (!this.options.organizationId || !this.options.token)
-      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
-    const response = await this.fetchFn(
-      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/customer-receipts`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.options.token}`,
-          "content-type": "application/json",
-          "x-correlation-id": randomUUID(),
-          "idempotency-key": idempotencyKey,
-        },
-        body: JSON.stringify(input),
-      },
+    return sendJsonSubresourceRequest(
+      this.fetchFn,
+      this.options,
+      "customer-receipts",
+      "POST",
+      input,
+      idempotencyKey,
     );
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
   }
   async resetLocalOrganization(
     input: Readonly<{ confirmOrganizationId: string; packageId: string; workbookSha256: string }>,
@@ -98,6 +79,40 @@ export class NaaiErpClient {
     if (!response.ok) throw new Error(JSON.stringify(body));
     return body;
   }
+  async listOwnerFunding(filters: Readonly<Record<string, string>> = {}): Promise<unknown> {
+    return requestOwnerFunding(this.fetchFn, this.options, "owner-funding", "list", filters);
+  }
+  async getOwnerFunding(id: string): Promise<unknown> {
+    return requestOwnerFunding(this.fetchFn, this.options, "owner-funding", "get", undefined, id);
+  }
+  async recordOwnerFunding(
+    input: RecordOwnerFundingRequest,
+    idempotencyKey: string,
+  ): Promise<unknown> {
+    return requestOwnerFunding(
+      this.fetchFn,
+      this.options,
+      "owner-funding",
+      "record",
+      input,
+      undefined,
+      idempotencyKey,
+    );
+  }
+  async recordOwnerRepayment(
+    input: Omit<RecordOwnerFundingRequest, "movementType">,
+    idempotencyKey: string,
+  ): Promise<unknown> {
+    return requestOwnerFunding(
+      this.fetchFn,
+      this.options,
+      "owner-funding",
+      "repay",
+      { ...input, movementType: "owner_repayment" },
+      undefined,
+      idempotencyKey,
+    );
+  }
   async downloadAccountingListExport(
     kind: "sales-invoices" | "purchase-invoices-expenses",
     filters: Readonly<Record<string, string>>,
@@ -105,33 +120,15 @@ export class NaaiErpClient {
     if (!this.options.organizationId || !this.options.token)
       throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
     const query = new URLSearchParams(filters).toString();
-    const response = await this.fetchFn(
+    return downloadXlsxAttachment(
+      this.fetchFn,
       `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/accounting-list-exports/${kind}?${query}`,
-      {
-        method: "GET",
-        headers: {
-          authorization: `Bearer ${this.options.token.replace(/^Bearer\s+/i, "")}`,
-          accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "x-correlation-id": randomUUID(),
-        },
-      },
+      this.options.token,
     );
-    if (!response.ok) throw new Error(await response.text());
-    const disposition = response.headers.get("content-disposition");
-    const filename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
-    const sha256 = response.headers.get("x-content-sha256") ?? undefined;
-    return {
-      content: new Uint8Array(await response.arrayBuffer()),
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-      ...(filename ? { filename } : {}),
-      ...(sha256 ? { sha256 } : {}),
-    };
   }
 
   /**
-   * Download the canonical management workbook.  The workbook is generated by
-   * the backend and contains the same source rows and metric controls exposed
-   * by the dashboard, plus Excel formulas for an independent reconciliation.
+   * Download the canonical management workbook.
    */
   async downloadManagementWorkbook(
     filters: Readonly<{ startsOn: string; endsOn: string }>,
@@ -139,27 +136,11 @@ export class NaaiErpClient {
     if (!this.options.organizationId || !this.options.token)
       throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
     const query = new URLSearchParams(filters).toString();
-    const response = await this.fetchFn(
+    return downloadXlsxAttachment(
+      this.fetchFn,
       `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/accounting-list-exports/management-workbook?${query}`,
-      {
-        method: "GET",
-        headers: {
-          authorization: `Bearer ${this.options.token.replace(/^Bearer\s+/i, "")}`,
-          accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "x-correlation-id": randomUUID(),
-        },
-      },
+      this.options.token,
     );
-    if (!response.ok) throw new Error(await response.text());
-    const disposition = response.headers.get("content-disposition");
-    const filename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
-    const sha256 = response.headers.get("x-content-sha256") ?? undefined;
-    return {
-      content: new Uint8Array(await response.arrayBuffer()),
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-      ...(filename ? { filename } : {}),
-      ...(sha256 ? { sha256 } : {}),
-    };
   }
   constructor(
     private readonly options: CliOptions,
@@ -397,6 +378,17 @@ export class NaaiErpClient {
         ...(expectedVersion !== undefined ? { expectedVersion } : {}),
         ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
       });
+    }
+    if (isOwnerFundingResource(resource)) {
+      return requestOwnerFunding(
+        this.fetchFn,
+        this.options,
+        resource,
+        action,
+        payload,
+        key,
+        idempotencyKey,
+      );
     }
     const isJournal = resource === "journals";
     const isPostingRule = resource === "posting-rules";

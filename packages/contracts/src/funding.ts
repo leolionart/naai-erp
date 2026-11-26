@@ -8,6 +8,10 @@ export type FundingInputContract = Readonly<{
   type: FundingTypeContract;
   /** Required for company_bank, company_cash and owner_custody_cash; omitted for owner_paid. */
   financialAccountId?: string;
+  /** Optional link to an owner_funding movement ID when company_bank spend uses owner-funded bank deposit. */
+  ownerFundingId?: string;
+  /** Optional link to the owner_funding bank_transaction_id when company_bank spend uses owner-funded bank deposit. */
+  ownerFundingTransactionId?: string;
 }>;
 
 export type FundingFieldErrorContract = Readonly<{

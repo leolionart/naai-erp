@@ -35,7 +35,11 @@ import { useAuthenticatedApiClient } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";
 
 type MovementType =
-  "owner_paid_company_cost" | "owner_custody_cash" | "owner_personal_withdrawal" | "owner_funding";
+  | "owner_paid_company_cost"
+  | "owner_custody_cash"
+  | "owner_personal_withdrawal"
+  | "owner_funding"
+  | "owner_repayment";
 
 type OwnerCurrentMovement = Readonly<{
   journalId: string;
@@ -117,6 +121,7 @@ const labels: Record<MovementType, string> = {
   owner_custody_cash: "Tiền công ty chủ đang giữ",
   owner_personal_withdrawal: "Chủ rút tiền dùng cá nhân",
   owner_funding: "Chủ đưa tiền vào công ty",
+  owner_repayment: "Công ty hoàn tiền chủ",
 };
 
 const classificationLabels: Record<string, string> = {
@@ -124,6 +129,7 @@ const classificationLabels: Record<string, string> = {
   canonical_owner_custody_receipt: "Tiền công ty được giao cho chủ giữ",
   company_funds_withdrawn_by_owner: "Chủ đã rút tiền công ty dùng cá nhân",
   owner_funding_to_company_funds: "Chủ chuyển tiền vào quỹ/tài khoản công ty",
+  company_funds_repayment_to_owner: "Công ty hoàn trả công nợ chủ qua tài khoản ngân hàng",
 };
 
 export function filterOwnerCurrentMovements(

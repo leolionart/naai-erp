@@ -56,6 +56,10 @@ export type CreateExpenseInput = Readonly<{
   funding?: FundingInputContract;
   /** Organization-scoped financial account proving the payment source. */
   fundingFinancialAccountId?: string;
+  /** Optional owner_funding movement ID when company_bank expense traces to owner deposit. */
+  ownerFundingId?: string;
+  /** Optional owner_funding bank_transaction_id when company_bank expense traces to owner deposit. */
+  ownerFundingTransactionId?: string;
   evidenceChecklist?: Readonly<Record<string, boolean>>;
   lines: readonly ExpenseLineInput[];
   externalReference?: ExternalReferenceInput;

@@ -145,6 +145,10 @@ import { CitPolicyController } from "./cit-policy/cit-policy.controller.js";
 import { CitPolicyService } from "./cit-policy/cit-policy.service.js";
 import { PgCitPolicyStore } from "./cit-policy/pg-cit-policy.store.js";
 import { CIT_POLICY_STORE } from "./cit-policy/cit-policy.types.js";
+import { OwnerFundingController } from "./owner-funding/owner-funding.controller.js";
+import { OwnerFundingService } from "./owner-funding/owner-funding.service.js";
+import { PgOwnerFundingStore } from "./owner-funding/pg-owner-funding.store.js";
+import { OWNER_FUNDING_STORE } from "./owner-funding/owner-funding.types.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -191,6 +195,7 @@ import { CIT_POLICY_STORE } from "./cit-policy/cit-policy.types.js";
     FundingPlansController,
     AccountPlansController,
     CitPolicyController,
+    OwnerFundingController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -228,6 +233,9 @@ import { CIT_POLICY_STORE } from "./cit-policy/cit-policy.types.js";
     CitPolicyService,
     PgCitPolicyStore,
     { provide: CIT_POLICY_STORE, useExisting: PgCitPolicyStore },
+    OwnerFundingService,
+    PgOwnerFundingStore,
+    { provide: OWNER_FUNDING_STORE, useExisting: PgOwnerFundingStore },
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

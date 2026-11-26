@@ -3916,14 +3916,36 @@ tasks:
   - id: ERP-983
     title: Owner funding into company bank account then company pays and owner repayment flow
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-977]
     business_rules: [BR-PAY-004]
     tests: [T-INT-PAY-004]
     plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-983/
+    agent: antigravity
+    started_at: 2026-11-26T18:45:00+07:00
+    completed_at: 2026-11-26T19:08:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/funding-and-account-reclassification.md
+      - db/migrations/0077_owner_funding_and_repayment.sql
+      - db/migrations/meta/_journal.json
+      - packages/database/src/owner-funding-schema.ts
+      - packages/database/src/schema.ts
+      - packages/database/src/index.ts
+      - packages/contracts/src/funding.ts
+      - packages/contracts/src/owner-funding.ts
+      - packages/contracts/src/banking.ts
+      - packages/contracts/src/index.ts
+      - apps/api/src/owner-funding/
+      - apps/api/src/banking/
+      - apps/api/src/expenses/
+      - apps/api/src/commercial-documents/
+      - apps/api/src/operating-dashboard/
+      - apps/cli/src/
+      - docs/api/openapi-v1.json
+      - docs/implementation/solopreneur-gate-matrix.json
+      - docs/product/business-rules.md
+      - docs/implementation/evidence/ERP-983/
 
   - id: ERP-984
     title: AP aging includes unpaid supplier invoices and keeps owner positions separate

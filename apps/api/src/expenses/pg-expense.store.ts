@@ -5,6 +5,8 @@ import {
   canSelfApprove,
   resolveOrganizationWorkflowPolicy,
 } from "../workflow-policy/organization-workflow-policy.service.js";
+import { resolveOwnerFundingTraceability } from "../owner-funding/owner-funding-traceability.js";
+import { buildFundingInferencePlan } from "./expense-plans.helper.js";
 import type {
   CreateExpenseInput,
   ExpenseContext,
@@ -297,65 +299,7 @@ export class PgExpenseStore {
   }
 
   private async fundingInferencePlan(c: PoolClient, org: string) {
-    const rows = await c.query<{
-      expense_id: string;
-      current_account: string | null;
-      account_id: string;
-      account_code: string;
-      evidence_ids: string[];
-      evidence_count: string;
-    }>(
-      `select e.id expense_id,e.funding_financial_account_id current_account,
-              fa.id account_id,fa.code account_code,
-              array_agg(distinct ra.id) evidence_ids,count(distinct ra.id)::text evidence_count
-         from expenses e
-         join reconciliation_allocations ra on ra.organization_id=e.organization_id and ra.expense_id=e.id
-         join reconciliation_attempts rat on rat.organization_id=ra.organization_id and rat.id=ra.reconciliation_id
-         join payment_reconciliations pr on pr.organization_id=rat.organization_id and pr.id=rat.reconciliation_id and pr.direction='payment'
-         join bank_transactions bt on bt.organization_id=rat.organization_id and bt.id=rat.bank_transaction_id
-         join financial_accounts fa on fa.organization_id=bt.organization_id and fa.id=bt.financial_account_id
-        where e.organization_id=$1 and e.state='posted' and rat.state='reconciled'
-        group by e.id,e.funding_financial_account_id,fa.id,fa.code
-        order by e.id,fa.id`,
-      [org],
-    );
-    const grouped = new Map<string, typeof rows.rows>();
-    for (const row of rows.rows)
-      grouped.set(row.expense_id, [...(grouped.get(row.expense_id) ?? []), row]);
-    const items: Record<string, unknown>[] = [];
-    const unresolved: Record<string, unknown>[] = [];
-    const all = await c.query<{ id: string; funding_financial_account_id: string | null }>(
-      `select id,funding_financial_account_id from expenses where organization_id=$1 and state='posted'`,
-      [org],
-    );
-    for (const expense of all.rows) {
-      if (expense.funding_financial_account_id) continue;
-      const matches = grouped.get(expense.id) ?? [];
-      const accountIds = [...new Set(matches.map((m) => m.account_id))];
-      if (accountIds.length === 1 && matches[0]) {
-        const match = matches[0];
-        items.push({
-          expenseId: expense.id,
-          currentFundingFinancialAccountId: null,
-          suggestedFundingFinancialAccountId: match.account_id,
-          accountCode: match.account_code,
-          evidenceType: "reconciliation",
-          evidenceIds: match.evidence_ids,
-          confidence: "confirmed",
-        });
-      } else {
-        unresolved.push({
-          expenseId: expense.id,
-          reason:
-            matches.length === 0 ? "no_reconciled_payment_evidence" : "multiple_financial_accounts",
-        });
-      }
-    }
-    return {
-      items,
-      unresolved,
-      counts: { assignable: items.length, unresolved: unresolved.length },
-    };
+    return buildFundingInferencePlan(c, org);
   }
 
   async dryRunFundingInference(org: string, reason: string) {
@@ -484,6 +428,15 @@ export class PgExpenseStore {
   }
 
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {
+    await resolveOwnerFundingTraceability(this.pool, organizationId, {
+      ownerFundingId: input.ownerFundingId ?? input.funding?.ownerFundingId,
+      ownerFundingTransactionId:
+        input.ownerFundingTransactionId ?? input.funding?.ownerFundingTransactionId,
+      fundingType: input.funding?.type,
+      fundingFinancialAccountId: input.fundingFinancialAccountId,
+      accountCode: input.counterAccountCode,
+      currency: input.currency,
+    });
     if (input.fundingFinancialAccountId) {
       const funding = await this.pool.query<{ ledger_account_code: string }>(
         `select ledger_account_code from financial_accounts
@@ -569,6 +522,8 @@ export class PgExpenseStore {
   ) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,e.funding_financial_account_id "fundingFinancialAccountId",
+       e.owner_funding_movement_id "ownerFundingId",
+       (select m.bank_transaction_id from owner_funding_movements m where m.organization_id=e.organization_id and m.id=e.owner_funding_movement_id) "ownerFundingTransactionId",
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
@@ -630,6 +585,8 @@ export class PgExpenseStore {
   async get(org: string, id: string) {
     const r = await this.pool.query(
       `select e.*,e.expense_date::text expense_date,e.funding_financial_account_id "fundingFinancialAccountId",
+       e.owner_funding_movement_id "ownerFundingId",
+       (select m.bank_transaction_id from owner_funding_movements m where m.organization_id=e.organization_id and m.id=e.owner_funding_movement_id) "ownerFundingTransactionId",
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
@@ -1244,9 +1201,20 @@ export class PgExpenseStore {
         }
       }
 
+      const ownerFundingTrace = await resolveOwnerFundingTraceability(c, context.organizationId, {
+        ownerFundingId: input.ownerFundingId ?? input.funding?.ownerFundingId,
+        ownerFundingTransactionId:
+          input.ownerFundingTransactionId ?? input.funding?.ownerFundingTransactionId,
+        fundingType: input.funding?.type,
+        fundingFinancialAccountId: input.fundingFinancialAccountId,
+        accountCode: input.counterAccountCode,
+        currency: input.currency,
+      });
+      const effectiveFundingAccountId =
+        input.fundingFinancialAccountId ?? ownerFundingTrace?.financialAccountId ?? null;
       const id = input.id ?? randomUUID();
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'unreviewed',$17,$18,$19)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,owner_funding_movement_id,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'unreviewed',$18,$19,$20)`,
         [
           context.organizationId,
           id,
@@ -1263,7 +1231,8 @@ export class PgExpenseStore {
           input.vatMinor,
           input.grossMinor,
           input.counterAccountCode,
-          input.fundingFinancialAccountId ?? null,
+          effectiveFundingAccountId,
+          ownerFundingTrace?.movementId ?? null,
           input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
           input.evidenceChecklist ?? {},
           context.actorId,

@@ -132,13 +132,18 @@ export type OwnerCashWithdrawalContract = Readonly<{
 }>;
 
 export type OwnerSettlementMovementTypeContract =
-  "owner_paid_company_cost" | "owner_custody_cash" | "owner_personal_withdrawal" | "owner_funding";
+  | "owner_paid_company_cost"
+  | "owner_custody_cash"
+  | "owner_personal_withdrawal"
+  | "owner_funding"
+  | "owner_repayment";
 
 export type OwnerSettlementClassificationBasisContract =
   | "canonical_owner_paid_expense"
   | "canonical_owner_custody_receipt"
   | "company_funds_withdrawn_by_owner"
-  | "owner_funding_to_company_funds";
+  | "owner_funding_to_company_funds"
+  | "company_funds_repayment_to_owner";
 
 export type OwnerSettlementReviewReasonContract =
   | "unsupported_company_repayment"
@@ -213,6 +218,7 @@ export type OwnerSettlementSummaryContract = Readonly<{
   ownerCustodyCashMinor: string;
   ownerPersonalWithdrawalMinor: string;
   ownerFundingMinor: string;
+  ownerRepaymentMinor?: string;
   reviewMinor: string;
   reviewCount: number;
 }>;

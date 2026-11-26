@@ -10,6 +10,17 @@ export {
   type OrganizationFundingDefaultContract,
 } from "./funding.js";
 export {
+  OWNER_FUNDING_CONTRACT_VERSION,
+  type OwnerFundingEntryModeContract,
+  type OwnerFundingLinkedRecordContract,
+  type OwnerFundingListContract,
+  type OwnerFundingListSummaryContract,
+  type OwnerFundingMovementContract,
+  type OwnerFundingMovementTypeContract,
+  type RecordOwnerFundingRequest,
+  type RecordOwnerFundingResponseContract,
+} from "./owner-funding.js";
+export {
   CUSTOMER_RECEIPT_CONTRACT_VERSION,
   type CreateCustomerReceiptRequest,
   type CustomerReceiptContract,

@@ -234,9 +234,7 @@ Dr Owner Payable / Owner Current Account
 Cr company bank or company cash
 ```
 
-The system currently has no dedicated owner-reimbursement REST/CLI action. Until one exists, AI must
-stop for an approved manual-journal workflow rather than reconciling the payment directly to the
-original expense and risking duplicate expense recognition.
+Use `POST /api/v1/organizations/{organizationId}/banking/owner-funding` (or CLI `naai-erp owner-funding repay` / `owner-funding record --movement-type owner_repayment`) to record company-bank owner repayments (`Dr 3388 / Cr 112`) from an imported negative bank transaction or a manual referenced bank entry, and `owner-funding record` (`movementType: "owner_funding"`) to record owner bank funding deposits (`Dr 112 / Cr 3388`) without reconciling the payment directly to an expense or creating duplicate revenue/expense effects.
 
 ## Customer money received in the owner's account
 
