@@ -2842,7 +2842,7 @@ tests:
     rules: [BR-CLOSE-001, BR-FUND-007, BR-PAY-002, BR-PER-001, BR-LED-001, BR-AUD-001]
     title: Monthly close checklist soft-warning close, negative custody alert, cash count over/short journal and year-end owner settlement options
     layer: integration
-    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/period-close/period-close.integration.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/period-close-cli.test.ts
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/period-close/period-close.integration.test.ts src/period-close/owner-settlement.integration.test.ts && pnpm --filter @naai-erp/cli exec vitest run src/period-close-cli.test.ts
     blocking_gate: P17
 
 golden_fixtures:

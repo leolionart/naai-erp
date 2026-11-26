@@ -774,4 +774,4 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   (`kiểm quỹ`) overage/shortage/exact-match postings and idempotency, and year-end owner position
   (`3388`, `1388`, `111-OWNER-CUSTODY`, `421`) settled via `offset_3388_1388`, `profit_distribution`
   (`Dr 421 / Cr 1388`) and `repayment` with full audit trail (`apps/api/src/period-close/period-close.integration.test.ts`,
-  `apps/cli/src/period-close-cli.test.ts`).
+  `apps/api/src/period-close/owner-settlement.integration.test.ts`, `apps/cli/src/period-close-cli.test.ts`).
