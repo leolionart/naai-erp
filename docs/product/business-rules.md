@@ -1550,3 +1550,15 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
   tax finalization done, bank reconciled, owner-held cash not negative); a cash count compares counted cash with
   `111-OWNER-CUSTODY` and posts the difference with a reason; year-end settlement offers repayment, offset of 3388 against
   1388, or owner-decided profit distribution (Dr 421 / Cr 1388), each with audit.
+
+### Editing reliability and one-click recording (planned, ERP-988 to ERP-992)
+
+- `BR-EDIT-001` (planned): the category of an expense or invoice is validated against the organization's canonical
+  categories (`business_categories`, `expense_categories`); legacy dimension categories are only a fallback.
+- `BR-REC-001` (planned): for an owner in solopreneur mode, "Ghi sổ" is one atomic action taking an eligible draft to
+  posted (self-approval, tax defaults, external reference as evidence); when not eligible nothing changes and every
+  reason is returned.
+- `BR-REC-002` (planned): an integration source with `autoRecord` records valid items on ingestion and leaves invalid
+  ones as drafts with visible reasons; every action is audited under the integration identity.
+- `BR-REC-003` (planned): routine actions get a default reason; actions that change the ledger (void, reverse,
+  funding or account changes) always require one.

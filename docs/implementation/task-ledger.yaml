@@ -3973,6 +3973,66 @@ tasks:
     planned_files:
       - docs/implementation/plans/funding-and-account-reclassification.md
 
+  - id: ERP-988
+    title: Fix expense and document edit failures on real data and clear UI error messages
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-EDIT-001]
+    tests: [T-INT-EDIT-001, T-E2E-EDIT-002]
+    plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+
+  - id: ERP-989
+    title: One-click record for drafts with batch dry-run and commit for solopreneur owners
+    phase: P17
+    status: ready
+    dependencies: [ERP-982, ERP-988]
+    business_rules: [BR-REC-001, BR-REC-003]
+    tests: [T-INT-REC-001, T-INT-REC-002]
+    plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+
+  - id: ERP-990
+    title: Auto-record flag for integration sources with visible draft reasons
+    phase: P17
+    status: ready
+    dependencies: [ERP-989]
+    business_rules: [BR-REC-002]
+    tests: [T-INT-REC-003]
+    plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+
+  - id: ERP-991
+    title: Real-UI Playwright specs against the real API and a scratch database in CI
+    phase: P17
+    status: ready
+    dependencies: [ERP-988]
+    business_rules: [BR-EDIT-001]
+    tests: [T-E2E-EDIT-003]
+    plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+
+  - id: ERP-992
+    title: Repair stale integration and Playwright tests using the reference patch
+    phase: P17
+    status: ready
+    dependencies: []
+    business_rules: [BR-EDIT-001]
+    tests: [T-INT-REPAIR-001]
+    plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

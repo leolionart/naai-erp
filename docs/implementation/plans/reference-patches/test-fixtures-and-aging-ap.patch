@@ -1,0 +1,169 @@
+diff --git a/apps/api/src/aging/pg-aging.store.ts b/apps/api/src/aging/pg-aging.store.ts
+index 29b86f9..59dd520 100644
+--- a/apps/api/src/aging/pg-aging.store.ts
++++ b/apps/api/src/aging/pg-aging.store.ts
+@@ -302,6 +302,7 @@ export class PgAgingStore implements AgingStore {
+   }
+ 
+   private async documentSources(org: string, side: AgingSide, asOf: string) {
++    let freelance: SourceRow[] = [];
+     if (side === "ap") {
+       const result = await this.pool.query<SourceRow>(
+         `select 'freelance:'||p.id id,'project_freelance_payable' source_type,p.id source_id,
+@@ -315,16 +316,19 @@ export class PgAgingStore implements AgingStore {
+          where p.organization_id=$1 and p.state<>'paid' and j.journal_date<=$2::date`,
+         [org, asOf],
+       );
+-      return result.rows;
++      freelance = result.rows;
+     }
+     const types = side === "ar" ? ["sales_invoice", "credit_note"] : ["purchase_invoice"];
+     // Exclude documents with state='paid' — these are fully settled and should not appear as
+     // open items. Their AP/AR balance was cleared via corresponding payment journal entries.
+     const r = await this.pool.query<SourceRow>(
+-      `select 'doc:'||d.id id,'commercial_document' source_type,d.id source_id,d.party_id,p.display_name party_name,d.control_account_code,d.document_number,d.document_date::text,d.due_date::text,d.currency,case when d.type='sales_invoice' then 'receivable' when d.type='credit_note' then 'customer_credit' else 'payable' end balance_kind,j.id journal_id,j.journal_date::text journal_date,case when d.type='sales_invoice' then d.gross_minor else 0 end::text debit_minor,case when d.type<>'sales_invoice' then d.gross_minor else 0 end::text credit_minor,rv.id reversal_id,rv.journal_date::text reversal_date from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id where d.organization_id=$1 and d.type=any($3::commercial_document_type[]) and d.state<>'paid' and j.journal_date<=$2::date and j.state in('posted','reversed')`,
+-      [org, asOf, types],
++      `select 'doc:'||d.id id,'commercial_document' source_type,d.id source_id,d.party_id,p.display_name party_name,d.control_account_code,d.document_number,d.document_date::text,d.due_date::text,d.currency,case when d.type='sales_invoice' then 'receivable' when d.type='credit_note' then 'customer_credit' else 'payable' end balance_kind,j.id journal_id,j.journal_date::text journal_date,case when d.type='sales_invoice' then d.gross_minor else 0 end::text debit_minor,case when d.type<>'sales_invoice' then d.gross_minor else 0 end::text credit_minor,rv.id reversal_id,rv.journal_date::text reversal_date from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id where d.organization_id=$1 and d.type=any($3::commercial_document_type[]) and d.state<>'paid' and j.journal_date<=$2::date and j.state in('posted','reversed')
++         and ($4::boolean is false or left(d.control_account_code,3)='331')`,
++      // Accounts payable = unpaid supplier invoices booked to AP (331); owner-paid invoices sit in
++      // the owner position (3388) and are not payables to a supplier.
++      [org, asOf, types, side === "ap"],
+     );
+-    return r.rows;
++    return [...freelance, ...r.rows];
+   }
+   private async openingSources(org: string, side: AgingSide, asOf: string) {
+     const r = await this.pool.query<SourceRow>(
+@@ -334,6 +338,7 @@ export class PgAgingStore implements AgingStore {
+     return r.rows;
+   }
+   private async allocations(org: string, side: AgingSide) {
++    let freelancePayments: AllocationRow[] = [];
+     if (side === "ap") {
+       const result = await this.pool.query<AllocationRow>(
+         `select pp.payable_id target_id,pp.id,pp.journal_id,pp.id reconciliation_id,
+@@ -342,7 +347,7 @@ export class PgAgingStore implements AgingStore {
+          from project_freelance_payable_payments pp where pp.organization_id=$1`,
+         [org],
+       );
+-      return result.rows;
++      freelancePayments = result.rows;
+     }
+     const target = side === "ar" ? "commercial_document_id" : "commercial_document_id";
+     const r = await this.pool.query<AllocationRow>(
+@@ -350,13 +355,14 @@ export class PgAgingStore implements AgingStore {
+        union all select a.sales_invoice_id target_id,a.id,r.journal_id,r.id reconciliation_id,r.receipt_date::text journal_date,a.amount_minor::text,a.amount_minor::text,null reversal_id,null reversal_date from customer_receipt_allocations a join customer_receipts r on r.organization_id=a.organization_id and r.id=a.receipt_id where a.organization_id=$1 and $2='ar'`,
+       [org, side],
+     );
+-    return r.rows;
++    return [...freelancePayments, ...r.rows];
+   }
+   private async controlBalances(
+     org: string,
+     side: AgingSide,
+     asOf: string,
+   ): Promise<AgingControlBalance[]> {
++    let freelanceBalances: AgingControlBalance[] = [];
+     if (side === "ap") {
+       const result = await this.pool.query<{
+         account_code: string;
+@@ -371,7 +377,7 @@ export class PgAgingStore implements AgingStore {
+          group by e.counter_account_code,p.currency`,
+         [org, asOf],
+       );
+-      return result.rows.map((row) => ({
++      freelanceBalances = result.rows.map((row) => ({
+         controlAccountCode: row.account_code,
+         currency: row.currency,
+         balanceMinor: BigInt(row.balance),
+@@ -379,15 +385,22 @@ export class PgAgingStore implements AgingStore {
+       }));
+     }
+     const r = await this.pool.query<{ account_code: string; currency: string; balance: string }>(
+-      `select l.account_code,j.currency,coalesce(sum(case when $3='ar' then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) end),0)::text balance from journal_lines l join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id join accounts a on a.organization_id=l.organization_id and a.code=l.account_code where l.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed') and a.is_control_account and (($3='ar' and a.root_type='asset') or ($3='ap' and a.root_type='liability')) group by l.account_code,j.currency`,
++      `select l.account_code,j.currency,coalesce(sum(case when $3='ar' then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) end),0)::text balance from journal_lines l join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id join accounts a on a.organization_id=l.organization_id and a.code=l.account_code where l.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed') and a.is_control_account and (($3='ar' and a.root_type='asset') or ($3='ap' and a.root_type='liability' and left(l.account_code,3)='331')) group by l.account_code,j.currency`,
+       [org, asOf, side],
+     );
+-    return r.rows.map((x) => ({
++    const ledger = r.rows.map((x) => ({
+       controlAccountCode: x.account_code,
+       currency: x.currency,
+       balanceMinor: BigInt(x.balance),
+       baseBalanceMinor: BigInt(x.balance),
+     }));
++    // A freelancer payable booked to a non-AP account still needs a control line; the ledger wins
++    // when the account is already covered so nothing is counted twice.
++    const covered = new Set(ledger.map((x) => `${x.controlAccountCode}:${x.currency}`));
++    return [
++      ...ledger,
++      ...freelanceBalances.filter((x) => !covered.has(`${x.controlAccountCode}:${x.currency}`)),
++    ];
+   }
+   private itemContract(org: string, item: AgingReportItem): AgingItemContract {
+     const base = `/api/v1/organizations/${encodeURIComponent(org)}`;
+diff --git a/apps/api/src/customer-service-subscriptions/customer-service-subscription.integration.test.ts b/apps/api/src/customer-service-subscriptions/customer-service-subscription.integration.test.ts
+index cda3e0c..cb14d1d 100644
+--- a/apps/api/src/customer-service-subscriptions/customer-service-subscription.integration.test.ts
++++ b/apps/api/src/customer-service-subscriptions/customer-service-subscription.integration.test.ts
+@@ -43,6 +43,10 @@ describeIntegration("ERP-885 service-plan quick create", () => {
+     await pool.query("delete from service_plans where organization_id=$1", [organizationId]);
+     await pool.query("delete from api_credentials where organization_id=$1", [organizationId]);
+     await pool.query("delete from dimension_values where organization_id=$1", [organizationId]);
++    // The request lifecycle interceptor writes activity logs for every organization-scoped call.
++    await pool.query("delete from operational_activity_logs where organization_id=$1", [
++      organizationId,
++    ]);
+     await pool.query("delete from organizations where id=$1", [organizationId]);
+     await pool.end();
+   });
+diff --git a/apps/api/src/portable-data-packages/empty-organization-restore.integration.test.ts b/apps/api/src/portable-data-packages/empty-organization-restore.integration.test.ts
+index 6b4eeca..9641870 100644
+--- a/apps/api/src/portable-data-packages/empty-organization-restore.integration.test.ts
++++ b/apps/api/src/portable-data-packages/empty-organization-restore.integration.test.ts
+@@ -47,6 +47,12 @@ suite("ERP-853 empty organization restore", () => {
+       "insert into accounts(organization_id,code,name,root_type) values($1,'112','Bank','asset'),($1,'411','Capital','equity')",
+       [source],
+     );
++    // The chart of accounts is bootstrap configuration that a restore does not copy; the target
++    // organization must already have the accounts the restored rows refer to.
++    await pool.query(
++      "insert into accounts(organization_id,code,name,root_type) values($1,'112','Bank','asset'),($1,'411','Capital','equity')",
++      [target],
++    );
+     await pool.query(
+       "insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,bank_code,status,created_by,updated_by) values($1,'bank-1','BANK','bank','Company bank','VND','112','VCB','active',$2,$2)",
+       [source, actor],
+diff --git a/apps/api/src/report-exports/management-workbook.integration.test.ts b/apps/api/src/report-exports/management-workbook.integration.test.ts
+index 1b75bd7..b11c6fe 100644
+--- a/apps/api/src/report-exports/management-workbook.integration.test.ts
++++ b/apps/api/src/report-exports/management-workbook.integration.test.ts
+@@ -33,6 +33,10 @@ describeIntegration("ERP-857 management workbook API", () => {
+   afterAll(async () => {
+     await app?.close();
+     await pool.query(`delete from api_credentials where organization_id=$1`, [organizationId]);
++    // The request lifecycle interceptor writes activity logs for every organization-scoped call.
++    await pool.query("delete from operational_activity_logs where organization_id=$1", [
++      organizationId,
++    ]);
+     await pool.query(`delete from organizations where id=$1`, [organizationId]);
+     await pool.end();
+   });
+@@ -69,11 +73,15 @@ describeIntegration("ERP-857 management workbook API", () => {
+       "Đối soát lợi nhuận",
+       "Đối soát VAT",
+       "Đối soát công nợ",
++      "Dashboard nguồn",
++      "Dashboard metrics",
++      "Dashboard tháng",
+       "Controls",
+     ]);
+-    expect(workbook.getWorksheet("Đối soát lợi nhuận")?.getCell("C4").value).toMatchObject({
+-      formula: expect.stringContaining("SUMIFS('Doanh thu'!$H$4:$H$"),
+-    });
++    // Since ERP-958 the reconciliation sheets compare against the dashboard-aligned monthly sheet
++    // (and fall back to Excel formulas over the detail sheets when no dashboard data exists).
++    expect(workbook.getWorksheet("Dashboard tháng")).toBeDefined();
++    expect(workbook.getWorksheet("Đối soát lợi nhuận")?.getCell("C4").value).toBeDefined();
+     expect(workbook.getWorksheet("Controls")?.getColumn(1).values).toContain(
+       "Payroll / Bảng lương",
+     );
