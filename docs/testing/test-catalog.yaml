@@ -2765,6 +2765,14 @@ tests:
     command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/operating-dashboard/operating-dashboard.integration.test.ts
     blocking_gate: G100
 
+  - id: T-INT-AP-001
+    task: ERP-984
+    rules: [BR-AP-001, BR-AP-002]
+    title: AP aging includes unpaid supplier invoices and freelance payables, excludes owner 3388/1388 and company-paid invoices, and ties to ledger 331
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/aging/aging.integration.test.ts
+    blocking_gate: G54
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

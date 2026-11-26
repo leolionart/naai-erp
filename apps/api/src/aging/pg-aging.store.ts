@@ -111,7 +111,7 @@ export class PgAgingStore implements AgingStore {
               },
             ]
           : []),
-        ...this.allocationMovements(side, byTarget.get(row.source_id) ?? []),
+        ...this.allocationMovements(side, byTarget.get(row.id) ?? []),
       ];
       supported.push({
         organizationId: org,
@@ -301,53 +301,107 @@ export class PgAgingStore implements AgingStore {
     });
   }
 
+  private controlAccountFilter(sideParam: string) {
+    return `a.code not like '1388%' and a.code not like '3388%'
+      and not exists (
+        select 1 from financial_statement_mapping_lines ml
+        where ml.organization_id=a.organization_id and ml.statement='balance_sheet'
+          and ml.line_code='owner_current' and ml.account_code=a.code
+      )
+      and (
+        (${sideParam}='ar' and a.root_type='asset' and (a.is_control_account or a.code='131' or a.code like '131-%'))
+        or (${sideParam}='ap' and a.root_type='liability' and (a.is_control_account or a.code='331' or a.code like '331-%'))
+      )`;
+  }
+
   private async documentSources(org: string, side: AgingSide, asOf: string) {
-    if (side === "ap") {
-      const result = await this.pool.query<SourceRow>(
-        `select 'freelance:'||p.id id,'project_freelance_payable' source_type,p.id source_id,
-         p.freelancer_party_id party_id,party.display_name party_name,e.counter_account_code control_account_code,
-         'FREELANCE-'||p.id document_number,e.expense_date::text document_date,p.due_date::text due_date,
-         p.currency,'payable' balance_kind,p.journal_id,j.journal_date::text journal_date,0::text debit_minor,
-         p.amount_minor::text credit_minor,null reversal_id,null reversal_date
-         from project_freelance_payables p join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id
-         join parties party on party.organization_id=p.organization_id and party.id=p.freelancer_party_id
-         join journal_entries j on j.organization_id=p.organization_id and j.id=p.journal_id
-         where p.organization_id=$1 and p.state<>'paid' and j.journal_date<=$2::date`,
-        [org, asOf],
-      );
-      return result.rows;
-    }
     const types = side === "ar" ? ["sales_invoice", "credit_note"] : ["purchase_invoice"];
-    // Exclude documents with state='paid' — these are fully settled and should not appear as
-    // open items. Their AP/AR balance was cleared via corresponding payment journal entries.
-    const r = await this.pool.query<SourceRow>(
-      `select 'doc:'||d.id id,'commercial_document' source_type,d.id source_id,d.party_id,p.display_name party_name,d.control_account_code,d.document_number,d.document_date::text,d.due_date::text,d.currency,case when d.type='sales_invoice' then 'receivable' when d.type='credit_note' then 'customer_credit' else 'payable' end balance_kind,j.id journal_id,j.journal_date::text journal_date,case when d.type='sales_invoice' then d.gross_minor else 0 end::text debit_minor,case when d.type<>'sales_invoice' then d.gross_minor else 0 end::text credit_minor,rv.id reversal_id,rv.journal_date::text reversal_date from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id where d.organization_id=$1 and d.type=any($3::commercial_document_type[]) and d.state<>'paid' and j.journal_date<=$2::date and j.state in('posted','reversed')`,
-      [org, asOf, types],
+    const docs = await this.pool.query<SourceRow>(
+      `select 'doc:'||d.id id,'commercial_document' source_type,d.id source_id,d.party_id,p.display_name party_name,
+        d.control_account_code,d.document_number,d.document_date::text,d.due_date::text,d.currency,
+        case when d.type='sales_invoice' then 'receivable' when d.type='credit_note' then 'customer_credit' else 'payable' end balance_kind,
+        j.id journal_id,j.journal_date::text journal_date,
+        case when d.type='sales_invoice' then d.gross_minor else 0 end::text debit_minor,
+        case when d.type<>'sales_invoice' then d.gross_minor else 0 end::text credit_minor,
+        rv.id reversal_id,rv.journal_date::text reversal_date
+       from commercial_documents d
+       join accounts a on a.organization_id=d.organization_id and a.code=d.control_account_code
+       join parties p on p.organization_id=d.organization_id and p.id=d.party_id
+       join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id
+       left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id
+       where d.organization_id=$1 and d.type=any($3::commercial_document_type[])
+         and (d.type<>'purchase_invoice' or d.funding_financial_account_id is null)
+         and j.journal_date<=$2::date and j.state in('posted','reversed')
+         and ${this.controlAccountFilter("$4")}
+         and exists (
+           select 1 from journal_lines jl
+           where jl.organization_id=j.organization_id and jl.journal_id=j.id and jl.account_code=d.control_account_code
+         )`,
+      [org, asOf, types, side],
     );
-    return r.rows;
+    if (side !== "ap") return docs.rows;
+    const freelance = await this.pool.query<SourceRow>(
+      `select 'freelance:'||p.id id,'project_freelance_payable' source_type,p.id source_id,
+        p.freelancer_party_id party_id,party.display_name party_name,e.counter_account_code control_account_code,
+        'FREELANCE-'||p.id document_number,e.expense_date::text document_date,p.due_date::text due_date,
+        p.currency,'payable' balance_kind,p.journal_id,j.journal_date::text journal_date,0::text debit_minor,
+        p.amount_minor::text credit_minor,rv.id reversal_id,rv.journal_date::text reversal_date
+       from project_freelance_payables p
+       join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id
+       join accounts a on a.organization_id=e.organization_id and a.code=e.counter_account_code
+       join parties party on party.organization_id=p.organization_id and party.id=p.freelancer_party_id
+       join journal_entries j on j.organization_id=p.organization_id and j.id=p.journal_id
+       left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id
+       where p.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed')
+         and ${this.controlAccountFilter("$3")}`,
+      [org, asOf, side],
+    );
+    return [...docs.rows, ...freelance.rows];
   }
   private async openingSources(org: string, side: AgingSide, asOf: string) {
     const r = await this.pool.query<SourceRow>(
-      `select 'opening:'||j.id||':'||l.line_number id,'opening_balance' source_type,j.id||':'||l.line_number source_id,l.dimensions->>'partyId' party_id,p.display_name party_name,l.account_code control_account_code,l.dimensions->>'documentRef' document_number,j.journal_date::text document_date,l.dimensions->>'dueDate' due_date,j.currency,case when $3='ar' and l.debit_minor is not null then 'receivable' when $3='ar' then 'customer_credit' when l.credit_minor is not null then 'payable' else 'supplier_advance' end balance_kind,j.id journal_id,j.journal_date::text journal_date,coalesce(l.debit_minor,0)::text debit_minor,coalesce(l.credit_minor,0)::text credit_minor,rv.id reversal_id,rv.journal_date::text reversal_date from opening_balance_imports ob join journal_entries j on j.organization_id=ob.organization_id and j.id=ob.journal_id join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id join accounts a on a.organization_id=l.organization_id and a.code=l.account_code and a.is_control_account join parties p on p.organization_id=l.organization_id and p.id=l.dimensions->>'partyId' left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id where ob.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed') and (($3='ar' and a.root_type='asset') or ($3='ap' and a.root_type='liability'))`,
+      `select 'opening:'||j.id||':'||l.line_number id,'opening_balance' source_type,j.id||':'||l.line_number source_id,
+        l.dimensions->>'partyId' party_id,p.display_name party_name,l.account_code control_account_code,
+        l.dimensions->>'documentRef' document_number,j.journal_date::text document_date,l.dimensions->>'dueDate' due_date,
+        j.currency,
+        case when $3='ar' and l.debit_minor is not null then 'receivable' when $3='ar' then 'customer_credit' when l.credit_minor is not null then 'payable' else 'supplier_advance' end balance_kind,
+        j.id journal_id,j.journal_date::text journal_date,coalesce(l.debit_minor,0)::text debit_minor,
+        coalesce(l.credit_minor,0)::text credit_minor,rv.id reversal_id,rv.journal_date::text reversal_date
+       from opening_balance_imports ob
+       join journal_entries j on j.organization_id=ob.organization_id and j.id=ob.journal_id
+       join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+       join accounts a on a.organization_id=l.organization_id and a.code=l.account_code
+       join parties p on p.organization_id=l.organization_id and p.id=l.dimensions->>'partyId'
+       left join journal_entries rv on rv.organization_id=j.organization_id and rv.reversal_of_id=j.id
+       where ob.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed')
+         and ${this.controlAccountFilter("$3")}`,
       [org, asOf, side],
     );
     return r.rows;
   }
   private async allocations(org: string, side: AgingSide) {
-    if (side === "ap") {
-      const result = await this.pool.query<AllocationRow>(
-        `select pp.payable_id target_id,pp.id,pp.journal_id,pp.id reconciliation_id,
-         pp.payment_date::text journal_date,pp.amount_minor::text target_amount_minor,
-         pp.amount_minor::text base_amount_minor,null reversal_id,null reversal_date
-         from project_freelance_payable_payments pp where pp.organization_id=$1`,
-        [org],
-      );
-      return result.rows;
-    }
-    const target = side === "ar" ? "commercial_document_id" : "commercial_document_id";
     const r = await this.pool.query<AllocationRow>(
-      `select a.${target} target_id,a.id,ra.journal_id,ra.id reconciliation_id,sj.journal_date::text journal_date,a.target_amount_minor::text,a.base_amount_minor::text,ra.reversal_journal_id reversal_id,rj.journal_date::text reversal_date from reconciliation_allocations a join reconciliation_attempts ra on ra.organization_id=a.organization_id and ra.id=a.reconciliation_id left join journal_entries sj on sj.organization_id=ra.organization_id and sj.id=ra.journal_id left join journal_entries rj on rj.organization_id=ra.organization_id and rj.id=ra.reversal_journal_id where a.organization_id=$1 and a.commercial_document_id is not null
-       union all select a.sales_invoice_id target_id,a.id,r.journal_id,r.id reconciliation_id,r.receipt_date::text journal_date,a.amount_minor::text,a.amount_minor::text,null reversal_id,null reversal_date from customer_receipt_allocations a join customer_receipts r on r.organization_id=a.organization_id and r.id=a.receipt_id where a.organization_id=$1 and $2='ar'`,
+      `select 'doc:'||a.commercial_document_id target_id,a.id,ra.journal_id,ra.id reconciliation_id,
+        sj.journal_date::text journal_date,a.target_amount_minor::text,a.base_amount_minor::text,
+        ra.reversal_journal_id reversal_id,rj.journal_date::text reversal_date
+       from reconciliation_allocations a
+       join reconciliation_attempts ra on ra.organization_id=a.organization_id and ra.id=a.reconciliation_id
+       left join journal_entries sj on sj.organization_id=ra.organization_id and sj.id=ra.journal_id
+       left join journal_entries rj on rj.organization_id=ra.organization_id and rj.id=ra.reversal_journal_id
+       where a.organization_id=$1 and a.commercial_document_id is not null
+       union all
+       select 'doc:'||a.sales_invoice_id target_id,a.id,r.journal_id,r.id reconciliation_id,
+        r.receipt_date::text journal_date,a.amount_minor::text,a.amount_minor::text,null reversal_id,null reversal_date
+       from customer_receipt_allocations a
+       join customer_receipts r on r.organization_id=a.organization_id and r.id=a.receipt_id
+       where a.organization_id=$1 and $2='ar'
+       union all
+       select 'freelance:'||pp.payable_id target_id,pp.id,pp.journal_id,pp.id reconciliation_id,
+        pp.payment_date::text journal_date,pp.amount_minor::text target_amount_minor,
+        pp.amount_minor::text base_amount_minor,rv.id reversal_id,rv.journal_date::text reversal_date
+       from project_freelance_payable_payments pp
+       left join journal_entries rv on rv.organization_id=pp.organization_id and rv.reversal_of_id=pp.journal_id
+       where pp.organization_id=$1 and $2='ap'`,
       [org, side],
     );
     return r.rows;
@@ -357,29 +411,15 @@ export class PgAgingStore implements AgingStore {
     side: AgingSide,
     asOf: string,
   ): Promise<AgingControlBalance[]> {
-    if (side === "ap") {
-      const result = await this.pool.query<{
-        account_code: string;
-        currency: string;
-        balance: string;
-      }>(
-        `select e.counter_account_code account_code,p.currency,
-         (sum(p.amount_minor)-sum(p.paid_minor))::text balance
-         from project_freelance_payables p join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id
-         join journal_entries j on j.organization_id=p.organization_id and j.id=p.journal_id
-         where p.organization_id=$1 and j.journal_date<=$2::date
-         group by e.counter_account_code,p.currency`,
-        [org, asOf],
-      );
-      return result.rows.map((row) => ({
-        controlAccountCode: row.account_code,
-        currency: row.currency,
-        balanceMinor: BigInt(row.balance),
-        baseBalanceMinor: BigInt(row.balance),
-      }));
-    }
     const r = await this.pool.query<{ account_code: string; currency: string; balance: string }>(
-      `select l.account_code,j.currency,coalesce(sum(case when $3='ar' then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) end),0)::text balance from journal_lines l join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id join accounts a on a.organization_id=l.organization_id and a.code=l.account_code where l.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed') and a.is_control_account and (($3='ar' and a.root_type='asset') or ($3='ap' and a.root_type='liability')) group by l.account_code,j.currency`,
+      `select l.account_code,j.currency,
+        coalesce(sum(case when $3='ar' then coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0) else coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0) end),0)::text balance
+       from journal_lines l
+       join journal_entries j on j.organization_id=l.organization_id and j.id=l.journal_id
+       join accounts a on a.organization_id=l.organization_id and a.code=l.account_code
+       where l.organization_id=$1 and j.journal_date<=$2::date and j.state in('posted','reversed')
+         and ${this.controlAccountFilter("$3")}
+       group by l.account_code,j.currency`,
       [org, asOf, side],
     );
     return r.rows.map((x) => ({

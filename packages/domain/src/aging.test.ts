@@ -222,4 +222,60 @@ describe("AR/AP aging domain", () => {
     });
     expect(report.items.map((item) => item.id)).toEqual(["paid", "a", "b"]);
   });
+
+  it("ties account 331 across unpaid supplier invoices and freelance payables", () => {
+    const supplierInvoice: AgingSourceItem = {
+      ...receivable(),
+      id: "doc:pi-1",
+      side: "ap",
+      balanceKind: "payable",
+      sourceType: "commercial_document",
+      sourceId: "pi-1",
+      partyId: "supplier-1",
+      partyName: "Supplier One",
+      controlAccountCode: "331",
+      documentNumber: "PI-001",
+      dueDate: "2026-08-10",
+      movements: [
+        movement("pi-origin", "origin", 0n, 150n, "posted", "2026-08-01"),
+        movement("pi-pay", "settlement", 50n, 0n, "posted", "2026-08-12"),
+      ],
+    };
+    const freelancePayable: AgingSourceItem = {
+      ...supplierInvoice,
+      id: "freelance:fp-1",
+      sourceType: "project_freelance_payable",
+      sourceId: "fp-1",
+      partyId: "freelancer-1",
+      partyName: "Freelancer One",
+      documentNumber: "FREELANCE-fp-1",
+      dueDate: "2026-09-05",
+      movements: [
+        movement("fp-origin", "origin", 0n, 120n, "posted", "2026-08-05"),
+        movement("fp-pay", "settlement", 45n, 0n, "posted", "2026-08-15"),
+      ],
+    };
+    const report = buildAgingReport({
+      organizationId: "org-1",
+      side: "ap",
+      asOf: "2026-08-31",
+      timezone: "Asia/Ho_Chi_Minh",
+      baseCurrency: "VND",
+      items: [supplierInvoice, freelancePayable],
+      controlBalances: [
+        { controlAccountCode: "331", currency: "VND", balanceMinor: 175n, baseBalanceMinor: 175n },
+      ],
+    });
+    expect(report.outstandingTotalMinor).toBe(175n);
+    expect(report.tieStatus).toBe("tied");
+    expect(report.controlTies).toEqual([
+      expect.objectContaining({
+        controlAccountCode: "331",
+        subledgerBalanceMinor: 175n,
+        ledgerBalanceMinor: 175n,
+        differenceMinor: 0n,
+        status: "tied",
+      }),
+    ]);
+  });
 });

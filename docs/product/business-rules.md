@@ -450,7 +450,7 @@ Revenue account depends on recognition policy, not merely invoice issuance.
 - Buckets use due date: current, 1–30, 31–60, 61–90, >90.
 - Customer credits are shown separately and do not hide overdue debit.
 
-### BR-AP-001 — Purchase invoice posting
+### BR-AP-001 — Purchase invoice posting and AP boundary
 
 Eligible VAT example:
 
@@ -462,13 +462,27 @@ Cr Accounts Payable
 
 If VAT is ineligible, cost/tax-expense treatment follows configured reviewed policy.
 
+- Unpaid purchase/supplier invoices posted to AP control account (`331`) remain in AP aging at their
+  remaining balance after posted payments and bank reconciliations, alongside unpaid project
+  freelance payables (`project_freelance_payables`).
+- Purchase invoices with `funding = owner_paid` credit the configured owner-current liability (`3388`)
+  and do not create AP. Purchase invoices settled at posting from a company bank or cash account
+  (`company_bank`, `company_cash`, `owner_custody_cash`) credit that financial account's ledger code
+  and carry zero AP balance.
+- Owner-paid liabilities (`3388`) and owner personal-expense receivables (`1388`) stay in the
+  separate owner position and never mix into AR or AP aging or control ties.
+- `tieStatus` reconciles the posted ledger balance of AP control account `331` against the AP aging
+  subledger detail total and reports `tied` when all movements match (`out_of_balance` otherwise).
+
 ### BR-AP-002 — Payable aging
 
-- Outstanding derives from posted bills, advances, payments, credit/debit notes and allocations.
-- Due/overdue data must tie to AP control account.
-- The self-hosted operational AP workspace contains only unpaid actual freelance costs created from
-  a posted canonical expense with one project, freelancer-role payee and due date. Project budget is
-  forecast only and purchase invoices are excluded from this operational payable population.
+- Outstanding derives from posted bills, freelance payables, advances, payments, reversals and
+  reconciliation allocations as of the requested cutoff date.
+- Due/overdue data must tie to AP control account (`331`).
+- The dedicated freelance payable endpoint (`project-freelance-payables`) tracks unpaid actual
+  freelance costs created from a posted canonical expense with one project, freelancer-role payee and
+  due date (project budget remains forecast only), while the AP aging report combines unpaid
+  supplier invoices on account `331`, unpaid freelance payables and supplier advances.
 - An ordinary purchase invoice may default to settled only when its create contract carries an
   explicit active same-currency `financial_account` funding source. Posting resolves the ledger
   account server-side, credits that funding account and marks the invoice paid atomically. Without
@@ -1539,8 +1553,10 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
 - `BR-PAY-004` (planned): when the owner pays company costs from a personal account the record needs a company-named
   invoice, payment evidence and a contract substitute; the preferred flow is the owner funding the company bank account
   (Dr 112 / Cr 3388) and the company paying from it, with repayments as Dr 3388 / Cr 112.
-- `BR-AP-001` (planned): AP aging contains unpaid supplier invoices (account 331) and freelancer payables; owner-paid (3388)
-  and owner receivable (1388) amounts are shown separately as the position with the owner. AP ties to the ledger.
+- `BR-AP-001`: AP aging contains unpaid supplier invoices (account 331, remaining balance after
+  payments/reconciliation) and freelancer payables; owner-paid (3388) and owner receivable (1388)
+  amounts stay separate in the position with the owner, `company_*` paid invoices carry zero AP
+  balance, and `tieStatus` reconciles ledger account 331 against the AP aging detail total.
 - `BR-CUR-002` (planned): until multi-currency (BR-CUR-001) exists, postings and ingestion in a currency other than the
   organization's base currency are rejected with `FOREIGN_CURRENCY_NOT_SUPPORTED`.
 - `BR-TAX-102` (planned): estimated corporate income tax uses 15% when the previous year's total revenue is up to 3 billion

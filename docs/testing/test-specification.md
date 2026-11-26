@@ -743,3 +743,7 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   (`expense.integration.test.ts`).
 - `T-E2E-FUND-002` / `T-UNIT-FUND-003`: the quick view offers both cash funds and sends the account id
   (`focused-records.spec.ts`, `focused-record-funding.test.ts`); CLI routes `reclassify-funding`.
+- `T-INT-AP-001`: AP aging includes unpaid and partially settled supplier purchase invoices on
+  account `331` alongside project freelance payables, omits settled `company_*` invoices and owner
+  positions (`3388`, `1388`), and reconciles `tieStatus` against ledger account `331`
+  (`aging.integration.test.ts`).

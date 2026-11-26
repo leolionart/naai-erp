@@ -3928,14 +3928,24 @@ tasks:
   - id: ERP-984
     title: AP aging includes unpaid supplier invoices and keeps owner positions separate
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-975]
     business_rules: [BR-AP-001]
     tests: [T-INT-AP-001]
     plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-984/
+    agent: antigravity
+    started_at: 2026-11-26T18:47:00+07:00
+    completed_at: 2026-11-26T18:55:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/funding-and-account-reclassification.md
+      - apps/api/src/aging/pg-aging.store.ts
+      - apps/api/src/aging/aging.integration.test.ts
+      - packages/domain/src/aging.test.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-984/
 
   - id: ERP-985
     title: Reject non-base-currency postings with a clear error
