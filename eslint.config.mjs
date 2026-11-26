@@ -26,6 +26,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "max-lines": ["warn", { max: 500, skipBlankLines: true, skipComments: true }],
     },
   },
 );

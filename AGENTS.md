@@ -99,6 +99,11 @@ Any implementation that violates an invariant must stop; do not weaken a test to
 - User-facing financial flows require E2E drill-down evidence.
 - Docker/release changes require Compose validation and smoke tests.
 
+## Code size rule
+
+- Keep every new TypeScript/JavaScript source file at or below 500 lines (excluding blank lines and comments; enforced as a `max-lines` warning in `eslint.config.mjs`).
+- When extending an existing file that is already near or over 500 lines, extract new logic into focused helper modules instead of adding to the oversized file.
+
 ## Worktree and Git safety
 
 - Preserve unrelated user changes.
