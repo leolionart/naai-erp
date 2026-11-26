@@ -1491,9 +1491,11 @@ No task may be marked done with orphan business rules or untested behavior.
   allocations, evidence, external reference), reverses the old journal and creates a draft replacement;
   clients never assemble the replacement. The request is idempotent and needs the current version and a
   reason. Documents (purchase invoices) still change their control account only.
-- `BR-FUND-003` (planned): funding rules (priority-ordered matches on external system, supplier, category,
-  keyword, amount) and an organization default decide the payment source of newly ingested records when the
-  payload does not state one; an explicit `funding` in the payload always wins.
+- `BR-FUND-003`: funding rules (priority-ordered matches on external system, supplier tax ID,
+  category, keyword, amount range) and an organization default (`organization_funding_defaults`) decide
+  the payment source of newly ingested purchase invoices and expenses when the payload does not state
+  one; an explicit `funding` in the payload always wins. Rules and defaults are managed through
+  `/funding-rules` and testable via `POST /funding-rules/test`.
 - `BR-FUND-004` (planned): a change of payment source is one command that posts an adjusting journal in the
   open period (history is never edited), records who/when/why in a funding-change history, keeps amounts, VAT,
   tax states and allocations, and can address records by external reference.

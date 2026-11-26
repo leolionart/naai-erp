@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 114,
+  "mutationCount": 118,
   "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
@@ -39,6 +39,9 @@
     "forecast-versions",
     "forecast-versions/{forecastId}",
     "forecast-versions/{id}",
+    "funding-rules",
+    "funding-rules/test",
+    "funding-rules/{ruleId}",
     "journals",
     "journals/{journalId}",
     "master-data/{resource}",
@@ -1657,6 +1660,93 @@
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
       "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
       "uiActionFamily": "telegram-settings/test"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/funding-rules",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/funding-rules",
+      "operationId": null,
+      "resource": "funding-rules",
+      "action": "funding-rules",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "funding-rules"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/funding-rules/{ruleId}",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/funding-rules/{ruleId}",
+      "operationId": null,
+      "resource": "funding-rules",
+      "action": "{ruleId}",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "funding-rules/{ruleId}"
+    },
+    {
+      "id": "DELETE:/api/v1/organizations/{organizationId}/funding-rules/{ruleId}",
+      "method": "DELETE",
+      "path": "/api/v1/organizations/{organizationId}/funding-rules/{ruleId}",
+      "operationId": null,
+      "resource": "funding-rules",
+      "action": "{ruleId}",
+      "possibleActions": [],
+      "financialEffect": "destructive",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "required",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "retain-explicit-action",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency",
+        "explicit_confirmation",
+        "backup_or_reference_checks"
+      ],
+      "uiActionFamily": "funding-rules/{ruleId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/funding-rules/test",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/funding-rules/test",
+      "operationId": null,
+      "resource": "funding-rules",
+      "action": "test",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "funding-rules/test"
     },
     {
       "id": "POST:/api/v1/organizations/{organizationId}/outbound-events/endpoints",

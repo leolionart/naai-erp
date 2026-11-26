@@ -133,6 +133,10 @@ import { PgOperationalLogStore } from "./operational-logs/pg-operational-log.sto
 import { RequestLifecycleInterceptor } from "./operational-logs/request-lifecycle.interceptor.js";
 import { PgExpenseReportStore } from "./expense-reports/pg-expense-report.store.js";
 import { TimeController } from "./time/time.controller.js";
+import { FundingRulesController } from "./funding-rules/funding-rules.controller.js";
+import { FundingRulesService } from "./funding-rules/funding-rules.service.js";
+import { PgFundingRulesStore } from "./funding-rules/pg-funding-rules.store.js";
+import { FUNDING_RULES_STORE } from "./funding-rules/funding-rules.types.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -175,6 +179,7 @@ import { TimeController } from "./time/time.controller.js";
     ExpenseReportController,
     OperationalLogController,
     TimeController,
+    FundingRulesController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -204,6 +209,9 @@ import { TimeController } from "./time/time.controller.js";
     TelegramSettingsService,
     PgTelegramSettingsStore,
     { provide: TELEGRAM_SETTINGS_STORE, useExisting: PgTelegramSettingsStore },
+    FundingRulesService,
+    PgFundingRulesStore,
+    { provide: FUNDING_RULES_STORE, useExisting: PgFundingRulesStore },
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

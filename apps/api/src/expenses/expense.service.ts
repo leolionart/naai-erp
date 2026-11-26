@@ -1,6 +1,7 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
+import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgExpenseStore } from "./pg-expense.store.js";
 import type {
@@ -70,6 +71,7 @@ export class ExpenseService {
   constructor(
     @Inject(PgExpenseStore) private readonly store: PgExpenseStore,
     @Inject(MasterDataService) private readonly master: MasterDataService,
+    @Optional() @Inject(FundingRulesService) private readonly fundingRules?: FundingRulesService,
   ) {}
   authenticate(authorization: string | undefined, organizationId: string, correlationId: string) {
     return this.master.authenticate(authorization, organizationId, correlationId);
@@ -458,10 +460,40 @@ export class ExpenseService {
   async create(context: ExpenseContext, input: CreateExpenseInput, key?: string) {
     if (!context.roles.some((r) => WRITE.has(r))) throw new Error("FORBIDDEN");
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    let resolvedFunding = input.funding;
+    if (
+      !resolvedFunding &&
+      !input.fundingFinancialAccountId &&
+      !input.counterAccountCode?.trim() &&
+      this.fundingRules
+    ) {
+      const line = input.lines?.[0];
+      const resolution = await this.fundingRules.resolveForIngestion(context.organizationId, {
+        externalSystem: input.externalReference?.system,
+        partyId: input.payeePartyId,
+        categoryCode:
+          line?.expenseCategoryCode ??
+          (typeof line?.dimensions?.category === "string" ? line.dimensions.category : undefined),
+        description: input.businessPurpose || line?.description,
+        grossMinor: input.grossMinor,
+      });
+      resolvedFunding = resolution.resolvedFunding;
+    }
+    const derivedCounter =
+      input.counterAccountCode?.trim() ||
+      (resolvedFunding
+        ? resolvedFunding.type === "owner_paid"
+          ? "3388-OWNER"
+          : resolvedFunding.type === "company_bank"
+            ? "112-BANK"
+            : "111-CASH"
+        : "");
     const normalized = this.normalizeRelationships({
       ...input,
-      ...(input.funding?.financialAccountId && !input.fundingFinancialAccountId
-        ? { fundingFinancialAccountId: input.funding.financialAccountId }
+      ...(resolvedFunding ? { funding: resolvedFunding } : {}),
+      ...(derivedCounter ? { counterAccountCode: derivedCounter } : {}),
+      ...(resolvedFunding?.financialAccountId && !input.fundingFinancialAccountId
+        ? { fundingFinancialAccountId: resolvedFunding.financialAccountId }
         : {}),
     });
     this.validate(normalized);

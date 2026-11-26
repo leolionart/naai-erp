@@ -1,6 +1,7 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
+import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgCommercialDocumentStore } from "./pg-commercial-document.store.js";
 import type {
@@ -72,6 +73,7 @@ export class CommercialDocumentService {
   constructor(
     @Inject(PgCommercialDocumentStore) private readonly store: PgCommercialDocumentStore,
     @Inject(MasterDataService) private readonly masterData: MasterDataService,
+    @Optional() @Inject(FundingRulesService) private readonly fundingRules?: FundingRulesService,
   ) {}
   authenticate(authorization: string | undefined, organizationId: string, correlationId: string) {
     return this.masterData.authenticate(authorization, organizationId, correlationId);
@@ -429,18 +431,35 @@ export class CommercialDocumentService {
   ) {
     if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    let resolvedFunding = input.funding;
+    if (input.type === "purchase_invoice" && !resolvedFunding && !input.fundingSource) {
+      if (this.fundingRules) {
+        const line = input.lines?.[0];
+        const resolution = await this.fundingRules.resolveForIngestion(context.organizationId, {
+          externalSystem: input.externalReference?.system,
+          partyId: input.partyId,
+          categoryCode:
+            line?.categoryCode ??
+            (typeof line?.dimensions?.category === "string" ? line.dimensions.category : undefined),
+          description: line?.description,
+          grossMinor: input.grossMinor,
+        });
+        resolvedFunding = resolution.resolvedFunding;
+      } else {
+        resolvedFunding = { type: "owner_paid" as const };
+      }
+    }
     const normalized = this.normalizeRelationships({
       ...input,
-      ...(input.type === "purchase_invoice" && !input.funding && !input.fundingSource
-        ? { funding: { type: "owner_paid" as const } }
-        : {}),
-      ...((input.funding?.type === "company_bank" ||
-        input.funding?.type === "owner_custody_cash") &&
-      input.funding.financialAccountId
+      ...(resolvedFunding ? { funding: resolvedFunding } : {}),
+      ...((resolvedFunding?.type === "company_bank" ||
+        resolvedFunding?.type === "company_cash" ||
+        resolvedFunding?.type === "owner_custody_cash") &&
+      resolvedFunding.financialAccountId
         ? {
             fundingSource: {
               type: "financial_account" as const,
-              financialAccountId: input.funding.financialAccountId,
+              financialAccountId: resolvedFunding.financialAccountId,
             },
           }
         : {}),
@@ -742,7 +761,7 @@ export class CommercialDocumentService {
   }
   private validateFunding(input: CreateCommercialDocumentInput) {
     if (!input.funding) return;
-    const allowed = ["company_bank", "owner_paid", "owner_custody_cash"] as const;
+    const allowed = ["company_bank", "company_cash", "owner_paid", "owner_custody_cash"] as const;
     const type = input.funding.type;
     const fieldErrors: Array<{ field: string; message: string; expected?: readonly string[] }> = [];
     if (!allowed.includes(type))
@@ -752,7 +771,7 @@ export class CommercialDocumentService {
         expected: allowed,
       });
     if (
-      (type === "company_bank" || type === "owner_custody_cash") &&
+      (type === "company_bank" || type === "company_cash" || type === "owner_custody_cash") &&
       !input.funding.financialAccountId?.trim()
     )
       fieldErrors.push({

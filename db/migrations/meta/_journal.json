@@ -505,6 +505,13 @@
       "when": 1788224580000,
       "tag": "0072_allow_document_payment_state_reversal",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1788224640000,
+      "tag": "0073_funding_rules",
+      "breakpoints": true
     }
   ]
 }

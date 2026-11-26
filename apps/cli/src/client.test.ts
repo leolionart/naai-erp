@@ -985,6 +985,38 @@ describe("NAAI ERP JSON-first CLI client", () => {
     ]);
   });
 
+  it("routes funding-rules list, default, CRUD and test through the REST API", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const url = "http://api/api/v1/organizations/org-a/funding-rules";
+    await client.request("funding-rules", "list");
+    await client.request("funding-rules", "set-default", {
+      type: "company_cash",
+      financialAccountId: "cash-1",
+    });
+    await client.request("funding-rules", "create", { name: "r1", target: { type: "owner_paid" } });
+    await client.request("funding-rules", "update", { priority: 5 }, "r1", "1");
+    await client.request("funding-rules", "delete", undefined, "r1", "2");
+    await client.request("funding-rules", "test", { categoryCode: "PARKING" });
+    expect(fetchFn.mock.calls.map(([u, init]) => [u, init.method])).toEqual([
+      [url, "GET"],
+      [`${url}/default`, "PUT"],
+      [url, "POST"],
+      [`${url}/r1`, "PATCH"],
+      [`${url}/r1`, "DELETE"],
+      [`${url}/test`, "POST"],
+    ]);
+  });
+
   it("lists background activities through the canonical operational log API", async () => {
     const fetchFn = vi
       .fn()

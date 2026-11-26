@@ -1,5 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
+import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import type {
@@ -15,6 +16,7 @@ export class QuickPurchaseInvoiceService {
   constructor(
     @Inject(MasterDataService) private readonly masterData: MasterDataService,
     @Inject(CommercialDocumentService) private readonly documents: CommercialDocumentService,
+    @Optional() @Inject(FundingRulesService) private readonly fundingRules?: FundingRulesService,
   ) {}
 
   async create(
@@ -77,6 +79,20 @@ export class QuickPurchaseInvoiceService {
             ? "unreviewed"
             : "ineligible"
           : "unreviewed");
+    const resolvedFunding =
+      normalized.funding ??
+      (this.fundingRules
+        ? (
+            await this.fundingRules.resolveForIngestion(context.organizationId, {
+              externalSystem: normalized.externalReference?.system,
+              supplierTaxId: normalized.supplierTaxId,
+              partyId: supplier.partyId,
+              categoryCode: category.code,
+              description: normalized.description,
+              grossMinor: normalized.grossMinor,
+            })
+          ).resolvedFunding
+        : { type: "owner_paid" as const });
     const documentInput: CreateCommercialDocumentInput = {
       type: "purchase_invoice",
       documentNumber: normalized.documentNumber,
@@ -90,10 +106,7 @@ export class QuickPurchaseInvoiceService {
       taxMinor,
       grossMinor: normalized.grossMinor,
       controlAccountCode: accounts.controlAccountCode,
-      // Quick ingestion represents the common case where the owner paid the
-      // supplier personally. The API store resolves the configured owner-
-      // current ledger account; callers can still opt into company_bank.
-      funding: normalized.funding ?? { type: "owner_paid" },
+      funding: resolvedFunding,
       lines: [
         {
           description: normalized.description,
