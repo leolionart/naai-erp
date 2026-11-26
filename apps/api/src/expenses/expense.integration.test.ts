@@ -12,6 +12,7 @@ describeIntegration("ERP-310 expense workflow", () => {
   let app: Awaited<ReturnType<typeof createApp>>;
   const integrationToken = `erp310-integration-${organizationId}`;
   const accountantToken = `erp310-accountant-${organizationId}`;
+  const ownerToken = `erp310-owner-${organizationId}`;
 
   beforeAll(async () => {
     await pool.query(`
@@ -50,14 +51,15 @@ describeIntegration("ERP-310 expense workflow", () => {
              ('${organizationId}','642-OPEX','Operating expense','expense',false,true),
              ('${organizationId}','1331-VAT','Deductible VAT','asset',true,false);
     `);
-    const hashes = [integrationToken, accountantToken].map((token) =>
+    const hashes = [integrationToken, accountantToken, ownerToken].map((token) =>
       createHash("sha256").update(token).digest("hex"),
     );
     await pool.query(
       `insert into api_credentials (organization_id,id,actor_id,token_hash,roles) values
        ($3,'exp-integration','maker',$1,'["integration"]'),
-       ($3,'exp-accountant','accountant',$2,'["accountant","approver"]')`,
-      [...hashes, organizationId],
+       ($3,'exp-accountant','accountant',$2,'["accountant","approver"]'),
+       ($3,'exp-owner','owner-user',$4,'["owner"]')`,
+      [hashes[0], hashes[1], organizationId, hashes[2]],
     );
     app = await createApp();
     await app.init();
@@ -93,6 +95,85 @@ describeIntegration("ERP-310 expense workflow", () => {
       headers: headers(accountantToken, key),
       payload: { axis, lineNumber: 1, state, eligibleMinor, reason: `${axis} review` },
     });
+
+  it("lets a solopreneur owner approve and post an API-created draft without a separate tax review", async () => {
+    const setMode = (mode: "solopreneur" | "controlled") =>
+      pool.query(
+        `insert into accounting_workflow_policies(organization_id,allow_self_approval,self_approval_max_minor,operating_mode,updated_by)
+         values($1,false,null,$2,'owner')
+         on conflict(organization_id) do update set operating_mode=$2,updated_by='owner'`,
+        [organizationId, mode],
+      );
+    const payload = (id: string, day = "05") => ({
+      id,
+      expenseClass: "invoice_backed",
+      payeePartyId: "SUP-01",
+      expenseDate: `2026-08-${day}`,
+      businessPurpose: "Hóa đơn gửi qua n8n",
+      currency: "VND",
+      netMinor: "1000",
+      vatMinor: "100",
+      grossMinor: "1100",
+      counterAccountCode: "331-AP",
+      evidenceChecklist: { invoice: true },
+      externalReference: { system: "paperless-ngx", externalId: `paperless-${id}` },
+      lines: [
+        {
+          description: "Hóa đơn gửi qua n8n",
+          netMinor: "1000",
+          vatMinor: "100",
+          grossMinor: "1100",
+          postingAccountCode: "642-OPEX",
+          vatAccountCode: "1331-VAT",
+          allocations: [
+            { id: `${id}-a`, amountMinor: "1000", dimensions: { costCenter: "ADMIN" } },
+          ],
+        },
+      ],
+    });
+    const create = (id: string, day?: string) =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${organizationId}/expenses`,
+        headers: headers(integrationToken, `mode-create-${id}`),
+        payload: payload(id, day),
+      });
+    const drive = async (id: string, token: string) => {
+      expect((await command(id, "submit", token, `${id}-submit`)).statusCode).toBe(201);
+      return command(id, "approve", token, `${id}-approve`);
+    };
+    try {
+      await setMode("solopreneur");
+      expect((await create("exp-mode-solo")).json().data.state).toBe("draft");
+      const approved = await drive("exp-mode-solo", ownerToken);
+      expect(approved.statusCode, approved.body).toBe(201);
+      const posted = await command("exp-mode-solo", "post", ownerToken, "exp-mode-solo-post");
+      expect(posted.statusCode, posted.body).toBe(201);
+      const states = await pool.query(
+        `select management_state::text,cit_state::text,vat_state::text,cit_eligible_minor::text,
+                vat_eligible_minor::text,review_reference
+           from expense_lines where organization_id=$1 and expense_id='exp-mode-solo'`,
+        [organizationId],
+      );
+      expect(states.rows[0]).toEqual({
+        management_state: "valid",
+        cit_state: "eligible",
+        vat_state: "eligible",
+        cit_eligible_minor: "1000",
+        vat_eligible_minor: "100",
+        review_reference: "solopreneur_policy",
+      });
+
+      // Controlled mode keeps the explicit tax review requirement.
+      await setMode("controlled");
+      expect((await create("exp-mode-controlled", "06")).json().data.state).toBe("draft");
+      const blocked = await drive("exp-mode-controlled", accountantToken);
+      expect(blocked.statusCode).toBe(422);
+      expect(blocked.json().error.code).toBe("EXPENSE_REVIEW_INCOMPLETE");
+    } finally {
+      await setMode("controlled");
+    }
+  });
 
   it("defaults documented expenses to final tax states in owner-final mode while preserving overrides", async () => {
     await pool.query(
@@ -666,7 +747,8 @@ describeIntegration("ERP-310 expense workflow", () => {
       payload: {
         id,
         expenseClass: "payroll_personnel",
-        expenseDate: "2026-08-01",
+        // A date no other test uses: same payee/date/amount is rejected as a duplicate document.
+        expenseDate: "2026-08-27",
         businessPurpose: "Inferred payroll draft to discard",
         currency: "VND",
         netMinor: "1000000",

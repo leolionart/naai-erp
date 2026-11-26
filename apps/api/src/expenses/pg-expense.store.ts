@@ -1932,7 +1932,13 @@ export class PgExpenseStore {
       if (action === "approve") {
         if (e.created_by === context.actorId)
           await this.selfApproval(c, context, BigInt(e.gross_minor));
-        await this.assertReviewReady(c, context.organizationId, e);
+        // Solopreneur owners approve without a separate tax review: apply the same documented
+        // defaults as the tax-finalization batch so an API/n8n draft can be approved directly.
+        const solopreneurOwner =
+          context.roles.includes("owner") &&
+          (await this.operatingMode(c, context.organizationId)) === "solopreneur";
+        if (solopreneurOwner) await this.applySolopreneurTaxDefaults(c, context, e);
+        await this.assertReviewReady(c, context.organizationId, e, solopreneurOwner);
       }
       let journalId: string | undefined;
       if (action === "post") {
@@ -2393,7 +2399,81 @@ export class PgExpenseStore {
       ],
     );
   }
-  private async assertReviewReady(c: PoolClient, organizationId: string, e: StoredExpense) {
+  /**
+   * Fills only the still-"unreviewed" tax axes of a draft expense with the solopreneur defaults
+   * (management valid; CIT eligible unless the class/account is excluded; VAT eligible when the
+   * documented line carries input VAT). Explicit reviews and overrides are never touched.
+   */
+  private async applySolopreneurTaxDefaults(
+    c: PoolClient,
+    context: ExpenseContext,
+    e: StoredExpense,
+  ) {
+    const lines = await c.query<{
+      line_number: number;
+      management_state: string;
+      cit_state: string;
+      vat_state: string;
+      net_minor: string;
+      vat_minor: string;
+      vat_account_code: string | null;
+      root_type: string | null;
+    }>(
+      `select l.line_number,l.management_state::text,l.cit_state::text,l.vat_state::text,
+              l.net_minor::text,l.vat_minor::text,l.vat_account_code,a.root_type::text
+         from expense_lines l
+         left join accounts a on a.organization_id=l.organization_id and a.code=l.posting_account_code
+        where l.organization_id=$1 and l.expense_id=$2
+          and (l.management_state='unreviewed' or l.cit_state='unreviewed' or l.vat_state='unreviewed')
+        order by l.line_number`,
+      [context.organizationId, e.id],
+    );
+    if (!lines.rows.length) return;
+    const excluded = [
+      "non_documented",
+      "owner_personal",
+      "petty_cash",
+      "prepaid",
+      "prepaid_asset",
+      "fixed_asset",
+    ].includes(e.expense_class);
+    const invalid = ["non_documented", "owner_personal", "petty_cash"].includes(e.expense_class);
+    await c.query("select set_config('app.tax_finalization','on',true)");
+    for (const line of lines.rows) {
+      const citEligible = !excluded && line.root_type !== "asset";
+      const vatEligible =
+        !excluded && line.vat_account_code !== null && BigInt(line.vat_minor) > 0n;
+      await c.query(
+        `update expense_lines set
+           management_state=case when management_state='unreviewed' then $4::management_validity_state else management_state end,
+           cit_state=case when cit_state='unreviewed' then $5::eligibility_state else cit_state end,
+           cit_eligible_minor=case when cit_state='unreviewed' then $6 else cit_eligible_minor end,
+           vat_state=case when vat_state='unreviewed' then $7::eligibility_state else vat_state end,
+           vat_eligible_minor=case when vat_state='unreviewed' then $8 else vat_eligible_minor end,
+           reviewed_by=$9,reviewed_at=now(),review_reason='Solopreneur default on approval',
+           review_reference='solopreneur_policy'
+         where organization_id=$1 and expense_id=$2 and line_number=$3`,
+        [
+          context.organizationId,
+          e.id,
+          line.line_number,
+          invalid ? "invalid" : "valid",
+          citEligible ? "eligible" : "ineligible",
+          citEligible ? line.net_minor : "0",
+          vatEligible ? "eligible" : "ineligible",
+          vatEligible ? line.vat_minor : "0",
+          context.actorId,
+        ],
+      );
+    }
+    await this.refreshSummary(c, context.organizationId, e.id);
+  }
+  private async assertReviewReady(
+    c: PoolClient,
+    organizationId: string,
+    e: StoredExpense,
+    sourceDocumentCounts = false,
+  ) {
     const r = await c.query<{
       management_state: string;
       cit_state: string;
@@ -2433,7 +2513,17 @@ export class PgExpenseStore {
         [organizationId, e.id],
       );
       const types = new Set(evidence.rows.map((row) => row.evidence_type));
-      if (required.some((name) => !types.has(name))) throw new Error("EXPENSE_EVIDENCE_INCOMPLETE");
+      if (required.some((name) => !types.has(name))) {
+        // Paperless/n8n own the source files: a linked external document is the evidence of record
+        // for a solopreneur owner, so it is accepted without a duplicate ERP evidence upload.
+        const linked = sourceDocumentCounts
+          ? await c.query(
+              "select 1 from external_references where organization_id=$1 and expense_id=$2 limit 1",
+              [organizationId, e.id],
+            )
+          : undefined;
+        if (!linked?.rows[0]) throw new Error("EXPENSE_EVIDENCE_INCOMPLETE");
+      }
     }
   }
   private async refreshSummary(c: PoolClient, org: string, id: string) {

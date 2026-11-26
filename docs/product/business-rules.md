@@ -1470,3 +1470,9 @@ No task may be marked done with orphan business rules or untested behavior.
   code version is usable wherever the owner-current account, VAT tax-code resolution/review or owner
   cash movements need one; controlled mode still requires `approved` / `accountant_approved`. Without
   this an owner-funded purchase invoice could not be ingested until an accountant approved the mapping.
+- `BR-MODE-004`: in solopreneur mode, when an `owner` approves a draft expense (such as one created
+  via API/n8n), any still-`unreviewed` management/CIT/VAT axes are automatically populated with the
+  documented solopreneur defaults while preserving any explicit reviews or overrides, and
+  source-document evidence satisfies the review-readiness check. `controlled` mode continues to
+  require explicit tax review before approval. Discarded expenses do not block duplicate-document
+  checks.

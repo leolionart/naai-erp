@@ -3731,6 +3731,24 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-970/
 
+  - id: ERP-971
+    title: Solopreneur owner approval auto-applies tax defaults on API/n8n draft expenses
+    phase: P16
+    status: done
+    dependencies: [ERP-970]
+    business_rules: [BR-MODE-004]
+    tests: [T-INT-MODE-004]
+    evidence: docs/implementation/evidence/ERP-971/
+    agent: antigravity
+    started_at: 2026-11-26T08:45:00+07:00
+    completed_at: 2026-11-26T08:50:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
+    planned_files:
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/expenses/expense.integration.test.ts
+      - docs/product/business-rules.md
+      - docs/implementation/evidence/ERP-971/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
