@@ -56,11 +56,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     if (!organization.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
     const [projects, clients, quality, sourceControls, aging, financials] = await Promise.all([
       this.projects(org, q),
-      this.clients(org, q),
+      this.clients(org, q, organization.rows[0].base_currency),
       this.quality(org, q.limit),
       this.sourceControls(org, q),
       this.aging.report(org, "ar", { asOf: q.asOf, limit: 100, includeSettled: false }),
-      this.financials(org, q),
+      this.financials(org, q, organization.rows[0].base_currency),
     ]);
     const contracted = projects.reduce((sum, row) => sum + amount(row.contractedMinor), 0n);
     const invoiced = projects.reduce((sum, row) => sum + amount(row.invoicedMinor), 0n);
@@ -70,7 +70,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       shareBps: ratioBps(amount(row.revenueMinor), totalRevenue),
     }));
     const ar = amount(aging.outstandingTotalMinor);
-    const creditSales = await this.creditSales(org, q.asOf);
+    const creditSales = await this.creditSales(org, q.asOf, organization.rows[0].base_currency);
     const overdue = aging.items
       .filter((item) => item.bucket !== "current")
       .reduce((sum, item) => sum + amount(item.outstandingMinor), 0n);
@@ -158,7 +158,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     };
   }
 
-  private async financials(org: string, q: OperatingDashboardQuery) {
+  /**
+   * Revenue/expense are summed in minor units, so only base-currency journals are included:
+   * adding USD and VND minor units would silently produce a meaningless total.
+   */
+  private async financials(org: string, q: OperatingDashboardQuery, baseCurrency: string) {
     const [
       monthlyResult,
       cash,
@@ -178,10 +182,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
          join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
          join accounts a on a.organization_id=l.organization_id and a.code=l.account_code
         where j.organization_id=$1 and j.state in ('posted','reversed')
+          and j.currency=$4
           and j.journal_date between $2::date and $3::date
         group by to_char(j.journal_date, 'YYYY-MM')
         order by to_char(j.journal_date, 'YYYY-MM')`,
-        [org, q.startsOn, q.endsOn],
+        [org, q.startsOn, q.endsOn, baseCurrency],
       ),
       this.pool.query<{ amount: string | null }>(
         `with workflow_policy as (
@@ -530,6 +535,20 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
           ]
         : [];
     if (companyCashOnHandMinor < 0n) configurationWarnings.push("shared_cash_ledger_unreconciled");
+    // Foreign-currency items are excluded from base-currency totals; tell the user so the omission
+    // is never silent.
+    const foreign = await this.pool.query<{ count: number }>(
+      `select (
+         (select count(*) from journal_entries where organization_id=$1 and state in ('posted','reversed')
+            and currency<>$4 and journal_date between $2::date and $3::date)
+         + (select count(*) from commercial_documents where organization_id=$1
+              and state in ('issued','posted','partially_paid','paid')
+              and currency<>$4 and document_date between $2::date and $3::date)
+       )::int count`,
+      [org, q.startsOn, q.endsOn, baseCurrency],
+    );
+    if ((foreign.rows[0]?.count ?? 0) > 0)
+      configurationWarnings.push("foreign_currency_excluded_from_totals");
     const citIneligible = amount(expenseFunding.rows[0]?.cit_ineligible);
     const taxableProfit = netProfit + citIneligible;
     // Preserve the signed taxable result for reporting.  Only the CIT tax
@@ -631,28 +650,33 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     ).rows;
   }
 
-  private async clients(org: string, q: OperatingDashboardQuery) {
+  private async clients(org: string, q: OperatingDashboardQuery, baseCurrency: string) {
     return (
       await this.pool.query<Record<string, unknown>>(
         `select d.party_id "clientId",p.display_name "clientName",
                 sum(case when d.type='credit_note' then -d.net_minor else d.net_minor end)::text "revenueMinor",
                 count(*)::int "invoiceCount"
        from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id
-       where d.organization_id=$1 and d.type in ('sales_invoice','credit_note') and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and least($3::date,$4::date)
+       where d.organization_id=$1 and d.type in ('sales_invoice','credit_note') and d.currency=$5 and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and least($3::date,$4::date)
        group by d.party_id,p.display_name order by sum(case when d.type='credit_note' then -d.net_minor else d.net_minor end) desc,d.party_id`,
-        [org, q.startsOn, q.endsOn, q.asOf],
+        [org, q.startsOn, q.endsOn, q.asOf, baseCurrency],
       )
     ).rows;
   }
 
-  private async creditSales(org: string, asOf: string) {
+  /**
+   * DSO compares receivables (VAT-inclusive, as aging is gross) with sales over the trailing 90
+   * days, so sales must also be gross; using net understated sales and overstated DSO by the VAT rate.
+   */
+  private async creditSales(org: string, asOf: string, baseCurrency: string) {
     const result = await this.pool.query<{ amount: string }>(
-      `select coalesce(sum(case when type='credit_note' then -net_minor else net_minor end),0)::text amount
+      `select coalesce(sum(case when type='credit_note' then -gross_minor else gross_minor end),0)::text amount
          from commercial_documents
         where organization_id=$1 and type in ('sales_invoice','credit_note')
           and state in ('issued','posted','partially_paid','paid')
+          and currency=$3
           and document_date between ($2::date-89) and $2`,
-      [org, asOf],
+      [org, asOf, baseCurrency],
     );
     return amount(result.rows[0]?.amount);
   }

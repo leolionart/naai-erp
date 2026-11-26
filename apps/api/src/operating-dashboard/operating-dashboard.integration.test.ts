@@ -185,6 +185,34 @@ suite("operating dashboard PostgreSQL API", () => {
     expect(after).toEqual(before);
   });
 
+  it("excludes foreign-currency documents from base-currency totals and computes DSO on gross sales", async () => {
+    await pool.query(
+      `insert into commercial_documents(organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,journal_id,created_by)
+       values($1,'usd-invoice','sales_invoice','issued','OPS-USD','OPS',2026,'client','2026-07-15','2026-08-15','USD',99999,0,99999,'131',null,$2)`,
+      [org, owner],
+    );
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/v1/organizations/${org}/reports/operating-dashboard?asOf=2026-08-06&startsOn=2026-01-01&endsOn=2026-08-06`,
+        headers: { authorization: `Bearer ${token}`, "x-correlation-id": "dashboard-usd" },
+      });
+      const data = response.json().data;
+      expect(data.clientConcentration.totalRevenueMinor).toBe("1000");
+      // Gross (1100, VAT included) matches the VAT-inclusive receivable basis; USD is excluded.
+      expect(data.collections.creditSalesMinor).toBe("1100");
+      expect(data.financials.revenueMinor).toBe("1000");
+      expect(data.financials.configurationWarnings).toContain(
+        "foreign_currency_excluded_from_totals",
+      );
+    } finally {
+      await pool.query(
+        "delete from commercial_documents where organization_id=$1 and id='usd-invoice'",
+        [org],
+      );
+    }
+  });
+
   it("classifies legacy owner-current expenses as owner-paid in owner-final mode", async () => {
     await pool.query(
       `insert into accounting_workflow_policies
