@@ -2,6 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
 import {
+  applyDocumentLineCategoryUpdate,
+  assertDocumentCategory,
+} from "../master-data/canonical-category-validation.js";
+import {
   canSelfApprove,
   resolveOrganizationWorkflowPolicy,
 } from "../workflow-policy/organization-workflow-policy.service.js";
@@ -428,15 +432,7 @@ export class PgCommercialDocumentStore {
         : defaultTax;
     const categoryCode = line.categoryCode?.trim() || line.dimensions?.category?.trim() || null;
     if (categoryCode) {
-      const category = await client.query(
-        "select 1 from business_categories where organization_id=$1 and kind=$2 and code=$3 and is_active=true",
-        [
-          context.organizationId,
-          input.type === "purchase_invoice" ? "expense" : "revenue",
-          categoryCode,
-        ],
-      );
-      if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+      await assertDocumentCategory(client, context.organizationId, input.type, categoryCode);
     }
     const dimensions = Object.fromEntries(
       Object.entries(line.dimensions ?? {}).filter(([key]) => key !== "category"),
@@ -574,32 +570,21 @@ export class PgCommercialDocumentStore {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
-      const document = await client.query<{ version: string }>(
-        "select version::text from commercial_documents where organization_id=$1 and id=$2 for update",
+      const document = await client.query<{ version: string; type: CommercialDocumentType }>(
+        "select version::text,type from commercial_documents where organization_id=$1 and id=$2 for update",
         [context.organizationId, id],
       );
       if (!document.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
-      const categoryRow = await client.query(
-        `select 1 from business_categories bc
-         join commercial_documents d on d.organization_id=bc.organization_id
-           and d.id=$2
-         where bc.organization_id=$1 and bc.kind=case when d.type='purchase_invoice' then 'expense'::business_category_type else 'revenue'::business_category_type end
-           and bc.code=$3 and bc.is_active=true`,
-        [context.organizationId, id, category],
-      );
-      if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+      await assertDocumentCategory(client, context.organizationId, document.rows[0].type, category);
       const before = await client.query<{ line_number: number; category: string | null }>(
-        "select line_number,category_code category from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
+        "select line_number,coalesce(category_code,dimensions->>'category') category from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
         [context.organizationId, id],
       );
       if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
       await client.query(
         "select set_config('app.commercial_document_metadata_correction','on',true)",
       );
-      await client.query(
-        "update commercial_document_lines set category_code=$3 where organization_id=$1 and document_id=$2",
-        [context.organizationId, id, category],
-      );
+      await applyDocumentLineCategoryUpdate(client, context.organizationId, id, category);
       const version = BigInt(document.rows[0].version) + 1n;
       await client.query(
         "update commercial_documents set version=$3,updated_at=now() where organization_id=$1 and id=$2",
@@ -735,15 +720,12 @@ export class PgCommercialDocumentStore {
         }
       }
       if (input.category) {
-        const c = await client.query(
-          "select 1 from business_categories where organization_id=$1 and kind=$2 and code=$3 and is_active=true",
-          [
-            context.organizationId,
-            doc.rows[0]?.type === "purchase_invoice" ? "expense" : "revenue",
-            input.category,
-          ],
+        await assertDocumentCategory(
+          client,
+          context.organizationId,
+          doc.rows[0].type,
+          input.category,
         );
-        if (!c.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
       }
       const before = await client.query(
         "select line_number,description,dimensions from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number",
@@ -783,9 +765,11 @@ export class PgCommercialDocumentStore {
         }
       }
       if (Object.prototype.hasOwnProperty.call(input, "category"))
-        await client.query(
-          "update commercial_document_lines set category_code=$3 where organization_id=$1 and document_id=$2",
-          [context.organizationId, id, input.category ?? null],
+        await applyDocumentLineCategoryUpdate(
+          client,
+          context.organizationId,
+          id,
+          input.category ?? null,
         );
       const version = (BigInt(doc.rows[0].version) + 1n).toString();
       await client.query(

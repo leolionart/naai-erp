@@ -755,3 +755,12 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   `Dr 112 / Cr 3388` with zero revenue, reconciles the bank transaction, reflects in `owner-current-movements`
   and `operating-dashboard`, allows `company_bank` expenses to link `ownerFundingTransactionId` for traceability,
   and exposes `owner_repayment` (`Dr 3388 / Cr 112`) on the same API/CLI surface (`owner-funding.integration.test.ts`).
+- `T-INT-EDIT-001`: expense and commercial-document `metadata` and `category` updates validate against
+  canonical `business_categories` and `expense_categories` first, reject deactivated canonical codes, and
+  fall back to legacy `dimension_values(kind='category')` only when absent from canonical catalogs
+  (`expense.integration.test.ts`, `commercial-document.integration.test.ts`,
+  `canonical-category-validation.test.ts`).
+- `T-E2E-EDIT-002`: UI category/role lookups use canonical `master-data/expense-categories` and
+  `master-data/party-roles` without calling obsolete `time/workers`, translate raw API error codes into
+  Vietnamese, and render distinct headings for load errors versus action errors
+  (`error-messages.test.ts`, `focused-record-shared.test.ts`, `focused-record-alerts.test.tsx`).

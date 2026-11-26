@@ -29,10 +29,16 @@ export class TimeController {
         { active: true },
       );
     } catch (error) {
-      // Older local clones may predate the workforce migration. Keep forms
-      // usable until migrations are applied; production with the table still
-      // receives the canonical master-data response above.
-      if (error instanceof Error && error.message.includes("WORKFORCE_PROFILES")) {
+      // Workforce profiles were removed with the obsolete timesheet subsystem (ERP-905).
+      // Return an empty compatibility list when the legacy table is absent.
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: unknown }).code ?? "")
+          : "";
+      if (
+        code === "42P01" ||
+        (error instanceof Error && /workforce_profiles/i.test(error.message))
+      ) {
         return { apiVersion: "v1", requestId: context.correlationId, organizationId, items: [] };
       }
       throw error;

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { RecordVoidControl } from "./focused-record-void-control";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ModulePage } from "@/components/layout/module-page";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,19 +35,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuthenticatedApiClient } from "@/lib/api";
+import { formatApiErrorMessage, useAuthenticatedApiClient } from "@/lib/api";
 import {
   DocumentForm,
   ExpenseForm,
   getFundingSourceLabel,
 } from "@/components/forms/document-expense-forms";
+import { FocusedRecordErrorAlert } from "./focused-record-alerts";
+import { ActionDialog, SourceCard } from "./focused-record-detail-dialogs";
 import { presentRevenueRecord } from "./focused-record-presentation";
 import type { Kind, Row } from "./focused-record-shared";
 import {
+  FOCUSED_RECORD_MASTER_DATA_ENDPOINTS,
   nonNullRow,
   config,
   documentActions,
   expenseActions,
+  partiesByRole,
   text,
   items,
   money,
@@ -75,7 +78,8 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const [freelancers, setFreelancers] = useState<readonly Row[]>([]);
   const [projects, setProjects] = useState<readonly Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [action, setAction] = useState<string>();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -86,71 +90,37 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
-    setError("");
+    setLoadError("");
     if (!hasToken) {
       setRecord(undefined);
-      setError("AUTH_REQUIRED");
+      setLoadError(formatApiErrorMessage("AUTH_REQUIRED"));
       setLoading(false);
       return;
     }
     try {
-      const [resRecord, partiesRes, rolesRes, workersRes, projectsRes] = await Promise.all([
+      const [resRecord, partiesRes, rolesRes, projectsRes] = await Promise.all([
         client.data<Row>(`${current.endpoint}/${encodeURIComponent(recordId)}`),
-        client.data<readonly Row[] | { items: readonly Row[] }>("master-data/parties?limit=500"),
         client.data<readonly Row[] | { items: readonly Row[] }>(
-          "master-data/party-roles?limit=500",
+          FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.parties,
         ),
-        kind === "expenses"
-          ? client
-              .data<readonly Row[] | { items: readonly Row[] }>("time/workers")
-              .catch(() => [] as readonly Row[])
-          : Promise.resolve([] as readonly Row[]),
-        client.data<readonly Row[] | { items: readonly Row[] }>("master-data/projects?limit=500"),
+        client.data<readonly Row[] | { items: readonly Row[] }>(
+          FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.partyRoles,
+        ),
+        client.data<readonly Row[] | { items: readonly Row[] }>(
+          FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.projects,
+        ),
       ]);
       setRecord(resRecord);
       const listedParties = items(partiesRes);
       const listedRoles = items(rolesRes);
-      const listedWorkers = items(workersRes);
       setParties(listedParties);
-      setClients(
-        listedParties.filter((party) =>
-          listedRoles.some(
-            (role) =>
-              text(role, "role") === "client" &&
-              text(role, "partyId", "party_id") === text(party, "id"),
-          ),
-        ),
-      );
-      setPayees(
-        listedParties.filter((party) =>
-          listedRoles.some(
-            (role) =>
-              text(role, "role") === "supplier" &&
-              text(role, "partyId", "party_id") === text(party, "id"),
-          ),
-        ),
-      );
-      setFreelancers(
-        listedParties.filter((party) =>
-          listedRoles.some(
-            (role) =>
-              text(role, "role") === "freelancer" &&
-              text(role, "partyId", "party_id") === text(party, "id"),
-          ),
-        ),
-      );
-      setEmployees(
-        listedParties.filter((party) =>
-          listedWorkers.some(
-            (worker) =>
-              text(worker, "status") === "active" &&
-              text(worker, "workerPartyId", "worker_party_id") === text(party, "id"),
-          ),
-        ),
-      );
+      setClients(partiesByRole(listedParties, listedRoles, "client"));
+      setPayees(partiesByRole(listedParties, listedRoles, "supplier"));
+      setFreelancers(partiesByRole(listedParties, listedRoles, "freelancer"));
+      setEmployees(partiesByRole(listedParties, listedRoles, "employee"));
       setProjects(items(projectsRes).filter((project) => text(project, "state") !== "closed"));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
+      setLoadError(formatApiErrorMessage(cause, `Không thể tải ${current.singular}.`));
     } finally {
       setLoading(false);
     }
@@ -168,7 +138,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   async function transition() {
     if (!action || !reason.trim()) return;
     setBusy(true);
-    setError("");
+    setActionError("");
     try {
       await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}/${action}`, {
         method: "POST",
@@ -181,7 +151,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setReason("");
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể thực hiện thao tác.");
+      setActionError(formatApiErrorMessage(cause, "Không thể thực hiện thao tác."));
     } finally {
       setBusy(false);
     }
@@ -189,7 +159,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   async function review() {
     if (!reason.trim()) return;
     setBusy(true);
-    setError("");
+    setActionError("");
     try {
       await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}/review`, {
         method: "POST",
@@ -199,7 +169,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setReason("");
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể lưu review.");
+      setActionError(formatApiErrorMessage(cause, "Không thể lưu review."));
     } finally {
       setBusy(false);
     }
@@ -207,7 +177,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
   async function update(body: Row) {
     if (!record) return;
     setBusy(true);
-    setError("");
+    setActionError("");
     try {
       await client.data(`${current.endpoint}/${encodeURIComponent(recordId)}`, {
         method: "PATCH",
@@ -217,7 +187,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
       setEditOpen(false);
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Không thể sửa ${current.singular}.`);
+      setActionError(formatApiErrorMessage(cause, `Không thể sửa ${current.singular}.`));
     } finally {
       setBusy(false);
     }
@@ -238,7 +208,13 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           </Button>
           <div className="flex flex-wrap gap-2">
             {state === "draft" ? (
-              <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setActionError("");
+                  setEditOpen(true);
+                }}
+              >
                 Sửa draft
               </Button>
             ) : null}
@@ -246,23 +222,30 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
               <Button
                 key={name}
                 variant={name === "cancel" || name === "reject" ? "destructive" : "outline"}
-                onClick={() => setAction(name)}
+                onClick={() => {
+                  setActionError("");
+                  setAction(name);
+                }}
               >
                 {human(name)}
               </Button>
             ))}
             {kind === "expenses" && record ? (
-              <Button variant="outline" onClick={() => setReviewOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setActionError("");
+                  setReviewOpen(true);
+                }}
+              >
                 Review quản trị / thuế
               </Button>
             ) : null}
           </div>
         </div>
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Không thể hoàn tất thao tác</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        <FocusedRecordErrorAlert kind="load" message={loadError} />
+        {!editOpen && !reviewOpen && !action ? (
+          <FocusedRecordErrorAlert kind="action" message={actionError} />
         ) : null}
         {loading ? (
           <Skeleton className="h-96 w-full" />
@@ -385,10 +368,20 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
         reason={reason}
         setReason={setReason}
         busy={busy}
-        onClose={() => setAction(undefined)}
+        error={actionError}
+        onClose={() => {
+          setAction(undefined);
+          setActionError("");
+        }}
         onConfirm={() => void transition()}
       />
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setActionError("");
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Sửa draft {current.singular}</DialogTitle>
@@ -397,6 +390,7 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
               bản ghi đã thay đổi hoặc không còn draft, API sẽ từ chối cập nhật.
             </DialogDescription>
           </DialogHeader>
+          <FocusedRecordErrorAlert kind="action" message={actionError} />
           {record ? (
             kind === "documents" ? (
               <DocumentForm
@@ -426,12 +420,19 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
           ) : null}
         </DialogContent>
       </Dialog>
-      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+      <Dialog
+        open={reviewOpen}
+        onOpenChange={(open) => {
+          setReviewOpen(open);
+          if (!open) setActionError("");
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Review chi phí</DialogTitle>
             <DialogDescription>Trạng thái quản trị, CIT và VAT độc lập.</DialogDescription>
           </DialogHeader>
+          <FocusedRecordErrorAlert kind="action" message={actionError} />
           <FieldGroup>
             <Field>
               <FieldLabel>Trục review</FieldLabel>
@@ -494,109 +495,5 @@ export function FocusedRecordDetailWorkspace({ kind, recordId }: { kind: Kind; r
         </DialogContent>
       </Dialog>
     </ModulePage>
-  );
-}
-
-function ActionDialog({
-  action,
-  reason,
-  setReason,
-  busy,
-  onClose,
-  onConfirm,
-}: {
-  action?: string;
-  reason: string;
-  setReason(value: string): void;
-  busy: boolean;
-  onClose(): void;
-  onConfirm(): void;
-}) {
-  return (
-    <Dialog
-      open={Boolean(action)}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Xác nhận {human(action ?? "")}</DialogTitle>
-          <DialogDescription>
-            Thao tác lifecycle được gửi qua cùng REST service với CLI/AI và có idempotency.
-          </DialogDescription>
-        </DialogHeader>
-        <Field>
-          <FieldLabel htmlFor="action-reason">Lý do</FieldLabel>
-          <Input
-            id="action-reason"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
-        </Field>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button disabled={busy || !reason.trim()} onClick={onConfirm}>
-            Xác nhận
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function SourceCard({ source, record }: { source?: Row; record: Row }) {
-  const url = text(source, "canonicalUrl", "url");
-  const journalId = text(record, "journalId", "postingJournalId");
-  const reconciliationIds = Array.isArray(record.reconciliationIds)
-    ? record.reconciliationIds.map(String)
-    : [];
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Nguồn và liên kết kế toán</CardTitle>
-        <CardDescription>
-          Paperless chỉ được hiển thị khi API trả external-reference metadata chính thức.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-sm text-muted-foreground">Nguồn ngoài</p>
-          {source ? (
-            <div className="flex flex-col gap-1">
-              <strong>{text(source, "system") || "External"}</strong>
-              <span className="font-mono text-xs">{text(source, "externalId")}</span>
-              {url ? (
-                <Button variant="link" className="w-fit px-0" asChild>
-                  <a href={url} target="_blank" rel="noreferrer">
-                    Mở nguồn canonical <ExternalLink data-icon="inline-end" />
-                  </a>
-                </Button>
-              ) : null}
-            </div>
-          ) : (
-            <p>Chưa có external reference.</p>
-          )}
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Journal / reconciliation</p>
-          <div className="flex flex-wrap gap-2">
-            {journalId ? <Badge variant="outline">Journal {journalId}</Badge> : null}
-            {reconciliationIds.map((id) => (
-              <Button key={id} variant="outline" size="sm" asChild>
-                <Link href={`/banking/reconciliation/${encodeURIComponent(id)}`}>
-                  Reconciliation {id}
-                </Link>
-              </Button>
-            ))}
-            {!journalId && !reconciliationIds.length ? (
-              <span>Chưa có liên kết đã post/đối soát.</span>
-            ) : null}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

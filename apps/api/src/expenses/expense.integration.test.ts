@@ -1272,4 +1272,94 @@ describeIntegration("ERP-310 expense workflow", () => {
       },
     ]);
   });
+
+  it("T-INT-EDIT-001 updates expense metadata and category using canonical categories without legacy dimension_values", async () => {
+    const orgCanonical = `org-exp-canonical-${process.pid}`;
+    const canonicalToken = `exp-canonical-token-${process.pid}`;
+    const canonicalHash = createHash("sha256").update(canonicalToken).digest("hex");
+    for (const [sql, params] of [
+      [
+        `insert into organizations(id,legal_name,base_currency,timezone) values($1,'Canonical Expense Org','VND','Asia/Ho_Chi_Minh')`,
+        [orgCanonical],
+      ],
+      [
+        `insert into accounts(organization_id,code,name,root_type,is_control_account,allow_manual_posting) values ($1,'111-CASH','Cash','asset',false,true),($1,'642-OPEX','Opex','expense',false,true)`,
+        [orgCanonical],
+      ],
+      [
+        `insert into parties(organization_id,id,display_name,status) values($1,'SUP-CAN','Nhà cung cấp chuẩn','active')`,
+        [orgCanonical],
+      ],
+      [
+        `insert into party_roles(organization_id,party_id,role) values($1,'SUP-CAN','supplier')`,
+        [orgCanonical],
+      ],
+      [
+        `insert into business_categories(organization_id,kind,code,name,is_active) values ($1,'expense','OFFICE','Văn phòng',true),($1,'expense','BIZ_ONLY','Công cụ số',true),($1,'expense','INACTIVE_CAN','Đã ngưng',false)`,
+        [orgCanonical],
+      ],
+      [
+        `insert into expense_categories(organization_id,code,name,funding_treatment,is_active,created_by,updated_by) values ($1,'OFFICE','Văn phòng','company_funds',true,'seed','seed'),($1,'INACTIVE_CAN','Đã ngưng','company_funds',false,'seed','seed')`,
+        [orgCanonical],
+      ],
+      [
+        `insert into dimension_values(organization_id,kind,code,name,is_active) values ($1,'category','INACTIVE_CAN','Stale legacy active',true)`,
+        [orgCanonical],
+      ],
+      [
+        `insert into api_credentials(organization_id,id,actor_id,token_hash,roles) values($1,'cred-can','owner-can',$2,'["owner"]')`,
+        [orgCanonical, canonicalHash],
+      ],
+      [
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,expense_date,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,version,created_by,posted_by,posted_at) values($1,'exp-canonical-1','invoice_backed','posted','SUP-CAN','2026-11-01','Thuê văn phòng','VND',5000000,0,5000000,'111-CASH',1,'owner-can','owner-can',now())`,
+        [orgCanonical],
+      ],
+      [
+        `insert into expense_lines(organization_id,expense_id,line_number,description,net_minor,vat_minor,gross_minor,posting_account_code,expense_category_code,funding_treatment,management_state,cit_state,vat_state,dimensions) values($1,'exp-canonical-1',1,'Thuê văn phòng',5000000,0,5000000,'642-OPEX','OFFICE','company_funds','valid','eligible','ineligible','{}')`,
+        [orgCanonical],
+      ],
+    ] as const) {
+      await pool.query(sql, [...params]);
+    }
+
+    const metadataRes = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${orgCanonical}/expenses/exp-canonical-1/metadata`,
+      headers: { ...headers(canonicalToken, "erp988-exp-meta-1"), "if-match": "1" },
+      payload: {
+        category: "OFFICE",
+        payeePartyId: "SUP-CAN",
+        businessPurpose: "Thuê văn phòng tháng 11 (đã sửa)",
+      },
+    });
+    expect(metadataRes.statusCode, metadataRes.body).toBe(200);
+    expect(metadataRes.json().data).toMatchObject({
+      expenseId: "exp-canonical-1",
+      category: "OFFICE",
+      businessPurpose: "Thuê văn phòng tháng 11 (đã sửa)",
+      resourceVersion: "2",
+    });
+
+    const businessOnlyRes = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${orgCanonical}/expenses/exp-canonical-1/category`,
+      headers: headers(canonicalToken, "erp988-exp-cat-biz"),
+      payload: { category: "BIZ_ONLY" },
+    });
+    expect(businessOnlyRes.statusCode, businessOnlyRes.body).toBe(200);
+    expect(businessOnlyRes.json().data).toMatchObject({
+      expenseId: "exp-canonical-1",
+      category: "BIZ_ONLY",
+      version: "3",
+    });
+
+    const deactivatedCanonical = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${orgCanonical}/expenses/exp-canonical-1/metadata`,
+      headers: { ...headers(canonicalToken, "erp988-exp-meta-inactive"), "if-match": "3" },
+      payload: { category: "INACTIVE_CAN" },
+    });
+    expect(deactivatedCanonical.statusCode).toBeGreaterThanOrEqual(400);
+    expect(deactivatedCanonical.json().error.code).toBe("CATEGORY_NOT_FOUND");
+  });
 });

@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuthenticatedApiClient } from "@/lib/api";
+import { formatApiErrorMessage, useAuthenticatedApiClient } from "@/lib/api";
+import { FocusedRecordErrorAlert } from "./focused-record-alerts";
 import { sourceEndpoint, text, type Row, type SourceKind } from "./focused-record-shared";
 import { voidPlan } from "./focused-record-void-plan";
 
@@ -59,7 +60,7 @@ export function RecordVoidControl({
       setReason("");
       await onDone();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể thực hiện thao tác.");
+      setError(formatApiErrorMessage(cause, "Không thể thực hiện thao tác."));
     } finally {
       setBusy(false);
     }
@@ -99,11 +100,7 @@ export function RecordVoidControl({
               placeholder="Ví dụ: Nhập nhầm số tiền / giao dịch bị trùng"
             />
           </Field>
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
+          <FocusedRecordErrorAlert kind="action" message={error} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={busy}>
               Đóng

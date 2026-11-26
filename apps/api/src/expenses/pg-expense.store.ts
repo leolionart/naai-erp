@@ -2,6 +2,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
 import {
+  applyExpenseLineCategoryUpdate,
+  resolveExpenseCategory,
+} from "../master-data/canonical-category-validation.js";
+import {
   canSelfApprove,
   resolveOrganizationWorkflowPolicy,
 } from "../workflow-policy/organization-workflow-policy.service.js";
@@ -620,32 +624,20 @@ export class PgExpenseStore {
         [context.organizationId, id],
       );
       if (!expense.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
-      const categoryRow = await c.query<{ source: string; funding_treatment: string | null }>(
-        `select 'expense' source,funding_treatment::text from expense_categories
-          where organization_id=$1 and code=$2 and is_active=true
-         union all
-         select 'legacy' source,null::text funding_treatment from dimension_values
-          where organization_id=$1 and kind='category' and code=$2 and is_active=true
-         limit 1`,
-        [context.organizationId, category],
-      );
-      if (!categoryRow.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
+      const resolvedCategory = await resolveExpenseCategory(c, context.organizationId, category);
       const before = await c.query<{ line_number: number; category: string | null }>(
         "select line_number,coalesce(expense_category_code,dimensions->>'category') category from expense_lines where organization_id=$1 and expense_id=$2 order by line_number",
         [context.organizationId, id],
       );
       if (!before.rows.length) throw new Error("RESOURCE_NOT_FOUND");
       await c.query("select set_config('app.expense_metadata_correction','on',true)");
-      if (categoryRow.rows[0].source === "expense")
-        await c.query(
-          "update expense_lines set expense_category_code=$3,funding_treatment=$4 where organization_id=$1 and expense_id=$2",
-          [context.organizationId, id, category, categoryRow.rows[0].funding_treatment],
-        );
-      else
-        await c.query(
-          "update expense_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text) where organization_id=$1 and expense_id=$2",
-          [context.organizationId, id, category],
-        );
+      await applyExpenseLineCategoryUpdate(
+        c,
+        context.organizationId,
+        id,
+        category,
+        resolvedCategory,
+      );
       const version = BigInt(expense.rows[0].version) + 1n;
       await c.query(
         "update expenses set version=$3,updated_at=now() where organization_id=$1 and id=$2",
@@ -728,14 +720,9 @@ export class PgExpenseStore {
         );
         if (!payee.rows[0]) throw new Error("PAYEE_SUPPLIER_NOT_FOUND");
       }
-      if (input.category) {
-        const category = await c.query(
-          `select 1 from dimension_values
-            where organization_id=$1 and kind='category' and code=$2 and is_active=true`,
-          [context.organizationId, input.category],
-        );
-        if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
-      }
+      const resolvedCategory = input.category
+        ? await resolveExpenseCategory(c, context.organizationId, input.category)
+        : undefined;
       if (input.customerPartyId) {
         const customer = await c.query(
           `with recursive chain(id,path) as (
@@ -830,28 +817,13 @@ export class PgExpenseStore {
         );
       }
       if (Object.prototype.hasOwnProperty.call(input, "category")) {
-        const category = await c.query<{ source: string; funding_treatment: string | null }>(
-          `select 'expense' source,funding_treatment::text from expense_categories
-             where organization_id=$1 and code=$2 and is_active=true
-           union all
-           select 'legacy' source,null::text funding_treatment from dimension_values
-             where organization_id=$1 and kind='category' and code=$2 and is_active=true
-           limit 1`,
-          [context.organizationId, input.category],
+        await applyExpenseLineCategoryUpdate(
+          c,
+          context.organizationId,
+          id,
+          input.category ?? null,
+          resolvedCategory,
         );
-        if (!category.rows[0]) throw new Error("CATEGORY_NOT_FOUND");
-        if (category.rows[0].source === "expense")
-          await c.query(
-            `update expense_lines set expense_category_code=$3,funding_treatment=$4
-              where organization_id=$1 and expense_id=$2`,
-            [context.organizationId, id, input.category, category.rows[0].funding_treatment],
-          );
-        else
-          await c.query(
-            `update expense_lines set dimensions=coalesce(dimensions,'{}'::jsonb)||jsonb_build_object('category',$3::text)
-              where organization_id=$1 and expense_id=$2`,
-            [context.organizationId, id, input.category],
-          );
       }
       if (Object.prototype.hasOwnProperty.call(input, "projectId")) {
         await c.query(

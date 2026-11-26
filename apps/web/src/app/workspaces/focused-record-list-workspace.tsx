@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Download, Eye, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuthenticatedApiClient } from "@/lib/api";
+import { ApiClientError, formatApiErrorMessage, useAuthenticatedApiClient } from "@/lib/api";
 import {
   DocumentForm,
   ExpenseForm,
@@ -60,12 +59,15 @@ import { recordCategory } from "@/lib/records/category";
 import { sortRecordsNewestFirst } from "./focused-record-sorting";
 import type { Kind, Row, TaggedRow, FundingOption } from "./focused-record-shared";
 import {
+  CATEGORY_LOOKUP_ENDPOINTS,
+  FOCUSED_RECORD_MASTER_DATA_ENDPOINTS,
   nonNullRow,
   config,
   text,
   items,
   money,
   human,
+  partiesByRole,
   FUNDING_OPTIONS,
   findFundingOption,
   fundingLabel,
@@ -78,6 +80,7 @@ import {
   tagRow,
   queryFor,
 } from "./focused-record-shared";
+import { FocusedRecordErrorAlert } from "./focused-record-alerts";
 import { FilterPopover } from "./focused-record-filter-popover";
 
 export function FocusedRecordListWorkspace({
@@ -107,7 +110,8 @@ export function FocusedRecordListWorkspace({
   const [financialAccounts, setFinancialAccounts] = useState<Row[] | undefined>();
   const [categoryNames, setCategoryNames] = useState<Readonly<Record<string, string>>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [filters, setFilters] = useState(false);
   const [quickRecord, setQuickRecord] = useState<Row>();
   const [deleteInvoiceOpen, setDeleteInvoiceOpen] = useState(false);
@@ -226,10 +230,10 @@ export function FocusedRecordListWorkspace({
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
-    setError("");
+    setLoadError("");
     if (!hasToken) {
       setRows([]);
-      setError("AUTH_REQUIRED");
+      setLoadError(formatApiErrorMessage("AUTH_REQUIRED"));
       setLoading(false);
       return;
     }
@@ -275,7 +279,6 @@ export function FocusedRecordListWorkspace({
         recognitionResult,
         partiesRes,
         rolesRes,
-        workersRes,
         projectsRes,
         workflowResult,
       ] = await Promise.all([
@@ -290,12 +293,15 @@ export function FocusedRecordListWorkspace({
         kind === "documents" && includeMissing
           ? client.data<{ items?: Row[] } | Row[]>(`revenue-recognition-events?${recognitionQuery}`)
           : Promise.resolve([] as Row[]),
-        client.data<{ items?: Row[] } | Row[]>("master-data/parties?limit=500").catch(() => []),
-        client.data<{ items?: Row[] } | Row[]>("master-data/party-roles?limit=500").catch(() => []),
-        kind === "expenses"
-          ? client.data<{ items?: Row[] } | Row[]>("time/workers").catch(() => [])
-          : Promise.resolve([] as Row[]),
-        client.data<{ items?: Row[] } | Row[]>("master-data/projects?limit=500").catch(() => []),
+        client
+          .data<{ items?: Row[] } | Row[]>(FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.parties)
+          .catch(() => []),
+        client
+          .data<{ items?: Row[] } | Row[]>(FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.partyRoles)
+          .catch(() => []),
+        client
+          .data<{ items?: Row[] } | Row[]>(FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.projects)
+          .catch(() => []),
         client.data<WorkflowCreateCapabilities>("organization-workflow-policy").catch(() => ({})),
       ]);
       setWorkflowCapabilities(workflowResult);
@@ -423,45 +429,18 @@ export function FocusedRecordListWorkspace({
           : text(row, "expenseDate", "createdAt");
       rawItems = sortRecordsNewestFirst(rawItems, presentationDate);
       setRows(rawItems);
-      const listedParties = Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []);
+      const listedParties = [...items(partiesRes)];
+      const listedRoles = [...items(rolesRes)];
       setParties(listedParties);
-      const listedRoles = Array.isArray(rolesRes) ? rolesRes : (rolesRes.items ?? []);
-      const clientIds = new Set(
-        listedRoles
-          .filter((role) => text(role, "role") === "client")
-          .map((role) => text(role, "partyId", "party_id")),
-      );
-      const clientParties = listedParties.filter((party) => clientIds.has(text(party, "id")));
-      setClients(clientParties);
-      setProjects(
-        (Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? [])).filter(
-          (project) => text(project, "state") !== "closed",
-        ),
-      );
+      setClients(partiesByRole(listedParties, listedRoles, "client"));
+      setProjects([...items(projectsRes)].filter((project) => text(project, "state") !== "closed"));
       if (kind === "expenses") {
-        const supplierIds = new Set(
-          listedRoles
-            .filter((role) => text(role, "role") === "supplier")
-            .map((role) => text(role, "partyId", "party_id")),
-        );
-        const supplierParties = listedParties.filter((party) => supplierIds.has(text(party, "id")));
-        setPayees(supplierParties);
-        const freelancerIds = new Set(
-          listedRoles
-            .filter((role) => text(role, "role") === "freelancer")
-            .map((role) => text(role, "partyId", "party_id")),
-        );
-        setFreelancers(listedParties.filter((party) => freelancerIds.has(text(party, "id"))));
-        const listedWorkers = Array.isArray(workersRes) ? workersRes : (workersRes.items ?? []);
-        const employeeIds = new Set(
-          listedWorkers
-            .filter((worker) => text(worker, "status") === "active")
-            .map((worker) => text(worker, "workerPartyId", "worker_party_id")),
-        );
-        setEmployees(listedParties.filter((party) => employeeIds.has(text(party, "id"))));
+        setPayees(partiesByRole(listedParties, listedRoles, "supplier"));
+        setFreelancers(partiesByRole(listedParties, listedRoles, "freelancer"));
+        setEmployees(partiesByRole(listedParties, listedRoles, "employee"));
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
+      setLoadError(formatApiErrorMessage(cause, `Không thể tải ${current.singular}.`));
     } finally {
       setLoading(false);
     }
@@ -489,10 +468,11 @@ export function FocusedRecordListWorkspace({
       .catch(() => {
         if (!cancelled) setFinancialAccounts([]);
       });
-    void Promise.allSettled([
-      client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/categories"),
-      client.data<readonly Row[] | { items?: readonly Row[] }>("expense-categories"),
-    ]).then((results) => {
+    void Promise.allSettled(
+      CATEGORY_LOOKUP_ENDPOINTS.map((endpoint) =>
+        client.data<readonly Row[] | { items?: readonly Row[] }>(endpoint),
+      ),
+    ).then((results) => {
       if (cancelled) return;
       const next: Record<string, string> = {};
       for (const result of results) {
@@ -515,6 +495,7 @@ export function FocusedRecordListWorkspace({
 
   function setCreateDialogOpen(open: boolean) {
     setCreateOpen(open);
+    if (!open) setActionError("");
     if (!open && params.get("create") === "1") {
       const next = new URLSearchParams(params.toString());
       next.delete("create");
@@ -524,14 +505,14 @@ export function FocusedRecordListWorkspace({
 
   async function createRecord(body: Row) {
     setCreateBusy(true);
-    setError("");
+    setActionError("");
     try {
       await client.data<Row>(current.endpoint, { method: "POST", body });
       setCreateDialogOpen(false);
       await load();
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Không thể tạo ${current.singular}.`);
+      setActionError(formatApiErrorMessage(cause, `Không thể tạo ${current.singular}.`));
     } finally {
       setCreateBusy(false);
     }
@@ -582,10 +563,12 @@ export function FocusedRecordListWorkspace({
       );
       if (!response.ok) {
         const payload = (await response.json().catch(() => undefined)) as
-          { error?: { message?: string } } | undefined;
-        throw new Error(
-          payload?.error?.message ?? `Không thể export XLSX (HTTP ${response.status}).`,
-        );
+          { error?: { code?: string; message?: string } } | undefined;
+        throw new ApiClientError({
+          status: response.status,
+          code: payload?.error?.code,
+          message: payload?.error?.message ?? `Không thể export XLSX (HTTP ${response.status}).`,
+        });
       }
       const disposition = response.headers.get("content-disposition");
       const serverFilename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
@@ -598,13 +581,14 @@ export function FocusedRecordListWorkspace({
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (cause) {
-      setExportError(cause instanceof Error ? cause.message : "Không thể export workbook.");
+      setExportError(formatApiErrorMessage(cause, "Không thể export workbook."));
     } finally {
       setExporting(false);
     }
   }
   async function openQuickView(row: Row) {
     const id = text(row, "id");
+    setActionError("");
     setQuickRecord(row);
     setQuickLoading(true);
     try {
@@ -617,7 +601,7 @@ export function FocusedRecordListWorkspace({
       };
       setQuickRecord(detail);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Không thể tải ${current.singular}.`);
+      setLoadError(formatApiErrorMessage(cause, `Không thể tải ${current.singular}.`));
     } finally {
       setQuickLoading(false);
     }
@@ -626,7 +610,7 @@ export function FocusedRecordListWorkspace({
     if (!quickRecord) return;
     const id = text(quickRecord, "id");
     setQuickBusy(true);
-    setError("");
+    setActionError("");
     try {
       const source = sourceKind(quickRecord);
       if (source === "recognition") return;
@@ -649,7 +633,7 @@ export function FocusedRecordListWorkspace({
       await openQuickView({ ...quickRecord, ...body, ...updated });
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `Không thể sửa ${current.singular}.`);
+      setActionError(formatApiErrorMessage(cause, `Không thể sửa ${current.singular}.`));
     } finally {
       setQuickBusy(false);
     }
@@ -665,7 +649,7 @@ export function FocusedRecordListWorkspace({
     if (!quickRecord || !canDeleteQuickPurchaseInvoice || !deleteInvoiceReason.trim()) return;
     const id = text(quickRecord, "id");
     setQuickBusy(true);
-    setError("");
+    setActionError("");
     try {
       await client.data(`commercial-documents/${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -679,9 +663,8 @@ export function FocusedRecordListWorkspace({
       await load();
       toast.success("Đã xóa hóa đơn mua vào bản nháp.");
     } catch (cause) {
-      const message =
-        cause instanceof Error ? cause.message : "Không thể xóa hóa đơn mua vào bản nháp.";
-      setError(message);
+      const message = formatApiErrorMessage(cause, "Không thể xóa hóa đơn mua vào bản nháp.");
+      setActionError(message);
       toast.error(message);
     } finally {
       setQuickBusy(false);
@@ -707,7 +690,7 @@ export function FocusedRecordListWorkspace({
     const targetOption = findFundingOption(reclassifyTargetAccount, reclassifyFundingOptions);
     const targetLedgerCode = targetOption?.code ?? reclassifyTargetAccount;
     setQuickBusy(true);
-    setError("");
+    setActionError("");
     try {
       // The server rebuilds the replacement from the stored record, so only the target is sent.
       const endpoint =
@@ -737,8 +720,8 @@ export function FocusedRecordListWorkspace({
       }
       setQuickRecord(undefined);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Không thể đổi nguồn thanh toán.";
-      setError(message);
+      const message = formatApiErrorMessage(cause, "Không thể đổi nguồn thanh toán.");
+      setActionError(message);
       toast.error(message);
     } finally {
       setQuickBusy(false);
@@ -801,18 +784,11 @@ export function FocusedRecordListWorkspace({
           </Button>
         </div>
       </div>
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Không thực hiện được</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      <FocusedRecordErrorAlert kind="load" message={loadError} />
+      {!createOpen && !quickRecord && !deleteInvoiceOpen && !reclassifyOpen ? (
+        <FocusedRecordErrorAlert kind="action" message={actionError} />
       ) : null}
-      {exportError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Không thể export dữ liệu</AlertTitle>
-          <AlertDescription>{exportError}</AlertDescription>
-        </Alert>
-      ) : null}
+      <FocusedRecordErrorAlert kind="export" message={exportError} />
       <Dialog open={createOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
@@ -823,6 +799,7 @@ export function FocusedRecordListWorkspace({
                 : "Chọn đối tác và nhân viên theo tên hiển thị; hệ thống vẫn lưu đúng ID liên kết."}
             </DialogDescription>
           </DialogHeader>
+          <FocusedRecordErrorAlert kind="action" message={actionError} />
           {kind === "documents" ? (
             <DocumentForm
               busy={createBusy}
@@ -997,7 +974,12 @@ export function FocusedRecordListWorkspace({
       </Card>
       <Dialog
         open={Boolean(quickRecord)}
-        onOpenChange={(open) => !open && setQuickRecord(undefined)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setQuickRecord(undefined);
+            setActionError("");
+          }
+        }}
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
@@ -1007,6 +989,9 @@ export function FocusedRecordListWorkspace({
               chính xác.
             </DialogDescription>
           </DialogHeader>
+          {!deleteInvoiceOpen && !reclassifyOpen ? (
+            <FocusedRecordErrorAlert kind="action" message={actionError} />
+          ) : null}
           {quickLoading ? (
             <Skeleton className="h-72 w-full" />
           ) : quickRecord ? (
@@ -1169,7 +1154,10 @@ export function FocusedRecordListWorkspace({
         open={deleteInvoiceOpen}
         onOpenChange={(open) => {
           setDeleteInvoiceOpen(open);
-          if (!open) setDeleteInvoiceReason("");
+          if (!open) {
+            setDeleteInvoiceReason("");
+            setActionError("");
+          }
         }}
       >
         <DialogContent>
@@ -1180,6 +1168,7 @@ export function FocusedRecordListWorkspace({
               tác.
             </DialogDescription>
           </DialogHeader>
+          <FocusedRecordErrorAlert kind="action" message={actionError} />
           <Field data-invalid={deleteInvoiceReason.length > 0 && !deleteInvoiceReason.trim()}>
             <FieldLabel htmlFor="delete-purchase-invoice-reason">Lý do xóa</FieldLabel>
             <Textarea
@@ -1214,7 +1203,10 @@ export function FocusedRecordListWorkspace({
         open={reclassifyOpen}
         onOpenChange={(open) => {
           setReclassifyOpen(open);
-          if (!open) setReclassifyReason("");
+          if (!open) {
+            setReclassifyReason("");
+            setActionError("");
+          }
         }}
       >
         <DialogContent>
@@ -1225,6 +1217,7 @@ export function FocusedRecordListWorkspace({
               soát cũ được giữ nguyên; bản thay thế sẽ ghi nhận theo nguồn bạn chọn.
             </DialogDescription>
           </DialogHeader>
+          <FocusedRecordErrorAlert kind="action" message={actionError} />
           <Field>
             <FieldLabel htmlFor="reclassify-funding-target">Nguồn thanh toán mới</FieldLabel>
             <Select value={reclassifyTargetAccount} onValueChange={setReclassifyTargetAccount}>

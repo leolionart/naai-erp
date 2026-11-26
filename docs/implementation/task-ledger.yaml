@@ -4050,14 +4050,41 @@ tasks:
   - id: ERP-988
     title: Fix expense and document edit failures on real data and clear UI error messages
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-975]
     business_rules: [BR-EDIT-001]
     tests: [T-INT-EDIT-001, T-E2E-EDIT-002]
     plan: docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-988/
+    agent: antigravity
+    started_at: 2026-11-26T18:56:00+07:00
+    completed_at: 2026-11-26T19:12:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/ui-edit-reliability-and-solopreneur-simplification.md
+      - apps/api/src/master-data/canonical-category-validation.ts
+      - apps/api/src/master-data/canonical-category-validation.test.ts
+      - apps/api/src/expenses/pg-expense.store.ts
+      - apps/api/src/expenses/expense.integration.test.ts
+      - apps/api/src/commercial-documents/pg-commercial-document.store.ts
+      - apps/api/src/commercial-documents/commercial-document.integration.test.ts
+      - apps/api/src/time/time.controller.ts
+      - apps/api/src/time/time.controller.test.ts
+      - apps/web/src/lib/api/error-messages.ts
+      - apps/web/src/lib/api/error-messages.test.ts
+      - apps/web/src/lib/api/types.ts
+      - apps/web/src/lib/api/index.ts
+      - apps/web/src/app/workspaces/focused-record-alerts.tsx
+      - apps/web/src/app/workspaces/focused-record-alerts.test.tsx
+      - apps/web/src/app/workspaces/focused-record-detail-dialogs.tsx
+      - apps/web/src/app/workspaces/focused-record-shared.ts
+      - apps/web/src/app/workspaces/focused-record-shared.test.ts
+      - apps/web/src/app/workspaces/focused-record-list-workspace.tsx
+      - apps/web/src/app/workspaces/focused-record-detail-workspace.tsx
+      - apps/web/src/app/workspaces/focused-record-void-control.tsx
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-988/
 
   - id: ERP-989
     title: One-click record for drafts with batch dry-run and commit for solopreneur owners

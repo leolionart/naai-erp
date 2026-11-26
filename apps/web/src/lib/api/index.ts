@@ -11,5 +11,6 @@ export * from "./performance-comparisons";
 export * from "./financial-statements";
 export * from "./expense-reports";
 export * from "./planning";
+export * from "./error-messages";
 export * from "./types";
 export * from "./use-api-client";

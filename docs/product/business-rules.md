@@ -1592,10 +1592,17 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
   `111-OWNER-CUSTODY` and posts the difference with a reason; year-end settlement offers repayment, offset of 3388 against
   1388, or owner-decided profit distribution (Dr 421 / Cr 1388), each with audit.
 
-### Editing reliability and one-click recording (planned, ERP-988 to ERP-992)
+### Editing reliability and one-click recording (ERP-988 to ERP-992)
 
-- `BR-EDIT-001` (planned): the category of an expense or invoice is validated against the organization's canonical
-  categories (`business_categories`, `expense_categories`); legacy dimension categories are only a fallback.
+- `BR-EDIT-001`: the category of an expense or commercial document (including `metadata` and `category`
+  updates) is validated against the organization's canonical category catalogs (`business_categories`
+  and `expense_categories`); legacy `dimension_values(kind='category')` is used only as a fallback when
+  the category code is absent from canonical catalogs, so a deactivated canonical category cannot be
+  bypassed by a stale legacy row. Revenue and expense UI surfaces query canonical
+  `master-data/expense-categories` and `master-data/party-roles` without calling obsolete workforce
+  endpoints, translate raw API error codes (`CATEGORY_NOT_FOUND`, `EXPENSE_REVIEW_INCOMPLETE`,
+  `INVALID_EXPENSE_TRANSITION`, etc.) into clear Vietnamese messages, and visibly distinguish load
+  errors from action errors.
 - `BR-REC-001` (planned): for an owner in solopreneur mode, "Ghi sổ" is one atomic action taking an eligible draft to
   posted (self-approval, tax defaults, external reference as evidence); when not eligible nothing changes and every
   reason is returned.

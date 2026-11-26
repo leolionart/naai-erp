@@ -1,3 +1,5 @@
+import { resolveApiClientErrorMessage } from "./error-messages";
+
 export type ApiErrorBody = Readonly<{
   code?: string;
   message?: string;
@@ -28,7 +30,7 @@ export class ApiClientError extends Error {
     details?: unknown;
     requestId?: string;
   }) {
-    super(input.message ?? `API request failed with HTTP ${input.status}`);
+    super(resolveApiClientErrorMessage(input));
     this.name = "ApiClientError";
     this.status = input.status;
     this.code = input.code ?? `HTTP_${input.status}`;

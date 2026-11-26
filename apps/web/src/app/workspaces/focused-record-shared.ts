@@ -143,3 +143,30 @@ export function queryFor(kind: Kind, params: URLSearchParams) {
   }
   return query;
 }
+
+export const CATEGORY_LOOKUP_ENDPOINTS = [
+  "master-data/categories",
+  "master-data/expense-categories?limit=200",
+] as const;
+
+export const FOCUSED_RECORD_MASTER_DATA_ENDPOINTS = {
+  parties: "master-data/parties?limit=500",
+  partyRoles: "master-data/party-roles?limit=500",
+  projects: "master-data/projects?limit=500",
+} as const;
+
+export type CanonicalPartyRole = "client" | "supplier" | "freelancer" | "employee";
+
+export function partiesByRole(
+  parties: readonly Row[],
+  roles: readonly Row[],
+  targetRole: CanonicalPartyRole,
+): Row[] {
+  const ids = new Set(
+    roles
+      .filter((role) => text(role, "role") === targetRole)
+      .map((role) => text(role, "partyId", "party_id"))
+      .filter(Boolean),
+  );
+  return parties.filter((party) => ids.has(text(party, "id")));
+}

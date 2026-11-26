@@ -1265,4 +1265,49 @@ describeIntegration("ERP-300 commercial documents", () => {
         ),
     ).toBe(true);
   });
+
+  it("T-INT-EDIT-001 validates document metadata and category against canonical catalogs first with legacy fallback", async () => {
+    for (const sql of [
+      `insert into expense_categories(organization_id,code,name,funding_treatment,is_active,created_by,updated_by) values($1,'EXP_ONLY_CAT','Chi phí chỉ ở bảng expense_categories','company_funds',true,'seed','seed') on conflict(organization_id,code) do update set is_active=true`,
+      `insert into dimension_values(organization_id,kind,code,name,is_active) values($1,'category','LEGACY_DOC_CAT','Danh mục cũ',true),($1,'category','DEACTIVATED_BIZ_CAT','Danh mục chuẩn đã tắt',true) on conflict(organization_id,kind,code) do update set is_active=true`,
+      `insert into business_categories(organization_id,kind,code,name,is_active) values($1,'expense','DEACTIVATED_BIZ_CAT','Danh mục chuẩn đã tắt',false) on conflict(organization_id,kind,code) do update set is_active=false`,
+    ]) {
+      await pool.query(sql, [org]);
+    }
+
+    const getDoc = () =>
+      app.inject({
+        method: "GET",
+        url: `/api/v1/organizations/${org}/commercial-documents/purchase-001`,
+        headers: { authorization: `Bearer ${financeToken}` },
+      });
+
+    const v0 = (await getDoc()).json().data.version;
+    const canonicalUpdate = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001/metadata`,
+      headers: { ...headers(financeToken, "erp988-doc-meta-exp-only"), "if-match": v0 },
+      payload: { category: "EXP_ONLY_CAT", description: "Hóa đơn mua đã cập nhật danh mục chuẩn" },
+    });
+    expect(canonicalUpdate.statusCode, canonicalUpdate.body).toBe(200);
+
+    const legacyCategoryUpdate = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001/category`,
+      headers: headers(financeToken, "erp988-doc-cat-legacy"),
+      payload: { category: "LEGACY_DOC_CAT" },
+    });
+    expect(legacyCategoryUpdate.statusCode, legacyCategoryUpdate.body).toBe(200);
+    expect(legacyCategoryUpdate.json().data.category).toBe("LEGACY_DOC_CAT");
+
+    const v2 = (await getDoc()).json().data.version;
+    const rejectedInactiveCanonical = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/organizations/${org}/commercial-documents/purchase-001/metadata`,
+      headers: { ...headers(financeToken, "erp988-doc-meta-deactivated"), "if-match": v2 },
+      payload: { category: "DEACTIVATED_BIZ_CAT" },
+    });
+    expect(rejectedInactiveCanonical.statusCode).toBeGreaterThanOrEqual(400);
+    expect(rejectedInactiveCanonical.json().error.code).toBe("CATEGORY_NOT_FOUND");
+  });
 });
