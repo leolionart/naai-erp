@@ -1,0 +1,4 @@
+- `pnpm test:file-size` — 5 passed.
+- `pnpm check:file-size` — passed (57 baselined files).
+- `npx eslint .` — 0 errors, 68 warnings (all baselined or test files).
+- Cross-check: baseline set equals ESLint `max-lines` warning set for non-test files (57 = 57, no missing/extra).

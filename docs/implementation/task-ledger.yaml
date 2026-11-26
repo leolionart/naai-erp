@@ -4358,14 +4358,28 @@ tasks:
   - id: ERP-993
     title: File size ratchet with baseline script, hook and CI check
     phase: P17
-    status: ready
+    status: done
     dependencies: []
     business_rules: [BR-SIZE-001]
     tests: [T-UNIT-SIZE-001]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-993/
+    agent: claude
+    started_at: 2026-11-27T06:30:00+07:00
+    completed_at: 2026-11-27T06:55:00+07:00
+    completion_basis: implemented_with_unit_tests_and_repository_gates
     planned_files:
-      - docs/implementation/plans/bounded-reads-and-file-size.md
+      - scripts/check-file-size.mjs
+      - scripts/file-size-baseline.json
+      - tests/file-size-ratchet.test.ts
+      - eslint.config.mjs
+      - package.json
+      - .githooks/pre-commit
+      - AGENTS.md
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/task-ledger.yaml
+      - docs/implementation/evidence/ERP-993/
 
   - id: ERP-994
     title: Split oversized files by domain without behavior change in batches

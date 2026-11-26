@@ -103,6 +103,12 @@ Any implementation that violates an invariant must stop; do not weaken a test to
 
 - Keep every new TypeScript/JavaScript source file at or below 500 lines (excluding blank lines and comments; enforced as a `max-lines` warning in `eslint.config.mjs`).
 - When extending an existing file that is already near or over 500 lines, extract new logic into focused helper modules instead of adding to the oversized file.
+- `pnpm check:file-size` (also in `pnpm check` and the pre-commit hook) enforces the limit as a ratchet
+  (BR-SIZE-001). `scripts/file-size-baseline.json` lists files already above 500 lines with their current
+  size: they may only shrink, never grow, and files not in the baseline must stay at or below 500.
+  After shrinking a file run `pnpm check:file-size --update`; it only lowers or removes entries and never
+  adds files or raises numbers. ESLint `max-lines` is an error outside the baseline and a warning for
+  baselined and test files.
 
 ## Worktree and Git safety
 

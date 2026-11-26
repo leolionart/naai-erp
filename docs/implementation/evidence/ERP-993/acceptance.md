@@ -1,0 +1,5 @@
+- Adding a line to a baselined file fails the check: covered by `fails when a baselined file grows by a single line`.
+- Shrinking a file requires lowering the baseline / removing the entry: covered by the shrink test.
+- Unbaselined oversized file fails; tests/comments/blank lines ignored: covered.
+- `--update` never adds files or raises numbers: covered.
+- Hook, `pnpm check`, CI wiring: `pnpm check` and pre-commit invoke `check:file-size` and `test:file-size`.

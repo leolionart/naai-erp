@@ -3,5 +3,6 @@ set -eu
 
 pnpm format:check
 pnpm lint
+pnpm check:file-size
 pnpm test:docs
 pnpm test:security-baseline

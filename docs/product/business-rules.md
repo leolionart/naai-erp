@@ -1696,4 +1696,4 @@ other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_eviden
 - `BR-READ-004` (planned): lists return a compact summary view by default; lines and allocations are only returned by a small-limit full view or by id.
 - `BR-READ-005` (planned): counting and grouped summaries are available so statistical questions never require downloading records.
 - `BR-READ-006` (planned): the CLI never prints more than its output budget to stdout; large results are written to a file and always accompanied by `meta`.
-- `BR-SIZE-001` (planned): source files stay at or below 500 lines excluding blanks and comments; files already above only shrink, enforced by an automatic baseline.
+- `BR-SIZE-001` (ERP-993, active): source files stay at or below 500 lines excluding blanks and comments; files already above only shrink, enforced by `scripts/check-file-size.mjs` against `scripts/file-size-baseline.json` in `pnpm check`, the pre-commit hook and CI.

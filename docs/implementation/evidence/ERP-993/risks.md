@@ -1,0 +1,2 @@
+- The comment/string lexer is a heuristic (no regex-literal awareness); it matched ESLint on all 57 oversized files. A future mismatch would show as a small count drift — re-verify against ESLint if suspected.
+- Baseline is a one-way ratchet: ERP-994 must lower entries (`pnpm check:file-size --update`) in the same commit as each split.
