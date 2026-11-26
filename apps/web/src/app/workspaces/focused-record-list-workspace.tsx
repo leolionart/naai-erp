@@ -1261,7 +1261,7 @@ export function FocusedRecordListWorkspace({
           <Field>
             <FieldLabel htmlFor="reclassify-funding-target">Nguồn thanh toán mới</FieldLabel>
             <Select value={reclassifyTargetAccount} onValueChange={setReclassifyTargetAccount}>
-              <SelectTrigger id="reclassify-funding-target">
+              <SelectTrigger id="reclassify-funding-target" className="w-full min-w-0">
                 <SelectValue placeholder="Chọn nguồn thanh toán" />
               </SelectTrigger>
               <SelectContent>
