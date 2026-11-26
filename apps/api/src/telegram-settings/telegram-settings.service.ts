@@ -63,6 +63,7 @@ export class TelegramSettingsService {
       threadId: null,
       notifyRevenue: true,
       notifyExpense: true,
+      notifyDrafts: true,
       hasBotToken: false,
       botTokenHint: null,
       version: "0",
@@ -90,7 +91,12 @@ export class TelegramSettingsService {
     const threadId = input.threadId === undefined ? (current?.threadId ?? null) : input.threadId;
     if (threadId !== null && (!Number.isSafeInteger(threadId) || threadId < 1))
       throw new Error("VALIDATION_FAILED");
-    for (const flag of [input.enabled, input.notifyRevenue, input.notifyExpense])
+    for (const flag of [
+      input.enabled,
+      input.notifyRevenue,
+      input.notifyExpense,
+      input.notifyDrafts,
+    ])
       if (flag !== undefined && typeof flag !== "boolean") throw new Error("VALIDATION_FAILED");
     const botTokenEncrypted = botToken
       ? sealSecret(botToken, this.secret(), TELEGRAM_SECRET_PURPOSE)
@@ -105,6 +111,7 @@ export class TelegramSettingsService {
       botTokenHint: botToken ? botToken.slice(-4) : null,
       notifyRevenue: input.notifyRevenue ?? current?.notifyRevenue ?? true,
       notifyExpense: input.notifyExpense ?? current?.notifyExpense ?? true,
+      notifyDrafts: input.notifyDrafts ?? current?.notifyDrafts ?? true,
     });
     return this.envelope(context, view);
   }

@@ -16,6 +16,7 @@ type Row = {
   bot_token_hint: string | null;
   notify_revenue: boolean;
   notify_expense: boolean;
+  notify_drafts: boolean;
   version: string;
   updated_at: Date;
 };
@@ -27,6 +28,7 @@ function view(row: Row): TelegramSettingsView {
     threadId: row.thread_id === null ? null : Number(row.thread_id),
     notifyRevenue: row.notify_revenue,
     notifyExpense: row.notify_expense,
+    notifyDrafts: row.notify_drafts,
     hasBotToken: row.bot_token_encrypted !== null,
     botTokenHint: row.bot_token_hint,
     version: row.version,
@@ -38,10 +40,38 @@ function view(row: Row): TelegramSettingsView {
 export class PgTelegramSettingsStore implements TelegramSettingsStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
+  private async delivery(organizationId: string) {
+    const result = await this.pool.query<{
+      sent: number;
+      pending: number;
+      failed: number;
+      last_sent_at: Date | null;
+      last_error: string | null;
+    }>(
+      `select count(*) filter (where state='sent' and sent_at>now()-interval '7 days')::int sent,
+              count(*) filter (where state='pending')::int pending,
+              count(*) filter (where state='failed' and created_at>now()-interval '7 days')::int failed,
+              max(sent_at) last_sent_at,
+              (select last_error from telegram_notifications
+                where organization_id=$1 and last_error is not null
+                order by created_at desc limit 1) last_error
+         from telegram_notifications where organization_id=$1`,
+      [organizationId],
+    );
+    const row = result.rows[0];
+    return {
+      sentLast7Days: row?.sent ?? 0,
+      pending: row?.pending ?? 0,
+      failed: row?.failed ?? 0,
+      lastSentAt: row?.last_sent_at ? row.last_sent_at.toISOString() : null,
+      lastError: row?.last_error ?? null,
+    };
+  }
+
   async get(organizationId: string) {
     const result = await this.pool.query<Row>(
       `select enabled,chat_id,thread_id::text,bot_token_encrypted,bot_token_hint,notify_revenue,
-              notify_expense,version::text,updated_at
+              notify_expense,notify_drafts,version::text,updated_at
        from telegram_settings where organization_id=$1`,
       [organizationId],
     );
@@ -54,8 +84,9 @@ export class PgTelegramSettingsStore implements TelegramSettingsStore {
       botTokenEncrypted: row.bot_token_encrypted,
       notifyRevenue: row.notify_revenue,
       notifyExpense: row.notify_expense,
+      notifyDrafts: row.notify_drafts,
     };
-    return { ...view(row), raw };
+    return { ...view(row), delivery: await this.delivery(organizationId), raw };
   }
 
   async upsert(
@@ -68,8 +99,8 @@ export class PgTelegramSettingsStore implements TelegramSettingsStore {
       const result = await client.query<Row>(
         `insert into telegram_settings
            (organization_id,enabled,enabled_at,chat_id,thread_id,bot_token_encrypted,bot_token_hint,
-            notify_revenue,notify_expense,updated_by)
-         values($1,$2,case when $2 then now() end,$3,$4,$5,$6,$7,$8,$9)
+            notify_revenue,notify_expense,notify_drafts,updated_by)
+         values($1,$2,case when $2 then now() end,$3,$4,$5,$6,$7,$8,$9,$10)
          on conflict (organization_id) do update set
            enabled_at=case when excluded.enabled and not telegram_settings.enabled then now()
                            when not excluded.enabled then null else telegram_settings.enabled_at end,
@@ -77,9 +108,10 @@ export class PgTelegramSettingsStore implements TelegramSettingsStore {
            bot_token_encrypted=excluded.bot_token_encrypted,
            bot_token_hint=coalesce(excluded.bot_token_hint,telegram_settings.bot_token_hint),
            notify_revenue=excluded.notify_revenue,notify_expense=excluded.notify_expense,
+           notify_drafts=excluded.notify_drafts,
            version=telegram_settings.version+1,updated_by=excluded.updated_by,updated_at=now()
          returning enabled,chat_id,thread_id::text,bot_token_encrypted,bot_token_hint,notify_revenue,
-                   notify_expense,version::text,updated_at`,
+                   notify_expense,notify_drafts,version::text,updated_at`,
         [
           context.organizationId,
           patch.enabled,
@@ -89,6 +121,7 @@ export class PgTelegramSettingsStore implements TelegramSettingsStore {
           patch.botTokenHint,
           patch.notifyRevenue,
           patch.notifyExpense,
+          patch.notifyDrafts,
           context.actorId,
         ],
       );

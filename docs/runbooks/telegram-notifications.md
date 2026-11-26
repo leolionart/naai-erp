@@ -33,3 +33,36 @@ Only `owner` and `finance_admin` can change settings or send the test message; r
 ## Security
 
 The bot token is encrypted with AES-256-GCM using a key derived from `SESSION_SECRET` and stored in `telegram_settings`; it is never returned by the API, logged or written to audit events. **Rotating `SESSION_SECRET` makes the stored token undecryptable — re-enter the token afterwards.** The worker container therefore needs the same `SESSION_SECRET` as the API (already wired in `compose.yaml`).
+
+## Drafts created through the API / n8n
+
+Records that n8n or the API create as **drafts** are not in the ledger yet, so they have no journal.
+With **Cả bản nháp** enabled (default) each such record sends a "bản nháp, chưa ghi sổ" message; when it is
+posted later the normal "ghi nhận" message follows. Turn the option off to be notified only on posting.
+
+## Troubleshooting: no Telegram message arrives
+
+Open `/settings/telegram` and read **Tình trạng gửi**:
+
+| Symptom                                                                        | Likely cause                                                                                                                                    | Fix                                                                       |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Test message fails                                                             | Wrong token/Chat ID, bot not in the chat                                                                                                        | Fix settings; add the bot (as admin for channels)                         |
+| Test works, "Chưa có thông báo nào được gửi"                                   | Worker not running, or running without `SESSION_SECRET` (cannot decrypt the token)                                                              | Give the `worker` the same `SESSION_SECRET` as the API and restart it     |
+| `lỗi` count grows, last error "Telegram settings or bot token are unavailable" | Same as above, or `SESSION_SECRET` was rotated                                                                                                  | Fix the secret / re-enter the token                                       |
+| Nothing sent but invoice exists                                                | Notification disabled before the record was created (only records after enabling are sent), or the record is a draft and **Cả bản nháp** is off | Enable it / post the draft                                                |
+| Page errors with `relation "telegram_settings" does not exist`                 | Migrations not applied                                                                                                                          | Update to an API image with startup migrations (ERP-967) or run `migrate` |
+
+Useful read-only queries:
+
+```sql
+select state, count(*) from telegram_notifications group by state;
+select outbox_event_id, state, attempts, last_error from telegram_notifications order by created_at desc limit 20;
+select id, event_type, external_id, state, last_error_code, last_error_summary
+  from inbound_messages order by received_at desc limit 20;
+```
+
+## Finding records pushed by n8n
+
+Webhook receipts are listed in **Nhật ký hoạt động** (filter source "Webhook / n8n nhận vào"). A
+`quarantined` row means the payload was received but **no record was created** (the error code says why,
+e.g. validation failed or the event type is not allowed for that source); fix the payload and resend.

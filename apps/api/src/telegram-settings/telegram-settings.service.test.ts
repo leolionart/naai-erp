@@ -19,6 +19,7 @@ function setup(fetcher = vi.fn()) {
         threadId: patch.threadId,
         notifyRevenue: patch.notifyRevenue,
         notifyExpense: patch.notifyExpense,
+        notifyDrafts: patch.notifyDrafts,
         hasBotToken: patch.botTokenEncrypted !== null,
         botTokenHint: patch.botTokenHint,
         version: "1",
@@ -62,7 +63,12 @@ describe("TelegramSettingsService", () => {
     await service.update(owner, { notifyExpense: false });
     const patch = vi.mocked(store.upsert).mock.calls[1]![1];
     expect(openSecret(patch.botTokenEncrypted!, secret, TELEGRAM_SECRET_PURPOSE)).toBe(token);
-    expect(patch).toMatchObject({ enabled: true, notifyExpense: false, notifyRevenue: true });
+    expect(patch).toMatchObject({
+      enabled: true,
+      notifyExpense: false,
+      notifyRevenue: true,
+      notifyDrafts: true,
+    });
   });
 
   it("validates input and requires a complete configuration to enable", async () => {

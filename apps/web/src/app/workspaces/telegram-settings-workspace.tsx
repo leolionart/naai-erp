@@ -17,10 +17,18 @@ type TelegramSettings = Readonly<{
   threadId: number | null;
   notifyRevenue: boolean;
   notifyExpense: boolean;
+  notifyDrafts: boolean;
   hasBotToken: boolean;
   botTokenHint: string | null;
   version: string;
   updatedAt: string | null;
+  delivery?: Readonly<{
+    sentLast7Days: number;
+    pending: number;
+    failed: number;
+    lastSentAt: string | null;
+    lastError: string | null;
+  }>;
 }>;
 
 type TestResult = Readonly<{ ok: boolean; status: number; error?: string }>;
@@ -66,6 +74,7 @@ export function TelegramSettingsWorkspace() {
   const [threadId, setThreadId] = useState("");
   const [notifyRevenue, setNotifyRevenue] = useState(true);
   const [notifyExpense, setNotifyExpense] = useState(true);
+  const [notifyDrafts, setNotifyDrafts] = useState(true);
   const [busy, setBusy] = useState<"" | "save" | "test">("");
   const [error, setError] = useState("");
   const [testResult, setTestResult] = useState<TestResult>();
@@ -77,6 +86,7 @@ export function TelegramSettingsWorkspace() {
     setThreadId(settings.threadId === null ? "" : String(settings.threadId));
     setNotifyRevenue(settings.notifyRevenue);
     setNotifyExpense(settings.notifyExpense);
+    setNotifyDrafts(settings.notifyDrafts);
     setBotToken("");
   }, []);
 
@@ -102,6 +112,7 @@ export function TelegramSettingsWorkspace() {
           threadId: trimmedThread ? Number(trimmedThread) : null,
           notifyRevenue,
           notifyExpense,
+          notifyDrafts,
           ...(botToken.trim() ? { botToken: botToken.trim() } : {}),
         },
       });
@@ -133,6 +144,7 @@ export function TelegramSettingsWorkspace() {
     threadId.trim() !== (saved.threadId === null ? "" : String(saved.threadId)) ||
     notifyRevenue !== saved.notifyRevenue ||
     notifyExpense !== saved.notifyExpense ||
+    notifyDrafts !== saved.notifyDrafts ||
     botToken.trim() !== "";
 
   return (
@@ -223,6 +235,13 @@ export function TelegramSettingsWorkspace() {
               onChange={setNotifyRevenue}
             />
             <Toggle
+              id="telegram-drafts"
+              label="Cả bản nháp"
+              description="Thông báo ngay khi hóa đơn/chi phí được thêm dưới dạng bản nháp (ví dụ qua API hoặc n8n), chưa cần ghi sổ."
+              checked={notifyDrafts}
+              onChange={setNotifyDrafts}
+            />
+            <Toggle
               id="telegram-expense"
               label="Chi phí"
               description="Khi chi phí hoặc hóa đơn mua vào được ghi sổ."
@@ -231,6 +250,22 @@ export function TelegramSettingsWorkspace() {
             />
           </CardContent>
         </Card>
+        {saved?.delivery ? (
+          <Alert variant={saved.delivery.failed > 0 ? "destructive" : "default"}>
+            <AlertTitle>Tình trạng gửi (7 ngày qua)</AlertTitle>
+            <AlertDescription>
+              Đã gửi {saved.delivery.sentLast7Days} · đang chờ {saved.delivery.pending} · lỗi{" "}
+              {saved.delivery.failed}
+              {saved.delivery.lastSentAt
+                ? ` · lần gửi gần nhất ${new Date(saved.delivery.lastSentAt).toLocaleString("vi-VN")}`
+                : ""}
+              {saved.delivery.lastError ? ` · lỗi gần nhất: ${saved.delivery.lastError}` : ""}
+              {saved.enabled && saved.delivery.sentLast7Days === 0 && saved.delivery.failed === 0
+                ? " · Chưa có thông báo nào được gửi: hãy thử gửi tin nhắn thử và kiểm tra worker đang chạy với SESSION_SECRET."
+                : ""}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {testResult ? (
           <Alert variant={testResult.ok ? "default" : "destructive"}>
             <AlertTitle>{testResult.ok ? "Gửi thử thành công" : "Gửi thử thất bại"}</AlertTitle>

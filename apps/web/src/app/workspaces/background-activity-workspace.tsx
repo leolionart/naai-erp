@@ -168,6 +168,7 @@ export function OperationalLogWorkspace() {
                   <SelectItem value="operational">Vận hành</SelectItem>
                   <SelectItem value="resource_audit">Nghiệp vụ/API</SelectItem>
                   <SelectItem value="planning_audit">Kế hoạch</SelectItem>
+                  <SelectItem value="inbound">Webhook / n8n nhận vào</SelectItem>
                 </SelectContent>
               </Select>
             </Field>

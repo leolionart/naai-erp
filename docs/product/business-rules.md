@@ -1445,3 +1445,16 @@ No task may be marked done with orphan business rules or untested behavior.
 - `BR-UI-TABLE-001`: hidden table columns are remembered per route and per column label in browser
   storage, so the choice survives reloads, filter changes and added or reordered columns; at least one
   column always stays visible.
+- `BR-NOTIFY-003`: when "Cả bản nháp" is enabled (default), a record created as a draft through the
+  API or n8n ingestion (`expense.created`, `sales_invoice.created`, `purchase_invoice.created`,
+  `credit_note.created`) also sends one Telegram message showing its gross amount flagged as a draft
+  (not in the ledger yet); posting it later sends the normal posted message. Records that are
+  auto-posted on creation produce only the posted message.
+- `BR-NOTIFY-004`: Telegram settings show delivery health for the last 7 days (sent, pending, failed,
+  last error) so a silent failure is visible without reading logs.
+
+### Activity timeline
+
+- `BR-ACT-001`: the unified activity timeline includes every inbound webhook receipt (source
+  `inbound`): processed items are succeeded, quarantined/dead-letter items are failed with the error
+  code, so an invoice or expense pushed from n8n that was rejected is visible next to API activity.

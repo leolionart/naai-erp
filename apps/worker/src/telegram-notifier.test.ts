@@ -35,6 +35,19 @@ function store(items: JournalNotification[]) {
 }
 
 describe("telegram message", () => {
+  it("labels API-created drafts and shows reference and party", () => {
+    const text = formatTelegramMessage({
+      ...base,
+      draft: true,
+      reference: "INV-001",
+      party: "Công ty A & B",
+      description: "",
+    });
+    expect(text).toContain("Đã thêm doanh thu (bản nháp, chưa ghi sổ)");
+    expect(text).toContain("🧾 INV-001");
+    expect(text).toContain("👤 Công ty A &amp; B");
+  });
+
   it("escapes HTML and formats VND amounts", () => {
     const text = formatTelegramMessage(base);
     expect(text).toContain("12.500.000 VND");

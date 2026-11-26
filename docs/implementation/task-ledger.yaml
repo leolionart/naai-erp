@@ -3701,6 +3701,21 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-968/
 
+  - id: ERP-969
+    title: Visible inbound webhook activity, draft Telegram notifications and delivery health
+    phase: P16
+    status: done
+    dependencies: [ERP-968]
+    business_rules: [BR-NOTIFY-003, BR-NOTIFY-004, BR-ACT-001]
+    tests: [T-INT-NOTIFY-005, T-INT-ACT-001]
+    evidence: docs/implementation/evidence/ERP-969/
+    agent: claude
+    started_at: 2026-11-26T20:00:00+07:00
+    completed_at: 2026-11-26T22:00:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-969/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

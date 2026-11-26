@@ -14,6 +14,10 @@ export type JournalNotification = Readonly<{
   currency: string;
   revenueMinor: bigint;
   expenseMinor: bigint;
+  /** True for a record created as a draft (not yet in the ledger); `journalId` is then its id. */
+  draft?: boolean;
+  reference?: string;
+  party?: string;
 }>;
 
 /** Per-organization delivery target resolved from the in-app settings (token already decrypted). */
@@ -56,16 +60,20 @@ function formatMinor(minor: bigint, currency: string) {
 
 export function formatTelegramMessage(notification: JournalNotification): string {
   const lines: string[] = [];
+  const draft = notification.draft === true;
   if (notification.revenueMinor !== 0n)
     lines.push(
-      `💰 <b>Doanh thu ghi nhận:</b> ${escapeHtml(formatMinor(notification.revenueMinor, notification.currency))}`,
+      `💰 <b>${draft ? "Đã thêm doanh thu (bản nháp, chưa ghi sổ)" : "Doanh thu ghi nhận"}:</b> ${escapeHtml(formatMinor(notification.revenueMinor, notification.currency))}`,
     );
   if (notification.expenseMinor !== 0n)
     lines.push(
-      `💸 <b>Chi phí ghi nhận:</b> ${escapeHtml(formatMinor(notification.expenseMinor, notification.currency))}`,
+      `💸 <b>${draft ? "Đã thêm chi phí (bản nháp, chưa ghi sổ)" : "Chi phí ghi nhận"}:</b> ${escapeHtml(formatMinor(notification.expenseMinor, notification.currency))}`,
     );
   lines.push(`📅 ${escapeHtml(notification.journalDate)}`);
-  lines.push(`📝 ${escapeHtml(notification.description.slice(0, 300))}`);
+  if (notification.reference) lines.push(`🧾 ${escapeHtml(notification.reference)}`);
+  if (notification.party) lines.push(`👤 ${escapeHtml(notification.party)}`);
+  if (notification.description)
+    lines.push(`📝 ${escapeHtml(notification.description.slice(0, 300))}`);
   lines.push(
     `🏢 ${escapeHtml(notification.organizationId)} · ${escapeHtml(notification.journalId)}`,
   );
@@ -177,7 +185,8 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
       `insert into telegram_notifications(organization_id,outbox_event_id)
        select e.organization_id,e.id from outbox_events e
        join telegram_settings s on s.organization_id=e.organization_id and s.enabled
-       where e.event_type='journal.posted'
+       where e.event_type in ('journal.posted','expense.created','sales_invoice.created',
+                              'purchase_invoice.created','credit_note.created')
          and e.occurred_at > now() - make_interval(mins => $1::int)
          and e.occurred_at >= coalesce(s.enabled_at,'-infinity')
        on conflict do nothing`,
@@ -222,50 +231,64 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
            where organization_id=$1 and outbox_event_id=$2 returning attempts`,
           [row.organization_id, row.outbox_event_id],
         );
-        const journal = await client.query<{
-          journal_id: string;
-          journal_date: string;
-          description: string;
-          currency: string;
-          revenue_minor: string;
-          expense_minor: string;
+        const event = await client.query<{
+          event_type: string;
+          aggregate_id: string;
           enabled: boolean | null;
           notify_revenue: boolean | null;
           notify_expense: boolean | null;
+          notify_drafts: boolean | null;
           bot_token_encrypted: string | null;
           chat_id: string | null;
           thread_id: string | null;
         }>(
-          `select j.id journal_id,j.journal_date::text journal_date,j.description,j.currency,
-             coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0))
-               filter (where l.account_code ~ '^[57]'),0)::text revenue_minor,
-             coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0))
-               filter (where l.account_code ~ '^[68]'),0)::text expense_minor,
-             s.enabled,s.notify_revenue,s.notify_expense,s.bot_token_encrypted,s.chat_id,s.thread_id::text
-           from outbox_events e
-           join journal_entries j on j.organization_id=e.organization_id and j.id=e.aggregate_id
-           left join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
-           left join telegram_settings s on s.organization_id=e.organization_id
-           where e.organization_id=$1 and e.id=$2 and j.state in ('posted','reversed')
-             and j.reversal_of_id is null
-           group by j.id,j.journal_date,j.description,j.currency,s.enabled,s.notify_revenue,
-             s.notify_expense,s.bot_token_encrypted,s.chat_id,s.thread_id`,
+          `select e.event_type,e.aggregate_id,s.enabled,s.notify_revenue,s.notify_expense,s.notify_drafts,
+                  s.bot_token_encrypted,s.chat_id,s.thread_id::text
+             from outbox_events e
+             left join telegram_settings s on s.organization_id=e.organization_id
+            where e.organization_id=$1 and e.id=$2`,
           [row.organization_id, row.outbox_event_id],
         );
-        const found = journal.rows[0];
+        const settings = event.rows[0];
         // Disabled since enqueueing, or the kind of entry is switched off: treat as zero effect.
-        const active = found?.enabled === true;
-        notifications.push({
+        const active = settings?.enabled === true;
+        const base = {
           organizationId: row.organization_id,
           eventId: row.outbox_event_id,
           attempt: leased.rows[0]?.attempts ?? 1,
-          target: found ? this.target(found) : undefined,
-          journalId: found?.journal_id ?? "",
-          journalDate: found?.journal_date ?? "",
-          description: found?.description ?? "",
-          currency: found?.currency ?? "VND",
-          revenueMinor: active && found.notify_revenue ? BigInt(found.revenue_minor) : 0n,
-          expenseMinor: active && found.notify_expense ? BigInt(found.expense_minor) : 0n,
+          target: settings ? this.target(settings) : undefined,
+        };
+        const none = {
+          ...base,
+          journalId: "",
+          journalDate: "",
+          description: "",
+          currency: "VND",
+          revenueMinor: 0n,
+          expenseMinor: 0n,
+        };
+        if (!settings) {
+          notifications.push(none);
+          continue;
+        }
+        const draftKind = settings.event_type !== "journal.posted";
+        if (draftKind && settings.notify_drafts !== true) {
+          notifications.push(none);
+          continue;
+        }
+        const loaded = draftKind
+          ? await this.loadDraft(
+              client,
+              row.organization_id,
+              settings.event_type,
+              settings.aggregate_id,
+            )
+          : await this.loadJournal(client, row.organization_id, settings.aggregate_id);
+        notifications.push({
+          ...base,
+          ...(loaded ?? none),
+          revenueMinor: active && settings.notify_revenue ? (loaded?.revenueMinor ?? 0n) : 0n,
+          expenseMinor: active && settings.notify_expense ? (loaded?.expenseMinor ?? 0n) : 0n,
         });
       }
       await client.query("commit");
@@ -276,6 +299,109 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
     } finally {
       client.release();
     }
+  }
+
+  private async loadJournal(client: pg.PoolClient, organizationId: string, journalId: string) {
+    const journal = await client.query<{
+      journal_id: string;
+      journal_date: string;
+      description: string;
+      currency: string;
+      revenue_minor: string;
+      expense_minor: string;
+    }>(
+      `select j.id journal_id,j.journal_date::text journal_date,j.description,j.currency,
+         coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0))
+           filter (where l.account_code ~ '^[57]'),0)::text revenue_minor,
+         coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0))
+           filter (where l.account_code ~ '^[68]'),0)::text expense_minor
+       from journal_entries j
+       left join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+       where j.organization_id=$1 and j.id=$2 and j.state in ('posted','reversed')
+         and j.reversal_of_id is null
+       group by j.id,j.journal_date,j.description,j.currency`,
+      [organizationId, journalId],
+    );
+    const found = journal.rows[0];
+    return found
+      ? {
+          journalId: found.journal_id,
+          journalDate: found.journal_date,
+          description: found.description,
+          currency: found.currency,
+          revenueMinor: BigInt(found.revenue_minor),
+          expenseMinor: BigInt(found.expense_minor),
+        }
+      : undefined;
+  }
+
+  /** A record created as a draft (API/n8n ingestion): report its gross amount, flagged as a draft. */
+  private async loadDraft(
+    client: pg.PoolClient,
+    organizationId: string,
+    eventType: string,
+    recordId: string,
+  ) {
+    if (eventType === "expense.created") {
+      const result = await client.query<{
+        id: string;
+        date: string;
+        purpose: string | null;
+        currency: string;
+        gross: string;
+        party: string | null;
+      }>(
+        `select e.id,e.expense_date::text date,e.business_purpose purpose,e.currency,e.gross_minor::text gross,
+                p.display_name party
+           from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id
+          where e.organization_id=$1 and e.id=$2`,
+        [organizationId, recordId],
+      );
+      const found = result.rows[0];
+      return found
+        ? {
+            draft: true,
+            journalId: found.id,
+            journalDate: found.date,
+            description: found.purpose ?? "",
+            currency: found.currency,
+            revenueMinor: 0n,
+            expenseMinor: BigInt(found.gross),
+            ...(found.party ? { party: found.party } : {}),
+          }
+        : undefined;
+    }
+    const result = await client.query<{
+      id: string;
+      type: string;
+      number: string;
+      date: string;
+      currency: string;
+      gross: string;
+      party: string | null;
+    }>(
+      `select d.id,d.type::text,d.document_number number,d.document_date::text date,d.currency,
+              d.gross_minor::text gross,p.display_name party
+         from commercial_documents d left join parties p on p.organization_id=d.organization_id and p.id=d.party_id
+        where d.organization_id=$1 and d.id=$2`,
+      [organizationId, recordId],
+    );
+    const found = result.rows[0];
+    if (!found) return undefined;
+    const gross = BigInt(found.gross);
+    return {
+      draft: true,
+      journalId: found.id,
+      journalDate: found.date,
+      description: "",
+      currency: found.currency,
+      reference: found.number,
+      // A credit note reduces revenue; a purchase invoice is a cost.
+      revenueMinor:
+        found.type === "sales_invoice" ? gross : found.type === "credit_note" ? -gross : 0n,
+      expenseMinor: found.type === "purchase_invoice" ? gross : 0n,
+      ...(found.party ? { party: found.party } : {}),
+    };
   }
 
   async markSent(n: JournalNotification) {

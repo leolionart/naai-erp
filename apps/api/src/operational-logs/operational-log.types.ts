@@ -8,7 +8,7 @@ export type OperationalLogFilters = Readonly<{
   limit?: number;
 }>;
 export type UnifiedActivityFilters = Readonly<{
-  source?: "operational" | "resource_audit" | "planning_audit";
+  source?: "operational" | "resource_audit" | "planning_audit" | "inbound";
   eventType?: string;
   actorId?: string;
   severity?: string;

@@ -30,7 +30,10 @@ export class OperationalLogController {
     const limit = query.limit ? Number(query.limit) : undefined;
     if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 200))
       throw new Error("VALIDATION_FAILED");
-    if (query.source && !["operational", "resource_audit", "planning_audit"].includes(query.source))
+    if (
+      query.source &&
+      !["operational", "resource_audit", "planning_audit", "inbound"].includes(query.source)
+    )
       throw new Error("VALIDATION_FAILED");
     return this.service.listAll(
       await this.service.authenticate(authorization, organizationId, correlationId ?? randomUUID()),

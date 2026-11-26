@@ -2523,6 +2523,7 @@ export const telegramSettings = pgTable(
     botTokenHint: text("bot_token_hint"),
     notifyRevenue: boolean("notify_revenue").notNull().default(true),
     notifyExpense: boolean("notify_expense").notNull().default(true),
+    notifyDrafts: boolean("notify_drafts").notNull().default(true),
     version: bigint("version", { mode: "number" }).notNull().default(1),
     updatedBy: text("updated_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

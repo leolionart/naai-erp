@@ -728,3 +728,7 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   idempotency headers (`focused-records.spec.ts`).
 - `T-UNIT-TABLE-001` / `T-E2E-TABLE-002`: column visibility persistence by label and route
   (`table-columns.test.ts`, `focused-records.spec.ts`).
+- `T-INT-NOTIFY-005`: API-created draft expense, sales invoice and credit note send flagged Telegram
+  messages; the drafts toggle skips them (`telegram-notifier.integration.test.ts`).
+- `T-INT-ACT-001`: the unified activity timeline lists inbound webhook receipts with failed status for
+  quarantined payloads and supports the `inbound` source filter (`pg-operational-log.integration.test.ts`).

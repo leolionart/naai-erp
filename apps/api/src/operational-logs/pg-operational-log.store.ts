@@ -140,6 +140,20 @@ export class PgOperationalLogStore implements OperationalLogStore {
            jsonb_build_object('resourceVersion',resource_version) details,occurred_at
          from resource_audit_events
          union all
+         select organization_id,id,'inbound'::text source,event_type,
+           null::text actor_id,'inbound_message'::text resource_type,external_id resource_key,
+           correlation_id,
+           case state::text when 'processed' then 'succeeded' when 'received' then 'running'
+             else 'failed' end status,
+           case state::text when 'processed' then 'info' when 'received' then 'info'
+             when 'retry_scheduled' then 'warning' else 'error' end severity,
+           'Inbound '||event_type||' · '||state::text||coalesce(' · '||last_error_code,'') summary,
+           jsonb_build_object('state',state::text,'attemptCount',attempt_count,
+             'lastErrorCode',last_error_code,'lastErrorSummary',last_error_summary,
+             'externalId',external_id) details,
+           received_at occurred_at
+         from inbound_messages
+         union all
          select organization_id,id,'planning_audit'::text source,action event_type,
            actor_id,resource_type,resource_id resource_key,correlation_id,'succeeded'::text status,
            'info'::text severity,resource_type||' · '||action summary,

@@ -9,10 +9,21 @@ export type TelegramSettingsView = Readonly<{
   threadId: number | null;
   notifyRevenue: boolean;
   notifyExpense: boolean;
+  notifyDrafts: boolean;
   hasBotToken: boolean;
   botTokenHint: string | null;
   version: string;
   updatedAt: string | null;
+  /** Delivery health of the last 7 days, so a silent failure (e.g. worker without SESSION_SECRET) is visible. */
+  delivery?: TelegramDeliveryStats;
+}>;
+
+export type TelegramDeliveryStats = Readonly<{
+  sentLast7Days: number;
+  pending: number;
+  failed: number;
+  lastSentAt: string | null;
+  lastError: string | null;
 }>;
 
 export type UpdateTelegramSettingsInput = Readonly<{
@@ -22,6 +33,7 @@ export type UpdateTelegramSettingsInput = Readonly<{
   threadId?: number | null;
   notifyRevenue?: boolean;
   notifyExpense?: boolean;
+  notifyDrafts?: boolean;
 }>;
 
 export type StoredTelegramSettings = Readonly<{
@@ -31,6 +43,7 @@ export type StoredTelegramSettings = Readonly<{
   botTokenEncrypted: string | null;
   notifyRevenue: boolean;
   notifyExpense: boolean;
+  notifyDrafts: boolean;
 }>;
 
 export type TelegramSettingsStore = Readonly<{
@@ -47,6 +60,7 @@ export type TelegramSettingsStore = Readonly<{
       botTokenHint: string | null;
       notifyRevenue: boolean;
       notifyExpense: boolean;
+      notifyDrafts: boolean;
     },
   ): Promise<TelegramSettingsView>;
 }>;

@@ -17,6 +17,7 @@ describeIntegration("PostgreSQL Telegram settings", () => {
     botTokenHint: "AAAA",
     notifyRevenue: true,
     notifyExpense: false,
+    notifyDrafts: true,
   };
 
   beforeAll(async () => {
