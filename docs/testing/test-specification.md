@@ -747,3 +747,7 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   account `331` alongside project freelance payables, omits settled `company_*` invoices and owner
   positions (`3388`, `1388`), and reconciles `tieStatus` against ledger account `331`
   (`aging.integration.test.ts`).
+- `T-INT-CUR-002`: non-base-currency payloads on `commercial-documents` (including quick ingestion),
+  `expenses`, `journals`, `workbook-imports` (`dry-run` and `commit`) and `inbound-webhooks` return
+  HTTP `422 FOREIGN_CURRENCY_NOT_SUPPORTED` with VND conversion guidance (`"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"`),
+  while VND behavior and historical `BR-STAT-001` exclusion remain unchanged (`base-currency-guard.test.ts`, `base-currency.integration.test.ts`).

@@ -34,6 +34,14 @@ export class PgMasterDataStore {
     return undefined;
   }
 
+  async getOrganizationBaseCurrency(organizationId: string): Promise<string> {
+    const result = await this.pool.query<{ base_currency: string }>(
+      "select base_currency from organizations where id = $1 limit 1",
+      [organizationId],
+    );
+    return result.rows[0]?.base_currency ?? "VND";
+  }
+
   async list(
     resource: string,
     organizationId: string,

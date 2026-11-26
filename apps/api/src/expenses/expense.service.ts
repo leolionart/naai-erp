@@ -1,8 +1,10 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
+import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
+import { normalizeExpenseRelationships } from "./expense-relationships.js";
 import { PgExpenseStore } from "./pg-expense.store.js";
 import type {
   CreateExpenseInput,
@@ -178,8 +180,9 @@ export class ExpenseService {
     if (!existing) throw new Error("RESOURCE_NOT_FOUND");
     if (String(existing.version) !== expectedVersion) throw new Error("VERSION_CONFLICT");
     if (existing.state !== "posted") throw new Error("INVALID_EXPENSE_TRANSITION");
-    const normalized = this.normalizeRelationships(replacement);
+    const normalized = normalizeExpenseRelationships(replacement);
     this.validate(normalized);
+    await assertMasterBaseCurrency(this.master, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     const planHash = createHash("sha256")
       .update(
@@ -319,13 +322,14 @@ export class ExpenseService {
     if (existing.version.toString() !== expectedVersion) throw new Error("VERSION_CONFLICT");
 
     const mergedInput = this.mergeExpense(existing, input);
-    const merged = this.normalizeRelationships({
+    const merged = normalizeExpenseRelationships({
       ...mergedInput,
       ...(mergedInput.funding?.financialAccountId && !mergedInput.fundingFinancialAccountId
         ? { fundingFinancialAccountId: mergedInput.funding.financialAccountId }
         : {}),
     });
     this.validate(merged);
+    await assertMasterBaseCurrency(this.master, context.organizationId, merged.currency);
     await this.store.validateRelationships?.(context.organizationId, merged);
 
     return this.envelope(
@@ -488,7 +492,7 @@ export class ExpenseService {
             ? "112-BANK"
             : "111-CASH"
         : "");
-    const normalized = this.normalizeRelationships({
+    const normalized = normalizeExpenseRelationships({
       ...input,
       ...(resolvedFunding ? { funding: resolvedFunding } : {}),
       ...(derivedCounter ? { counterAccountCode: derivedCounter } : {}),
@@ -497,6 +501,7 @@ export class ExpenseService {
         : {}),
     });
     this.validate(normalized);
+    await assertMasterBaseCurrency(this.master, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(context, await this.store.create(context, normalized, key));
   }
@@ -515,8 +520,9 @@ export class ExpenseService {
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!expectedVersion) throw new Error("VERSION_CONFLICT");
     if (!reason.trim()) throw new Error("VALIDATION_FAILED");
-    const normalized = this.normalizeRelationships(input);
+    const normalized = normalizeExpenseRelationships(input);
     this.validate(normalized);
+    await assertMasterBaseCurrency(this.master, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(
       context,
@@ -746,7 +752,7 @@ export class ExpenseService {
     planHash: string,
     key?: string,
   ) {
-    const normalized = this.normalizeRelationships(replacement);
+    const normalized = normalizeExpenseRelationships(replacement);
     const expectedPlanHash = createHash("sha256")
       .update(
         JSON.stringify({ id, expectedVersion, replacement: normalized, reason: reason.trim() }),
@@ -754,47 +760,6 @@ export class ExpenseService {
       .digest("hex");
     if (expectedPlanHash !== planHash) throw new Error("RELATIONSHIP_BACKFILL_PLAN_MISMATCH");
     return this.reverseReplace(context, id, expectedVersion, normalized, reason, key);
-  }
-  private normalizeRelationships(input: CreateExpenseInput): CreateExpenseInput {
-    return {
-      ...input,
-      lines: input.lines.map((line) => {
-        const lineCategory = line.expenseCategoryCode?.trim() || line.dimensions?.category?.trim();
-        const allocationCategories = line.allocations
-          .map((allocation) => allocation.dimensions.category?.trim())
-          .filter((category): category is string => Boolean(category));
-        const categories = [lineCategory, ...allocationCategories].filter(
-          (category): category is string => Boolean(category),
-        );
-        if (new Set(categories).size > 1) throw new Error("CATEGORY_AMBIGUOUS");
-        const category = categories[0];
-        const lineDimensions = Object.fromEntries(
-          Object.entries(line.dimensions ?? {}).filter(([key]) => key !== "category"),
-        );
-        return {
-          ...line,
-          ...(category ? { expenseCategoryCode: category } : {}),
-          ...(Object.keys(lineDimensions).length ? { dimensions: lineDimensions } : {}),
-          allocations: line.allocations.map((allocation) => {
-            const allocationDimensions = Object.fromEntries(
-              Object.entries(allocation.dimensions).filter(([key]) => key !== "category"),
-            );
-            return {
-              ...allocation,
-              dimensions: {
-                ...allocationDimensions,
-                ...(lineDimensions.projectId && !allocationDimensions.projectId
-                  ? { projectId: lineDimensions.projectId }
-                  : {}),
-                ...(lineDimensions.contractId && !allocationDimensions.contractId
-                  ? { contractId: lineDimensions.contractId }
-                  : {}),
-              },
-            };
-          }),
-        };
-      }),
-    };
   }
   async transition(
     context: ExpenseContext,
@@ -808,6 +773,11 @@ export class ExpenseService {
     if (!context.roles.some((r) => roles.has(r))) throw new Error("FORBIDDEN");
     if (!key) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
+    if (action === "post") {
+      const existing = await this.store.get?.(context.organizationId, id);
+      if (existing?.currency)
+        await assertMasterBaseCurrency(this.master, context.organizationId, existing.currency);
+    }
     return this.envelope(
       context,
       await this.store.transition(

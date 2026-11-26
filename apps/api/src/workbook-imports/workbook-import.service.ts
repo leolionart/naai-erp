@@ -1,36 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
 import { createHash, randomUUID } from "node:crypto";
+import { assertWorkbookBaseCurrency } from "../common/base-currency-guard.js";
+import { mapWorkbookReviewRow, type ReviewRowRecord } from "./workbook-review-row.mapper.js";
 import type {
   UpdateWorkbookImportReviewRowInput,
   WorkbookImportPayload,
-  WorkbookImportReviewStatus,
 } from "./workbook-import.types.js";
 
 const REVIEW_ROLES = new Set(["owner", "finance_admin", "accountant"]);
-
-type ReviewRowRecord = {
-  id: string;
-  import_identity: string;
-  source_identity: string;
-  workbook: string;
-  sheet: string;
-  source_row: number;
-  kind: string;
-  proposed_resource_type: string;
-  proposed_resource_id: string | null;
-  status: WorkbookImportReviewStatus;
-  review_flags: unknown;
-  raw_data: unknown;
-  mapped_data: unknown;
-  resolution: unknown;
-  notes: string | null;
-  version: string;
-  created_by: string;
-  updated_by: string;
-  created_at: Date | string;
-  updated_at: Date | string;
-};
 
 export type ImportOutcome = {
   valid: boolean;
@@ -97,28 +75,7 @@ export class WorkbookImportService {
   }
 
   private reviewRow(row: ReviewRowRecord) {
-    return {
-      id: row.id,
-      importIdentity: row.import_identity,
-      sourceIdentity: row.source_identity,
-      workbook: row.workbook,
-      sheet: row.sheet,
-      sourceRow: row.source_row,
-      kind: row.kind,
-      proposedResourceType: row.proposed_resource_type,
-      proposedResourceId: row.proposed_resource_id,
-      status: row.status,
-      reviewFlags: row.review_flags,
-      rawData: row.raw_data,
-      mappedData: row.mapped_data,
-      resolution: row.resolution,
-      notes: row.notes,
-      resourceVersion: row.version,
-      createdBy: row.created_by,
-      updatedBy: row.updated_by,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
+    return mapWorkbookReviewRow(row);
   }
 
   async listReviewRows(organizationId: string, roles: readonly string[]) {
@@ -231,6 +188,7 @@ export class WorkbookImportService {
   }
 
   async dryRun(organizationId: string, payload: WorkbookImportPayload): Promise<ImportOutcome> {
+    await assertWorkbookBaseCurrency(this.pool, organizationId, payload);
     const runtimeIssues: WorkbookImportPayload["issues"][number][] = [...(payload.issues ?? [])];
     const errors: string[] = (payload.issues ?? [])
       .filter((issue) => issue.severity === "error")

@@ -3950,14 +3950,38 @@ tasks:
   - id: ERP-985
     title: Reject non-base-currency postings with a clear error
     phase: P17
-    status: ready
+    status: done
     dependencies: [ERP-975]
     business_rules: [BR-CUR-002]
     tests: [T-INT-CUR-002]
     plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
-    agent: unassigned
+    evidence: docs/implementation/evidence/ERP-985/
+    agent: antigravity
+    started_at: 2026-11-26T18:43:00+07:00
+    completed_at: 2026-11-26T18:55:00+07:00
+    completion_basis: implemented_with_unit_and_scratch_database_evidence
     planned_files:
-      - docs/implementation/plans/funding-and-account-reclassification.md
+      - apps/api/src/api-exception.filter.ts
+      - apps/api/src/common/base-currency-guard.ts
+      - apps/api/src/common/base-currency-guard.test.ts
+      - apps/api/src/common/base-currency.integration.test.ts
+      - apps/api/src/master-data/pg-master-data.store.ts
+      - apps/api/src/master-data/master-data.service.ts
+      - apps/api/src/commercial-documents/commercial-document-funding.validator.ts
+      - apps/api/src/commercial-documents/commercial-document.service.ts
+      - apps/api/src/commercial-documents/quick-purchase-invoice.service.ts
+      - apps/api/src/commercial-documents/quick-sales-invoice.service.ts
+      - apps/api/src/expenses/expense-relationships.ts
+      - apps/api/src/expenses/expense.service.ts
+      - apps/api/src/journals/journal.service.ts
+      - apps/api/src/workbook-imports/workbook-review-row.mapper.ts
+      - apps/api/src/workbook-imports/workbook-import.service.ts
+      - apps/api/src/inbound-webhooks/inbound-webhook.service.ts
+      - docs/api/openapi-v1.json
+      - docs/product/business-rules.md
+      - docs/testing/test-catalog.yaml
+      - docs/testing/test-specification.md
+      - docs/implementation/evidence/ERP-985/
 
   - id: ERP-986
     title: Estimated corporate income tax rate by prior-year revenue tier

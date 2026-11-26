@@ -9,6 +9,7 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   RESOURCE_NOT_FOUND: 404,
   EXPORT_CONTENT_PRUNED: 410,
   VALIDATION_FAILED: 400,
+  FOREIGN_CURRENCY_NOT_SUPPORTED: 422,
   FUNDING_SOURCE_INVALID: 422,
   EXPENSE_FUNDING_ACCOUNT_NOT_AVAILABLE: 422,
   EXPENSE_FUNDING_ACCOUNT_MISMATCH: 422,
@@ -206,16 +207,31 @@ export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<FastifyReply>();
     console.error("ApiExceptionFilter caught error:", exception);
-    const message = exception instanceof Error ? exception.message : "INTERNAL_ERROR";
+    const rawMessage = exception instanceof Error ? exception.message : "INTERNAL_ERROR";
+    const explicitCode =
+      exception &&
+      typeof exception === "object" &&
+      "code" in exception &&
+      typeof (exception as { code?: unknown }).code === "string"
+        ? (exception as { code: string }).code
+        : undefined;
+    const codeKey = explicitCode ?? rawMessage;
+    const message =
+      exception &&
+      typeof exception === "object" &&
+      "userMessage" in exception &&
+      typeof (exception as { userMessage?: unknown }).userMessage === "string"
+        ? (exception as { userMessage: string }).userMessage
+        : rawMessage;
     const details =
       exception && typeof exception === "object" && "details" in exception
         ? (exception as { details?: unknown }).details
         : undefined;
-    const status = STATUS_BY_CODE[message] ?? 400;
+    const status = STATUS_BY_CODE[codeKey] ?? STATUS_BY_CODE[rawMessage] ?? 400;
     response.status(status).send({
       apiVersion: "v1",
       error: {
-        code: message.replaceAll(" ", "_").toUpperCase(),
+        code: codeKey.replaceAll(" ", "_").toUpperCase(),
         message,
         retryable: status >= 500,
         ...(details !== undefined ? { details } : {}),

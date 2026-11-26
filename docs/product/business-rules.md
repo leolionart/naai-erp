@@ -299,12 +299,20 @@ Every rule contains a stable ID, invariant/behavior, validation, state transitio
 - Allocation creates multiple journal lines, not duplicate source documents.
 - Rounding residual goes to a configured line/account with explicit metadata.
 
-### BR-CUR-001 — Multi-currency
+### BR-CUR-001 — Multi-currency (unimplemented)
 
+- Status: **unimplemented** (planned for a future phase; see `BR-CUR-002` for active base-currency enforcement).
 - Store document currency, rate, rate source/timestamp and base amounts.
 - Use decimal/minor units, never binary floating point.
 - Partial payment may create realized FX gain/loss.
 - Period-end revaluation creates unrealized FX entries under an approved policy.
+
+### BR-CUR-002 — Base-currency-only postings and ingestion
+
+- Until `BR-CUR-001` is implemented, every commercial document (including quick purchase/sales ingestion, draft update, reverse-replace and issue/post transitions), expense, manual/reposted journal, workbook import (`dry-run` and `commit`) and inbound webhook must use a `currency` matching the organization's `base_currency` (`VND`).
+- Any non-base currency returns HTTP `422` with error code `FOREIGN_CURRENCY_NOT_SUPPORTED` and explicit operator guidance (`"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"`), creating zero business or inbox mutations so the caller can convert to VND and retry cleanly.
+- Existing historical foreign-currency records in the database are never modified or deleted; they remain excluded from base-currency totals with the `foreign_currency_excluded_from_totals` warning per `BR-STAT-001`.
+- Required tests: `T-INT-CUR-002` (positive VND pass-through, negative 422 `FOREIGN_CURRENCY_NOT_SUPPORTED` at each entry point, historical foreign-currency exclusion preserved).
 
 ## 3. Ledger and posting
 
@@ -1557,8 +1565,7 @@ other | unpaid`), payment date, optional payment evidence reference and the evid
   payments/reconciliation) and freelancer payables; owner-paid (3388) and owner receivable (1388)
   amounts stay separate in the position with the owner, `company_*` paid invoices carry zero AP
   balance, and `tieStatus` reconciles ledger account 331 against the AP aging detail total.
-- `BR-CUR-002` (planned): until multi-currency (BR-CUR-001) exists, postings and ingestion in a currency other than the
-  organization's base currency are rejected with `FOREIGN_CURRENCY_NOT_SUPPORTED`.
+- `BR-CUR-002`: until multi-currency (`BR-CUR-001`, unimplemented) exists, postings and ingestion across `commercial-documents`, `expenses`, `journals`, `workbook-imports` and `inbound-webhooks` in a currency other than the organization's base currency are rejected with HTTP `422 FOREIGN_CURRENCY_NOT_SUPPORTED` and guidance `"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"`, while historical foreign-currency rows remain untouched and excluded per `BR-STAT-001`.
 - `BR-TAX-102` (planned): estimated corporate income tax uses 15% when the previous year's total revenue is up to 3 billion
   VND, 17% above 3 and up to 50 billion, 20% above 50 billion (Law 67/2025/QH15), unless the owner declares a related-party
   exclusion; the assumption is shown on the report and the table is configurable by year.

@@ -7,6 +7,10 @@ import {
   type InboundEnvelope,
 } from "@naai-erp/domain";
 import { CommercialDocumentService } from "../commercial-documents/commercial-document.service.js";
+import {
+  assertMasterBaseCurrency,
+  isForeignCurrencyNotSupportedError,
+} from "../common/base-currency-guard.js";
 import { ExpenseService } from "../expenses/expense.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgInboundWebhookStore } from "./pg-inbound-webhook.store.js";
@@ -111,6 +115,11 @@ export class InboundWebhookService {
         nextActions: ["review", "replay"],
       });
     }
+    await assertMasterBaseCurrency(this.master, source.organizationId, envelope.data.currency, {
+      source: "inbound_webhook",
+      eventType: envelope.eventType,
+      externalId: envelope.externalId,
+    });
     return this.process({
       source,
       envelope,
@@ -183,6 +192,7 @@ export class InboundWebhookService {
         nextActions: ["get"],
       });
     } catch (error) {
+      if (isForeignCurrencyNotSupportedError(error)) throw error;
       const code = error instanceof Error ? error.message : "WEBHOOK_PROCESSING_FAILED";
       const result = await this.store.finish(
         input.source.organizationId,

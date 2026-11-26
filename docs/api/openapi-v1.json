@@ -538,7 +538,12 @@
         "summary": "List organization-scoped journals with exact string amounts"
       },
       "post": {
-        "summary": "Create an idempotent draft journal"
+        "summary": "Create an idempotent draft journal",
+        "description": "Requires currency to match the organization base currency (VND); otherwise returns 422 FOREIGN_CURRENCY_NOT_SUPPORTED with conversion guidance.",
+        "responses": {
+          "201": { "description": "Draft journal created" },
+          "422": { "description": "FOREIGN_CURRENCY_NOT_SUPPORTED or unbalanced/invalid journal" }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/journals/{journalId}": {
@@ -888,7 +893,12 @@
       },
       "post": {
         "summary": "Create an idempotent exact-amount commercial document draft with customer-validated project and optional contract allocations",
-        "requestBody": { "$ref": "#/components/requestBodies/CreateCommercialDocument" }
+        "description": "Requires currency to match the organization base currency (VND); otherwise returns 422 FOREIGN_CURRENCY_NOT_SUPPORTED with guidance to convert to VND before entry.",
+        "requestBody": { "$ref": "#/components/requestBodies/CreateCommercialDocument" },
+        "responses": {
+          "201": { "description": "Commercial document created" },
+          "422": { "description": "FOREIGN_CURRENCY_NOT_SUPPORTED or business validation error" }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}": {
@@ -952,6 +962,9 @@
                 "schema": { "$ref": "#/components/schemas/QuickPurchaseInvoiceEnvelope" }
               }
             }
+          },
+          "422": {
+            "description": "FOREIGN_CURRENCY_NOT_SUPPORTED when currency differs from organization base currency, or category/account validation error"
           }
         }
       }
@@ -975,6 +988,9 @@
                 "schema": { "$ref": "#/components/schemas/QuickSalesInvoiceEnvelope" }
               }
             }
+          },
+          "422": {
+            "description": "FOREIGN_CURRENCY_NOT_SUPPORTED when currency differs from organization base currency, or customer/project validation error"
           }
         }
       }
@@ -1135,7 +1151,7 @@
       },
       "post": {
         "summary": "Create an idempotent expense draft with an independent supplier/payee and optional receiving-project/contract allocations",
-        "description": "Creates a draft in controlled/integration mode. Under the approved solopreneur owner policy the service may complete the lifecycle atomically and return posted. The canonical funding object is preferred; fundingFinancialAccountId is retained as a top-level compatibility field and must identify an organization-scoped account when supplied.",
+        "description": "Creates a draft in controlled/integration mode. Under the approved solopreneur owner policy the service may complete the lifecycle atomically and return posted. Requires currency to match the organization base currency (VND); otherwise returns 422 FOREIGN_CURRENCY_NOT_SUPPORTED. The canonical funding object is preferred; fundingFinancialAccountId is retained as a top-level compatibility field and must identify an organization-scoped account when supplied.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1145,6 +1161,10 @@
               }
             }
           }
+        },
+        "responses": {
+          "201": { "description": "Expense created" },
+          "422": { "description": "FOREIGN_CURRENCY_NOT_SUPPORTED or business validation error" }
         }
       }
     },
@@ -1345,7 +1365,14 @@
     "/api/v1/inbound/{sourcePublicId}/events": {
       "post": {
         "summary": "Receive an exact-raw-body HMAC signed versioned event with timestamp and idempotency protection",
-        "security": []
+        "description": "Requires event data currency to match the organization base currency (VND); otherwise returns 422 FOREIGN_CURRENCY_NOT_SUPPORTED without poisoning externalId retry state.",
+        "security": [],
+        "responses": {
+          "201": { "description": "Inbound event processed or quarantined" },
+          "422": {
+            "description": "FOREIGN_CURRENCY_NOT_SUPPORTED when payload currency differs from organization base currency"
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/inbound-events": {
@@ -3588,6 +3615,9 @@
                 "schema": { "$ref": "#/components/schemas/WorkbookImportEnvelope" }
               }
             }
+          },
+          "422": {
+            "description": "FOREIGN_CURRENCY_NOT_SUPPORTED when any imported sales invoice or expense currency differs from the organization base currency"
           }
         }
       }
@@ -3614,6 +3644,9 @@
                 "schema": { "$ref": "#/components/schemas/WorkbookImportEnvelope" }
               }
             }
+          },
+          "422": {
+            "description": "FOREIGN_CURRENCY_NOT_SUPPORTED when any imported sales invoice or expense currency differs from the organization base currency"
           }
         }
       }

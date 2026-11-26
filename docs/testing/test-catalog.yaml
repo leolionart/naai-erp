@@ -10,6 +10,14 @@ catalog_rules:
   - Property failures must preserve seed and minimized counterexample.
 
 tests:
+  - id: T-INT-CUR-002
+    task: ERP-985
+    rules: [BR-CUR-002, BR-STAT-001]
+    title: Reject non-base-currency documents expenses journals workbook imports and inbound webhooks with 422 FOREIGN_CURRENCY_NOT_SUPPORTED while preserving VND flows and historical FX exclusion
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/common/base-currency-guard.test.ts src/common/base-currency.integration.test.ts
+    blocking_gate: G100
+
   - id: T-UNIT-ERP-960-001
     task: ERP-960
     rules: [BR-UI-003, BR-UI-004, BR-SEC-001, BR-SEC-002]

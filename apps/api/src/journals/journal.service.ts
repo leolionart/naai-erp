@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
+import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgJournalStore } from "./pg-journal.store.js";
 import type { CreateJournalInput, JournalActorContext } from "./journal.types.js";
@@ -59,11 +60,15 @@ export class JournalService {
       })
     )
       throw new Error("VALIDATION_FAILED");
+    await assertMasterBaseCurrency(this.masterData, context.organizationId, input.currency);
     return this.envelope(context, await this.store.create(context, input, idempotencyKey));
   }
   async post(context: JournalActorContext, id: string, idempotencyKey?: string) {
     if (!context.roles.some((role) => POST_ROLES.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    const existing = await this.store.get?.(context.organizationId, id);
+    if (existing?.currency)
+      await assertMasterBaseCurrency(this.masterData, context.organizationId, existing.currency);
     return this.envelope(context, await this.store.post(context, id, idempotencyKey));
   }
   async approve(
@@ -116,7 +121,13 @@ export class JournalService {
   ) {
     if (!context.roles.some((role) => WRITE_ROLES.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-    if (!input.lines?.length || !input.description?.trim()) throw new Error("VALIDATION_FAILED");
+    if (
+      !input.lines?.length ||
+      !input.description?.trim() ||
+      !/^[A-Z]{3}$/.test(input.currency ?? "")
+    )
+      throw new Error("VALIDATION_FAILED");
+    await assertMasterBaseCurrency(this.masterData, context.organizationId, input.currency);
     return this.envelope(context, await this.store.repost(context, id, input, idempotencyKey));
   }
 }

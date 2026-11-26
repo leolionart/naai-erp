@@ -1,8 +1,10 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
+import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
+import { validateCommercialDocumentFunding } from "./commercial-document-funding.validator.js";
 import { PgCommercialDocumentStore } from "./pg-commercial-document.store.js";
 import type {
   CommercialDocumentAction,
@@ -133,6 +135,7 @@ export class CommercialDocumentService {
       throw new Error("INVALID_DOCUMENT_TRANSITION");
     const normalized = this.normalizeRelationships(replacement);
     this.validate(normalized);
+    await assertMasterBaseCurrency(this.masterData, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     const planHash = createHash("sha256")
       .update(
@@ -168,6 +171,7 @@ export class CommercialDocumentService {
 
     const merged = this.normalizeRelationships(this.mergeDocument(existing, input));
     this.validate(merged);
+    await assertMasterBaseCurrency(this.masterData, context.organizationId, merged.currency);
     await this.store.validateRelationships?.(context.organizationId, merged);
 
     return this.envelope(
@@ -465,6 +469,7 @@ export class CommercialDocumentService {
         : {}),
     });
     this.validate(normalized);
+    await assertMasterBaseCurrency(this.masterData, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(context, await this.store.create(context, normalized, idempotencyKey));
   }
@@ -502,6 +507,7 @@ export class CommercialDocumentService {
     if (!reason.trim()) throw new Error("VALIDATION_FAILED");
     const normalized = this.normalizeRelationships(input);
     this.validate(normalized);
+    await assertMasterBaseCurrency(this.masterData, context.organizationId, normalized.currency);
     await this.store.validateRelationships?.(context.organizationId, normalized);
     return this.envelope(
       context,
@@ -800,13 +806,18 @@ export class CommercialDocumentService {
     if (!context.roles.some((role) => roles.has(role))) throw new Error("FORBIDDEN");
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!input.reason?.trim()) throw new Error("VALIDATION_FAILED");
+    if (action === "issue" || action === "post") {
+      const existing = await this.store.get?.(context.organizationId, id);
+      if (existing?.currency)
+        await assertMasterBaseCurrency(this.masterData, context.organizationId, existing.currency);
+    }
     return this.envelope(
       context,
       await this.store.transition(context, id, action, input.reason.trim(), idempotencyKey),
     );
   }
   private validate(input: CreateCommercialDocumentInput) {
-    this.validateFunding(input);
+    validateCommercialDocumentFunding(input);
     if (
       input.fundingSource &&
       (input.type !== "purchase_invoice" ||
@@ -917,45 +928,6 @@ export class CommercialDocumentService {
       if (!input.externalReference.system?.trim() || !input.externalReference.externalId?.trim()) {
         throw new Error("VALIDATION_FAILED");
       }
-    }
-  }
-  private validateFunding(input: CreateCommercialDocumentInput) {
-    if (!input.funding) return;
-    const allowed = ["company_bank", "company_cash", "owner_paid", "owner_custody_cash"] as const;
-    const type = input.funding.type;
-    const fieldErrors: Array<{ field: string; message: string; expected?: readonly string[] }> = [];
-    if (!allowed.includes(type))
-      fieldErrors.push({
-        field: "funding.type",
-        message: "Nguồn tiền không được hỗ trợ",
-        expected: allowed,
-      });
-    if (
-      (type === "company_bank" || type === "company_cash" || type === "owner_custody_cash") &&
-      !input.funding.financialAccountId?.trim()
-    )
-      fieldErrors.push({
-        field: "funding.financialAccountId",
-        message: "Bắt buộc khi chi từ ngân hàng công ty hoặc tiền mặt công ty do chủ giữ",
-      });
-    if (type === "owner_paid" && input.funding.financialAccountId)
-      fieldErrors.push({
-        field: "funding.financialAccountId",
-        message: "Không truyền tài khoản công ty khi chủ chi hộ",
-      });
-    if (fieldErrors.length) {
-      const error = new Error("FUNDING_SOURCE_INVALID") as Error & { details: unknown };
-      error.details = { fieldErrors, allowedTypes: allowed };
-      throw error;
-    }
-    if (input.type !== "purchase_invoice") {
-      const error = new Error("FUNDING_SOURCE_INVALID") as Error & { details: unknown };
-      error.details = {
-        fieldErrors: [
-          { field: "funding.type", message: "Nguồn tiền chỉ áp dụng cho hóa đơn đầu vào" },
-        ],
-      };
-      throw error;
     }
   }
 }

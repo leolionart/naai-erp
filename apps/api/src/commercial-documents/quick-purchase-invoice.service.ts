@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
+import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
@@ -26,6 +27,11 @@ export class QuickPurchaseInvoiceService {
   ) {
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     const normalized = this.normalize(input);
+    await assertMasterBaseCurrency(
+      this.masterData,
+      context.organizationId,
+      normalized.currency ?? "VND",
+    );
     const category = await this.resolveCategory(
       context,
       normalized.category,

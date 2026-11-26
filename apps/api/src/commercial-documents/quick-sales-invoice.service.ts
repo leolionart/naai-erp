@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { createHash } from "node:crypto";
+import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import { CommercialDocumentService } from "./commercial-document.service.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import type {
@@ -46,9 +47,15 @@ export class QuickSalesInvoiceService {
       !description ||
       !/^\d+$/.test(grossMinor) ||
       BigInt(grossMinor) <= 0n ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(input.documentDate ?? "")
+      !/^\d{4}-\d{2}-\d{2}$/.test(input.documentDate ?? "") ||
+      (input.currency !== undefined && !/^[A-Z]{3}$/.test(input.currency))
     )
       throw new Error("VALIDATION_FAILED");
+    await assertMasterBaseCurrency(
+      this.masterData,
+      context.organizationId,
+      input.currency ?? "VND",
+    );
     const [parties, roles, projects, categories, accounts, dimensions] = await Promise.all([
       this.rows("parties", context),
       this.rows("party-roles", context),

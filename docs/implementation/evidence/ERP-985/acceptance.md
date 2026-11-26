@@ -1,0 +1,4 @@
+# ERP-985 Acceptance
+
+- `BR-CUR-002` — Every `commercial-documents` (including quick ingestion), `expenses`, `journals`, `workbook-imports` (`dry-run` and `commit`), and `inbound-webhooks` write/post checks `currency` against the organization's `base_currency` (`VND`) and returns HTTP `422 FOREIGN_CURRENCY_NOT_SUPPORTED` with `"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"` when mismatched: Verified by `T-INT-CUR-002` (`base-currency-guard.test.ts`, `base-currency.integration.test.ts`).
+- `BR-STAT-001` & `BR-CUR-001` — Historical foreign-currency rows are unmodified, `foreign_currency_excluded_from_totals` remains active, and `BR-CUR-001` remains marked unimplemented in `docs/product/business-rules.md`: Verified by `base-currency.integration.test.ts` and `operating-dashboard.integration.test.ts`.

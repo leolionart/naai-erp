@@ -15,6 +15,10 @@ export class MasterDataService {
     return Object.keys(MASTER_DATA_RESOURCES);
   }
 
+  getBaseCurrency(organizationId: string): Promise<string> {
+    return this.store.getOrganizationBaseCurrency(organizationId);
+  }
+
   async authenticate(
     authorization: string | undefined,
     organizationId: string,
