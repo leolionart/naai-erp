@@ -3901,6 +3901,78 @@ tasks:
       - docs/product/business-rules.md
       - docs/implementation/evidence/ERP-981/
 
+  - id: ERP-982
+    title: Payment evidence fields and tax eligibility defaults gated by non-cash payment
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-PAY-001, BR-PAY-002, BR-PAY-003, BR-FUND-009]
+    tests: [T-INT-PAY-001, T-INT-PAY-002, T-UNIT-PAY-003]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-983
+    title: Owner funding into company bank account then company pays and owner repayment flow
+    phase: P17
+    status: ready
+    dependencies: [ERP-977]
+    business_rules: [BR-PAY-004]
+    tests: [T-INT-PAY-004]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-984
+    title: AP aging includes unpaid supplier invoices and keeps owner positions separate
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-AP-001]
+    tests: [T-INT-AP-001]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-985
+    title: Reject non-base-currency postings with a clear error
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-CUR-002]
+    tests: [T-INT-CUR-002]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-986
+    title: Estimated corporate income tax rate by prior-year revenue tier
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-TAX-102]
+    tests: [T-UNIT-TAX-102]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-987
+    title: Monthly close checklist, cash count, negative custody alert and year-end owner settlement
+    phase: P17
+    status: ready
+    dependencies: [ERP-980, ERP-982]
+    business_rules: [BR-CLOSE-001]
+    tests: [T-INT-CLOSE-001]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md#11-quyết-định-bổ-sung-và-yêu-cầu-implement-ghi-ngày-26112026
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

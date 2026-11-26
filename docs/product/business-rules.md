@@ -1523,3 +1523,30 @@ No task may be marked done with orphan business rules or untested behavior.
   via `GET /funding-plans/unlinked` with suggested targets inferred from bank reconciliation,
   `funding_rules` or category treatment (`expense_categories.funding_treatment`), and can be applied
   through a reviewed `funding-plans` dry-run/commit plan.
+
+### Payment evidence, deduction and company boundaries (planned, ERP-982 to ERP-987)
+
+- `BR-PAY-001` (planned): expenses and purchase invoices record a payment method (`cash | bank_transfer | card |
+other | unpaid`), payment date, optional payment evidence reference and the evidence of the underlying transaction
+  (contract, purchase order, email, acceptance, quote). Bank-reconciled payments infer method and date.
+- `BR-PAY-002` (planned): a purchase of 5,000,000 VND or more (total payment including VAT; same-day invoices from the same
+  seller are added together for VAT) is not defaulted to deductible for CIT or VAT unless it has a non-cash payment; the
+  line is flagged `payment_evidence_missing` with the withheld amount reported and re-evaluated when payment evidence is
+  added. The threshold is configurable per organization (default 5,000,000). Only the existing audited
+  `accountant_override` can force eligibility, with a reference.
+- `BR-PAY-003` (planned): the system records only real transactions. It offers no way to mark an invoice without an
+  underlying transaction as a deductible cost. A real purchase not yet paid is an accounts-payable liability, not a paid cost.
+- `BR-PAY-004` (planned): when the owner pays company costs from a personal account the record needs a company-named
+  invoice, payment evidence and a contract substitute; the preferred flow is the owner funding the company bank account
+  (Dr 112 / Cr 3388) and the company paying from it, with repayments as Dr 3388 / Cr 112.
+- `BR-AP-001` (planned): AP aging contains unpaid supplier invoices (account 331) and freelancer payables; owner-paid (3388)
+  and owner receivable (1388) amounts are shown separately as the position with the owner. AP ties to the ledger.
+- `BR-CUR-002` (planned): until multi-currency (BR-CUR-001) exists, postings and ingestion in a currency other than the
+  organization's base currency are rejected with `FOREIGN_CURRENCY_NOT_SUPPORTED`.
+- `BR-TAX-102` (planned): estimated corporate income tax uses 15% when the previous year's total revenue is up to 3 billion
+  VND, 17% above 3 and up to 50 billion, 20% above 50 billion (Law 67/2025/QH15), unless the owner declares a related-party
+  exclusion; the assumption is shown on the report and the table is configurable by year.
+- `BR-CLOSE-001` (planned): month close shows a checklist (no unlinked funding, payment-evidence gaps handled, AP tied,
+  tax finalization done, bank reconciled, owner-held cash not negative); a cash count compares counted cash with
+  `111-OWNER-CUSTODY` and posts the difference with a reason; year-end settlement offers repayment, offset of 3388 against
+  1388, or owner-decided profit distribution (Dr 421 / Cr 1388), each with audit.

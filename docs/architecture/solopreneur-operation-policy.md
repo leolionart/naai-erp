@@ -52,3 +52,14 @@ ledger at any date; a change of payment source or account is an adjusting journa
 history instead of editing or backdating posted entries; non-cash payment warnings use the 5,000,000 VND threshold; the
 owner self-approves with an audit trail and every command ends in a posted state. The decisions rest on public sources
 listed in the plan and are configurable; they are not formal tax advice.
+
+### Boundaries and daily practice (decided 2026-11-26)
+
+- Only real transactions are recorded: deductibility depends on a valid invoice, a real transaction (contract or substitute
+  evidence) and the right payment method; purchases of 5,000,000 VND or more need non-cash payment evidence to default to
+  deductible. Unpaid real purchases are payables. The system never offers a way to treat a fictitious invoice as a cost
+  (buying or using invoices without transactions is unlawful and exposes the owner to back taxes, fines and criminal liability).
+- Paying from a personal account is acceptable for real transactions with a company-named invoice, payment evidence and a
+  contract substitute; the safest route is funding the company bank account first.
+- Only VND is posted until multi-currency exists; AP includes unpaid supplier invoices; CIT estimates use the revenue-tier
+  rate; month close uses a checklist and a cash count.

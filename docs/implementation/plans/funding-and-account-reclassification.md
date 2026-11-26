@@ -98,6 +98,13 @@ lịch sử không bị sửa.
 10. **Ít cấu hình, mặc định thông minh.** Quy tắc nguồn tiền theo nhà cung cấp/danh mục/nguồn nhập; mặc định tổ chức là
     `owner_paid` (an toàn: không làm giảm tiền công ty khi chưa chắc).
 
+11. **Ranh giới pháp lý: chỉ ghi nhận giao dịch có thật.** Hệ thống không cung cấp tính năng ghi nhận hóa đơn _không có giao dịch thực_
+    (mua hóa đơn khống) là chi phí được trừ. Điều kiện "được trừ" luôn dựa trên bằng chứng: hóa đơn hợp lệ, giao dịch có thật
+    (hợp đồng hoặc chứng từ thay thế), và thanh toán đúng cách. Khoản mua có thật nhưng chưa trả là _công nợ phải trả_, không phải
+    chi phí đã thanh toán. Hóa đơn thiếu bằng chứng bị gắn cờ và không được mặc định "được trừ".
+12. **Chi hộ bằng tài khoản cá nhân** là hợp lệ khi giao dịch có thật; cần hóa đơn đúng tên và mã số thuế công ty, sao kê/biên lai, chứng từ thay thế
+    hợp đồng (đơn đặt hàng, email xác nhận, biên bản nghiệm thu, báo giá). Cách chắc chắn nhất là **chủ nạp tiền vào tài khoản công ty** rồi công ty thanh toán (mục 11.4).
+
 ## 4. Giải pháp đề xuất
 
 ### 4.1 Quy tắc nguồn tiền khi nhập (phòng ngừa) — ERP-976
@@ -242,3 +249,86 @@ Các quyết định dưới đây được chốt dựa trên nghiên cứu quy
 - Thông tư 99/2025/TT-BTC và quan hệ với TT133: [KPMG](https://kpmg.com/vn/vi/home/phan-tich-chuyen-sau/2025/11/key-changes-in-vietnamese-accounting-system-for-enterprises.html),
   [Thư viện pháp luật](https://thuvienphapluat.vn/hoi-dap-phap-luat/thong-tu-99-2025-cua-bo-tai-chinh-thay-the-nhung-thong-tu-nao-138068177.html).
 - TK 141 chỉ cho người lao động, chi cho đối tượng khác theo dõi ở TK 1388: [MISA](https://amis.misa.vn/26138/hach-toan-tai-khoan-141-khoan-tam-ung/).
+
+## 11. Quyết định bổ sung và yêu cầu implement (ghi ngày 26/11/2026)
+
+Các quyết định dưới đây đã được chủ doanh nghiệp đồng ý để dev thực hiện. Mỗi mục là một task trong ledger; viết test lỗi trước,
+cập nhật OpenAPI + gate matrix + CLI + business rules, chạy test tích hợp trên Postgres tạm, thêm evidence theo `AGENTS.md`.
+
+### 11.1 Bằng chứng thanh toán và mặc định điều kiện được trừ — ERP-982
+
+Quy tắc: `BR-PAY-001` đến `BR-PAY-003`, `BR-FUND-009`.
+
+- **Dữ liệu:** thêm vào chi phí và hóa đơn mua `payment_method` (`cash | bank_transfer | card | other | unpaid`),
+  `paid_on` (ngày thanh toán), `payment_evidence_ref` (tham chiếu sao kê/biên lai, tùy chọn) và `transaction_evidence`
+  (`contract | purchase_order | email | acceptance | quote | none`). Nhập qua API/CLI/n8n (trường tùy chọn, mặc định `unpaid`/`none`).
+  Chuyển khoản/thẻ đã đối soát ngân hàng tự suy ra `bank_transfer` + `paid_on`.
+- **Cấu hình theo tổ chức:** `non_cash_threshold_minor` (mặc định `5000000`, đơn vị VND, tính trên tổng thanh toán gồm VAT).
+- **Quy tắc mặc định khi owner duyệt/ghi sổ ở solopreneur (thay hành vi ERP-971):**
+  - Khoản `< ngưỡng` hoặc đã thanh toán không dùng tiền mặt (`bank_transfer | card`): CIT/VAT `eligible` như hiện nay (nếu loại chi phí hợp lệ).
+  - Khoản `>= ngưỡng` thanh toán `cash`, `other` hoặc `unpaid` (chưa có chứng từ không dùng tiền mặt): CIT/VAT **không** mặc định eligible;
+    đặt `payment_evidence_missing` và giữ phần được trừ = 0 (VAT/CIT `unreviewed`) cho tới khi bổ sung chứng từ thanh toán.
+  - Cộng dồn trong ngày theo cùng người bán cho **VAT**: các hóa đơn nhỏ lẻ cùng ngày cùng người bán có tổng `>= ngưỡng` đều được kiểm tra như một khoản.
+  - Khoản chủ chi hộ bằng thẻ/chuyển khoản cá nhân: coi là không dùng tiền mặt nếu có `payment_evidence_ref`; thiếu thì gắn cờ.
+  - Khoản chưa thanh toán (`unpaid`) vẫn ghi nhận chi phí quản trị và công nợ phải trả; điều kiện được trừ được đánh giá lại khi có thanh toán (cập nhật `payment_method`/`paid_on`).
+- **Cờ và báo cáo:** thêm `GET /reports/tax/payment-evidence-gaps` (liệt kê khoản thiếu bằng chứng, số tiền VAT/CIT bị giữ lại), hiển thị trên dashboard và
+  trong `vat-reconciliation`/`expense-exceptions`. Chỉ cảnh báo; không chặn ghi sổ.
+- **Giới hạn bắt buộc:** không thêm bất kỳ nút/lệnh nào ép một khoản `eligible` khi thiếu bằng chứng ngoài luồng `accountant_override` có `reference` hiện có.
+- **Test:** T-INT-PAY-001 (bảng quyết định ngưỡng 4.999.999/5.000.000, cộng dồn theo ngày, unpaid→paid), T-INT-PAY-002 (chuyển khoản đối soát tự suy ra),
+  T-UNIT-PAY-003 (tính toán cộng dồn).
+
+### 11.2 Công nợ phải trả nhà cung cấp trong AP aging — ERP-984
+
+Quy tắc: `BR-AP-001`.
+
+- AP aging gồm: hóa đơn mua chưa thanh toán (TK 331, còn dư sau thanh toán/đối soát) **và** khoản freelancer. Khoản chủ chi hộ (TK 3388) và chi tiêu cá nhân (TK 1388)
+  hiển thị riêng trong "vị thế với chủ", không lẫn vào AP.
+- `tieStatus` đối chiếu sổ cái TK 331 với tổng chi tiết; phải `tied` trong trường hợp bình thường. Sửa test `aging.integration.test.ts` theo ngữ nghĩa mới
+  (hiện test kỳ vọng hóa đơn mua vào AP, nhưng ERP-905 đã bỏ — cần khôi phục đúng yêu cầu này).
+- Hóa đơn mua `funding = owner_paid` không phát sinh AP (đã ghi 3388); `company_*` đã thanh toán không còn dư nợ.
+
+### 11.3 Chỉ ghi sổ VND — ERP-985
+
+Quy tắc: `BR-CUR-002`.
+
+- Mọi chứng từ/bút toán phải có `currency` bằng tiền tệ gốc của tổ chức; khác tiền tệ gốc trả `422 FOREIGN_CURRENCY_NOT_SUPPORTED` kèm hướng dẫn
+  ("quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"). Áp dụng cho `commercial-documents`, `expenses`, `journals`, nhập workbook và webhook.
+- Dữ liệu ngoại tệ đã có không bị sửa; vẫn bị loại khỏi tổng như `BR-STAT-001` và có cảnh báo.
+- `BR-CUR-001` (đa tiền tệ) giữ trạng thái "chưa triển khai"; ghi rõ trong tài liệu.
+- Test: từ chối ở từng đường nhập; nhập VND không đổi hành vi.
+
+### 11.4 Chủ nạp tiền vào công ty rồi công ty thanh toán — ERP-983
+
+Quy tắc: `BR-PAY-004`.
+
+- Giao dịch ngân hàng công ty nhận tiền từ chủ có thể được phân loại `owner_funding` (không phải doanh thu): **Nợ 112 / Có 3388** (công ty nợ chủ);
+  khoản chi tiếp theo từ tài khoản ngân hàng công ty là `company_bank`. Có thể liên kết khoản chi với giao dịch nạp để truy vết ("khoản chi này dùng tiền chủ nạp").
+- CLI/API: `owner-funding record` (từ giao dịch ngân hàng hoặc nhập tay có chứng từ), hiển thị trong "vị thế với chủ".
+- Hoàn tiền cho chủ là `owner_repayment` (Nợ 3388 / Có 112), đã có luồng owner-current; chỉ cần nối với giao diện/CLI trên.
+
+### 11.5 Thuế suất ước tính TNDN theo bậc doanh thu — ERP-986
+
+Quy tắc: `BR-TAX-102`.
+
+- Dashboard và báo cáo ước tính thuế TNDN chọn thuế suất theo **tổng doanh thu năm trước liền kề** (Luật 67/2025/QH15, từ kỳ tính thuế 2025):
+  `<= 3 tỷ → 15%`, `> 3 tỷ đến <= 50 tỷ → 17%`, `> 50 tỷ → 20%`. Cho phép ghi đè bằng tuyên bố của chủ "thuộc diện không áp dụng 15%/17%"
+  (công ty con hoặc có quan hệ liên kết) và hiển thị giả định ngay trên báo cáo. Kỳ 2025 áp dụng theo quy định chuyển tiếp; dev tra lại văn bản khi implement.
+- Bảng thuế suất cấu hình được theo năm (`tax_code_versions` kind `cit` hoặc bảng riêng) để cập nhật không cần đổi code.
+- Test: các ngưỡng biên (3.000.000.000, 50.000.000.000), năm chưa có doanh thu năm trước, ghi đè.
+
+### 11.6 Đóng sổ hàng tháng, kiểm quỹ và quyết toán cuối năm — ERP-987
+
+Quy tắc: `BR-CLOSE-001`.
+
+- **Checklist đóng kỳ** (API + trang): khoản chưa xác định nguồn tiền = 0 (`funding-plans/unlinked`), khoản thiếu bằng chứng thanh toán (11.1) đã xử lý hoặc được ghi chú,
+  AP `tied`, hoàn tất thuế (`tax-finalization`), đối soát ngân hàng, số dư quỹ chủ giữ không âm. Đóng kỳ chỉ cảnh báo (owner có thể đóng kèm lý do).
+- **Kiểm quỹ:** chủ nhập số tiền mặt thực tế chủ đang giữ; hệ thống so với số dư `111-OWNER-CUSTODY` (ERP-980), ghi chênh lệch vào tài khoản thừa/thiếu quỹ có lý do,
+  lưu biên bản kiểm quỹ.
+- **Cảnh báo quỹ chủ giữ âm** trên dashboard và trong checklist; gợi ý chuyển phần vượt sang `owner_paid`.
+- **Quyết toán cuối năm với chủ:** báo cáo vị thế (3388, 1388, quỹ chủ giữ) và các lựa chọn xử lý — hoàn tiền, cấn trừ 3388 với 1388, hoặc chủ quyết định chia lợi nhuận
+  (Nợ 421 / Có 1388); mỗi lựa chọn tạo bút toán có lý do và audit.
+
+### 11.7 Thứ tự đề xuất
+
+ERP-985 (nhỏ, an toàn) → ERP-982 → ERP-984 → ERP-980 → ERP-983 → ERP-986 → ERP-987. ERP-980 vẫn cần task riêng cho migration quỹ chủ giữ;
+không bắt đầu ERP-987 trước khi ERP-980 và ERP-982 xong.
