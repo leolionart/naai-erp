@@ -1017,6 +1017,29 @@ describe("NAAI ERP JSON-first CLI client", () => {
     ]);
   });
 
+  it("routes funding-plans export, dry-run and commit through the REST API", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    const url = "http://api/api/v1/organizations/org-a/funding-plans";
+    await client.request("funding-plans", "export", { from: "2026-01-01", format: "csv" });
+    await client.request("funding-plans", "dry-run", { items: [] });
+    await client.request("funding-plans", "commit", { planHash: "h1", items: [] });
+    expect(fetchFn.mock.calls.map(([u, init]) => [u, init.method])).toEqual([
+      [`${url}/export?from=2026-01-01&format=csv`, "GET"],
+      [`${url}/dry-run`, "POST"],
+      [`${url}/commit`, "POST"],
+    ]);
+  });
+
   it("lists background activities through the canonical operational log API", async () => {
     const fetchFn = vi
       .fn()

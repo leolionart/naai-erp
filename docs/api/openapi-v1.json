@@ -2069,6 +2069,21 @@
         "summary": "Reclassify a purchase invoice payment source by external reference (supporting financialAccountId) and optionally post the replacement"
       }
     },
+    "/api/v1/organizations/{organizationId}/funding-plans/export": {
+      "get": {
+        "summary": "Export posted expenses and purchase invoices as JSON or CSV for bulk funding reclassification"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/funding-plans/dry-run": {
+      "post": {
+        "summary": "Preview bulk funding reclassification with before/after accounts, dashboard impact, blocked rows and planHash"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/funding-plans/commit": {
+      "post": {
+        "summary": "Commit a reviewed bulk funding reclassification plan idempotently when planHash matches"
+      }
+    },
     "/api/v1/organizations/{organizationId}/outbound-events/endpoints": {
       "get": {
         "summary": "List organization-scoped outbound endpoint metadata without returning secrets"

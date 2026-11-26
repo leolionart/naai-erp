@@ -137,6 +137,8 @@ import { FundingRulesController } from "./funding-rules/funding-rules.controller
 import { FundingRulesService } from "./funding-rules/funding-rules.service.js";
 import { PgFundingRulesStore } from "./funding-rules/pg-funding-rules.store.js";
 import { FUNDING_RULES_STORE } from "./funding-rules/funding-rules.types.js";
+import { FundingPlansController } from "./funding-plans/funding-plans.controller.js";
+import { FundingPlansService } from "./funding-plans/funding-plans.service.js";
 
 @Module({
   imports: [CustomerServiceSubscriptionModule],
@@ -180,6 +182,7 @@ import { FUNDING_RULES_STORE } from "./funding-rules/funding-rules.types.js";
     OperationalLogController,
     TimeController,
     FundingRulesController,
+    FundingPlansController,
   ],
   providers: [
     DatabaseReadinessService,
@@ -212,6 +215,7 @@ import { FUNDING_RULES_STORE } from "./funding-rules/funding-rules.types.js";
     FundingRulesService,
     PgFundingRulesStore,
     { provide: FUNDING_RULES_STORE, useExisting: PgFundingRulesStore },
+    FundingPlansService,
     { provide: TELEGRAM_FETCH, useValue: (input: string, init: RequestInit) => fetch(input, init) },
     OutboundEventService,
     PgOutboundEventStore,

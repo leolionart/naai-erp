@@ -1501,9 +1501,10 @@ No task may be marked done with orphan business rules or untested behavior.
   variants) accepts `financialAccountId` (including `company_cash`, `owner_custody_cash`, `company_bank`)
   or control/counter account, keeps amounts, VAT, tax states and allocations, and auto-posts the
   replacement when `postReplacement` is true or when an `owner` runs in `solopreneur` mode.
-- `BR-FUND-005` (planned): bulk funding changes use dry-run → `planHash` → idempotent commit with a per-row
-  result and a before/after journal and dashboard impact; blocked rows (closed period, reconciled, paid) are
-  reported, never forced.
+- `BR-FUND-005`: bulk funding changes use `GET /funding-plans/export` → `POST /funding-plans/dry-run`
+  → `planHash` → idempotent `POST /funding-plans/commit` (up to 200 rows) with a per-row result and a
+  before/after journal and dashboard impact; blocked rows (closed period, reconciled, paid) are reported,
+  never forced.
 - `BR-FUND-006` (planned): expense and revenue accounts of posted records are changed by an adjusting journal
   in the open period; reversing and replacing is reserved for changes to amount, VAT, date, party or allocations.
 - `BR-FUND-007` (planned): company cash held by the owner is company cash kept in its own cash account
