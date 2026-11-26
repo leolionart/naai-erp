@@ -191,6 +191,7 @@ type OperatingDashboardWire = Readonly<{
     ownerPaidClassificationStatus?: "ready" | "review_required" | "unconfigured";
     unclassifiedOwnerPaidCount?: number;
     unclassifiedOwnerPaidMinor?: string;
+    configurationWarnings?: readonly string[];
     corporateIncomeTaxRateBps: number | null;
     rosBps: number | null;
     recognitionEventCount: number;
@@ -1151,6 +1152,18 @@ export function ExecutiveDashboardWorkspace() {
             <Alert variant="destructive">
               <AlertTitle>Dashboard chưa sẵn sàng</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {!loading &&
+          operating?.financials.configurationWarnings?.includes(
+            "foreign_currency_excluded_from_totals",
+          ) ? (
+            <Alert>
+              <AlertTitle>Có chứng từ/bút toán ngoại tệ chưa được tính vào tổng</AlertTitle>
+              <AlertDescription>
+                Doanh thu, chi phí và DSO chỉ cộng các khoản bằng đồng tiền gốc của công ty. Các
+                khoản ngoại tệ trong kỳ được loại khỏi tổng thay vì cộng lẫn đồng tiền.
+              </AlertDescription>
             </Alert>
           ) : null}
           {!loading && flagged > 0 ? (

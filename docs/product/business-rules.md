@@ -1415,8 +1415,13 @@ No task may be marked done with orphan business rules or untested behavior.
 - `BR-STAT-001`: dashboard revenue, expense, client concentration and DSO are expressed in the
   organization's base currency only. Journals and documents in another currency are excluded from
   these totals (they are not converted) and the dashboard returns the configuration warning
-  `foreign_currency_excluded_from_totals` so the omission is visible.
+  `foreign_currency_excluded_from_totals` so the omission is visible. Financial statements and
+  executive metrics apply the same base-currency filter and report the same warning in
+  `reportWarnings`.
 - `BR-STAT-002`: DSO = receivables ÷ credit sales over the trailing 90 days × 90. Receivables are
   VAT-inclusive (gross), so credit sales use gross amounts (invoices minus credit notes) as well.
 - `BR-STAT-003`: monthly category charts on the revenue/expense lists net credit notes as negative
   amounts and omit cancelled, rejected, discarded and reversed records.
+- `BR-STAT-004`: document-based client revenue (client concentration) is VAT-inclusive, consistent
+  with the revenue/expense list charts. Ledger-based revenue, expense and profit remain net of VAT
+  because output/input VAT is a liability/asset, never income or cost.

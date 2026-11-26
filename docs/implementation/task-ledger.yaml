@@ -3656,6 +3656,21 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-965/
 
+  - id: ERP-966
+    title: Base-currency statements and executive metrics, gross client revenue, dashboard warning
+    phase: P16
+    status: done
+    dependencies: [ERP-963]
+    business_rules: [BR-STAT-001, BR-STAT-004]
+    tests: [T-INT-STAT-001]
+    evidence: docs/implementation/evidence/ERP-966/
+    agent: claude
+    started_at: 2026-11-26T13:00:00+07:00
+    completed_at: 2026-11-26T14:00:00+07:00
+    completion_basis: implemented_with_scratch_database_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-966/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

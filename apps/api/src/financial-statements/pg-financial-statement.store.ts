@@ -290,6 +290,7 @@ export class PgFinancialStatementStore {
        left join financial_statement_mapping_lines m on m.organization_id=l.organization_id and m.mapping_id=$5 and m.mapping_version=$6 and m.account_code=l.account_code and m.statement=$7
        where j.organization_id=$1 and j.state in ('posted','reversed') and j.posted_at <= $2::timestamptz
          and j.journal_date <= $3::date and ($4::date is null or j.journal_date >= $4::date)
+         and j.currency=(select base_currency from organizations where id=$1)
        order by j.journal_date,j.id,l.line_number`,
       [
         c.organizationId,
@@ -301,9 +302,23 @@ export class PgFinancialStatementStore {
         kind,
       ],
     );
+    // Statements are summed in minor units of the base currency; journals in another currency are
+    // excluded (not converted), so the omission is reported instead of silently skewing totals.
+    const foreign = await this.pool.query<{ count: number }>(
+      `select count(*)::int count from journal_entries j
+        where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date <= $2::date
+          and ($3::date is null or j.journal_date >= $3::date)
+          and j.currency<>(select base_currency from organizations where id=$1)`,
+      [
+        c.organizationId,
+        q.endsOn,
+        kind === "balance_sheet" || kind === "cash_flow" ? null : (q.startsOn ?? null),
+      ],
+    );
     return {
       mapping: selected,
       reportWarnings: [
+        ...((foreign.rows[0]?.count ?? 0) > 0 ? ["foreign_currency_excluded_from_totals"] : []),
         ...(selected.version === 0 ? ["financial_statement_mapping_missing"] : []),
         ...(selected.version > 0 && selected.state !== "approved"
           ? ["financial_statement_mapping_unapproved"]

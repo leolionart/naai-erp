@@ -132,7 +132,7 @@ suite("operating dashboard PostgreSQL API", () => {
           projects: [{ projectId: "project", recognizedMinor: "0", collectedMinor: "500" }],
         },
         collections: { receivablesMinor: "550", overdueMinor: "550" },
-        clientConcentration: { totalRevenueMinor: "1000", topClientShareBps: 10000 },
+        clientConcentration: { totalRevenueMinor: "1100", topClientShareBps: 10000 },
         financials: {
           revenueMinor: "1000",
           expenseMinor: "650",
@@ -198,7 +198,7 @@ suite("operating dashboard PostgreSQL API", () => {
         headers: { authorization: `Bearer ${token}`, "x-correlation-id": "dashboard-usd" },
       });
       const data = response.json().data;
-      expect(data.clientConcentration.totalRevenueMinor).toBe("1000");
+      expect(data.clientConcentration.totalRevenueMinor).toBe("1100");
       // Gross (1100, VAT included) matches the VAT-inclusive receivable basis; USD is excluded.
       expect(data.collections.creditSalesMinor).toBe("1100");
       expect(data.financials.revenueMinor).toBe("1000");

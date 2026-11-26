@@ -654,11 +654,11 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     return (
       await this.pool.query<Record<string, unknown>>(
         `select d.party_id "clientId",p.display_name "clientName",
-                sum(case when d.type='credit_note' then -d.net_minor else d.net_minor end)::text "revenueMinor",
+                sum(case when d.type='credit_note' then -d.gross_minor else d.gross_minor end)::text "revenueMinor",
                 count(*)::int "invoiceCount"
        from commercial_documents d join parties p on p.organization_id=d.organization_id and p.id=d.party_id
        where d.organization_id=$1 and d.type in ('sales_invoice','credit_note') and d.currency=$5 and d.state in ('issued','posted','partially_paid','paid') and d.document_date between $2 and least($3::date,$4::date)
-       group by d.party_id,p.display_name order by sum(case when d.type='credit_note' then -d.net_minor else d.net_minor end) desc,d.party_id`,
+       group by d.party_id,p.display_name order by sum(case when d.type='credit_note' then -d.gross_minor else d.gross_minor end) desc,d.party_id`,
         [org, q.startsOn, q.endsOn, q.asOf, baseCurrency],
       )
     ).rows;
