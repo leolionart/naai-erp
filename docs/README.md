@@ -19,6 +19,7 @@ This directory contains the authoritative specification, architecture, contracts
 - `api/`: OpenAPI specs, webhook schemas, and machine-readable contract specifications.
 - `ui/`: VietERP-informed design system standards and component guidelines.
 - `security/`: threat model and secret handling policies.
+- `implementation/plans/`: forward-looking plans, e.g. funding and account reclassification.
 - `runbooks/`: native development, Docker Compose production release, and backup/restore designs.
 
 Start with `product/business-workflows.md` when learning how the system is used. Follow its links to

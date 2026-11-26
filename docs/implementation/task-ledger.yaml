@@ -3783,6 +3783,78 @@ tasks:
     planned_files:
       - docs/implementation/evidence/ERP-975/
 
+  - id: ERP-976
+    title: Funding rules and organization default at ingestion
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-FUND-001, BR-FUND-003]
+    tests: [T-INT-FUND-003]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-977
+    title: Single-command funding change for expenses and purchase invoices (company_cash, auto-post, externalReference)
+    phase: P17
+    status: ready
+    dependencies: [ERP-975]
+    business_rules: [BR-FUND-001, BR-FUND-002, BR-FUND-004]
+    tests: [T-INT-FUND-004]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-978
+    title: Bulk funding plans with export, dry-run, commit and CLI
+    phase: P17
+    status: ready
+    dependencies: [ERP-977]
+    business_rules: [BR-FUND-005]
+    tests: [T-INT-FUND-005]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-979
+    title: Reclassify expense and revenue accounts with account plans
+    phase: P17
+    status: ready
+    dependencies: [ERP-977]
+    business_rules: [BR-FUND-006]
+    tests: [T-INT-FUND-006]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-980
+    title: Distinguish owner-held custody cash in the ledger (needs owner and accountant decision)
+    phase: P17
+    status: blocked
+    dependencies: [ERP-977]
+    business_rules: [BR-FUND-007]
+    tests: [T-INT-FUND-007]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
+  - id: ERP-981
+    title: Funding inference for legacy records and unknown-funding report
+    phase: P17
+    status: ready
+    dependencies: [ERP-976, ERP-978]
+    business_rules: [BR-FUND-008]
+    tests: [T-INT-FUND-008]
+    plan: docs/implementation/plans/funding-and-account-reclassification.md
+    agent: unassigned
+    planned_files:
+      - docs/implementation/plans/funding-and-account-reclassification.md
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

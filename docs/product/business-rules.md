@@ -1491,3 +1491,16 @@ No task may be marked done with orphan business rules or untested behavior.
   allocations, evidence, external reference), reverses the old journal and creates a draft replacement;
   clients never assemble the replacement. The request is idempotent and needs the current version and a
   reason. Documents (purchase invoices) still change their control account only.
+- `BR-FUND-003` (planned): funding rules (priority-ordered matches on external system, supplier, category,
+  keyword, amount) and an organization default decide the payment source of newly ingested records when the
+  payload does not state one; an explicit `funding` in the payload always wins.
+- `BR-FUND-004` (planned): a funding change is one command that rebuilds the replacement server-side and
+  posts it immediately when the caller may (solopreneur owner); records can be addressed by external reference.
+- `BR-FUND-005` (planned): bulk funding changes use dry-run → `planHash` → idempotent commit with a per-row
+  result and a before/after journal and dashboard impact; blocked rows (closed period, reconciled, paid) are
+  reported, never forced.
+- `BR-FUND-006` (planned): expense and revenue accounts of posted records are changed only by reversing and
+  replacing, preserving amounts, VAT, tax review states, allocations and external references.
+- `BR-FUND-007` (planned, blocked on a decision): how owner-held company cash appears in the ledger.
+- `BR-FUND-008` (planned): records without a funding link are reported and can be inferred from rules,
+  categories or bank reconciliation through a reviewed plan.
