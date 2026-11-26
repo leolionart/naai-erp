@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 113,
+  "mutationCount": 114,
   "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
@@ -992,6 +992,26 @@
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "expenses/{expenseId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/expenses/{expenseId}/reclassify-funding",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/reclassify-funding",
+      "operationId": null,
+      "resource": "expenses",
+      "action": "reclassify-funding",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",

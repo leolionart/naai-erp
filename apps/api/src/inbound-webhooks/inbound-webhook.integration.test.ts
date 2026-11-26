@@ -25,6 +25,29 @@ describeIntegration("ERP-330 inbound webhooks", () => {
       await client.query(
         "insert into parties(organization_id,id,display_name) values('org-hook','party-client','Webhook Client')",
       );
+      // Purchase invoices default to owner-paid funding, which needs the owner-current account.
+      await client.query(
+        "insert into accounts(organization_id,code,name,root_type) values('org-hook','3388-OWNER','Owner current','liability')",
+      );
+      await client.query(
+        `insert into financial_statement_mapping_versions(organization_id,id,version,framework,state,effective_from,change_reason,created_by,approved_by,approved_at)
+         values('org-hook','hook-map',1,'TT133','approved','2026-01-01','Owner current mapping','admin','approver',now())`,
+      );
+      await client.query(
+        `insert into financial_statement_mapping_lines(organization_id,mapping_id,mapping_version,line_number,statement,line_code,label,account_code,display_order,sign)
+         values('org-hook','hook-map',1,1,'balance_sheet','owner_current','Owner current','3388-OWNER',10,1)`,
+      );
+      // Sales invoices must be allocated to a project of the invoiced customer.
+      await client.query(
+        "insert into users(id,email,display_name) values('hook-owner','hook-owner@example.com','Hook Owner')",
+      );
+      await client.query(
+        "insert into organization_memberships(organization_id,user_id) values('org-hook','hook-owner')",
+      );
+      await client.query(
+        `insert into projects(organization_id,id,code,name,client_party_id,owner_user_id,contract_type,currency,budget_minor,starts_on,state)
+         values('org-hook','proj-hook','PH','Webhook project','party-client','hook-owner','fixed_fee','VND',10000000,'2026-01-01','active')`,
+      );
       await client.query(
         `insert into integration_sources(organization_id,id,public_id,name,actor_id,secret_ref,allowed_event_types,created_by)
          values('org-hook','source-1','public-source-1','Source 1','webhook-source-1','ERP330_WEBHOOK_SECRET','["expense.create"]','admin')`,
@@ -179,7 +202,13 @@ describeIntegration("ERP-330 inbound webhooks", () => {
             taxMinor: "0",
             grossMinor: "100000",
             primaryAccountCode: "642",
-            allocations: [{ id: "a1", amountMinor: "100000", dimensions: { costCenter: "ADMIN" } }],
+            allocations: [
+              {
+                id: "a1",
+                amountMinor: "100000",
+                dimensions: { costCenter: "ADMIN", projectId: "proj-hook" },
+              },
+            ],
           },
         ],
       },

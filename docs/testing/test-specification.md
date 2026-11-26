@@ -737,3 +737,9 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   (`commercial-document.integration.test.ts`).
 - `T-UNIT-MODE-002` / `T-E2E-MODE-003`: operating-mode wording and the header badge
   (`operating-mode.test.ts`, `focused-records.spec.ts`).
+
+- `T-INT-FUND-001`: reclassifying a posted expense to the owner-held custody cash account reverses the
+  original, creates a draft replacement linked to that account, preserves allocations and is idempotent
+  (`expense.integration.test.ts`).
+- `T-E2E-FUND-002` / `T-UNIT-FUND-003`: the quick view offers both cash funds and sends the account id
+  (`focused-records.spec.ts`, `focused-record-funding.test.ts`); CLI routes `reclassify-funding`.

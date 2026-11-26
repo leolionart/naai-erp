@@ -228,6 +228,23 @@ export class ExpenseController {
       key,
     );
   }
+  @Post(":id/reclassify-funding") async reclassifyFunding(
+    @Param("organizationId") org: string,
+    @Param("id") id: string,
+    @Body() input: { financialAccountId?: string; counterAccountCode?: string; reason?: string },
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+    @Headers("idempotency-key") key?: string,
+  ) {
+    return this.service.reclassifyFunding(
+      await this.context(org, auth, corr),
+      id,
+      expectedVersion ?? "",
+      input ?? {},
+      key,
+    );
+  }
   @Post(":id/reverse") async reverse(
     @Param("organizationId") org: string,
     @Param("id") id: string,

@@ -445,6 +445,15 @@ export class PgExpenseStore {
     };
   }
 
+  async fundingAccount(organizationId: string, financialAccountId: string) {
+    const result = await this.pool.query<{ ledger_account_code: string; currency: string }>(
+      `select ledger_account_code,currency from financial_accounts
+        where organization_id=$1 and id=$2 and status='active'`,
+      [organizationId, financialAccountId],
+    );
+    return result.rows[0];
+  }
+
   async validateRelationships(organizationId: string, input: CreateExpenseInput) {
     if (input.fundingFinancialAccountId) {
       const funding = await this.pool.query<{ ledger_account_code: string }>(

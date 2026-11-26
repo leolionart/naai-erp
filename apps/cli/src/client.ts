@@ -758,6 +758,8 @@ export class NaaiErpClient {
                                                                                             "approve",
                                                                                             "reject",
                                                                                             "post",
+                                                                                            "reverse",
+                                                                                            "reclassify-funding",
                                                                                           ].includes(
                                                                                             action,
                                                                                           )

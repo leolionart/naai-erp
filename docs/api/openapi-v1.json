@@ -1200,6 +1200,11 @@
         }
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/reclassify-funding": {
+      "post": {
+        "summary": "Move a posted expense to another payment source: send financialAccountId (company cash/bank or owner-held custody cash) or counterAccountCode (e.g. owner-current), plus reason, If-Match and idempotency key; the server reverses the old journal and creates a draft replacement rebuilt from the stored record"
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses/{expenseId}/reverse": {
       "post": {
         "operationId": "reversePostedExpense",

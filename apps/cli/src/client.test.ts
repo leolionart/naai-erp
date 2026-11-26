@@ -935,6 +935,33 @@ describe("NAAI ERP JSON-first CLI client", () => {
     expect(fetchFn).toHaveBeenCalledWith(expectedUrl, expect.objectContaining({ method: "GET" }));
   });
 
+  it("routes expense reverse and funding reclassification to their endpoints", async () => {
+    const fetchFn = vi.fn().mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ data: {} }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new NaaiErpClient(
+      { baseUrl: "http://api", organizationId: "org-a", token: "secret" },
+      fetchFn,
+    );
+    await client.request(
+      "expenses",
+      "reclassify-funding",
+      { financialAccountId: "fa-owner-custody", reason: "Chủ giữ hộ" },
+      "exp-1",
+      "3",
+      "k1",
+    );
+    await client.request("expenses", "reverse", { reason: "Nhập nhầm" }, "exp-1", "3", "k2");
+    expect(fetchFn.mock.calls.map(([u, init]) => [u, init.method])).toEqual([
+      ["http://api/api/v1/organizations/org-a/expenses/exp-1/reclassify-funding", "POST"],
+      ["http://api/api/v1/organizations/org-a/expenses/exp-1/reverse", "POST"],
+    ]);
+  });
+
   it("reads, updates and tests Telegram settings through the singleton REST resource", async () => {
     const fetchFn = vi.fn().mockImplementation(
       async () =>

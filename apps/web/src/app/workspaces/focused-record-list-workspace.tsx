@@ -67,7 +67,11 @@ import {
   money,
   human,
   FUNDING_OPTIONS,
+  findFundingOption,
   fundingLabel,
+  fundingOptionValue,
+  fundingTarget,
+  isCurrentFunding,
   sourceKind,
   sourceEndpoint,
   fundingCode,
@@ -123,19 +127,20 @@ export function FocusedRecordListWorkspace({
     // Once loaded, organization-scoped active accounts become the source of truth.
     if (financialAccounts === undefined) return FUNDING_OPTIONS;
     const options: FundingOption[] = [];
-    const seenCodes = new Set<string>();
+    const seenIds = new Set<string>();
     for (const account of financialAccounts) {
       const status = text(account, "status");
       if (status && status !== "active") continue;
-      const code = text(account, "ledgerAccountCode", "ledger_account_code", "code");
-      if (!code || seenCodes.has(code)) continue;
-      seenCodes.add(code);
+      const code = text(account, "ledgerAccountCode", "ledger_account_code");
+      const id = text(account, "id");
+      if (!code || !id || seenIds.has(id)) continue;
+      seenIds.add(id);
       const displayName = text(account, "displayName", "display_name", "name") || code;
-      options.push({ code, label: `${displayName} (${code})` });
+      options.push({ code, label: `${displayName} (${code})`, financialAccountId: id });
     }
     // Owner-paid is a control source rather than a financial account, so it is
     // intentionally added separately from the organization account catalog.
-    if (!seenCodes.has("3388-OWNER"))
+    if (!options.some((option) => option.code === "3388-OWNER" && !option.financialAccountId))
       options.push({ code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" });
     return options;
   }, [financialAccounts]);
@@ -699,82 +704,23 @@ export function FocusedRecordListWorkspace({
       return;
     const id = text(quickRecord, "id");
     const source = sourceKind(quickRecord);
+    const targetOption = findFundingOption(reclassifyTargetAccount, reclassifyFundingOptions);
+    const targetLedgerCode = targetOption?.code ?? reclassifyTargetAccount;
     setQuickBusy(true);
     setError("");
     try {
-      const lines = Array.isArray(quickRecord.lines)
-        ? (quickRecord.lines as (Row | null | undefined)[]).filter(nonNullRow)
-        : [];
-      const replacement =
-        source === "expenses"
-          ? {
-              id: crypto.randomUUID(),
-              expenseClass: text(quickRecord, "expenseClass", "expense_class") || "non_documented",
-              payeePartyId: text(quickRecord, "payeePartyId", "payee_party_id") || undefined,
-              employeePartyId:
-                text(quickRecord, "employeePartyId", "employee_party_id") || undefined,
-              expenseDate: text(quickRecord, "expenseDate", "expense_date"),
-              businessPurpose:
-                text(quickRecord, "businessPurpose", "business_purpose") || "Chi phí doanh nghiệp",
-              currency: text(quickRecord, "currency") || "VND",
-              netMinor: text(quickRecord, "netMinor", "net_minor") || "0",
-              vatMinor: text(quickRecord, "vatMinor", "vat_minor") || "0",
-              grossMinor: text(quickRecord, "grossMinor", "gross_minor") || "0",
-              counterAccountCode: reclassifyTargetAccount,
-              lines: lines.map((line) => ({
-                ...line,
-                postingAccountCode: text(line, "postingAccountCode", "posting_account_code"),
-                allocations: Array.isArray(line.allocations) ? line.allocations : [],
-              })),
-            }
-          : {
-              id: crypto.randomUUID(),
-              type: "purchase_invoice",
-              documentNumber: text(quickRecord, "documentNumber", "document_number") || id,
-              fiscalYear: Number(
-                text(quickRecord, "fiscalYear", "fiscal_year") || new Date().getFullYear(),
-              ),
-              partyId: text(quickRecord, "partyId", "party_id"),
-              documentDate: text(quickRecord, "documentDate", "document_date"),
-              dueDate:
-                text(quickRecord, "dueDate", "due_date") ||
-                text(quickRecord, "documentDate", "document_date"),
-              currency: text(quickRecord, "currency") || "VND",
-              netMinor: text(quickRecord, "netMinor", "net_minor") || "0",
-              taxMinor: text(quickRecord, "taxMinor", "tax_minor") || "0",
-              grossMinor: text(quickRecord, "grossMinor", "gross_minor") || "0",
-              controlAccountCode: reclassifyTargetAccount,
-              lines: lines.map((line) => ({
-                description: text(line, "description") || "Chi phí doanh nghiệp",
-                quantity: text(line, "quantity") || "1",
-                unitPriceMinor:
-                  text(line, "unitPriceMinor", "unit_price_minor") ||
-                  text(line, "grossMinor", "gross_minor") ||
-                  "0",
-                netMinor: text(line, "netMinor", "net_minor") || "0",
-                taxMinor: text(line, "taxMinor", "tax_minor") || "0",
-                grossMinor: text(line, "grossMinor", "gross_minor") || "0",
-                primaryAccountCode:
-                  text(line, "primaryAccountCode", "primary_account_code") || "642-OPEX",
-                categoryCode:
-                  text(
-                    line,
-                    "categoryCode",
-                    "category_code",
-                    "expenseCategoryCode",
-                    "expense_category_code",
-                  ) || undefined,
-                allocations: Array.isArray(line.allocations) ? line.allocations : [],
-              })),
-            };
+      // The server rebuilds the replacement from the stored record, so only the target is sent.
       const endpoint =
         source === "expenses"
-          ? `expenses/${encodeURIComponent(id)}/reverse-replace`
+          ? `expenses/${encodeURIComponent(id)}/reclassify-funding`
           : `commercial-documents/${encodeURIComponent(id)}/reclassify-funding`;
       const requestBody =
         source === "expenses"
-          ? { replacement, reason: reclassifyReason.trim() }
-          : { targetControlAccountCode: reclassifyTargetAccount, reason: reclassifyReason.trim() };
+          ? {
+              ...fundingTarget(reclassifyTargetAccount, reclassifyFundingOptions),
+              reason: reclassifyReason.trim(),
+            }
+          : { targetControlAccountCode: targetLedgerCode, reason: reclassifyReason.trim() };
       const result = await client.data<Row>(endpoint, {
         method: "POST",
         expectedVersion: text(quickRecord, "resourceVersion", "version"),
@@ -857,7 +803,7 @@ export function FocusedRecordListWorkspace({
       </div>
       {error ? (
         <Alert variant="destructive">
-          <AlertTitle>Không thể tải dữ liệu</AlertTitle>
+          <AlertTitle>Không thực hiện được</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
@@ -1122,12 +1068,12 @@ export function FocusedRecordListWorkspace({
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      const currentCode = fundingCode(quickRecord);
-                      const alternative = reclassifyFundingOptions.find(
-                        (option) => !currentCode.startsWith(option.code.split("-")[0]),
-                      );
+                      const alternative =
+                        reclassifyFundingOptions.find(
+                          (option) => !isCurrentFunding(option, quickRecord),
+                        ) ?? reclassifyFundingOptions[0];
                       setReclassifyTargetAccount(
-                        alternative?.code ?? reclassifyFundingOptions[0]?.code ?? "111-CASH",
+                        alternative ? fundingOptionValue(alternative) : "",
                       );
                       setReclassifyOpen(true);
                     }}
@@ -1287,12 +1233,9 @@ export function FocusedRecordListWorkspace({
               </SelectTrigger>
               <SelectContent>
                 {reclassifyFundingOptions
-                  .filter((option) => {
-                    const currentCode = fundingCode(quickRecord);
-                    return !currentCode.startsWith(option.code.split("-")[0]);
-                  })
+                  .filter((option) => !isCurrentFunding(option, quickRecord))
                   .map((option) => (
-                    <SelectItem key={option.code} value={option.code}>
+                    <SelectItem key={fundingOptionValue(option)} value={fundingOptionValue(option)}>
                       {option.label}
                     </SelectItem>
                   ))}

@@ -71,11 +71,43 @@ export const FUNDING_OPTIONS = [
   { code: "112-BANK", label: "Tài khoản ngân hàng công ty (TK 112)" },
   { code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" },
 ] as const;
-export type FundingOption = Readonly<{ code: string; label: string }>;
+export type FundingOption = Readonly<{
+  /** Ledger account the payment source posts to. */
+  code: string;
+  label: string;
+  /** Set for a financial account; needed to tell owner-held custody cash from company cash. */
+  financialAccountId?: string;
+}>;
+
+/** Stable select value: financial accounts are told apart by id because they can share a ledger code. */
+export function fundingOptionValue(option: FundingOption) {
+  return option.financialAccountId ? `account:${option.financialAccountId}` : option.code;
+}
+
+export function findFundingOption(value: string, options: readonly FundingOption[]) {
+  return options.find((option) => fundingOptionValue(option) === value);
+}
+
+/** Request fields for the expense funding reclassification API. */
+export function fundingTarget(value: string, options: readonly FundingOption[]) {
+  const option = findFundingOption(value, options);
+  return option?.financialAccountId
+    ? { financialAccountId: option.financialAccountId }
+    : { counterAccountCode: option?.code ?? value };
+}
+
+/** Whether an option is already the record's current payment source. */
+export function isCurrentFunding(option: FundingOption, row: Row | undefined) {
+  const currentAccount = text(row, "fundingFinancialAccountId", "funding_financial_account_id");
+  if (currentAccount) return option.financialAccountId === currentAccount;
+  return !option.financialAccountId && option.code === fundingCode(row);
+}
 export function fundingLabel(code: string, options: readonly FundingOption[] = FUNDING_OPTIONS) {
   const root = code.split("-")[0];
   return (
-    options.find((option) => option.code === code || option.code.startsWith(root))?.label ?? code
+    findFundingOption(code, options)?.label ??
+    options.find((option) => option.code === code || option.code.startsWith(root))?.label ??
+    code
   );
 }
 export function sourceKind(row: Row | undefined): SourceKind {

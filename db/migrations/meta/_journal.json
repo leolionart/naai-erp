@@ -498,6 +498,13 @@
       "when": 1788224520000,
       "tag": "0071_telegram_notify_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1788224580000,
+      "tag": "0072_allow_document_payment_state_reversal",
+      "breakpoints": true
     }
   ]
 }

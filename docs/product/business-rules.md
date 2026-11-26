@@ -1479,3 +1479,15 @@ No task may be marked done with orphan business rules or untested behavior.
   source-document evidence satisfies the review-readiness check. `controlled` mode continues to
   require explicit tax review before approval. Discarded expenses do not block duplicate-document
   checks.
+
+### Changing an expense's payment source
+
+- `BR-FUND-001`: a posted expense can be moved to another payment source with
+  `POST /expenses/{id}/reclassify-funding`. The target is a financial account (`financialAccountId`)
+  or a ledger source (`counterAccountCode`, e.g. owner-current). Company cash and the owner-held
+  custody cash are different financial accounts that share one ledger account, so the account id —
+  not the ledger code — selects the source and sets the funding link that reduces the owner-held fund.
+- `BR-FUND-002`: the server rebuilds the replacement from the stored expense (amounts, lines,
+  allocations, evidence, external reference), reverses the old journal and creates a draft replacement;
+  clients never assemble the replacement. The request is idempotent and needs the current version and a
+  reason. Documents (purchase invoices) still change their control account only.

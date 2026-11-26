@@ -3768,6 +3768,21 @@ tasks:
       - docs/product/business-rules.md
       - docs/implementation/evidence/ERP-972/
 
+  - id: ERP-975
+    title: Expense payment source change to owner-held custody cash, base-state fixes
+    phase: P16
+    status: done
+    dependencies: [ERP-974]
+    business_rules: [BR-FUND-001, BR-FUND-002]
+    tests: [T-INT-FUND-001, T-E2E-FUND-002, T-UNIT-FUND-003]
+    evidence: docs/implementation/evidence/ERP-975/
+    agent: claude
+    started_at: 2026-11-26T18:00:00+07:00
+    completed_at: 2026-11-26T19:30:00+07:00
+    completion_basis: implemented_with_scratch_database_and_browser_evidence
+    planned_files:
+      - docs/implementation/evidence/ERP-975/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

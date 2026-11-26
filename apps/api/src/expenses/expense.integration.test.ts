@@ -175,6 +175,121 @@ describeIntegration("ERP-310 expense workflow", () => {
     }
   });
 
+  it("moves a posted expense to the owner-held custody cash through a funding reclassification", async () => {
+    await pool.query(
+      `insert into accounting_workflow_policies(organization_id,allow_self_approval,self_approval_max_minor,operating_mode,updated_by)
+       values($1,false,null,'solopreneur','owner')
+       on conflict(organization_id) do update set operating_mode='solopreneur'`,
+      [organizationId],
+    );
+    // Company cash and owner custody cash are two financial accounts over the same ledger account.
+    await pool.query(
+      `insert into financial_accounts(organization_id,id,code,kind,display_name,currency,ledger_account_code,created_by,updated_by)
+       values($1,'fa-company-cash','CASH-COMPANY','cash','Quỹ tiền mặt công ty','VND','111-CASH','t','t'),
+             ($1,'fa-owner-custody','CASH-OWNER-CUSTODY','cash','Tiền công ty chủ giữ hộ','VND','111-CASH','t','t')`,
+      [organizationId],
+    );
+    const payload = {
+      id: "fund-1",
+      expenseClass: "invoice_backed",
+      payeePartyId: "SUP-01",
+      expenseDate: "2026-08-11",
+      businessPurpose: "Chi từ quỹ",
+      currency: "VND",
+      netMinor: "1000",
+      vatMinor: "100",
+      grossMinor: "1100",
+      counterAccountCode: "331-AP",
+      lines: [
+        {
+          description: "Chi từ quỹ",
+          netMinor: "1000",
+          vatMinor: "100",
+          grossMinor: "1100",
+          postingAccountCode: "642-OPEX",
+          vatAccountCode: "1331-VAT",
+          allocations: [{ id: "fund-a", amountMinor: "1000", dimensions: { costCenter: "ADMIN" } }],
+        },
+      ],
+    };
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/api/v1/organizations/${organizationId}/expenses`,
+          headers: headers(ownerToken, "fund-create"),
+          payload,
+        })
+      ).json().data.state,
+    ).toBe("posted");
+    const version = (
+      await pool.query(
+        "select version::text from expenses where organization_id=$1 and id='fund-1'",
+        [organizationId],
+      )
+    ).rows[0].version;
+    const reclassify = (body: unknown, ifMatch = version, key = "fund-reclassify") =>
+      app.inject({
+        method: "POST",
+        url: `/api/v1/organizations/${organizationId}/expenses/fund-1/reclassify-funding`,
+        headers: { ...headers(ownerToken, key), "if-match": ifMatch },
+        payload: body as Record<string, unknown>,
+      });
+    expect((await reclassify({ financialAccountId: "fa-owner-custody" })).statusCode).toBe(400);
+    expect(
+      (await reclassify({ financialAccountId: "missing", reason: "x" }, version, "fund-missing"))
+        .statusCode,
+    ).toBe(422);
+    expect(
+      (
+        await reclassify(
+          { financialAccountId: "fa-owner-custody", reason: "x" },
+          "999",
+          "fund-stale",
+        )
+      ).statusCode,
+    ).toBe(409);
+    const moved = await reclassify({
+      financialAccountId: "fa-owner-custody",
+      reason: "Chi từ tiền công ty do chủ giữ hộ",
+    });
+    expect(moved.statusCode, moved.body).toBe(201);
+    const replacementId = moved.json().data.replacementExpenseId;
+    expect(replacementId).toEqual(expect.any(String));
+    const rows = await pool.query(
+      `select id,state::text,counter_account_code,funding_financial_account_id
+         from expenses where organization_id=$1 and (id='fund-1' or original_expense_id='fund-1') order by id`,
+      [organizationId],
+    );
+    expect(rows.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "fund-1", state: "reversed" }),
+        expect.objectContaining({
+          id: replacementId,
+          state: "draft",
+          counter_account_code: "111-CASH",
+          funding_financial_account_id: "fa-owner-custody",
+        }),
+      ]),
+    );
+    // The replacement keeps the allocation identity and amounts of the original line.
+    const allocation = await pool.query(
+      "select amount_minor::text,dimensions from expense_allocations where organization_id=$1 and expense_id=$2",
+      [organizationId, replacementId],
+    );
+    expect(allocation.rows[0].amount_minor).toBe("1000");
+    expect(allocation.rows[0].dimensions.allocationId).toBe("fund-a");
+    // Replaying the same request is idempotent.
+    expect(
+      (
+        await reclassify({
+          financialAccountId: "fa-owner-custody",
+          reason: "Chi từ tiền công ty do chủ giữ hộ",
+        })
+      ).json().data.idempotencyReplayed,
+    ).toBe(true);
+  });
+
   it("defaults documented expenses to final tax states in owner-final mode while preserving overrides", async () => {
     await pool.query(
       `insert into accounting_workflow_policies

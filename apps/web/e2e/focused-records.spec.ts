@@ -331,9 +331,41 @@ async function install(
         idempotencyReplayed: false,
       });
     }
+    if (
+      route.request().method() === "POST" &&
+      url.pathname.endsWith("/expense-720/reclassify-funding")
+    ) {
+      expect(route.request().headers()["if-match"]).toBe("1");
+      expect(route.request().postDataJSON()).toEqual({
+        financialAccountId: "fa-owner-custody",
+        reason: "Chi từ tiền công ty chủ giữ hộ",
+      });
+      return reply(route, { expenseId: "expense-720", replacementExpenseId: "expense-720-r" });
+    }
     if (url.pathname.endsWith("/expense-720")) return reply(route, currentExpense);
     return reply(route, { items: [currentExpense] });
   });
+  await page.route("**/api/v1/organizations/naai/banking/accounts**", (route) =>
+    reply(route, {
+      items: [
+        // Company cash and owner-held custody cash share one ledger account.
+        {
+          id: "fa-company-cash",
+          code: "CASH-COMPANY",
+          display_name: "Quỹ tiền mặt công ty",
+          ledger_account_code: "111-CASH",
+          status: "active",
+        },
+        {
+          id: "fa-owner-custody",
+          code: "CASH-OWNER-CUSTODY",
+          display_name: "Tiền công ty chủ giữ hộ",
+          ledger_account_code: "111-CASH",
+          status: "active",
+        },
+      ],
+    }),
+  );
   await page.route("**/api/v1/organizations/naai/organization-workflow-policy**", (route) =>
     reply(route, { operatingMode: "solopreneur", allowSelfApproval: false }),
   );
@@ -874,4 +906,20 @@ test("@desktop shows the organization's operating mode in the page header", asyn
   await expect(badge).toHaveText(/Chế độ: Một người/);
   await badge.hover();
   await expect(page.getByRole("tooltip").first()).toContainText("Lưu và ghi nhận");
+});
+
+test("@desktop moves a posted expense to the owner-held custody cash fund", async ({ page }) => {
+  await install(page, undefined, "posted");
+  await page.goto("http://localhost:3000/expenses?invoiceStatus=missing");
+  await page.getByRole("button", { name: "Xem" }).click();
+  const quickView = page.getByRole("dialog", { name: "Chi tiết & Chỉnh sửa hoạt động chi phí" });
+  await quickView.getByRole("button", { name: "Đổi nguồn thanh toán" }).click();
+  const dialog = page.getByRole("dialog", { name: "Đổi sang nguồn thanh toán khác?" });
+  await dialog.getByLabel("Nguồn thanh toán mới").click();
+  // Both cash funds are offered although they share ledger account 111.
+  await expect(page.getByRole("option", { name: /Quỹ tiền mặt công ty/ })).toBeVisible();
+  await page.getByRole("option", { name: /Tiền công ty chủ giữ hộ/ }).click();
+  await dialog.getByLabel("Lý do điều chỉnh").fill("Chi từ tiền công ty chủ giữ hộ");
+  await dialog.getByRole("button", { name: /Xác nhận/ }).click();
+  await expect(page.getByText(/Đã đảo bút toán cũ và tạo bản thay thế/)).toBeVisible();
 });
