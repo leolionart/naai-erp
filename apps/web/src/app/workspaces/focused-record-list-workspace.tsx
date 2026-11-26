@@ -415,6 +415,19 @@ export function FocusedRecordListWorkspace({
           return categoryId === "unclassified" ? !rowCategory : rowCategory === categoryId.trim();
         });
       }
+      const accountCode = sourceParams.get("accountCode")?.trim();
+      if (kind === "expenses" && accountCode) {
+        rawItems = rawItems.filter((row) => {
+          const resolvedAccount = text(
+            row,
+            "counterAccountCode",
+            "counter_account_code",
+            "controlAccountCode",
+            "control_account_code",
+          );
+          return resolvedAccount === accountCode;
+        });
+      }
       const presentationDate = (row: TaggedRow) =>
         kind === "documents"
           ? presentRevenueRecord(
@@ -518,7 +531,7 @@ export function FocusedRecordListWorkspace({
     const query = new URLSearchParams();
     for (const name of kind === "documents"
       ? ["invoiceStatus", "type", "state", "startsOn", "endsOn", "categoryId"]
-      : ["invoiceStatus", "class", "state", "startsOn", "endsOn", "categoryId"]) {
+      : ["invoiceStatus", "class", "state", "startsOn", "endsOn", "categoryId", "accountCode"]) {
       const value = String(form.get(name) ?? "").trim();
       if (value && value !== "all") query.set(name, value);
     }

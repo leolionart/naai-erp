@@ -182,6 +182,28 @@ export function FilterPopover({
             ) : (
               <>
                 <Field>
+                  <FieldLabel>Nguồn chi / Tài khoản</FieldLabel>
+                  <Select name="accountCode" defaultValue={params.get("accountCode") ?? "all"}>
+                    <SelectTrigger aria-label="Nguồn chi / Tài khoản">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="3388-OWNER">
+                          Chủ doanh nghiệp chi hộ (3388-OWNER)
+                        </SelectItem>
+                        <SelectItem value="111-OWNER-CUSTODY">
+                          Quỹ chủ giữ hộ (111-OWNER-CUSTODY)
+                        </SelectItem>
+                        <SelectItem value="331-AP">Phải trả nhà cung cấp (331-AP)</SelectItem>
+                        <SelectItem value="111-CASH">Tiền mặt công ty (111-CASH)</SelectItem>
+                        <SelectItem value="112-BANK">Tiền gửi ngân hàng (112-BANK)</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
                   <FieldLabel>Nhóm chi phí</FieldLabel>
                   <Select name="class" defaultValue={params.get("class") ?? "all"}>
                     <SelectTrigger>
