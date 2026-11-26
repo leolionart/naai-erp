@@ -123,7 +123,10 @@ describe("ERP-300 CommercialDocumentService", () => {
     };
     const service = new CommercialDocumentService(store as never, {} as never);
     const result = await service.create(context, sales, "idem-1");
-    expect(store.validateRelationships).toHaveBeenCalledWith("org-a", sales);
+    expect(store.validateRelationships).toHaveBeenCalledWith(
+      "org-a",
+      expect.objectContaining(sales),
+    );
     expect(result.data).toMatchObject({ documentId: "sales-1", state: "draft" });
   });
   it("rejects an n8n staging object as validation failure instead of throwing a property error", async () => {

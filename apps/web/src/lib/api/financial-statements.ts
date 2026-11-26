@@ -125,6 +125,7 @@ export const financialStatementsApi = Object.freeze({
   cashFlow: "reports/financial-statements/cash-flow",
   vatReconciliation: "reports/tax/vat-reconciliation",
   expenseExceptions: "reports/tax/expense-exceptions",
+  paymentEvidenceGaps: "reports/tax/payment-evidence-gaps",
   drilldown: "reports/financial-statements/drilldown",
 });
 import type {

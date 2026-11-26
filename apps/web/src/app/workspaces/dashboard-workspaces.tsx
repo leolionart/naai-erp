@@ -34,14 +34,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
@@ -62,7 +54,12 @@ import {
 } from "./cit-estimate-presentation";
 import { recordCategory } from "@/lib/records/category";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
+import {
+  DashboardPreviewDialog,
+  type DashboardPreview as Preview,
+} from "@/components/dashboard/dashboard-preview-dialog";
 import { StatusBadge } from "@/components/financial/status-badge";
+import { PaymentEvidenceGapsCard } from "@/components/tax/payment-evidence-gaps-card";
 import { cn } from "@/lib/utils";
 import { Area, AreaChart } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
@@ -195,6 +192,15 @@ type OperatingDashboardWire = Readonly<{
     ownerPaidClassificationStatus?: "ready" | "review_required" | "unconfigured";
     unclassifiedOwnerPaidCount?: number;
     unclassifiedOwnerPaidMinor?: string;
+    paymentEvidenceGaps?: Readonly<{
+      status: "ready" | "warning";
+      nonCashThresholdMinor: string;
+      recordCount: number;
+      lineCount: number;
+      withheldCitMinor: string;
+      withheldVatMinor: string;
+      reportPath: string;
+    }>;
     configurationWarnings?: readonly string[];
     corporateIncomeTaxRateBps: number | null;
     rosBps: number | null;
@@ -233,14 +239,6 @@ type OperatingDashboardWire = Readonly<{
     }>[];
   }>;
 }>;
-type Preview = Readonly<{
-  title: string;
-  description: string;
-  sourceIds: readonly string[];
-  href: string;
-  facts?: readonly Readonly<{ label: string; value: string }>[];
-}>;
-
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const monthEnd = (month: string) => {
@@ -771,58 +769,6 @@ function DashboardFilters({
   );
 }
 
-function PreviewDialog({ preview, onClose }: { preview?: Preview; onClose(): void }) {
-  return (
-    <Dialog
-      open={Boolean(preview)}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{preview?.title ?? "Nguồn dashboard"}</DialogTitle>
-          <DialogDescription>{preview?.description}</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3">
-          {preview?.facts?.length ? (
-            <dl className="grid gap-3">
-              {preview.facts.map((fact) => (
-                <div key={fact.label} className="flex items-center justify-between gap-4">
-                  <dt className="text-muted-foreground">{fact.label}</dt>
-                  <dd className="tabular-nums">{fact.value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-          {preview?.sourceIds.length ? (
-            <>
-              <p className="text-sm font-medium">Source IDs</p>
-              <div className="flex flex-wrap gap-2">
-                {preview.sourceIds.map((id) => (
-                  <Badge variant="outline" key={id} className="max-w-full break-all">
-                    {id}
-                  </Badge>
-                ))}
-              </div>
-            </>
-          ) : null}
-          {preview ? (
-            <Button asChild>
-              <Link href={preview.href}>Mở trang drill-down đầy đủ</Link>
-            </Button>
-          ) : null}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Đóng
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function useDashboardData() {
   const { client, hydrated, hasToken } = useAuthenticatedApiClient();
   const params = useSearchParams();
@@ -1173,6 +1119,13 @@ export function ExecutiveDashboardWorkspace() {
                 khoản ngoại tệ trong kỳ được loại khỏi tổng thay vì cộng lẫn đồng tiền.
               </AlertDescription>
             </Alert>
+          ) : null}
+          {!loading ? (
+            <PaymentEvidenceGapsCard
+              startsOn={search.get("startsOn")}
+              endsOn={effectiveEndsOn(search)}
+              compact
+            />
           ) : null}
           {!loading && flagged > 0 ? (
             <Alert>
@@ -1710,7 +1663,7 @@ export function ExecutiveDashboardWorkspace() {
           />
         </div>
       </div>
-      <PreviewDialog preview={preview} onClose={() => setPreview(undefined)} />
+      <DashboardPreviewDialog preview={preview} onClose={() => setPreview(undefined)} />
     </ModulePage>
   );
 }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 129,
+  "mutationCount": 132,
   "effectEnum": [
     "none",
     "draft",
@@ -65,6 +65,7 @@
     "milestone-acceptances/{id}",
     "opening-balances",
     "opening-balances/dry-run",
+    "organization-workflow-policy",
     "outbound-events/endpoints",
     "outbound-events/outbox",
     "portable-data-packages/exports",
@@ -959,6 +960,60 @@
         "idempotency"
       ],
       "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/payment-evidence",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/payment-evidence",
+      "operationId": "updatePurchaseInvoicePaymentEvidence",
+      "resource": "commercial-documents",
+      "action": "payment-evidence",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": [
+          "endpoint-defined"
+        ],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency"
+      ],
+      "uiActionFamily": "commercial-documents/{documentId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/expenses/{expenseId}/payment-evidence",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/expenses/{expenseId}/payment-evidence",
+      "operationId": "updateExpensePaymentEvidence",
+      "resource": "expenses",
+      "action": "payment-evidence",
+      "possibleActions": [],
+      "financialEffect": "draft",
+      "current": {
+        "lifecycleStates": [
+          "endpoint-defined"
+        ],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency"
+      ],
+      "uiActionFamily": "expenses/{expenseId}"
     },
     {
       "id": "POST:/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/reverse",
@@ -3208,6 +3263,33 @@
         "idempotency"
       ],
       "uiActionFamily": "forecast-versions/{forecastId}"
+    },
+    {
+      "id": "PATCH:/api/v1/organizations/{organizationId}/organization-workflow-policy",
+      "method": "PATCH",
+      "path": "/api/v1/organizations/{organizationId}/organization-workflow-policy",
+      "operationId": "updateOrganizationWorkflowPolicy",
+      "resource": "organization-workflow-policy",
+      "action": "organization-workflow-policy",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": [
+          "endpoint-defined"
+        ],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": [
+        "organization_scope",
+        "rbac",
+        "audit",
+        "idempotency"
+      ],
+      "uiActionFamily": "organization-workflow-policy"
     },
     {
       "id": "POST:/api/v1/organizations/{organizationId}/executive-metric-policies",

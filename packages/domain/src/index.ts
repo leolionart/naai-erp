@@ -1,12 +1,7 @@
 export const DOMAIN_PACKAGE = "@naai-erp/domain" as const;
-export {
-  validateCustomerReceipt,
-  type CustomerReceiptAllocationInput,
-} from "./customer-receipts.js";
-export {
-  validateFreelancePayable,
-  validateFreelancePayment,
-} from "./project-freelance-payables.js";
+export * from "./payment-evidence.js";
+export * from "./customer-receipts.js";
+export * from "./project-freelance-payables.js";
 export {
   PORTABLE_DATA_PACKAGE_SCHEMA_VERSION,
   assertPortableRowOperation,

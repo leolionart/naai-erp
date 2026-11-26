@@ -1,6 +1,10 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
-import type { FundingInputContract } from "@naai-erp/contracts";
-import type { BusinessCorrectionRequestContract } from "@naai-erp/contracts";
+import type {
+  BusinessCorrectionRequestContract,
+  FundingInputContract,
+  PaymentMethodContract,
+  TransactionEvidenceContract,
+} from "@naai-erp/contracts";
 
 export type ExpenseContext = JournalActorContext;
 export type ExpenseAxis = "management" | "cit" | "vat";
@@ -60,6 +64,14 @@ export type CreateExpenseInput = Readonly<{
   ownerFundingId?: string;
   /** Optional owner_funding bank_transaction_id when company_bank expense traces to owner deposit. */
   ownerFundingTransactionId?: string;
+  paymentMethod?: PaymentMethodContract | undefined;
+  payment_method?: PaymentMethodContract | undefined;
+  paidOn?: string | null | undefined;
+  paid_on?: string | null | undefined;
+  paymentEvidenceRef?: string | null | undefined;
+  payment_evidence_ref?: string | null | undefined;
+  transactionEvidence?: TransactionEvidenceContract | undefined;
+  transaction_evidence?: TransactionEvidenceContract | undefined;
   evidenceChecklist?: Readonly<Record<string, boolean>>;
   lines: readonly ExpenseLineInput[];
   externalReference?: ExternalReferenceInput;

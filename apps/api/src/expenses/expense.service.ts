@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
 import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import { FundingRulesService } from "../funding-rules/funding-rules.service.js";
@@ -7,6 +7,7 @@ import { MasterDataService } from "../master-data/master-data.service.js";
 import { normalizeExpenseRelationships } from "./expense-relationships.js";
 import { validateExpensePayload } from "./expense-validation.js";
 import { applyExpenseFundingAndOwnerPersonalPolicy } from "./expense-funding.js";
+import { mergeExpenseInput } from "./expense-merge.helper.js";
 import { PgExpenseStore } from "./pg-expense.store.js";
 import type {
   CreateExpenseInput,
@@ -14,61 +15,12 @@ import type {
   ExpenseContext,
   ExpenseMetadataInput,
   ExpenseReviewInput,
-  ExternalReferenceInput,
 } from "./expense.types.js";
 
 const WRITE = new Set(["owner", "finance_admin", "accountant", "integration"]);
 const REVIEW = new Set(["owner", "finance_admin", "accountant", "approver"]);
 const TAX_REVIEW = new Set(["owner", "finance_admin", "accountant"]);
 const POST = new Set(["owner", "finance_admin", "accountant"]);
-
-interface ExistingExpense {
-  expense_class: string;
-  payee_party_id: string | null;
-  employee_party_id: string | null;
-  expense_date: Date | string;
-  service_period_start: Date | string | null;
-  service_period_end: Date | string | null;
-  business_purpose: string;
-  currency: string;
-  net_minor: string | number;
-  vat_minor: string | number;
-  gross_minor: string | number;
-  counter_account_code: string;
-  funding_financial_account_id?: string | null;
-  evidence_checklist: Record<string, boolean> | null;
-  externalReference?: {
-    system: string;
-    externalId: string;
-    canonicalUrl?: string;
-    checksum?: string;
-    version?: string;
-    metadata?: Record<string, unknown>;
-  } | null;
-  lines: Array<{
-    lineNumber: number;
-    description: string;
-    netMinor: string | number;
-    vatMinor: string | number;
-    grossMinor: string | number;
-    postingAccountCode: string;
-    expenseCategoryCode?: string;
-    vatAccountCode?: string;
-    managementState?: "unreviewed" | "valid" | "invalid" | "accountant_override";
-    citState?:
-      "unreviewed" | "eligible" | "partially_eligible" | "ineligible" | "accountant_override";
-    vatState?:
-      "unreviewed" | "eligible" | "partially_eligible" | "ineligible" | "accountant_override";
-    citEligibleMinor?: string | number;
-    vatEligibleMinor?: string | number;
-    dimensions?: Record<string, string>;
-    allocations: Array<{
-      id?: string;
-      amount_minor: string | number;
-      dimensions?: Record<string, string>;
-    }>;
-  }>;
-}
 
 @Injectable()
 export class ExpenseService {
@@ -357,111 +309,10 @@ export class ExpenseService {
   }
 
   private mergeExpense(
-    existing: ExistingExpense,
+    existing: Parameters<typeof mergeExpenseInput>[0],
     input: Partial<CreateExpenseInput>,
   ): CreateExpenseInput {
-    const formatDate = (d: Date | string | null | undefined) =>
-      d instanceof Date
-        ? d.toISOString().slice(0, 10)
-        : typeof d === "string"
-          ? d.slice(0, 10)
-          : String(d);
-
-    const existingLines = (existing.lines || []).map((l) => {
-      const allocations = (l.allocations || []).map((a) => {
-        const { allocationId, ...restDims } = a.dimensions || {};
-        return {
-          id: allocationId || a.id || randomUUID(),
-          amountMinor: String(a.amount_minor),
-          dimensions: restDims as Record<string, string>,
-        };
-      });
-      const line: CreateExpenseInput["lines"][number] = {
-        description: l.description,
-        netMinor: String(l.netMinor),
-        vatMinor: String(l.vatMinor),
-        grossMinor: String(l.grossMinor),
-        postingAccountCode: l.postingAccountCode,
-        ...(l.expenseCategoryCode ? { expenseCategoryCode: l.expenseCategoryCode } : {}),
-        dimensions: l.dimensions || {},
-        allocations,
-        ...(l.vatAccountCode ? { vatAccountCode: l.vatAccountCode } : {}),
-        ...(l.managementState ? { managementState: l.managementState } : {}),
-        ...(l.citState ? { citState: l.citState } : {}),
-        ...(l.vatState ? { vatState: l.vatState } : {}),
-        ...(l.citEligibleMinor ? { citEligibleMinor: String(l.citEligibleMinor) } : {}),
-        ...(l.vatEligibleMinor ? { vatEligibleMinor: String(l.vatEligibleMinor) } : {}),
-      };
-      return line;
-    });
-
-    const mergedExtRef =
-      input.externalReference !== undefined
-        ? input.externalReference || undefined
-        : existing.externalReference
-          ? {
-              system: existing.externalReference.system,
-              externalId: existing.externalReference.externalId,
-              canonicalUrl: existing.externalReference.canonicalUrl || undefined,
-              checksum: existing.externalReference.checksum || undefined,
-              version: existing.externalReference.version || undefined,
-              metadata: existing.externalReference.metadata,
-            }
-          : undefined;
-
-    const payee = input.payeePartyId !== undefined ? input.payeePartyId : existing.payee_party_id;
-    const employee =
-      input.employeePartyId !== undefined ? input.employeePartyId : existing.employee_party_id;
-    const start =
-      input.servicePeriodStart !== undefined
-        ? input.servicePeriodStart
-        : existing.service_period_start;
-    const end =
-      input.servicePeriodEnd !== undefined ? input.servicePeriodEnd : existing.service_period_end;
-    const checklist =
-      input.evidenceChecklist !== undefined ? input.evidenceChecklist : existing.evidence_checklist;
-
-    let cleanedExtRef: ExternalReferenceInput | undefined = undefined;
-    if (mergedExtRef) {
-      cleanedExtRef = {
-        system: mergedExtRef.system,
-        externalId: mergedExtRef.externalId,
-        ...(mergedExtRef.canonicalUrl ? { canonicalUrl: mergedExtRef.canonicalUrl } : {}),
-        ...(mergedExtRef.checksum ? { checksum: mergedExtRef.checksum } : {}),
-        ...(mergedExtRef.version ? { version: mergedExtRef.version } : {}),
-        ...(mergedExtRef.metadata ? { metadata: mergedExtRef.metadata } : {}),
-      };
-    }
-
-    const result: CreateExpenseInput = {
-      expenseClass: input.expenseClass !== undefined ? input.expenseClass : existing.expense_class,
-      expenseDate:
-        input.expenseDate !== undefined ? input.expenseDate : formatDate(existing.expense_date),
-      businessPurpose:
-        input.businessPurpose !== undefined ? input.businessPurpose : existing.business_purpose,
-      currency: input.currency !== undefined ? input.currency : existing.currency,
-      netMinor: input.netMinor !== undefined ? input.netMinor : String(existing.net_minor),
-      vatMinor: input.vatMinor !== undefined ? input.vatMinor : String(existing.vat_minor),
-      grossMinor: input.grossMinor !== undefined ? input.grossMinor : String(existing.gross_minor),
-      counterAccountCode:
-        input.counterAccountCode !== undefined
-          ? input.counterAccountCode
-          : existing.counter_account_code,
-      ...(input.fundingFinancialAccountId !== undefined
-        ? { fundingFinancialAccountId: input.fundingFinancialAccountId }
-        : existing.funding_financial_account_id
-          ? { fundingFinancialAccountId: existing.funding_financial_account_id }
-          : {}),
-      lines: input.lines !== undefined ? input.lines : existingLines,
-      ...(payee ? { payeePartyId: payee } : {}),
-      ...(employee ? { employeePartyId: employee } : {}),
-      ...(start ? { servicePeriodStart: formatDate(start) } : {}),
-      ...(end ? { servicePeriodEnd: formatDate(end) } : {}),
-      ...(checklist ? { evidenceChecklist: checklist as Record<string, boolean> } : {}),
-      ...(cleanedExtRef ? { externalReference: cleanedExtRef } : {}),
-    };
-
-    return result;
+    return mergeExpenseInput(existing, input);
   }
   async create(context: ExpenseContext, input: CreateExpenseInput, key?: string) {
     if (!context.roles.some((r) => WRITE.has(r))) throw new Error("FORBIDDEN");

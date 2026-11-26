@@ -1,6 +1,10 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
-import type { FundingInputContract } from "@naai-erp/contracts";
-import type { BusinessCorrectionRequestContract } from "@naai-erp/contracts";
+import type {
+  BusinessCorrectionRequestContract,
+  FundingInputContract,
+  PaymentMethodContract,
+  TransactionEvidenceContract,
+} from "@naai-erp/contracts";
 
 export type CommercialDocumentType = "sales_invoice" | "purchase_invoice" | "credit_note";
 export type CommercialDocumentAction =
@@ -57,6 +61,14 @@ export type CreateCommercialDocumentInput = Readonly<{
   funding?: FundingInputContract;
   ownerFundingId?: string;
   ownerFundingTransactionId?: string;
+  paymentMethod?: PaymentMethodContract | undefined;
+  payment_method?: PaymentMethodContract | undefined;
+  paidOn?: string | null | undefined;
+  paid_on?: string | null | undefined;
+  paymentEvidenceRef?: string | null | undefined;
+  payment_evidence_ref?: string | null | undefined;
+  transactionEvidence?: TransactionEvidenceContract | undefined;
+  transaction_evidence?: TransactionEvidenceContract | undefined;
   originalDocumentId?: string;
   migrationSourceExpenseId?: string;
   migrationSourceExpenseDate?: string;
@@ -130,6 +142,14 @@ export type QuickPurchaseInvoiceInput = Readonly<{
   currency?: string;
   externalReference?: ExternalReferenceInput;
   funding?: FundingInputContract;
+  paymentMethod?: PaymentMethodContract | undefined;
+  payment_method?: PaymentMethodContract | undefined;
+  paidOn?: string | null | undefined;
+  paid_on?: string | null | undefined;
+  paymentEvidenceRef?: string | null | undefined;
+  payment_evidence_ref?: string | null | undefined;
+  transactionEvidence?: TransactionEvidenceContract | undefined;
+  transaction_evidence?: TransactionEvidenceContract | undefined;
 }>;
 
 export type QuickSalesInvoiceInput = Readonly<{

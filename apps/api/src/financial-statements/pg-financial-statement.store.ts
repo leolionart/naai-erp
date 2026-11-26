@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import {
+  STATEMENT_DRILLDOWN_DERIVED_LINES,
+  STATEMENT_DRILLDOWN_ROOTS,
+  summarizePaymentEvidenceGaps,
+} from "../payment-evidence/tax-report-enrichment.js";
+import {
   buildBalanceSheet,
   buildDirectCashFlow,
   buildProfitAndLoss,
@@ -612,14 +617,16 @@ export class PgFinancialStatementStore {
         case when l.tax_minor>0 then array['source_document']::text[] else array[]::text[] end required_evidence_types,
         case when exists(select 1 from evidence_records r where r.organization_id=d.organization_id and r.subject_type='commercial_document' and r.subject_id=d.id)
           or exists(select 1 from external_references xr where xr.organization_id=d.organization_id and xr.document_id=d.id)
-          then array['source_document']::text[] else array[]::text[] end present_evidence_types
+          then array['source_document']::text[] else array[]::text[] end present_evidence_types,
+        l.payment_evidence_missing
        from commercial_documents d join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
        left join commercial_documents original on original.organization_id=d.organization_id and original.id=d.original_document_id
        where d.organization_id=$1 and d.state<>'cancelled' and d.document_date between $2::date and $3::date and d.created_at <= $4::timestamptz and l.tax_minor>0
        union all
        select concat('expense:',e.id,':',l.line_number),e.id,l.line_number,'expense','input',l.vat_minor::text,'normal',l.vat_state::text,l.vat_eligible_minor::text,
         l.reviewed_by,l.review_reason,l.review_reference,null::text,true,e.journal_id is not null,e.journal_id,
-        array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id) then array['source_document']::text[] else array[]::text[] end
+        array['source_document']::text[],case when exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id) or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id) then array['source_document']::text[] else array[]::text[] end,
+        l.payment_evidence_missing
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
        where e.organization_id=$1 and e.state<>'reversed' and e.expense_class<>'owner_personal' and e.expense_date between $2::date and $3::date and e.created_at <= $4::timestamptz and l.vat_minor>0`,
       [c.organizationId, q.startsOn, q.endsOn, q.asOfInstant],
@@ -641,6 +648,7 @@ export class PgFinancialStatementStore {
       ...(r.review_reference_id ? { reviewReferenceId: r.review_reference_id } : {}),
       ...(r.tax_code ? { taxCode: r.tax_code } : {}),
       taxCodeApproved: r.tax_code_approved,
+      paymentEvidenceMissing: Boolean(r.payment_evidence_missing),
       postedToLedger: r.posted_to_ledger,
       ...(r.journal_id ? { journalId: r.journal_id } : {}),
       requiredEvidenceTypes: r.required_evidence_types,
@@ -651,11 +659,13 @@ export class PgFinancialStatementStore {
         lineId: r.id,
       },
       nextActions: [
+        ...(r.payment_evidence_missing ? ["update-payment-evidence"] : []),
         ...(!r.tax_code_approved && r.source_type !== "expense" ? ["resolve-tax-code"] : []),
         ...(r.tax_kind === "input" && r.review_state === "unreviewed" ? ["review-vat"] : []),
         "view-source",
       ],
       exceptionCodes: [
+        r.payment_evidence_missing ? "PAYMENT_EVIDENCE_MISSING" : null,
         !r.tax_code_approved && r.source_type !== "expense" ? "VAT_TAX_CODE_INVALID" : null,
         r.tax_kind === "input" && r.review_state === "unreviewed" ? "VAT_UNREVIEWED" : null,
       ].filter(Boolean),
@@ -685,8 +695,15 @@ export class PgFinancialStatementStore {
         items,
       }),
     );
+    const paymentGaps = await summarizePaymentEvidenceGaps(
+      this.pool,
+      c.organizationId,
+      q.startsOn!,
+      q.endsOn,
+    );
     return {
       ...(summary as Record<string, unknown>),
+      paymentEvidenceGaps: paymentGaps.summary,
       // Keep the source rows alongside the aggregate so every VAT KPI/source
       // drill-down can hand the user a concrete correction action.
       items: jsonMoney(items),
@@ -694,38 +711,8 @@ export class PgFinancialStatementStore {
   }
   async drilldown(c: FinancialStatementContext, q: DrilldownQuery) {
     const loaded = await this.ledger(c, q.statement, q);
-    const derived: Record<string, readonly string[]> = {
-      gross_profit: ["revenue", "direct_cost"],
-      operating_profit: ["revenue", "direct_cost", "opex", "operating_expense"],
-      profit_before_tax: [
-        "revenue",
-        "direct_cost",
-        "opex",
-        "operating_expense",
-        "other_income",
-        "other_expense",
-      ],
-      net_profit: [
-        "revenue",
-        "direct_cost",
-        "opex",
-        "operating_expense",
-        "other_income",
-        "other_expense",
-        "tax_expense",
-        "income_tax",
-      ],
-    };
-    const accepted = new Set(derived[q.lineCode] ?? [q.lineCode]);
-    const acceptedRoots: Record<string, readonly LedgerRow["root_type"][]> = {
-      assets: ["asset"],
-      liabilities: ["liability"],
-      ledger_equity: ["equity"],
-      unclosed_earnings: ["revenue", "expense"],
-      total_equity: ["equity", "revenue", "expense"],
-      liabilities_and_equity: ["liability", "equity", "revenue", "expense"],
-    };
-    const roots = new Set(acceptedRoots[q.lineCode] ?? []);
+    const accepted = new Set(STATEMENT_DRILLDOWN_DERIVED_LINES[q.lineCode] ?? [q.lineCode]);
+    const roots = new Set(STATEMENT_DRILLDOWN_ROOTS[q.lineCode] ?? []);
     const sourceRows = loaded.rows
       .filter(
         (r) =>
@@ -777,7 +764,8 @@ export class PgFinancialStatementStore {
         true tax_code_approved,
         (l.review_reference in ('solopreneur_policy','owner_final','owner_final_legacy')
           or exists(select 1 from evidence_records r where r.organization_id=e.organization_id and r.subject_type='expense' and r.subject_id=e.id)
-          or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id)) source_evidence_present
+          or exists(select 1 from external_references xr where xr.organization_id=e.organization_id and xr.expense_id=e.id)) source_evidence_present,
+        e.payment_method,e.paid_on::text,e.payment_evidence_ref,e.transaction_evidence,l.payment_evidence_missing
        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
        join journal_entries j on j.organization_id=e.organization_id and j.id=e.journal_id
        where e.organization_id=$1 and e.state='posted' and e.expense_class<>'owner_personal'
@@ -791,7 +779,8 @@ export class PgFinancialStatementStore {
         exists(select 1 from tax_code_versions t where t.organization_id=d.organization_id and t.code=l.tax_code and t.kind='vat_input' and t.review_state='accountant_approved' and t.effective_from<=d.document_date and (t.effective_to is null or t.effective_to>=d.document_date)) tax_code_approved,
         (l.review_reference in ('solopreneur_policy','owner_final','owner_final_legacy')
           or exists(select 1 from evidence_records r where r.organization_id=d.organization_id and r.subject_type='commercial_document' and r.subject_id=d.id)
-          or exists(select 1 from external_references xr where xr.organization_id=d.organization_id and xr.document_id=d.id)) source_evidence_present
+          or exists(select 1 from external_references xr where xr.organization_id=d.organization_id and xr.document_id=d.id)) source_evidence_present,
+        d.payment_method,d.paid_on::text,d.payment_evidence_ref,d.transaction_evidence,l.payment_evidence_missing
        from commercial_documents d
        join commercial_document_lines l on l.organization_id=d.organization_id and l.document_id=d.id
        join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id
@@ -847,17 +836,20 @@ export class PgFinancialStatementStore {
         },
         ...(row.tax_code ? { taxCode: row.tax_code } : {}),
         taxCodeApproved: Boolean(row.tax_code_approved),
-        // Keep the review queue actionable for every unresolved tax axis.  The
-        // UI must consume these canonical operations instead of guessing from
-        // presentation-only state labels (which previously produced a dead-end
-        // drill-down for `review_required`).
+        paymentMethod: row.payment_method,
+        paidOn: row.paid_on,
+        paymentEvidenceRef: row.payment_evidence_ref,
+        transactionEvidence: row.transaction_evidence,
+        paymentEvidenceMissing: Boolean(row.payment_evidence_missing),
         nextActions: [
+          ...(row.payment_evidence_missing ? ["update-payment-evidence" as const] : []),
           ...(row.cit_state === "unreviewed" ? ["review-cit" as const] : []),
           ...(row.vat_state === "unreviewed" ? ["review-vat" as const] : []),
           ...(invalidTaxCode ? ["resolve-tax-code" as const] : []),
           "view-source" as const,
         ],
         exceptionCodes: [
+          row.payment_evidence_missing ? "PAYMENT_EVIDENCE_MISSING" : null,
           row.cit_state === "unreviewed" ? "CIT_UNREVIEWED" : null,
           row.vat_state === "unreviewed" ? "VAT_UNREVIEWED" : null,
           invalidTaxCode ? "VAT_TAX_CODE_INVALID" : null,
@@ -891,8 +883,15 @@ export class PgFinancialStatementStore {
       endsOn: q.endsOn,
       items: reviewItems,
     });
+    const paymentGaps = await summarizePaymentEvidenceGaps(
+      this.pool,
+      c.organizationId,
+      q.startsOn!,
+      q.endsOn,
+    );
     return {
       ...(jsonMoney(summary) as Record<string, unknown>),
+      paymentEvidenceGaps: paymentGaps.summary,
       status: items.some(
         (row) =>
           row.management_state === "unreviewed" ||

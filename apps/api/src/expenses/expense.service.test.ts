@@ -73,7 +73,10 @@ describe("ERP-310 ExpenseService", () => {
     expect((await service.create(context, expense, "idem")).data).toMatchObject({
       expenseId: "e-1",
     });
-    expect(store.validateRelationships).toHaveBeenCalledWith("org-a", expense);
+    expect(store.validateRelationships).toHaveBeenCalledWith(
+      "org-a",
+      expect.objectContaining(expense),
+    );
   });
   it("rejects an invalid project or contract relationship before creating an expense", async () => {
     const attributed = {

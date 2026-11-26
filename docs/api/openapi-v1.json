@@ -871,6 +871,38 @@
         "responses": { "200": { "$ref": "#/components/responses/TaxExpenseExceptionReport" } }
       }
     },
+    "/api/v1/organizations/{organizationId}/reports/tax/payment-evidence-gaps": {
+      "get": {
+        "operationId": "getPaymentEvidenceGapsReport",
+        "summary": "List posted/approved expenses and purchase invoices at or above non_cash_threshold_minor whose CIT or VAT deduction is withheld pending qualifying non-cash payment evidence",
+        "tags": ["tax", "expenses", "purchase-invoices"],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          {
+            "name": "startsOn",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "endsOn",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Warning-only payment-evidence gaps report with withheld CIT and VAT totals",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentEvidenceGapsEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/opening-balances/dry-run": {
       "post": {
         "summary": "Validate opening balance control totals and AR/AP details without persistence"
@@ -1000,6 +1032,68 @@
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/category": {
       "patch": {
         "summary": "Update only audited category metadata on a commercial document, including issued or posted records"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/payment-evidence": {
+      "patch": {
+        "operationId": "updatePurchaseInvoicePaymentEvidence",
+        "tags": ["commercial-documents", "purchase-invoices", "tax"],
+        "summary": "Update payment evidence fields on a purchase invoice and re-evaluate solopreneur CIT/VAT deductibility defaults without mutating posted journal history",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "documentId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentEvidenceUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated purchase-invoice payment evidence and re-evaluated line tax states",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/{expenseId}/payment-evidence": {
+      "patch": {
+        "operationId": "updateExpensePaymentEvidence",
+        "tags": ["expenses", "tax"],
+        "summary": "Update payment evidence fields on an expense and re-evaluate solopreneur CIT/VAT deductibility defaults without mutating posted journal history",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "expenseId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "$ref": "#/components/parameters/IfMatch" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentEvidenceUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated expense payment evidence and re-evaluated tax states",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/organizations/{organizationId}/commercial-documents/{documentId}/reverse": {
@@ -3092,7 +3186,8 @@
                         "operatingMode",
                         "ownerCanSelfApprove",
                         "requiresDistinctApprover",
-                        "documentedTaxDefaultsFinal"
+                        "documentedTaxDefaultsFinal",
+                        "nonCashThresholdMinor"
                       ],
                       "properties": {
                         "operatingMode": {
@@ -3101,11 +3196,49 @@
                         },
                         "ownerCanSelfApprove": { "type": "boolean" },
                         "requiresDistinctApprover": { "type": "boolean" },
-                        "documentedTaxDefaultsFinal": { "type": "boolean" }
+                        "documentedTaxDefaultsFinal": { "type": "boolean" },
+                        "nonCashThresholdMinor": { "type": "string", "pattern": "^[0-9]+$" }
                       }
                     }
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateOrganizationWorkflowPolicy",
+        "tags": ["organization-policy"],
+        "summary": "Update organization operating mode, self-approval bounds, or non_cash_threshold_minor",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operatingMode": { "type": "string", "enum": ["controlled", "solopreneur"] },
+                  "allowSelfApproval": { "type": "boolean" },
+                  "selfApprovalMaxMinor": { "type": ["string", "null"], "pattern": "^[0-9]+$" },
+                  "nonCashThresholdMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                  "reason": { "type": "string" }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated organization workflow capabilities",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OrganizationDataEnvelope" }
               }
             }
           }
@@ -4561,6 +4694,10 @@
             "type": "string",
             "description": "Top-level compatibility alias for funding.financialAccountId."
           },
+          "paymentMethod": { "$ref": "#/components/schemas/PaymentMethod" },
+          "paidOn": { "type": ["string", "null"], "format": "date" },
+          "paymentEvidenceRef": { "type": ["string", "null"] },
+          "transactionEvidence": { "$ref": "#/components/schemas/TransactionEvidence" },
           "lines": { "type": "array", "items": { "type": "object" }, "minItems": 1 }
         },
         "additionalProperties": true
@@ -4975,9 +5112,86 @@
             "type": ["string", "null"],
             "pattern": "^[0-9]+$"
           },
+          "non_cash_threshold_minor": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "default": "5000000"
+          },
           "soft_lock_posting_roles": {
             "type": "array",
             "items": { "type": "string" }
+          }
+        }
+      },
+      "PaymentMethod": {
+        "type": "string",
+        "enum": ["cash", "bank_transfer", "card", "other", "unpaid"],
+        "default": "unpaid"
+      },
+      "TransactionEvidence": {
+        "type": "string",
+        "enum": ["contract", "purchase_order", "email", "acceptance", "quote", "none"],
+        "default": "none"
+      },
+      "PaymentEvidenceUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "paymentMethod": { "$ref": "#/components/schemas/PaymentMethod" },
+          "paidOn": { "type": ["string", "null"], "format": "date" },
+          "paymentEvidenceRef": { "type": ["string", "null"] },
+          "transactionEvidence": { "$ref": "#/components/schemas/TransactionEvidence" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "PaymentEvidenceGapsEnvelope": {
+        "type": "object",
+        "required": ["apiVersion", "requestId", "organizationId", "data"],
+        "properties": {
+          "apiVersion": { "const": "v1" },
+          "requestId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "data": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "organizationId",
+              "currency",
+              "startsOn",
+              "endsOn",
+              "nonCashThresholdMinor",
+              "status",
+              "counts",
+              "totals",
+              "items"
+            ],
+            "properties": {
+              "schemaVersion": { "const": 1 },
+              "organizationId": { "type": "string" },
+              "currency": { "type": "string" },
+              "startsOn": { "type": "string", "format": "date" },
+              "endsOn": { "type": "string", "format": "date" },
+              "nonCashThresholdMinor": { "type": "string", "pattern": "^[0-9]+$" },
+              "status": { "type": "string", "enum": ["ready", "warning"] },
+              "counts": {
+                "type": "object",
+                "required": ["recordCount", "lineCount"],
+                "properties": {
+                  "recordCount": { "type": "integer", "minimum": 0 },
+                  "lineCount": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "totals": {
+                "type": "object",
+                "required": ["grossMinor", "withheldCitMinor", "withheldVatMinor"],
+                "properties": {
+                  "grossMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                  "withheldCitMinor": { "type": "string", "pattern": "^[0-9]+$" },
+                  "withheldVatMinor": { "type": "string", "pattern": "^[0-9]+$" }
+                }
+              },
+              "items": { "type": "array", "items": { "type": "object" } }
+            }
           }
         }
       },
@@ -8556,6 +8770,10 @@
                   },
                   "description": "Canonical funding choice. If omitted for a purchase invoice, the API defaults to owner_paid and credits the approved TT133 owner_current account (for example 3388-OWNER). company_bank requires financialAccountId."
                 },
+                "paymentMethod": { "$ref": "#/components/schemas/PaymentMethod" },
+                "paidOn": { "type": ["string", "null"], "format": "date" },
+                "paymentEvidenceRef": { "type": ["string", "null"] },
+                "transactionEvidence": { "$ref": "#/components/schemas/TransactionEvidence" },
                 "migrationSourceExpenseId": {
                   "type": "string",
                   "minLength": 1,

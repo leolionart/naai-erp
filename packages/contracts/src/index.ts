@@ -1,4 +1,5 @@
 export const API_VERSION = "v1" as const;
+export * from "./payment-evidence.js";
 export {
   FUNDING_CONTRACT_VERSION,
   type FundingTypeContract,

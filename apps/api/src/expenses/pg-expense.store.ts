@@ -6,12 +6,18 @@ import {
   applyExpenseLineCategoryUpdate,
   resolveExpenseCategory,
 } from "../master-data/canonical-category-validation.js";
+import { applySolopreneurExpenseDefaults } from "../payment-evidence/payment-evidence-evaluator.js";
+import { mergePaymentEvidenceFields } from "../payment-evidence/payment-input.helper.js";
 import {
   canSelfApprove,
   resolveOrganizationWorkflowPolicy,
 } from "../workflow-policy/organization-workflow-policy.service.js";
 import { resolveOwnerFundingTraceability } from "../owner-funding/owner-funding-traceability.js";
 import { buildFundingInferencePlan } from "./expense-plans.helper.js";
+import {
+  buildTaxFinalizationPlan,
+  type TaxFinalizationItem,
+} from "./expense-tax-finalization.helper.js";
 import type {
   CreateExpenseInput,
   ExpenseContext,
@@ -36,22 +42,6 @@ type StoredExpense = {
   employee_party_id: string | null;
   payee_party_id: string | null;
   evidence_checklist: Record<string, boolean>;
-};
-
-type TaxFinalizationItem = {
-  sourceType: "expense" | "purchase_invoice";
-  sourceId: string;
-  lineNumber: number;
-  priorManagementState: string;
-  priorCitState: string;
-  priorVatState: string;
-  managementState: string;
-  citState: string;
-  citEligibleMinor: string;
-  vatState: string;
-  vatEligibleMinor: string;
-  netMinor: string;
-  vatMinor: string;
 };
 
 /**
@@ -98,114 +88,7 @@ export class PgExpenseStore {
   private async taxFinalizationPlan(c: PoolClient, organizationId: string) {
     const policy = await this.operatingMode(c, organizationId);
     if (policy !== "solopreneur") throw new Error("SOLOPRENEUR_POLICY_REQUIRED");
-    const rows = await c.query<{
-      source_type: "expense" | "purchase_invoice";
-      source_id: string;
-      line_number: number;
-      management_state: string;
-      cit_state: string;
-      vat_state: string;
-      net_minor: string;
-      tax_minor: string;
-      primary_account_code: string;
-      vat_account_code: string | null;
-      expense_class: string | null;
-      journal_id: string;
-      root_type: string | null;
-      dimensions: Record<string, string> | null;
-      allocation_tax: Record<string, string>[] | null;
-    }>(
-      `
-      select 'expense'::text source_type,e.id source_id,l.line_number,l.management_state::text,l.cit_state::text,l.vat_state::text,
-             l.net_minor::text,l.vat_minor::text tax_minor,l.posting_account_code primary_account_code,
-             l.vat_account_code,e.expense_class::text,e.journal_id,a.root_type::text,l.dimensions,
-             null::jsonb allocation_tax
-        from expenses e join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
-        left join accounts a on a.organization_id=l.organization_id and a.code=l.posting_account_code
-       where e.organization_id=$1 and e.state='posted'
-         and (l.management_state='unreviewed' or l.cit_state='unreviewed' or l.vat_state='unreviewed')
-      union all
-      select 'purchase_invoice',d.id,l.line_number,l.management_state::text,l.cit_state::text,l.vat_state::text,
-             l.net_minor::text,l.tax_minor::text,l.primary_account_code,l.tax_account_code,null,d.journal_id,
-             a.root_type::text,l.dimensions,
-             coalesce((select jsonb_agg(x.dimensions order by x.allocation_number)
-                         from commercial_document_allocations x
-                        where x.organization_id=l.organization_id and x.document_id=l.document_id
-                          and x.line_number=l.line_number),'[]'::jsonb)
-        from commercial_documents d join commercial_document_lines l
-          on l.organization_id=d.organization_id and l.document_id=d.id
-        left join accounts a on a.organization_id=l.organization_id and a.code=l.primary_account_code
-       where d.organization_id=$1 and d.type='purchase_invoice' and d.state in ('posted','partially_paid','paid')
-         and (l.management_state='unreviewed' or l.cit_state='unreviewed' or l.vat_state='unreviewed')
-       order by source_type,source_id,line_number`,
-      [organizationId],
-    );
-    const items: TaxFinalizationItem[] = [];
-    for (const row of rows.rows) {
-      const excludedClass =
-        row.source_type === "expense" &&
-        [
-          "non_documented",
-          "owner_personal",
-          "petty_cash",
-          "prepaid",
-          "prepaid_asset",
-          "fixed_asset",
-        ].includes(row.expense_class ?? "");
-      const citEligible = !excludedClass && row.root_type !== "asset";
-      const managementState =
-        row.source_type === "expense" &&
-        ["non_documented", "owner_personal", "petty_cash"].includes(row.expense_class ?? "")
-          ? "invalid"
-          : "valid";
-      let explicitVatMinor = 0n;
-      let explicitVatSeen = false;
-      for (const dimensions of row.allocation_tax ?? []) {
-        if (dimensions.taxState !== undefined) explicitVatSeen = true;
-        if (["eligible", "accountant_override"].includes(dimensions.taxState ?? ""))
-          explicitVatMinor = BigInt(row.tax_minor);
-        else if (dimensions.taxState === "partially_eligible")
-          explicitVatMinor += BigInt(dimensions.vatEligibleMinor ?? "0");
-      }
-      const journalVat =
-        row.vat_account_code && BigInt(row.tax_minor) > 0n
-          ? await c.query<{ debit: string }>(
-              `select coalesce(sum(debit_minor),0)::text debit from journal_lines
-              where organization_id=$1 and journal_id=$2 and account_code=$3`,
-              [organizationId, row.journal_id, row.vat_account_code],
-            )
-          : { rows: [{ debit: "0" }] };
-      const journalEligible = BigInt(journalVat.rows[0]?.debit ?? "0") >= BigInt(row.tax_minor);
-      const vatEligibleMinor =
-        row.source_type === "purchase_invoice" && explicitVatSeen
-          ? explicitVatMinor > BigInt(row.tax_minor)
-            ? BigInt(row.tax_minor)
-            : explicitVatMinor
-          : journalEligible
-            ? BigInt(row.tax_minor)
-            : 0n;
-      items.push({
-        sourceType: row.source_type,
-        sourceId: row.source_id,
-        lineNumber: row.line_number,
-        priorCitState: row.cit_state,
-        priorVatState: row.vat_state,
-        priorManagementState: row.management_state,
-        managementState,
-        citState: citEligible ? "eligible" : "ineligible",
-        citEligibleMinor: citEligible ? row.net_minor : "0",
-        vatState:
-          vatEligibleMinor === 0n
-            ? "ineligible"
-            : vatEligibleMinor === BigInt(row.tax_minor)
-              ? "eligible"
-              : "partially_eligible",
-        vatEligibleMinor: vatEligibleMinor.toString(),
-        netMinor: row.net_minor,
-        vatMinor: row.tax_minor,
-      });
-    }
-    return items;
+    return buildTaxFinalizationPlan(c, organizationId);
   }
 
   async dryRunTaxFinalization(context: ExpenseContext, reason: string) {
@@ -542,9 +425,11 @@ export class PgExpenseStore {
     },
   ) {
     const r = await this.pool.query(
-      `select e.*,e.expense_date::text expense_date,e.funding_financial_account_id "fundingFinancialAccountId",
+      `select e.*,e.expense_date::text expense_date,e.paid_on::text paid_on,e.funding_financial_account_id "fundingFinancialAccountId",
        e.owner_funding_movement_id "ownerFundingId",
        (select m.bank_transaction_id from owner_funding_movements m where m.organization_id=e.organization_id and m.id=e.owner_funding_movement_id) "ownerFundingTransactionId",
+       e.payment_method "paymentMethod",e.paid_on::text "paidOn",e.payment_evidence_ref "paymentEvidenceRef",
+       e.transaction_evidence "transactionEvidence",e.payment_evidence_missing "paymentEvidenceMissing",
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        coalesce((select jsonb_agg(distinct relationship.project_id order by relationship.project_id)
@@ -605,9 +490,11 @@ export class PgExpenseStore {
   }
   async get(org: string, id: string) {
     const r = await this.pool.query(
-      `select e.*,e.expense_date::text expense_date,e.funding_financial_account_id "fundingFinancialAccountId",
+      `select e.*,e.expense_date::text expense_date,e.paid_on::text paid_on,e.funding_financial_account_id "fundingFinancialAccountId",
        e.owner_funding_movement_id "ownerFundingId",
        (select m.bank_transaction_id from owner_funding_movements m where m.organization_id=e.organization_id and m.id=e.owner_funding_movement_id) "ownerFundingTransactionId",
+       e.payment_method "paymentMethod",e.paid_on::text "paidOn",e.payment_evidence_ref "paymentEvidenceRef",
+       e.transaction_evidence "transactionEvidence",e.payment_evidence_missing "paymentEvidenceMissing",
        e.original_expense_id "originalExpenseId",
        (select r.id from expenses r where r.organization_id=e.organization_id and r.original_expense_id=e.id order by r.created_at desc limit 1) "replacementExpenseId",
        (select coalesce(l.expense_category_code,l.dimensions->>'category') from expense_lines l
@@ -621,7 +508,7 @@ export class PgExpenseStore {
           'syncedAt', r.synced_at::text,
           'metadata', r.metadata
         ) from external_references r where r.organization_id=e.organization_id and r.expense_id=e.id) as "externalReference",
-       coalesce(json_agg(jsonb_build_object('lineNumber',l.line_number,'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,'expenseCategoryCode',l.expense_category_code,'fundingTreatment',l.funding_treatment,'vatAccountCode',l.vat_account_code,'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,'dimensions',l.dimensions,'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]') from expense_allocations a where a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number)) order by l.line_number) filter(where l.line_number is not null),'[]') lines from expenses e left join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id where e.organization_id=$1 and e.id=$2 group by e.organization_id,e.id`,
+       coalesce(json_agg(jsonb_build_object('lineNumber',l.line_number,'description',l.description,'netMinor',l.net_minor::text,'vatMinor',l.vat_minor::text,'grossMinor',l.gross_minor::text,'postingAccountCode',l.posting_account_code,'expenseCategoryCode',l.expense_category_code,'fundingTreatment',l.funding_treatment,'vatAccountCode',l.vat_account_code,'managementState',l.management_state,'citState',l.cit_state,'vatState',l.vat_state,'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,'paymentEvidenceMissing',l.payment_evidence_missing,'dimensions',l.dimensions,'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]') from expense_allocations a where a.organization_id=l.organization_id and a.expense_id=l.expense_id and a.line_number=l.line_number)) order by l.line_number) filter(where l.line_number is not null),'[]') lines from expenses e left join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id where e.organization_id=$1 and e.id=$2 group by e.organization_id,e.id`,
       [org, id],
     );
     return r.rows[0];
@@ -1202,8 +1089,9 @@ export class PgExpenseStore {
       const effectiveFundingAccountId =
         input.fundingFinancialAccountId ?? ownerFundingTrace?.financialAccountId ?? null;
       const id = input.id ?? randomUUID();
+      const paymentEvidence = mergePaymentEvidenceFields(input);
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,owner_funding_movement_id,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'unreviewed',$18,$19,$20)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,owner_funding_movement_id,payment_method,paid_on,payment_evidence_ref,transaction_evidence,cit_state,vat_state,evidence_checklist,created_by) values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::date,$20,$21,'unreviewed',$22,$23,$24)`,
         [
           context.organizationId,
           id,
@@ -1222,6 +1110,10 @@ export class PgExpenseStore {
           input.counterAccountCode,
           effectiveFundingAccountId,
           ownerFundingTrace?.movementId ?? null,
+          paymentEvidence.paymentMethod,
+          paymentEvidence.paidOn,
+          paymentEvidence.paymentEvidenceRef,
+          paymentEvidence.transactionEvidence,
           ["non_documented", "owner_personal", "petty_cash"].includes(input.expenseClass)
             ? "ineligible"
             : "unreviewed",
@@ -1322,6 +1214,7 @@ export class PgExpenseStore {
         };
         await this.period(c, context, expense.expense_date);
         await this.assertOwnerPaidCounterAccount(c, context.organizationId, expense);
+        await applySolopreneurExpenseDefaults(c, context, id, "Solopreneur save and record");
         journalId = await this.postJournal(c, context, expense);
         if (expense.expense_class === "freelancer")
           await this.createFreelancePayable(c, context, expense, journalId);
@@ -1543,12 +1436,15 @@ export class PgExpenseStore {
       }
 
       const newVersion = BigInt(existing.version) + 1n;
+      const paymentEvidence = mergePaymentEvidenceFields(merged);
       await c.query(
         `update expenses set
           expense_class=$3, payee_party_id=$4, employee_party_id=$5, expense_date=$6,
           service_period_start=$7, service_period_end=$8, business_purpose=$9, currency=$10,
           net_minor=$11, vat_minor=$12, gross_minor=$13, counter_account_code=$14,
-          funding_financial_account_id=$15, evidence_checklist=$16, version=$17, updated_at=now()
+          funding_financial_account_id=$15, evidence_checklist=$16, version=$17,
+          payment_method=$18, paid_on=$19::date, payment_evidence_ref=$20, transaction_evidence=$21,
+          updated_at=now()
          where organization_id=$1 and id=$2`,
         [
           context.organizationId,
@@ -1568,6 +1464,10 @@ export class PgExpenseStore {
           merged.fundingFinancialAccountId ?? null,
           merged.evidenceChecklist ?? {},
           newVersion,
+          paymentEvidence.paymentMethod,
+          paymentEvidence.paidOn,
+          paymentEvidence.paymentEvidenceRef,
+          paymentEvidence.transactionEvidence,
         ],
       );
 
@@ -1768,11 +1668,19 @@ export class PgExpenseStore {
         management_state: string;
         cit_state: string;
         vat_state: string;
+        payment_evidence_missing: boolean;
       }>(
-        `select gross_minor::text,vat_minor::text,management_state,cit_state,vat_state from expense_lines where organization_id=$1 and expense_id=$2 and line_number=$3 for update`,
+        `select gross_minor::text,vat_minor::text,management_state,cit_state,vat_state,payment_evidence_missing from expense_lines where organization_id=$1 and expense_id=$2 and line_number=$3 for update`,
         [context.organizationId, id, input.lineNumber],
       );
       if (!line.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
+      if (
+        line.rows[0].payment_evidence_missing &&
+        input.axis !== "management" &&
+        ["eligible", "partially_eligible"].includes(input.state)
+      ) {
+        throw new Error("PAYMENT_EVIDENCE_REQUIRED");
+      }
       const eligible = BigInt(input.eligibleMinor ?? "0");
       const maximum =
         input.axis === "vat" ? BigInt(line.rows[0].vat_minor) : BigInt(line.rows[0].gross_minor);
@@ -1790,9 +1698,17 @@ export class PgExpenseStore {
       if (!allowed.includes(input.state)) throw new Error("VALIDATION_FAILED");
       const column = input.axis === "management" ? "management_state" : `${input.axis}_state`;
       const amountColumn = input.axis === "management" ? null : `${input.axis}_eligible_minor`;
+      if (["posted", "approved"].includes(expense.state)) {
+        await c.query("select set_config('app.tax_finalization','on',true)");
+      }
       if (amountColumn) {
+        const clearMissing =
+          ["accountant_override", "ineligible"].includes(input.state) &&
+          (input.axis === "cit"
+            ? line.rows[0].vat_state !== "unreviewed"
+            : line.rows[0].cit_state !== "unreviewed");
         await c.query(
-          `update expense_lines set ${column}=$4,${amountColumn}=$5,reviewed_by=$6,reviewed_at=now(),review_reason=$7,review_reference=$8 where organization_id=$1 and expense_id=$2 and line_number=$3`,
+          `update expense_lines set ${column}=$4,${amountColumn}=$5,payment_evidence_missing=case when $9::boolean then false else payment_evidence_missing end,reviewed_by=$6,reviewed_at=now(),review_reason=$7,review_reference=$8 where organization_id=$1 and expense_id=$2 and line_number=$3`,
           [
             context.organizationId,
             id,
@@ -1802,6 +1718,7 @@ export class PgExpenseStore {
             context.actorId,
             input.reason,
             input.reference ?? null,
+            clearMissing,
           ],
         );
       } else {
@@ -1830,7 +1747,7 @@ export class PgExpenseStore {
       const version = (BigInt(expense.version) + 1n).toString();
       await c.query("select set_config('app.tax_finalization','on',true)");
       await c.query(
-        "update expenses set version=version+1,updated_at=now() where organization_id=$1 and id=$2",
+        "update expenses set version=version+1,payment_evidence_missing=coalesce((select bool_or(payment_evidence_missing) from expense_lines where organization_id=$1 and expense_id=$2),false),updated_at=now() where organization_id=$1 and id=$2",
         [context.organizationId, id],
       );
       const event = randomUUID(),
@@ -1936,7 +1853,7 @@ export class PgExpenseStore {
         const solopreneurOwner =
           context.roles.includes("owner") &&
           (await this.operatingMode(c, context.organizationId)) === "solopreneur";
-        if (solopreneurOwner) await this.applySolopreneurTaxDefaults(c, context, e);
+        if (solopreneurOwner) await applySolopreneurExpenseDefaults(c, context, id);
         await this.assertReviewReady(c, context.organizationId, e, solopreneurOwner);
       }
       let journalId: string | undefined;
@@ -2069,9 +1986,10 @@ export class PgExpenseStore {
         reason,
       );
       const replacementId = input.id ?? randomUUID();
+      const paymentEvidence = mergePaymentEvidenceFields(input);
       await c.query(
-        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,cit_state,vat_state,evidence_checklist,created_by,original_expense_id)
-         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'unreviewed',$17,$18,$19,$20)`,
+        `insert into expenses(organization_id,id,expense_class,state,payee_party_id,employee_party_id,expense_date,freelance_due_date,service_period_start,service_period_end,business_purpose,currency,net_minor,vat_minor,gross_minor,counter_account_code,funding_financial_account_id,payment_method,paid_on,payment_evidence_ref,transaction_evidence,cit_state,vat_state,evidence_checklist,created_by,original_expense_id)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::date,$19,$20,'unreviewed',$21,$22,$23,$24)`,
         [
           context.organizationId,
           replacementId,
@@ -2089,6 +2007,10 @@ export class PgExpenseStore {
           input.grossMinor,
           input.counterAccountCode,
           input.fundingFinancialAccountId ?? null,
+          paymentEvidence.paymentMethod,
+          paymentEvidence.paidOn,
+          paymentEvidence.paymentEvidenceRef,
+          paymentEvidence.transactionEvidence,
           input.expenseClass === "non_documented" ? "ineligible" : "unreviewed",
           input.evidenceChecklist ?? {},
           context.actorId,
@@ -2408,75 +2330,6 @@ export class PgExpenseStore {
       ],
     );
   }
-  /**
-   * Fills only the still-"unreviewed" tax axes of a draft expense with the solopreneur defaults
-   * (management valid; CIT eligible unless the class/account is excluded; VAT eligible when the
-   * documented line carries input VAT). Explicit reviews and overrides are never touched.
-   */
-  private async applySolopreneurTaxDefaults(
-    c: PoolClient,
-    context: ExpenseContext,
-    e: StoredExpense,
-  ) {
-    const lines = await c.query<{
-      line_number: number;
-      management_state: string;
-      cit_state: string;
-      vat_state: string;
-      net_minor: string;
-      vat_minor: string;
-      vat_account_code: string | null;
-      root_type: string | null;
-    }>(
-      `select l.line_number,l.management_state::text,l.cit_state::text,l.vat_state::text,
-              l.net_minor::text,l.vat_minor::text,l.vat_account_code,a.root_type::text
-         from expense_lines l
-         left join accounts a on a.organization_id=l.organization_id and a.code=l.posting_account_code
-        where l.organization_id=$1 and l.expense_id=$2
-          and (l.management_state='unreviewed' or l.cit_state='unreviewed' or l.vat_state='unreviewed')
-        order by l.line_number`,
-      [context.organizationId, e.id],
-    );
-    if (!lines.rows.length) return;
-    const excluded = [
-      "non_documented",
-      "owner_personal",
-      "petty_cash",
-      "prepaid",
-      "prepaid_asset",
-      "fixed_asset",
-    ].includes(e.expense_class);
-    const invalid = ["non_documented", "owner_personal", "petty_cash"].includes(e.expense_class);
-    await c.query("select set_config('app.tax_finalization','on',true)");
-    for (const line of lines.rows) {
-      const citEligible = !excluded && line.root_type !== "asset";
-      const vatEligible =
-        !excluded && line.vat_account_code !== null && BigInt(line.vat_minor) > 0n;
-      await c.query(
-        `update expense_lines set
-           management_state=case when management_state='unreviewed' then $4::management_validity_state else management_state end,
-           cit_state=case when cit_state='unreviewed' then $5::eligibility_state else cit_state end,
-           cit_eligible_minor=case when cit_state='unreviewed' then $6 else cit_eligible_minor end,
-           vat_state=case when vat_state='unreviewed' then $7::eligibility_state else vat_state end,
-           vat_eligible_minor=case when vat_state='unreviewed' then $8 else vat_eligible_minor end,
-           reviewed_by=$9,reviewed_at=now(),review_reason='Solopreneur default on approval',
-           review_reference='solopreneur_policy'
-         where organization_id=$1 and expense_id=$2 and line_number=$3`,
-        [
-          context.organizationId,
-          e.id,
-          line.line_number,
-          invalid ? "invalid" : "valid",
-          citEligible ? "eligible" : "ineligible",
-          citEligible ? line.net_minor : "0",
-          vatEligible ? "eligible" : "ineligible",
-          vatEligible ? line.vat_minor : "0",
-          context.actorId,
-        ],
-      );
-    }
-    await this.refreshSummary(c, context.organizationId, e.id);
-  }
   private async assertReviewReady(
     c: PoolClient,
     organizationId: string,
@@ -2488,8 +2341,9 @@ export class PgExpenseStore {
       cit_state: string;
       vat_state: string;
       vat_eligible_minor: string;
+      payment_evidence_missing: boolean;
     }>(
-      "select management_state,cit_state,vat_state,vat_eligible_minor::text from expense_lines where organization_id=$1 and expense_id=$2",
+      "select management_state,cit_state,vat_state,vat_eligible_minor::text,payment_evidence_missing from expense_lines where organization_id=$1 and expense_id=$2",
       [organizationId, e.id],
     );
     if (
@@ -2498,8 +2352,8 @@ export class PgExpenseStore {
         (line) =>
           (!["valid", "accountant_override"].includes(line.management_state) &&
             e.expense_class !== "owner_personal") ||
-          line.cit_state === "unreviewed" ||
-          line.vat_state === "unreviewed",
+          ((line.cit_state === "unreviewed" || line.vat_state === "unreviewed") &&
+            !(sourceDocumentCounts && line.payment_evidence_missing)),
       )
     )
       throw new Error("EXPENSE_REVIEW_INCOMPLETE");

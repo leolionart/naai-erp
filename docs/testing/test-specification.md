@@ -743,34 +743,24 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   (`expense.integration.test.ts`).
 - `T-E2E-FUND-002` / `T-UNIT-FUND-003`: the quick view offers both cash funds and sends the account id
   (`focused-records.spec.ts`, `focused-record-funding.test.ts`); CLI routes `reclassify-funding`.
-- `T-INT-AP-001`: AP aging includes unpaid and partially settled supplier purchase invoices on
-  account `331` alongside project freelance payables, omits settled `company_*` invoices and owner
-  positions (`3388`, `1388`), and reconciles `tieStatus` against ledger account `331`
-  (`aging.integration.test.ts`).
-- `T-INT-CUR-002`: non-base-currency payloads on `commercial-documents` (including quick ingestion),
-  `expenses`, `journals`, `workbook-imports` (`dry-run` and `commit`) and `inbound-webhooks` return
-  HTTP `422 FOREIGN_CURRENCY_NOT_SUPPORTED` with VND conversion guidance (`"quy đổi sang VND trước khi nhập, ghi tỷ giá vào mô tả"`),
-  while VND behavior and historical `BR-STAT-001` exclusion remain unchanged (`base-currency-guard.test.ts`, `base-currency.integration.test.ts`).
-- `T-INT-PAY-004`: classifying an imported bank deposit or manual referenced entry as `owner_funding` posts
-  `Dr 112 / Cr 3388` with zero revenue, reconciles the bank transaction, reflects in `owner-current-movements`
-  and `operating-dashboard`, allows `company_bank` expenses to link `ownerFundingTransactionId` for traceability,
-  and exposes `owner_repayment` (`Dr 3388 / Cr 112`) on the same API/CLI surface (`owner-funding.integration.test.ts`).
-- `T-INT-EDIT-001`: expense and commercial-document `metadata` and `category` updates validate against
-  canonical `business_categories` and `expense_categories` first, reject deactivated canonical codes, and
-  fall back to legacy `dimension_values(kind='category')` only when absent from canonical catalogs
-  (`expense.integration.test.ts`, `commercial-document.integration.test.ts`,
-  `canonical-category-validation.test.ts`).
-- `T-E2E-EDIT-002`: UI category/role lookups use canonical `master-data/expense-categories` and
-  `master-data/party-roles` without calling obsolete `time/workers`, translate raw API error codes into
-  Vietnamese, and render distinct headings for load errors versus action errors
-  (`error-messages.test.ts`, `focused-record-shared.test.ts`, `focused-record-alerts.test.tsx`).
-- `T-INT-FUND-007`: seeds `111-OWNER-CUSTODY` under `111` separate from `111-CASH` and `1388` owner
-  receivables, maps `CASH-OWNER-CUSTODY -> 111-OWNER-CUSTODY` and `CASH-COMPANY -> 111-CASH` across
-  internal transfers, expenses and purchase invoices, keeps `1388` excluded from P&L, VAT and CIT,
-  derives custody and company cash balances directly from the ledger at any `asOf` date, and verifies
-  controlled dry-run/commit reclassification of historical `111-CASH` entries (`owner-custody.integration.test.ts`).
 - `T-E2E-EDIT-003`: Real-UI Playwright specs execute against the real API and a migrated scratch
   PostgreSQL database (zero mocks) for Expense and Revenue listings, posted/draft metadata and
   canonical category edits, funding reclassification, voiding posted records, deleting drafts,
   single/batch recording, and Vietnamese action-error translation (`real-ui-operations.spec.ts`,
   `scripts/run-real-ui-e2e.mjs`).
+
+### ERP-982 — Payment evidence fields and non-cash deductibility defaults
+
+- `T-INT-PAY-001`: solopreneur approval/posting enforces the configurable non-cash threshold (4,999,999 VND
+  cash eligible vs 5,000,000 VND cash/unpaid withheld as `unreviewed` with `payment_evidence_missing`),
+  owner-paid personal card/transfer evidence reference requirement, same-day same-supplier VAT aggregation,
+  re-evaluation via `PATCH .../{id}/payment-evidence`, `GET /reports/tax/payment-evidence-gaps` and
+  tax/dashboard warnings without blocking posting, and strict rejection of non-override eligibility shortcuts
+  (`payment-evidence.integration.test.ts`).
+- `T-INT-PAY-002`: reconciling an outgoing bank statement payment against an unpaid purchase invoice or
+  expense infers `bank_transfer`, `paid_on` and bank reference, re-evaluates CIT/VAT eligibility to
+  `eligible`, clears payment-evidence gaps, and reverts bank-inferred values upon `unreconcile`
+  (`payment-evidence-reconciliation.integration.test.ts`).
+- `T-UNIT-PAY-003`: pure domain threshold boundary, owner-paid evidence ref rule, same-day supplier VAT
+  aggregation and bank reconciliation inference (`packages/domain/src/payment-evidence.test.ts`,
+  `apps/cli/src/payment-evidence-cli.test.ts`).

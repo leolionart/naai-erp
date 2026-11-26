@@ -11,6 +11,10 @@ import {
 import { KpiCard } from "@/components/financial/kpi-card";
 import { MoneyCell } from "@/components/financial/money-cell";
 import { StatusBadge } from "@/components/financial/status-badge";
+import {
+  fallbackTaxExceptions,
+  PaymentEvidenceGapsCard,
+} from "@/components/tax/payment-evidence-gaps-card";
 import { QuickDatePresetButtons } from "@/components/ui/quick-date-range-picker";
 import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -1054,6 +1058,9 @@ export function FinancialStatementWorkspace({
           </AlertDescription>
         </Alert>
       ) : null}
+      {kind === "vat_reconciliation" ? (
+        <PaymentEvidenceGapsCard startsOn={query.get("startsOn")} endsOn={query.get("endsOn")} />
+      ) : null}
       {report ? <ReportKpis report={report} /> : null}
       <Card>
         <CardHeader>
@@ -1288,60 +1295,6 @@ export function FinancialStatementWorkspace({
   );
 }
 
-const fallbackTaxExceptions: readonly TaxExpenseException[] = [
-  {
-    id: "exp-salary-01",
-    expenseId: "exp-salary-01",
-    description: "Chi trả lương nhân viên & trợ cấp tháng 8/2026 (Chi phí không hóa đơn GTGT)",
-    expenseDate: "2026-08-05",
-    partyName: "Bảng lương Công ty",
-    bookedMinor: "20000000",
-    citEligibleMinor: "20000000",
-    citIneligibleMinor: "0",
-    citState: "eligible",
-    vatEligibleMinor: "0",
-    vatIneligibleMinor: "0",
-    vatState: "ineligible",
-    evidenceState: "verified",
-    reason: "Chi phí lương nhân viên theo bảng lương; không thuộc đối tượng xuất hóa đơn GTGT.",
-    sourceIds: ["payroll:2026-08"],
-  },
-  {
-    id: "exp-salary-02",
-    expenseId: "exp-salary-02",
-    description: "Chi trả lương & thưởng dự án (Chủ sở hữu chi hộ vượt 90tr rút)",
-    expenseDate: "2026-08-06",
-    partyName: "Chủ sở hữu chi hộ (TK 3388)",
-    bookedMinor: "5000000",
-    citEligibleMinor: "5000000",
-    citIneligibleMinor: "0",
-    citState: "eligible",
-    vatEligibleMinor: "0",
-    vatIneligibleMinor: "0",
-    vatState: "ineligible",
-    evidenceState: "verified",
-    reason: "Chi phí nhân sự do chủ sở hữu chi hộ từ tiền cá nhân vượt số tiền rút ngân hàng.",
-    sourceIds: ["owner_loan:3388"],
-  },
-  {
-    id: "exp-cash-03",
-    expenseId: "exp-cash-03",
-    description: "Chi phí gửi xe & mua đồ dùng nhỏ lẻ chưa có hóa đơn GTGT",
-    expenseDate: "2026-08-02",
-    partyName: "Chi lẻ tiền mặt",
-    bookedMinor: "1500000",
-    citEligibleMinor: "0",
-    citIneligibleMinor: "1500000",
-    citState: "review",
-    vatEligibleMinor: "0",
-    vatIneligibleMinor: "0",
-    vatState: "ineligible",
-    evidenceState: "missing",
-    reason: "Khoản chi tiền mặt nhỏ lẻ chưa bổ sung bảng kê chứng từ hợp lệ.",
-    sourceIds: ["cash:petty"],
-  },
-];
-
 export function TaxExpenseExceptionsWorkspace() {
   const { client: api, hydrated, hasToken } = useAuthenticatedApiClient();
   const router = useRouter();
@@ -1468,12 +1421,17 @@ export function TaxExpenseExceptionsWorkspace() {
             : row.expenseId
               ? `/expenses/${encodeURIComponent(row.expenseId)}`
               : `/expenses`;
+          const missingPaymentEvidence = Boolean(
+            row.exceptionCodes?.includes("PAYMENT_EVIDENCE_MISSING"),
+          );
           const canReview =
-            row.nextActions?.includes("review-cit") ||
-            row.citState === "unreviewed" ||
-            row.citState === "review";
+            !missingPaymentEvidence &&
+            (row.nextActions?.includes("review-cit") ||
+              row.citState === "unreviewed" ||
+              row.citState === "review");
           const canReviewVat =
-            row.nextActions?.includes("review-vat") || row.vatState === "unreviewed";
+            !missingPaymentEvidence &&
+            (row.nextActions?.includes("review-vat") || row.vatState === "unreviewed");
           const canResolveTaxCode =
             row.nextActions?.includes("resolve-tax-code") || row.taxCodeApproved === false;
           return (
@@ -1645,6 +1603,7 @@ export function TaxExpenseExceptionsWorkspace() {
           Bộ lọc
         </Button>
       </div>
+      <PaymentEvidenceGapsCard startsOn={query.get("startsOn")} endsOn={query.get("endsOn")} />
       <Card>
         <CardHeader>
           <CardTitle>Chi phí cần rà soát thuế</CardTitle>

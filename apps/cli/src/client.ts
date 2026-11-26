@@ -7,6 +7,7 @@ import type {
 import { executeExtendedCliRoute, resolveExtendedCliRoute } from "./cit-client.js";
 import { downloadXlsxAttachment, sendJsonSubresourceRequest } from "./cli-http-helpers.js";
 import { isOwnerFundingResource, requestOwnerFunding } from "./owner-funding-cli.js";
+import { tryResolvePaymentEvidenceRoute } from "./payment-evidence-cli.js";
 
 export type CliOptions = Readonly<{
   baseUrl: string;
@@ -116,7 +117,7 @@ export class NaaiErpClient {
   async downloadAccountingListExport(
     kind: "sales-invoices" | "purchase-invoices-expenses",
     filters: Readonly<Record<string, string>>,
-  ): Promise<{ content: Uint8Array; contentType: string; filename?: string; sha256?: string }> {
+  ): Promise<BinaryDownloadResult> {
     if (!this.options.organizationId || !this.options.token)
       throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
     const query = new URLSearchParams(filters).toString();
@@ -132,7 +133,7 @@ export class NaaiErpClient {
    */
   async downloadManagementWorkbook(
     filters: Readonly<{ startsOn: string; endsOn: string }>,
-  ): Promise<{ content: Uint8Array; contentType: string; filename?: string; sha256?: string }> {
+  ): Promise<BinaryDownloadResult> {
     if (!this.options.organizationId || !this.options.token)
       throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
     const query = new URLSearchParams(filters).toString();
@@ -271,26 +272,14 @@ export class NaaiErpClient {
     return body;
   }
 
-  async downloadPortableDataPackage(packageId: string): Promise<{
-    content: Uint8Array;
-    contentType: string;
-    filename?: string;
-    sha256?: string;
-  }> {
-    const response = await this.fetchFn(
+  async downloadPortableDataPackage(packageId: string): Promise<BinaryDownloadResult> {
+    if (!this.options.token) throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
+    return downloadBinaryFromApi(
+      this.fetchFn,
       `${this.portableDataBase()}/exports/${encodeURIComponent(packageId)}/download`,
-      { method: "GET", headers: this.portableDataHeaders() },
+      this.options.token,
+      "application/json, application/octet-stream",
     );
-    if (!response.ok) throw new Error(await response.text());
-    const disposition = response.headers.get("content-disposition");
-    const filename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
-    const sha256 = response.headers.get("x-content-sha256") ?? undefined;
-    return {
-      content: new Uint8Array(await response.arrayBuffer()),
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-      ...(filename ? { filename } : {}),
-      ...(sha256 ? { sha256 } : {}),
-    };
   }
 
   async downloadAccountantExport(
@@ -307,29 +296,12 @@ export class NaaiErpClient {
     if (!id || !/^[1-9]\d*$/.test(version)) {
       throw new Error("accountant-exports download requires --key and a positive --version");
     }
-    const response = await this.fetchFn(
+    return downloadBinaryFromApi(
+      this.fetchFn,
       `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/accountant-exports/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/download`,
-      {
-        method: "GET",
-        headers: {
-          authorization: `Bearer ${this.options.token}`,
-          accept:
-            "text/csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream",
-          "x-correlation-id": randomUUID(),
-        },
-      },
+      this.options.token,
+      "text/csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream",
     );
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(body);
-    }
-    const disposition = response.headers.get("content-disposition");
-    const filename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
-    return {
-      content: new Uint8Array(await response.arrayBuffer()),
-      contentType: response.headers.get("content-type") ?? "application/octet-stream",
-      ...(filename ? { filename } : {}),
-    };
   }
 
   request(
@@ -389,6 +361,40 @@ export class NaaiErpClient {
         key,
         idempotencyKey,
       );
+    }
+    const paymentEvidenceRoute = tryResolvePaymentEvidenceRoute(
+      this.options,
+      resource,
+      action,
+      key,
+    );
+    if (paymentEvidenceRoute) {
+      const qs =
+        paymentEvidenceRoute.method === "GET" && payload && typeof payload === "object"
+          ? new URLSearchParams(
+              Object.entries(payload as Record<string, unknown>)
+                .filter(([, value]) => value !== undefined && value !== null)
+                .map(([name, value]): [string, string] => [name, String(value)]),
+            ).toString()
+          : "";
+      const routeUrl = qs ? `${paymentEvidenceRoute.path}?${qs}` : paymentEvidenceRoute.path;
+      return this.fetchFn(routeUrl, {
+        method: paymentEvidenceRoute.method,
+        headers: {
+          authorization: `Bearer ${this.options.token}`,
+          "content-type": "application/json",
+          "x-correlation-id": randomUUID(),
+          ...(paymentEvidenceRoute.method !== "GET"
+            ? { "idempotency-key": idempotencyKey ?? randomUUID() }
+            : {}),
+          ...(expectedVersion ? { "if-match": expectedVersion } : {}),
+        },
+        ...(paymentEvidenceRoute.method !== "GET" ? { body: JSON.stringify(payload ?? {}) } : {}),
+      }).then(async (response) => {
+        const body: unknown = await response.json();
+        if (!response.ok) throw new Error(JSON.stringify(body));
+        return body;
+      });
     }
     const isJournal = resource === "journals";
     const isPostingRule = resource === "posting-rules";

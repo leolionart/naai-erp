@@ -1548,27 +1548,39 @@ No task may be marked done with orphan business rules or untested behavior.
   `1388` / `1388-OWNER` (owner owes company), excluded from P&L, VAT credit, and CIT deductions,
   with net owner position reported as `3388 - 1388` (excluding `111-OWNER-CUSTODY`). Account `141`
   is not used because it is reserved for employees.
-- `BR-FUND-009` (planned): purchases of 5,000,000 VND or more (total payment including VAT; same-day same-seller
-  invoices are added together for VAT) without a non-cash payment method raise a configurable warning that VAT
-  and CIT deduction may be lost; the warning never blocks posting. Owner-paid bank or card payments count as
-  non-cash when evidence is kept.
+- `BR-FUND-009`: purchases of `non_cash_threshold_minor` or more (default 5,000,000 VND total payment
+  including VAT; same-day same-seller purchase invoices and expenses are added together for VAT) without a
+  qualifying non-cash payment method raise a configurable warning (`payment_evidence_missing`) that VAT and
+  CIT deduction are withheld until payment evidence is recorded; the warning never blocks posting. Owner-paid
+  bank transfers or personal card payments qualify as non-cash only when `payment_evidence_ref` is kept.
 - `BR-FUND-008`: records without a funding link (`funding_financial_account_id is null`) are reported
   via `GET /funding-plans/unlinked` with suggested targets inferred from bank reconciliation,
   `funding_rules` or category treatment (`expense_categories.funding_treatment`), and can be applied
   through a reviewed `funding-plans` dry-run/commit plan.
 
-### Payment evidence, deduction and company boundaries (planned, ERP-982 to ERP-987)
+### Payment evidence, deduction and company boundaries (ERP-982 implemented; ERP-983 to ERP-987 planned)
 
-- `BR-PAY-001` (planned): expenses and purchase invoices record a payment method (`cash | bank_transfer | card |
-other | unpaid`), payment date, optional payment evidence reference and the evidence of the underlying transaction
-  (contract, purchase order, email, acceptance, quote). Bank-reconciled payments infer method and date.
-- `BR-PAY-002` (planned): a purchase of 5,000,000 VND or more (total payment including VAT; same-day invoices from the same
-  seller are added together for VAT) is not defaulted to deductible for CIT or VAT unless it has a non-cash payment; the
-  line is flagged `payment_evidence_missing` with the withheld amount reported and re-evaluated when payment evidence is
-  added. The threshold is configurable per organization (default 5,000,000). Only the existing audited
-  `accountant_override` can force eligibility, with a reference.
-- `BR-PAY-003` (planned): the system records only real transactions. It offers no way to mark an invoice without an
-  underlying transaction as a deductible cost. A real purchase not yet paid is an accounts-payable liability, not a paid cost.
+- `BR-PAY-001`: expenses and purchase invoices record `payment_method` (`cash | bank_transfer | card |
+  other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_evidence_ref`, and
+  `transaction_evidence` (`contract | purchase_order | email | acceptance | quote | none`, default `none`),
+  editable on draft records and updatable on posted/issued records via audited, idempotent
+  `PATCH /expenses/{id}/payment-evidence` and `PATCH /commercial-documents/{id}/payment-evidence`.
+  Bank-reconciled outgoing bank payments automatically infer `bank_transfer`, `paid_on` and bank reference,
+  and unreconciling reverts bank-inferred values.
+- `BR-PAY-002`: in solopreneur mode, a purchase of `non_cash_threshold_minor` or more (default 5,000,000 VND
+  gross including VAT; same-day purchase invoices and expenses from the same supplier are aggregated for VAT)
+  is not defaulted to `eligible` for CIT or VAT unless settled by qualifying non-cash payment (`bank_transfer`
+  or `card`, requiring `payment_evidence_ref` when `owner_paid`, or reconciled bank payment); gated lines keep
+  deductible amount `0` (`unreviewed`), set `payment_evidence_missing = true`, surface in
+  `GET /reports/tax/payment-evidence-gaps`, VAT/expense-exception tax reports and the operating dashboard, and
+  re-evaluate automatically when payment evidence or bank reconciliation changes. Threshold is configurable per
+  organization via `PATCH /organization-workflow-policy`. Only audited `accountant_override` with a mandatory
+  `reference` can override eligibility without payment evidence; standard review and batch tax-finalization
+  reject or skip gated lines.
+- `BR-PAY-003`: the system records only real transactions and exposes no UI, CLI or API shortcut to mark a
+  payment-gated or unsubstantiated invoice as deductible without `accountant_override` + `reference`. A real
+  purchase not yet paid (`payment_method = 'unpaid'`) posts normally as an accounts-payable liability with
+  deductible CIT/VAT withheld (`0`, `unreviewed`) until qualifying non-cash payment evidence is recorded.
 - `BR-PAY-004`: when the owner pays company costs from a personal account the record needs a company-named
   invoice, payment evidence and a contract substitute; the preferred flow is the owner funding an active company
   bank account via `POST /banking/owner-funding` (`movementType: "owner_funding"`, from an imported positive bank

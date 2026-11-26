@@ -4,6 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
 import { executeCrossEnvironmentClone } from "./cli-http-helpers.js";
+import { writeDownloadedWorkbookOutput } from "./payment-evidence-cli.js";
 import { runWorkbookImport } from "./import-workbooks.js";
 import { buildOwnerFundingCliPayload, isOwnerFundingResource } from "./owner-funding-cli.js";
 import {
@@ -275,21 +276,16 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
         startsOn: values.from,
         endsOn: values.to,
       });
-      await writeFile(values.output, file.content);
-      process.stdout.write(
-        JSON.stringify({
-          output: values.output,
-          bytes: file.content.byteLength,
-          contentType: file.contentType,
-          ...(file.filename ? { filename: file.filename } : {}),
-          ...(file.sha256 ? { sha256: file.sha256 } : {}),
-        }) + "\n",
-      );
+      process.stdout.write(await writeDownloadedWorkbookOutput(values.output, file));
     } else if (resource === "sales-invoice-export" || resource === "purchase-expense-export") {
       if (!["export", "download"].includes(action) || !values.output || !values.from || !values.to)
         throw new Error(`${resource} download requires --from, --to, and explicit --output`);
       const file = await client.downloadAccountingListExport(
-        resource === "sales-invoice-export" ? "sales-invoices" : "purchase-invoices-expenses",
+        resource === "sales-invoice-export"
+          ? "sales-invoices"
+          : "purchase-expense-export" === resource
+            ? "purchase-invoices-expenses"
+            : "purchase-invoices-expenses",
         {
           startsOn: values.from,
           endsOn: values.to,
@@ -300,31 +296,13 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
           ...(values["invoice-presence"] ? { invoicePresence: values["invoice-presence"] } : {}),
         },
       );
-      await writeFile(values.output, file.content);
-      process.stdout.write(
-        JSON.stringify({
-          output: values.output,
-          bytes: file.content.byteLength,
-          contentType: file.contentType,
-          ...(file.filename ? { filename: file.filename } : {}),
-          ...(file.sha256 ? { sha256: file.sha256 } : {}),
-        }) + "\n",
-      );
+      process.stdout.write(await writeDownloadedWorkbookOutput(values.output, file));
     } else if (resource === "portable-data-export") {
       if (action === "download") {
         if (!values.key || !values.output)
           throw new Error("portable-data-export download requires --key and explicit --output");
         const file = await client.downloadPortableDataPackage(values.key);
-        await writeFile(values.output, file.content);
-        process.stdout.write(
-          JSON.stringify({
-            output: values.output,
-            bytes: file.content.byteLength,
-            contentType: file.contentType,
-            ...(file.filename ? { filename: file.filename } : {}),
-            ...(file.sha256 ? { sha256: file.sha256 } : {}),
-          }) + "\n",
-        );
+        process.stdout.write(await writeDownloadedWorkbookOutput(values.output, file));
       } else {
         const path =
           action === "export"
@@ -578,6 +556,7 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
                             "financial-statement-drilldown",
                             "vat-reconciliation",
                             "expense-exceptions",
+                            "payment-evidence-gaps",
                           ].includes(resource)
                         ? {
                             ...(values.from ? { startsOn: values.from } : {}),

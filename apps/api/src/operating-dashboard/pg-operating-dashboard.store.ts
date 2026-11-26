@@ -3,11 +3,12 @@ import pg from "pg";
 import { AGING_STORE, type AgingStore } from "../aging/aging.types.js";
 import { resolvePgCitEstimate } from "../cit-policy/pg-cit-estimate.js";
 import { readLedgerLiquidityAndOwnerSnapshot } from "./owner-custody-ledger.js";
+import { summarizePaymentEvidenceGaps } from "../payment-evidence/tax-report-enrichment.js";
+import { queryWorkbookSourceControls } from "./workbook-source-controls.helper.js";
 import type {
   OperatingDashboardQuery,
   OperatingDashboardReadModel,
   OperatingDashboardStore,
-  WorkbookSourceControlKind,
   WorkbookSourceControls,
 } from "./operating-dashboard.types.js";
 
@@ -231,7 +232,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
                  and e.counter_account_code in (select account_code from owner_accounts)
                  and coalesce((select operating_mode from workflow_policy),'controlled')<>'solopreneur'
              ),0)::text unclassified_minor,
-             (coalesce(sum(l.net_minor) filter (where l.cit_state='ineligible' and j.state in ('posted','reversed') and pa.root_type='expense'),0) + coalesce((select sum(cl.net_minor) from commercial_document_lines cl join commercial_documents cd on cd.organization_id=cl.organization_id and cd.id=cl.document_id left join accounts cpa on cpa.organization_id=cl.organization_id and cpa.code=cl.primary_account_code where cl.organization_id=$1 and cl.cit_state='ineligible' and coalesce(cpa.root_type,'expense')='expense' and cd.type='purchase_invoice' and cd.state in ('issued','posted','partially_paid','paid') and cd.document_date between $2::date and $3::date),0))::text cit_ineligible,
+             (coalesce(sum(l.net_minor) filter (where (l.cit_state='ineligible' or (l.payment_evidence_missing and l.cit_state='unreviewed')) and j.state in ('posted','reversed') and pa.root_type='expense'),0) + coalesce((select sum(cl.net_minor) from commercial_document_lines cl join commercial_documents cd on cd.organization_id=cl.organization_id and cd.id=cl.document_id left join accounts cpa on cpa.organization_id=cl.organization_id and cpa.code=cl.primary_account_code where cl.organization_id=$1 and (cl.cit_state='ineligible' or (cl.payment_evidence_missing and cl.cit_state='unreviewed')) and coalesce(cpa.root_type,'expense')='expense' and cd.type='purchase_invoice' and cd.state in ('issued','posted','partially_paid','paid') and cd.document_date between $2::date and $3::date),0))::text cit_ineligible,
              (select count(*)::int from expense_categories c where c.organization_id=$1 and c.is_active=true) category_count
            from expenses e
            join expense_lines l on l.organization_id=e.organization_id and l.expense_id=e.id
@@ -342,6 +343,8 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     );
     if ((foreign.rows[0]?.count ?? 0) > 0)
       configurationWarnings.push("foreign_currency_excluded_from_totals");
+    const paymentGaps = await summarizePaymentEvidenceGaps(this.pool, org, q.startsOn, q.endsOn);
+    if (paymentGaps.summary.lineCount > 0) configurationWarnings.push("payment_evidence_missing");
     const citIneligible = amount(expenseFunding.rows[0]?.cit_ineligible);
     const citEstimate = await resolvePgCitEstimate(this.pool, org, {
       startsOn: q.startsOn,
@@ -396,6 +399,7 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
       rosBps: ratioBps(netProfit, revenue),
       recognitionEventCount: readiness.rows[0]?.recognition_count ?? 0,
       approvedBudgetCount: readiness.rows[0]?.budget_count ?? 0,
+      paymentEvidenceGaps: paymentGaps.summary,
       configurationWarnings,
       source: "posted_ledger" as const,
       monthly,
@@ -551,116 +555,6 @@ export class PgOperatingDashboardStore implements OperatingDashboardStore {
     org: string,
     q: OperatingDashboardQuery,
   ): Promise<WorkbookSourceControls> {
-    type SourceRow = {
-      id: string;
-      kind: WorkbookSourceControlKind;
-      workbook: string;
-      sheet: string;
-      sourceRow: number;
-      status: "pending_review" | "approved" | "posted";
-      reviewFlags: string[];
-      mappedData: Record<string, unknown>;
-    };
-    const result = await this.pool.query<SourceRow>(
-      `select id,kind,workbook,sheet,source_row "sourceRow",status,
-              review_flags "reviewFlags",mapped_data "mappedData"
-         from workbook_import_review_rows
-        where organization_id=$1 and kind=any($2::text[]) and status<>'ignored'
-          and (
-            (mapped_data->>'period' is not null and mapped_data->>'period' >= substring($3::text from 1 for 7) and mapped_data->>'period' <= substring($4::text from 1 for 7))
-            or (kind = 'expense_category_control' and exists (
-               select 1 from jsonb_array_elements(mapped_data->'monthlyAmounts') as a
-               where a->>'period' >= substring($3::text from 1 for 7) and a->>'period' <= substring($4::text from 1 for 7)
-            ))
-            or kind in ('payroll_master', 'bonus_control')
-          )
-        order by kind,coalesce(mapped_data->>'period',''),source_row,id`,
-      [org, controlKinds, q.startsOn, q.endsOn],
-    );
-    const byKind = controlKinds
-      .map((kind) => ({ kind, count: result.rows.filter((row) => row.kind === kind).length }))
-      .filter((item) => item.count > 0);
-    const monthly = result.rows
-      .filter(
-        (row): row is SourceRow & { kind: "profitability_control" | "planning_control" } =>
-          row.kind === "profitability_control" || row.kind === "planning_control",
-      )
-      .flatMap((row) => {
-        const period = controlPeriod(row.mappedData.period);
-        if (!period) return [];
-        return [
-          {
-            id: row.id,
-            kind: row.kind,
-            period,
-            revenueMinor: controlMoney(row.mappedData.revenueMinor),
-            receivedMinor: controlMoney(row.mappedData.receivedMinor),
-            expenseMinor: controlMoney(row.mappedData.expenseMinor),
-            profitMinor: controlMoney(row.mappedData.profitMinor),
-            ...(row.kind === "planning_control"
-              ? {
-                  targetAttainmentBps:
-                    typeof row.mappedData.targetAttainmentBps === "number"
-                      ? row.mappedData.targetAttainmentBps
-                      : null,
-                  forecastExpenseMinor:
-                    row.mappedData.forecastExpenseMinor === null
-                      ? null
-                      : controlMoney(row.mappedData.forecastExpenseMinor),
-                  forecastCashMinor:
-                    row.mappedData.forecastCashMinor === null
-                      ? null
-                      : controlMoney(row.mappedData.forecastCashMinor),
-                }
-              : {}),
-            reviewFlags: row.reviewFlags,
-          },
-        ];
-      })
-      .sort(
-        (left, right) =>
-          left.period.localeCompare(right.period) || left.kind.localeCompare(right.kind),
-      );
-    const debt = result.rows
-      .filter((row) => row.kind === "debt_control")
-      .map((row) => ({
-        id: row.id,
-        ...(controlPeriod(row.mappedData.period)
-          ? { period: controlPeriod(row.mappedData.period) }
-          : {}),
-        projectLabel: controlText(row.mappedData.projectLabel),
-        debtMinor: controlMoney(row.mappedData.debtMinor),
-        projectCostMinor: controlMoney(row.mappedData.projectCostMinor),
-        collectedMinor:
-          row.mappedData.collectedMinor === null
-            ? null
-            : controlMoney(row.mappedData.collectedMinor),
-        reviewFlags: row.reviewFlags,
-      }));
-    const expenseCategories = result.rows
-      .filter((row) => row.kind === "expense_category_control")
-      .map((row) => ({
-        id: row.id,
-        category: controlText(row.mappedData.category),
-        monthlyAmounts: Array.isArray(row.mappedData.monthlyAmounts)
-          ? row.mappedData.monthlyAmounts.flatMap((item) => {
-              if (!item || typeof item !== "object") return [];
-              const value = item as Record<string, unknown>;
-              const period = controlPeriod(value.period);
-              return period ? [{ period, amountMinor: controlMoney(value.amountMinor) }] : [];
-            })
-          : [],
-        reviewFlags: row.reviewFlags,
-      }));
-    return {
-      source: "workbook_import_review_rows",
-      accountingStatus: "unconfirmed_non_canonical",
-      rowCount: result.rows.length,
-      byKind,
-      monthly,
-      debt,
-      expenseCategories,
-      rows: result.rows.slice(0, q.limit),
-    };
+    return queryWorkbookSourceControls(this.pool, org, q);
   }
 }

@@ -1,6 +1,28 @@
 import { sql } from "drizzle-orm";
 import { buildOwnerFundingTables } from "./owner-funding-schema.js";
 import {
+  accountantExportFormat,
+  accountantExportState,
+  cashFlowClass,
+  executiveMetricPolicyState,
+  executiveMetricSemanticKind,
+  paymentEvidenceHeaderColumns,
+  paymentEvidenceLineColumns,
+  reportSnapshotReadiness,
+  reportSnapshotState,
+  workbookImportReviewStatus,
+} from "./payment-evidence-columns.js";
+export {
+  accountantExportFormat,
+  accountantExportState,
+  cashFlowClass,
+  executiveMetricPolicyState,
+  executiveMetricSemanticKind,
+  reportSnapshotReadiness,
+  reportSnapshotState,
+  workbookImportReviewStatus,
+};
+import {
   boolean,
   bigint,
   check,
@@ -66,40 +88,6 @@ export const financialStatementKind = pgEnum("financial_statement_kind", [
   "balance_sheet",
   "cash_flow",
   "vat_reconciliation",
-]);
-export const reportSnapshotState = pgEnum("report_snapshot_state", ["captured"]);
-export const reportSnapshotReadiness = pgEnum("report_snapshot_readiness", [
-  "final",
-  "review_required",
-]);
-export const accountantExportState = pgEnum("accountant_export_state", ["generated", "superseded"]);
-export const accountantExportFormat = pgEnum("accountant_export_format", ["csv", "xlsx"]);
-export const workbookImportReviewStatus = pgEnum("workbook_import_review_status", [
-  "pending_review",
-  "approved",
-  "ignored",
-  "posted",
-]);
-export const cashFlowClass = pgEnum("cash_flow_class", [
-  "operating",
-  "investing",
-  "financing",
-  "non_cash",
-]);
-export const executiveMetricPolicyState = pgEnum("executive_metric_policy_state", [
-  "draft",
-  "approved",
-  "retired",
-]);
-export const executiveMetricSemanticKind = pgEnum("executive_metric_semantic_kind", [
-  "contributed_capital",
-  "retained_earnings",
-  "unrestricted_cash",
-  "restricted_cash",
-  "reviewed_equity_adjustment",
-  "other_equity",
-  "owner_withdrawal",
-  "owner_loan",
 ]);
 export const roiPurpose = pgEnum("roi_purpose", ["project", "marketing", "custom"]);
 export const roiInputKind = pgEnum("roi_input_kind", ["benefit", "included_cost"]);
@@ -1587,6 +1575,9 @@ export const accountingWorkflowPolicies = pgTable(
     operatingMode: text("operating_mode").notNull().default("controlled"),
     allowSelfApproval: boolean("allow_self_approval").notNull().default(false),
     selfApprovalMaxMinor: bigint("self_approval_max_minor", { mode: "bigint" }),
+    nonCashThresholdMinor: bigint("non_cash_threshold_minor", { mode: "bigint" })
+      .notNull()
+      .default(sql`5000000`),
     softLockPostingRoles: jsonb("soft_lock_posting_roles")
       .$type<string[]>()
       .notNull()
@@ -1751,6 +1742,7 @@ export const commercialDocuments = pgTable(
     controlAccountCode: text("control_account_code").notNull(),
     fundingFinancialAccountId: text("funding_financial_account_id"),
     ownerFundingMovementId: text("owner_funding_movement_id"),
+    ...paymentEvidenceHeaderColumns,
     originalDocumentId: text("original_document_id"),
     reason: text("reason"),
     journalId: text("journal_id"),
@@ -1850,6 +1842,7 @@ export const commercialDocumentLines = pgTable(
     vatEligibleMinor: bigint("vat_eligible_minor", { mode: "bigint" })
       .notNull()
       .default(sql`0`),
+    ...paymentEvidenceLineColumns,
     reviewedBy: text("reviewed_by"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewReason: text("review_reason"),
@@ -1985,6 +1978,7 @@ export const expenses = pgTable(
     /** Financial account that funded the expense when payment provenance is known. */
     fundingFinancialAccountId: text("funding_financial_account_id"),
     ownerFundingMovementId: text("owner_funding_movement_id"),
+    ...paymentEvidenceHeaderColumns,
     citState: eligibilityState("cit_state").notNull().default("unreviewed"),
     vatState: eligibilityState("vat_state").notNull().default("unreviewed"),
     evidenceChecklist: jsonb("evidence_checklist")
@@ -2165,6 +2159,7 @@ export const expenseLines = pgTable(
     vatEligibleMinor: bigint("vat_eligible_minor", { mode: "bigint" })
       .notNull()
       .default(sql`0`),
+    ...paymentEvidenceLineColumns,
     reviewedBy: text("reviewed_by"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewReason: text("review_reason"),

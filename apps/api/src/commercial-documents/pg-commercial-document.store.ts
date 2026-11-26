@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import { applySolopreneurPurchaseDocumentDefaults } from "../payment-evidence/payment-evidence-evaluator.js";
+import { mergePaymentEvidenceFields } from "../payment-evidence/payment-input.helper.js";
 import {
   applyDocumentLineCategoryUpdate,
   assertDocumentCategory,
@@ -15,6 +17,10 @@ import {
   buildPurchaseFundingReplacement,
   resolvePurchaseControlAccountCode,
 } from "./document-funding.js";
+import {
+  assertCreditAllowedQuery,
+  assertSalesContractCoverageQuery,
+} from "./document-store-assertions.helper.js";
 import type {
   CommercialDocumentAction,
   CommercialDocumentContext,
@@ -94,13 +100,25 @@ export class PgCommercialDocumentStore {
         throw new Error("TAX_REVIEW_NOT_SUPPORTED");
       if (!["posted", "partially_paid", "paid"].includes(found.state))
         throw new Error("INVALID_DOCUMENT_TRANSITION");
-      const line = await client.query<{ net_minor: string; tax_minor: string }>(
-        `select net_minor::text,tax_minor::text from commercial_document_lines
+      const line = await client.query<{
+        net_minor: string;
+        tax_minor: string;
+        cit_state: string;
+        vat_state: string;
+        payment_evidence_missing: boolean;
+      }>(
+        `select net_minor::text,tax_minor::text,cit_state::text,vat_state::text,payment_evidence_missing from commercial_document_lines
          where organization_id=$1 and document_id=$2 and line_number=$3 for update`,
         [context.organizationId, id, input.lineNumber],
       );
       const source = line.rows[0];
       if (!source) throw new Error("RESOURCE_NOT_FOUND");
+      if (
+        source.payment_evidence_missing &&
+        ["eligible", "partially_eligible"].includes(input.state)
+      ) {
+        throw new Error("PAYMENT_EVIDENCE_REQUIRED");
+      }
       const maximum = input.axis === "vat" ? BigInt(source.tax_minor) : BigInt(source.net_minor);
       const eligible = BigInt(input.eligibleMinor ?? "0");
       if (eligible < 0n || eligible > maximum) throw new Error("ELIGIBILITY_AMOUNT_INVALID");
@@ -120,9 +138,15 @@ export class PgCommercialDocumentStore {
       }
       await client.query("select set_config('app.tax_finalization','on',true)");
       const column = input.axis === "cit" ? "cit" : "vat";
+      const clearMissing =
+        ["accountant_override", "ineligible"].includes(input.state) &&
+        (input.axis === "cit"
+          ? source.vat_state !== "unreviewed"
+          : source.cit_state !== "unreviewed");
       await client.query(
         `update commercial_document_lines set ${column}_state=$4::eligibility_state,
           ${column}_eligible_minor=$5,
+          payment_evidence_missing=case when $10::boolean then false else payment_evidence_missing end,
           tax_code=case when $9::text is null then tax_code else $9::text end,
           reviewed_by=$6,reviewed_at=now(),review_reason=$7,review_reference=$8
          where organization_id=$1 and document_id=$2 and line_number=$3`,
@@ -136,11 +160,12 @@ export class PgCommercialDocumentStore {
           input.reason.trim(),
           input.reference ?? null,
           input.axis === "vat" ? input.taxCode!.trim() : null,
+          clearMissing,
         ],
       );
       const version = (BigInt(found.version) + 1n).toString();
       await client.query(
-        "update commercial_documents set version=version+1,updated_at=now() where organization_id=$1 and id=$2",
+        "update commercial_documents set version=version+1,payment_evidence_missing=coalesce((select bool_or(payment_evidence_missing) from commercial_document_lines where organization_id=$1 and document_id=$2),false),updated_at=now() where organization_id=$1 and id=$2",
         [context.organizationId, id],
       );
       const remainingReview = await client.query<{
@@ -830,7 +855,9 @@ export class PgCommercialDocumentStore {
     },
   ) {
     const result = await this.pool.query(
-      `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+      `select d.*,d.document_date::text document_date,d.due_date::text due_date,d.paid_on::text paid_on,
+       d.payment_method "paymentMethod",d.paid_on::text "paidOn",d.payment_evidence_ref "paymentEvidenceRef",
+       d.transaction_evidence "transactionEvidence",d.payment_evidence_missing "paymentEvidenceMissing",
        case when d.state='cancelled' and exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace') then 'corrected' when exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id) then 'replacement' else null end correction_status,
        (select ra.after_state->>'replacementId' from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace' order by ra.occurred_at desc limit 1) replacement_id,
        (select ra.resource_key from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id order by ra.occurred_at desc limit 1) corrected_from_id,
@@ -901,7 +928,9 @@ export class PgCommercialDocumentStore {
 
   async get(organizationId: string, id: string) {
     const result = await this.pool.query(
-      `select d.*,d.document_date::text document_date,d.due_date::text due_date,
+      `select d.*,d.document_date::text document_date,d.due_date::text due_date,d.paid_on::text paid_on,
+       d.payment_method "paymentMethod",d.paid_on::text "paidOn",d.payment_evidence_ref "paymentEvidenceRef",
+       d.transaction_evidence "transactionEvidence",d.payment_evidence_missing "paymentEvidenceMissing",
        case when d.state='cancelled' and exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace') then 'corrected' when exists(select 1 from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id) then 'replacement' else null end correction_status,
        (select ra.after_state->>'replacementId' from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.resource_key=d.id and ra.action='reverse_replace' order by ra.occurred_at desc limit 1) replacement_id,
        (select ra.resource_key from resource_audit_events ra where ra.organization_id=d.organization_id and ra.resource_type='commercial_document' and ra.action='reverse_replace' and ra.after_state->>'replacementId'=d.id order by ra.occurred_at desc limit 1) corrected_from_id,
@@ -926,6 +955,7 @@ export class PgCommercialDocumentStore {
         'categoryCode',l.category_code,'taxAccountCode',l.tax_account_code,'taxCode',l.tax_code,
         'managementState',l.management_state::text,'citState',l.cit_state::text,'vatState',l.vat_state::text,
         'citEligibleMinor',l.cit_eligible_minor::text,'vatEligibleMinor',l.vat_eligible_minor::text,
+        'paymentEvidenceMissing',l.payment_evidence_missing,
         'reviewedBy',l.reviewed_by,'reviewedAt',l.reviewed_at::text,'reviewReason',l.review_reason,
         'reviewReference',l.review_reference,'dimensions',l.dimensions,
         'allocations',(select coalesce(json_agg(a order by a.allocation_number),'[]')
@@ -1009,11 +1039,13 @@ export class PgCommercialDocumentStore {
                 [context.organizationId, docId],
               );
               const newVersion = BigInt(doc.version) + 1n;
+              const paymentEvidence = mergePaymentEvidenceFields(input);
               await client.query(
                 `update commercial_documents set
                   type=$3, document_number=$4, series=$5, fiscal_year=$6, party_id=$7, document_date=$8, due_date=$9,
                   currency=$10, net_minor=$11, tax_minor=$12, gross_minor=$13, control_account_code=$14,
-                  funding_financial_account_id=$15, original_document_id=$16, reason=$17, version=$18, updated_at=now()
+                  funding_financial_account_id=$15, original_document_id=$16, reason=$17, version=$18,
+                  payment_method=$19, paid_on=$20::date, payment_evidence_ref=$21, transaction_evidence=$22, updated_at=now()
                  where organization_id=$1 and id=$2`,
                 [
                   context.organizationId,
@@ -1034,6 +1066,10 @@ export class PgCommercialDocumentStore {
                   input.originalDocumentId ?? null,
                   input.reason ?? null,
                   newVersion,
+                  paymentEvidence.paymentMethod,
+                  paymentEvidence.paidOn,
+                  paymentEvidence.paymentEvidenceRef,
+                  paymentEvidence.transactionEvidence,
                 ],
               );
               const operatingMode = await this.operatingMode(client, context.organizationId);
@@ -1217,11 +1253,12 @@ export class PgCommercialDocumentStore {
       const id = input.id ?? randomUUID();
       if (input.type === "credit_note")
         await this.assertCreditAllowed(client, context.organizationId, input);
+      const paymentEvidence = mergePaymentEvidenceFields(input);
       await client.query(
         `insert into commercial_documents
          (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,
-          currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,owner_funding_movement_id,original_document_id,reason,created_by)
-         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+          currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,owner_funding_movement_id,payment_method,paid_on,payment_evidence_ref,transaction_evidence,original_document_id,reason,created_by)
+         values ($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::date,$19,$20,$21,$22,$23)`,
         [
           context.organizationId,
           id,
@@ -1239,6 +1276,10 @@ export class PgCommercialDocumentStore {
           effectiveControlAccountCode,
           input.fundingSource?.financialAccountId ?? ownerFundingTrace?.financialAccountId ?? null,
           ownerFundingTrace?.movementId ?? null,
+          paymentEvidence.paymentMethod,
+          paymentEvidence.paidOn,
+          paymentEvidence.paymentEvidenceRef,
+          paymentEvidence.transactionEvidence,
           input.originalDocumentId ?? null,
           input.reason ?? null,
           context.actorId,
@@ -1321,6 +1362,14 @@ export class PgCommercialDocumentStore {
           );
           if (!funding.rows[0]) throw new Error("PURCHASE_FUNDING_ACCOUNT_NOT_AVAILABLE");
           document.control_account_code = funding.rows[0].ledger_account_code;
+        }
+        if (input.type === "purchase_invoice") {
+          await applySolopreneurPurchaseDocumentDefaults(
+            client,
+            context,
+            id,
+            "Solopreneur save and record",
+          );
         }
         journalId = await this.postDocumentJournal(client, context, document);
         finalState =
@@ -1710,11 +1759,13 @@ export class PgCommercialDocumentStore {
       }
 
       const newVersion = BigInt(existing.version) + 1n;
+      const paymentEvidence = mergePaymentEvidenceFields(merged);
       await client.query(
         `update commercial_documents set
           document_number=$3, series=$4, fiscal_year=$5, party_id=$6, document_date=$7, due_date=$8,
           currency=$9, net_minor=$10, tax_minor=$11, gross_minor=$12, control_account_code=$13,
-          funding_financial_account_id=$14, original_document_id=$15, reason=$16, version=$17, updated_at=now()
+          funding_financial_account_id=$14, original_document_id=$15, reason=$16, version=$17,
+          payment_method=$18, paid_on=$19::date, payment_evidence_ref=$20, transaction_evidence=$21, updated_at=now()
          where organization_id=$1 and id=$2`,
         [
           context.organizationId,
@@ -1734,6 +1785,10 @@ export class PgCommercialDocumentStore {
           merged.originalDocumentId ?? null,
           merged.reason ?? null,
           newVersion,
+          paymentEvidence.paymentMethod,
+          paymentEvidence.paidOn,
+          paymentEvidence.paymentEvidenceRef,
+          paymentEvidence.transactionEvidence,
         ],
       );
 
@@ -1857,6 +1912,18 @@ export class PgCommercialDocumentStore {
       if (!next) throw new Error("INVALID_DOCUMENT_TRANSITION");
       if (action === "approve" && document.created_by === context.actorId)
         await this.assertSelfApproval(client, context, BigInt(document.gross_minor));
+      const solopreneurOwner =
+        document.type === "purchase_invoice" &&
+        context.roles.includes("owner") &&
+        (await this.operatingMode(client, context.organizationId)) === "solopreneur";
+      if (action === "approve" && solopreneurOwner) {
+        await applySolopreneurPurchaseDocumentDefaults(
+          client,
+          context,
+          id,
+          "Solopreneur default on approval",
+        );
+      }
       let journalId: string | undefined;
       if (action === "issue" || action === "post") {
         if (document.type === "sales_invoice")
@@ -1870,6 +1937,14 @@ export class PgCommercialDocumentStore {
           );
           if (!funding.rows[0]) throw new Error("PURCHASE_FUNDING_ACCOUNT_NOT_AVAILABLE");
           document.control_account_code = funding.rows[0].ledger_account_code;
+        }
+        if (action === "post" && solopreneurOwner) {
+          await applySolopreneurPurchaseDocumentDefaults(
+            client,
+            context,
+            id,
+            "Solopreneur default on posting",
+          );
         }
         journalId = await this.postDocumentJournal(client, context, document);
         if (document.type === "purchase_invoice" && action === "post") {
@@ -2029,10 +2104,11 @@ export class PgCommercialDocumentStore {
         [context.organizationId, id],
       );
       const replacementId = input.id ?? randomUUID();
+      const paymentEvidence = mergePaymentEvidenceFields(input);
       await client.query(
         `insert into commercial_documents
-         (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,original_document_id,reason,created_by)
-         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+         (organization_id,id,type,state,document_number,series,fiscal_year,party_id,document_date,due_date,currency,net_minor,tax_minor,gross_minor,control_account_code,funding_financial_account_id,payment_method,paid_on,payment_evidence_ref,transaction_evidence,original_document_id,reason,created_by)
+         values($1,$2,$3,'draft',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::date,$18,$19,$20,$21,$22)`,
         [
           context.organizationId,
           replacementId,
@@ -2049,6 +2125,10 @@ export class PgCommercialDocumentStore {
           input.grossMinor,
           input.controlAccountCode,
           input.fundingSource?.financialAccountId ?? null,
+          paymentEvidence.paymentMethod,
+          paymentEvidence.paidOn,
+          paymentEvidence.paymentEvidenceRef,
+          paymentEvidence.transactionEvidence,
           input.type === "credit_note" ? (input.originalDocumentId ?? id) : null,
           input.type === "credit_note" ? (input.reason ?? reason) : null,
           context.actorId,
@@ -2386,6 +2466,7 @@ export class PgCommercialDocumentStore {
       taxMinor: String(existing.tax_minor),
       grossMinor: String(existing.gross_minor),
       controlAccountCode: existing.control_account_code,
+      ...mergePaymentEvidenceFields({}, existing),
       ...(existing.funding_financial_account_id
         ? {
             fundingSource: {
@@ -2441,13 +2522,17 @@ export class PgCommercialDocumentStore {
     const existing = await this.get(context.organizationId, id);
     if (!existing) throw new Error("RESOURCE_NOT_FOUND");
     if (existing.type !== "purchase_invoice") throw new Error("VALIDATION_FAILED");
-    const replacement = await buildPurchaseFundingReplacement(
+    const replacementBase = await buildPurchaseFundingReplacement(
       this.pool,
       context.organizationId,
       existing as unknown as Record<string, unknown>,
       targetControlAccountCode,
       options?.financialAccountId?.trim(),
     );
+    const replacement = {
+      ...replacementBase,
+      ...mergePaymentEvidenceFields({}, existing),
+    };
     return this.reverseReplace(
       context,
       id,
@@ -2462,52 +2547,12 @@ export class PgCommercialDocumentStore {
   private nextActions(type: CommercialDocumentType, state: string) {
     return Object.keys(NEXT[type][state] ?? {});
   }
-  private async assertSalesContractCoverage(
+  private assertSalesContractCoverage(
     client: PoolClient,
     organizationId: string,
     document: StoredDocument,
   ) {
-    const allocations = await client.query<{ project_id: string | null; proposed: string }>(
-      `select a.dimensions->>'projectId' project_id,sum(a.amount_minor)::text proposed
-         from commercial_document_allocations a
-        where a.organization_id=$1 and a.document_id=$2
-        group by a.dimensions->>'projectId'`,
-      [organizationId, document.id],
-    );
-    if (!allocations.rows.length || allocations.rows.some((row) => !row.project_id))
-      throw new Error("SALES_INVOICE_PROJECT_REQUIRED");
-    for (const row of [...allocations.rows].sort((a, b) =>
-      String(a.project_id).localeCompare(String(b.project_id)),
-    )) {
-      const projectId = String(row.project_id);
-      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
-        `${organizationId}:sales-contract-cap:${projectId}`,
-      ]);
-      const project = await client.query<{ client_party_id: string; currency: string }>(
-        `select client_party_id,currency from projects where organization_id=$1 and id=$2 and state in('planned','active','on_hold')`,
-        [organizationId, projectId],
-      );
-      if (!project.rows[0]) throw new Error("SALES_INVOICE_PROJECT_INVALID");
-      if (project.rows[0].client_party_id !== document.party_id)
-        throw new Error("SALES_INVOICE_PROJECT_CUSTOMER_MISMATCH");
-      if (project.rows[0].currency !== document.currency)
-        throw new Error("SALES_INVOICE_CONTRACT_CURRENCY_MISMATCH");
-      const capacity = await client.query<{ allowed: string; used: string }>(
-        `select
-           (coalesce((select sum(value_minor) from contracts where organization_id=$1 and project_id=$2 and currency=$3 and signed_on <= $5),0)
-            + coalesce((select sum(expected_revenue_impact_minor) from scope_changes where organization_id=$1 and project_id=$2 and state='approved' and approved_at::date <= $5),0))::text allowed,
-           coalesce((select sum(case when d.type='credit_note' then -a.amount_minor else a.amount_minor end)
-             from commercial_document_allocations a join commercial_documents d
-               on d.organization_id=a.organization_id and d.id=a.document_id
-            where a.organization_id=$1 and a.dimensions->>'projectId'=$2 and d.id<>$4
-              and d.state in('issued','posted','partially_paid','paid')),0)::text used`,
-        [organizationId, projectId, document.currency, document.id, document.document_date],
-      );
-      const allowed = BigInt(capacity.rows[0]?.allowed ?? "0");
-      if (allowed <= 0n) throw new Error("SALES_INVOICE_CONTRACT_REQUIRED");
-      if (BigInt(capacity.rows[0]?.used ?? "0") + BigInt(row.proposed) > allowed)
-        throw new Error("SALES_INVOICE_CONTRACT_CAP_EXCEEDED");
-    }
+    return assertSalesContractCoverageQuery(client, organizationId, document);
   }
   private async lockReplay(client: PoolClient, organizationId: string, key: string, hash: string) {
     await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
@@ -2565,87 +2610,13 @@ export class PgCommercialDocumentStore {
     )
       throw new Error("PERIOD_SOFT_LOCKED");
   }
-  private async assertCreditAllowed(
+  private assertCreditAllowed(
     client: PoolClient,
     organizationId: string,
     input: CreateCommercialDocumentInput,
     excludeDocumentId?: string,
   ) {
-    await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
-      `${organizationId}:credit:${input.originalDocumentId}`,
-    ]);
-    const original = await client.query<{
-      type: string;
-      party_id: string;
-      currency: string;
-      net_minor: string;
-      tax_minor: string;
-      vat_state: string;
-      state: string;
-    }>(
-      `select type,party_id,currency,net_minor::text,tax_minor::text,state from commercial_documents
-       where organization_id=$1 and id=$2 for update`,
-      [organizationId, input.originalDocumentId],
-    );
-    const row = original.rows[0];
-    if (
-      !row ||
-      row.type !== "sales_invoice" ||
-      !["issued", "partially_paid", "paid"].includes(row.state)
-    )
-      throw new Error("CREDIT_ORIGINAL_INVALID");
-    if (row.party_id !== input.partyId || row.currency !== input.currency)
-      throw new Error("CREDIT_ORIGINAL_MISMATCH");
-    const credited = await client.query<{ net: string; tax: string }>(
-      `select coalesce(sum(net_minor),0)::text net,coalesce(sum(tax_minor),0)::text tax
-      from commercial_documents where organization_id=$1 and type='credit_note' and original_document_id=$2
-        and state not in ('cancelled') and ($3::text is null or id<>$3)`,
-      [organizationId, input.originalDocumentId, excludeDocumentId ?? null],
-    );
-    if (
-      BigInt(credited.rows[0]!.net) + BigInt(input.netMinor) > BigInt(row.net_minor) ||
-      BigInt(credited.rows[0]!.tax) + BigInt(input.taxMinor) > BigInt(row.tax_minor)
-    )
-      throw new Error("CREDIT_EXCEEDS_REMAINING");
-    for (const line of input.lines) {
-      if (!line.originalLineNumber) throw new Error("CREDIT_ORIGINAL_LINE_REQUIRED");
-      const originalLine = await client.query<{
-        net_minor: string;
-        tax_minor: string;
-        primary_account_code: string;
-        tax_account_code: string | null;
-      }>(
-        `select net_minor::text,tax_minor::text,primary_account_code,tax_account_code
-         from commercial_document_lines where organization_id=$1 and document_id=$2 and line_number=$3`,
-        [organizationId, input.originalDocumentId, line.originalLineNumber],
-      );
-      const source = originalLine.rows[0];
-      if (
-        !source ||
-        source.primary_account_code !== line.primaryAccountCode ||
-        source.tax_account_code !== (line.taxAccountCode ?? null)
-      )
-        throw new Error("CREDIT_ORIGINAL_LINE_INVALID");
-      const prior = await client.query<{ net: string; tax: string }>(
-        `select coalesce(sum(l.net_minor),0)::text net,coalesce(sum(l.tax_minor),0)::text tax
-         from commercial_document_lines l join commercial_documents d
-           on d.organization_id=l.organization_id and d.id=l.document_id
-         where d.organization_id=$1 and d.type='credit_note' and d.original_document_id=$2
-           and d.state<>'cancelled' and l.original_line_number=$3
-           and ($4::text is null or d.id<>$4)`,
-        [
-          organizationId,
-          input.originalDocumentId,
-          line.originalLineNumber,
-          excludeDocumentId ?? null,
-        ],
-      );
-      if (
-        BigInt(prior.rows[0]!.net) + BigInt(line.netMinor) > BigInt(source.net_minor) ||
-        BigInt(prior.rows[0]!.tax) + BigInt(line.taxMinor) > BigInt(source.tax_minor)
-      )
-        throw new Error("CREDIT_EXCEEDS_REMAINING");
-    }
+    return assertCreditAllowedQuery(client, organizationId, input, excludeDocumentId);
   }
 
   private async postDocumentJournal(
@@ -2660,11 +2631,12 @@ export class PgCommercialDocumentStore {
       net_minor: string;
       tax_minor: string;
       vat_state: string;
+      payment_evidence_missing: boolean;
       primary_account_code: string;
       tax_account_code: string | null;
       dimensions: Record<string, string>;
     }>(
-      `select line_number,description,net_minor::text,tax_minor::text,vat_state::text,primary_account_code,tax_account_code,dimensions
+      `select line_number,description,net_minor::text,tax_minor::text,vat_state::text,payment_evidence_missing,primary_account_code,tax_account_code,dimensions
        from commercial_document_lines where organization_id=$1 and document_id=$2 order by line_number`,
       [context.organizationId, document.id],
     );
@@ -2721,9 +2693,11 @@ export class PgCommercialDocumentStore {
         } else if (document.type === "purchase_invoice") {
           const taxState = allocation.dimensions.taxState;
           const taxIsDeductible =
-            taxState === undefined
-              ? line.vat_state === "eligible"
-              : ["eligible", "accountant_override"].includes(taxState);
+            line.payment_evidence_missing && line.vat_state === "unreviewed"
+              ? false
+              : taxState === undefined || taxState === "unreviewed"
+                ? ["eligible", "accountant_override"].includes(line.vat_state)
+                : ["eligible", "accountant_override"].includes(taxState);
           journalLines.push({
             account: line.primary_account_code,
             debit: net + (taxIsDeductible ? 0n : tax),

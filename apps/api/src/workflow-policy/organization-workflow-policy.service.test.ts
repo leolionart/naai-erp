@@ -20,6 +20,7 @@ describe("organization workflow policy", () => {
       requiresDistinctApprover: false,
       allowsBoundedSelfApproval: false,
       documentedTaxDefaultsFinal: true,
+      nonCashThresholdMinor: "5000000",
     });
     expect(canSelfApprove({ policy, roles: ["owner"] })).toBe(true);
     expect(canSelfApprove({ policy, roles: ["finance_admin"] })).toBe(false);
@@ -30,6 +31,7 @@ describe("organization workflow policy", () => {
       operatingMode: "controlled" as const,
       allowSelfApproval: true,
       selfApprovalMaxMinor: 1_000n,
+      nonCashThresholdMinor: 20_000_000n,
     };
     expect(canSelfApprove({ policy, roles: ["owner"], amountMinor: 1_000n })).toBe(true);
     expect(canSelfApprove({ policy, roles: ["owner"], amountMinor: 1_001n })).toBe(false);
@@ -40,6 +42,7 @@ describe("organization workflow policy", () => {
       requiresDistinctApprover: true,
       allowsBoundedSelfApproval: true,
       documentedTaxDefaultsFinal: false,
+      nonCashThresholdMinor: "20000000",
     });
   });
 
@@ -113,6 +116,7 @@ describe("organization workflow policy", () => {
       operatingMode: "controlled",
       allowSelfApproval: false,
       selfApprovalMaxMinor: null,
+      nonCashThresholdMinor: 5_000_000n,
     });
   });
 });
