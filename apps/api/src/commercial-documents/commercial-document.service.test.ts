@@ -108,12 +108,11 @@ describe("ERP-300 CommercialDocumentService", () => {
 
     await service.list(context, "sales_invoice", "issued", "client-a", "project-a");
 
-    expect(store.list).toHaveBeenCalledWith("org-a", {
-      type: "sales_invoice",
-      state: "issued",
-      partyId: "client-a",
-      projectId: "project-a",
-    });
+    expect(store.list).toHaveBeenCalledWith(
+      "org-a",
+      { type: "sales_invoice", state: "issued", partyId: "client-a", projectId: "project-a" },
+      { fetch: 51, summary: false },
+    );
   });
 
   it("creates an exact allocated document with idempotency", async () => {

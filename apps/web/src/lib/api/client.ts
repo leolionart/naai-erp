@@ -82,6 +82,29 @@ export function createApiClient(input: {
     async data<T>(path: string, options?: ApiRequestOptions): Promise<T> {
       return (await request<T>(path, options)).data;
     },
+    /**
+     * Loads every page of a bounded list (BR-READ-001/002) by following `page.nextCursor`.
+     * Safety cap keeps a runaway list from exhausting browser memory.
+     */
+    async dataAll<T>(path: string, options: { maxPages?: number } = {}): Promise<T[]> {
+      const maxPages = options.maxPages ?? 50;
+      const rows: T[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < maxPages; page += 1) {
+        const separator = path.includes("?") ? "&" : "?";
+        const url = `${path}${separator}limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+        const envelope = await request<T[] | { items?: T[]; nextCursor?: string }>(url);
+        const data = envelope.data;
+        if (Array.isArray(data)) {
+          rows.push(...data);
+          break;
+        }
+        rows.push(...(data.items ?? []));
+        cursor = data.nextCursor;
+        if (!cursor) break;
+      }
+      return rows;
+    },
   });
 }
 

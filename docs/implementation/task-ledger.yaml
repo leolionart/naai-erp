@@ -4396,25 +4396,42 @@ tasks:
   - id: ERP-995
     title: Bounded read contract with keyset cursor, size budget, list inventory and contract tests
     phase: P17
-    status: ready
+    status: review
     dependencies: []
     business_rules: [BR-READ-001, BR-READ-002, BR-READ-003]
     tests: [T-UNIT-READ-001, T-INT-READ-001]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: unassigned
+    agent: claude
+    started_at: 2026-11-27T07:00:00+07:00
+    progress: >-
+      Shared paging contract, keyset cursor, size budget, list inventory script and OpenAPI parameters implemented. Contract test covers expenses, commercial-documents and journals (T-INT-READ-001); a generic x-naai-list sweep over every tagged route is deferred to ERP-997.
     planned_files:
+      - packages/contracts/src/paging.ts
+      - packages/contracts/src/paging.test.ts
+      - scripts/list-endpoint-inventory.mjs
+      - docs/api/list-endpoint-inventory.md
+      - docs/api/openapi-v1.json
+      - docs/api/ai-native-interface-contract.md
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
   - id: ERP-996
     title: Paginate critical lists with summary view, count and summary endpoints and move the web to server side paging
     phase: P17
-    status: ready
+    status: in_progress
     dependencies: [ERP-995]
     business_rules: [BR-READ-001, BR-READ-002, BR-READ-004, BR-READ-005]
     tests: [T-INT-READ-002, T-E2E-READ-003]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: unassigned
+    agent: claude
+    started_at: 2026-11-27T07:00:00+07:00
+    progress: >-
+      Done: expenses (keyset, count, summary), commercial-documents and journals bounded with view=summary; web follows nextCursor (dataAll/loadAllPages) so screens and dashboards still see every row. Remaining: ledger-reports, banking, customer-receipts, evidence, payables, transfers, funding, forecast, subscriptions routes; commercial-documents count/summary; true server-side sort/search/Load-more UI and Playwright coverage (T-INT-READ-002, T-E2E-READ-003).
     planned_files:
+      - apps/api/src/expenses/
+      - apps/api/src/commercial-documents/
+      - apps/api/src/journals/
+      - apps/web/src/lib/api/client.ts
+      - apps/web/src/app/workspaces/load-all-pages.ts
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
   - id: ERP-997
@@ -4432,13 +4449,21 @@ tasks:
   - id: ERP-998
     title: CLI output controls, describe command and routing table with golden tests
     phase: P17
-    status: ready
+    status: in_progress
     dependencies: [ERP-995]
     business_rules: [BR-READ-006]
     tests: [T-UNIT-READ-005, T-INT-READ-006]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: unassigned
+    agent: claude
+    started_at: 2026-11-27T07:00:00+07:00
+    progress: >-
+      Done: --limit/--cursor/--view/--q/--sort/--include-total forwarding, --max-bytes stdout budget with valid truncated JSON, --all --output NDJSON/CSV (T-UNIT-READ-005). Remaining: describe command, discovery openapi --tag, count/summary CLI actions, routing table with golden tests (T-INT-READ-006).
     planned_files:
+      - apps/cli/src/list-output.ts
+      - apps/cli/src/list-output.test.ts
+      - apps/cli/src/org-json-request.ts
+      - apps/cli/src/client.ts
+      - apps/cli/src/main.ts
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
   - id: ERP-999

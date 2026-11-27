@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Post, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { JournalService } from "./journal.service.js";
 import type { CreateJournalInput } from "./journal.types.js";
@@ -12,10 +12,14 @@ export class JournalController {
   @Get()
   async list(
     @Param("organizationId") organizationId: string,
+    @Query() query: Record<string, string | undefined>,
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    return this.service.list(await this.context(organizationId, authorization, correlationId));
+    return this.service.list(
+      await this.context(organizationId, authorization, correlationId),
+      query,
+    );
   }
   @Get(":id")
   async get(

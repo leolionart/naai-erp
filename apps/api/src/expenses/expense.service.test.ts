@@ -35,11 +35,12 @@ describe("ERP-310 ExpenseService", () => {
       state: "posted",
       fundingTreatment: "owner_paid_company_cost",
     });
-    expect(store.list).toHaveBeenCalledWith("org-a", {
-      state: "posted",
-      fundingTreatment: "owner_paid_company_cost",
-    });
-    expect(result.data).toEqual({ items: [] });
+    expect(store.list).toHaveBeenCalledWith(
+      "org-a",
+      { state: "posted", fundingTreatment: "owner_paid_company_cost" },
+      { fetch: 51 },
+    );
+    expect(result.data).toEqual({ items: [], limit: 50, hasMore: false });
     await expect(service.list(context, { fundingTreatment: "description_guess" })).rejects.toThrow(
       "VALIDATION_FAILED",
     );
@@ -52,10 +53,11 @@ describe("ERP-310 ExpenseService", () => {
       startsOn: "2026-01-01",
       endsOn: "2026-03-31",
     });
-    expect(store.list).toHaveBeenCalledWith("org-a", {
-      startsOn: "2026-01-01",
-      endsOn: "2026-03-31",
-    });
+    expect(store.list).toHaveBeenCalledWith(
+      "org-a",
+      { startsOn: "2026-01-01", endsOn: "2026-03-31" },
+      { fetch: 51 },
+    );
     await expect(
       service.list(context, { startsOn: "2026-03-31", endsOn: "2026-01-01" }),
     ).rejects.toThrow("VALIDATION_FAILED");

@@ -1,3 +1,4 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
 import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
@@ -33,8 +34,9 @@ export class JournalService {
     };
   }
 
-  async list(context: JournalActorContext) {
-    return this.envelope(context, { items: await this.store.list(context.organizationId) });
+  async list(context: JournalActorContext, paging: RawListQuery = {}) {
+    const page = await this.store.list(context.organizationId, paging);
+    return { ...this.envelope(context, page.data), meta: page.meta };
   }
   async get(context: JournalActorContext, id: string) {
     const journal = await this.store.get(context.organizationId, id);

@@ -1,3 +1,4 @@
+import { jsonOrThrow, orgJsonRequest } from "./org-json-request.js";
 import { randomUUID } from "node:crypto";
 import type {
   CreateCustomerReceiptRequest,
@@ -83,9 +84,7 @@ export class NaaiErpClient {
       headers: { ...this.portableDataHeaders(idempotencyKey), "content-type": "application/json" },
       body: JSON.stringify(input),
     });
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
+    return jsonOrThrow(response);
   }
   async listOwnerFunding(filters: Readonly<Record<string, string>> = {}): Promise<unknown> {
     return requestOwnerFunding(this.fetchFn, this.options, "owner-funding", "list", filters);
@@ -187,23 +186,8 @@ export class NaaiErpClient {
     dimension: "payee" | "category",
     range: Readonly<{ startsOn: string; endsOn: string }>,
   ): Promise<unknown> {
-    if (!this.options.organizationId || !this.options.token)
-      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
     const query = new URLSearchParams(range).toString();
-    const response = await this.fetchFn(
-      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/reports/expenses/by-${dimension}?${query}`,
-      {
-        method: "GET",
-        headers: {
-          authorization: `Bearer ${this.options.token.replace(/^Bearer\s+/i, "")}`,
-          accept: "application/json",
-          "x-correlation-id": randomUUID(),
-        },
-      },
-    );
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
+    return orgJsonRequest(this.options, this.fetchFn, `reports/expenses/by-${dimension}?${query}`);
   }
 
   /** Run the backend's evidence-based funding inference for expense records. */
@@ -224,25 +208,11 @@ export class NaaiErpClient {
     payload: Readonly<{ reason: string; planHash?: string }>,
     idempotencyKey?: string,
   ): Promise<unknown> {
-    if (!this.options.organizationId || !this.options.token)
-      throw new Error("ORGANIZATION_AND_TOKEN_REQUIRED");
-    const response = await this.fetchFn(
-      `${this.options.baseUrl}/api/v1/organizations/${encodeURIComponent(this.options.organizationId)}/expenses/funding-inference/${action}`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.options.token.replace(/^Bearer\\s+/i, "")}`,
-          accept: "application/json",
-          "content-type": "application/json",
-          "x-correlation-id": randomUUID(),
-          ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
-        },
-        body: JSON.stringify(payload),
-      },
-    );
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
+    return orgJsonRequest(this.options, this.fetchFn, `expenses/funding-inference/${action}`, {
+      method: "POST",
+      body: payload,
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+    });
   }
 
   private portableDataBase() {
@@ -278,9 +248,7 @@ export class NaaiErpClient {
       },
       ...(method === "POST" ? { body: JSON.stringify(payload ?? {}) } : {}),
     });
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
+    return jsonOrThrow(response);
   }
 
   async uploadPortableWorkbook(
@@ -302,9 +270,7 @@ export class NaaiErpClient {
       headers: this.portableDataHeaders(idempotencyKey ?? randomUUID()),
       body: form,
     });
-    const body: unknown = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(body));
-    return body;
+    return jsonOrThrow(response);
   }
 
   async downloadPortableDataPackage(packageId: string): Promise<BinaryDownloadResult> {
@@ -833,6 +799,8 @@ export class NaaiErpClient {
     const query =
       (isReport ||
         isExpense ||
+        isCommercialDocument ||
+        isJournal ||
         isOutboundEvent ||
         isOutboundEndpoint ||
         isOutboundDelivery ||

@@ -1,3 +1,5 @@
+import type { RawListQuery } from "@naai-erp/contracts";
+import { listJournalPage } from "./journal-list.queries.js";
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
@@ -11,15 +13,8 @@ import type { CreateJournalInput, JournalActorContext } from "./journal.types.js
 export class PgJournalStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-  async list(organizationId: string) {
-    const result = await this.pool.query(
-      `select j.*, coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null), '[]') as lines
-       from journal_entries j left join journal_lines l
-         on l.organization_id=j.organization_id and l.journal_id=j.id
-       where j.organization_id=$1 group by j.organization_id,j.id order by j.journal_date desc,j.id`,
-      [organizationId],
-    );
-    return result.rows;
+  list(organizationId: string, paging: RawListQuery = {}) {
+    return listJournalPage(this.pool, organizationId, paging);
   }
 
   async get(organizationId: string, journalId: string) {

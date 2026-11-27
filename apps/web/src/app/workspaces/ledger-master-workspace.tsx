@@ -1,5 +1,6 @@
 "use client";
 
+import { loadAllPages } from "./load-all-pages";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -203,8 +204,7 @@ export function LedgerMasterWorkspace({
   }
 
   async function loadJournals() {
-    const payload = await request("journals");
-    const items = rowsFrom(payload);
+    const items = await loadAllPages((path) => request(path), "journals");
     setJournals(items);
     setNotice(`Đã tải ${items.length} bút toán.`);
   }

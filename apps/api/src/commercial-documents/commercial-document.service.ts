@@ -1,6 +1,7 @@
+import { listCommercialDocumentPage } from "./commercial-document-list.page.js";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
-import { API_VERSION } from "@naai-erp/contracts";
+import { API_VERSION, type RawListQuery } from "@naai-erp/contracts";
 import { assertMasterBaseCurrency } from "../common/base-currency-guard.js";
 import {
   ROUTINE_DOCUMENT_ACTIONS,
@@ -56,17 +57,16 @@ export class CommercialDocumentService {
     projectId?: string,
     startsOn?: string,
     endsOn?: string,
+    paging: RawListQuery = {},
   ) {
-    return this.envelope(context, {
-      items: await this.store.list(context.organizationId, {
-        ...(type ? { type } : {}),
-        ...(state ? { state } : {}),
-        ...(partyId ? { partyId } : {}),
-        ...(projectId ? { projectId } : {}),
-        ...(startsOn ? { startsOn } : {}),
-        ...(endsOn ? { endsOn } : {}),
-      }),
-    });
+    const filters = { type, state, partyId, projectId, startsOn, endsOn };
+    const page = await listCommercialDocumentPage(
+      this.store,
+      context.organizationId,
+      filters,
+      paging,
+    );
+    return { ...this.envelope(context, page.data), meta: page.meta };
   }
   async get(context: CommercialDocumentContext, id: string) {
     const item = await this.store.get(context.organizationId, id);

@@ -4,5 +4,6 @@ set -eu
 pnpm format:check
 pnpm lint
 pnpm check:file-size
+pnpm check:list-inventory
 pnpm test:docs
 pnpm test:security-baseline

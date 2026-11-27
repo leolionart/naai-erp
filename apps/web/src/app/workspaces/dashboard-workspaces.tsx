@@ -925,12 +925,8 @@ function useExpenseOverviewRows(search: URLSearchParams) {
     let active = true;
     setError("");
     void Promise.all([
-      client.data<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(
-        `commercial-documents?${documents}`,
-      ),
-      client.data<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(
-        `expenses?${shared}`,
-      ),
+      client.dataAll<Record<string, unknown>>(`commercial-documents?${documents}`),
+      client.dataAll<Record<string, unknown>>(`expenses?${shared}`),
     ])
       .then(async ([documentPayload, expensePayload]) => {
         if (!active) return;
@@ -944,12 +940,8 @@ function useExpenseOverviewRows(search: URLSearchParams) {
           if (endsOn && date && date > endsOn) return false;
           return true;
         };
-        const documentRows = (
-          Array.isArray(documentPayload) ? documentPayload : (documentPayload.items ?? [])
-        ).filter(inPeriod);
-        const expenseRows = (
-          Array.isArray(expensePayload) ? expensePayload : (expensePayload.items ?? [])
-        ).filter(inPeriod);
+        const documentRows = documentPayload.filter(inPeriod);
+        const expenseRows = expensePayload.filter(inPeriod);
         const hydrateMissingCategories = async (
           rows: Record<string, unknown>[],
           endpoint: string,

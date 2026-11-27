@@ -5,7 +5,7 @@ test("@mobile journals keeps header actions visible and table overflow local", a
   await page.addInitScript(() =>
     sessionStorage.setItem("naai-erp-admin-token", "journals-responsive-token"),
   );
-  await page.route("**/api/v1/organizations/naai/journals", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/journals(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({

@@ -1,0 +1,2 @@
+- `pnpm --filter @naai-erp/contracts exec vitest run src/paging.test.ts` (6 tests)
+- `RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense-list.integration.test.ts` on a scratch PostgreSQL 16 cluster (6 tests)

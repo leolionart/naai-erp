@@ -280,12 +280,10 @@ export function FocusedRecordListWorkspace({
         workflowResult,
       ] = await Promise.all([
         includePresent
-          ? client.data<{ items?: Row[] } | Row[]>(
-              `commercial-documents?${queryFor("documents", documentParams)}`,
-            )
+          ? client.dataAll<Row>(`commercial-documents?${queryFor("documents", documentParams)}`)
           : Promise.resolve([] as Row[]),
         kind === "expenses" && includeMissing
-          ? client.data<{ items?: Row[] } | Row[]>(`expenses?${queryFor("expenses", sourceParams)}`)
+          ? client.dataAll<Row>(`expenses?${queryFor("expenses", sourceParams)}`)
           : Promise.resolve([] as Row[]),
         kind === "documents" && includeMissing
           ? client.data<{ items?: Row[] } | Row[]>(`revenue-recognition-events?${recognitionQuery}`)
@@ -302,9 +300,7 @@ export function FocusedRecordListWorkspace({
         client.data<WorkflowCreateCapabilities>("organization-workflow-policy").catch(() => ({})),
       ]);
       setWorkflowCapabilities(workflowResult);
-      const listedDocuments = (
-        Array.isArray(documentsResult) ? documentsResult : (documentsResult.items ?? [])
-      ).filter((row) =>
+      const listedDocuments = documentsResult.filter((row) =>
         kind === "expenses"
           ? text(row, "type") === "purchase_invoice"
           : ["sales_invoice", "credit_note"].includes(text(row, "type")),
@@ -322,9 +318,7 @@ export function FocusedRecordListWorkspace({
           }
         }),
       );
-      const listedExpenses = Array.isArray(expensesResult)
-        ? expensesResult
-        : (expensesResult.items ?? []);
+      const listedExpenses = expensesResult;
       const listedRecognitions = Array.isArray(recognitionResult)
         ? recognitionResult
         : (recognitionResult.items ?? []);

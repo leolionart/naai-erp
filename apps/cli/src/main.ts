@@ -1,3 +1,4 @@
+import { LIST_OPTIONS, executeRequest, renderOutput } from "./list-output.js";
 import { parseArgs } from "node:util";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
@@ -112,6 +113,7 @@ const { values, positionals } = parseArgs({
     "movement-type": { type: "string" },
     "auto-record": { type: "string" },
     name: { type: "string" },
+    ...LIST_OPTIONS,
   },
 });
 
@@ -762,17 +764,10 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
         );
         process.exitCode = 0;
       } else {
-        const result = await client.request(
-          resource,
-          action,
-          requestPayload,
-          values.key,
-          values["snapshot-version"] ?? values.version,
-          values["idempotency-key"],
-        );
-        process.stdout.write(
-          values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
-        );
+        const result = await executeRequest(client, resource, action, requestPayload, values);
+        const out = renderOutput(result, values);
+        process.stdout.write(out.text);
+        if (out.hint) process.stderr.write(`${out.hint}\n`);
       }
     }
   } catch (error) {

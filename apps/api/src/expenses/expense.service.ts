@@ -1,3 +1,6 @@
+import type { RawListQuery } from "@naai-erp/contracts";
+import { countExpenseRows, listExpensePage, summarizeExpenseRows } from "./expense-list.handler.js";
+import type { ExpenseListFilters } from "./expense-list.queries.js";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
@@ -44,34 +47,21 @@ export class ExpenseService {
       data,
     };
   }
-  async list(
-    context: ExpenseContext,
-    filters: {
-      state?: string;
-      expenseClass?: string;
-      payeePartyId?: string;
-      fundingTreatment?: string;
-      startsOn?: string;
-      endsOn?: string;
-    },
-  ) {
-    const isoDate = /^\d{4}-\d{2}-\d{2}$/;
-    if (
-      (filters.startsOn && !isoDate.test(filters.startsOn)) ||
-      (filters.endsOn && !isoDate.test(filters.endsOn)) ||
-      (filters.startsOn && filters.endsOn && filters.startsOn > filters.endsOn)
-    )
-      throw new Error("VALIDATION_FAILED");
-    if (
-      filters.fundingTreatment &&
-      !["company_funds", "owner_paid_company_cost", "tax_only_non_cash"].includes(
-        filters.fundingTreatment,
-      )
-    )
-      throw new Error("VALIDATION_FAILED");
-    return this.envelope(context, {
-      items: await this.store.list(context.organizationId, filters),
-    });
+  async list(context: ExpenseContext, filters: ExpenseListFilters, paging: RawListQuery = {}) {
+    const page = await listExpensePage(this.store, context.organizationId, filters, paging);
+    return { ...this.envelope(context, page.data), meta: page.meta };
+  }
+  async count(context: ExpenseContext, filters: ExpenseListFilters) {
+    return this.envelope(
+      context,
+      await countExpenseRows(this.store, context.organizationId, filters),
+    );
+  }
+  async summary(context: ExpenseContext, filters: ExpenseListFilters, groupBy?: string) {
+    return this.envelope(
+      context,
+      await summarizeExpenseRows(this.store, context.organizationId, filters, groupBy),
+    );
   }
   async get(context: ExpenseContext, id: string) {
     const item = await this.store.get(context.organizationId, id);

@@ -15,7 +15,7 @@ No generic update endpoint may mutate posted financial history or bypass a state
 
 ## Query and mutation contract
 
-- cursor pagination with deterministic ordering (keyset cursor, server default limit 50, hard maximum, size budget and compact `summary` view; see `docs/implementation/plans/bounded-reads-and-file-size.md`);
+- cursor pagination with deterministic ordering (keyset cursor, server default limit 50, hard maximum, size budget and compact `summary` view; implemented for `expenses`, `commercial-documents` and `journals`, rollout tracked in `docs/api/list-endpoint-inventory.md`; see `docs/api/ai-reading-guide.md` and `docs/implementation/plans/bounded-reads-and-file-size.md`);
 - organization scope from authenticated context;
 - exact money as decimal/minor-unit strings, never JSON float;
 - `Idempotency-Key`, `X-Correlation-Id` and optimistic resource version for mutations;

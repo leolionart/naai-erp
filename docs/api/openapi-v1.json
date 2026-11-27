@@ -540,6 +540,14 @@
     },
     "/api/v1/organizations/{organizationId}/journals": {
       "get": {
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/View" },
+          { "$ref": "#/components/parameters/IncludeTotal" }
+        ],
+        "x-naai-list": true,
         "summary": "List organization-scoped journals with exact string amounts"
       },
       "post": {
@@ -980,6 +988,14 @@
     },
     "/api/v1/organizations/{organizationId}/commercial-documents": {
       "get": {
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/View" },
+          { "$ref": "#/components/parameters/IncludeTotal" }
+        ],
+        "x-naai-list": true,
         "summary": "List organization-scoped sales invoices, purchase invoices and credit notes"
       },
       "post": {
@@ -1279,6 +1295,58 @@
         "summary": "Run a controlled lifecycle command; issue/post atomically creates the balanced linked journal"
       }
     },
+    "/api/v1/organizations/{organizationId}/expenses/count": {
+      "get": {
+        "operationId": "countExpenses",
+        "tags": ["expenses"],
+        "summary": "Count expenses for the same filters as the list without loading records",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "class", "in": "query", "schema": { "type": "string" } },
+          { "name": "payeePartyId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "fundingTreatment",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/ExpenseFundingTreatment" }
+          },
+          { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "data.total with the number of matching expenses" } }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/expenses/summary": {
+      "get": {
+        "operationId": "summarizeExpenses",
+        "tags": ["expenses"],
+        "summary": "Grouped expense totals (at most 120 groups) so AI and charts never download records",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "class", "in": "query", "schema": { "type": "string" } },
+          { "name": "payeePartyId", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "fundingTreatment",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/ExpenseFundingTreatment" }
+          },
+          { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          {
+            "name": "groupBy",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["month", "state", "class", "payee", "category"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "data.groups with key, currency, count and grossMinor; data.truncated when more than 120 groups"
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/expenses": {
       "get": {
         "operationId": "listExpenses",
@@ -1296,8 +1364,13 @@
             "schema": { "$ref": "#/components/schemas/ExpenseFundingTreatment" }
           },
           { "name": "startsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
-          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } }
+          { "name": "endsOn", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/View" },
+          { "$ref": "#/components/parameters/IncludeTotal" }
         ],
+        "x-naai-list": true,
         "responses": {
           "200": {
             "description": "Expenses with effective category and funding-treatment list fields",
@@ -4369,6 +4442,30 @@
   },
   "components": {
     "parameters": {
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "description": "Page size. Default 50, clamped to 200 (25 for view=full); clamping is reported as meta.limitClamped. Non-numeric values return LIMIT_INVALID.",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 }
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "description": "Opaque keyset cursor from data.nextCursor. Invalid values return CURSOR_INVALID.",
+        "schema": { "type": "string" }
+      },
+      "View": {
+        "name": "view",
+        "in": "query",
+        "description": "summary omits nested lines and allocations where the list embeds them.",
+        "schema": { "type": "string", "enum": ["summary", "full"], "default": "summary" }
+      },
+      "IncludeTotal": {
+        "name": "includeTotal",
+        "in": "query",
+        "description": "Adds data.total (one extra count query).",
+        "schema": { "type": "boolean", "default": false }
+      },
       "OrganizationId": {
         "name": "organizationId",
         "in": "path",

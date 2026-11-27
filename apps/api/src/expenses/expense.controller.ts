@@ -37,25 +37,50 @@ export class ExpenseController {
   private context(org: string, auth?: string, corr?: string) {
     return this.service.authenticate(auth, org, corr ?? randomUUID());
   }
+  private filters(q: Record<string, string | undefined>) {
+    const keys = [
+      "state",
+      "expenseClass",
+      "payeePartyId",
+      "fundingTreatment",
+      "startsOn",
+      "endsOn",
+    ];
+    const alias: Record<string, string> = { expenseClass: "class" };
+    return Object.fromEntries(
+      keys.flatMap((key) => {
+        const value = q[alias[key] ?? key];
+        return value ? [[key, value]] : [];
+      }),
+    );
+  }
   @Get() async list(
     @Param("organizationId") org: string,
-    @Query("state") state?: string,
-    @Query("class") expenseClass?: string,
-    @Query("payeePartyId") payeePartyId?: string,
-    @Query("fundingTreatment") fundingTreatment?: string,
-    @Query("startsOn") startsOn?: string,
-    @Query("endsOn") endsOn?: string,
+    @Query() query: Record<string, string | undefined>,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
   ) {
-    return this.service.list(await this.context(org, auth, corr), {
-      ...(state ? { state } : {}),
-      ...(expenseClass ? { expenseClass } : {}),
-      ...(payeePartyId ? { payeePartyId } : {}),
-      ...(fundingTreatment ? { fundingTreatment } : {}),
-      ...(startsOn ? { startsOn } : {}),
-      ...(endsOn ? { endsOn } : {}),
-    });
+    return this.service.list(await this.context(org, auth, corr), this.filters(query), query);
+  }
+  @Get("count") async count(
+    @Param("organizationId") org: string,
+    @Query() query: Record<string, string | undefined>,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.count(await this.context(org, auth, corr), this.filters(query));
+  }
+  @Get("summary") async summary(
+    @Param("organizationId") org: string,
+    @Query() query: Record<string, string | undefined>,
+    @Headers("authorization") auth?: string,
+    @Headers("x-correlation-id") corr?: string,
+  ) {
+    return this.service.summary(
+      await this.context(org, auth, corr),
+      this.filters(query),
+      query.groupBy,
+    );
   }
   @Post("tax-finalization/dry-run") async dryRunTaxFinalization(
     @Param("organizationId") org: string,

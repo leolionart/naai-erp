@@ -1,0 +1,1 @@
+- `pnpm --filter @naai-erp/cli exec vitest run src/list-output.test.ts` (4 tests); full CLI suite 147 passed.
