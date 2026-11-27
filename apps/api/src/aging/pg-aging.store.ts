@@ -401,7 +401,25 @@ export class PgAgingStore implements AgingStore {
         pp.amount_minor::text base_amount_minor,rv.id reversal_id,rv.journal_date::text reversal_date
        from project_freelance_payable_payments pp
        left join journal_entries rv on rv.organization_id=pp.organization_id and rv.reversal_of_id=pp.journal_id
-       where pp.organization_id=$1 and $2='ap'`,
+       where pp.organization_id=$1 and $2='ap'
+       union all
+       select 'doc:'||(jl.dimensions->>'sourceDocumentId') target_id,
+        'writeoff:'||jl.journal_id||':'||jl.line_number id,
+        je.id journal_id,
+        coalesce(jl.dimensions->>'writeOffId', jl.journal_id) reconciliation_id,
+        je.journal_date::text journal_date,
+        jl.credit_minor::text target_amount_minor,
+        jl.credit_minor::text base_amount_minor,
+        rv.id reversal_id,
+        rv.journal_date::text reversal_date
+       from journal_lines jl
+       join journal_entries je on je.organization_id=jl.organization_id and je.id=jl.journal_id
+       left join journal_entries rv on rv.organization_id=je.organization_id and rv.reversal_of_id=je.id
+       where jl.organization_id=$1 and $2='ar'
+         and je.state in('posted','reversed')
+         and jl.dimensions->>'badDebtWriteOff'='true'
+         and jl.dimensions->>'sourceDocumentId' is not null
+         and jl.credit_minor is not null`,
       [org, side],
     );
     return r.rows;

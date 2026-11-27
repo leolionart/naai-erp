@@ -41,6 +41,7 @@ import {
   TELEGRAM_SETTINGS_STORE,
 } from "./telegram-settings/telegram-settings.types.js";
 import { BankingController } from "./banking/banking.controller.js";
+import { DebtWriteOffController } from "./banking/debt-write-off.controller.js";
 import { BankingService } from "./banking/banking.service.js";
 import { BANKING_STORE } from "./banking/banking.types.js";
 import { PgBankingStore } from "./banking/pg-banking.store.js";
@@ -182,6 +183,7 @@ import { PgIntegrationSettingsStore } from "./integration-settings/pg-integratio
     OutboundEventController,
     TelegramSettingsController,
     BankingController,
+    DebtWriteOffController,
     ReconciliationController,
     InternalTransferController,
     InternalTransferCandidateController,

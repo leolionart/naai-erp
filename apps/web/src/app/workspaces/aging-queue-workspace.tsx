@@ -35,6 +35,7 @@ import {
   type AgingSide,
 } from "@/lib/api";
 import { CustomerReceiptDialog } from "./customer-receipt-dialog";
+import { BadDebtWriteOffDialog } from "./bad-debt-write-off-dialog";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const bucketLabels = {
@@ -62,6 +63,7 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
   const [error, setError] = useState("");
   const [filterSheet, setFilterSheet] = useState(false);
   const [receiptInvoice, setReceiptInvoice] = useState<AgingItem>();
+  const [writeOffInvoice, setWriteOffInvoice] = useState<AgingItem>();
 
   const asOf = searchParams.get("asOf") || today();
   const partyId = searchParams.get("partyId") || "";
@@ -193,10 +195,15 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
             header: "Thu tiền",
             cell: (item: AgingItem) =>
               item.balanceKind === "receivable" && BigInt(item.outstandingMinor) > 0n ? (
-                <Button size="sm" variant="outline" onClick={() => setReceiptInvoice(item)}>
-                  <HandCoinsIcon data-icon="inline-start" />
-                  Ghi nhận đã thu
-                </Button>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button size="sm" variant="outline" onClick={() => setReceiptInvoice(item)}>
+                    <HandCoinsIcon data-icon="inline-start" />
+                    Ghi nhận đã thu
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => setWriteOffInvoice(item)}>
+                    Xóa nợ
+                  </Button>
+                </div>
               ) : null,
           },
         ] satisfies readonly FinancialColumn<AgingItem>[])
@@ -373,6 +380,21 @@ export function AgingQueueWorkspace({ side }: Readonly<{ side: AgingSide }>) {
           onRecorded={load}
         />
       ) : null}
+      <BadDebtWriteOffDialog
+        target={
+          writeOffInvoice
+            ? {
+                id: writeOffInvoice.id,
+                sourceId: writeOffInvoice.drilldown.sourceId,
+                documentNumber: writeOffInvoice.documentNumber,
+                partyName: writeOffInvoice.partyName,
+                outstandingMinor: writeOffInvoice.outstandingMinor,
+              }
+            : undefined
+        }
+        onClose={() => setWriteOffInvoice(undefined)}
+        onSuccess={load}
+      />
     </div>
   );
 }

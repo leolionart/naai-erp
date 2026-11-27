@@ -231,6 +231,17 @@ These rules define the active release boundary. Historical rules remain valid fo
 - When no canonical API exists for a classified movement, AI stops and reports the missing workflow;
   it does not fall back to direct SQL or an unreviewed manual journal.
 
+### BR-DEBT-001 — Owner debt waiver and customer bad-debt write-off
+
+- Owner debt waiver (`POST /api/v1/organizations/{organizationId}/banking/owner-debt-write-offs`)
+  converts an existing credit balance on the configured `owner_current` account (`3388-OWNER`)
+  into contributed owner equity (`411-CAPITAL`) via a balanced posted journal (`Dr 3388-OWNER / Cr 411-CAPITAL`)
+  within an open fiscal period, without affecting company cash or bank balances.
+- Customer bad-debt write-off (`POST /api/v1/organizations/{organizationId}/commercial-documents/{id}/write-off`)
+  writes off an uncollectible `sales_invoice` receivable (`Dr 642-OPEX / Cr 131-AR`) up to the
+  remaining outstanding balance, updates the invoice lifecycle state (`paid` when fully written off,
+  `partially_paid` otherwise), and reduces AR aging outstanding balances accordingly.
+
 Expense and purchase-invoice records may carry an optional organization-scoped
 `fundingFinancialAccountId`. This provenance identifies the actual company bank/cash account used
 for settlement (including the owner's custody cash account) and is retained independently from the

@@ -33,70 +33,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthenticatedApiClient } from "@/lib/api";
 import { formatIsoDate } from "@/lib/format";
-
-type MovementType =
-  | "owner_paid_company_cost"
-  | "owner_custody_cash"
-  | "owner_personal_withdrawal"
-  | "owner_funding"
-  | "owner_repayment";
-
-type OwnerCurrentMovement = Readonly<{
-  journalId: string;
-  date: string;
-  description: string;
-  currency: string;
-  state: string;
-  movementType?: MovementType;
-  proposedMovementType?: "company_repayment_to_owner" | null;
-  reviewReason?: string;
-  ownerDeltaMinor: string;
-  companyFundsDeltaMinor: string;
-  runningOwnerBalanceMinor?: string;
-  ownerAccountCodes: readonly string[];
-  needsReview: boolean;
-  classificationBasis?: string | null;
-  settlementDeltaMinor?: string;
-  runningConfirmedSettlementBalanceMinor?: string;
-  sources: readonly Readonly<{
-    sourceType: "expense" | "purchase_invoice";
-    sourceId: string;
-    title: string;
-    detail: string | null;
-    sourceHref: string;
-    expenseClass: string | null;
-    category: string | null;
-    citState: string | null;
-    vatState: string | null;
-    grossMinor: string;
-    payeeName: string | null;
-  }>[];
-}>;
-
-type OwnerCurrentResponse = Readonly<{
-  summary: Readonly<{
-    statutoryOwnerCurrentBalanceMinor: string;
-    confirmedSettlementBalanceMinor: string;
-    companyOwesOwnerMinor: string;
-    ownerHoldsCompanyFundsMinor: string;
-    ownerPaidCompanyCostMinor: string;
-    ownerCustodyCashMinor: string;
-    ownerPersonalWithdrawalMinor: string;
-    ownerFundingMinor: string;
-    reviewMinor: string;
-    reviewCount: number;
-  }>;
-  confirmedTimeline: readonly OwnerCurrentMovement[];
-  reviewItems: readonly OwnerCurrentMovement[];
-}>;
-
-type FinancialAccount = Readonly<{
-  id: string;
-  display_name?: string;
-  displayName?: string;
-  currency: string;
-  status: "active" | "inactive";
-}>;
+import { OwnerDebtWriteOffDialog } from "./owner-debt-write-off-dialog";
+import type {
+  FinancialAccount,
+  MovementType,
+  OwnerCurrentMovement,
+  OwnerCurrentResponse,
+} from "./owner-current.types";
 
 function accountItems(payload: unknown): FinancialAccount[] {
   if (Array.isArray(payload)) return payload as FinancialAccount[];
@@ -153,6 +96,7 @@ export function OwnerCurrentWorkspace() {
   const [query, setQuery] = useState("");
   const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
   const [withdrawalDialog, setWithdrawalDialog] = useState(false);
+  const [writeOffDialog, setWriteOffDialog] = useState(false);
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
   const [withdrawalNotice, setWithdrawalNotice] = useState("");
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
@@ -334,14 +278,24 @@ export function OwnerCurrentWorkspace() {
         <p className="min-w-0 text-sm text-muted-foreground">
           {withdrawalNotice || "Các khoản bên dưới chỉ gồm biến động tiền với chủ đã xác nhận."}
         </p>
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => setWithdrawalDialog(true)}
-          disabled={!accounts.length}
-        >
-          <PlusIcon data-icon="inline-start" />
-          Ghi nhận chủ rút tiền
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            className="w-full sm:w-auto"
+            variant="outline"
+            onClick={() => setWriteOffDialog(true)}
+            disabled={BigInt(data?.summary.statutoryOwnerCurrentBalanceMinor ?? "0") <= 0n}
+          >
+            Xóa nợ chủ → Vốn góp
+          </Button>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => setWithdrawalDialog(true)}
+            disabled={!accounts.length}
+          >
+            <PlusIcon data-icon="inline-start" />
+            Ghi nhận chủ rút tiền
+          </Button>
+        </div>
       </div>
       <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="min-w-0">
@@ -497,6 +451,15 @@ export function OwnerCurrentWorkspace() {
           </form>
         </DialogContent>
       </Dialog>
+      <OwnerDebtWriteOffDialog
+        open={writeOffDialog}
+        onOpenChange={setWriteOffDialog}
+        maxBalanceMinor={data?.summary.statutoryOwnerCurrentBalanceMinor ?? "0"}
+        onSuccess={async (msg) => {
+          setWithdrawalNotice(msg);
+          await load();
+        }}
+      />
     </div>
   );
 }
