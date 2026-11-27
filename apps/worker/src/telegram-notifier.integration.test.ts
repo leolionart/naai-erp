@@ -165,14 +165,15 @@ describeIntegration("PostgreSQL Telegram notifications", () => {
       },
     );
     await notifier.runBatch(100);
-    const mine = sent.filter((text) => /exp-draft|inv-draft|cn-draft/.test(text));
+    const mine = sent.filter((text) => /100\.000 VND|1\.100 VND|-220 VND/.test(text));
     expect(mine).toHaveLength(3);
-    expect(mine.find((t) => t.includes("exp-draft"))).toContain("Đã thêm chi phí (bản nháp");
-    expect(mine.find((t) => t.includes("exp-draft"))).toContain("100.000 VND");
-    expect(mine.find((t) => t.includes("inv-draft"))).toMatch(
+    const expMsg = mine.find((t) => t.includes("100.000 VND"));
+    expect(expMsg).toContain("Đã thêm chi phí (bản nháp");
+    expect(expMsg).not.toContain("exp-draft");
+    expect(mine.find((t) => t.includes("1.100 VND"))).toMatch(
       /1\.100 VND[\s\S]*TG-1[\s\S]*Khách TG/,
     );
-    expect(mine.find((t) => t.includes("cn-draft"))).toContain("-220 VND");
+    expect(mine.find((t) => t.includes("-220 VND"))).toContain("-220 VND");
 
     // With drafts switched off, a new draft is recorded as skipped and nothing is sent.
     await pool.query("update telegram_settings set notify_drafts=false where organization_id=$1", [

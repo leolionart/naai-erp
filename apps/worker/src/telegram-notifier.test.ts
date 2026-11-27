@@ -35,17 +35,24 @@ function store(items: JournalNotification[]) {
 }
 
 describe("telegram message", () => {
-  it("labels API-created drafts and shows reference and party", () => {
+  it("labels API-created drafts and shows reference, party, funding and org name without raw UUIDs", () => {
     const text = formatTelegramMessage({
       ...base,
+      organizationName: "NAAI Studio",
+      journalId: "92884167-4cde-4312-82b9-7b314f80723c",
       draft: true,
-      reference: "INV-001",
+      reference: "Hóa đơn mua 00380082",
       party: "Công ty A & B",
-      description: "",
+      funding: "Chủ doanh nghiệp chi hộ (TK 3388)",
+      description: "Mua thiết bị văn phòng",
     });
     expect(text).toContain("Đã thêm doanh thu (bản nháp, chưa ghi sổ)");
-    expect(text).toContain("🧾 INV-001");
+    expect(text).toContain("🧾 Hóa đơn mua 00380082");
     expect(text).toContain("👤 Công ty A &amp; B");
+    expect(text).toContain("💳 Chủ doanh nghiệp chi hộ (TK 3388)");
+    expect(text).toContain("📝 Mua thiết bị văn phòng");
+    expect(text).toContain("🏢 NAAI Studio");
+    expect(text).not.toContain("92884167-4cde-4312-82b9-7b314f80723c");
   });
 
   it("escapes HTML and formats VND amounts", () => {

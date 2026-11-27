@@ -1,33 +1,14 @@
 import type pg from "pg";
 import { openSecret } from "./secret-box.js";
+import {
+  formatDocumentReference,
+  formatFundingDisplay,
+  formatTelegramMessage,
+  type JournalNotification,
+  type TelegramTarget,
+} from "./telegram-message.js";
 
-/** A posted journal reduced to the revenue/expense effect worth notifying about. */
-export type JournalNotification = Readonly<{
-  organizationId: string;
-  eventId: string;
-  attempt: number;
-  /** Undefined when the stored token cannot be decrypted. */
-  target: TelegramTarget | undefined;
-  journalId: string;
-  journalDate: string;
-  description: string;
-  currency: string;
-  revenueMinor: bigint;
-  expenseMinor: bigint;
-  /** True for a record created as a draft (not yet in the ledger); `journalId` is then its id. */
-  draft?: boolean;
-  action?: "created" | "updated" | "deleted" | "reversed" | "cancelled";
-  reason?: string;
-  reference?: string;
-  party?: string;
-}>;
-
-/** Per-organization delivery target resolved from the in-app settings (token already decrypted). */
-export type TelegramTarget = Readonly<{
-  botToken: string;
-  chatId: string;
-  threadId?: number;
-}>;
+export { formatTelegramMessage, type JournalNotification, type TelegramTarget };
 
 export interface TelegramNotificationStore {
   enqueueRecent(lookbackMinutes: number): Promise<number>;
@@ -45,69 +26,6 @@ export type TelegramFetch = (
   input: string,
   init: RequestInit,
 ) => Promise<Pick<Response, "status" | "text">>;
-
-function escapeHtml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function formatMinor(minor: bigint, currency: string) {
-  const exponent = currency === "VND" ? 0 : 2;
-  const divisor = 10n ** BigInt(exponent);
-  const whole = (minor < 0n ? -minor : minor) / divisor;
-  const fraction = (minor < 0n ? -minor : minor) % divisor;
-  const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  const text = exponent ? `${grouped},${fraction.toString().padStart(exponent, "0")}` : grouped;
-  return `${minor < 0n ? "-" : ""}${text} ${currency}`;
-}
-
-function actionLabel(kind: "revenue" | "expense", notification: JournalNotification): string {
-  const action = notification.action ?? "created";
-  const draft = notification.draft === true;
-  if (action === "deleted") {
-    return kind === "revenue" ? "Đã xóa bản nháp doanh thu" : "Đã xóa bản nháp chi phí";
-  }
-  if (action === "reversed" || action === "cancelled") {
-    return kind === "revenue" ? "Đã hủy / đảo sổ doanh thu" : "Đã hủy / đảo sổ chi phí";
-  }
-  if (action === "updated") {
-    return kind === "revenue"
-      ? draft
-        ? "Đã sửa doanh thu (bản nháp)"
-        : "Đã sửa doanh thu"
-      : draft
-        ? "Đã sửa chi phí (bản nháp)"
-        : "Đã sửa chi phí";
-  }
-  return kind === "revenue"
-    ? draft
-      ? "Đã thêm doanh thu (bản nháp, chưa ghi sổ)"
-      : "Doanh thu ghi nhận"
-    : draft
-      ? "Đã thêm chi phí (bản nháp, chưa ghi sổ)"
-      : "Chi phí ghi nhận";
-}
-
-export function formatTelegramMessage(notification: JournalNotification): string {
-  const lines: string[] = [];
-  if (notification.revenueMinor !== 0n)
-    lines.push(
-      `💰 <b>${actionLabel("revenue", notification)}:</b> ${escapeHtml(formatMinor(notification.revenueMinor, notification.currency))}`,
-    );
-  if (notification.expenseMinor !== 0n)
-    lines.push(
-      `💸 <b>${actionLabel("expense", notification)}:</b> ${escapeHtml(formatMinor(notification.expenseMinor, notification.currency))}`,
-    );
-  lines.push(`📅 ${escapeHtml(notification.journalDate)}`);
-  if (notification.reference) lines.push(`🧾 ${escapeHtml(notification.reference)}`);
-  if (notification.party) lines.push(`👤 ${escapeHtml(notification.party)}`);
-  if (notification.description)
-    lines.push(`📝 ${escapeHtml(notification.description.slice(0, 300))}`);
-  if (notification.reason) lines.push(`📌 ${escapeHtml(notification.reason.slice(0, 200))}`);
-  lines.push(
-    `🏢 ${escapeHtml(notification.organizationId)} · ${escapeHtml(notification.journalId)}`,
-  );
-  return lines.join("\n");
-}
 
 export function telegramRetryDelaySeconds(attempt: number) {
   return Math.min(3600, 30 * 2 ** Math.max(0, attempt - 1));
@@ -360,30 +278,66 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
       currency: string;
       revenue_minor: string;
       expense_minor: string;
+      org_name: string | null;
+      doc_type: string | null;
+      doc_number: string | null;
+      doc_line_desc: string | null;
+      expense_purpose: string | null;
+      party_name: string | null;
+      control_code: string | null;
+      account_name: string | null;
     }>(
       `select j.id journal_id,j.journal_date::text journal_date,j.description,j.currency,
          coalesce(sum(coalesce(l.credit_minor,0)-coalesce(l.debit_minor,0))
            filter (where l.account_code ~ '^[57]'),0)::text revenue_minor,
          coalesce(sum(coalesce(l.debit_minor,0)-coalesce(l.credit_minor,0))
-           filter (where l.account_code ~ '^[68]'),0)::text expense_minor
+           filter (where l.account_code ~ '^[68]'),0)::text expense_minor,
+         o.legal_name org_name,
+         cd.type::text doc_type,
+         cd.document_number doc_number,
+         (select cdl.description from commercial_document_lines cdl
+          where cdl.organization_id=cd.organization_id and cdl.document_id=cd.id
+          order by cdl.line_number limit 1) doc_line_desc,
+         e.business_purpose expense_purpose,
+         p.display_name party_name,
+         coalesce(cd.control_account_code,e.counter_account_code) control_code,
+         fa.display_name account_name
        from journal_entries j
+       left join organizations o on o.id=j.organization_id
        left join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id
+       left join commercial_documents cd on cd.organization_id=j.organization_id and cd.journal_id=j.id
+       left join expenses e on e.organization_id=j.organization_id and e.journal_id=j.id
+       left join parties p on p.organization_id=j.organization_id
+         and p.id=coalesce(cd.party_id,e.payee_party_id,e.employee_party_id)
+       left join financial_accounts fa on fa.organization_id=j.organization_id
+         and fa.id=coalesce(cd.funding_financial_account_id,e.funding_financial_account_id)
        where j.organization_id=$1 and j.id=$2 and j.state in ('posted','reversed')
          and j.reversal_of_id is null
-       group by j.id,j.journal_date,j.description,j.currency`,
+       group by j.id,j.journal_date,j.description,j.currency,o.legal_name,
+                cd.organization_id,cd.id,cd.type,cd.document_number,e.business_purpose,
+                p.display_name,cd.control_account_code,e.counter_account_code,fa.display_name`,
       [organizationId, journalId],
     );
     const found = journal.rows[0];
-    return found
-      ? {
-          journalId: found.journal_id,
-          journalDate: found.journal_date,
-          description: found.description,
-          currency: found.currency,
-          revenueMinor: BigInt(found.revenue_minor),
-          expenseMinor: BigInt(found.expense_minor),
-        }
-      : undefined;
+    if (!found) return undefined;
+    const reference = formatDocumentReference(found.doc_type, found.doc_number);
+    const funding = formatFundingDisplay(found.control_code, found.account_name);
+    const rawDesc = found.doc_line_desc?.trim() || found.expense_purpose?.trim() || "";
+    const description =
+      rawDesc ||
+      (reference && found.description.startsWith(`${found.doc_type} `) ? "" : found.description);
+    return {
+      ...(found.org_name ? { organizationName: found.org_name } : {}),
+      journalId: found.journal_id,
+      journalDate: found.journal_date,
+      description,
+      currency: found.currency,
+      revenueMinor: BigInt(found.revenue_minor),
+      expenseMinor: BigInt(found.expense_minor),
+      ...(reference ? { reference } : {}),
+      ...(found.party_name ? { party: found.party_name } : {}),
+      ...(funding ? { funding } : {}),
+    };
   }
 
   private loadDeleted(
@@ -429,26 +383,34 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
         currency: string;
         gross: string;
         party: string | null;
+        org_name: string | null;
+        control_code: string | null;
+        account_name: string | null;
       }>(
         `select e.id,e.state::text,e.expense_date::text date,e.business_purpose purpose,e.currency,e.gross_minor::text gross,
-                p.display_name party
-           from expenses e left join parties p on p.organization_id=e.organization_id and p.id=e.payee_party_id
+                p.display_name party,o.legal_name org_name,e.counter_account_code control_code,fa.display_name account_name
+           from expenses e
+           left join organizations o on o.id=e.organization_id
+           left join parties p on p.organization_id=e.organization_id and p.id=coalesce(e.payee_party_id,e.employee_party_id)
+           left join financial_accounts fa on fa.organization_id=e.organization_id and fa.id=e.funding_financial_account_id
           where e.organization_id=$1 and e.id=$2`,
         [organizationId, recordId],
       );
       const found = result.rows[0];
-      return found
-        ? {
-            draft: found.state === "draft",
-            journalId: found.id,
-            journalDate: found.date,
-            description: found.purpose ?? "",
-            currency: found.currency,
-            revenueMinor: 0n,
-            expenseMinor: BigInt(found.gross),
-            ...(found.party ? { party: found.party } : {}),
-          }
-        : undefined;
+      if (!found) return undefined;
+      const funding = formatFundingDisplay(found.control_code, found.account_name);
+      return {
+        ...(found.org_name ? { organizationName: found.org_name } : {}),
+        draft: found.state === "draft",
+        journalId: found.id,
+        journalDate: found.date,
+        description: found.purpose ?? "",
+        currency: found.currency,
+        revenueMinor: 0n,
+        expenseMinor: BigInt(found.gross),
+        ...(found.party ? { party: found.party } : {}),
+        ...(funding ? { funding } : {}),
+      };
     }
     const result = await client.query<{
       id: string;
@@ -459,28 +421,43 @@ export class PgTelegramNotificationStore implements TelegramNotificationStore {
       currency: string;
       gross: string;
       party: string | null;
+      org_name: string | null;
+      line_desc: string | null;
+      control_code: string | null;
+      account_name: string | null;
     }>(
       `select d.id,d.type::text,d.state::text,d.document_number number,d.document_date::text date,d.currency,
-              d.gross_minor::text gross,p.display_name party
-         from commercial_documents d left join parties p on p.organization_id=d.organization_id and p.id=d.party_id
+              d.gross_minor::text gross,p.display_name party,o.legal_name org_name,
+              (select cdl.description from commercial_document_lines cdl
+               where cdl.organization_id=d.organization_id and cdl.document_id=d.id
+               order by cdl.line_number limit 1) line_desc,
+              d.control_account_code control_code,fa.display_name account_name
+         from commercial_documents d
+         left join organizations o on o.id=d.organization_id
+         left join parties p on p.organization_id=d.organization_id and p.id=d.party_id
+         left join financial_accounts fa on fa.organization_id=d.organization_id and fa.id=d.funding_financial_account_id
         where d.organization_id=$1 and d.id=$2`,
       [organizationId, recordId],
     );
     const found = result.rows[0];
     if (!found) return undefined;
     const gross = BigInt(found.gross);
+    const reference = formatDocumentReference(found.type, found.number);
+    const funding = formatFundingDisplay(found.control_code, found.account_name);
     return {
+      ...(found.org_name ? { organizationName: found.org_name } : {}),
       draft: found.state === "draft",
       journalId: found.id,
       journalDate: found.date,
-      description: "",
+      description: found.line_desc?.trim() ?? "",
       currency: found.currency,
-      reference: found.number,
+      ...(reference ? { reference } : {}),
       // A credit note reduces revenue; a purchase invoice is a cost.
       revenueMinor:
         found.type === "sales_invoice" ? gross : found.type === "credit_note" ? -gross : 0n,
       expenseMinor: found.type === "purchase_invoice" ? gross : 0n,
       ...(found.party ? { party: found.party } : {}),
+      ...(funding ? { funding } : {}),
     };
   }
 
