@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { executeRequest, renderOutput, withListPaging } from "./list-output.js";
+import { executeReadHelper, executeRequest, renderOutput, withListPaging } from "./list-output.js";
 
 describe("T-UNIT-READ-005 CLI output controls", () => {
   const big = {
@@ -63,5 +63,40 @@ describe("T-UNIT-READ-005 CLI output controls", () => {
     await expect(
       executeRequest(client, "expenses", "list", undefined, { all: true }),
     ).rejects.toThrow("--output");
+  });
+
+  it("describe returns a compact resource summary and count/summary hit the read endpoints", async () => {
+    const getJson = async (path: string) => ({ path });
+    const client = { request: async () => ({}), getJson };
+    const described = await executeReadHelper(client, "discovery", "describe", undefined, {
+      key: "expenses",
+    });
+    expect(JSON.stringify(described.result).length).toBeLessThan(3_000);
+    const count = await executeReadHelper(client, "expenses", "count", { state: "draft" }, {});
+    expect(count.result).toEqual({ path: "expenses/count?state=draft" });
+    const summary = await executeReadHelper(client, "expenses", "summary", undefined, {
+      "group-by": "month",
+    });
+    expect(summary.result).toEqual({ path: "expenses/summary?groupBy=month" });
+    await expect(executeReadHelper(client, "expenses", "summary", undefined, {})).rejects.toThrow(
+      "group-by",
+    );
+    expect((await executeReadHelper(client, "journals", "list", undefined, {})).handled).toBe(
+      false,
+    );
+  });
+
+  it("openapi --tag keeps only the paths of that tag", async () => {
+    const spec = {
+      paths: {
+        "/a": { get: { tags: ["expenses"] } },
+        "/b": { get: { tags: ["journals"] } },
+      },
+    };
+    const client = { request: async () => spec };
+    const result = await executeReadHelper(client, "discovery", "openapi", undefined, {
+      tag: "expenses",
+    });
+    expect(Object.keys((result.result as typeof spec).paths)).toEqual(["/a"]);
   });
 });

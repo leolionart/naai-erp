@@ -26,7 +26,7 @@
   "apps/api/src/workbook-imports/workbook-import.service.ts": 912,
   "apps/cli/src/client.ts": 854,
   "apps/cli/src/import-workbooks.ts": 1169,
-  "apps/cli/src/main.ts": 774,
+  "apps/cli/src/main.ts": 766,
   "apps/web/src/app/workspaces/banking-workspace.tsx": 804,
   "apps/web/src/app/workspaces/business-directory-workspace.tsx": 1344,
   "apps/web/src/app/workspaces/customer-subscription-workspace.tsx": 1269,
@@ -48,12 +48,8 @@
   "apps/web/src/components/automation-api-dialog.tsx": 737,
   "apps/web/src/components/forms/document-expense-forms.tsx": 1563,
   "apps/web/src/components/ui/sidebar.tsx": 613,
-  "packages/database/src/schema.ts": 4775,
-  "packages/domain/src/financial-statements.ts": 541,
   "packages/domain/src/index.ts": 552,
-  "packages/domain/src/internal-transfers.ts": 692,
-  "packages/domain/src/performance-comparisons.ts": 509,
-  "packages/domain/src/reconciliation.ts": 503,
+  "packages/domain/src/internal-transfers.ts": 604,
   "scripts/native-dev-db.mjs": 577,
   "scripts/seed-local-demo.mjs": 1733
 }

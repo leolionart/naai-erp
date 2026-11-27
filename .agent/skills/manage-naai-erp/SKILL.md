@@ -22,6 +22,10 @@ path.
 6. Read [references/operations.md](references/operations.md) for command patterns, safety levels and
    verification requirements.
 
+7. Read lists with bounds: follow [docs/api/ai-reading-guide.md](../../../docs/api/ai-reading-guide.md)
+   (count/summary first, then a filtered first page with `--view summary`, details by id, and
+   `--all --output <file>` for large results; never print a whole table to stdout).
+
 Do not call an operation listed as unavailable in `docs/api/data-relationship-manifest-v1.json` or
 under known parity gaps in `docs/api/resource-coverage.md`.
 

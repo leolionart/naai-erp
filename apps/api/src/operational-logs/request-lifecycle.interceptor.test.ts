@@ -62,4 +62,52 @@ describe("RequestLifecycleInterceptor", () => {
     expect(store.start).not.toHaveBeenCalled();
     expect(store.finish).not.toHaveBeenCalled();
   });
+
+  it("T-INT-READ-007 records responseBytes/itemCount and warns only for large GET responses", async () => {
+    const run = async (method: string, body: unknown) => {
+      const store = {
+        start: vi.fn().mockResolvedValue(undefined),
+        finish: vi.fn().mockResolvedValue(undefined),
+      };
+      await new Promise<unknown>((resolve, reject) =>
+        new RequestLifecycleInterceptor(store as never)
+          .intercept(
+            {
+              switchToHttp: () => ({
+                getRequest: () => ({
+                  method,
+                  url: "/expenses",
+                  params: { organizationId: "naai" },
+                }),
+              }),
+            } as never,
+            { handle: () => of(body) } as never,
+          )
+          .subscribe({ next: resolve, error: reject }),
+      );
+      return store;
+    };
+    process.env.API_LARGE_RESPONSE_WARN_BYTES = "500";
+    try {
+      const small = await run("GET", { data: { items: [{ id: "a" }] } });
+      expect(small.finish).not.toHaveBeenCalled();
+      const large = await run("GET", { data: { items: [{ pad: "x".repeat(600) }] } });
+      expect(large.finish).toHaveBeenCalledWith(
+        "naai",
+        expect.any(String),
+        expect.objectContaining({
+          severity: "warning",
+          details: expect.objectContaining({ itemCount: 1, responseBytes: expect.any(Number) }),
+        }),
+      );
+      const post = await run("POST", { data: { items: [1, 2] } });
+      expect(post.finish).toHaveBeenCalledWith(
+        "naai",
+        expect.any(String),
+        expect.objectContaining({ details: expect.objectContaining({ itemCount: 2 }) }),
+      );
+    } finally {
+      delete process.env.API_LARGE_RESPONSE_WARN_BYTES;
+    }
+  });
 });

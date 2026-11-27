@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NaaiErpClient } from "./client.js";
+import { NaaiErpReadClient } from "./read-client.js";
 import { executeCrossEnvironmentClone } from "./cli-http-helpers.js";
 import { writeDownloadedWorkbookOutput } from "./payment-evidence-cli.js";
 import { runWorkbookImport } from "./import-workbooks.js";
@@ -166,7 +167,8 @@ const organizationId =
   process.env.NAAI_ERP_ORGANIZATION ??
   rememberedProfile?.profile.organization;
 const token = process.env.NAAI_ERP_TOKEN;
-const discovery = resource === "discovery" && ["openapi", "capabilities"].includes(action);
+const discovery =
+  resource === "discovery" && ["openapi", "capabilities", "describe"].includes(action);
 const crossEnvironmentClone = resource === "portable-data-clone" && action === "run";
 if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !token))) {
   process.stderr.write(
@@ -177,23 +179,13 @@ if (!resource || (!discovery && !crossEnvironmentClone && (!organizationId || !t
   );
   process.exitCode = 2;
 } else {
-  const client = new NaaiErpClient({
+  const client = new NaaiErpReadClient({
     baseUrl: values["base-url"]!,
     ...(organizationId ? { organizationId } : {}),
     ...(token ? { token } : {}),
   });
   try {
-    if (resource === "expense-report-by-payee" || resource === "expense-report-by-category") {
-      if (action !== "get" || !values.from || !values.to)
-        throw new Error(`${resource} get requires --from and --to`);
-      const result = await client.getExpenseBreakdownReport(
-        resource === "expense-report-by-payee" ? "payee" : "category",
-        { startsOn: values.from, endsOn: values.to },
-      );
-      process.stdout.write(
-        values.human ? `${JSON.stringify(result, null, 2)}\n` : `${JSON.stringify(result)}\n`,
-      );
-    } else if (resource === "portable-data-restore") {
+    if (resource === "portable-data-restore") {
       if (
         action !== "empty" ||
         !values.file ||

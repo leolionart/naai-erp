@@ -2901,6 +2901,22 @@ tests:
     command: pnpm --filter @naai-erp/cli exec vitest run src/list-output.test.ts
     blocking_gate: P17
 
+  - id: T-INT-READ-007
+    task: ERP-999
+    rules: [BR-READ-003, BR-READ-006]
+    title: Request lifecycle logs record responseBytes and itemCount and warn only for large GET responses
+    layer: integration
+    command: pnpm --filter @naai-erp/api exec vitest run src/operational-logs/request-lifecycle.interceptor.test.ts
+    blocking_gate: P17
+
+  - id: T-INT-SPLIT-001
+    task: ERP-994
+    rules: [BR-SIZE-001]
+    title: Behavior-preserving file splits keep schema, migrations and domain results unchanged and only lower the size baseline
+    layer: integration
+    command: pnpm check:file-size && pnpm db:check && pnpm --filter @naai-erp/database test && pnpm --filter @naai-erp/domain test
+    blocking_gate: P17
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

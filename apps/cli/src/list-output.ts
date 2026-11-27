@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { describeResource, filterOpenApiByTag } from "./resource-descriptions.js";
 
 // BR-READ-006: bounded list reads, an stdout budget and file output for large results.
 export const DEFAULT_MAX_BYTES = 200_000;
@@ -13,6 +14,7 @@ export const LIST_OPTIONS = {
   "max-records": { type: "string" },
   "include-total": { type: "boolean" },
   all: { type: "boolean" },
+  tag: { type: "string" },
 } as const;
 
 type Values = Record<string, string | boolean | string[] | undefined>;
@@ -141,6 +143,8 @@ export async function executeRequest(
   payload: unknown,
   values: Values,
 ) {
+  const helper = await executeReadHelper(client, resource, action, payload, values);
+  if (helper.handled) return helper.result;
   const paged = withListPaging(resource, action, payload, values);
   if (values.all && action === "list") return listAllToFile(client, resource, paged, values);
   return client.request(
@@ -151,4 +155,63 @@ export async function executeRequest(
     (values["snapshot-version"] ?? values.version) as string | undefined,
     values["idempotency-key"] as string | undefined,
   );
+}
+
+const COUNT_SUMMARY_FILTERS = [
+  "state",
+  "class",
+  "payeePartyId",
+  "fundingTreatment",
+  "startsOn",
+  "endsOn",
+];
+
+/** Read-only helpers that do not map to a generic CRUD action: describe, count, summary, openapi --tag. */
+export async function executeReadHelper(
+  client: ListClient & {
+    getJson?: (path: string) => Promise<unknown>;
+    getExpenseBreakdownReport?: (
+      dimension: "payee" | "category",
+      range: { startsOn: string; endsOn: string },
+    ) => Promise<unknown>;
+  },
+  resource: string,
+  action: string,
+  payload: unknown,
+  values: Values,
+): Promise<{ handled: boolean; result?: unknown }> {
+  if (resource === "expense-report-by-payee" || resource === "expense-report-by-category") {
+    if (action !== "get" || !values.from || !values.to || !client.getExpenseBreakdownReport)
+      throw new Error(`${resource} get requires --from and --to`);
+    const dimension = resource === "expense-report-by-payee" ? "payee" : "category";
+    const range = { startsOn: String(values.from), endsOn: String(values.to) };
+    return { handled: true, result: await client.getExpenseBreakdownReport(dimension, range) };
+  }
+  if (resource === "discovery" && action === "describe") {
+    return { handled: true, result: describeResource(values.key as string | undefined) };
+  }
+  if (resource === "discovery" && action === "openapi" && values.tag) {
+    const spec = (await client.request(resource, action, payload)) as Parameters<
+      typeof filterOpenApiByTag
+    >[0];
+    return { handled: true, result: filterOpenApiByTag(spec, String(values.tag)) };
+  }
+  if (resource === "expenses" && (action === "count" || action === "summary") && client.getJson) {
+    const query = new URLSearchParams();
+    const source = { ...(payload && typeof payload === "object" ? payload : {}) } as Record<
+      string,
+      unknown
+    >;
+    for (const name of COUNT_SUMMARY_FILTERS) {
+      const value = source[name] ?? values[name];
+      if (value) query.set(name, String(value));
+    }
+    if (action === "summary") {
+      const groupBy = source.groupBy ?? values["group-by"];
+      if (!groupBy) throw new Error("expenses summary requires --group-by or data.groupBy");
+      query.set("groupBy", String(groupBy));
+    }
+    return { handled: true, result: await client.getJson(`expenses/${action}?${query}`) };
+  }
+  return { handled: false };
 }

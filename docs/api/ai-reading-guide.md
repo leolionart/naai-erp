@@ -40,4 +40,4 @@ stdout is limited to `--max-bytes` (default 200000, or `NAAI_ERP_MAX_BYTES`). La
 
 ## Rollout status
 
-CLI `count`/`summary` actions are not wired yet (use REST). Bounded today: `expenses` (+`count`, `summary`), `commercial-documents`, `journals`. The rest of the routes are tracked in `docs/api/list-endpoint-inventory.md` (regenerate with `node scripts/list-endpoint-inventory.mjs`).
+CLI: `naai-erp expenses count --data '{"state":"draft"}'`, `naai-erp expenses summary --group-by month`, `naai-erp discovery describe --key expenses` (few KB, instead of the OpenAPI) and `naai-erp discovery openapi --tag expenses`. Bounded today: `expenses` (+`count`, `summary`), `commercial-documents`, `journals`. The rest of the routes are tracked in `docs/api/list-endpoint-inventory.md` (regenerate with `node scripts/list-endpoint-inventory.mjs`).
