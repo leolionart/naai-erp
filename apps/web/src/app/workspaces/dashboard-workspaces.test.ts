@@ -11,6 +11,8 @@ import {
   metricCardVariantStyles,
 } from "./dashboard-workspaces";
 import { buildCitCardDescription, buildCitDrilldownFacts } from "./cit-estimate-presentation";
+import { buildExpenseOverviewQueries } from "./focused-record-shared";
+import { loadAllPages } from "./load-all-pages";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -114,5 +116,32 @@ describe("dashboard reporting cutoff", () => {
         { label: "Giả định & căn cứ thuế suất", value: "Áp dụng bậc 15% theo Law 67/2025/QH15" },
       ]),
     );
+  });
+
+  it("builds expense overview queries without hardcoded limit=500 so dataAll never triggers LIMIT_INVALID", () => {
+    const { documentsPath, expensesPath } = buildExpenseOverviewQueries(
+      new URLSearchParams("startsOn=2026-01-01&endsOn=2026-12-31&state=posted"),
+    );
+    expect(documentsPath).toBe(
+      "commercial-documents?startsOn=2026-01-01&endsOn=2026-12-31&state=posted&type=purchase_invoice",
+    );
+    expect(expensesPath).toBe("expenses?startsOn=2026-01-01&endsOn=2026-12-31&state=posted");
+    expect(documentsPath).not.toContain("limit=");
+    expect(expensesPath).not.toContain("limit=");
+  });
+
+  it("loadAllPages replaces any existing limit/cursor instead of duplicating query params", async () => {
+    const seen: string[] = [];
+    const rows = await loadAllPages(async (path) => {
+      seen.push(path);
+      return {
+        data: {
+          items: [{ id: `item-${seen.length}` }],
+          ...(seen.length === 1 ? { nextCursor: "next-1" } : {}),
+        },
+      };
+    }, "journals?limit=500");
+    expect(rows).toEqual([{ id: "item-1" }, { id: "item-2" }]);
+    expect(seen).toEqual(["journals?limit=100", "journals?limit=100&cursor=next-1"]);
   });
 });

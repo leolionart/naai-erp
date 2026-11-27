@@ -133,6 +133,20 @@ export function tagRow(
   return { ...row, __sourceKind: source, __invoicePresence: presence, __revenueAxis: revenueAxis };
 }
 
+export function buildExpenseOverviewQueries(source: URLSearchParams) {
+  const shared = new URLSearchParams();
+  for (const name of ["startsOn", "endsOn", "state"] as const) {
+    const value = source.get(name);
+    if (value) shared.set(name, value);
+  }
+  const documents = new URLSearchParams(shared);
+  documents.set("type", "purchase_invoice");
+  return {
+    documentsPath: `commercial-documents?${documents}`,
+    expensesPath: shared.toString() ? `expenses?${shared}` : "expenses",
+  };
+}
+
 export function queryFor(kind: Kind, params: URLSearchParams) {
   const query = new URLSearchParams();
   for (const key of kind === "documents"

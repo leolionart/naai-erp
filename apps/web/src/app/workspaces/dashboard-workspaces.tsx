@@ -23,6 +23,7 @@ import {
   Users,
 } from "lucide-react";
 import type { ProjectProfitabilityReport } from "@/lib/api/project-profitability";
+import { buildExpenseOverviewQueries } from "./focused-record-shared";
 import { ModulePage } from "@/components/layout/module-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -915,18 +916,12 @@ function useExpenseOverviewRows(search: URLSearchParams) {
   useEffect(() => {
     if (!hydrated || !hasToken) return;
     const source = new URLSearchParams(key);
-    const shared = new URLSearchParams();
-    for (const name of ["startsOn", "endsOn", "state"] as const) {
-      const value = source.get(name);
-      if (value) shared.set(name, value);
-    }
-    const documents = new URLSearchParams(shared);
-    documents.set("type", "purchase_invoice");
+    const { documentsPath, expensesPath } = buildExpenseOverviewQueries(source);
     let active = true;
     setError("");
     void Promise.all([
-      client.dataAll<Record<string, unknown>>(`commercial-documents?${documents}`),
-      client.dataAll<Record<string, unknown>>(`expenses?${shared}`),
+      client.dataAll<Record<string, unknown>>(documentsPath),
+      client.dataAll<Record<string, unknown>>(expensesPath),
     ])
       .then(async ([documentPayload, expensePayload]) => {
         if (!active) return;
