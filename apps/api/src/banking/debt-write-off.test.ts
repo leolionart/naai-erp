@@ -103,6 +103,10 @@ describe("debt-write-off.helper", () => {
       state: "posted",
       idempotencyReplayed: false,
     });
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining("insert into resource_audit_events"),
+      expect.arrayContaining(["owner_debt_write_off", "create", "owner-1"]),
+    );
     expect(client.query).toHaveBeenCalledWith("commit");
   });
 

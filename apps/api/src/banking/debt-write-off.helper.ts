@@ -78,17 +78,17 @@ async function recordAuditAndOutbox(
   const auditEventId = randomUUID();
   const outboxEventId = randomUUID();
   await client.query(
-    `insert into audit_events (organization_id, id, actor_id, actor_role, correlation_id, entity_type, entity_id, action, version, before_state, after_state)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, 1, null, $9)`,
+    `insert into resource_audit_events
+     (organization_id, id, resource_type, resource_key, resource_version, action, actor_id, correlation_id, before_state, after_state)
+     values ($1, $2, $3, $4, 1, $5, $6, $7, null, $8)`,
     [
       context.organizationId,
       auditEventId,
-      context.actorId,
-      context.roles[0] ?? "owner",
-      context.correlationId,
       entityType,
       entityId,
       action,
+      context.actorId,
+      context.correlationId,
       JSON.stringify(afterState),
     ],
   );
