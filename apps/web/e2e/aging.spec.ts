@@ -158,9 +158,9 @@ test("@desktop keeps AR and AP as separate submenu pages and persists report fil
     .toBe(true);
 
   await page.goto("/payables?asOf=2026-08-05");
-  await expect(page.getByRole("link", { name: "Cloud Vendor" }).first()).toBeVisible();
-  await expect(page.getByText("supplier_advance")).toBeVisible();
-  await expect(page.getByText("Có chênh lệch tài khoản kiểm soát")).toBeVisible();
+  // Payables are now the freelance payables queue (ERP-984), not a supplier aging report.
+  await expect(page.getByRole("heading", { name: "Công nợ phải trả" })).toBeVisible();
+  await expect(page.getByText("Phải trả freelance", { exact: true })).toBeVisible();
   await expect(page.locator('main a[href="/receivables"]')).toHaveCount(0);
 });
 
@@ -171,7 +171,7 @@ test("@desktop party detail exposes source, journal, reconciliation and evidence
   await page.goto("/receivables/customers/customer-1?asOf=2026-08-05");
   await expect(page.getByRole("heading", { name: "Acme Client" })).toBeVisible();
   await expect(page.getByText("Open items và allocation readback")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Nguồn" }).first()).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Nguồn", exact: true }).first()).toHaveAttribute(
     "href",
     /documents/,
   );

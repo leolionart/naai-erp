@@ -172,7 +172,7 @@ test("@desktop persists performance filters on URL and opens dedicated period pa
   const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Actual basis").click();
   await page.getByRole("option", { name: "Collected" }).click();
-  await sheet.getByLabel("Service line").fill("web-app");
+  await sheet.getByLabel("Dòng dịch vụ").fill("web-app");
   await sheet.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/actualBasis=collected/);
   await expect(page).toHaveURL(/serviceLineCode=web-app/);
@@ -191,7 +191,7 @@ test("@desktop opens source detail Drawer from dedicated comparison page", async
   const drawer = page.getByRole("dialog", { name: /Nguồn · Month over month/ });
   await expect(drawer.getByText("actual-recognition-1")).toBeVisible();
   await expect(drawer.getByText("comparison-month_over_month")).toBeVisible();
-  await drawer.getByRole("button", { name: "Đóng" }).click();
+  await drawer.getByRole("button", { name: "Đóng", exact: true }).first().click();
   await expect(drawer).not.toBeVisible();
 });
 

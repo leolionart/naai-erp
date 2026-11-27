@@ -21,6 +21,15 @@ export function withPagingParams(path: string, limit?: number, cursor?: string):
   return qs ? `${base}?${qs}` : base;
 }
 
+/** The declared page of an envelope: top-level `page`, or `data.hasMore/nextCursor` of item-shaped lists. */
+export function pageOf(envelope: PagedEnvelope): Page | undefined {
+  if (envelope.page) return envelope.page;
+  const data = envelope.data as { hasMore?: boolean; nextCursor?: string } | unknown[] | undefined;
+  if (!data || Array.isArray(data) || typeof data !== "object") return undefined;
+  if (data.nextCursor === undefined && data.hasMore === undefined) return undefined;
+  return { hasMore: data.hasMore ?? Boolean(data.nextCursor), nextCursor: data.nextCursor };
+}
+
 /** True when the caller already manages paging itself, so nothing may be followed automatically. */
 export function isSelfPaged(path: string): boolean {
   return /[?&](limit|cursor)=/.test(path);
@@ -36,7 +45,7 @@ export async function followPages<E extends PagedEnvelope>(
   path: string,
 ): Promise<E> {
   const merged = first as E & { page?: Page; meta?: Record<string, unknown> };
-  let page = merged.page;
+  let page = pageOf(merged);
   for (let pages = 1; page?.hasMore && page.nextCursor; pages += 1) {
     if (pages >= MAX_AUTO_PAGES) {
       merged.meta = { ...merged.meta, truncated: true };
@@ -47,7 +56,7 @@ export async function followPages<E extends PagedEnvelope>(
     const more = next.data as unknown[] | { items: unknown[] };
     if (Array.isArray(data) && Array.isArray(more)) data.push(...more);
     else if (!Array.isArray(data) && !Array.isArray(more)) data.items.push(...more.items);
-    page = next.page;
+    page = pageOf(next);
     merged.page = page;
     if (!Array.isArray(data))
       Object.assign(data, { hasMore: page?.hasMore, nextCursor: page?.nextCursor });

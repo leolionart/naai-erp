@@ -46,7 +46,10 @@ test("@desktop downloads sales purchase and management workbooks for one selecte
     return route.fulfill({
       status: 200,
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      headers: { "content-disposition": `attachment; filename="${name}.xlsx"` },
+      headers: {
+        "content-disposition": `attachment; filename="${name}.xlsx"`,
+        "access-control-expose-headers": "content-disposition",
+      },
       body: Buffer.from([80, 75, 3, 4]),
     });
   });
@@ -68,9 +71,9 @@ test("@desktop downloads sales purchase and management workbooks for one selecte
   }
 
   expect(requested).toEqual([
-    "/dev-api/api/v1/organizations/naai/accounting-list-exports/sales-invoices?startsOn=2026-01-01&endsOn=2026-08-09",
-    "/dev-api/api/v1/organizations/naai/accounting-list-exports/purchase-invoices-expenses?startsOn=2026-01-01&endsOn=2026-08-09",
-    "/dev-api/api/v1/organizations/naai/accounting-list-exports/management-workbook?startsOn=2026-01-01&endsOn=2026-08-09",
+    "/api/v1/organizations/naai/accounting-list-exports/sales-invoices?startsOn=2026-01-01&endsOn=2026-08-09",
+    "/api/v1/organizations/naai/accounting-list-exports/purchase-invoices-expenses?startsOn=2026-01-01&endsOn=2026-08-09",
+    "/api/v1/organizations/naai/accounting-list-exports/management-workbook?startsOn=2026-01-01&endsOn=2026-08-09",
   ]);
 });
 

@@ -112,29 +112,12 @@ async function install(page: Page) {
               description: "Actual cost is above approved budget.",
             },
           ],
+          // The API ties the project's direct cost to the ledger (flat tie line).
           glTie: {
-            basis: "posted",
-            recognizedRevenue: {
-              sourceMinor: "120000000",
-              ledgerMinor: "120000000",
-              differenceMinor: "0",
-              status: "tied_out",
-            },
-            directProjectCost: {
-              sourceMinor: "50000000",
-              ledgerMinor: "50000000",
-              differenceMinor: "0",
-              status: "tied_out",
-              coverage: "full",
-              nonGlManagementCostMinor: "0",
-              note: "",
-            },
-            allocatedOverhead: {
-              sourceMinor: "30000000",
-              ledgerMinor: "30000000",
-              differenceMinor: "0",
-              status: "tied_out",
-            },
+            sourceMinor: "50000000",
+            ledgerMinor: "50000000",
+            differenceMinor: "0",
+            status: "tied_out",
           },
         });
       }
@@ -173,9 +156,9 @@ test("@desktop T-E2E-ERP-540-001 shows reviewed profitability layers and confide
   await page.getByRole("link", { name: /WEB-001/ }).click();
   await expect(page).toHaveURL(/\/reports\/project-profitability\/projects\/project-web/);
   const main = page.locator("#main-content");
-  await expect(main.getByText("Chi phí thực tế")).toBeVisible();
+  await expect(main.getByText("Chi phí thực tế").first()).toBeVisible();
   await expect(page.getByText("Vượt ngân sách dự kiến (Budget Overrun)")).toBeVisible();
-  await expect(main.getByText("Đã đối soát")).toHaveCount(3);
+  await expect(main.getByText("Đã đối soát")).toHaveCount(1);
 });
 
 test("@desktop keeps report filters in the URL", async ({ page }) => {
@@ -185,7 +168,7 @@ test("@desktop keeps report filters in the URL", async ({ page }) => {
   const sheet = page.locator('[data-slot="popover-content"]');
   await sheet.getByLabel("Từ ngày").fill("2026-07-01");
   await sheet.getByLabel("Đến ngày").fill("2026-07-31");
-  await sheet.getByLabel("Client ID").fill("client-naai");
+  await sheet.getByLabel("Khách hàng").fill("client-naai");
   await sheet.locator("form").evaluate((form: HTMLFormElement) => form.requestSubmit());
   await expect(page).toHaveURL(/periodStart=2026-07-01/);
   await expect(page).toHaveURL(/periodEnd=2026-07-31/);

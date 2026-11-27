@@ -521,6 +521,7 @@ describeIntegration(
         bankAvailableMinor: "10000000",
         cashAndBankMinor: "10000000",
         ownerPayableMinor: "22000000",
+        companyOwesOwnerMinor: "22000000",
         ownerOperatingPayableMinor: "22000000",
         confirmedOwnerSettlementMinor: "22000000",
         statutoryOwnerCurrentBalanceMinor: "22000000",

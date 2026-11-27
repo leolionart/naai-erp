@@ -177,7 +177,7 @@ test("@desktop manages forecast composition with source Drawer and reasoned revi
   await page.getByRole("button", { name: "weighted_pipeline" }).click();
   const drawer = page.getByRole("dialog", { name: "Source drill-down" });
   await expect(drawer.getByText("opportunity · commercial-1")).toBeVisible();
-  await drawer.getByRole("button", { name: "Đóng" }).click();
+  await drawer.getByRole("button", { name: "Đóng", exact: true }).first().click();
 
   await page.getByRole("button", { name: "Review" }).click();
   const alert = page.getByRole("alertdialog", { name: "Review component?" });
@@ -201,9 +201,9 @@ test("@desktop creates a forecast component and persists URL filters", async ({ 
   const dialog = page.getByRole("dialog", { name: "Thêm forecast component" });
   await dialog.getByLabel("Kind").fill("committed_milestone");
   await dialog.getByLabel("Scheduled on").fill("2026-09-20");
-  await dialog.getByLabel("Amount (minor)").fill("30000000");
-  await dialog.getByLabel("Source type").fill("milestone");
+  await dialog.getByLabel("Số tiền (đơn vị nhỏ nhất)").fill("30000000");
   await dialog.getByText("Tuỳ chọn nâng cao").click();
+  await dialog.getByLabel("Loại nguồn").fill("milestone");
   await dialog.getByLabel("Mã nguồn").fill("milestone-1");
   await dialog.getByLabel("Loại hồ sơ gốc").fill("contract");
   await dialog.getByLabel("Mã hồ sơ gốc").fill("contract-1");
@@ -219,9 +219,9 @@ test("@desktop edits and deletes forecast components through controlled dialogs"
   await page.goto("http://localhost:3000/forecast/scenarios/forecast-base-aug-v1/composition");
 
   await page.getByRole("button", { name: "Edit" }).click();
-  const edit = page.getByRole("dialog", { name: "Edit forecast component" });
-  await expect(edit.getByLabel("Amount (minor)")).toHaveValue("20000000");
-  await edit.getByLabel("Amount (minor)").fill("24000000");
+  const edit = page.getByRole("dialog", { name: "Sửa cấu phần dự báo" });
+  await expect(edit.getByLabel("Số tiền (đơn vị nhỏ nhất)")).toHaveValue("20000000");
+  await edit.getByLabel("Số tiền (đơn vị nhỏ nhất)").fill("24000000");
   await edit.getByLabel("Probability (bps)").fill("7500");
   await edit.getByLabel("Ghi chú").fill("Pipeline value revised after client call");
   await edit.getByRole("button", { name: "Lưu thay đổi" }).click();
@@ -233,10 +233,10 @@ test("@desktop edits and deletes forecast components through controlled dialogs"
   });
 
   await page.getByRole("button", { name: "Delete" }).click();
-  const remove = page.getByRole("alertdialog", { name: "Delete component?" });
-  await expect(remove.getByRole("button", { name: "Delete" })).toBeDisabled();
+  const remove = page.getByRole("alertdialog", { name: "Xóa cấu phần này?" });
+  await expect(remove.getByRole("button", { name: "Xóa", exact: true })).toBeDisabled();
   await remove.getByLabel("Ghi chú xoá").fill("Duplicate pipeline source");
-  await remove.getByRole("button", { name: "Delete" }).click();
+  await remove.getByRole("button", { name: "Xóa", exact: true }).click();
   await expect.poll(() => requests.at(-1)?.path).toContain("/components/pipeline-1");
   expect(requests.at(-1)?.body).toMatchObject({
     expectedResourceVersion: "1",

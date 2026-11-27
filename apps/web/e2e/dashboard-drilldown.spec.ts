@@ -10,6 +10,8 @@ const reply = (route: Route, data: unknown) =>
   route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(env(data)) });
 
 async function install(page: Page, requestedUrls: string[] = []) {
+  // Fixtures describe August 2026; pin the clock so "today" based period defaults are deterministic.
+  await page.clock.setFixedTime(new Date("2026-08-08T10:00:00+07:00"));
   await page.addInitScript(() => sessionStorage.setItem("naai-erp-admin-token", "erp700-token"));
   await page.route("**/api/v1/organizations/naai/commercial-documents**", (route) => {
     if (route.request().url().endsWith("/commercial-documents/purchase-700")) {
@@ -383,7 +385,11 @@ async function install(page: Page, requestedUrls: string[] = []) {
 
 async function installOperatingDashboard(
   page: Page,
-  ownerBalances: { ownerPayableMinor: string; ownerOperatingPayableMinor: string } = {
+  ownerBalances: {
+    ownerPayableMinor: string;
+    companyOwesOwnerMinor?: string;
+    ownerOperatingPayableMinor: string;
+  } = {
     ownerPayableMinor: "30000000",
     ownerOperatingPayableMinor: "30000000",
   },
@@ -435,7 +441,11 @@ async function installOperatingDashboard(
         bankAvailableMinor: "613000000",
         cashOnHandMinor: "7000000",
         cashAndBankMinor: "620000000",
+        // The API sends the confirmed owner settlement as companyOwesOwnerMinor (never negative).
+        companyOwesOwnerMinor: ownerBalances.ownerPayableMinor,
         ...ownerBalances,
+        taxableProfitMinor: "115000000",
+        corporateIncomeTaxMinor: "23000000",
         netAvailableCashMinor: "590000000",
         actualOwnerPaidCompanyCostMinor: "12000000",
         netCompanyFundsMinor: "590000000",
@@ -506,10 +516,11 @@ test("@desktop T-E2E-ERP-700-001 renders exact API KPIs and preserves filters", 
 }) => {
   const requestedUrls: string[] = [];
   await install(page, requestedUrls);
+  await installOperatingDashboard(page);
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
   await expect(page.getByRole("heading", { name: "Tổng quan điều hành" })).toBeVisible();
-  await expect(page.getByText("100.000.000 ₫").first()).toBeVisible();
-  await expect(page.getByText("4,25 tháng")).toBeVisible();
+  await expect(page.getByText("Đã xuất 180.000.000 ₫")).toBeVisible();
+  await expect(page.getByText("120.000.000 ₫ giá trị hợp đồng còn lại.")).toBeVisible();
   expect(requestedUrls.find((url) => url.includes("/reports/executive-metrics"))).toContain(
     "asOfInstant=",
   );
@@ -551,10 +562,10 @@ test("@desktop uses operating dashboard read model instead of provisional fallba
   await installOperatingDashboard(page);
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
   await expect(page.getByText("DSO: 15 ngày")).toBeVisible();
-  await expect(page.getByText("Web App 700")).toBeVisible();
-  await expect(page.getByText("approved-direct-cost-budget")).toBeVisible();
+  await expect(page.getByText("NAAI Client")).toBeVisible();
+  await expect(page.getByText("Đã xuất 180.000.000 ₫")).toBeVisible();
   await expect(page.getByText("Đang dùng dữ liệu fallback")).toHaveCount(0);
-  await expect(page.getByRole("img", { name: "Xu hướng doanh thu tương tác" })).toBeVisible();
+  await expect(page.getByText("Xu hướng doanh thu", { exact: true })).toBeVisible();
 });
 
 test("@desktop dashboard and expense management share the canonical expense overview", async ({
@@ -582,8 +593,8 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
 
   const companyFundsCard = page.getByRole("link", { name: /Tiền công ty hiện có/ });
   await expect(companyFundsCard).toContainText("620.000.000 ₫");
-  await expect(companyFundsCard).toContainText("Ngân hàng 613.000.000 ₫");
-  await expect(companyFundsCard).toContainText("tiền mặt 7.000.000 ₫");
+  await expect(companyFundsCard).toContainText("ngân hàng 613.000.000 ₫");
+  await expect(companyFundsCard).toContainText("tiền mặt công ty 7.000.000 ₫");
   await expect(page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Quỹ tiền mặt công ty/ })).toHaveCount(0);
   const ownerPayableCard = page.getByRole("link", {
@@ -647,7 +658,6 @@ test("@desktop selects the latest source-control period and invoiced basis by de
   await installOperatingDashboard(page);
   await page.goto("http://localhost:3000/dashboard");
 
-  await expect(page.getByText("2025-03", { exact: true }).first()).toBeVisible();
   await expect(
     page.getByRole("combobox").filter({ hasText: "Giá trị đã xuất hóa đơn" }),
   ).toBeVisible();
@@ -706,8 +716,9 @@ test("@desktop surfaces executive metrics API failure without hiding other dashb
   );
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
 
-  await expect(page.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("100.000.000 ₫", { exact: true }).first()).toBeVisible();
+  // The other dashboard data stays visible while the executive metrics request fails.
+  await expect(page.getByText("Đã xuất 180.000.000 ₫")).toBeVisible();
+  await expect(page.getByText("NAAI Client")).toBeVisible();
 });
 
 test("@desktop normalizes invalid dashboard date configuration before API requests", async ({

@@ -131,6 +131,8 @@ export async function createApp(
         "Idempotency-Key",
         "If-Match",
       ],
+      // Browsers hide these from cross-origin callers unless exposed; export downloads need them.
+      exposedHeaders: ["Content-Disposition", "X-Content-Sha256", "X-Correlation-Id"],
     });
   }
   app.useGlobalFilters(new ApiExceptionFilter());

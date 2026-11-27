@@ -466,7 +466,7 @@ describeIntegration("T-INT-FUND-007 dedicated 111-OWNER-CUSTODY and 1388 owner r
       expenseMinor: "2800000",
       netProfitMinor: "7200000",
       taxableProfitMinor: "7200000",
-      corporateIncomeTaxMinor: "1440000",
+      corporateIncomeTaxMinor: "1080000", // 15% tier of BR-TAX-102 (no prior-year revenue)
       bankAvailableMinor: "12000000",
       companyCashOnHandMinor: "2600000",
       ownerCashCustodyMinor: "2800000",

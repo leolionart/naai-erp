@@ -6,10 +6,13 @@ export default defineConfig({
   testDir: "./e2e",
   testIgnore: ["**/real-ui-*.spec.ts", "**/real/**"],
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? "/tmp/naai-erp-playwright-results",
+  // The suite runs against `next dev`, which compiles routes on first visit; 5s is too tight for that.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 2,
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: `http://localhost:${port}`,

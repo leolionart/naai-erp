@@ -101,6 +101,13 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
           and e.expense_date <= $2::date
           and e.counter_account_code in (select account_code from owner_accounts)
           and coalesce(l.funding_treatment, c.funding_treatment)='owner_paid_company_cost'
+     ), owner_funding_net as (
+       -- Bank deposits the owner lent to the company minus repayments, from posted movements only.
+       select coalesce(sum(case m.movement_type when 'owner_funding' then m.amount_minor
+                                                when 'owner_repayment' then -m.amount_minor else 0 end), 0) as amount
+         from owner_funding_movements m
+         join journal_entries j on j.organization_id=m.organization_id and j.id=m.journal_id
+        where m.organization_id=$1 and j.state='posted' and m.booking_date <= $2::date
      ), migrated_keys as (
        select jl.dimensions->>'ownerCustodyMigrationSourceKey' as src_key
          from journal_entries je
@@ -166,7 +173,7 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
           where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date <= $2::date
             and l.account_code in (select account_code from receivable_accounts)
        ), 0)::text as owner_receivable_minor,
-       (select amount from eligible_owner_expenses)::text as eligible_owner_expenses_minor,
+       ((select amount from eligible_owner_expenses) + (select amount from owner_funding_net))::text as eligible_owner_expenses_minor,
        (select flag from unmigrated_custody) as has_unmigrated_custody`,
     [organizationId, asOf],
   );

@@ -53,6 +53,21 @@ describe("API CORS bootstrap", () => {
     );
   });
 
+  it("exposes download and correlation headers to the credentialed local web origin", async () => {
+    const app = await createApp({ environment: { NODE_ENV: "development" } });
+    apps.push(app);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { origin: "http://localhost:3000" },
+    });
+    expect(response.headers["access-control-expose-headers"]?.toLowerCase()).toContain(
+      "content-disposition",
+    );
+  });
+
   it("does not open production CORS without an explicit origin", async () => {
     const app = await createApp({ environment: { NODE_ENV: "production" } });
     apps.push(app);

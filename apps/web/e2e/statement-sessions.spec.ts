@@ -120,7 +120,7 @@ test("@desktop creates a session and keeps filters in URL", async ({ page }) => 
   await expect(page.getByRole("link", { name: "2026-08-01 → 2026-08-31" })).toBeVisible();
   await page.getByRole("button", { name: "Bộ lọc" }).click();
   const sheet = page.locator('[data-slot="popover-content"]');
-  await sheet.getByLabel("Account ID").fill("bank-vcb");
+  await sheet.getByLabel("Tài khoản ngân hàng").fill("bank-vcb");
   await sheet.getByRole("button", { name: "Áp dụng" }).click();
   await expect(page).toHaveURL(/accountId=bank-vcb/);
   await expect
@@ -128,13 +128,14 @@ test("@desktop creates a session and keeps filters in URL", async ({ page }) => 
     .toBe(true);
   await page.getByRole("button", { name: "Tạo kỳ sao kê" }).click();
   const dialog = page.getByRole("dialog", { name: "Tạo kỳ kiểm soát sao kê" });
-  await dialog.getByLabel("Financial account ID").fill("bank-vcb");
+  await dialog.getByLabel("Tài khoản ngân hàng").fill("bank-vcb");
   await dialog.getByLabel("Từ ngày").fill("2026-08-01");
   await dialog.getByLabel("Đến ngày").fill("2026-08-31");
-  await dialog.getByLabel("Opening balance").fill("100000000");
-  await dialog.getByLabel("Closing balance").fill("125000000");
-  await dialog.getByLabel("Import IDs").fill("import-aug");
-  await dialog.getByLabel("Lý do").fill("Monthly control");
+  await dialog.getByLabel("Số dư đầu kỳ").fill("100000000");
+  await dialog.getByLabel("Số dư cuối kỳ").fill("125000000");
+  await dialog.getByText("Tuỳ chọn nâng cao").click();
+  await dialog.getByLabel("Liên kết lần nhập dữ liệu").fill("import-aug");
+  await dialog.getByLabel("Ghi chú").fill("Monthly control");
   await dialog.getByRole("button", { name: "Tạo session" }).click();
   expect(api.bodies.create).toMatchObject({
     schemaVersion: 1,

@@ -234,6 +234,7 @@ export async function financialsOperation(
     totalCompanyFundsMinor: companyFunds.totalMinor.toString(),
     companyFundsReconciliationGapMinor: companyFunds.reconciliationGapMinor.toString(),
     ownerPayableMinor: companyOwesOwnerMinor.toString(),
+    companyOwesOwnerMinor: companyOwesOwnerMinor.toString(),
     statutoryOwnerCurrentBalanceMinor: ownerPayableMinor.toString(),
     ownerOperatingPayableMinor: companyOwesOwnerMinor.toString(),
     confirmedOwnerSettlementMinor: confirmedOwnerSettlementMinor.toString(),

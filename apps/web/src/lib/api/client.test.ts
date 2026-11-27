@@ -155,4 +155,25 @@ describe("ERP-345 API client", () => {
       "http://localhost:3001/api/v1/organizations/org-naai/expenses?state=posted&limit=200&cursor=cur-2",
     );
   });
+
+  it("also follows data.nextCursor when the list declares paging inside data only", async () => {
+    const urls: string[] = [];
+    const fetcher = vi.fn(async (url: string) => {
+      urls.push(url);
+      const first = urls.length === 1;
+      return new Response(
+        JSON.stringify({
+          data: {
+            items: [{ id: first ? "a" : "b" }],
+            ...(first ? { nextCursor: "n2", hasMore: true } : { hasMore: false }),
+          },
+        }),
+        { status: 200 },
+      );
+    });
+    const client = createApiClient({ connection, token: () => "t", fetcher: fetcher as never });
+    const rows = await client.dataAll<{ id: string }>("expenses");
+    expect(rows).toEqual([{ id: "a" }, { id: "b" }]);
+    expect(urls[1]).toContain("cursor=n2");
+  });
 });

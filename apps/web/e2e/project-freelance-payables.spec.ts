@@ -59,7 +59,7 @@ test("@desktop records completed freelance work through canonical Expense Manage
   await dialog.getByLabel("Mục đích chi / Diễn giải").fill("Hoàn thành thiết kế giao diện");
   await dialog.getByLabel("Tiền gốc chưa VAT (VNĐ)").fill("5000000");
   await dialog.getByLabel("Tổng chi phí (VNĐ)").fill("5000000");
-  await dialog.getByRole("button", { name: "Lưu chi phí nháp" }).click();
+  await dialog.getByRole("button", { name: "Lưu bản nháp" }).click();
 
   await expect.poll(() => creates.length).toBe(1);
   expect(creates[0]).toEqual(
@@ -119,11 +119,13 @@ test("@desktop ordinary purchase invoice defaults to an active funding account",
   );
   await dialog.getByLabel("Số hóa đơn").fill("BUY-001");
   await dialog.getByPlaceholder("Gõ tên để tìm gợi ý hoặc nhập mới...").fill("Nhà cung cấp Cloud");
+  // The invoice date defaults to today, so pin it before the due date to keep the form valid.
+  await dialog.getByLabel("Ngày hóa đơn").fill("2026-08-01");
   await dialog.getByLabel("Hạn thanh toán").fill("2026-08-30");
   await dialog.getByLabel("Đơn giá (VNĐ)").fill("1000000");
   await dialog.getByLabel("Tiền chưa thuế (VNĐ)").fill("1000000");
   await dialog.getByLabel("Tổng cộng gồm thuế (VNĐ)").fill("1000000");
-  await dialog.getByRole("button", { name: "Lưu hóa đơn nháp" }).click();
+  await dialog.getByRole("button", { name: "Lưu bản nháp" }).click();
 
   await expect.poll(() => creates.length).toBe(1);
   expect(creates[0]).toEqual(

@@ -42,13 +42,10 @@ const canonicalText = (value: string | undefined) =>
 
 import {
   classifyOwnerCurrentMovement,
-  queryOwnerCurrentMovements,
+  readOwnerCurrentMovements,
   summarizeOwnerSettlement,
 } from "./owner-current-read-model.js";
-import {
-  ensureDefaultCashAccountLedger,
-  readOwnerCurrentLedgerBalances,
-} from "./owner-custody-banking.js";
+import { ensureDefaultCashAccountLedger } from "./owner-custody-banking.js";
 
 export { classifyOwnerCurrentMovement, summarizeOwnerSettlement };
 
@@ -823,24 +820,8 @@ export class PgBankingStore implements BankingStore {
       client.release();
     }
   }
-  async listOwnerCurrentMovements(organizationId: string) {
-    const movements = await queryOwnerCurrentMovements(this.pool, organizationId);
-    const ledgerClosing = BigInt(movements.summary.statutoryOwnerCurrentBalanceMinor);
-    const ledgerInfo = await readOwnerCurrentLedgerBalances(
-      this.pool,
-      organizationId,
-      ledgerClosing,
-    );
-    return {
-      ...movements,
-      summary: {
-        ...movements.summary,
-        ...(ledgerInfo.hasDedicatedCustodyLedger
-          ? { ledgerCustodyCashMinor: ledgerInfo.ownerCustodyMinor.toString() }
-          : {}),
-      },
-      ledgerBalances: ledgerInfo.ledgerBalances,
-    };
+  listOwnerCurrentMovements(organizationId: string) {
+    return readOwnerCurrentMovements(this.pool, organizationId);
   }
   async getTransaction(organizationId: string, id: string) {
     const result = await this.pool.query(

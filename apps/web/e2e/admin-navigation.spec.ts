@@ -12,11 +12,11 @@ async function expectDashboard(page: Page) {
 }
 
 async function expectDocumentCreateForm(page: Page) {
-  await expect(page).toHaveURL(/\/documents(?:\?.*)?$/);
+  await expect(page).toHaveURL(/\/revenue(?:\?.*)?$/);
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý doanh thu" })).toBeVisible();
   await page.getByRole("button", { name: "Tạo hóa đơn bán ra", exact: true }).click();
-  await expect(page).toHaveURL(/\/documents(?:\?.*)?$/);
+  await expect(page).toHaveURL(/\/revenue(?:\?.*)?$/);
   const dialog = page.getByRole("dialog", { name: "Tạo hóa đơn" });
   await expect(dialog).toBeVisible();
   await expect(
@@ -79,7 +79,8 @@ test("@mobile Sheet navigation reaches documents and keeps the primary workflow 
   await navigation.getByRole("button", { name: "Doanh thu & Chi phí", exact: true }).click();
   await navigation.getByRole("link", { name: "Quản lý chi phí", exact: true }).click();
   await expect(page).toHaveURL(/\/expenses$/);
-  await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+  // Following a navigation link closes the sheet on its own.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1, name: "Quản lý chi phí" })).toBeVisible();
 });
 
@@ -99,6 +100,6 @@ test("@mobile Sheet navigation exposes customer and project modules", async ({ p
   ).toBeVisible();
   await navigation.getByRole("link", { name: "Khách hàng", exact: true }).click();
   await expect(page).toHaveURL(/\/customers$/);
-  await navigation.getByRole("button", { name: "Close" }).click();
+  await expect(navigation).toBeHidden();
   await expect(page.getByRole("heading", { level: 1, name: "Khách hàng" })).toBeVisible();
 });

@@ -19,22 +19,23 @@ async function install(page: Page, tokenRequests: { count: number }) {
   );
 }
 
+// The dialog shows the title, route, fields and sample response of each example; the cURL itself is copied.
 const contexts = [
-  ["/customers", "/master-data/parties"],
-  ["/projects", "/master-data/projects"],
-  ["/subscriptions", "/service-plans"],
-  ["/settings/purchase-products", "/master-data/purchase-products"],
-  ["/documents", '"type": "sales_invoice"'],
-  ["/expenses", "$json.output"],
+  ["/customers", "Tạo khách hàng và gán vai trò client"],
+  ["/projects", "Tạo dự án liên kết khách hàng"],
+  ["/subscriptions", "Tạo gói dịch vụ"],
+  ["/settings/purchase-products", "Thêm sản phẩm mua vào"],
+  ["/revenue", "Tạo doanh thu"],
+  ["/expenses", "Chuẩn hóa dữ liệu OCR (n8n Expression)"],
 ] as const;
 
-for (const [route, expected] of contexts) {
+for (const [route, expectedTitle] of contexts) {
   test(`@desktop ${route} exposes only its contextual automation examples`, async ({ page }) => {
     const tokenRequests = { count: 0 };
     await install(page, tokenRequests);
     await page.goto(route);
     await page.getByRole("button", { name: "API & tự động hóa" }).click();
-    const dialog = page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" });
+    const dialog = page.getByRole("dialog", { name: "REST API & tự động hóa" });
     await expect(dialog).toBeVisible();
     await expect.poll(() => tokenRequests.count).toBe(1);
     await expect(dialog.getByText("API key của tổ chức")).toBeVisible();
@@ -43,12 +44,17 @@ for (const [route, expected] of contexts) {
     await expect(dialog.getByText("e2e-stable-token", { exact: true })).toBeVisible();
     await dialog.getByLabel("Ẩn API key").click();
     await expect(dialog.getByText("e2e-stable-token", { exact: true })).toHaveCount(0);
-    await expect(dialog.locator("button[aria-expanded]").first()).toBeVisible();
+    await expect(dialog.getByText(expectedTitle, { exact: true })).toBeVisible();
+    for (const [, otherTitle] of contexts) {
+      if (otherTitle !== expectedTitle) {
+        await expect(dialog.getByText(otherTitle, { exact: true })).toHaveCount(0);
+      }
+    }
     expect(tokenRequests.count).toBe(1);
-    await dialog.locator("button[aria-expanded]").first().click();
-    await expect(dialog.locator("pre code").first()).toContainText(expected);
     if (route === "/expenses") {
+      await dialog.getByText("Xem expression").click();
       const expression = dialog.locator("pre code").first();
+      await expect(expression).toContainText("$json.output");
       await expect(expression).toContainText('"supplierTaxId": taxNumber');
       await expect(expression).toContainText('"documentDate": documentDate');
       await expect(expression).toContainText('"grossMinor": totalPaymentMinor');
@@ -61,14 +67,16 @@ for (const [route, expected] of contexts) {
 test("@mobile revenue exposes the one-request matched input", async ({ page }) => {
   const tokenRequests = { count: 0 };
   await install(page, tokenRequests);
-  await page.goto("/documents");
+  await page.goto("/revenue");
   await page.getByRole("button", { name: "API & tự động hóa" }).click();
-  const dialog = page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" });
-  await dialog.getByRole("button", { name: /Nhập nhanh doanh thu bằng một request/ }).click();
-  const code = dialog.locator("pre code").filter({ hasText: "sales-invoice-ingestion" });
-  await expect(code).toContainText('"customerTaxId": "0312345678"');
-  await expect(code).toContainText('"grossMinor": "11000000"');
-  await expect(code).not.toContainText("/master-data/parties");
+  const dialog = page.getByRole("dialog", { name: "REST API & tự động hóa" });
+  await dialog.getByRole("button", { name: /Tạo doanh thu/ }).click();
+  await expect(
+    dialog.locator("code", { hasText: "/commercial-documents/sales-invoice-ingestion" }).first(),
+  ).toBeVisible();
+  await expect(dialog.getByText("customerName", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("customerTaxId", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("/master-data/parties")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth + 1),
   );
@@ -81,30 +89,16 @@ test("@mobile expense dialog remains responsive with one-request OCR ingestion",
   await install(page, tokenRequests);
   await page.goto("/expenses");
   await page.getByRole("button", { name: "API & tự động hóa" }).click();
-  await expect(page.getByRole("dialog", { name: "Ví dụ cURL cho n8n và AI" })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "REST API & tự động hóa" });
+  await expect(dialog).toBeVisible();
   await expect.poll(() => tokenRequests.count).toBe(1);
-  await page.getByRole("button", { name: /Nhập nhanh hóa đơn OCR bằng một request/ }).click();
-  const code = page.locator("pre code").filter({ hasText: "Authorization: Bearer" }).first();
-  await expect(code).toContainText("Authorization: Bearer e2e-stable-token");
-  await expect(code).toContainText("/commercial-documents/purchase-invoice-ingestion");
-  await expect(code).toContainText('"supplierTaxId": "0110660175"');
-  await expect(code).toContainText('"category": "Thuê pin và sạc xe điện"');
-  await expect(code).toContainText('"grossMinor": "408601"');
-  await expect(code).toContainText('"externalReference"');
-  await expect(code).not.toContainText('"projectId"');
-  await expect(code).not.toContainText('"fundingSource"');
-  await expect(code).not.toContainText("/master-data/parties");
-  await page.getByRole("button", { name: "Xóa hóa đơn nháp tạo dư" }).click();
-  const discardCode = page.locator("pre code").filter({ hasText: "curl --request DELETE" });
-  await expect(discardCode).toContainText('{{$json["data"]["document"]["documentId"]}}');
-  await expect(discardCode).toContainText(
-    'If-Match: {{$json["data"]["document"]["resourceVersion"]}}',
-  );
-  await expect(discardCode).toContainText("Idempotency-Key: discard-paperless-invoice-246-v1");
-  await expect(discardCode).toContainText('"reason": "Xóa hóa đơn nháp tạo dư');
+  await dialog.getByRole("button", { name: /Tạo hóa đơn đầu vào/ }).click();
   await expect(
-    page.getByText(/Chỉ dùng cho hóa đơn còn ở trạng thái draft và chưa có bút toán/),
+    dialog.locator("code", { hasText: "/commercial-documents/purchase-invoice-ingestion" }).first(),
   ).toBeVisible();
+  await expect(dialog.getByText("supplierName hoặc supplierTaxId", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("externalReference", { exact: true }).first()).toBeVisible();
+  await expect(dialog.getByText("/master-data/parties")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth + 1),
   );

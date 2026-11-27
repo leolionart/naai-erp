@@ -842,6 +842,13 @@ Branches: `ignored`, `needs_review`.
   reimbursement, withdrawal, owner loan settlement or equity movement without canonical metadata.
 - Missing decrease movements remain visible as a reconciliation warning; they are never fabricated
   from workbook notes or transaction descriptions.
+- The operating dashboard and the Owner Current page report the same confirmed owner settlement:
+  eligible owner-paid expenses plus posted owner bank funding minus owner repayments. The dashboard
+  exposes it as `companyOwesOwnerMinor` (never negative; `ownerPayableMinor` and
+  `ownerOperatingPayableMinor` carry the same value) next to `statutoryOwnerCurrentBalanceMinor`, which
+  stays the raw ledger balance of Owner Current. When the organization uses the dedicated
+  `111-OWNER-CUSTODY` account, custody cash is reported from that ledger account and is not deducted a
+  second time from the settlement.
 - The confirmed timeline contains only actual cash-source movements: an explicitly owner-paid expense,
   owner funding into configured company bank/cash, or company bank/cash paid or withdrawn to clear
   Owner Current. A transfer between company bank and company cash remains internal and is excluded.

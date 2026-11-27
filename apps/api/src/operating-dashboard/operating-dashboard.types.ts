@@ -114,6 +114,8 @@ export type OperatingDashboardReadModel = Readonly<{
     totalCompanyFundsMinor: string;
     companyFundsReconciliationGapMinor: string;
     ownerPayableMinor: string;
+    /** Confirmed owner settlement the company still owes the owner; never negative. */
+    companyOwesOwnerMinor?: string;
     statutoryOwnerCurrentBalanceMinor?: string;
     ownerOperatingPayableMinor: string;
     confirmedOwnerSettlementMinor?: string;

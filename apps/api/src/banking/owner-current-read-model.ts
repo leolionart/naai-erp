@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { readOwnerCurrentLedgerBalances } from "./owner-custody-banking.js";
 
 export type OwnerCurrentMovementType =
   | "company_repayment_to_owner"
@@ -23,7 +24,7 @@ export type OwnerCurrentSource = Readonly<{
   fundingFinancialAccountCode?: unknown;
 }>;
 
-export function summarizeOwnerSettlement(input: {
+export type OwnerSettlementInput = {
   statutoryOwnerCurrentBalance: bigint;
   ownerPaidCompanyCost: bigint;
   ownerCustodyCash: bigint;
@@ -32,21 +33,35 @@ export function summarizeOwnerSettlement(input: {
   ownerRepayment?: bigint;
   review: bigint;
   reviewCount: number;
-}) {
+  /** Balance of the dedicated 111-OWNER-CUSTODY ledger account when the organization uses it (BR-FUND-007). */
+  ledgerCustodyCash?: bigint | null;
+};
+
+export function summarizeOwnerSettlement(input: OwnerSettlementInput) {
   const repayment = input.ownerRepayment ?? 0n;
+  const ledgerCustody = input.ledgerCustodyCash ?? null;
+  // With a dedicated custody ledger, custody cash is already outside 3388 and is not deducted again.
   const confirmed =
     input.ownerPaidCompanyCost +
     input.ownerFunding -
-    input.ownerCustodyCash -
+    (ledgerCustody === null ? input.ownerCustodyCash : 0n) -
     input.ownerPersonalWithdrawal -
     repayment;
+  const custodyFunds =
+    ledgerCustody === null
+      ? confirmed < 0n
+        ? -confirmed
+        : 0n
+      : ledgerCustody > 0n
+        ? ledgerCustody
+        : 0n;
   return {
     statutoryOwnerCurrentBalanceMinor: input.statutoryOwnerCurrentBalance.toString(),
     confirmedSettlementBalanceMinor: confirmed.toString(),
     companyOwesOwnerMinor: (confirmed > 0n ? confirmed : 0n).toString(),
-    ownerHoldsCompanyFundsMinor: (confirmed < 0n ? -confirmed : 0n).toString(),
+    ownerHoldsCompanyFundsMinor: custodyFunds.toString(),
     ownerPaidCompanyCostMinor: input.ownerPaidCompanyCost.toString(),
-    ownerCustodyCashMinor: input.ownerCustodyCash.toString(),
+    ownerCustodyCashMinor: (ledgerCustody ?? input.ownerCustodyCash).toString(),
     ownerPersonalWithdrawalMinor: input.ownerPersonalWithdrawal.toString(),
     ownerFundingMinor: input.ownerFunding.toString(),
     ...(repayment !== 0n ? { ownerRepaymentMinor: repayment.toString() } : {}),
@@ -451,20 +466,43 @@ export async function queryOwnerCurrentMovements(pool: Pool, organizationId: str
       runningConfirmedSettlementBalanceMinor: confirmedRunning.toString(),
     });
   }
+  const summaryInput: OwnerSettlementInput = {
+    statutoryOwnerCurrentBalance: ledgerClosing,
+    ownerPaidCompanyCost: ownerPaidCompanyCosts,
+    ownerCustodyCash: ownerCashCustody,
+    ownerPersonalWithdrawal: companyPaymentsToOwner,
+    ownerFunding,
+    ownerRepayment: ownerRepayments,
+    review: reviewAdjustments,
+    reviewCount: reviewItems.length,
+  };
   return {
-    summary: {
-      ...summarizeOwnerSettlement({
-        statutoryOwnerCurrentBalance: ledgerClosing,
-        ownerPaidCompanyCost: ownerPaidCompanyCosts,
-        ownerCustodyCash: ownerCashCustody,
-        ownerPersonalWithdrawal: companyPaymentsToOwner,
-        ownerFunding,
-        ownerRepayment: ownerRepayments,
-        review: reviewAdjustments,
-        reviewCount: reviewItems.length,
-      }),
-    },
+    summaryInput,
+    summary: summarizeOwnerSettlement(summaryInput),
     confirmedTimeline: confirmedTimeline.reverse(),
     reviewItems: reviewItems.reverse(),
+  };
+}
+
+/** Owner current movements plus the dedicated-custody-ledger view of the settlement summary (BR-FUND-007). */
+export async function readOwnerCurrentMovements(pool: Pool, organizationId: string) {
+  const { summaryInput, ...movements } = await queryOwnerCurrentMovements(pool, organizationId);
+  const ledgerInfo = await readOwnerCurrentLedgerBalances(
+    pool,
+    organizationId,
+    summaryInput.statutoryOwnerCurrentBalance,
+  );
+  const ledgerCustodyCash = ledgerInfo.hasDedicatedCustodyLedger
+    ? ledgerInfo.ownerCustodyMinor
+    : null;
+  return {
+    ...movements,
+    summary: {
+      ...summarizeOwnerSettlement({ ...summaryInput, ledgerCustodyCash }),
+      ...(ledgerCustodyCash === null
+        ? {}
+        : { ledgerCustodyCashMinor: ledgerCustodyCash.toString() }),
+    },
+    ledgerBalances: ledgerInfo.ledgerBalances,
   };
 }
