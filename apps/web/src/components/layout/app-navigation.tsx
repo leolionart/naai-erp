@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NaaiLogo } from "@/components/brand/naai-logo";
+import { OperatingModeBadge } from "./operating-mode-badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
@@ -337,6 +338,9 @@ export function AppNavigation() {
         ))}
       </SidebarContent>
       <SidebarFooter>
+        <div className="px-2 pb-1 group-data-[collapsible=icon]:hidden">
+          <OperatingModeBadge />
+        </div>
         <NavigationUser />
       </SidebarFooter>
       <SidebarRail />

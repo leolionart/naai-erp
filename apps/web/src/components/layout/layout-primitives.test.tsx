@@ -39,6 +39,7 @@ describe("server-compatible layout primitives", () => {
     expect(html).toContain("Đã đồng bộ");
     expect(html).toContain("flex-wrap");
     expect(html).toContain("min-h-14");
+    expect(html).not.toContain('data-testid="operating-mode-badge"');
   });
 
   it("allows a custom skip target", () => {

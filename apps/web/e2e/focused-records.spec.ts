@@ -488,9 +488,12 @@ test("@desktop remembers hidden table columns across reloads and route changes",
   expect(stored).toEqual({ "naai-erp-table-columns-v2:/expenses": '["Nội dung / Diễn giải"]' });
 });
 
-test("@desktop shows the organization's operating mode in the page header", async ({ page }) => {
+test("@desktop shows the organization's operating mode in the navigation menu instead of the page header", async ({
+  page,
+}) => {
   await install(page);
   await page.goto("/expenses?invoiceStatus=present");
+  await expect(page.locator("header").getByTestId("operating-mode-badge")).toHaveCount(0);
   const badge = page.getByTestId("operating-mode-badge");
   await expect(badge).toHaveText(/Chế độ: Một người/);
   await badge.hover();

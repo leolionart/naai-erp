@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { AutomationApiDialog } from "@/components/automation-api-dialog";
 import { ModulePage } from "@/components/layout/module-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FocusedRecordListWorkspace } from "../../workspaces/focused-record-workspaces";
@@ -18,11 +17,7 @@ export default async function RevenuePage({
       ? "Các hóa đơn bán ra phát sinh trên trục doanh thu đã xuất hóa đơn."
       : "Xem toàn bộ hoạt động doanh thu; dùng bộ lọc để tách bản ghi có hoặc chưa có hóa đơn.";
   return (
-    <ModulePage
-      title={title}
-      description={description}
-      actions={<AutomationApiDialog resources={["revenue"]} />}
-    >
+    <ModulePage title={title} description={description}>
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <FocusedRecordListWorkspace kind="documents" />
       </Suspense>
