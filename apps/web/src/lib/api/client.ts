@@ -83,6 +83,17 @@ export function createApiClient(input: {
   };
   const MAX_AUTO_PAGES = 50;
 
+  function withPagingParams(path: string, limit: number, cursor?: string): string {
+    const qIndex = path.indexOf("?");
+    const base = qIndex >= 0 ? path.slice(0, qIndex) : path;
+    const params = new URLSearchParams(qIndex >= 0 ? path.slice(qIndex + 1) : "");
+    params.set("limit", String(limit));
+    if (cursor) params.set("cursor", cursor);
+    else params.delete("cursor");
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
+  }
+
   /**
    * Every list read is bounded by the server (BR-READ-001) and declares `page.hasMore`.
    * Unless the caller manages paging itself (`limit`/`cursor` in the path), follow `nextCursor` so
@@ -101,9 +112,8 @@ export function createApiClient(input: {
     for (let pages = 1; pages < MAX_AUTO_PAGES; pages += 1) {
       const cursor = current.page?.nextCursor;
       if (!current.page?.hasMore || !cursor) return merged as ApiEnvelope<T>;
-      const separator = path.includes("?") ? "&" : "?";
       current = (await requestOnce<T>(
-        `${path}${separator}limit=200&cursor=${encodeURIComponent(cursor)}`,
+        withPagingParams(path, 200, cursor),
         options,
       )) as ApiEnvelope<T> & Paged;
       const data = merged.data as unknown[] | { items: unknown[] };
@@ -136,8 +146,7 @@ export function createApiClient(input: {
       const rows: T[] = [];
       let cursor: string | undefined;
       for (let page = 0; page < maxPages; page += 1) {
-        const separator = path.includes("?") ? "&" : "?";
-        const url = `${path}${separator}limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+        const url = withPagingParams(path, 200, cursor);
         const envelope = await request<T[] | { items?: T[]; nextCursor?: string }>(url);
         const data = envelope.data;
         if (Array.isArray(data)) {

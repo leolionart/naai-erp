@@ -915,7 +915,7 @@ function useExpenseOverviewRows(search: URLSearchParams) {
   useEffect(() => {
     if (!hydrated || !hasToken) return;
     const source = new URLSearchParams(key);
-    const shared = new URLSearchParams({ limit: "500" });
+    const shared = new URLSearchParams();
     for (const name of ["startsOn", "endsOn", "state"] as const) {
       const value = source.get(name);
       if (value) shared.set(name, value);

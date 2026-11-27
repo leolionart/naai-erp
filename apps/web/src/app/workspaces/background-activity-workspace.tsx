@@ -46,6 +46,7 @@ export function OperationalLogWorkspace() {
   const [status, setStatus] = useState("");
   const [eventType, setEventType] = useState("");
   const [source, setSource] = useState("");
+  const [severity, setSeverity] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -78,6 +79,7 @@ export function OperationalLogWorkspace() {
             status,
             eventType,
             source,
+            severity,
             limit: 100,
             cursor: currentCursor,
           }),
@@ -98,7 +100,7 @@ export function OperationalLogWorkspace() {
         setLoadingMore(false);
       }
     },
-    [client, eventType, hasToken, hydrated, source, status],
+    [client, eventType, hasToken, hydrated, severity, source, status],
   );
 
   useEffect(() => {
@@ -153,7 +155,7 @@ export function OperationalLogWorkspace() {
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field>
               <FieldLabel htmlFor="activity-source">Nguồn hoạt động</FieldLabel>
               <Select
@@ -198,6 +200,23 @@ export function OperationalLogWorkspace() {
                 value={eventType}
                 onChange={(event) => setEventType(event.target.value)}
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="activity-severity">Mức độ / Phản hồi lớn</FieldLabel>
+              <Select
+                value={severity || "__all"}
+                onValueChange={(value) => setSeverity(value === "__all" ? "" : value)}
+              >
+                <SelectTrigger id="activity-severity" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all">Tất cả mức độ</SelectItem>
+                  <SelectItem value="warning">Cảnh báo / Phản hồi lớn</SelectItem>
+                  <SelectItem value="error">Lỗi</SelectItem>
+                  <SelectItem value="info">Thông tin</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
           </div>
           <div
@@ -245,12 +264,13 @@ export function OperationalLogWorkspace() {
                           className={
                             isFailed
                               ? "text-red-400"
-                              : item.status === "running"
+                              : item.severity === "warning" || item.status === "running"
                                 ? "text-amber-300"
                                 : "text-emerald-400"
                           }
                         >
-                          [{item.status}]
+                          [{item.status}
+                          {item.severity === "warning" ? " · warning" : ""}]
                         </span>
                         <span className="font-semibold text-slate-100">
                           {item.source || item.service || "system"}

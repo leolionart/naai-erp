@@ -512,3 +512,58 @@ test("@desktop moves a posted expense to the owner-held custody cash fund", asyn
   await dialog.getByRole("button", { name: /Xác nhận/ }).click();
   await expect(page.getByText(/Đã đảo bút toán cũ và tạo bản thay thế/)).toBeVisible();
 });
+
+test("@desktop T-E2E-READ-003 paginates long lists with Load more and server-side search q", async ({
+  page,
+}) => {
+  await install(page);
+  const allItems = Array.from({ length: 65 }, (_, index) => {
+    const num = String(index + 1).padStart(3, "0");
+    return {
+      id: `EXP-${num}`,
+      expenseDate: "2026-04-01",
+      state: "posted",
+      payeePartyId: "supplier-720",
+      payeeName: "Nhà cung cấp 720",
+      businessPurpose: `Chi phí kiểm thử ${num}`,
+      grossMinor: "100000",
+      currency: "VND",
+      categoryCode: "642-ADMIN",
+      fundingSource: "company_cash",
+      controlAccountCode: "111-CASH",
+    };
+  });
+  const requestedUrls: string[] = [];
+  await page.route("**/api/v1/organizations/naai/expenses*", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const url = new URL(route.request().url());
+    requestedUrls.push(url.search);
+    const q = url.searchParams.get("q")?.trim();
+    const cursor = url.searchParams.get("cursor");
+    const filtered = q
+      ? allItems.filter((item) => item.id.includes(q) || item.businessPurpose.includes(q))
+      : allItems;
+    const slice = cursor === "page-2" ? filtered.slice(50) : filtered.slice(0, 50);
+    const hasMore = !cursor && filtered.length > 50;
+    await reply(route, {
+      items: slice,
+      ...(hasMore ? { nextCursor: "page-2" } : {}),
+      hasMore,
+      limit: 200,
+    });
+  });
+
+  await page.goto("/expenses?invoiceStatus=missing");
+  await expect(page.getByText("50 / 65 bản ghi", { exact: true })).toBeVisible();
+  await expect(page.getByText("Đang hiển thị 50 / 65 bản ghi")).toBeVisible();
+  await page.getByRole("button", { name: "Tải thêm (15 bản ghi)" }).click();
+  await expect(page.getByText("65 bản ghi", { exact: true })).toBeVisible();
+  await expect(page.getByText("EXP-065")).toBeVisible();
+
+  const searchInput = page.getByLabel("Tìm kiếm bản ghi");
+  await searchInput.fill("EXP-065");
+  await searchInput.press("Enter");
+  await expect(page).toHaveURL(/q=EXP-065/);
+  await expect(page.getByText("1 bản ghi", { exact: true })).toBeVisible();
+  expect(requestedUrls.some((search) => search.includes("q=EXP-065"))).toBe(true);
+});

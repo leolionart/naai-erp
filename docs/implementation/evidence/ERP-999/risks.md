@@ -1,3 +1,4 @@
 # ERP-999 — Risks & Follow-ups
 
-- Activity log UI filter specifically for large responses is deferred; `operational-logs` records `severity=warning` and `responseBytes` for querying via API/CLI.
+- Activity log UI severity/large-response filter (`severity=warning`) is implemented in `apps/web/src/app/workspaces/background-activity-workspace.tsx`.
+- No remaining deferred items for `ERP-999`.

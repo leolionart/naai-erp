@@ -32,7 +32,7 @@ async function replayIdempotency(
     request_hash: string;
     response_body: Record<string, unknown>;
   }>(
-    `select request_hash, response_body from idempotency_records where organization_id=$1 and idempotency_key=$2`,
+    `select request_hash, response_body from api_idempotency_records where organization_id=$1 and idempotency_key=$2 for update`,
     [organizationId, key],
   );
   if (!existing.rows[0]) return null;
@@ -49,8 +49,8 @@ async function saveIdempotency(
   responseBody: Record<string, unknown>,
 ) {
   await client.query(
-    `insert into idempotency_records (organization_id, idempotency_key, operation, request_hash, status_code, response_body)
-     values ($1, $2, $3, $4, 200, $5)`,
+    `insert into api_idempotency_records (organization_id, idempotency_key, operation, request_hash, response_body)
+     values ($1, $2, $3, $4, $5)`,
     [organizationId, key, operation, requestHash, JSON.stringify(responseBody)],
   );
 }

@@ -4,7 +4,7 @@ import { RecordVoidControl } from "./focused-record-void-control";
 import { DraftReasonsAlert, DraftReasonsBadge } from "./draft-reasons-banner";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Download, Eye, Plus, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -40,7 +39,6 @@ import {
   type StackedCategoryPoint,
 } from "@/components/dashboard/monthly-category-stacked-chart";
 import { ExpenseOverviewChart } from "@/components/dashboard/expense-overview-chart";
-import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator";
 import { buildFocusedRecordChartPoints } from "./focused-record-chart";
 import { recordPartyId, relationshipIdList } from "./focused-record-relationships";
 import { presentRevenueRecord } from "./focused-record-presentation";
@@ -73,7 +71,12 @@ import {
 import { FocusedRecordErrorAlert } from "./focused-record-alerts";
 import { QuickViewOneClickRecordBar } from "./focused-record-action-bar";
 import { canRecordInOneClick, formatRecordActionError } from "./focused-record-actions";
-import { FilterPopover } from "./focused-record-filter-popover";
+import {
+  FocusedRecordLoadMoreFooter,
+  FocusedRecordSortHead,
+  FocusedRecordToolbar,
+  type FocusedRecordSortKey,
+} from "./focused-record-toolbar";
 import {
   DeleteDraftPurchaseInvoiceDialog,
   RecognitionQuickViewSummary,
@@ -94,6 +97,7 @@ export function FocusedRecordListWorkspace({
   const pathname = usePathname();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
+  const [visibleLimit, setVisibleLimit] = useState(50);
   const [sortKey, setSortKey] = useState<"date" | "id" | "party" | "category" | "amount" | "state">(
     "date",
   );
@@ -204,29 +208,22 @@ export function FocusedRecordListWorkspace({
     className,
   }: {
     label: string;
-    value: typeof sortKey;
+    value: FocusedRecordSortKey;
     className?: string;
   }) => (
-    <TableHead className={className}>
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 hover:underline"
-        onClick={() => toggleSort(value)}
-      >
-        {label}
-        {sortKey === value ? (
-          sortDirection === "asc" ? (
-            <ArrowUp className="size-3" />
-          ) : (
-            <ArrowDown className="size-3" />
-          )
-        ) : null}
-      </button>
-    </TableHead>
+    <FocusedRecordSortHead
+      label={label}
+      value={value}
+      sortKey={sortKey}
+      sortDirection={sortDirection}
+      onToggle={toggleSort}
+      className={className}
+    />
   );
   const load = useCallback(async () => {
     if (!hydrated) return;
     setLoading(true);
+    setVisibleLimit(50);
     setLoadError("");
     if (!hasToken) {
       setRows([]);
@@ -782,40 +779,26 @@ export function FocusedRecordListWorkspace({
         )
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary" className="text-xs font-normal">
-            {rows.length} bản ghi
-          </Badge>
-          <PeriodRangeNavigator />
-        </div>
-        <div className="flex max-w-full flex-wrap justify-end gap-2">
-          <FilterPopover
-            kind={kind}
-            open={filters}
-            onOpenChange={setFilters}
-            params={new URLSearchParams(key)}
-            onApply={apply}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!hasToken || exporting}
-            onClick={exportWorkbook}
-          >
-            {exporting ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <Download data-icon="inline-start" />
-            )}
-            {exporting ? "Đang export..." : "Xuất danh sách XLSX"}
-          </Button>
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-            <Plus data-icon="inline-start" />
-            {kind === "documents" ? "Tạo hóa đơn bán ra" : "Tạo chi phí"}
-          </Button>
-        </div>
-      </div>
+      <FocusedRecordToolbar
+        kind={kind}
+        totalCount={rows.length}
+        visibleCount={Math.min(visibleLimit, sortedRows.length)}
+        paramsKey={key}
+        filtersOpen={filters}
+        onFiltersOpenChange={setFilters}
+        onApplyFilters={apply}
+        onSearch={(q) => {
+          const next = new URLSearchParams(key);
+          if (q) next.set("q", q);
+          else next.delete("q");
+          const query = next.toString();
+          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+        }}
+        hasToken={hasToken}
+        exporting={exporting}
+        onExport={exportWorkbook}
+        onOpenCreate={() => setCreateDialogOpen(true)}
+      />
       <FocusedRecordErrorAlert kind="load" message={loadError} />
       {!createOpen && !quickRecord && !deleteInvoiceOpen && !reclassifyOpen ? (
         <FocusedRecordErrorAlert kind="action" message={actionError} />
@@ -860,141 +843,156 @@ export function FocusedRecordListWorkspace({
           {loading ? (
             <Skeleton className="h-64 w-full" />
           ) : rows.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortHead className="w-[140px]" label="Mã bản ghi" value="id" />
-                  <SortHead className="w-[110px]" label="Ngày chứng từ" value="date" />
-                  <TableHead className="w-[180px]">Nguồn thanh toán / Trục</TableHead>
-                  <SortHead className="w-[160px]" label="Danh mục nghiệp vụ" value="category" />
-                  <SortHead
-                    label={kind === "documents" ? "Khách hàng" : "Chi cho ai"}
-                    value="party"
-                  />
-                  {kind === "documents" ? <TableHead>Dự án</TableHead> : null}
-                  <TableHead>Nội dung / Diễn giải</TableHead>
-                  <SortHead className="w-[140px] text-right" label="Tổng tiền" value="amount" />
-                  <SortHead className="w-[120px]" label="Trạng thái" value="state" />
-                  <TableHead className="w-[110px] text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedRows.map((row) => {
-                  const id = text(row, "id");
-                  const rowSource = sourceKind(row);
-                  const revenuePresentation =
-                    kind === "documents"
-                      ? presentRevenueRecord(
-                          row,
-                          rowSource === "recognition" ? "recognition" : "documents",
-                          projects,
-                          parties,
-                        )
-                      : undefined;
-                  const expensePresentation =
-                    kind === "expenses" ? presentExpenseRecord(row) : undefined;
-                  const dateVal =
-                    revenuePresentation?.activityDate ??
-                    expensePresentation?.activityDate ??
-                    text(row, "expenseDate", "effectiveOn");
-                  const rawParty =
-                    revenuePresentation?.customerId ??
-                    expensePresentation?.payeePartyId ??
-                    recordPartyId(row, projects);
-                  const partyMatch = parties.find((p) => String(p.id) === rawParty);
-                  const partyName = partyMatch
-                    ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
-                    : rawParty || "—";
-                  const docNumber = text(row, "documentNumber") || id;
-                  const catCode = expensePresentation?.category || recordCategory(row);
-                  const catName = resolveCategoryName(catCode);
-                  const projectIds =
-                    revenuePresentation?.projectIds ?? relationshipIdList(row, "projectId");
-                  const projectNames =
-                    revenuePresentation?.projectNames ??
-                    projectIds.map((projectId) => {
-                      const project = projects.find(
-                        (candidate) => text(candidate, "id") === projectId,
-                      );
-                      return project ? text(project, "name", "code") || projectId : projectId;
-                    });
-                  const relationshipTitle = [
-                    projectNames.length ? `Dự án: ${projectNames.join(", ")}` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ");
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortHead className="w-[140px]" label="Mã bản ghi" value="id" />
+                    <SortHead className="w-[110px]" label="Ngày chứng từ" value="date" />
+                    <TableHead className="w-[180px]">Nguồn thanh toán / Trục</TableHead>
+                    <SortHead className="w-[160px]" label="Danh mục nghiệp vụ" value="category" />
+                    <SortHead
+                      label={kind === "documents" ? "Khách hàng" : "Chi cho ai"}
+                      value="party"
+                    />
+                    {kind === "documents" ? <TableHead>Dự án</TableHead> : null}
+                    <TableHead>Nội dung / Diễn giải</TableHead>
+                    <SortHead className="w-[140px] text-right" label="Tổng tiền" value="amount" />
+                    <SortHead className="w-[120px]" label="Trạng thái" value="state" />
+                    <TableHead className="w-[110px] text-right">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedRows.slice(0, visibleLimit).map((row) => {
+                    const id = text(row, "id");
+                    const rowSource = sourceKind(row);
+                    const revenuePresentation =
+                      kind === "documents"
+                        ? presentRevenueRecord(
+                            row,
+                            rowSource === "recognition" ? "recognition" : "documents",
+                            projects,
+                            parties,
+                          )
+                        : undefined;
+                    const expensePresentation =
+                      kind === "expenses" ? presentExpenseRecord(row) : undefined;
+                    const dateVal =
+                      revenuePresentation?.activityDate ??
+                      expensePresentation?.activityDate ??
+                      text(row, "expenseDate", "effectiveOn");
+                    const rawParty =
+                      revenuePresentation?.customerId ??
+                      expensePresentation?.payeePartyId ??
+                      recordPartyId(row, projects);
+                    const partyMatch = parties.find((p) => String(p.id) === rawParty);
+                    const partyName = partyMatch
+                      ? text(partyMatch, "displayName") || text(partyMatch, "name") || rawParty
+                      : rawParty || "—";
+                    const docNumber = text(row, "documentNumber") || id;
+                    const catCode = expensePresentation?.category || recordCategory(row);
+                    const catName = resolveCategoryName(catCode);
+                    const projectIds =
+                      revenuePresentation?.projectIds ?? relationshipIdList(row, "projectId");
+                    const projectNames =
+                      revenuePresentation?.projectNames ??
+                      projectIds.map((projectId) => {
+                        const project = projects.find(
+                          (candidate) => text(candidate, "id") === projectId,
+                        );
+                        return project ? text(project, "name", "code") || projectId : projectId;
+                      });
+                    const relationshipTitle = [
+                      projectNames.length ? `Dự án: ${projectNames.join(", ")}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
 
-                  return (
-                    <TableRow key={id}>
-                      <TableCell className="font-semibold text-foreground">{docNumber}</TableCell>
-                      <TableCell className="font-medium text-foreground tabular-nums">
-                        {dateVal || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {rowSource === "recognition" ? (
-                          <Badge variant="outline">Doanh thu ghi nhận · Không hóa đơn</Badge>
-                        ) : kind === "expenses" || text(row, "type") === "purchase_invoice" ? (
-                          <span className="text-sm">
-                            {getFundingSourceLabel(
-                              expensePresentation?.counterAccountCode ||
-                                text(row, "counterAccountCode", "controlAccountCode"),
-                            )}
-                          </span>
-                        ) : (
-                          <Badge variant="outline">{human(text(row, "type"))} · Có hóa đơn</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {catName ? <Badge variant="secondary">{catName}</Badge> : "—"}
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate font-medium" title={partyName}>
-                        {partyName}
-                      </TableCell>
-                      {kind === "documents" ? (
-                        <TableCell className="max-w-[260px]" title={relationshipTitle || undefined}>
-                          {projectNames.length ? (
-                            <div className="text-sm">
-                              <span className="truncate font-medium">
-                                {projectNames.join(", ")}
-                              </span>
-                            </div>
+                    return (
+                      <TableRow key={id}>
+                        <TableCell className="font-semibold text-foreground">{docNumber}</TableCell>
+                        <TableCell className="font-medium text-foreground tabular-nums">
+                          {dateVal || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {rowSource === "recognition" ? (
+                            <Badge variant="outline">Doanh thu ghi nhận · Không hóa đơn</Badge>
+                          ) : kind === "expenses" || text(row, "type") === "purchase_invoice" ? (
+                            <span className="text-sm">
+                              {getFundingSourceLabel(
+                                expensePresentation?.counterAccountCode ||
+                                  text(row, "counterAccountCode", "controlAccountCode"),
+                              )}
+                            </span>
                           ) : (
-                            <span className="text-muted-foreground">Chưa phân bổ</span>
+                            <Badge variant="outline">{human(text(row, "type"))} · Có hóa đơn</Badge>
                           )}
                         </TableCell>
-                      ) : null}
-                      <TableCell
-                        className="max-w-[200px] truncate text-muted-foreground"
-                        title={
-                          expensePresentation?.description || text(row, "businessPurpose", "reason")
-                        }
-                      >
-                        {expensePresentation?.description ||
-                          text(row, "businessPurpose", "reason") ||
-                          "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                        {money(
-                          revenuePresentation?.amountMinor ??
-                            expensePresentation?.amountMinor ??
-                            text(row, "grossMinor", "amountMinor"),
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{human(text(row, "state"))}</Badge>
-                        <DraftReasonsBadge record={row} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => void openQuickView(row)}>
-                          <Eye data-icon="inline-start" />
-                          Xem
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        <TableCell>
+                          {catName ? <Badge variant="secondary">{catName}</Badge> : "—"}
+                        </TableCell>
+                        <TableCell className="max-w-[220px] truncate font-medium" title={partyName}>
+                          {partyName}
+                        </TableCell>
+                        {kind === "documents" ? (
+                          <TableCell
+                            className="max-w-[260px]"
+                            title={relationshipTitle || undefined}
+                          >
+                            {projectNames.length ? (
+                              <div className="text-sm">
+                                <span className="truncate font-medium">
+                                  {projectNames.join(", ")}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">Chưa phân bổ</span>
+                            )}
+                          </TableCell>
+                        ) : null}
+                        <TableCell
+                          className="max-w-[200px] truncate text-muted-foreground"
+                          title={
+                            expensePresentation?.description ||
+                            text(row, "businessPurpose", "reason")
+                          }
+                        >
+                          {expensePresentation?.description ||
+                            text(row, "businessPurpose", "reason") ||
+                            "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold text-foreground">
+                          {money(
+                            revenuePresentation?.amountMinor ??
+                              expensePresentation?.amountMinor ??
+                              text(row, "grossMinor", "amountMinor"),
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{human(text(row, "state"))}</Badge>
+                          <DraftReasonsBadge record={row} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void openQuickView(row)}
+                          >
+                            <Eye data-icon="inline-start" />
+                            Xem
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <FocusedRecordLoadMoreFooter
+                totalCount={sortedRows.length}
+                visibleLimit={visibleLimit}
+                onLoadMore={() => setVisibleLimit((currentLimit) => currentLimit + 50)}
+              />
+            </>
           ) : (
             <Empty>
               <EmptyHeader>

@@ -2932,6 +2932,13 @@ tests:
     layer: unit
     command: pnpm --filter @naai-erp/web exec vitest run src/lib/api/client.test.ts
     blocking_gate: P17
+  - id: T-E2E-READ-003
+    task: ERP-996
+    rules: [BR-READ-001, BR-READ-005]
+    title: Focused record list renders bounded initial slice, loads more pages and forwards server-side search q
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/focused-records.spec.ts -g T-E2E-READ-003
+    blocking_gate: P17
 
 golden_fixtures:
   - GF-LEDGER-001

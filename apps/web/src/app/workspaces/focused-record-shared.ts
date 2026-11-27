@@ -136,8 +136,8 @@ export function tagRow(
 export function queryFor(kind: Kind, params: URLSearchParams) {
   const query = new URLSearchParams();
   for (const key of kind === "documents"
-    ? ["type", "state", "partyId", "projectId", "startsOn", "endsOn", "categoryId"]
-    : ["state", "class", "payeePartyId", "startsOn", "endsOn", "categoryId"]) {
+    ? ["type", "state", "partyId", "projectId", "startsOn", "endsOn", "categoryId", "q"]
+    : ["state", "class", "payeePartyId", "startsOn", "endsOn", "categoryId", "q"]) {
     const value = params.get(key);
     if (value && value !== "unclassified") query.set(key, value);
   }

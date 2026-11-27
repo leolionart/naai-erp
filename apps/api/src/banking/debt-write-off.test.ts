@@ -157,5 +157,15 @@ describe("debt-write-off.helper", () => {
       resourceVersion: "3",
     });
     expect(client.query).toHaveBeenCalledWith("commit");
+    const sqlStatements = client.query.mock.calls.map(([sql]) => String(sql));
+    expect(sqlStatements.some((sql) => sql.includes("from api_idempotency_records"))).toBe(true);
+    expect(sqlStatements.some((sql) => sql.includes("insert into api_idempotency_records"))).toBe(
+      true,
+    );
+    expect(
+      sqlStatements.some(
+        (sql) => /\bidempotency_records\b/.test(sql) || sql.includes("status_code"),
+      ),
+    ).toBe(false);
   });
 });
