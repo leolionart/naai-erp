@@ -24,7 +24,7 @@ describe("T-UNIT-READ-005 CLI output controls", () => {
     expect(renderOutput({ data: { items: [] } }, {})).toEqual({ text: '{"data":{"items":[]}}\n' });
   });
 
-  it("forwards paging flags only for bounded list resources", () => {
+  it("forwards paging flags for every list action and nothing for other actions", () => {
     expect(
       withListPaging("expenses", "list", undefined, { limit: "10", cursor: "c", view: "summary" }),
     ).toEqual({
@@ -32,7 +32,10 @@ describe("T-UNIT-READ-005 CLI output controls", () => {
       cursor: "c",
       view: "summary",
     });
-    expect(withListPaging("reports", "list", { a: 1 }, { limit: "10" })).toEqual({ a: 1 });
+    expect(withListPaging("evidence", "list", { a: 1 }, { limit: "10" })).toEqual({
+      a: 1,
+      limit: "10",
+    });
     expect(withListPaging("expenses", "get", undefined, { limit: "10" })).toBeUndefined();
   });
 

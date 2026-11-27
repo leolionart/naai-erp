@@ -22,7 +22,6 @@ const rows = [];
 for (const file of controllers(apiSource).sort()) {
   const source = readFileSync(file, "utf8");
   const base = /@Controller\("([^"]*)"\)/.exec(source)?.[1] ?? "";
-  const bounded = /RawListQuery|parseListQuery|\blimit\b/.test(source);
   for (const match of source.matchAll(/@Get\((?:"([^"]*)")?\)/g)) {
     const sub = match[1] ?? "";
     if (sub && /[:*]/.test(sub)) continue; // single record routes
@@ -30,11 +29,16 @@ for (const file of controllers(apiSource).sort()) {
     const route = `/${[base.replace(/^api\/v1\/organizations\/:organizationId\/?/, ""), sub].filter(Boolean).join("/")}`;
     const method = source.slice(match.index, match.index + 400);
     const pagedHere = /@Query\(\)\s*query/.test(method) || /@Query\("limit"\)/.test(method);
-    rows.push({
-      route,
-      file: relative(root, file),
-      status: pagedHere ? "bounded" : bounded ? "partial (file mentions limit)" : "unbounded",
-    });
+    const excluded =
+      /\/(reports|master-data|operational-logs|exports?|download|summary|count|capabilities|health)(\/|$)|^\/api\/v1\/capabilities$/.test(
+        route,
+      );
+    const status = pagedHere
+      ? "bounded (keyset in SQL)"
+      : excluded
+        ? "exception (aggregate, export, health or own cursor)"
+        : "bounded (safety net, in-memory page)";
+    rows.push({ status, route, file: relative(root, file) });
   }
 }
 rows.sort((a, b) => a.route.localeCompare(b.route));

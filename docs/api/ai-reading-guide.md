@@ -38,6 +38,13 @@ naai-erp expenses list --limit 20 --cursor "<data.nextCursor>"
 
 stdout is limited to `--max-bytes` (default 200000, or `NAAI_ERP_MAX_BYTES`). Larger results are cut on a record boundary, stay valid JSON, set `meta.truncated`, and print a hint on stderr. `--human` pretty-prints.
 
+## Nothing is cut silently
+
+Every organization-scoped collection GET declares its paging: `page: { limit, hasMore, nextCursor?, total? }`, `data.hasMore`/`data.nextCursor`
+(item-shaped lists) and `meta: { count, bytes, truncated, limitClamped }`. If `hasMore` is true, more records exist: follow `nextCursor`
+or narrow the filter. The web client follows `nextCursor` automatically and sets `meta.truncated` if it stops at its 50-page cap; the CLI prints the
+`page` block and, past `--max-bytes`, a stderr hint. Routes without SQL pagination are paged by a server safety net (default 50, max 200); see the inventory.
+
 ## Rollout status
 
-CLI: `naai-erp expenses count --data '{"state":"draft"}'`, `naai-erp expenses summary --group-by month`, `naai-erp discovery describe --key expenses` (few KB, instead of the OpenAPI) and `naai-erp discovery openapi --tag expenses`. Bounded today: `expenses` (+`count`, `summary`), `commercial-documents`, `journals`. The rest of the routes are tracked in `docs/api/list-endpoint-inventory.md` (regenerate with `node scripts/list-endpoint-inventory.mjs`).
+CLI: `naai-erp expenses count --data '{"state":"draft"}'`, `naai-erp expenses summary --group-by month`, `naai-erp discovery describe --key expenses` (few KB, instead of the OpenAPI) and `naai-erp discovery openapi --tag expenses`. Every collection route is bounded (SQL keyset for `expenses`, `commercial-documents`, `journals`; safety net for the rest). See `docs/api/list-endpoint-inventory.md` (regenerate with `node scripts/list-endpoint-inventory.mjs`).

@@ -4,6 +4,7 @@ import { AppModule } from "./app.module.js";
 import { ApiExceptionFilter } from "./api-exception.filter.js";
 import multipart from "@fastify/multipart";
 import { authenticateApiSession, SessionAuthenticationError } from "./auth/session-cookie-auth.js";
+import { BoundedListInterceptor } from "./common/bounded-list.interceptor.js";
 import { RequestLifecycleInterceptor } from "./operational-logs/request-lifecycle.interceptor.js";
 import {
   OPERATIONAL_LOG_STORE,
@@ -133,6 +134,6 @@ export async function createApp(
     });
   }
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.useGlobalInterceptors(app.get(RequestLifecycleInterceptor));
+  app.useGlobalInterceptors(app.get(RequestLifecycleInterceptor), new BoundedListInterceptor());
   return app;
 }

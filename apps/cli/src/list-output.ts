@@ -4,7 +4,6 @@ import { describeResource, filterOpenApiByTag } from "./resource-descriptions.js
 // BR-READ-006: bounded list reads, an stdout budget and file output for large results.
 export const DEFAULT_MAX_BYTES = 200_000;
 export const DEFAULT_MAX_RECORDS = 5_000;
-const PAGED_RESOURCES = new Set(["expenses", "commercial-documents", "journals"]);
 
 export const LIST_OPTIONS = {
   view: { type: "string" },
@@ -19,8 +18,13 @@ export const LIST_OPTIONS = {
 
 type Values = Record<string, string | boolean | string[] | undefined>;
 
-export function withListPaging(resource: string, action: string, payload: unknown, values: Values) {
-  if (!PAGED_RESOURCES.has(resource) || action !== "list") return payload;
+export function withListPaging(
+  _resource: string,
+  action: string,
+  payload: unknown,
+  values: Values,
+) {
+  if (action !== "list") return payload;
   const extra: Record<string, unknown> = {};
   for (const [flag, name] of [
     ["limit", "limit"],
@@ -123,6 +127,8 @@ export async function listAllToFile(
     }
     nextCursor = result.data?.nextCursor;
     if (!nextCursor || items.length === 0) break;
+    if (nextCursor === cursor)
+      throw new Error(`${resource} list does not honor --cursor; cannot use --all`);
     cursor = nextCursor;
   }
   const body = `${lines.join("\n")}\n`;

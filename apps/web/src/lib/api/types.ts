@@ -15,6 +15,10 @@ export type ApiEnvelope<T> = Readonly<{
   auditEventId?: string;
   idempotencyReplayed?: boolean;
   nextActions?: readonly string[];
+  /** Present on bounded list reads (BR-READ-001): `hasMore`, `nextCursor`, `limit`, `total`. */
+  page?: Readonly<{ hasMore?: boolean; nextCursor?: string; limit?: number; total?: number }>;
+  /** `truncated` is set when the response or the client auto-paging stopped before the end. */
+  meta?: Readonly<Record<string, unknown>>;
 }>;
 
 export class ApiClientError extends Error {

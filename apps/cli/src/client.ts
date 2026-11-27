@@ -797,51 +797,7 @@ export class NaaiErpClient {
           })()
         : payload;
     const query =
-      (isReport ||
-        isExpense ||
-        isCommercialDocument ||
-        isJournal ||
-        isOutboundEvent ||
-        isOutboundEndpoint ||
-        isOutboundDelivery ||
-        isBankAccount ||
-        isBankImport ||
-        isBankTransaction ||
-        isReconciliation ||
-        isInternalTransfer ||
-        isAging ||
-        isStatementSession ||
-        isProjectBudget ||
-        isScopeChange ||
-        isRecognitionPolicy ||
-        isMilestoneAcceptance ||
-        isRecognitionEvent ||
-        isProjectRevenueAxes ||
-        isProjectProfitability ||
-        isOperatingDashboard ||
-        isPlanning ||
-        isForecastComponent ||
-        isForecastComposition ||
-        isPerformanceComparison ||
-        isPlanningActualFact ||
-        isFinancialStatementMapping ||
-        isFinancialStatement ||
-        isFinancialStatementDrilldown ||
-        isFinancialSourceResolver ||
-        isVatReconciliation ||
-        isExpenseException ||
-        isExecutiveMetricPolicy ||
-        isRoiDefinition ||
-        isRoiInputFact ||
-        isExecutiveMetric ||
-        isReportSnapshot ||
-        isAccountantExport ||
-        isServicePlan ||
-        isCustomerServiceSubscription ||
-        isBackgroundActivities) &&
-      method === "GET" &&
-      queryPayload &&
-      typeof queryPayload === "object"
+      method === "GET" && queryPayload && typeof queryPayload === "object"
         ? new URLSearchParams(
             Object.entries(queryPayload as Record<string, unknown>)
               .filter(([, value]) => value !== undefined && value !== null)

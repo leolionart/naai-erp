@@ -21,7 +21,7 @@ export function createApiClient(input: {
   const uuid = input.uuid ?? (() => crypto.randomUUID());
   const idempotency = new IdempotencyRegistry(uuid);
 
-  async function request<T>(
+  async function requestOnce<T>(
     path: string,
     options: ApiRequestOptions = {},
   ): Promise<ApiEnvelope<T>> {
@@ -75,6 +75,51 @@ export function createApiClient(input: {
     if (mutation) idempotency.complete(fingerprint);
     if (isApiEnvelope<T>(payload)) return payload;
     return { data: payload as T };
+  }
+
+  type Paged = {
+    page?: { hasMore?: boolean; nextCursor?: string };
+    meta?: Record<string, unknown>;
+  };
+  const MAX_AUTO_PAGES = 50;
+
+  /**
+   * Every list read is bounded by the server (BR-READ-001) and declares `page.hasMore`.
+   * Unless the caller manages paging itself (`limit`/`cursor` in the path), follow `nextCursor` so
+   * screens never mistake a first page for the whole list; hitting the cap is reported in meta.truncated.
+   */
+  async function request<T>(
+    path: string,
+    options: ApiRequestOptions = {},
+  ): Promise<ApiEnvelope<T>> {
+    const first = await requestOnce<T>(path, options);
+    const selfPaged = /[?&](limit|cursor)=/.test(path);
+    if ((options.method ?? "GET") !== "GET" || selfPaged) return first;
+    let current = first as ApiEnvelope<T> & Paged;
+    if (!current.page?.hasMore || !current.page.nextCursor) return first;
+    const merged = first as ApiEnvelope<unknown> & Paged;
+    for (let pages = 1; pages < MAX_AUTO_PAGES; pages += 1) {
+      const cursor = current.page?.nextCursor;
+      if (!current.page?.hasMore || !cursor) return merged as ApiEnvelope<T>;
+      const separator = path.includes("?") ? "&" : "?";
+      current = (await requestOnce<T>(
+        `${path}${separator}limit=200&cursor=${encodeURIComponent(cursor)}`,
+        options,
+      )) as ApiEnvelope<T> & Paged;
+      const data = merged.data as unknown[] | { items: unknown[] };
+      const more = current.data as unknown[] | { items: unknown[] };
+      if (Array.isArray(data) && Array.isArray(more)) data.push(...more);
+      else if (!Array.isArray(data) && !Array.isArray(more)) data.items.push(...more.items);
+      merged.page = current.page as Paged["page"];
+      if (!Array.isArray(data)) {
+        Object.assign(data, {
+          hasMore: current.page?.hasMore,
+          nextCursor: current.page?.nextCursor,
+        });
+      }
+    }
+    merged.meta = { ...merged.meta, truncated: true };
+    return merged as ApiEnvelope<T>;
   }
 
   return Object.freeze({

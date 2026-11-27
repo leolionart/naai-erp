@@ -6,59 +6,59 @@ Anything else is either an unfinished route or a documented exception (single ag
 
 | Route | Status | Controller |
 | --- | --- | --- |
-| `GET /accountant-exports` | unbounded | `apps/api/src/report-exports/report-export.controller.ts` |
-| `GET /api-credentials` | unbounded | `apps/api/src/integration-settings/integration-settings.controller.ts` |
-| `GET /api/v1/capabilities` | unbounded | `apps/api/src/discovery/discovery.controller.ts` |
-| `GET /banking/accounts` | unbounded | `apps/api/src/banking/banking.controller.ts` |
-| `GET /banking/imports` | unbounded | `apps/api/src/banking/banking.controller.ts` |
-| `GET /banking/internal-transfers` | unbounded | `apps/api/src/internal-transfers/internal-transfer.controller.ts` |
-| `GET /banking/owner-current-movements` | unbounded | `apps/api/src/banking/banking.controller.ts` |
-| `GET /banking/owner-funding` | unbounded | `apps/api/src/owner-funding/owner-funding.controller.ts` |
-| `GET /banking/reconciliations` | unbounded | `apps/api/src/reconciliation/reconciliation.controller.ts` |
-| `GET /banking/statement-sessions` | unbounded | `apps/api/src/banking-controls/banking-control.controller.ts` |
-| `GET /banking/transactions` | unbounded | `apps/api/src/banking/banking.controller.ts` |
-| `GET /cit-policy` | unbounded | `apps/api/src/cit-policy/cit-policy.controller.ts` |
-| `GET /commercial-documents` | bounded | `apps/api/src/commercial-documents/commercial-document.controller.ts` |
-| `GET /customer-receipts` | unbounded | `apps/api/src/customer-receipts/customer-receipt.controller.ts` |
-| `GET /customer-service-subscriptions` | unbounded | `apps/api/src/customer-service-subscriptions/customer-service-subscription.controller.ts` |
-| `GET /evidence` | unbounded | `apps/api/src/evidence/evidence.controller.ts` |
-| `GET /executive-metric-policies` | unbounded | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
-| `GET /expenses` | bounded | `apps/api/src/expenses/expense.controller.ts` |
-| `GET /expenses/count` | bounded | `apps/api/src/expenses/expense.controller.ts` |
-| `GET /expenses/summary` | bounded | `apps/api/src/expenses/expense.controller.ts` |
-| `GET /financial-statement-mappings` | unbounded | `apps/api/src/financial-statements/financial-statement.controller.ts` |
-| `GET /fiscal-periods` | unbounded | `apps/api/src/period-close/period-close.controller.ts` |
-| `GET /forecast-versions/:forecastId/components` | bounded | `apps/api/src/forecast-components/forecast-component.controller.ts` |
-| `GET /forecast-versions/:forecastId/composition` | unbounded | `apps/api/src/forecast-components/forecast-component.controller.ts` |
-| `GET /funding-plans/export` | unbounded | `apps/api/src/funding-plans/funding-plans.controller.ts` |
-| `GET /funding-plans/unlinked` | unbounded | `apps/api/src/funding-plans/funding-plans.controller.ts` |
-| `GET /funding-rules` | unbounded | `apps/api/src/funding-rules/funding-rules.controller.ts` |
-| `GET /health/live` | unbounded | `apps/api/src/health.controller.ts` |
-| `GET /health/ready` | unbounded | `apps/api/src/health.controller.ts` |
-| `GET /integration-sources` | unbounded | `apps/api/src/integration-settings/integration-settings.controller.ts` |
-| `GET /journals` | bounded | `apps/api/src/journals/journal.controller.ts` |
-| `GET /master-data/resources` | partial (file mentions limit) | `apps/api/src/master-data/master-data.controller.ts` |
-| `GET /opening-balances` | unbounded | `apps/api/src/ledger-reports/ledger-report.controller.ts` |
-| `GET /operational-logs` | bounded | `apps/api/src/operational-logs/operational-log.controller.ts` |
-| `GET /operational-logs/all` | bounded | `apps/api/src/operational-logs/operational-log.controller.ts` |
-| `GET /organization-workflow-policy` | unbounded | `apps/api/src/workflow-policy/organization-workflow-policy.controller.ts` |
-| `GET /outbound-events/deliveries` | bounded | `apps/api/src/outbound-events/outbound-event.controller.ts` |
-| `GET /outbound-events/endpoints` | bounded | `apps/api/src/outbound-events/outbound-event.controller.ts` |
-| `GET /outbound-events/outbox` | bounded | `apps/api/src/outbound-events/outbound-event.controller.ts` |
-| `GET /planning-actual-facts` | bounded | `apps/api/src/performance-comparison/performance-comparison.controller.ts` |
-| `GET /portable-data-packages/exports` | bounded | `apps/api/src/portable-data-packages/portable-data-package.controller.ts` |
-| `GET /project-freelance-payables` | unbounded | `apps/api/src/project-freelance-payables/project-freelance-payable.controller.ts` |
-| `GET /report-snapshots` | unbounded | `apps/api/src/report-exports/report-export.controller.ts` |
-| `GET /reports/ap-aging` | partial (file mentions limit) | `apps/api/src/aging/aging.controller.ts` |
-| `GET /reports/ar-aging` | partial (file mentions limit) | `apps/api/src/aging/aging.controller.ts` |
-| `GET /reports/expenses/by-category` | unbounded | `apps/api/src/expense-reports/expense-report.controller.ts` |
-| `GET /reports/expenses/by-payee` | unbounded | `apps/api/src/expense-reports/expense-report.controller.ts` |
-| `GET /reports/operating-dashboard` | unbounded | `apps/api/src/operating-dashboard/operating-dashboard.controller.ts` |
-| `GET /reports/project-profitability` | bounded | `apps/api/src/project-profitability/project-profitability.controller.ts` |
-| `GET /revenue-targets` | bounded | `apps/api/src/planning/planning.controller.ts` |
-| `GET /roi-definitions` | unbounded | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
-| `GET /roi-input-facts` | unbounded | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
-| `GET /service-plans` | unbounded | `apps/api/src/customer-service-subscriptions/customer-service-subscription.controller.ts` |
-| `GET /telegram-settings` | unbounded | `apps/api/src/telegram-settings/telegram-settings.controller.ts` |
-| `GET /time/workers` | bounded | `apps/api/src/time/time.controller.ts` |
-| `GET /workbook-imports/review-rows` | unbounded | `apps/api/src/workbook-imports/workbook-import.controller.ts` |
+| `GET /accountant-exports` | bounded (safety net, in-memory page) | `apps/api/src/report-exports/report-export.controller.ts` |
+| `GET /api-credentials` | bounded (safety net, in-memory page) | `apps/api/src/integration-settings/integration-settings.controller.ts` |
+| `GET /api/v1/capabilities` | exception (aggregate, export, health or own cursor) | `apps/api/src/discovery/discovery.controller.ts` |
+| `GET /banking/accounts` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
+| `GET /banking/imports` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
+| `GET /banking/internal-transfers` | bounded (safety net, in-memory page) | `apps/api/src/internal-transfers/internal-transfer.controller.ts` |
+| `GET /banking/owner-current-movements` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
+| `GET /banking/owner-funding` | bounded (safety net, in-memory page) | `apps/api/src/owner-funding/owner-funding.controller.ts` |
+| `GET /banking/reconciliations` | bounded (safety net, in-memory page) | `apps/api/src/reconciliation/reconciliation.controller.ts` |
+| `GET /banking/statement-sessions` | bounded (safety net, in-memory page) | `apps/api/src/banking-controls/banking-control.controller.ts` |
+| `GET /banking/transactions` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
+| `GET /cit-policy` | bounded (safety net, in-memory page) | `apps/api/src/cit-policy/cit-policy.controller.ts` |
+| `GET /commercial-documents` | bounded (keyset in SQL) | `apps/api/src/commercial-documents/commercial-document.controller.ts` |
+| `GET /customer-receipts` | bounded (safety net, in-memory page) | `apps/api/src/customer-receipts/customer-receipt.controller.ts` |
+| `GET /customer-service-subscriptions` | bounded (safety net, in-memory page) | `apps/api/src/customer-service-subscriptions/customer-service-subscription.controller.ts` |
+| `GET /evidence` | bounded (safety net, in-memory page) | `apps/api/src/evidence/evidence.controller.ts` |
+| `GET /executive-metric-policies` | bounded (safety net, in-memory page) | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
+| `GET /expenses` | bounded (keyset in SQL) | `apps/api/src/expenses/expense.controller.ts` |
+| `GET /expenses/count` | bounded (keyset in SQL) | `apps/api/src/expenses/expense.controller.ts` |
+| `GET /expenses/summary` | bounded (keyset in SQL) | `apps/api/src/expenses/expense.controller.ts` |
+| `GET /financial-statement-mappings` | bounded (safety net, in-memory page) | `apps/api/src/financial-statements/financial-statement.controller.ts` |
+| `GET /fiscal-periods` | bounded (safety net, in-memory page) | `apps/api/src/period-close/period-close.controller.ts` |
+| `GET /forecast-versions/:forecastId/components` | bounded (keyset in SQL) | `apps/api/src/forecast-components/forecast-component.controller.ts` |
+| `GET /forecast-versions/:forecastId/composition` | bounded (safety net, in-memory page) | `apps/api/src/forecast-components/forecast-component.controller.ts` |
+| `GET /funding-plans/export` | exception (aggregate, export, health or own cursor) | `apps/api/src/funding-plans/funding-plans.controller.ts` |
+| `GET /funding-plans/unlinked` | bounded (safety net, in-memory page) | `apps/api/src/funding-plans/funding-plans.controller.ts` |
+| `GET /funding-rules` | bounded (safety net, in-memory page) | `apps/api/src/funding-rules/funding-rules.controller.ts` |
+| `GET /health/live` | exception (aggregate, export, health or own cursor) | `apps/api/src/health.controller.ts` |
+| `GET /health/ready` | exception (aggregate, export, health or own cursor) | `apps/api/src/health.controller.ts` |
+| `GET /integration-sources` | bounded (safety net, in-memory page) | `apps/api/src/integration-settings/integration-settings.controller.ts` |
+| `GET /journals` | bounded (keyset in SQL) | `apps/api/src/journals/journal.controller.ts` |
+| `GET /master-data/resources` | exception (aggregate, export, health or own cursor) | `apps/api/src/master-data/master-data.controller.ts` |
+| `GET /opening-balances` | bounded (safety net, in-memory page) | `apps/api/src/ledger-reports/ledger-report.controller.ts` |
+| `GET /operational-logs` | bounded (keyset in SQL) | `apps/api/src/operational-logs/operational-log.controller.ts` |
+| `GET /operational-logs/all` | bounded (keyset in SQL) | `apps/api/src/operational-logs/operational-log.controller.ts` |
+| `GET /organization-workflow-policy` | bounded (safety net, in-memory page) | `apps/api/src/workflow-policy/organization-workflow-policy.controller.ts` |
+| `GET /outbound-events/deliveries` | bounded (keyset in SQL) | `apps/api/src/outbound-events/outbound-event.controller.ts` |
+| `GET /outbound-events/endpoints` | bounded (keyset in SQL) | `apps/api/src/outbound-events/outbound-event.controller.ts` |
+| `GET /outbound-events/outbox` | bounded (keyset in SQL) | `apps/api/src/outbound-events/outbound-event.controller.ts` |
+| `GET /planning-actual-facts` | bounded (keyset in SQL) | `apps/api/src/performance-comparison/performance-comparison.controller.ts` |
+| `GET /portable-data-packages/exports` | bounded (keyset in SQL) | `apps/api/src/portable-data-packages/portable-data-package.controller.ts` |
+| `GET /project-freelance-payables` | bounded (safety net, in-memory page) | `apps/api/src/project-freelance-payables/project-freelance-payable.controller.ts` |
+| `GET /report-snapshots` | bounded (safety net, in-memory page) | `apps/api/src/report-exports/report-export.controller.ts` |
+| `GET /reports/ap-aging` | exception (aggregate, export, health or own cursor) | `apps/api/src/aging/aging.controller.ts` |
+| `GET /reports/ar-aging` | exception (aggregate, export, health or own cursor) | `apps/api/src/aging/aging.controller.ts` |
+| `GET /reports/expenses/by-category` | exception (aggregate, export, health or own cursor) | `apps/api/src/expense-reports/expense-report.controller.ts` |
+| `GET /reports/expenses/by-payee` | exception (aggregate, export, health or own cursor) | `apps/api/src/expense-reports/expense-report.controller.ts` |
+| `GET /reports/operating-dashboard` | exception (aggregate, export, health or own cursor) | `apps/api/src/operating-dashboard/operating-dashboard.controller.ts` |
+| `GET /reports/project-profitability` | bounded (keyset in SQL) | `apps/api/src/project-profitability/project-profitability.controller.ts` |
+| `GET /revenue-targets` | bounded (keyset in SQL) | `apps/api/src/planning/planning.controller.ts` |
+| `GET /roi-definitions` | bounded (safety net, in-memory page) | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
+| `GET /roi-input-facts` | bounded (safety net, in-memory page) | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
+| `GET /service-plans` | bounded (safety net, in-memory page) | `apps/api/src/customer-service-subscriptions/customer-service-subscription.controller.ts` |
+| `GET /telegram-settings` | bounded (safety net, in-memory page) | `apps/api/src/telegram-settings/telegram-settings.controller.ts` |
+| `GET /time/workers` | bounded (keyset in SQL) | `apps/api/src/time/time.controller.ts` |
+| `GET /workbook-imports/review-rows` | bounded (safety net, in-memory page) | `apps/api/src/workbook-imports/workbook-import.controller.ts` |

@@ -92,4 +92,42 @@ describe("ERP-345 API client", () => {
     });
     await expect(offline.request("journals")).rejects.toBeInstanceOf(ApiClientError);
   });
+
+  it("T-UNIT-READ-009 follows page.nextCursor for list reads and flags truncation at the cap", async () => {
+    const pages = [
+      {
+        data: { items: [{ id: "a" }], hasMore: true, nextCursor: "c1" },
+        page: { hasMore: true, nextCursor: "c1" },
+      },
+      { data: { items: [{ id: "b" }], hasMore: false }, page: { hasMore: false } },
+    ];
+    const urls: string[] = [];
+    const fetcher = vi.fn(async (url: string) => {
+      urls.push(url);
+      return new Response(JSON.stringify(pages[urls.length - 1]), { status: 200 });
+    });
+    const client = createApiClient({ connection, token: () => "t", fetcher: fetcher as never });
+    await expect(client.data<{ items: { id: string }[] }>("evidence")).resolves.toMatchObject({
+      items: [{ id: "a" }, { id: "b" }],
+      hasMore: false,
+    });
+    expect(urls[1]).toContain("limit=200&cursor=c1");
+
+    const endless = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ data: [{ id: "x" }], page: { hasMore: true, nextCursor: "again" } }),
+          { status: 200 },
+        ),
+    );
+    const capped = createApiClient({ connection, token: () => "t", fetcher: endless as never });
+    const envelope = await capped.request<{ id: string }[]>("evidence");
+    expect(envelope.meta).toMatchObject({ truncated: true });
+    expect(endless).toHaveBeenCalledTimes(50);
+    const selfPaged = vi.fn(async () => new Response(JSON.stringify(pages[0]), { status: 200 }));
+    await createApiClient({ connection, token: () => "t", fetcher: selfPaged as never }).data(
+      "evidence?limit=10",
+    );
+    expect(selfPaged).toHaveBeenCalledTimes(1);
+  });
 });

@@ -4422,7 +4422,7 @@ tasks:
   - id: ERP-996
     title: Paginate critical lists with summary view, count and summary endpoints and move the web to server side paging
     phase: P17
-    status: in_progress
+    status: review
     dependencies: [ERP-995]
     business_rules: [BR-READ-001, BR-READ-002, BR-READ-004, BR-READ-005]
     tests: [T-INT-READ-002, T-E2E-READ-003]
@@ -4430,7 +4430,7 @@ tasks:
     agent: claude
     started_at: 2026-11-27T07:00:00+07:00
     progress: >-
-      Done: expenses (keyset, count, summary), commercial-documents and journals bounded with view=summary; web follows nextCursor (dataAll/loadAllPages) so screens and dashboards still see every row. Remaining: ledger-reports, banking, customer-receipts, evidence, payables, transfers, funding, forecast, subscriptions routes; commercial-documents count/summary; true server-side sort/search/Load-more UI and Playwright coverage (T-INT-READ-002, T-E2E-READ-003).
+      Critical lists (expenses, commercial-documents, journals) use SQL keyset with view=summary; expenses has count and summary. Web request layer follows page.nextCursor for every list read so screens receive complete data and meta.truncated is set at the cap. Deferred: server-side sort/search and Load-more UI, commercial-documents count/summary, Playwright coverage (T-E2E-READ-003).
     planned_files:
       - apps/api/src/expenses/
       - apps/api/src/commercial-documents/
@@ -4442,12 +4442,15 @@ tasks:
   - id: ERP-997
     title: Complete remaining list routes from the inventory or document capped exceptions
     phase: P17
-    status: ready
+    status: review
     dependencies: [ERP-996]
     business_rules: [BR-READ-001, BR-READ-002]
-    tests: [T-INT-READ-004]
+    tests: [T-UNIT-READ-008]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: unassigned
+    agent: claude
+    started_at: 2026-11-27T09:00:00+07:00
+    progress: >-
+      Every other organization-scoped collection GET is bounded by BoundedListInterceptor (default 50, max 200) and declares page/hasMore/nextCursor/meta; aggregates, exports, health and own-cursor routes are listed as exceptions in docs/api/list-endpoint-inventory.md. Follow-up: SQL keyset per route (the safety net still loads the organization's rows) and master-data keyset.
     planned_files:
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
