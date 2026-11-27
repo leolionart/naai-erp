@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import {
+  PagingError,
   paginate,
   parseListQuery,
   resolveMaxResponseBytes,
@@ -15,6 +16,11 @@ const LINES_SQL = `coalesce(json_agg(l order by l.line_number) filter (where l.l
  */
 export async function listJournalPage(pool: Pool, organizationId: string, raw: RawListQuery) {
   const query = parseListQuery({ ...raw, view: "summary" });
+  if (query.sort !== undefined && !["date_desc", "date_asc"].includes(query.sort)) {
+    throw new PagingError("VALIDATION_FAILED");
+  }
+  const ascending = query.sort === "date_asc";
+  const search = query.q ? `%${query.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
   const withLines = raw.view !== "summary";
   const cursor: ListCursor | undefined = query.cursor;
   const result = await pool.query(
@@ -22,11 +28,12 @@ export async function listJournalPage(pool: Pool, organizationId: string, raw: R
        from journal_entries j
        ${withLines ? "left join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id" : ""}
       where j.organization_id=$1
-        and ($2::date is null or j.journal_date < $2::date or (j.journal_date = $2::date and j.id > $3::text))
+        and ($2::date is null or ${ascending ? "j.journal_date > $2::date" : "j.journal_date < $2::date"} or (j.journal_date = $2::date and j.id > $3::text))
+        and ($5::text is null or j.description ilike $5 or j.id ilike $5)
       group by j.organization_id,j.id
-      order by j.journal_date desc,j.id
+      order by j.journal_date ${ascending ? "asc" : "desc"},j.id
       limit $4`,
-    [organizationId, cursor?.k[0] ?? null, cursor?.id ?? null, query.limit + 1],
+    [organizationId, cursor?.k[0] ?? null, cursor?.id ?? null, query.limit + 1, search],
   );
   const total = query.includeTotal
     ? ((

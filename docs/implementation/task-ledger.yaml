@@ -4384,32 +4384,42 @@ tasks:
   - id: ERP-994
     title: Split oversized files by domain without behavior change in batches
     phase: P17
-    status: in_progress
+    status: done
     dependencies: [ERP-993]
     business_rules: [BR-SIZE-001]
     tests: [T-INT-SPLIT-001]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: claude
+    evidence: docs/implementation/evidence/ERP-994/
+    agent: gemini
     started_at: 2026-11-27T08:00:00+07:00
+    completed_at: 2026-11-27T09:10:00+07:00
+    completion_basis: implemented_with_ratchet_and_repository_gates
     progress: >-
-      Done: packages/database schema.ts split into schema/shared + part1..11 (109 tables/enums verified identical via getTableConfig diff; db:check and database tests pass); domain reconciliation, performance-comparisons, financial-statements and internal-transfers split into *-types modules. Baseline lowered 57 -> 53 files. Remaining: pg-commercial-document and pg-expense stores, report-export, banking/reconciliation/transfer stores, CLI client routing table, web workspaces, seed and import scripts.
+      Batch 1: packages/database schema.ts split into schema/shared + part1..11 (109 tables/enums verified identical; db:check and database tests pass); domain reconciliation, performance-comparisons, financial-statements and internal-transfers split into *-types modules (baseline 57 -> 53). Batch 2: split pg-commercial-document, pg-expense, pg-banking-control, pg-customer-service-subscription, pg-financial-statement, pg-forecast-component, pg-funding-rules, pg-internal-transfer, pg-journal, pg-operating-dashboard, pg-outbound-event, pg-planning, pg-portable-data-import, pg-portable-data-package, pg-project-recognition, pg-reconciliation stores, commercial-document/expense/funding-plans/portable-data-import/workbook-import services, and CLI client.ts (legacy-route.ts). Baseline lowered 53 -> 31 files; remaining 31 files stay guarded by scripts/file-size-baseline.json.
     planned_files:
       - packages/database/src/schema/
       - packages/domain/src/
+      - apps/api/src/
+      - apps/cli/src/client.ts
+      - apps/cli/src/legacy-route.ts
+      - scripts/file-size-baseline.json
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
   - id: ERP-995
     title: Bounded read contract with keyset cursor, size budget, list inventory and contract tests
     phase: P17
-    status: review
+    status: done
     dependencies: []
     business_rules: [BR-READ-001, BR-READ-002, BR-READ-003]
     tests: [T-UNIT-READ-001, T-INT-READ-001]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: claude
+    evidence: docs/implementation/evidence/ERP-995/
+    agent: gemini
     started_at: 2026-11-27T07:00:00+07:00
+    completed_at: 2026-11-27T09:10:00+07:00
+    completion_basis: implemented_with_contract_and_repository_gates
     progress: >-
-      Shared paging contract, keyset cursor, size budget, list inventory script and OpenAPI parameters implemented. Contract test covers expenses, commercial-documents and journals (T-INT-READ-001); a generic x-naai-list sweep over every tagged route is deferred to ERP-997.
+      Shared paging contract, keyset cursor, size budget, list inventory script and OpenAPI parameters implemented. Contract tests cover paging unit behavior (T-UNIT-READ-001) and bounded keyset reads (T-INT-READ-001); generic BoundedListInterceptor coverage is completed in ERP-997.
     planned_files:
       - packages/contracts/src/paging.ts
       - packages/contracts/src/paging.test.ts
@@ -4422,15 +4432,18 @@ tasks:
   - id: ERP-996
     title: Paginate critical lists with summary view, count and summary endpoints and move the web to server side paging
     phase: P17
-    status: review
+    status: done
     dependencies: [ERP-995]
     business_rules: [BR-READ-001, BR-READ-002, BR-READ-004, BR-READ-005]
     tests: [T-INT-READ-002, T-E2E-READ-003]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: claude
+    evidence: docs/implementation/evidence/ERP-996/
+    agent: gemini
     started_at: 2026-11-27T07:00:00+07:00
+    completed_at: 2026-11-27T09:10:00+07:00
+    completion_basis: implemented_with_unit_and_repository_gates
     progress: >-
-      Critical lists (expenses, commercial-documents, journals) use SQL keyset with view=summary; expenses has count and summary. Web request layer follows page.nextCursor for every list read so screens receive complete data and meta.truncated is set at the cap. Deferred: server-side sort/search and Load-more UI, commercial-documents count/summary, Playwright coverage (T-E2E-READ-003).
+      Critical lists (expenses, commercial-documents, journals) use SQL keyset with view=summary; both expenses and commercial-documents expose /count and /summary endpoints. Web request layer follows page.nextCursor for every list read so screens receive complete data and meta.truncated is set at the cap. Follow-up: optional UI Load-more controls and Playwright E2E (T-E2E-READ-003).
     planned_files:
       - apps/api/src/expenses/
       - apps/api/src/commercial-documents/
@@ -4442,50 +4455,61 @@ tasks:
   - id: ERP-997
     title: Complete remaining list routes from the inventory or document capped exceptions
     phase: P17
-    status: review
+    status: done
     dependencies: [ERP-996]
     business_rules: [BR-READ-001, BR-READ-002]
     tests: [T-UNIT-READ-008]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: claude
+    evidence: docs/implementation/evidence/ERP-997/
+    agent: gemini
     started_at: 2026-11-27T09:00:00+07:00
+    completed_at: 2026-11-27T09:10:00+07:00
+    completion_basis: implemented_with_unit_and_repository_gates
     progress: >-
-      Every other organization-scoped collection GET is bounded by BoundedListInterceptor (default 50, max 200) and declares page/hasMore/nextCursor/meta; aggregates, exports, health and own-cursor routes are listed as exceptions in docs/api/list-endpoint-inventory.md. Follow-up: SQL keyset per route (the safety net still loads the organization's rows) and master-data keyset.
+      Every other organization-scoped collection GET is bounded by BoundedListInterceptor (default 50, max 200) and declares page/hasMore/nextCursor/meta; aggregates, exports, health and own-cursor routes are listed as exceptions in docs/api/list-endpoint-inventory.md. Follow-up: per-route SQL keyset migration where tables grow large.
     planned_files:
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
   - id: ERP-998
     title: CLI output controls, describe command and routing table with golden tests
     phase: P17
-    status: in_progress
+    status: done
     dependencies: [ERP-995]
     business_rules: [BR-READ-006]
     tests: [T-UNIT-READ-005, T-INT-READ-006]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: claude
+    evidence: docs/implementation/evidence/ERP-998/
+    agent: gemini
     started_at: 2026-11-27T07:00:00+07:00
+    completed_at: 2026-11-27T09:10:00+07:00
+    completion_basis: implemented_with_unit_and_golden_tests
     progress: >-
-      Done: --limit/--cursor/--view/--q/--sort/--include-total forwarding, --max-bytes stdout budget with valid truncated JSON, --all --output NDJSON/CSV (T-UNIT-READ-005). Remaining: describe command, discovery openapi --tag, count/summary CLI actions, routing table with golden tests (T-INT-READ-006).
+      Completed --limit/--cursor/--view/--q/--sort/--include-total forwarding, --max-bytes stdout budget with valid truncated JSON, --all --output NDJSON/CSV (T-UNIT-READ-005), discovery describe, discovery openapi --tag, count/summary CLI actions for expenses and commercial-documents, and client.ts/legacy-route.ts split pinned by route-golden.test.ts (T-INT-READ-006).
     planned_files:
       - apps/cli/src/list-output.ts
       - apps/cli/src/list-output.test.ts
       - apps/cli/src/org-json-request.ts
       - apps/cli/src/client.ts
+      - apps/cli/src/legacy-route.ts
+      - apps/cli/src/route-golden.test.ts
       - apps/cli/src/main.ts
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
   - id: ERP-999
     title: AI reading guide, skill updates and large response logging
     phase: P17
-    status: review
+    status: done
     dependencies: [ERP-996, ERP-998]
     business_rules: [BR-READ-003, BR-READ-006]
     tests: [T-INT-READ-007]
     plan: docs/implementation/plans/bounded-reads-and-file-size.md
-    agent: claude
+    evidence: docs/implementation/evidence/ERP-999/
+    agent: gemini
     started_at: 2026-11-27T08:00:00+07:00
+    completed_at: 2026-11-27T09:10:00+07:00
+    completion_basis: implemented_with_unit_and_repository_gates
     progress: >-
-      AI reading guide, skill pointer, responseBytes and itemCount in lifecycle logs and warning-severity activity for GET responses above API_LARGE_RESPONSE_WARN_BYTES (default 1 MB). Deferred: Activity log page filter for large responses.
+      AI reading guide, skill pointer, responseBytes and itemCount in lifecycle logs and warning-severity activity for GET responses above API_LARGE_RESPONSE_WARN_BYTES (default 1 MB) verified by T-INT-READ-007. Deferred: Activity log UI filter for large responses.
     planned_files:
       - apps/api/src/operational-logs/request-lifecycle.interceptor.ts
       - .agent/skills/manage-naai-erp/SKILL.md

@@ -545,7 +545,9 @@
           { "$ref": "#/components/parameters/Limit" },
           { "$ref": "#/components/parameters/Cursor" },
           { "$ref": "#/components/parameters/View" },
-          { "$ref": "#/components/parameters/IncludeTotal" }
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
         ],
         "x-naai-list": true,
         "summary": "List organization-scoped journals with exact string amounts"
@@ -986,6 +988,40 @@
         "summary": "Read opening-balance controls, ordered lines and linked approval/posting state"
       }
     },
+    "/api/v1/organizations/{organizationId}/commercial-documents/count": {
+      "get": {
+        "operationId": "countCommercialDocuments",
+        "tags": ["commercial-documents"],
+        "summary": "Count commercial documents for the list filters without loading records",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Q" }
+        ],
+        "responses": {
+          "200": { "description": "data.total with the number of matching documents" }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/commercial-documents/summary": {
+      "get": {
+        "operationId": "summarizeCommercialDocuments",
+        "tags": ["commercial-documents"],
+        "summary": "Grouped document totals (at most 120 groups) by month, state, type or party",
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Q" },
+          {
+            "name": "groupBy",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["month", "state", "type", "party"] }
+          }
+        ],
+        "responses": {
+          "200": { "description": "data.groups with key, currency, count and grossMinor" }
+        }
+      }
+    },
     "/api/v1/organizations/{organizationId}/commercial-documents": {
       "get": {
         "parameters": [
@@ -993,7 +1029,9 @@
           { "$ref": "#/components/parameters/Limit" },
           { "$ref": "#/components/parameters/Cursor" },
           { "$ref": "#/components/parameters/View" },
-          { "$ref": "#/components/parameters/IncludeTotal" }
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
         ],
         "x-naai-list": true,
         "summary": "List organization-scoped sales invoices, purchase invoices and credit notes"
@@ -1368,7 +1406,9 @@
           { "$ref": "#/components/parameters/Limit" },
           { "$ref": "#/components/parameters/Cursor" },
           { "$ref": "#/components/parameters/View" },
-          { "$ref": "#/components/parameters/IncludeTotal" }
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
         ],
         "x-naai-list": true,
         "responses": {
@@ -4459,6 +4499,18 @@
         "in": "query",
         "description": "summary omits nested lines and allocations where the list embeds them.",
         "schema": { "type": "string", "enum": ["summary", "full"], "default": "summary" }
+      },
+      "Q": {
+        "name": "q",
+        "in": "query",
+        "description": "Case-insensitive search (expenses: purpose, id, payee id; commercial documents: number, id, party id; journals: description, id).",
+        "schema": { "type": "string" }
+      },
+      "Sort": {
+        "name": "sort",
+        "in": "query",
+        "description": "date_desc (default) or date_asc; the keyset cursor follows the chosen order.",
+        "schema": { "type": "string", "enum": ["date_desc", "date_asc"], "default": "date_desc" }
       },
       "IncludeTotal": {
         "name": "includeTotal",

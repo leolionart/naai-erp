@@ -487,4 +487,33 @@ describe("ERP-300 CommercialDocumentService", () => {
     );
     expect(result.data).toMatchObject({ replacementDocumentId: "pi-2" });
   });
+
+  it("counts and summarizes commercial documents and rejects invalid groupBy", async () => {
+    const summaryPayload = {
+      groupBy: "month",
+      groups: [{ key: "2026-11", currency: "VND", count: 12, grossMinor: "12000000" }],
+    };
+    const store = {
+      count: vi.fn().mockResolvedValue(12),
+      summary: vi.fn().mockResolvedValue(summaryPayload),
+    };
+    const service = new CommercialDocumentService(store as never, {} as never);
+    const counted = await service.count(context, { state: "posted" }, "INV");
+    expect(counted.data).toEqual({ total: 12 });
+    expect(store.count).toHaveBeenCalledWith(context.organizationId, {
+      state: "posted",
+      q: "INV",
+    });
+
+    const summarized = await service.summary(context, { type: "sales_invoice" }, "month");
+    expect(summarized.data).toEqual(summaryPayload);
+    expect(store.summary).toHaveBeenCalledWith(
+      context.organizationId,
+      { type: "sales_invoice" },
+      "month",
+    );
+    await expect(service.summary(context, {}, "invalid-group")).rejects.toThrow(
+      "VALIDATION_FAILED",
+    );
+  });
 });

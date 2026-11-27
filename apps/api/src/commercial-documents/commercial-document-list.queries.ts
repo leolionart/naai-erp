@@ -8,12 +8,46 @@ export interface CommercialDocumentListFilters {
   projectId?: string;
   startsOn?: string;
   endsOn?: string;
+  /** Case-insensitive search over document number, id and party id. */
+  q?: string;
 }
 
 export interface CommercialDocumentListPaging {
   fetch: number;
   cursor?: ListCursor;
   summary?: boolean;
+  /** Flips the keyset order to document_date asc, id asc. */
+  ascending?: boolean;
+}
+
+// Parameters $1..$8 are shared by list, count and summary so filters never drift apart.
+const FILTER_SQL = `       and ($2::text is null or d.type::text=$2)
+       and (($3::text is not null and d.state::text=$3) or ($3::text is null and d.state<>'cancelled'))
+       and ($4::text is null or d.party_id=$4)
+       and ($5::text is null or exists (
+         select 1 from commercial_document_lines project_line
+         left join commercial_document_allocations project_allocation
+           on project_allocation.organization_id=project_line.organization_id
+          and project_allocation.document_id=project_line.document_id
+          and project_allocation.line_number=project_line.line_number
+         where project_line.organization_id=d.organization_id and project_line.document_id=d.id
+           and (project_line.dimensions->>'projectId'=$5 or project_allocation.dimensions->>'projectId'=$5)
+       ))
+     and ($6::date is null or d.document_date >= $6::date)
+     and ($7::date is null or d.document_date <= $7::date)
+     and ($8::text is null or d.document_number ilike $8 or d.id ilike $8 or d.party_id ilike $8)`;
+
+function filterParams(organizationId: string, filters: CommercialDocumentListFilters) {
+  return [
+    organizationId,
+    filters.type ?? null,
+    filters.state ?? null,
+    filters.partyId ?? null,
+    filters.projectId ?? null,
+    filters.startsOn ?? null,
+    filters.endsOn ?? null,
+    filters.q ? `%${filters.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null,
+  ];
 }
 
 const LIST_LINES_SQL = `coalesce(jsonb_agg(
@@ -72,35 +106,62 @@ export async function listCommercialDocuments(
      ${linesSql} lines
      from commercial_documents d left join commercial_document_lines l
        on l.organization_id=d.organization_id and l.document_id=d.id
-     where d.organization_id=$1 and ($2::text is null or d.type::text=$2)
-       and (($3::text is not null and d.state::text=$3) or ($3::text is null and d.state<>'cancelled'))
-       and ($4::text is null or d.party_id=$4)
-       and ($5::text is null or exists (
-         select 1 from commercial_document_lines project_line
-         left join commercial_document_allocations project_allocation
-           on project_allocation.organization_id=project_line.organization_id
-          and project_allocation.document_id=project_line.document_id
-          and project_allocation.line_number=project_line.line_number
-         where project_line.organization_id=d.organization_id and project_line.document_id=d.id
-           and (project_line.dimensions->>'projectId'=$5 or project_allocation.dimensions->>'projectId'=$5)
-       ))
-     and ($6::date is null or d.document_date >= $6::date)
-     and ($7::date is null or d.document_date <= $7::date)
-     and ($8::date is null or d.document_date < $8::date or (d.document_date = $8::date and d.id > $9::text))
-     group by d.organization_id,d.id order by d.document_date desc,d.id
-     limit $10`,
+     where d.organization_id=$1
+${FILTER_SQL}
+     and ($9::date is null or ${paging.ascending ? "d.document_date > $9::date" : "d.document_date < $9::date"} or (d.document_date = $9::date and d.id > $10::text))
+     group by d.organization_id,d.id order by d.document_date ${paging.ascending ? "asc" : "desc"},d.id
+     limit $11`,
     [
-      organizationId,
-      filters.type ?? null,
-      filters.state ?? null,
-      filters.partyId ?? null,
-      filters.projectId ?? null,
-      filters.startsOn ?? null,
-      filters.endsOn ?? null,
+      ...filterParams(organizationId, filters),
       paging.cursor?.k[0] ?? null,
       paging.cursor?.id ?? null,
       paging.fetch,
     ],
   );
   return result.rows;
+}
+
+export type CommercialDocumentSummaryGroup = "month" | "state" | "type" | "party";
+export const COMMERCIAL_DOCUMENT_SUMMARY_GROUPS: readonly CommercialDocumentSummaryGroup[] = [
+  "month",
+  "state",
+  "type",
+  "party",
+];
+const GROUP_KEY_SQL: Record<CommercialDocumentSummaryGroup, string> = {
+  month: "to_char(d.document_date,'YYYY-MM')",
+  state: "d.state::text",
+  type: "d.type::text",
+  party: "coalesce(d.party_id,'(none)')",
+};
+
+export async function countCommercialDocuments(
+  pool: Pool,
+  organizationId: string,
+  filters: CommercialDocumentListFilters,
+) {
+  const result = await pool.query(
+    `select count(*)::int total from commercial_documents d where d.organization_id=$1
+${FILTER_SQL}`,
+    filterParams(organizationId, filters),
+  );
+  return (result.rows[0]?.total as number | undefined) ?? 0;
+}
+
+/** At most 120 groups of count and gross totals per currency, so AI and charts never download records. */
+export async function summarizeCommercialDocuments(
+  pool: Pool,
+  organizationId: string,
+  filters: CommercialDocumentListFilters,
+  groupBy: CommercialDocumentSummaryGroup,
+) {
+  const result = await pool.query(
+    `select ${GROUP_KEY_SQL[groupBy]} key, d.currency, count(*)::int count, coalesce(sum(d.gross_minor),0)::text "grossMinor"
+       from commercial_documents d where d.organization_id=$1
+${FILTER_SQL}
+      group by 1,2 order by ${groupBy === "month" ? "1 desc" : "3 desc, 1"}, 2
+      limit 121`,
+    filterParams(organizationId, filters),
+  );
+  return { groupBy, groups: result.rows.slice(0, 120), truncated: result.rows.length > 120 };
 }

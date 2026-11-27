@@ -8,12 +8,16 @@ export interface ExpenseListFilters {
   fundingTreatment?: string;
   startsOn?: string;
   endsOn?: string;
+  /** Case-insensitive search over purpose, id and payee id. */
+  q?: string;
 }
 
 export interface ExpenseListPaging {
   /** Number of rows to fetch (callers pass limit + 1 to detect another page). */
   fetch: number;
   cursor?: ListCursor;
+  /** `date_asc` flips the keyset order to expense_date asc, id asc. */
+  ascending?: boolean;
 }
 
 export type ExpenseSummaryGroup = "month" | "state" | "class" | "payee" | "category";
@@ -26,7 +30,7 @@ export const EXPENSE_SUMMARY_GROUPS: readonly ExpenseSummaryGroup[] = [
 ];
 const MAX_SUMMARY_GROUPS = 120;
 
-// Parameters $1..$7 are shared by list, count and summary so filters never drift apart.
+// Parameters $1..$8 are shared by list, count and summary so filters never drift apart.
 const FILTER_SQL = `       and (($2::text is not null and e.state::text=$2) or ($2::text is null and e.state<>'reversed'))
        and ($3::text is null or e.expense_class::text=$3)
        and ($4::text is null or e.payee_party_id=$4)
@@ -37,7 +41,8 @@ const FILTER_SQL = `       and (($2::text is not null and e.state::text=$2) or (
          where l.organization_id=e.organization_id and l.expense_id=e.id
            and coalesce(l.funding_treatment,c.funding_treatment)::text=$5
        )) and ($6::date is null or e.expense_date >= $6::date)
-       and ($7::date is null or e.expense_date <= $7::date)`;
+       and ($7::date is null or e.expense_date <= $7::date)
+       and ($8::text is null or e.business_purpose ilike $8 or e.id ilike $8 or coalesce(e.payee_party_id,'') ilike $8)`;
 
 function filterParams(org: string, filters: ExpenseListFilters) {
   return [
@@ -48,6 +53,7 @@ function filterParams(org: string, filters: ExpenseListFilters) {
     filters.fundingTreatment ?? null,
     filters.startsOn ?? null,
     filters.endsOn ?? null,
+    filters.q ? `%${filters.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null,
   ];
 }
 
@@ -102,9 +108,9 @@ export async function listExpenses(
        ) x),'[]'::jsonb) "fundingTreatments"
        from expenses e where e.organization_id=$1
 ${FILTER_SQL}
-       and ($8::date is null or e.expense_date < $8::date or (e.expense_date = $8::date and e.id > $9::text))
-       order by e.expense_date desc,e.id
-       limit $10`,
+       and ($9::date is null or ${paging.ascending ? "e.expense_date > $9::date" : "e.expense_date < $9::date"} or (e.expense_date = $9::date and e.id > $10::text))
+       order by e.expense_date ${paging.ascending ? "asc" : "desc"},e.id
+       limit $11`,
     [...filterParams(org, filters), cursor?.k[0] ?? null, cursor?.id ?? null, paging.fetch],
   );
   return result.rows;

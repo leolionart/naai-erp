@@ -84,6 +84,24 @@ describe("T-UNIT-READ-005 CLI output controls", () => {
     await expect(executeReadHelper(client, "expenses", "summary", undefined, {})).rejects.toThrow(
       "group-by",
     );
+    const docCount = await executeReadHelper(
+      client,
+      "commercial-documents",
+      "count",
+      { type: "purchase_invoice", state: "posted" },
+      {},
+    );
+    expect(docCount.result).toEqual({
+      path: "commercial-documents/count?type=purchase_invoice&state=posted",
+    });
+    const docSummary = await executeReadHelper(
+      client,
+      "commercial-documents",
+      "summary",
+      undefined,
+      { "group-by": "type" },
+    );
+    expect(docSummary.result).toEqual({ path: "commercial-documents/summary?groupBy=type" });
     expect((await executeReadHelper(client, "journals", "list", undefined, {})).handled).toBe(
       false,
     );

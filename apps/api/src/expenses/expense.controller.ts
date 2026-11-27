@@ -45,6 +45,7 @@ export class ExpenseController {
       "fundingTreatment",
       "startsOn",
       "endsOn",
+      "q",
     ];
     const alias: Record<string, string> = { expenseClass: "class" };
     return Object.fromEntries(

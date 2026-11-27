@@ -13,6 +13,7 @@ import {
 } from "./expense-list.queries.js";
 import type { PgExpenseStore } from "./pg-expense.store.js";
 
+const SORTS = ["date_desc", "date_asc"];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FUNDING_TREATMENTS = ["company_funds", "owner_paid_company_cost", "tax_only_non_cash"];
 
@@ -36,8 +37,11 @@ export async function listExpensePage(
 ) {
   validateExpenseFilters(filters);
   const query = parseListQuery(raw);
+  if (query.sort !== undefined && !SORTS.includes(query.sort))
+    throw new PagingError("VALIDATION_FAILED");
   const rows = await store.list(organizationId, filters, {
     fetch: query.limit + 1,
+    ...(query.sort === "date_asc" ? { ascending: true } : {}),
     ...(query.cursor ? { cursor: query.cursor } : {}),
   });
   const total = query.includeTotal ? await store.count(organizationId, filters) : undefined;

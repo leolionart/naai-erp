@@ -163,14 +163,10 @@ export async function executeRequest(
   );
 }
 
-const COUNT_SUMMARY_FILTERS = [
-  "state",
-  "class",
-  "payeePartyId",
-  "fundingTreatment",
-  "startsOn",
-  "endsOn",
-];
+const COUNT_SUMMARY_FILTERS_BY_RESOURCE: Record<string, readonly string[]> = {
+  expenses: ["state", "class", "payeePartyId", "fundingTreatment", "startsOn", "endsOn"],
+  "commercial-documents": ["type", "state", "partyId", "projectId", "startsOn", "endsOn", "q"],
+};
 
 /** Read-only helpers that do not map to a generic CRUD action: describe, count, summary, openapi --tag. */
 export async function executeReadHelper(
@@ -202,22 +198,23 @@ export async function executeReadHelper(
     >[0];
     return { handled: true, result: filterOpenApiByTag(spec, String(values.tag)) };
   }
-  if (resource === "expenses" && (action === "count" || action === "summary") && client.getJson) {
+  const countSummaryFilters = COUNT_SUMMARY_FILTERS_BY_RESOURCE[resource];
+  if (countSummaryFilters && (action === "count" || action === "summary") && client.getJson) {
     const query = new URLSearchParams();
     const source = { ...(payload && typeof payload === "object" ? payload : {}) } as Record<
       string,
       unknown
     >;
-    for (const name of COUNT_SUMMARY_FILTERS) {
+    for (const name of countSummaryFilters) {
       const value = source[name] ?? values[name];
       if (value) query.set(name, String(value));
     }
     if (action === "summary") {
       const groupBy = source.groupBy ?? values["group-by"];
-      if (!groupBy) throw new Error("expenses summary requires --group-by or data.groupBy");
+      if (!groupBy) throw new Error(`${resource} summary requires --group-by or data.groupBy`);
       query.set("groupBy", String(groupBy));
     }
-    return { handled: true, result: await client.getJson(`expenses/${action}?${query}`) };
+    return { handled: true, result: await client.getJson(`${resource}/${action}?${query}`) };
   }
   return { handled: false };
 }

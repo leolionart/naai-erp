@@ -30,6 +30,11 @@ import type {
   QuickSalesInvoiceInput,
 } from "./commercial-document.types.js";
 
+const FILTER_KEYS = ["type", "state", "partyId", "projectId", "startsOn", "endsOn"] as const;
+function pickFilters(query: Record<string, string | undefined>) {
+  return Object.fromEntries(FILTER_KEYS.map((key) => [key, query[key]]));
+}
+
 @Controller("api/v1/organizations/:organizationId/commercial-documents")
 export class CommercialDocumentController {
   constructor(
@@ -66,6 +71,33 @@ export class CommercialDocumentController {
       startsOn,
       endsOn,
       query,
+    );
+  }
+  @Get("count")
+  async count(
+    @Param("organizationId") organizationId: string,
+    @Query() query: Record<string, string | undefined>,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.count(
+      await this.context(organizationId, authorization, correlationId),
+      pickFilters(query),
+      query.q,
+    );
+  }
+  @Get("summary")
+  async summary(
+    @Param("organizationId") organizationId: string,
+    @Query() query: Record<string, string | undefined>,
+    @Headers("authorization") authorization?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.summary(
+      await this.context(organizationId, authorization, correlationId),
+      pickFilters(query),
+      query.groupBy,
+      query.q,
     );
   }
   @Get("relationship-backfill/inventory")

@@ -1,16 +1,20 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { subscriptionNextActions, transitionSubscription } from "@naai-erp/domain";
 import pg, { type PoolClient } from "pg";
 import type { CustomerSubscriptionContext } from "./customer-service-subscription.types.js";
+import {
+  updatePlanOperation,
+  createSubscriptionOperation,
+  updateSubscriptionOperation,
+  mutateOperation,
+} from "./customer-service-subscription-update-plan.operation.js";
 
-const hash = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex");
-type Idempotency = { request_hash: string; response_body: Record<string, unknown> };
 @Injectable()
 export class PgCustomerServiceSubscriptionStore {
-  private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  private planSql = `select id,code,name,service_line_code "serviceLineCode",default_unit_price_minor::text "defaultUnitPriceMinor",currency,jsonb_build_object('frequency',recurrence_frequency,'interval',recurrence_interval,'billingDay',billing_day) recurrence,active,version::text "resourceVersion" from service_plans`;
-  private subSql = `select id,customer_party_id "customerPartyId",service_plan_id "servicePlanId",project_id "projectId",starts_on::text "startsOn",ends_on::text "endsOn",quantity::text,unit_price_minor::text "unitPriceMinor",currency,jsonb_build_object('frequency',recurrence_frequency,'interval',recurrence_interval,'billingDay',billing_day) "recurrenceSnapshot",lifecycle,version::text "resourceVersion" from customer_service_subscriptions`;
+  readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  planSql = `select id,code,name,service_line_code "serviceLineCode",default_unit_price_minor::text "defaultUnitPriceMinor",currency,jsonb_build_object('frequency',recurrence_frequency,'interval',recurrence_interval,'billingDay',billing_day) recurrence,active,version::text "resourceVersion" from service_plans`;
+  subSql = `select id,customer_party_id "customerPartyId",service_plan_id "servicePlanId",project_id "projectId",starts_on::text "startsOn",ends_on::text "endsOn",quantity::text,unit_price_minor::text "unitPriceMinor",currency,jsonb_build_object('frequency',recurrence_frequency,'interval',recurrence_interval,'billingDay',billing_day) "recurrenceSnapshot",lifecycle,version::text "resourceVersion" from customer_service_subscriptions`;
   async validatePortable(
     c: CustomerSubscriptionContext,
     resource: "service_plans" | "customer_service_subscriptions",
@@ -97,52 +101,7 @@ export class PgCustomerServiceSubscriptionStore {
       );
     });
   }
-  updatePlan(c: CustomerSubscriptionContext, id: string, i: Record<string, unknown>, k: string) {
-    return this.mutate(c, k, "service-plan:update", { id, i }, async (q) => {
-      const before = await this.lockPlan(q, c.organizationId, id, i.expectedResourceVersion),
-        r = i.recurrence as Record<string, unknown> | undefined;
-      if (i.serviceLineCode !== undefined)
-        await this.serviceLine(q, c.organizationId, i.serviceLineCode);
-      const next = {
-        code: i.code ?? before.code,
-        name: i.name ?? before.name,
-        serviceLineCode: i.serviceLineCode ?? before.service_line_code,
-        price: i.defaultUnitPriceMinor ?? before.default_unit_price_minor,
-        currency: i.currency ?? before.currency,
-        frequency: r?.frequency ?? before.recurrence_frequency,
-        interval: r?.interval ?? before.recurrence_interval,
-        billingDay: r?.billingDay ?? before.billing_day,
-      };
-      const version = (BigInt(String(before.version)) + 1n).toString();
-      await q.query(
-        `update service_plans set code=$3,name=$4,service_line_code=$5,default_unit_price_minor=$6,currency=$7,recurrence_frequency=$8,recurrence_interval=$9,billing_day=$10,version=$11,updated_by=$12,updated_at=now() where organization_id=$1 and id=$2`,
-        [
-          c.organizationId,
-          id,
-          next.code,
-          next.name,
-          next.serviceLineCode,
-          next.price,
-          next.currency,
-          next.frequency,
-          next.interval,
-          next.billingDay,
-          version,
-          c.actorId,
-        ],
-      );
-      return this.result(
-        q,
-        c,
-        "service_plan",
-        id,
-        "update",
-        version,
-        before,
-        await this.planWith(q, c.organizationId, id),
-      );
-    });
-  }
+  updatePlan = updatePlanOperation;
   deactivatePlan(
     c: CustomerSubscriptionContext,
     id: string,
@@ -226,104 +185,8 @@ export class PgCustomerServiceSubscriptionStore {
     ).rows[0];
     return x ? this.sub(x) : undefined;
   }
-  createSubscription(c: CustomerSubscriptionContext, i: Record<string, unknown>, k: string) {
-    return this.mutate(c, k, "customer-subscription:create", i, async (q) => {
-      const plan = await this.relationships(
-          q,
-          c.organizationId,
-          i.customerPartyId,
-          i.servicePlanId,
-          i.projectId,
-          false,
-        ),
-        r = (i.recurrence ?? plan.recurrence) as Record<string, unknown>,
-        id = String(i.id ?? randomUUID());
-      await q.query(
-        `insert into customer_service_subscriptions(organization_id,id,customer_party_id,service_plan_id,project_id,starts_on,ends_on,quantity,unit_price_minor,currency,recurrence_frequency,recurrence_interval,billing_day,created_by,updated_by)values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)`,
-        [
-          c.organizationId,
-          id,
-          i.customerPartyId,
-          i.servicePlanId,
-          i.projectId ?? null,
-          i.startsOn,
-          i.endsOn ?? null,
-          i.quantity,
-          i.unitPriceMinor ?? plan.defaultUnitPriceMinor,
-          i.currency ?? plan.currency,
-          r.frequency,
-          r.interval,
-          r.billingDay,
-          c.actorId,
-        ],
-      );
-      return this.result(
-        q,
-        c,
-        "customer_service_subscription",
-        id,
-        "create",
-        "1",
-        null,
-        await this.subWith(q, c.organizationId, id),
-      );
-    });
-  }
-  updateSubscription(
-    c: CustomerSubscriptionContext,
-    id: string,
-    i: Record<string, unknown>,
-    k: string,
-  ) {
-    return this.mutate(c, k, "customer-subscription:update", { id, i }, async (q) => {
-      const before = await this.lockSub(q, c.organizationId, id, i.expectedResourceVersion);
-      if (before.lifecycle !== "draft") throw new Error("SUBSCRIPTION_DRAFT_REQUIRED");
-      const customer = i.customerPartyId ?? before.customer_party_id,
-        planId = i.servicePlanId ?? before.service_plan_id,
-        project = i.projectId === undefined ? before.project_id : i.projectId,
-        plan = await this.relationships(q, c.organizationId, customer, planId, project, false),
-        r = (i.recurrence ??
-          (i.servicePlanId
-            ? plan.recurrence
-            : {
-                frequency: before.recurrence_frequency,
-                interval: before.recurrence_interval,
-                billingDay: before.billing_day,
-              })) as Record<string, unknown>,
-        version = (BigInt(String(before.version)) + 1n).toString();
-      await q.query(
-        `update customer_service_subscriptions set customer_party_id=$3,service_plan_id=$4,project_id=$5,starts_on=$6,ends_on=$7,quantity=$8,unit_price_minor=$9,currency=$10,recurrence_frequency=$11,recurrence_interval=$12,billing_day=$13,version=$14,updated_by=$15,updated_at=now() where organization_id=$1 and id=$2`,
-        [
-          c.organizationId,
-          id,
-          customer,
-          planId,
-          project,
-          i.startsOn ?? before.starts_on,
-          i.endsOn === undefined ? before.ends_on : i.endsOn,
-          i.quantity ?? before.quantity,
-          i.unitPriceMinor ??
-            (i.servicePlanId ? plan.defaultUnitPriceMinor : before.unit_price_minor),
-          i.currency ?? (i.servicePlanId ? plan.currency : before.currency),
-          r.frequency,
-          r.interval,
-          r.billingDay,
-          version,
-          c.actorId,
-        ],
-      );
-      return this.result(
-        q,
-        c,
-        "customer_service_subscription",
-        id,
-        "update",
-        version,
-        before,
-        await this.subWith(q, c.organizationId, id),
-      );
-    });
-  }
+  createSubscription = createSubscriptionOperation;
+  updateSubscription = updateSubscriptionOperation;
   transition(
     c: CustomerSubscriptionContext,
     id: string,
@@ -360,10 +223,10 @@ export class PgCustomerServiceSubscriptionStore {
       );
     });
   }
-  private plan(x: Record<string, unknown>) {
+  plan(x: Record<string, unknown>) {
     return { ...x, nextActions: x.active ? ["update", "deactivate"] : [] };
   }
-  private sub(x: Record<string, unknown>) {
+  sub(x: Record<string, unknown>) {
     return {
       ...x,
       nextActions: [
@@ -373,17 +236,17 @@ export class PgCustomerServiceSubscriptionStore {
       ],
     };
   }
-  private async planWith(q: PoolClient, o: string, id: string) {
+  async planWith(q: PoolClient, o: string, id: string) {
     return this.plan(
       (await q.query(`${this.planSql} where organization_id=$1 and id=$2`, [o, id])).rows[0],
     );
   }
-  private async subWith(q: PoolClient, o: string, id: string) {
+  async subWith(q: PoolClient, o: string, id: string) {
     return this.sub(
       (await q.query(`${this.subSql} where organization_id=$1 and id=$2`, [o, id])).rows[0],
     );
   }
-  private async lockPlan(q: PoolClient, o: string, id: string, v: unknown) {
+  async lockPlan(q: PoolClient, o: string, id: string, v: unknown) {
     const x = (
       await q.query(`select * from service_plans where organization_id=$1 and id=$2 for update`, [
         o,
@@ -394,7 +257,7 @@ export class PgCustomerServiceSubscriptionStore {
     if (String(x.version) !== String(v)) throw new Error("VERSION_CONFLICT");
     return x;
   }
-  private async lockSub(q: PoolClient, o: string, id: string, v: unknown) {
+  async lockSub(q: PoolClient, o: string, id: string, v: unknown) {
     const x = (
       await q.query(
         `select * from customer_service_subscriptions where organization_id=$1 and id=$2 for update`,
@@ -405,7 +268,7 @@ export class PgCustomerServiceSubscriptionStore {
     if (String(x.version) !== String(v)) throw new Error("VERSION_CONFLICT");
     return x;
   }
-  private async serviceLine(q: PoolClient, o: string, code: unknown) {
+  async serviceLine(q: PoolClient, o: string, code: unknown) {
     if (
       !(
         await q.query(
@@ -416,7 +279,7 @@ export class PgCustomerServiceSubscriptionStore {
     )
       throw new Error("SERVICE_LINE_NOT_FOUND");
   }
-  private async resolveServiceLine(q: PoolClient, o: string, requested: unknown) {
+  async resolveServiceLine(q: PoolClient, o: string, requested: unknown) {
     if (requested !== undefined && String(requested).trim()) {
       await this.serviceLine(q, o, requested);
       return String(requested);
@@ -431,7 +294,7 @@ export class PgCustomerServiceSubscriptionStore {
     if (!selected) throw new Error("SERVICE_LINE_REQUIRED");
     return selected.code;
   }
-  private async availablePlanCode(q: PoolClient, o: string, base: string) {
+  async availablePlanCode(q: PoolClient, o: string, base: string) {
     await q.query("select pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
       `service-plan-code:${o}`,
       base,
@@ -448,7 +311,7 @@ export class PgCustomerServiceSubscriptionStore {
     while (used.has(`${base}-${suffix}`)) suffix += 1;
     return `${base}-${suffix}`;
   }
-  private async relationships(
+  async relationships(
     q: PoolClient,
     o: string,
     customer: unknown,
@@ -483,7 +346,7 @@ export class PgCustomerServiceSubscriptionStore {
     }
     return plan;
   }
-  private async result(
+  async result(
     q: PoolClient,
     c: CustomerSubscriptionContext,
     type: string,
@@ -520,47 +383,5 @@ export class PgCustomerServiceSubscriptionStore {
       },
     };
   }
-  private async mutate(
-    c: CustomerSubscriptionContext,
-    key: string,
-    operation: string,
-    payload: unknown,
-    fn: (q: PoolClient) => Promise<Record<string, unknown>>,
-  ) {
-    const q = await this.pool.connect();
-    try {
-      await q.query("begin");
-      await q.query("select pg_advisory_xact_lock(hashtext($1),hashtext($2))", [
-        c.organizationId,
-        key,
-      ]);
-      const requestHash = hash({ operation, payload });
-      const replay = (
-        await q.query<Idempotency>(
-          `select request_hash,response_body from api_idempotency_records where organization_id=$1 and idempotency_key=$2 for update`,
-          [c.organizationId, key],
-        )
-      ).rows[0];
-      if (replay) {
-        if (replay.request_hash !== requestHash) throw new Error("IDEMPOTENCY_CONFLICT");
-        await q.query("commit");
-        return {
-          ...replay.response_body,
-          mutation: { ...(replay.response_body.mutation as object), idempotencyReplayed: true },
-        };
-      }
-      const response = await fn(q);
-      await q.query(
-        `insert into api_idempotency_records(organization_id,idempotency_key,operation,request_hash,response_body)values($1,$2,$3,$4,$5)`,
-        [c.organizationId, key, operation, requestHash, response],
-      );
-      await q.query("commit");
-      return response;
-    } catch (e) {
-      await q.query("rollback");
-      throw e;
-    } finally {
-      q.release();
-    }
-  }
+  mutate = mutateOperation;
 }

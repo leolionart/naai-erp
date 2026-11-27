@@ -59,8 +59,12 @@ export const RESOURCE_DESCRIPTIONS: Record<string, ResourceDescription> = {
       ],
     },
     filters: ["type", "state", "partyId", "projectId", "startsOn", "endsOn"],
-    actions: ["list", "get", "create", "update", "issue", "post", "void"],
-    notes: [...COMMON_NOTES, "Pass --view summary to drop embedded lines and allocations."],
+    actions: ["list", "count", "summary", "get", "create", "update", "issue", "post", "void"],
+    notes: [
+      ...COMMON_NOTES,
+      "Pass --view summary to drop embedded lines and allocations.",
+      "count and summary accept the same filters; summary needs groupBy=month|state|type|party (max 120 groups).",
+    ],
   },
   journals: {
     resource: "journals",
