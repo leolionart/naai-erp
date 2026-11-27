@@ -1,19 +1,8 @@
-import {
-  PagingError,
-  paginate,
-  parseListQuery,
-  resolveMaxResponseBytes,
-  type RawListQuery,
-} from "@naai-erp/contracts";
-import {
-  EXPENSE_SUMMARY_GROUPS,
-  expenseCursorOf,
-  type ExpenseListFilters,
-  type ExpenseSummaryGroup,
-} from "./expense-list.queries.js";
+import type { RawListQuery } from "@naai-erp/contracts";
+import { assertGroup, parseDatedList, toListResponse } from "../common/dated-list.js";
+import { EXPENSE_SUMMARY_GROUPS, type ExpenseListFilters } from "./expense-list.queries.js";
 import type { PgExpenseStore } from "./pg-expense.store.js";
 
-const SORTS = ["date_desc", "date_asc"];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FUNDING_TREATMENTS = ["company_funds", "owner_paid_company_cost", "tax_only_non_cash"];
 
@@ -36,26 +25,19 @@ export async function listExpensePage(
   raw: RawListQuery,
 ) {
   validateExpenseFilters(filters);
-  const query = parseListQuery(raw);
-  if (query.sort !== undefined && !SORTS.includes(query.sort))
-    throw new PagingError("VALIDATION_FAILED");
+  const { query, ascending } = parseDatedList(raw);
   const rows = await store.list(organizationId, filters, {
     fetch: query.limit + 1,
-    ...(query.sort === "date_asc" ? { ascending: true } : {}),
+    ascending,
     ...(query.cursor ? { cursor: query.cursor } : {}),
   });
   const total = query.includeTotal ? await store.count(organizationId, filters) : undefined;
-  const result = paginate(rows as { expense_date: string; id: string }[], {
-    limit: query.limit,
-    limitClamped: query.limitClamped,
-    cursorOf: expenseCursorOf,
-    maxBytes: resolveMaxResponseBytes(process.env.API_MAX_LIST_RESPONSE_BYTES),
-    ...(total === undefined ? {} : { total }),
-  });
-  return {
-    data: { items: result.items, ...result.page },
-    meta: result.meta,
-  };
+  return toListResponse(
+    rows as { expense_date: string; id: string }[],
+    query,
+    (row) => row.expense_date,
+    total === undefined ? {} : { total },
+  );
 }
 
 export async function countExpenseRows(
@@ -74,8 +56,5 @@ export async function summarizeExpenseRows(
   groupBy: string | undefined,
 ) {
   validateExpenseFilters(filters);
-  if (!EXPENSE_SUMMARY_GROUPS.includes(groupBy as ExpenseSummaryGroup)) {
-    throw new PagingError("VALIDATION_FAILED");
-  }
-  return store.summary(organizationId, filters, groupBy as ExpenseSummaryGroup);
+  return store.summary(organizationId, filters, assertGroup(groupBy, EXPENSE_SUMMARY_GROUPS));
 }

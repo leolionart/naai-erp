@@ -1,5 +1,12 @@
 import type { Pool } from "pg";
 import type { ListCursor } from "@naai-erp/contracts";
+import {
+  countRows,
+  cursorParams,
+  keysetSql,
+  likePattern,
+  summarizeGroups,
+} from "../common/dated-list.js";
 
 export interface CommercialDocumentListFilters {
   type?: string;
@@ -46,9 +53,11 @@ function filterParams(organizationId: string, filters: CommercialDocumentListFil
     filters.projectId ?? null,
     filters.startsOn ?? null,
     filters.endsOn ?? null,
-    filters.q ? `%${filters.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null,
+    likePattern(filters.q),
   ];
 }
+
+const FROM_WHERE = "commercial_documents d where d.organization_id=$1";
 
 const LIST_LINES_SQL = `coalesce(jsonb_agg(
          jsonb_set(to_jsonb(l), '{category_code}', to_jsonb(coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''),
@@ -66,6 +75,7 @@ export async function listCommercialDocuments(
   filters: CommercialDocumentListFilters,
   paging: CommercialDocumentListPaging,
 ) {
+  const keyset = keysetSql("d.document_date", "d.id", Boolean(paging.ascending), 9, 10);
   const linesSql = paging.summary ? "'[]'::jsonb" : LIST_LINES_SQL;
   const result = await pool.query(
     `select d.*,d.document_date::text document_date,d.due_date::text due_date,d.paid_on::text paid_on,
@@ -108,15 +118,10 @@ export async function listCommercialDocuments(
        on l.organization_id=d.organization_id and l.document_id=d.id
      where d.organization_id=$1
 ${FILTER_SQL}
-     and ($9::date is null or ${paging.ascending ? "d.document_date > $9::date" : "d.document_date < $9::date"} or (d.document_date = $9::date and d.id > $10::text))
-     group by d.organization_id,d.id order by d.document_date ${paging.ascending ? "asc" : "desc"},d.id
+     and ${keyset.where}
+     group by d.organization_id,d.id order by ${keyset.orderBy}
      limit $11`,
-    [
-      ...filterParams(organizationId, filters),
-      paging.cursor?.k[0] ?? null,
-      paging.cursor?.id ?? null,
-      paging.fetch,
-    ],
+    [...filterParams(organizationId, filters), ...cursorParams(paging.cursor), paging.fetch],
   );
   return result.rows;
 }
@@ -135,33 +140,27 @@ const GROUP_KEY_SQL: Record<CommercialDocumentSummaryGroup, string> = {
   party: "coalesce(d.party_id,'(none)')",
 };
 
-export async function countCommercialDocuments(
+export function countCommercialDocuments(
   pool: Pool,
   organizationId: string,
   filters: CommercialDocumentListFilters,
 ) {
-  const result = await pool.query(
-    `select count(*)::int total from commercial_documents d where d.organization_id=$1
-${FILTER_SQL}`,
-    filterParams(organizationId, filters),
-  );
-  return (result.rows[0]?.total as number | undefined) ?? 0;
+  return countRows(pool, FROM_WHERE, FILTER_SQL, filterParams(organizationId, filters));
 }
 
-/** At most 120 groups of count and gross totals per currency, so AI and charts never download records. */
-export async function summarizeCommercialDocuments(
+export function summarizeCommercialDocuments(
   pool: Pool,
   organizationId: string,
   filters: CommercialDocumentListFilters,
   groupBy: CommercialDocumentSummaryGroup,
 ) {
-  const result = await pool.query(
-    `select ${GROUP_KEY_SQL[groupBy]} key, d.currency, count(*)::int count, coalesce(sum(d.gross_minor),0)::text "grossMinor"
-       from commercial_documents d where d.organization_id=$1
-${FILTER_SQL}
-      group by 1,2 order by ${groupBy === "month" ? "1 desc" : "3 desc, 1"}, 2
-      limit 121`,
-    filterParams(organizationId, filters),
-  );
-  return { groupBy, groups: result.rows.slice(0, 120), truncated: result.rows.length > 120 };
+  return summarizeGroups(pool, {
+    fromWhere: FROM_WHERE,
+    filterSql: FILTER_SQL,
+    params: filterParams(organizationId, filters),
+    keySql: GROUP_KEY_SQL[groupBy],
+    currencyColumn: "d.currency",
+    amountColumn: "d.gross_minor",
+    groupBy,
+  });
 }

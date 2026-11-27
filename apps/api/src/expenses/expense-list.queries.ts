@@ -1,5 +1,12 @@
 import type { Pool } from "pg";
-import { decodeCursor, type ListCursor } from "@naai-erp/contracts";
+import type { ListCursor } from "@naai-erp/contracts";
+import {
+  countRows,
+  cursorParams,
+  keysetSql,
+  likePattern,
+  summarizeGroups,
+} from "../common/dated-list.js";
 
 export interface ExpenseListFilters {
   state?: string;
@@ -28,7 +35,6 @@ export const EXPENSE_SUMMARY_GROUPS: readonly ExpenseSummaryGroup[] = [
   "payee",
   "category",
 ];
-const MAX_SUMMARY_GROUPS = 120;
 
 // Parameters $1..$8 are shared by list, count and summary so filters never drift apart.
 const FILTER_SQL = `       and (($2::text is not null and e.state::text=$2) or ($2::text is null and e.state<>'reversed'))
@@ -53,7 +59,7 @@ function filterParams(org: string, filters: ExpenseListFilters) {
     filters.fundingTreatment ?? null,
     filters.startsOn ?? null,
     filters.endsOn ?? null,
-    filters.q ? `%${filters.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null,
+    likePattern(filters.q),
   ];
 }
 
@@ -64,7 +70,7 @@ export async function listExpenses(
   filters: ExpenseListFilters,
   paging: ExpenseListPaging,
 ) {
-  const cursor = paging.cursor;
+  const keyset = keysetSql("e.expense_date", "e.id", Boolean(paging.ascending), 9, 10);
   const result = await pool.query(
     `select e.*,e.expense_date::text expense_date,e.paid_on::text paid_on,e.funding_financial_account_id "fundingFinancialAccountId",
        e.owner_funding_movement_id "ownerFundingId",
@@ -108,21 +114,18 @@ export async function listExpenses(
        ) x),'[]'::jsonb) "fundingTreatments"
        from expenses e where e.organization_id=$1
 ${FILTER_SQL}
-       and ($9::date is null or ${paging.ascending ? "e.expense_date > $9::date" : "e.expense_date < $9::date"} or (e.expense_date = $9::date and e.id > $10::text))
-       order by e.expense_date ${paging.ascending ? "asc" : "desc"},e.id
+       and ${keyset.where}
+       order by ${keyset.orderBy}
        limit $11`,
-    [...filterParams(org, filters), cursor?.k[0] ?? null, cursor?.id ?? null, paging.fetch],
+    [...filterParams(org, filters), ...cursorParams(paging.cursor), paging.fetch],
   );
   return result.rows;
 }
 
-export async function countExpenses(pool: Pool, org: string, filters: ExpenseListFilters) {
-  const result = await pool.query(
-    `select count(*)::int total from expenses e where e.organization_id=$1
-${FILTER_SQL}`,
-    filterParams(org, filters),
-  );
-  return (result.rows[0]?.total as number | undefined) ?? 0;
+const FROM_WHERE = "expenses e where e.organization_id=$1";
+
+export function countExpenses(pool: Pool, org: string, filters: ExpenseListFilters) {
+  return countRows(pool, FROM_WHERE, FILTER_SQL, filterParams(org, filters));
 }
 
 const GROUP_KEY_SQL: Record<ExpenseSummaryGroup, string> = {
@@ -134,29 +137,19 @@ const GROUP_KEY_SQL: Record<ExpenseSummaryGroup, string> = {
         where l.organization_id=e.organization_id and l.expense_id=e.id order by l.line_number limit 1),'(none)')`,
 };
 
-export async function summarizeExpenses(
+export function summarizeExpenses(
   pool: Pool,
   org: string,
   filters: ExpenseListFilters,
   groupBy: ExpenseSummaryGroup,
 ) {
-  const key = GROUP_KEY_SQL[groupBy];
-  const result = await pool.query(
-    `select ${key} key, e.currency, count(*)::int count, coalesce(sum(e.gross_minor),0)::text "grossMinor"
-       from expenses e where e.organization_id=$1
-${FILTER_SQL}
-      group by 1,2 order by ${groupBy === "month" ? "1 desc" : "3 desc, 1"}, 2
-      limit ${MAX_SUMMARY_GROUPS + 1}`,
-    filterParams(org, filters),
-  );
-  const rows = result.rows.slice(0, MAX_SUMMARY_GROUPS);
-  return { groupBy, groups: rows, truncated: result.rows.length > MAX_SUMMARY_GROUPS };
-}
-
-export function expenseCursorOf(row: { expense_date: string; id: string }): ListCursor {
-  return { k: [row.expense_date], id: row.id };
-}
-
-export function parseExpenseCursor(value: string): ListCursor {
-  return decodeCursor(value);
+  return summarizeGroups(pool, {
+    fromWhere: FROM_WHERE,
+    filterSql: FILTER_SQL,
+    params: filterParams(org, filters),
+    keySql: GROUP_KEY_SQL[groupBy],
+    currencyColumn: "e.currency",
+    amountColumn: "e.gross_minor",
+    groupBy,
+  });
 }

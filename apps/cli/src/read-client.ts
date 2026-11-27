@@ -1,5 +1,5 @@
 import { NaaiErpClient } from "./client.js";
-import { orgJsonRequest } from "./org-json-request.js";
+import { sendJsonSubresourceRequest } from "./cli-http-helpers.js";
 
 type Options = ConstructorParameters<typeof NaaiErpClient>[0];
 
@@ -13,6 +13,6 @@ export class NaaiErpReadClient extends NaaiErpClient {
   }
 
   getJson(path: string): Promise<unknown> {
-    return orgJsonRequest(this.readOptions, this.readFetch, path);
+    return sendJsonSubresourceRequest(this.readFetch, this.readOptions, path, "GET");
   }
 }

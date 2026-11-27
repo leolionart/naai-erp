@@ -12,7 +12,6 @@ import {
 } from "./dashboard-workspaces";
 import { buildCitCardDescription, buildCitDrilldownFacts } from "./cit-estimate-presentation";
 import { buildExpenseOverviewQueries } from "./focused-record-shared";
-import { loadAllPages } from "./load-all-pages";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -128,20 +127,5 @@ describe("dashboard reporting cutoff", () => {
     expect(expensesPath).toBe("expenses?startsOn=2026-01-01&endsOn=2026-12-31&state=posted");
     expect(documentsPath).not.toContain("limit=");
     expect(expensesPath).not.toContain("limit=");
-  });
-
-  it("loadAllPages replaces any existing limit/cursor instead of duplicating query params", async () => {
-    const seen: string[] = [];
-    const rows = await loadAllPages(async (path) => {
-      seen.push(path);
-      return {
-        data: {
-          items: [{ id: `item-${seen.length}` }],
-          ...(seen.length === 1 ? { nextCursor: "next-1" } : {}),
-        },
-      };
-    }, "journals?limit=500");
-    expect(rows).toEqual([{ id: "item-1" }, { id: "item-2" }]);
-    expect(seen).toEqual(["journals?limit=100", "journals?limit=100&cursor=next-1"]);
   });
 });

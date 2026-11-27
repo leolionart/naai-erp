@@ -38,7 +38,7 @@ describe("ERP-310 ExpenseService", () => {
     expect(store.list).toHaveBeenCalledWith(
       "org-a",
       { state: "posted", fundingTreatment: "owner_paid_company_cost" },
-      { fetch: 51 },
+      { fetch: 51, ascending: false },
     );
     expect(result.data).toEqual({ items: [], limit: 50, hasMore: false });
     await expect(service.list(context, { fundingTreatment: "description_guess" })).rejects.toThrow(
@@ -56,7 +56,7 @@ describe("ERP-310 ExpenseService", () => {
     expect(store.list).toHaveBeenCalledWith(
       "org-a",
       { startsOn: "2026-01-01", endsOn: "2026-03-31" },
-      { fetch: 51 },
+      { fetch: 51, ascending: false },
     );
     await expect(
       service.list(context, { startsOn: "2026-03-31", endsOn: "2026-01-01" }),

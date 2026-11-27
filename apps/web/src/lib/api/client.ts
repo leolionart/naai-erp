@@ -1,4 +1,5 @@
 import { organizationApiRoot, type ApiConnectionSettingsV1 } from "./connection";
+import { followPages, isSelfPaged, withPagingParams } from "./paging";
 import { IdempotencyRegistry, mutationFingerprint } from "./idempotency";
 import { ApiClientError, isApiEnvelope, type ApiEnvelope, type ApiErrorBody } from "./types";
 
@@ -77,59 +78,18 @@ export function createApiClient(input: {
     return { data: payload as T };
   }
 
-  type Paged = {
-    page?: { hasMore?: boolean; nextCursor?: string };
-    meta?: Record<string, unknown>;
-  };
-  const MAX_AUTO_PAGES = 50;
-
-  function withPagingParams(path: string, limit: number, cursor?: string): string {
-    const qIndex = path.indexOf("?");
-    const base = qIndex >= 0 ? path.slice(0, qIndex) : path;
-    const params = new URLSearchParams(qIndex >= 0 ? path.slice(qIndex + 1) : "");
-    params.set("limit", String(limit));
-    if (cursor) params.set("cursor", cursor);
-    else params.delete("cursor");
-    const qs = params.toString();
-    return qs ? `${base}?${qs}` : base;
-  }
-
   /**
-   * Every list read is bounded by the server (BR-READ-001) and declares `page.hasMore`.
-   * Unless the caller manages paging itself (`limit`/`cursor` in the path), follow `nextCursor` so
-   * screens never mistake a first page for the whole list; hitting the cap is reported in meta.truncated.
+   * Every list read is bounded by the server and declares `page.hasMore`. Unless the caller manages
+   * paging itself (`limit`/`cursor` in the path), follow `nextCursor` so screens never mistake a
+   * first page for the whole list.
    */
   async function request<T>(
     path: string,
     options: ApiRequestOptions = {},
   ): Promise<ApiEnvelope<T>> {
     const first = await requestOnce<T>(path, options);
-    const selfPaged = /[?&](limit|cursor)=/.test(path);
-    if ((options.method ?? "GET") !== "GET" || selfPaged) return first;
-    let current = first as ApiEnvelope<T> & Paged;
-    if (!current.page?.hasMore || !current.page.nextCursor) return first;
-    const merged = first as ApiEnvelope<unknown> & Paged;
-    for (let pages = 1; pages < MAX_AUTO_PAGES; pages += 1) {
-      const cursor = current.page?.nextCursor;
-      if (!current.page?.hasMore || !cursor) return merged as ApiEnvelope<T>;
-      current = (await requestOnce<T>(
-        withPagingParams(path, 200, cursor),
-        options,
-      )) as ApiEnvelope<T> & Paged;
-      const data = merged.data as unknown[] | { items: unknown[] };
-      const more = current.data as unknown[] | { items: unknown[] };
-      if (Array.isArray(data) && Array.isArray(more)) data.push(...more);
-      else if (!Array.isArray(data) && !Array.isArray(more)) data.items.push(...more.items);
-      merged.page = current.page as Paged["page"];
-      if (!Array.isArray(data)) {
-        Object.assign(data, {
-          hasMore: current.page?.hasMore,
-          nextCursor: current.page?.nextCursor,
-        });
-      }
-    }
-    merged.meta = { ...merged.meta, truncated: true };
-    return merged as ApiEnvelope<T>;
+    if ((options.method ?? "GET") !== "GET" || isSelfPaged(path)) return first;
+    return followPages(first, (next) => requestOnce<T>(next, options), path);
   }
 
   return Object.freeze({
@@ -137,27 +97,10 @@ export function createApiClient(input: {
     async data<T>(path: string, options?: ApiRequestOptions): Promise<T> {
       return (await request<T>(path, options)).data;
     },
-    /**
-     * Loads every page of a bounded list (BR-READ-001/002) by following `page.nextCursor`.
-     * Safety cap keeps a runaway list from exhausting browser memory.
-     */
-    async dataAll<T>(path: string, options: { maxPages?: number } = {}): Promise<T[]> {
-      const maxPages = options.maxPages ?? 50;
-      const rows: T[] = [];
-      let cursor: string | undefined;
-      for (let page = 0; page < maxPages; page += 1) {
-        const url = withPagingParams(path, 200, cursor);
-        const envelope = await request<T[] | { items?: T[]; nextCursor?: string }>(url);
-        const data = envelope.data;
-        if (Array.isArray(data)) {
-          rows.push(...data);
-          break;
-        }
-        rows.push(...(data.items ?? []));
-        cursor = data.nextCursor;
-        if (!cursor) break;
-      }
-      return rows;
+    /** Every row of a list as an array: any `limit`/`cursor` in the path is replaced and pages are followed. */
+    async dataAll<T>(path: string): Promise<T[]> {
+      const { data } = await request<T[] | { items?: T[] }>(withPagingParams(path));
+      return Array.isArray(data) ? data : (data.items ?? []);
     },
   });
 }

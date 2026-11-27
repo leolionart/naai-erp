@@ -111,7 +111,7 @@ describe("ERP-300 CommercialDocumentService", () => {
     expect(store.list).toHaveBeenCalledWith(
       "org-a",
       { type: "sales_invoice", state: "issued", partyId: "client-a", projectId: "project-a" },
-      { fetch: 51, summary: false },
+      { fetch: 51, summary: false, ascending: false },
     );
   });
 

@@ -1,5 +1,4 @@
 import { resolveLegacyRoute } from "./legacy-route.js";
-import { jsonOrThrow, orgJsonRequest } from "./org-json-request.js";
 import { randomUUID } from "node:crypto";
 import type {
   CreateCustomerReceiptRequest,
@@ -7,7 +6,11 @@ import type {
   RecordOwnerFundingRequest,
 } from "@naai-erp/contracts";
 import { executeExtendedCliRoute, resolveExtendedCliRoute } from "./cit-client.js";
-import { downloadXlsxAttachment, sendJsonSubresourceRequest } from "./cli-http-helpers.js";
+import {
+  downloadXlsxAttachment,
+  jsonOrThrow,
+  sendJsonSubresourceRequest,
+} from "./cli-http-helpers.js";
 import { isOwnerFundingResource, requestOwnerFunding } from "./owner-funding-cli.js";
 import {
   downloadBinaryFromApi,
@@ -187,8 +190,13 @@ export class NaaiErpClient {
     dimension: "payee" | "category",
     range: Readonly<{ startsOn: string; endsOn: string }>,
   ): Promise<unknown> {
-    const query = new URLSearchParams(range).toString();
-    return orgJsonRequest(this.options, this.fetchFn, `reports/expenses/by-${dimension}?${query}`);
+    return sendJsonSubresourceRequest(
+      this.fetchFn,
+      this.options,
+      `reports/expenses/by-${dimension}`,
+      "GET",
+      range,
+    );
   }
 
   /** Run the backend's evidence-based funding inference for expense records. */
@@ -209,11 +217,14 @@ export class NaaiErpClient {
     payload: Readonly<{ reason: string; planHash?: string }>,
     idempotencyKey?: string,
   ): Promise<unknown> {
-    return orgJsonRequest(this.options, this.fetchFn, `expenses/funding-inference/${action}`, {
-      method: "POST",
-      body: payload,
-      ...(idempotencyKey ? { idempotencyKey } : {}),
-    });
+    return sendJsonSubresourceRequest(
+      this.fetchFn,
+      this.options,
+      `expenses/funding-inference/${action}`,
+      "POST",
+      payload,
+      idempotencyKey,
+    );
   }
 
   private portableDataBase() {

@@ -131,17 +131,16 @@ describe("ERP-345 API client", () => {
     expect(selfPaged).toHaveBeenCalledTimes(1);
   });
 
-  it("dataAll replaces existing limit/cursor instead of sending duplicate query params", async () => {
+  it("dataAll drops caller limit/cursor and follows page.nextCursor without duplicate params", async () => {
     const requested: string[] = [];
     const fetcher = vi.fn(async (url: string) => {
       requested.push(url);
       const page = requested.length;
+      const hasMore = page === 1;
       return new Response(
         JSON.stringify({
-          data: {
-            items: [{ id: `row-${page}` }],
-            ...(page === 1 ? { nextCursor: "cur-2" } : {}),
-          },
+          data: { items: [{ id: `row-${page}` }] },
+          page: { hasMore, ...(hasMore ? { nextCursor: "cur-2" } : {}) },
         }),
         { status: 200 },
       );
@@ -150,10 +149,10 @@ describe("ERP-345 API client", () => {
     const rows = await client.dataAll<{ id: string }>("expenses?limit=500&state=posted");
     expect(rows).toEqual([{ id: "row-1" }, { id: "row-2" }]);
     expect(requested[0]).toBe(
-      "http://localhost:3001/api/v1/organizations/org-naai/expenses?limit=200&state=posted",
+      "http://localhost:3001/api/v1/organizations/org-naai/expenses?state=posted",
     );
     expect(requested[1]).toBe(
-      "http://localhost:3001/api/v1/organizations/org-naai/expenses?limit=200&state=posted&cursor=cur-2",
+      "http://localhost:3001/api/v1/organizations/org-naai/expenses?state=posted&limit=200&cursor=cur-2",
     );
   });
 });

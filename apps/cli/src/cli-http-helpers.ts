@@ -25,6 +25,11 @@ export async function sendJsonSubresourceRequest(
     },
     ...(method !== "GET" ? { body: JSON.stringify(payload) } : {}),
   });
+  return jsonOrThrow(response);
+}
+
+/** Parses a JSON API response and throws the raw error body for non-2xx statuses. */
+export async function jsonOrThrow(response: Response): Promise<unknown> {
   const body: unknown = await response.json();
   if (!response.ok) throw new Error(JSON.stringify(body));
   return body;
