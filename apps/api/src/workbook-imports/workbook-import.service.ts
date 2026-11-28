@@ -1,12 +1,24 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import { Injectable } from "@nestjs/common";
 import pg from "pg";
 import { createHash, randomUUID } from "node:crypto";
+import {
+  countRows,
+  cursorParams,
+  keysetSql,
+  parseDatedList,
+  toListResponse,
+} from "../common/dated-list.js";
 import { mapWorkbookReviewRow, type ReviewRowRecord } from "./workbook-review-row.mapper.js";
 import type { UpdateWorkbookImportReviewRowInput } from "./workbook-import.types.js";
 import { REVIEW_ROLES } from "./workbook-import.service.shared.js";
 export type { ImportOutcome } from "./workbook-import.service.shared.js";
 import { dryRunOperation } from "./workbook-import-service-dry-run.operation.js";
 import { commitOperation } from "./workbook-import-service-commit.operation.js";
+
+const REVIEW_ROW_FILTER = `where organization_id=$1
+  and ($2::text is null or status::text=$2)
+  and ($3::text is null or id ilike $3 or workbook ilike $3 or sheet ilike $3 or source_identity ilike $3 or kind ilike $3 or coalesce(notes,'') ilike $3)`;
 
 @Injectable()
 export class WorkbookImportService {
@@ -20,14 +32,34 @@ export class WorkbookImportService {
     return mapWorkbookReviewRow(row);
   }
 
-  async listReviewRows(organizationId: string, roles: readonly string[]) {
+  /** Keyset page ordered by created_at, id (BR-READ-002). */
+  async listReviewRows(
+    organizationId: string,
+    roles: readonly string[],
+    paging: RawListQuery & { status?: string } = {},
+  ) {
     this.requireReviewRole(roles);
-    const result = await this.pool.query<ReviewRowRecord>(
-      `select * from workbook_import_review_rows
-       where organization_id=$1 order by workbook,sheet,source_row,id`,
-      [organizationId],
+    const { query, ascending, search } = parseDatedList(paging);
+    const params = [organizationId, paging.status ?? null, search];
+    const keyset = keysetSql("created_at", "id", ascending, 4, 5, "timestamptz");
+    const result = await this.pool.query<ReviewRowRecord & { created_at_key: string }>(
+      `select *, created_at::text created_at_key from workbook_import_review_rows
+       ${REVIEW_ROW_FILTER} and ${keyset.where}
+       order by ${keyset.orderBy}
+       limit $6`,
+      [...params, ...cursorParams(query.cursor), query.limit + 1],
     );
-    return result.rows.map((row) => this.reviewRow(row));
+    const total = query.includeTotal
+      ? await countRows(this.pool, "workbook_import_review_rows", REVIEW_ROW_FILTER, params)
+      : undefined;
+    const mapped = result.rows.map((row) => ({
+      ...this.reviewRow(row),
+      created_at_key: row.created_at_key,
+    }));
+    return toListResponse(mapped, query, (row) => row.created_at_key, {
+      ...(total === undefined ? {} : { total }),
+      mapItem: ({ created_at_key: _key, ...item }) => item,
+    });
   }
 
   async getReviewRow(organizationId: string, id: string, roles: readonly string[]) {

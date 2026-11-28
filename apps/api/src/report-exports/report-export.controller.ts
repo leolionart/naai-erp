@@ -11,10 +11,11 @@ export class ReportExportController {
   }
   @Get("report-snapshots") async ls(
     @Param("organizationId") o: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") a?: string,
     @Headers("x-correlation-id") c?: string,
   ) {
-    return this.s.listSnapshots(await this.c(o, a, c));
+    return this.s.listSnapshots(await this.c(o, a, c), query);
   }
   @Get("report-snapshots/:id") async gs(
     @Param("organizationId") o: string,
@@ -45,10 +46,11 @@ export class ReportExportController {
   }
   @Get("accountant-exports") async le(
     @Param("organizationId") o: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") a?: string,
     @Headers("x-correlation-id") c?: string,
   ) {
-    return this.s.listExports(await this.c(o, a, c));
+    return this.s.listExports(await this.c(o, a, c), query);
   }
   @Get("accounting-list-exports/sales-invoices") async salesListExport(
     @Param("organizationId") o: string,

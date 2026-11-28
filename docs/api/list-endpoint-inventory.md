@@ -6,12 +6,12 @@ Anything else is either an unfinished route or a documented exception (single ag
 
 | Route | Status | Controller |
 | --- | --- | --- |
-| `GET /accountant-exports` | bounded (safety net, in-memory page) | `apps/api/src/report-exports/report-export.controller.ts` |
+| `GET /accountant-exports` | bounded (keyset in SQL) | `apps/api/src/report-exports/report-export.controller.ts` |
 | `GET /api-credentials` | bounded (safety net, in-memory page) | `apps/api/src/integration-settings/integration-settings.controller.ts` |
 | `GET /api/v1/capabilities` | exception (aggregate, export, health or own cursor) | `apps/api/src/discovery/discovery.controller.ts` |
 | `GET /banking/accounts` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
 | `GET /banking/imports` | bounded (keyset in SQL) | `apps/api/src/banking/banking.controller.ts` |
-| `GET /banking/internal-transfers` | bounded (safety net, in-memory page) | `apps/api/src/internal-transfers/internal-transfer.controller.ts` |
+| `GET /banking/internal-transfers` | bounded (keyset in SQL) | `apps/api/src/internal-transfers/internal-transfer.controller.ts` |
 | `GET /banking/owner-current-movements` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
 | `GET /banking/owner-funding` | bounded (safety net, in-memory page) | `apps/api/src/owner-funding/owner-funding.controller.ts` |
 | `GET /banking/reconciliations` | bounded (keyset in SQL) | `apps/api/src/reconciliation/reconciliation.controller.ts` |
@@ -49,8 +49,8 @@ Anything else is either an unfinished route or a documented exception (single ag
 | `GET /outbound-events/outbox` | bounded (keyset in SQL) | `apps/api/src/outbound-events/outbound-event.controller.ts` |
 | `GET /planning-actual-facts` | bounded (keyset in SQL) | `apps/api/src/performance-comparison/performance-comparison.controller.ts` |
 | `GET /portable-data-packages/exports` | bounded (keyset in SQL) | `apps/api/src/portable-data-packages/portable-data-package.controller.ts` |
-| `GET /project-freelance-payables` | bounded (safety net, in-memory page) | `apps/api/src/project-freelance-payables/project-freelance-payable.controller.ts` |
-| `GET /report-snapshots` | bounded (safety net, in-memory page) | `apps/api/src/report-exports/report-export.controller.ts` |
+| `GET /project-freelance-payables` | bounded (keyset in SQL) | `apps/api/src/project-freelance-payables/project-freelance-payable.controller.ts` |
+| `GET /report-snapshots` | bounded (keyset in SQL) | `apps/api/src/report-exports/report-export.controller.ts` |
 | `GET /reports/ap-aging` | exception (aggregate, export, health or own cursor) | `apps/api/src/aging/aging.controller.ts` |
 | `GET /reports/ar-aging` | exception (aggregate, export, health or own cursor) | `apps/api/src/aging/aging.controller.ts` |
 | `GET /reports/expenses/by-category` | exception (aggregate, export, health or own cursor) | `apps/api/src/expense-reports/expense-report.controller.ts` |
@@ -63,4 +63,4 @@ Anything else is either an unfinished route or a documented exception (single ag
 | `GET /service-plans` | bounded (safety net, in-memory page) | `apps/api/src/customer-service-subscriptions/customer-service-subscription.controller.ts` |
 | `GET /telegram-settings` | bounded (safety net, in-memory page) | `apps/api/src/telegram-settings/telegram-settings.controller.ts` |
 | `GET /time/workers` | bounded (keyset in SQL) | `apps/api/src/time/time.controller.ts` |
-| `GET /workbook-imports/review-rows` | bounded (safety net, in-memory page) | `apps/api/src/workbook-imports/workbook-import.controller.ts` |
+| `GET /workbook-imports/review-rows` | bounded (keyset in SQL) | `apps/api/src/workbook-imports/workbook-import.controller.ts` |

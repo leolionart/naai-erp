@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { WorkbookImportService } from "./workbook-import.service.js";
 import type {
@@ -68,16 +68,18 @@ export class WorkbookImportController {
   @Get("review-rows")
   async listReviewRows(
     @Param("organizationId") organizationId: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") authorization?: string,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     const ctx = await this.context(organizationId, authorization, correlationId);
-    const result = await this.service.listReviewRows(organizationId, ctx.roles);
+    const page = await this.service.listReviewRows(organizationId, ctx.roles, query);
     return {
       apiVersion: "v1" as const,
       requestId: ctx.correlationId,
       organizationId,
-      data: { items: result },
+      data: page.data,
+      meta: page.meta,
     };
   }
 

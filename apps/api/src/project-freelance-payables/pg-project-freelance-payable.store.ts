@@ -1,8 +1,15 @@
 import { Injectable } from "@nestjs/common";
-import type { RecordFreelancePayablePaymentRequest } from "@naai-erp/contracts";
+import type { RawListQuery, RecordFreelancePayablePaymentRequest } from "@naai-erp/contracts";
 import { validateFreelancePayment } from "@naai-erp/domain";
 import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
+import {
+  countRows,
+  cursorParams,
+  keysetSql,
+  parseDatedList,
+  toListResponse,
+} from "../common/dated-list.js";
 import type {
   ProjectFreelancePayableContext,
   ProjectFreelancePayableStore,
@@ -24,22 +31,70 @@ type Row = {
   paymentJournalIds: string[];
   resourceVersion: string;
 };
+
+const SELECT_PAYABLE = `select p.id,p.expense_id "expenseId",p.project_id "projectId",
+  p.freelancer_party_id "freelancerPartyId",e.expense_date::text "expenseDate",
+  p.due_date::text "dueDate",p.amount_minor::text "amountMinor",p.paid_minor::text "paidMinor",
+  (p.amount_minor-p.paid_minor)::text "outstandingMinor",p.currency,
+  e.business_purpose description,p.state,p.journal_id "journalId",
+  coalesce((select array_agg(pp.journal_id order by pp.payment_date,pp.id)
+    from project_freelance_payable_payments pp
+    where pp.organization_id=p.organization_id and pp.payable_id=p.id),'{}') "paymentJournalIds",
+  p.version::text "resourceVersion"`;
+
+const PAYABLE_FROM = `project_freelance_payables p
+  join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id`;
+
+const PAYABLE_FILTER = `where p.organization_id=$1
+  and ($2::text is null or p.project_id=$2)
+  and ($3::text is null or p.freelancer_party_id=$3)
+  and ($4::text is null or p.state=$4)
+  and ($5::text is null or p.id ilike $5 or p.project_id ilike $5 or p.freelancer_party_id ilike $5 or e.business_purpose ilike $5)`;
+
+const toPayableContract = (x: Row) => ({
+  schemaVersion: 1,
+  ...x,
+  nextActions: x.state === "paid" ? [] : ["record_payment"],
+});
+
 @Injectable()
 export class PgProjectFreelancePayableStore implements ProjectFreelancePayableStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  async list(org: string, f: { projectId?: string; freelancerPartyId?: string; state?: string }) {
+  /** Keyset page ordered by due_date, id (BR-READ-002). */
+  async list(
+    org: string,
+    f: { projectId?: string; freelancerPartyId?: string; state?: string },
+    paging: RawListQuery = {},
+  ) {
+    const { query, search } = parseDatedList(paging);
+    // The payables queue keeps its historical order: nearest due date first unless sort=date_desc.
+    const ascending = query.sort !== "date_desc";
+    const params = [org, f.projectId ?? null, f.freelancerPartyId ?? null, f.state ?? null, search];
+    const keyset = keysetSql("p.due_date", "p.id", ascending, 6, 7);
     const r = await this.pool.query<Row>(
-      `select p.id,p.expense_id "expenseId",p.project_id "projectId",p.freelancer_party_id "freelancerPartyId",e.expense_date::text "expenseDate",p.due_date::text "dueDate",p.amount_minor::text "amountMinor",p.paid_minor::text "paidMinor",(p.amount_minor-p.paid_minor)::text "outstandingMinor",p.currency,e.business_purpose description,p.state,p.journal_id "journalId",coalesce(array_agg(pp.journal_id) filter(where pp.id is not null),'{}') "paymentJournalIds",p.version::text "resourceVersion" from project_freelance_payables p join expenses e on e.organization_id=p.organization_id and e.id=p.expense_id left join project_freelance_payable_payments pp on pp.organization_id=p.organization_id and pp.payable_id=p.id where p.organization_id=$1 and ($2::text is null or p.project_id=$2) and ($3::text is null or p.freelancer_party_id=$3) and ($4::text is null or p.state=$4) group by p.organization_id,p.id,e.expense_date,e.business_purpose order by p.due_date,p.created_at`,
-      [org, f.projectId ?? null, f.freelancerPartyId ?? null, f.state ?? null],
+      `${SELECT_PAYABLE} from ${PAYABLE_FROM}
+       ${PAYABLE_FILTER} and ${keyset.where}
+       order by ${keyset.orderBy}
+       limit $8`,
+      [...params, ...cursorParams(query.cursor), query.limit + 1],
     );
-    return r.rows.map((x) => ({
-      schemaVersion: 1,
-      ...x,
-      nextActions: x.state === "paid" ? [] : ["record_payment"],
-    }));
+    const total = query.includeTotal
+      ? await countRows(this.pool, PAYABLE_FROM, PAYABLE_FILTER, params)
+      : undefined;
+    const mapped = r.rows.map(toPayableContract);
+    return toListResponse(
+      mapped,
+      query,
+      (row) => row.dueDate,
+      total === undefined ? {} : { total },
+    );
   }
   async get(org: string, id: string) {
-    return (await this.list(org, {})).find((row) => row.id === id);
+    const r = await this.pool.query<Row>(
+      `${SELECT_PAYABLE} from ${PAYABLE_FROM} where p.organization_id=$1 and p.id=$2`,
+      [org, id],
+    );
+    return r.rows[0] ? toPayableContract(r.rows[0]) : undefined;
   }
   async pay(
     c: ProjectFreelancePayableContext,

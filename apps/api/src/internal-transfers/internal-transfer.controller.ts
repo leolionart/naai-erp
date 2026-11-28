@@ -16,13 +16,18 @@ export class InternalTransferController {
     @Param("organizationId") o: string,
     @Query("state") s?: string,
     @Query("financialAccountId") f?: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") a?: string,
     @Headers("x-correlation-id") c?: string,
   ) {
-    return this.service.list(await this.context(o, a, c), {
-      ...(s ? { state: s } : {}),
-      ...(f ? { financialAccountId: f } : {}),
-    });
+    return this.service.list(
+      await this.context(o, a, c),
+      {
+        ...(s ? { state: s } : {}),
+        ...(f ? { financialAccountId: f } : {}),
+      },
+      query,
+    );
   }
   @Post() async create(
     @Param("organizationId") o: string,

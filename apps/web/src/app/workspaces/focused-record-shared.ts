@@ -164,9 +164,9 @@ export const CATEGORY_LOOKUP_ENDPOINTS = [
 ] as const;
 
 export const FOCUSED_RECORD_MASTER_DATA_ENDPOINTS = {
-  parties: "master-data/parties?limit=500",
-  partyRoles: "master-data/party-roles?limit=500",
-  projects: "master-data/projects?limit=500",
+  parties: "master-data/parties",
+  partyRoles: "master-data/party-roles",
+  projects: "master-data/projects",
 } as const;
 
 export type CanonicalPartyRole = "client" | "supplier" | "freelancer" | "employee";

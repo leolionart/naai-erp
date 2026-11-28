@@ -1,5 +1,5 @@
 import type { JournalActorContext } from "../journals/journal.types.js";
-import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
+import type { FilteredDocumentExportQueryContract, RawListQuery } from "@naai-erp/contracts";
 import type { OperatingDashboardReadModel } from "../operating-dashboard/operating-dashboard.types.js";
 
 export type ReportExportContext = JournalActorContext;
@@ -26,11 +26,11 @@ export type ExportInput = Readonly<{
   reportKind: ReportKind;
 }>;
 export type ReportExportStore = Readonly<{
-  listSnapshots(c: ReportExportContext): Promise<unknown>;
+  listSnapshots(c: ReportExportContext, paging?: RawListQuery): Promise<unknown>;
   getSnapshot(c: ReportExportContext, id: string, version?: number): Promise<unknown>;
   createSnapshot(c: ReportExportContext, input: SnapshotInput, key: string): Promise<unknown>;
   reproduceSnapshot(c: ReportExportContext, id: string, version: number): Promise<unknown>;
-  listExports(c: ReportExportContext): Promise<unknown>;
+  listExports(c: ReportExportContext, paging?: RawListQuery): Promise<unknown>;
   getExport(c: ReportExportContext, id: string, version?: number): Promise<unknown>;
   createExport(c: ReportExportContext, input: ExportInput, key: string): Promise<unknown>;
   downloadExport(

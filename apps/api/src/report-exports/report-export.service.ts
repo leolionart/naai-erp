@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
-import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
+import type { FilteredDocumentExportQueryContract, RawListQuery } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   OPERATING_DASHBOARD_STORE,
@@ -106,8 +106,15 @@ export class ReportExportService {
       throw new Error("VALIDATION_FAILED");
     return { startsOn, endsOn };
   }
-  listSnapshots(c: ReportExportContext) {
-    return this.store.listSnapshots(c).then((x) => this.envelope(c, x));
+  private paged(c: ReportExportContext, res: unknown) {
+    const r = res as { data?: unknown; meta?: unknown };
+    if (r && "data" in r && r.data !== undefined) {
+      return { ...this.envelope(c, r.data), meta: r.meta };
+    }
+    return this.envelope(c, res);
+  }
+  listSnapshots(c: ReportExportContext, paging: RawListQuery = {}) {
+    return this.store.listSnapshots(c, paging).then((x) => this.paged(c, x));
   }
   getSnapshot(c: ReportExportContext, id: string, version?: number) {
     return this.store.getSnapshot(c, id, version).then((x) => this.envelope(c, x));
@@ -121,8 +128,8 @@ export class ReportExportService {
     if (!Number.isInteger(version) || version < 1) throw new Error("VALIDATION_FAILED");
     return this.store.reproduceSnapshot(c, id, version).then((x) => this.envelope(c, x));
   }
-  listExports(c: ReportExportContext) {
-    return this.store.listExports(c).then((x) => this.envelope(c, x));
+  listExports(c: ReportExportContext, paging: RawListQuery = {}) {
+    return this.store.listExports(c, paging).then((x) => this.paged(c, x));
   }
   getExport(c: ReportExportContext, id: string, version?: number) {
     return this.store.getExport(c, id, version).then((x) => this.envelope(c, x));

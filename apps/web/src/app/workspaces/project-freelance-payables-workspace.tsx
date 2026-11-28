@@ -115,8 +115,8 @@ export function ProjectFreelancePayablesWorkspace({
         client.data<readonly Payable[] | { items?: readonly Payable[] }>(
           `project-freelance-payables?${query}`,
         ),
-        client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/projects?limit=500"),
-        client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/parties?limit=500"),
+        client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/projects"),
+        client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/parties"),
         client.data<readonly FinancialAccount[] | { items?: readonly FinancialAccount[] }>(
           "banking/accounts",
         ),

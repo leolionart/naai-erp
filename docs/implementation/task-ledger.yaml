@@ -4538,6 +4538,29 @@ tasks:
       - apps/web/src/app/workspaces/focused-record-list-workspace.tsx
       - docs/api/openapi-v1.json
 
+  - id: ERP-1007
+    title: Keyset indexes and SQL pagination for internal transfers, freelance payables, report snapshots, accountant exports and workbook review rows
+    phase: P17
+    status: done
+    dependencies: [ERP-1006]
+    business_rules: [BR-READ-001, BR-READ-002, BR-READ-003, BR-SIZE-001]
+    tests: [T-INT-READ-002]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    evidence: docs/implementation/evidence/ERP-1007/
+    agent: gemini
+    started_at: 2026-11-28T18:10:00+07:00
+    completed_at: 2026-11-28T18:35:00+07:00
+    completion_basis: implemented_with_integration_and_repository_gates
+    planned_files:
+      - db/migrations/0081_keyset_list_indexes_2.sql
+      - db/migrations/meta/_journal.json
+      - apps/api/src/internal-transfers/
+      - apps/api/src/project-freelance-payables/
+      - apps/api/src/report-exports/
+      - apps/api/src/workbook-imports/
+      - docs/api/openapi-v1.json
+      - docs/api/list-endpoint-inventory.md
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -24,7 +24,7 @@ export function FocusedRecordCreateWorkspace({ kind }: { kind: Kind }) {
   useEffect(() => {
     if (hydrated && hasToken) {
       client
-        .data<readonly Row[] | { items: readonly Row[] }>("master-data/parties?limit=500")
+        .data<readonly Row[] | { items: readonly Row[] }>("master-data/parties")
         .then((res) => {
           if (Array.isArray(res)) {
             setParties(res);

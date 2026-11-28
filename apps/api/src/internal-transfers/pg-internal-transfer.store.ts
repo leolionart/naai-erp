@@ -1,6 +1,14 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
+import {
+  countRows,
+  cursorParams,
+  keysetSql,
+  parseDatedList,
+  toListResponse,
+} from "../common/dated-list.js";
 import type {
   CreateInternalTransferInput,
   InternalTransferContext,
@@ -17,12 +25,50 @@ import { viewOperation } from "./internal-transfer-view.operation.js";
 @Injectable()
 export class PgInternalTransferStore implements InternalTransferStore {
   readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  async list(org: string, f: { state?: string; financialAccountId?: string }) {
-    const r = await this.pool.query<{ id: string }>(
-      `select distinct t.id from internal_transfers t join internal_transfer_attempts a on a.organization_id=t.organization_id and a.transfer_id=t.id and a.attempt_number=t.current_attempt_number left join bank_transactions b on b.organization_id=t.organization_id and b.id in(a.outgoing_transaction_id,a.incoming_transaction_id) where t.organization_id=$1 and($2::text is null or t.state::text=$2)and($3::text is null or b.financial_account_id=$3)order by t.id`,
-      [org, f.state ?? null, f.financialAccountId ?? null],
+  /** Keyset page ordered by created_at, id; only page rows are expanded with `view` (BR-READ-002). */
+  async list(
+    org: string,
+    f: { state?: string; financialAccountId?: string },
+    paging: RawListQuery = {},
+  ) {
+    const { query, ascending, search } = parseDatedList(paging);
+    const fromWhere = `internal_transfers t
+      join internal_transfer_attempts a on a.organization_id=t.organization_id
+        and a.transfer_id=t.id and a.attempt_number=t.current_attempt_number`;
+    const filterSql = `where t.organization_id=$1
+      and ($2::text is null or t.state::text=$2)
+      and ($3::text is null or exists(
+        select 1 from bank_transactions b
+        where b.organization_id=t.organization_id
+          and b.id in (a.outgoing_transaction_id, a.incoming_transaction_id)
+          and b.financial_account_id=$3
+      ))
+      and ($4::text is null or t.id ilike $4 or t.transit_account_code ilike $4 or exists(
+        select 1 from bank_transactions b
+        where b.organization_id=t.organization_id
+          and b.id in (a.outgoing_transaction_id, a.incoming_transaction_id)
+          and (b.description ilike $4 or b.reference ilike $4)
+      ))`;
+    const params = [org, f.state ?? null, f.financialAccountId ?? null, search];
+    const keyset = keysetSql("t.created_at", "t.id", ascending, 5, 6, "timestamptz");
+    const r = await this.pool.query<{ id: string; created_at_key: string }>(
+      `select t.id, t.created_at::text created_at_key
+       from ${fromWhere}
+       ${filterSql} and ${keyset.where}
+       order by ${keyset.orderBy}
+       limit $7`,
+      [...params, ...cursorParams(query.cursor), query.limit + 1],
     );
-    return { items: await Promise.all(r.rows.map((x) => this.view(this.pool, org, x.id))) };
+    const total = query.includeTotal
+      ? await countRows(this.pool, fromWhere, filterSql, params)
+      : undefined;
+    const page = toListResponse(r.rows, query, (row) => row.created_at_key, {
+      ...(total === undefined ? {} : { total }),
+    });
+    const items = await Promise.all(
+      (page.items as { id: string }[]).map((x) => this.view(this.pool, org, x.id)),
+    );
+    return { data: { ...page.data, items }, meta: page.meta };
   }
   async get(org: string, id: string) {
     const r = await this.pool.query(

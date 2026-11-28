@@ -139,13 +139,13 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
     }
     try {
       const resource = kind === "customers" ? "parties" : "projects";
-      const page = await client.data<Page>(`master-data/${resource}?limit=100`);
+      const page = await client.data<Page>(`master-data/${resource}`);
       if (kind === "projects") {
         setRows(page.items);
         const today = new Date().toISOString().slice(0, 10);
         const period = resolveProjectDirectoryPeriod(searchParams, today);
         const [parties, dashboard] = await Promise.all([
-          client.data<Page>("master-data/parties?limit=100"),
+          client.data<Page>("master-data/parties"),
           client.data<{ backlog?: { projects?: readonly Row[] } }>(
             `reports/operating-dashboard?asOf=${today}&startsOn=${period.startsOn}&endsOn=${period.endsOn}&limit=50`,
           ),
@@ -154,8 +154,8 @@ export function BusinessDirectoryWorkspace({ kind }: Readonly<{ kind: DirectoryK
         setProjectFinancials(dashboard.backlog?.projects ?? []);
       } else {
         const [roles, projects] = await Promise.all([
-          client.data<Page>("master-data/party-roles?limit=100"),
-          client.data<Page>("master-data/projects?limit=100"),
+          client.data<Page>("master-data/party-roles"),
+          client.data<Page>("master-data/projects"),
         ]);
         const customerIds = new Set(
           roles.items

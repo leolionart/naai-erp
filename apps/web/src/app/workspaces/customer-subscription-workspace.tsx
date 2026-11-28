@@ -208,14 +208,10 @@ export function CustomerSubscriptionWorkspace() {
           client.data<readonly Row[] | { items?: readonly Row[] }>(
             `customer-service-subscriptions?${query}`,
           ),
-          client.data<readonly Row[] | { items?: readonly Row[] }>("service-plans?limit=500"),
-          client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/parties?limit=500"),
-          client.data<readonly Row[] | { items?: readonly Row[] }>(
-            "master-data/party-roles?limit=500",
-          ),
-          client.data<readonly Row[] | { items?: readonly Row[] }>(
-            "master-data/projects?limit=500",
-          ),
+          client.data<readonly Row[] | { items?: readonly Row[] }>("service-plans"),
+          client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/parties"),
+          client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/party-roles"),
+          client.data<readonly Row[] | { items?: readonly Row[] }>("master-data/projects"),
         ]);
       const roles = items(roleResult);
       const clientIds = new Set(

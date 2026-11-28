@@ -1,15 +1,20 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import type { FilteredDocumentExportQueryContract } from "@naai-erp/contracts";
+import type { FilteredDocumentExportQueryContract, RawListQuery } from "@naai-erp/contracts";
+import {
+  jsonSafe,
+  listAccountantExportPage,
+  listReportSnapshotPage,
+  toSnapshotContract,
+  type SnapshotRow,
+} from "./report-export-list.queries.js";
 import ExcelJS from "exceljs";
 import {
   canonicalJson,
   createAccountantExportManifest,
   createAccountantWorkbook,
-  createReportSnapshot,
   verifySnapshotReproduction,
   workbookSheetToCsv,
-  type CanonicalJsonValue,
   type ReportSnapshot,
   type SnapshotMapping,
   type SnapshotUnresolvedItem,
@@ -27,7 +32,6 @@ import type {
   ExportInput,
   ManagementWorkbookQuery,
   ReportExportContext,
-  ReportKind,
   SnapshotInput,
 } from "./report-export.types.js";
 import { createAccountingListWorkbook } from "./accounting-list-workbook.js";
@@ -43,30 +47,6 @@ import {
 import type { OperatingDashboardReadModel } from "../operating-dashboard/operating-dashboard.types.js";
 import { pruneGeneratedExportContent } from "./export-retention.js";
 
-type SnapshotRow = Record<string, unknown> & {
-  id: string;
-  version: number;
-  organization_id: string;
-  report_kind: ReportKind;
-  period_starts_on: string;
-  period_ends_on: string;
-  dimensions: Record<string, string>;
-  accounting_basis: string;
-  framework: string | null;
-  currency: string;
-  canonical_request: Record<string, unknown>;
-  canonical_result: Record<string, unknown>;
-  formula_versions: Record<string, string>;
-  mapping_versions: Record<string, string>;
-  ledger_cutoff: Record<string, unknown>;
-  source_manifest: readonly Record<string, unknown>[];
-  readiness_summary: { mappings?: SnapshotMapping[] };
-  unresolved_items: SnapshotUnresolvedItem[];
-  previous_snapshot_id: string | null;
-  previous_snapshot_version: number | null;
-  captured_at: Date | string;
-  captured_by: string;
-};
 type ExportRow = Record<string, unknown> & {
   id: string;
   version: number;
@@ -84,26 +64,6 @@ type ExportRow = Record<string, unknown> & {
   generated_at: Date | string;
 };
 
-const jsonSafe = (value: unknown): CanonicalJsonValue => {
-  if (value === undefined) return null;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "bigint") return value.toString();
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    typeof value === "number"
-  )
-    return value;
-  if (Array.isArray(value)) return value.map(jsonSafe);
-  if (typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => [k, jsonSafe(v)]),
-    );
-  return String(value);
-};
 const hash = (value: unknown) =>
   createHash("sha256")
     .update(canonicalJson(jsonSafe(value)))
@@ -156,13 +116,13 @@ export class PgReportExportStore {
     @Inject(FINANCIAL_STATEMENT_STORE) private readonly reports: FinancialStatementStore,
   ) {}
 
-  async listSnapshots(c: ReportExportContext): Promise<unknown> {
-    const r = await this.pool.query(
-      `select *,period_starts_on::text period_starts_on,period_ends_on::text period_ends_on
-       from report_snapshots where organization_id=$1 order by captured_at desc,id,version desc`,
-      [c.organizationId],
+  listSnapshots(c: ReportExportContext, paging: RawListQuery = {}): Promise<unknown> {
+    return listReportSnapshotPage(
+      this.pool,
+      c.organizationId,
+      (x) => this.snapshotContract(x as SnapshotRow),
+      paging,
     );
-    return { items: r.rows.map((x) => this.snapshotContract(x as SnapshotRow)) };
   }
   async getSnapshot(c: ReportExportContext, id: string, version?: number): Promise<unknown> {
     const r = await this.pool.query(
@@ -455,12 +415,13 @@ export class PgReportExportStore {
     return verifySnapshotReproduction(snapshot, jsonSafe(request), jsonSafe(result));
   }
 
-  async listExports(c: ReportExportContext): Promise<unknown> {
-    const r = await this.pool.query(
-      `select * from accountant_exports where organization_id=$1 order by generated_at desc,id,version desc`,
-      [c.organizationId],
+  listExports(c: ReportExportContext, paging: RawListQuery = {}): Promise<unknown> {
+    return listAccountantExportPage(
+      this.pool,
+      c.organizationId,
+      (x) => this.snapshotContract(x as SnapshotRow),
+      paging,
     );
-    return { items: await Promise.all(r.rows.map((x) => this.exportContract(c, x as ExportRow))) };
   }
   async getExport(c: ReportExportContext, id: string, version?: number): Promise<unknown> {
     const r = await this.pool.query(
@@ -1120,38 +1081,7 @@ export class PgReportExportStore {
     if (!r.rows[0]) throw new Error("RESOURCE_NOT_FOUND");
     return r.rows[0] as SnapshotRow;
   }
-  private snapshotContract(r: SnapshotRow): ReportSnapshot {
-    return createReportSnapshot({
-      id: r.id,
-      version: Number(r.version),
-      organizationId: r.organization_id,
-      reportKind: r.report_kind,
-      period: {
-        startsOn: isoDate(r.period_starts_on),
-        endsOn: isoDate(r.period_ends_on),
-        asOfDate: isoDate(r.period_ends_on),
-      },
-      dimensions: r.dimensions,
-      accountingBasis: r.accounting_basis,
-      ...(r.framework ? { framework: r.framework } : {}),
-      formulaVersions: r.formula_versions,
-      mappingVersions: r.mapping_versions,
-      ledgerCutoff: r.ledger_cutoff as never,
-      sourceManifest: r.source_manifest as never,
-      mappings: r.readiness_summary.mappings ?? [],
-      unresolvedItems: r.unresolved_items,
-      request: jsonSafe(r.canonical_request),
-      result: jsonSafe(r.canonical_result),
-      ...(r.previous_snapshot_id
-        ? {
-            previousSnapshotId: r.previous_snapshot_id,
-            previousSnapshotVersion: Number(r.previous_snapshot_version),
-          }
-        : {}),
-      createdAt: iso(r.captured_at),
-      createdBy: r.captured_by,
-    });
-  }
+  private snapshotContract = toSnapshotContract;
   private async exportContract(c: ReportExportContext, r: ExportRow) {
     const snapshot = (await this.getSnapshot(
       c,

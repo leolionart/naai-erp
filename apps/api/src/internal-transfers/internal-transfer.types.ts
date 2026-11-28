@@ -1,6 +1,7 @@
 import type {
   CreateInternalTransferRequest,
   MatchInternalTransferRequest,
+  RawListQuery,
   UnmatchInternalTransferRequest,
 } from "@naai-erp/contracts";
 import type { JournalActorContext } from "../journals/journal.types.js";
@@ -9,7 +10,11 @@ export type CreateInternalTransferInput = CreateInternalTransferRequest;
 export type MatchInternalTransferInput = MatchInternalTransferRequest;
 export type UnmatchInternalTransferInput = UnmatchInternalTransferRequest;
 export type InternalTransferStore = Readonly<{
-  list(org: string, filters: { state?: string; financialAccountId?: string }): Promise<unknown>;
+  list(
+    org: string,
+    filters: { state?: string; financialAccountId?: string },
+    paging?: RawListQuery,
+  ): Promise<unknown>;
   get(org: string, id: string): Promise<unknown | undefined>;
   transactionCandidates(org: string, transactionId: string): Promise<unknown>;
   create(

@@ -16,14 +16,19 @@ export class ProjectFreelancePayableController {
     @Query("projectId") p?: string,
     @Query("freelancerPartyId") f?: string,
     @Query("state") s?: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") a?: string,
     @Headers("x-correlation-id") c?: string,
   ) {
-    return this.service.list(await this.c(o, a, c), {
-      ...(p ? { projectId: p } : {}),
-      ...(f ? { freelancerPartyId: f } : {}),
-      ...(s ? { state: s } : {}),
-    });
+    return this.service.list(
+      await this.c(o, a, c),
+      {
+        ...(p ? { projectId: p } : {}),
+        ...(f ? { freelancerPartyId: f } : {}),
+        ...(s ? { state: s } : {}),
+      },
+      query,
+    );
   }
   @Get(":id") async get(
     @Param("organizationId") o: string,

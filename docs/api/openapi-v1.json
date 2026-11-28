@@ -1955,6 +1955,11 @@
         "tags": ["payables"],
         "parameters": [
           { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" },
           { "name": "projectId", "in": "query", "schema": { "type": "string" } },
           { "name": "freelancerPartyId", "in": "query", "schema": { "type": "string" } },
           {
@@ -1963,6 +1968,7 @@
             "schema": { "type": "string", "enum": ["unpaid", "partially_paid", "paid"] }
           }
         ],
+        "x-naai-list": true,
         "summary": "List actual project freelance liabilities created from posted canonical expenses",
         "responses": {
           "200": {
@@ -2138,8 +2144,14 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/OrganizationId"
-          }
+          },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
         ],
+        "x-naai-list": true,
         "responses": {
           "200": {
             "description": "Transfer list",
@@ -3755,7 +3767,15 @@
         "operationId": "listReportSnapshots",
         "tags": ["report-exports", "snapshots"],
         "summary": "List immutable accountant report snapshots",
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "responses": {
           "200": {
             "description": "Snapshot list",
@@ -3844,7 +3864,15 @@
         "operationId": "listAccountantExports",
         "tags": ["report-exports", "accountant-exports"],
         "summary": "List versioned accountant exports",
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "responses": {
           "200": {
             "description": "Export list",
@@ -4168,7 +4196,15 @@
         "operationId": "listWorkbookImportReviewRows",
         "tags": ["workbook-imports"],
         "summary": "List organization-scoped workbook source rows requiring review",
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "responses": {
           "200": {
             "description": "Workbook import review rows",

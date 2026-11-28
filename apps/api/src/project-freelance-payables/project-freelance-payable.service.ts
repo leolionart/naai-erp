@@ -1,5 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { API_VERSION, type RecordFreelancePayablePaymentRequest } from "@naai-erp/contracts";
+import {
+  API_VERSION,
+  type RawListQuery,
+  type RecordFreelancePayablePaymentRequest,
+} from "@naai-erp/contracts";
 import { validateFreelancePayment } from "@naai-erp/domain";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
@@ -27,8 +31,10 @@ export class ProjectFreelancePayableService {
   async list(
     c: ProjectFreelancePayableContext,
     f: { projectId?: string; freelancerPartyId?: string; state?: string },
+    paging: RawListQuery = {},
   ) {
-    return this.envelope(c, await this.store.list(c.organizationId, f));
+    const { items, page, meta } = await this.store.list(c.organizationId, f, paging);
+    return { ...this.envelope(c, items), page, meta };
   }
   async get(c: ProjectFreelancePayableContext, id: string) {
     const x = await this.store.get(c.organizationId, id);

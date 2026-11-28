@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { API_VERSION } from "@naai-erp/contracts";
+import { API_VERSION, type RawListQuery } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import {
   INTERNAL_TRANSFER_STORE,
@@ -27,8 +27,19 @@ export class InternalTransferService {
       data,
     };
   }
-  async list(c: InternalTransferContext, f: { state?: string; financialAccountId?: string }) {
-    return this.envelope(c, await this.store.list(c.organizationId, f));
+  async list(
+    c: InternalTransferContext,
+    f: { state?: string; financialAccountId?: string },
+    paging: RawListQuery = {},
+  ) {
+    const res = (await this.store.list(c.organizationId, f, paging)) as {
+      data?: unknown;
+      meta?: unknown;
+    };
+    if (res && "data" in res && res.data !== undefined) {
+      return { ...this.envelope(c, res.data), meta: res.meta };
+    }
+    return this.envelope(c, res);
   }
   async get(c: InternalTransferContext, id: string) {
     const d = await this.store.get(c.organizationId, id);

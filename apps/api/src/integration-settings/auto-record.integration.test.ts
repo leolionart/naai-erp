@@ -208,7 +208,7 @@ describeIntegration(
       const expAudit = await pool.query<{ action: string; actor_id: string }>(
         `select action, actor_id from resource_audit_events
           where organization_id = $1 and resource_type = 'expense' and resource_key = 'exp-auto-posted'
-          order by occurred_at asc`,
+          order by occurred_at asc, action desc`,
         [organizationId],
       );
       expect(expAudit.rows).toEqual([
