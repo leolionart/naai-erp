@@ -11,14 +11,14 @@ Every list read is bounded by the server (BR-READ-001..006). Never download a wh
 
 ## Contract
 
-| Item | Behavior |
-| --- | --- |
-| `limit` | default 50, clamped to 200 (25 for `view=full`); clamping sets `meta.limitClamped`; non-numeric returns `400 LIMIT_INVALID` |
-| `cursor` | opaque keyset cursor from `data.nextCursor`; invalid returns `400 CURSOR_INVALID` |
-| `includeTotal=true` | adds `data.total` (one extra count query, avoid in hot paths) |
-| response | `data: { items, hasMore, limit, nextCursor?, total? }`, `meta: { count, bytes, truncated, limitClamped, hint? }` |
-| size budget | pages are cut at a record boundary at 256 KB (`API_MAX_LIST_RESPONSE_BYTES`, minimum 32 KB); `meta.truncated=true` and `nextCursor` point to the next record |
-| order | `expenses`: `expenseDate desc, id`; `commercial-documents`: `documentDate desc, id`; `journals`: `journalDate desc, id` |
+| Item                | Behavior                                                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `limit`             | default 50, clamped to 200 (25 for `view=full`); clamping sets `meta.limitClamped`; non-numeric returns `400 LIMIT_INVALID`                                  |
+| `cursor`            | opaque keyset cursor from `data.nextCursor`; invalid returns `400 CURSOR_INVALID`                                                                            |
+| `includeTotal=true` | adds `data.total` (one extra count query, avoid in hot paths)                                                                                                |
+| response            | `data: { items, hasMore, limit, nextCursor?, total? }`, `meta: { count, bytes, truncated, limitClamped, hint? }`                                             |
+| size budget         | pages are cut at a record boundary at 256 KB (`API_MAX_LIST_RESPONSE_BYTES`, minimum 32 KB); `meta.truncated=true` and `nextCursor` point to the next record |
+| order               | `expenses`: `expenseDate desc, id`; `commercial-documents`: `documentDate desc, id`; `journals`: `journalDate desc, id`                                      |
 
 `journals` and `commercial-documents` still embed `lines` by default for backward compatibility; pass `view=summary` to drop them.
 
@@ -47,4 +47,4 @@ or narrow the filter. The web client follows `nextCursor` automatically and sets
 
 ## Rollout status
 
-CLI: `naai-erp expenses count --data '{"state":"draft"}'`, `naai-erp expenses summary --group-by month`, `naai-erp discovery describe --key expenses` (few KB, instead of the OpenAPI) and `naai-erp discovery openapi --tag expenses`. Every collection route is bounded (SQL keyset for `expenses`, `commercial-documents`, `journals`; safety net for the rest). See `docs/api/list-endpoint-inventory.md` (regenerate with `node scripts/list-endpoint-inventory.mjs`).
+CLI: `naai-erp expenses count --data '{"state":"draft"}'`, `naai-erp expenses summary --group-by month`, `naai-erp discovery describe --key expenses` (few KB, instead of the OpenAPI) and `naai-erp discovery openapi --tag expenses`. Every collection route is bounded (SQL keyset with `q`/`sort`/`includeTotal` for `expenses`, `commercial-documents`, `journals`, `banking/transactions`, `banking/imports`, `banking/reconciliations` and `customer-receipts`; safety net for the rest). See `docs/api/list-endpoint-inventory.md` (regenerate with `node scripts/list-endpoint-inventory.mjs`).

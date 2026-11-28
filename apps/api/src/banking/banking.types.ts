@@ -1,3 +1,4 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import type { JournalActorContext } from "../journals/journal.types.js";
 
 export type BankingContext = JournalActorContext;
@@ -59,11 +60,16 @@ export type BankingStore = Readonly<{
     key: string,
   ): Promise<unknown>;
   dryRunImport(organizationId: string, input: ImportBankStatementInput): Promise<unknown>;
-  listImports(organizationId: string, financialAccountId?: string): Promise<unknown>;
+  listImports(
+    organizationId: string,
+    financialAccountId?: string,
+    paging?: RawListQuery,
+  ): Promise<unknown>;
   getImport(organizationId: string, id: string): Promise<unknown | undefined>;
   listTransactions(
     organizationId: string,
     filters: { financialAccountId?: string; state?: string; from?: string; to?: string },
+    paging?: RawListQuery,
   ): Promise<unknown>;
   listOwnerCurrentMovements(organizationId: string): Promise<unknown>;
   createOwnerCashWithdrawal(

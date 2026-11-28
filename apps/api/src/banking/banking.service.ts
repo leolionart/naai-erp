@@ -88,10 +88,10 @@ export class BankingService {
       await this.store.dryRunImport(context.organizationId, normalized),
     );
   }
-  async listImports(context: BankingContext, financialAccountId?: string) {
-    return this.envelope(
+  async listImports(context: BankingContext, financialAccountId?: string, paging = {}) {
+    return this.paged(
       context,
-      await this.store.listImports(context.organizationId, financialAccountId),
+      await this.store.listImports(context.organizationId, financialAccountId, paging),
     );
   }
   async getImport(context: BankingContext, id: string) {
@@ -102,11 +102,17 @@ export class BankingService {
   async listTransactions(
     context: BankingContext,
     filters: { financialAccountId?: string; state?: string; from?: string; to?: string },
+    paging = {},
   ) {
-    return this.envelope(
+    return this.paged(
       context,
-      await this.store.listTransactions(context.organizationId, filters),
+      await this.store.listTransactions(context.organizationId, filters, paging),
     );
+  }
+  /** Envelope for a bounded list: items and `page` in data, `meta` beside it (BR-READ-003). */
+  private paged(context: BankingContext, page: unknown) {
+    const { data, meta } = page as { data: unknown; meta: unknown };
+    return { ...this.envelope(context, data), meta };
   }
   async listOwnerCurrentMovements(context: BankingContext) {
     return this.envelope(

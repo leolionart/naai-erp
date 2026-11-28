@@ -8,4 +8,3 @@
 - Repository pre-commit format, lint, documentation and security checks: passed.
 - Release workflow `31304268255`: passed; only `naai-erp-api` was published.
 - Production `/api/v1/capabilities`: HTTP 200.
-

@@ -6,4 +6,3 @@
 - [x] Production API container is healthy.
 - [x] Production capability endpoint returns HTTP 200.
 - [x] Web, worker and PostgreSQL services remain healthy.
-

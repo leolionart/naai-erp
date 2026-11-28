@@ -1,3 +1,9 @@
+import type { RawListQuery } from "@naai-erp/contracts";
+import {
+  listBankImportPage,
+  listBankTransactionPage,
+  type BankTransactionFilters,
+} from "./bank-list.queries.js";
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { parse } from "csv-parse/sync";
@@ -580,13 +586,8 @@ export class PgBankingStore implements BankingStore {
       mutationCount: 0,
     };
   }
-  async listImports(organizationId: string, financialAccountId?: string) {
-    const result = await this.pool.query(
-      `select * from bank_statement_imports where organization_id=$1
-       and ($2::text is null or financial_account_id=$2) order by created_at desc,id`,
-      [organizationId, financialAccountId ?? null],
-    );
-    return { items: result.rows };
+  listImports(organizationId: string, financialAccountId?: string, paging: RawListQuery = {}) {
+    return listBankImportPage(this.pool, organizationId, financialAccountId, paging);
   }
   async getImport(organizationId: string, id: string) {
     const result = await this.pool.query(
@@ -598,26 +599,12 @@ export class PgBankingStore implements BankingStore {
     );
     return result.rows[0];
   }
-  async listTransactions(
+  listTransactions(
     organizationId: string,
-    filters: { financialAccountId?: string; state?: string; from?: string; to?: string },
+    filters: BankTransactionFilters,
+    paging: RawListQuery = {},
   ) {
-    const result = await this.pool.query(
-      `select * from bank_transactions where organization_id=$1
-       and ($2::text is null or financial_account_id=$2)
-       and ($3::text is null or state::text=$3)
-       and ($4::date is null or booking_date >= $4)
-       and ($5::date is null or booking_date <= $5)
-       order by booking_date desc,id`,
-      [
-        organizationId,
-        filters.financialAccountId ?? null,
-        filters.state ?? null,
-        filters.from ?? null,
-        filters.to ?? null,
-      ],
-    );
-    return { items: result.rows };
+    return listBankTransactionPage(this.pool, organizationId, filters, paging);
   }
   async createOwnerCashWithdrawal(
     context: BankingContext,

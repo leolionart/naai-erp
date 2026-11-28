@@ -1,3 +1,4 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import { Inject, Injectable } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { API_VERSION } from "@naai-erp/contracts";
@@ -34,11 +35,20 @@ export class EvidenceService {
       data,
     };
   }
-  async list(context: EvidenceContext, subjectType?: string, subjectId?: string) {
+  async list(
+    context: EvidenceContext,
+    subjectType?: string,
+    subjectId?: string,
+    paging: RawListQuery = {},
+  ) {
     if (!context.roles.some((role) => READ.has(role))) throw new Error("FORBIDDEN");
-    return this.envelope(context, {
-      items: await this.store.list(context.organizationId, subjectType, subjectId),
-    });
+    const { data, meta } = await this.store.list(
+      context.organizationId,
+      subjectType,
+      subjectId,
+      paging,
+    );
+    return { ...this.envelope(context, data), meta };
   }
   async get(context: EvidenceContext, id: string) {
     if (!context.roles.some((role) => READ.has(role))) throw new Error("FORBIDDEN");

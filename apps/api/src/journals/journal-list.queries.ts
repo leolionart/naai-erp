@@ -8,7 +8,9 @@ import {
   toListResponse,
 } from "../common/dated-list.js";
 
-const LINES_SQL = `coalesce(json_agg(l order by l.line_number) filter (where l.line_number is not null), '[]') as lines`;
+// A correlated subselect keeps the page cut on the (date, id) index before any line is read.
+const LINES_SQL = `coalesce((select json_agg(l order by l.line_number) from journal_lines l
+  where l.organization_id=j.organization_id and l.journal_id=j.id), '[]') as lines`;
 const FROM_WHERE = "journal_entries j where j.organization_id=$1";
 
 /**
@@ -22,11 +24,9 @@ export async function listJournalPage(pool: Pool, organizationId: string, raw: R
   const result = await pool.query(
     `select j.*, j.journal_date::text as journal_date_key${withLines ? `, ${LINES_SQL}` : ""}
        from journal_entries j
-       ${withLines ? "left join journal_lines l on l.organization_id=j.organization_id and l.journal_id=j.id" : ""}
       where j.organization_id=$1
         and ${keyset.where}
         and ($5::text is null or j.description ilike $5 or j.id ilike $5)
-      group by j.organization_id,j.id
       order by ${keyset.orderBy}
       limit $4`,
     [organizationId, ...cursorParams(query.cursor), query.limit + 1, search],

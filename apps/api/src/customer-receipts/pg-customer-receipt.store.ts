@@ -1,3 +1,5 @@
+import type { RawListQuery } from "@naai-erp/contracts";
+import { cursorParams, keysetSql, parseDatedList, toListResponse } from "../common/dated-list.js";
 import { Injectable } from "@nestjs/common";
 import type { CreateCustomerReceiptRequest } from "@naai-erp/contracts";
 import { createHash, randomUUID } from "node:crypto";
@@ -12,19 +14,36 @@ type ComputedAllocation = Readonly<{
   outstandingAfter: bigint;
 }>;
 
+const RECEIPT_SELECT = `select r.*,r.receipt_date::text receipt_date_key,
+  coalesce(json_agg(json_build_object('id',a.id,'salesInvoiceId',a.sales_invoice_id,'amountMinor',a.amount_minor::text))
+    filter(where a.id is not null),'[]') allocations
+  from customer_receipts r
+  left join customer_receipt_allocations a on a.organization_id=r.organization_id and a.receipt_id=r.id`;
+
 @Injectable()
 export class PgCustomerReceiptStore implements CustomerReceiptStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-  async list(org: string) {
-    const r = await this.pool.query<CustomerReceiptListRow>(
-      `select r.*,coalesce(json_agg(json_build_object('id',a.id,'salesInvoiceId',a.sales_invoice_id,'amountMinor',a.amount_minor::text)) filter(where a.id is not null),'[]') allocations from customer_receipts r left join customer_receipt_allocations a on a.organization_id=r.organization_id and a.receipt_id=r.id where r.organization_id=$1 group by r.organization_id,r.id order by r.receipt_date desc,r.created_at desc`,
-      [org],
+  /** Keyset page ordered by receipt_date, id; allocations are aggregated per receipt (BR-READ-002). */
+  async list(org: string, paging: RawListQuery = {}) {
+    const { query, ascending } = parseDatedList(paging);
+    const keyset = keysetSql("r.receipt_date", "r.id", ascending, 2, 3);
+    const result = await this.pool.query<CustomerReceiptListRow & { receipt_date_key: string }>(
+      `${RECEIPT_SELECT}
+        where r.organization_id=$1 and ${keyset.where}
+        group by r.organization_id,r.id order by ${keyset.orderBy}
+        limit $4`,
+      [org, ...cursorParams(query.cursor), query.limit + 1],
     );
-    return r.rows;
+    return toListResponse(result.rows, query, (row) => row.receipt_date_key, {
+      mapItem: ({ receipt_date_key: _key, ...row }) => row,
+    });
   }
   async get(org: string, id: string) {
-    const x = (await this.list(org)).find((row) => row.id === id);
-    return x;
+    const r = await this.pool.query<CustomerReceiptListRow>(
+      `${RECEIPT_SELECT} where r.organization_id=$1 and r.id=$2 group by r.organization_id,r.id`,
+      [org, id],
+    );
+    return r.rows[0];
   }
   async create(context: CustomerReceiptContext, input: CreateCustomerReceiptRequest, key: string) {
     const client = await this.pool.connect();

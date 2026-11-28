@@ -1,3 +1,5 @@
+import type { RawListQuery } from "@naai-erp/contracts";
+import { cursorParams, keysetSql, parseDatedList, toListResponse } from "../common/dated-list.js";
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
@@ -40,16 +42,40 @@ export class PgReconciliationStore implements ReconciliationStore {
 
   unreconcile = unreconcileOperation;
 
-  async list(org: string, filters: { state?: string; financialAccountId?: string }) {
-    const result = await this.pool.query<{ id: string }>(
-      `select p.id from payment_reconciliations p join bank_transactions b on b.organization_id=p.organization_id and b.id=p.bank_transaction_id
+  /**
+   * Keyset page ordered by created_at, id. Only the page rows are expanded with `view`, so the number
+   * of queries follows the page size instead of the size of the organization (BR-READ-001/002).
+   */
+  async list(
+    org: string,
+    filters: { state?: string; financialAccountId?: string },
+    paging: RawListQuery = {},
+  ) {
+    const { query, ascending } = parseDatedList(paging);
+    const keyset = keysetSql("p.created_at", "p.id", ascending, 4, 5, "timestamptz");
+    const result = await this.pool.query<{ id: string; created_at_key: string }>(
+      `select p.id, p.created_at::text created_at_key from payment_reconciliations p
+       join bank_transactions b on b.organization_id=p.organization_id and b.id=p.bank_transaction_id
        join reconciliation_attempts r on r.organization_id=p.organization_id and r.reconciliation_id=p.id and r.attempt_number=p.current_attempt_number
        where p.organization_id=$1 and ($2::text is null or r.state::text=$2) and ($3::text is null or b.financial_account_id=$3)
-       order by p.created_at desc,p.id`,
-      [org, filters.state ?? null, filters.financialAccountId ?? null],
+         and ${keyset.where}
+       order by ${keyset.orderBy}
+       limit $6`,
+      [
+        org,
+        filters.state ?? null,
+        filters.financialAccountId ?? null,
+        ...cursorParams(query.cursor),
+        query.limit + 1,
+      ],
+    );
+    const page = toListResponse(result.rows, query, (row) => row.created_at_key);
+    const items = await Promise.all(
+      (page.items as { id: string }[]).map((row) => this.view(this.pool, org, row.id)),
     );
     return {
-      items: await Promise.all(result.rows.map((row) => this.view(this.pool, org, row.id))),
+      data: { ...page.data, items },
+      meta: page.meta,
     };
   }
   async get(org: string, id: string) {

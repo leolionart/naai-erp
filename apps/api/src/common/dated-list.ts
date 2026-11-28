@@ -33,7 +33,8 @@ export function parseDatedList(raw: RawListQuery, overrides: RawListQuery = {}) 
 
 /**
  * Keyset predicate and ORDER BY for (dateColumn, idColumn). The columns are trusted constants; the
- * cursor values are bound as `$dateParam` (date) and `$idParam` (text).
+ * cursor values are bound as `$dateParam` (date, or timestamptz for `valueType: "timestamptz"`)
+ * and `$idParam` (text).
  */
 export function keysetSql(
   dateColumn: string,
@@ -41,8 +42,9 @@ export function keysetSql(
   ascending: boolean,
   dateParam: number,
   idParam: number,
+  valueType: "date" | "timestamptz" = "date",
 ) {
-  const date = `$${dateParam}::date`;
+  const date = `$${dateParam}::${valueType}`;
   const compare = ascending ? ">" : "<";
   return {
     where: `(${date} is null or ${dateColumn} ${compare} ${date} or (${dateColumn} = ${date} and ${idColumn} > $${idParam}::text))`,
@@ -69,7 +71,8 @@ export function toListResponse<T extends { id: string }>(
     ...(options.total === undefined ? {} : { total: options.total }),
   });
   const items = options.mapItem ? page.items.map(options.mapItem) : page.items;
-  return { data: { items, ...page.page }, meta: page.meta };
+  // `data` is the item-shaped body; `items`/`page` serve resources whose body is a bare array.
+  return { data: { items, ...page.page }, items, page: page.page, meta: page.meta };
 }
 
 export async function countRows(

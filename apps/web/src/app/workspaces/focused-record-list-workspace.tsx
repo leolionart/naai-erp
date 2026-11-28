@@ -315,25 +315,13 @@ export function FocusedRecordListWorkspace({
           ? text(row, "type") === "purchase_invoice"
           : ["sales_invoice", "credit_note"].includes(text(row, "type")),
       );
-      const documentsWithCategory = await Promise.all(
-        listedDocuments.map(async (row) => {
-          if (recordCategory(row)) return row;
-          const id = text(row, "id");
-          if (!id) return row;
-          try {
-            const detail = await client.data<Row>(`commercial-documents/${encodeURIComponent(id)}`);
-            return { ...row, ...detail };
-          } catch {
-            return row;
-          }
-        }),
-      );
+      // The list projection already carries the category, so no per-row detail request is needed.
       const listedExpenses = expensesResult;
       const listedRecognitions = Array.isArray(recognitionResult)
         ? recognitionResult
         : (recognitionResult.items ?? []);
       let rawItems: TaggedRow[] = [
-        ...documentsWithCategory.map((row) => tagRow(row, "documents", "present", "invoiced")),
+        ...listedDocuments.map((row) => tagRow(row, "documents", "present", "invoiced")),
         ...listedExpenses.map((row) => tagRow(row, "expenses", "missing")),
         ...listedRecognitions.map((row) => tagRow(row, "recognition", "missing", "recognized")),
       ];

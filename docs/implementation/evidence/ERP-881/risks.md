@@ -6,4 +6,3 @@
   explicitly classified rows remain governed by their immutable funding snapshot.
 - Review items explain the difference between the confirmed cash timeline and the full ledger
   balance. They are not silently removed or used to alter dashboard metrics.
-

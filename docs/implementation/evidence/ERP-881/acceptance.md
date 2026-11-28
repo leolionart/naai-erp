@@ -17,4 +17,3 @@ Production read-only projection under the current reviewed category policy:
 - confirmed closing balance: -109,836,050 VND;
 - full mapped ledger closing balance: 65,438,650 VND;
 - 74 unconfirmed movements totaling the 175,274,700 VND difference remain in review.
-

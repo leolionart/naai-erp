@@ -1,3 +1,5 @@
+import type { RawListQuery } from "@naai-erp/contracts";
+import { cursorParams, keysetSql, parseDatedList, toListResponse } from "../common/dated-list.js";
 import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
@@ -24,15 +26,22 @@ type PreparedUpload = {
 export class PgEvidenceStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-  async list(org: string, subjectType?: string, subjectId?: string) {
-    const result = await this.pool.query(
-      `select r.*,v.status,v.review_state,v.original_filename,v.detected_media_type,v.byte_size::text,v.sha256,v.uploaded_at
+  /** Keyset page ordered by updated_at, id (BR-READ-002). */
+  async list(org: string, subjectType?: string, subjectId?: string, paging: RawListQuery = {}) {
+    const { query, ascending } = parseDatedList(paging);
+    const keyset = keysetSql("r.updated_at", "r.id", ascending, 4, 5, "timestamptz");
+    const result = await this.pool.query<{ id: string; updated_at_key: string }>(
+      `select r.*,r.updated_at::text updated_at_key,v.status,v.review_state,v.original_filename,v.detected_media_type,v.byte_size::text,v.sha256,v.uploaded_at
        from evidence_records r join evidence_versions v on v.organization_id=r.organization_id and v.evidence_id=r.id and v.version_number=r.current_version
        where r.organization_id=$1 and ($2::text is null or r.subject_type=$2) and ($3::text is null or r.subject_id=$3)
-       order by r.updated_at desc,r.id`,
-      [org, subjectType ?? null, subjectId ?? null],
+         and ${keyset.where}
+       order by ${keyset.orderBy}
+       limit $6`,
+      [org, subjectType ?? null, subjectId ?? null, ...cursorParams(query.cursor), query.limit + 1],
     );
-    return result.rows;
+    return toListResponse(result.rows, query, (row) => row.updated_at_key, {
+      mapItem: ({ updated_at_key: _key, ...row }) => row,
+    });
   }
 
   async get(org: string, id: string) {

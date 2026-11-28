@@ -1,3 +1,4 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
@@ -126,8 +127,10 @@ export class ReconciliationService {
   async list(
     context: ReconciliationContext,
     filters: { state?: string; financialAccountId?: string },
+    paging: RawListQuery = {},
   ) {
-    return this.envelope(context, await this.store.list(context.organizationId, filters));
+    const { data, meta } = await this.store.list(context.organizationId, filters, paging);
+    return { ...this.envelope(context, data), meta };
   }
   async get(context: ReconciliationContext, id: string) {
     const data = await this.store.get(context.organizationId, id);

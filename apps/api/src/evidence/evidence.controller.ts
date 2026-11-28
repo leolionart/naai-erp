@@ -17,10 +17,11 @@ export class EvidenceController {
     @Param("organizationId") org: string,
     @Query("subjectType") subjectType?: string,
     @Query("subjectId") subjectId?: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
   ) {
-    return this.service.list(await this.context(org, auth, corr), subjectType, subjectId);
+    return this.service.list(await this.context(org, auth, corr), subjectType, subjectId, query);
   }
   @Get(":id") async get(
     @Param("organizationId") org: string,

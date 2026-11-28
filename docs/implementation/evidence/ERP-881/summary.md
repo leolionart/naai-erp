@@ -9,4 +9,3 @@ Owner Current now presents two separate populations:
 The confirmed timeline calculates the balance immediately after each confirmed movement in
 chronological order. The complete mapped ledger closing balance remains separately disclosed and
 continues to feed the unchanged executive dashboard metric.
-

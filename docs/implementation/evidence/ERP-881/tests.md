@@ -10,4 +10,3 @@
 Browser plugin selection was attempted earlier in the same debugging chain but no connected browser
 was available. Rendered validation therefore used the repository Playwright flow against the existing
 local development server.
-

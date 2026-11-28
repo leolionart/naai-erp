@@ -6,4 +6,3 @@
 - The production prediction requires release and deployment readback before it can be treated as the
   live rendered result.
 - No posted expense, journal or dashboard balance is rewritten by this change.
-

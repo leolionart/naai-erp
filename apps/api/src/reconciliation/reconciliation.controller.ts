@@ -12,13 +12,18 @@ export class ReconciliationController {
     @Param("organizationId") org: string,
     @Query("state") state?: string,
     @Query("financialAccountId") financialAccountId?: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
   ) {
-    return this.service.list(await this.context(org, auth, corr), {
-      ...(state ? { state } : {}),
-      ...(financialAccountId ? { financialAccountId } : {}),
-    });
+    return this.service.list(
+      await this.context(org, auth, corr),
+      {
+        ...(state ? { state } : {}),
+        ...(financialAccountId ? { financialAccountId } : {}),
+      },
+      query,
+    );
   }
   @Get(":id") async get(
     @Param("organizationId") org: string,

@@ -11,4 +11,3 @@
 An additional coordinator Playwright rerun could not start a second Next development server because
 the user's existing server held the workspace dev lock. This was an environment collision, not a
 test assertion failure; the isolated implementation run passed.
-

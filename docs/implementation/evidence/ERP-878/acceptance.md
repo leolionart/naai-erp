@@ -8,5 +8,4 @@
 - [x] Expense rows link to their canonical expense detail.
 - [x] Dashboard metrics and mapped Owner Current closing balance are not changed.
 - [x] Production read-only inventory predicts 32 owner-paid expenses totaling 177,483,950 VND from
-  SALARY, DOMAIN_HOSTING and SERVER_CLOUD under the current reviewed category configuration.
-
+      SALARY, DOMAIN_HOSTING and SERVER_CLOUD under the current reviewed category configuration.

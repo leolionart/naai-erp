@@ -59,14 +59,17 @@ function filterParams(organizationId: string, filters: CommercialDocumentListFil
 
 const FROM_WHERE = "commercial_documents d where d.organization_id=$1";
 
-const LIST_LINES_SQL = `coalesce(jsonb_agg(
+// Lines are a correlated subselect so the page can be cut by the keyset index before any line is read.
+const LIST_LINES_SQL = `coalesce((select jsonb_agg(
          jsonb_set(to_jsonb(l), '{category_code}', to_jsonb(coalesce(nullif(l.category_code,''),nullif(l.dimensions->>'category',''),
            (select nullif(a0.dimensions->>'category','') from commercial_document_allocations a0
             where a0.organization_id=l.organization_id and a0.document_id=l.document_id and a0.line_number=l.line_number
             order by a0.allocation_number limit 1)))
          ) || jsonb_build_object('allocations',coalesce((select jsonb_agg(a order by a.allocation_number)
            from commercial_document_allocations a where a.organization_id=l.organization_id and a.document_id=l.document_id and a.line_number=l.line_number),'[]'::jsonb))
-         order by l.line_number) filter (where l.line_number is not null),'[]')`;
+         order by l.line_number)
+         from commercial_document_lines l
+        where l.organization_id=d.organization_id and l.document_id=d.id),'[]'::jsonb)`;
 
 /** Keyset order: document_date desc, id asc (BR-READ-002). */
 export async function listCommercialDocuments(
@@ -114,12 +117,11 @@ export async function listCommercialDocuments(
           where a2.organization_id=d.organization_id and a2.document_id=d.id
        ) relationship where relationship.contract_id is not null),'[]'::jsonb) "contractIds",
      ${linesSql} lines
-     from commercial_documents d left join commercial_document_lines l
-       on l.organization_id=d.organization_id and l.document_id=d.id
+     from commercial_documents d
      where d.organization_id=$1
 ${FILTER_SQL}
      and ${keyset.where}
-     group by d.organization_id,d.id order by ${keyset.orderBy}
+     order by ${keyset.orderBy}
      limit $11`,
     [...filterParams(organizationId, filters), ...cursorParams(paging.cursor), paging.fetch],
   );

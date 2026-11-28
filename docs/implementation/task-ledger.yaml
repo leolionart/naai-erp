@@ -4516,6 +4516,28 @@ tasks:
       - docs/api/ai-reading-guide.md
       - docs/implementation/plans/bounded-reads-and-file-size.md
 
+  - id: ERP-1006
+    title: Keyset indexes and SQL pagination for bank transactions, statement imports and customer receipts
+    phase: P17
+    status: done
+    dependencies: [ERP-996]
+    business_rules: [BR-READ-001, BR-READ-002]
+    tests: [T-INT-READ-001]
+    plan: docs/implementation/plans/bounded-reads-and-file-size.md
+    evidence: docs/implementation/evidence/ERP-1006/
+    agent: claude
+    started_at: 2026-11-28T17:30:00+07:00
+    completed_at: 2026-11-28T19:00:00+07:00
+    completion_basis: measured_on_50000_rows_and_integration_tests
+    planned_files:
+      - db/migrations/0080_keyset_list_indexes.sql
+      - apps/api/src/banking/bank-list.queries.ts
+      - apps/api/src/customer-receipts/
+      - apps/api/src/journals/journal-list.queries.ts
+      - apps/api/src/commercial-documents/commercial-document-list.queries.ts
+      - apps/web/src/app/workspaces/focused-record-list-workspace.tsx
+      - docs/api/openapi-v1.json
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

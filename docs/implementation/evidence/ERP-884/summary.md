@@ -8,4 +8,3 @@ journals remain review items.
 Dashboard debt is the nonnegative confirmed settlement. A negative confirmed position is shown
 separately as company funds held by the owner. Statutory Owner Current remains available for
 accounting reconciliation.
-

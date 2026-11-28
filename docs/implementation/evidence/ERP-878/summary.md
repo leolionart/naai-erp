@@ -8,4 +8,3 @@ Current closing balance are unchanged.
 Legacy expenses keep their posted history intact. When a line has no funding snapshot, the read
 model resolves the configured treatment from its category, including category codes stored in
 legacy dimensions.
-

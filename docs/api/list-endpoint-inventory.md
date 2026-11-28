@@ -10,20 +10,20 @@ Anything else is either an unfinished route or a documented exception (single ag
 | `GET /api-credentials` | bounded (safety net, in-memory page) | `apps/api/src/integration-settings/integration-settings.controller.ts` |
 | `GET /api/v1/capabilities` | exception (aggregate, export, health or own cursor) | `apps/api/src/discovery/discovery.controller.ts` |
 | `GET /banking/accounts` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
-| `GET /banking/imports` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
+| `GET /banking/imports` | bounded (keyset in SQL) | `apps/api/src/banking/banking.controller.ts` |
 | `GET /banking/internal-transfers` | bounded (safety net, in-memory page) | `apps/api/src/internal-transfers/internal-transfer.controller.ts` |
 | `GET /banking/owner-current-movements` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
 | `GET /banking/owner-funding` | bounded (safety net, in-memory page) | `apps/api/src/owner-funding/owner-funding.controller.ts` |
-| `GET /banking/reconciliations` | bounded (safety net, in-memory page) | `apps/api/src/reconciliation/reconciliation.controller.ts` |
+| `GET /banking/reconciliations` | bounded (keyset in SQL) | `apps/api/src/reconciliation/reconciliation.controller.ts` |
 | `GET /banking/statement-sessions` | bounded (safety net, in-memory page) | `apps/api/src/banking-controls/banking-control.controller.ts` |
-| `GET /banking/transactions` | bounded (safety net, in-memory page) | `apps/api/src/banking/banking.controller.ts` |
+| `GET /banking/transactions` | bounded (keyset in SQL) | `apps/api/src/banking/banking.controller.ts` |
 | `GET /cit-policy` | bounded (safety net, in-memory page) | `apps/api/src/cit-policy/cit-policy.controller.ts` |
 | `GET /commercial-documents` | bounded (keyset in SQL) | `apps/api/src/commercial-documents/commercial-document.controller.ts` |
 | `GET /commercial-documents/count` | bounded (keyset in SQL) | `apps/api/src/commercial-documents/commercial-document.controller.ts` |
 | `GET /commercial-documents/summary` | bounded (keyset in SQL) | `apps/api/src/commercial-documents/commercial-document.controller.ts` |
-| `GET /customer-receipts` | bounded (safety net, in-memory page) | `apps/api/src/customer-receipts/customer-receipt.controller.ts` |
+| `GET /customer-receipts` | bounded (keyset in SQL) | `apps/api/src/customer-receipts/customer-receipt.controller.ts` |
 | `GET /customer-service-subscriptions` | bounded (safety net, in-memory page) | `apps/api/src/customer-service-subscriptions/customer-service-subscription.controller.ts` |
-| `GET /evidence` | bounded (safety net, in-memory page) | `apps/api/src/evidence/evidence.controller.ts` |
+| `GET /evidence` | bounded (keyset in SQL) | `apps/api/src/evidence/evidence.controller.ts` |
 | `GET /executive-metric-policies` | bounded (safety net, in-memory page) | `apps/api/src/executive-metrics/executive-metric.controller.ts` |
 | `GET /expenses` | bounded (keyset in SQL) | `apps/api/src/expenses/expense.controller.ts` |
 | `GET /expenses/count` | bounded (keyset in SQL) | `apps/api/src/expenses/expense.controller.ts` |

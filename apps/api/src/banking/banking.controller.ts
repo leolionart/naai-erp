@@ -78,10 +78,11 @@ export class BankingController {
   @Get("imports") async listImports(
     @Param("organizationId") org: string,
     @Query("financialAccountId") accountId?: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
   ) {
-    return this.service.listImports(await this.context(org, auth, corr), accountId);
+    return this.service.listImports(await this.context(org, auth, corr), accountId, query);
   }
   @Get("imports/:id") async getImport(
     @Param("organizationId") org: string,
@@ -97,15 +98,20 @@ export class BankingController {
     @Query("state") state?: string,
     @Query("from") from?: string,
     @Query("to") to?: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") auth?: string,
     @Headers("x-correlation-id") corr?: string,
   ) {
-    return this.service.listTransactions(await this.context(org, auth, corr), {
-      ...(accountId ? { financialAccountId: accountId } : {}),
-      ...(state ? { state } : {}),
-      ...(from ? { from } : {}),
-      ...(to ? { to } : {}),
-    });
+    return this.service.listTransactions(
+      await this.context(org, auth, corr),
+      {
+        ...(accountId ? { financialAccountId: accountId } : {}),
+        ...(state ? { state } : {}),
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      },
+      query,
+    );
   }
   @Get("owner-current-movements") async listOwnerCurrentMovements(
     @Param("organizationId") org: string,

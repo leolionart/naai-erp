@@ -6,4 +6,3 @@ already present; API also had the session secret.
 
 The production stack compose file was synchronized from the repository contract and the web service
 was recreated. No login credential value was printed or changed.
-

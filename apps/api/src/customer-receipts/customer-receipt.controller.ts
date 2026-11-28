@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Inject, Param, Query, Post } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { CreateCustomerReceiptRequest } from "@naai-erp/contracts";
 import { CustomerReceiptService } from "./customer-receipt.service.js";
@@ -19,10 +19,11 @@ export class CustomerReceiptController {
   }
   @Get() async list(
     @Param("organizationId") o: string,
+    @Query() query?: Record<string, string | undefined>,
     @Headers("authorization") a?: string,
     @Headers("x-correlation-id") c?: string,
   ) {
-    return this.service.list(await this.c(o, a, c));
+    return this.service.list(await this.c(o, a, c), query);
   }
   @Get(":id") async get(
     @Param("organizationId") o: string,

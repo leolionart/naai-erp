@@ -7,4 +7,3 @@
 - Configured-credential probe inside the web container: login HTTP 200, secure cookie returned,
   session GET HTTP 200 for organization `naai`.
 - Dockge readback: API, web, worker and PostgreSQL healthy.
-

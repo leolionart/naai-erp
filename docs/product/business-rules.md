@@ -1735,7 +1735,7 @@ other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_eviden
 
 ### Bounded reads and file size (ERP-993 to ERP-999)
 
-- `BR-READ-001` (active for every organization-scoped collection GET: SQL keyset for expenses, commercial documents and journals, a server safety net for the other routes, see `docs/api/list-endpoint-inventory.md`): every list endpoint has a server-enforced default limit (50) and hard maximum; larger values are clamped and reported as `limitClamped`.
+- `BR-READ-001` (active for every organization-scoped collection GET: SQL keyset for expenses, commercial documents, journals, bank transactions, statement imports, reconciliations and customer receipts, a server safety net for the other routes, see `docs/api/list-endpoint-inventory.md`): every list endpoint has a server-enforced default limit (50) and hard maximum; larger values are clamped and reported as `limitClamped`.
 - `BR-READ-002` (SQL keyset for the three critical lists; position cursors validated against record ids for the safety-net routes): lists use keyset cursors with a deterministic order (id as tiebreaker); offsets are not used for tables that can grow.
 - `BR-READ-003` (active for every bounded route; responses always declare `page`/`meta` so a partial page is never presented as the full list): a list response never exceeds the response-size budget; when it would, it is cut at a record boundary with `truncated` and a `nextCursor`.
 - `BR-READ-004` (partial: `view=summary` drops lines on documents and journals; the default still embeds them for backward compatibility): lists return a compact summary view by default; lines and allocations are only returned by a small-limit full view or by id.

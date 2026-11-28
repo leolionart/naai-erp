@@ -1733,6 +1733,15 @@
     },
     "/api/v1/organizations/{organizationId}/banking/imports": {
       "get": {
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "summary": "List versioned organization-scoped bank statement imports and row control totals"
       },
       "post": {
@@ -1751,6 +1760,15 @@
     },
     "/api/v1/organizations/{organizationId}/banking/transactions": {
       "get": {
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "summary": "List imported bank transactions with exact string amounts state and latest normalization version"
       }
     },
@@ -1881,7 +1899,15 @@
       "get": {
         "operationId": "listCustomerReceipts",
         "tags": ["receivables"],
-        "parameters": [{ "$ref": "#/components/parameters/OrganizationId" }],
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/IncludeTotal" },
+          { "$ref": "#/components/parameters/Q" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "summary": "List canonical manually recorded customer receipts",
         "responses": {
           "200": {
@@ -2062,6 +2088,13 @@
     },
     "/api/v1/organizations/{organizationId}/banking/reconciliations": {
       "get": {
+        "parameters": [
+          { "$ref": "#/components/parameters/OrganizationId" },
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/Sort" }
+        ],
+        "x-naai-list": true,
         "summary": "List organization-scoped reconciliation attempts with statement and base exact string amounts"
       }
     },

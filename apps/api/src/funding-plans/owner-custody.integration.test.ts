@@ -470,10 +470,10 @@ describeIntegration("T-INT-FUND-007 dedicated 111-OWNER-CUSTODY and 1388 owner r
       bankAvailableMinor: "12000000",
       companyCashOnHandMinor: "2600000",
       ownerCashCustodyMinor: "2800000",
-      ownerHoldsCompanyFundsMinor: "2800000",
+      ownerHoldsCompanyFundsMinor: "1900000", // custody 2.8M net of the 0.9M still owed to the owner (ERP-1003)
       cashOnHandMinor: "5400000",
       cashAndBankMinor: "17400000",
-      totalCompanyFundsMinor: "17400000",
+      totalCompanyFundsMinor: "16500000",
       companyFundsReconciliationGapMinor: "0",
       statutoryOwnerCurrentBalanceMinor: "900000",
       ownerReceivableMinor: "550000",
@@ -490,6 +490,6 @@ describeIntegration("T-INT-FUND-007 dedicated 111-OWNER-CUSTODY and 1388 owner r
       ownerReceivableMinor: "550000",
       netOwnerPositionMinor: "350000",
     });
-    expect(ownerMovRes.json().data.summary.ownerHoldsCompanyFundsMinor).toBe("2800000");
+    expect(ownerMovRes.json().data.summary.ownerHoldsCompanyFundsMinor).toBe("1900000");
   });
 });

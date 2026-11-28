@@ -1,3 +1,4 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION, type CreateCustomerReceiptRequest } from "@naai-erp/contracts";
 import { validateCustomerReceipt } from "@naai-erp/domain";
@@ -40,8 +41,9 @@ export class CustomerReceiptService {
     validateCustomerReceipt(input);
     return this.envelope(c, await this.store.create(c, input, key));
   }
-  async list(c: CustomerReceiptContext) {
-    return this.envelope(c, await this.store.list(c.organizationId));
+  async list(c: CustomerReceiptContext, paging: RawListQuery = {}) {
+    const { items, page, meta } = await this.store.list(c.organizationId, paging);
+    return { ...this.envelope(c, items), page, meta };
   }
   async get(c: CustomerReceiptContext, id: string) {
     const x = await this.store.get(c.organizationId, id);

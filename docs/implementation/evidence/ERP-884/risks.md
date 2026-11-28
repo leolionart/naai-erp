@@ -5,4 +5,3 @@
 - Historical personal withdrawals are confirmed through exact embedded bank transaction IDs. Future
   withdrawals should use a first-class organization-scoped linkage rather than relying on legacy IDs.
 - No production journal, bank transaction, reconciliation or expense record is mutated by this release.
-

@@ -1,3 +1,4 @@
+import type { RawListQuery } from "@naai-erp/contracts";
 import type {
   MatchReconciliationRequest,
   ReconcilePaymentRequest,
@@ -41,7 +42,8 @@ export type ReconciliationStore = Readonly<{
   list(
     organizationId: string,
     filters: { state?: string; financialAccountId?: string },
-  ): Promise<unknown>;
+    paging?: RawListQuery,
+  ): Promise<{ data: unknown; meta: unknown }>;
   get(organizationId: string, id: string): Promise<unknown | undefined>;
 }>;
 

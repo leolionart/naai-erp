@@ -9,7 +9,7 @@
 - [x] Owner-paid unclassified count and amount are both zero.
 - [x] No posted expense journal was edited or reversed for classification.
 - [x] All 12 provisional owner-funded payroll drafts have explicit `SALARY` and
-  `owner_paid_company_cost` classification through audited, versioned API updates.
+      `owner_paid_company_cost` classification through audited, versioned API updates.
 - [x] Unknown payee, employee and project relationships remain explicitly unresolved rather than
-  being populated with invented identifiers.
+      being populated with invented identifiers.
 - [x] Focused type and browser tests pass.

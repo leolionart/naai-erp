@@ -9,4 +9,3 @@
 
 Browser plugin was unavailable in the active environment, so rendered validation used the repository
 Playwright flow against the existing local server.
-

@@ -2890,7 +2890,7 @@ tests:
     rules: [BR-READ-001, BR-READ-002, BR-READ-003, BR-READ-005]
     title: Expense, commercial document and journal lists apply the default limit, clamp, walk every page without gaps and expose count and summary
     layer: integration
-    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense-list.integration.test.ts
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/expenses/expense-list.integration.test.ts src/banking/bank-list.integration.test.ts
     blocking_gate: P17
 
   - id: T-UNIT-READ-005
