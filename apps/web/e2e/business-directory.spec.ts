@@ -40,19 +40,19 @@ test("@desktop and @mobile directory cards expose useful customer and project co
       state: "active",
     },
   ];
-  await page.route("**/api/v1/organizations/naai/master-data/parties?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/parties(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: parties })),
     }),
   );
-  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/projects(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: projects })),
     }),
   );
-  await page.route("**/api/v1/organizations/naai/master-data/party-roles?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/party-roles(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [{ party_id: "client-card", role: "client" }] })),
@@ -183,7 +183,7 @@ test("@desktop project profile embeds invoice, budget and cost workspaces", asyn
       ),
     });
   });
-  await page.route("**/api/v1/organizations/naai/master-data/contracts?limit=200", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/contracts(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(
@@ -202,7 +202,7 @@ test("@desktop project profile embeds invoice, budget and cost workspaces", asyn
       ),
     }),
   );
-  await page.route("**/api/v1/organizations/naai/master-data/milestones?limit=500", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/milestones(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(
@@ -294,7 +294,7 @@ test("@desktop unreferenced operational project can be deleted with an audited r
       ),
     });
   });
-  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/projects(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),
@@ -312,19 +312,19 @@ test("@desktop unreferenced operational project can be deleted with an audited r
 
 test("@desktop directory create action opens an in-context dialog", async ({ page }) => {
   await authenticate(page);
-  await page.route("**/api/v1/organizations/naai/master-data/parties?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/parties(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),
     }),
   );
-  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/projects(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),
     }),
   );
-  await page.route("**/api/v1/organizations/naai/master-data/party-roles?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/party-roles(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: [] })),
@@ -342,7 +342,7 @@ test("@desktop project directory filters by state and overlapping execution date
   page,
 }) => {
   await authenticate(page);
-  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/projects(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(
@@ -413,7 +413,7 @@ test("@desktop project Kanban moves a project between lifecycle columns", async 
       ends_on: "2026-12-31",
     },
   ];
-  await page.route("**/api/v1/organizations/naai/master-data/projects?limit=100", (route) =>
+  await page.route(/\/api\/v1\/organizations\/naai\/master-data\/projects(\?.*)?$/, (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify(envelope({ items: projects })),

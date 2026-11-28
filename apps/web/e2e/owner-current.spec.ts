@@ -153,7 +153,8 @@ test("@desktop @mobile owner settlement shows confirmed debt custody and withdra
   await page.goto("http://localhost:3000/banking/owner-current");
   const confirmed = page.getByTestId("confirmed-owner-current");
 
-  await expect(page.getByText("Công ty đang nợ chủ", { exact: true })).toBeVisible();
+  // ERP-1003: one net settlement card shows either what the owner holds or what the company owes.
+  await expect(page.getByText("Công ty đang nợ chủ", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Tiền công ty chủ đang giữ", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("21.836.050 ₫", { exact: true })).toHaveCount(1);
   await expect(page.getByText("165.483.950 ₫", { exact: true })).toHaveCount(3);
