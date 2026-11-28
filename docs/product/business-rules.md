@@ -64,7 +64,11 @@ These rules define the active release boundary. Historical rules remain valid fo
   invoices and `expense_date` for non-invoice expenses) rather than record creation timestamps.
 - Expense rows normalize both camelCase and snake_case API compatibility fields into one presentation
   model for date, payee, category, description and amount; a missing camelCase alias must not blank a
-  value that is present in the canonical API payload.
+  value that is present in the canonical API payload. Master-data lookup queries (`parties`,
+  `party-roles`, `projects`, `categories`, `expense-categories`, `purchase-products`, `dimensions`,
+  `contracts` and `milestones`) omit ad-hoc `limit=` parameters so the web API client follows
+  `nextCursor` across all pages and never falls back to raw `party-tax-...` IDs once an organization
+  exceeds 100 parties or projects.
 - Invoice and expense list/detail surfaces use one category presentation contract: prefer the root
   category projection, then read the canonical category code from owning line fields (`categoryCode` /
   `expenseCategoryCode`) when a compatibility response omits the root projection. Allocation dimensions

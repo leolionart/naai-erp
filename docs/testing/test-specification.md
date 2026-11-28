@@ -807,3 +807,10 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   expenses and purchase invoices from `tax_only_non_cash` and unconfirmed `3388-OWNER` records,
   preserves URL state across filter submissions, evaluates canonical `document_date` / `expense_date`
   activity dates, and computes exact posted/active minor-unit totals (`focused-record-cost-mode.test.ts`).
+
+### ERP-1008 — Full-pagination master-data lookups for party, project and category names
+
+- `T-UNIT-ERP-1008-001`: Focused-record and directory master-data lookup endpoints omit manual
+  `limit=` and `cursor=` query parameters so `createApiClient` follows `nextCursor` across all pages
+  instead of truncating at the 100-item backend page cap and rendering raw `party-tax-...` IDs
+  (`focused-record-shared.test.ts`).

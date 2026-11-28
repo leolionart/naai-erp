@@ -681,7 +681,7 @@ export function BusinessRecordWorkspace({
         setError("");
         if (kind === "customers") {
           client
-            .data<Page>("master-data/projects?limit=200")
+            .data<Page>("master-data/projects")
             .then((res) => {
               const items = Array.isArray(res) ? res : (res.items ?? []);
               setCustomerProjects(items.filter((p) => String(p.client_party_id || "") === id));
@@ -696,8 +696,8 @@ export function BusinessRecordWorkspace({
               .catch(() => undefined);
           }
           void Promise.all([
-            client.data<Page>("master-data/contracts?limit=200"),
-            client.data<Page>("master-data/milestones?limit=500"),
+            client.data<Page>("master-data/contracts"),
+            client.data<Page>("master-data/milestones"),
           ])
             .then(([contractsPage, milestonesPage]) => {
               const contracts = contractsPage.items.filter(

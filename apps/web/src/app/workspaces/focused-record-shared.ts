@@ -160,7 +160,7 @@ export function queryFor(kind: Kind, params: URLSearchParams) {
 
 export const CATEGORY_LOOKUP_ENDPOINTS = [
   "master-data/categories",
-  "master-data/expense-categories?limit=200",
+  "master-data/expense-categories",
 ] as const;
 
 export const FOCUSED_RECORD_MASTER_DATA_ENDPOINTS = {

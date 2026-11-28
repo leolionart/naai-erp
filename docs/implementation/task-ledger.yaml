@@ -4561,6 +4561,31 @@ tasks:
       - docs/api/openapi-v1.json
       - docs/api/list-endpoint-inventory.md
 
+  - id: ERP-1008
+    title: Full-pagination master-data lookups so party, project and category display names never fall back to raw IDs past 100 items
+    phase: P17
+    status: done
+    dependencies: [ERP-1005, ERP-1007]
+    business_rules: [BR-MVP-007, BR-READ-001]
+    tests: [T-UNIT-ERP-1008-001]
+    evidence: docs/implementation/evidence/ERP-1008/
+    agent: antigravity
+    started_at: 2026-11-28T18:33:00+07:00
+    completed_at: 2026-11-28T18:42:00+07:00
+    completion_basis: implemented_with_unit_and_doc_verification
+    planned_files:
+      - apps/web/src/app/workspaces/focused-record-shared.ts
+      - apps/web/src/app/workspaces/focused-record-shared.test.ts
+      - apps/web/src/app/workspaces/business-directory-workspace.tsx
+      - apps/web/src/app/workspaces/expense-category-policy-workspace.tsx
+      - apps/web/src/app/workspaces/category-catalog-workspace.tsx
+      - apps/web/src/app/workspaces/purchase-product-workspace.tsx
+      - apps/web/src/app/workspaces/dashboard/dashboard-filters-popover.tsx
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-1008/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

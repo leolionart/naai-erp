@@ -61,9 +61,7 @@ export function CategoryCatalogWorkspace() {
       return;
     }
     try {
-      const p = await client.data<Category[] | { items?: Category[] }>(
-        "master-data/categories?limit=500",
-      );
+      const p = await client.data<Category[] | { items?: Category[] }>("master-data/categories");
       setRows(
         (Array.isArray(p) ? p : (p.items ?? [])).map((row: Category) => {
           const r = row as Category & Record<string, unknown>;

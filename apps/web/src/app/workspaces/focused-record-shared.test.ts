@@ -10,10 +10,19 @@ describe("ERP-988 focused record endpoints, roles, and error alert titles", () =
   it("uses canonical master-data/expense-categories and never calls obsolete time/workers", () => {
     expect(CATEGORY_LOOKUP_ENDPOINTS).toEqual([
       "master-data/categories",
-      "master-data/expense-categories?limit=200",
+      "master-data/expense-categories",
     ]);
     expect(CATEGORY_LOOKUP_ENDPOINTS).not.toContain("expense-categories");
     expect(Object.values(FOCUSED_RECORD_MASTER_DATA_ENDPOINTS)).not.toContain("time/workers");
+  });
+
+  it("omits manual limit/cursor query params on master-data lookups so createApiClient paginates past 100 records", () => {
+    for (const endpoint of [
+      ...CATEGORY_LOOKUP_ENDPOINTS,
+      ...Object.values(FOCUSED_RECORD_MASTER_DATA_ENDPOINTS),
+    ]) {
+      expect(endpoint).not.toMatch(/[?&](limit|cursor)=/);
+    }
   });
 
   it("derives clients, suppliers, freelancers, and employees from canonical party_roles", () => {

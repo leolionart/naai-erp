@@ -113,7 +113,7 @@ export function PurchaseProductWorkspace() {
     try {
       const payload = await client.data<
         readonly Record<string, unknown>[] | { items?: readonly Record<string, unknown>[] }
-      >("master-data/purchase-products?limit=200");
+      >("master-data/purchase-products");
       setRows(rowsFrom(payload).map(normalizeProduct));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải sản phẩm mua vào.");

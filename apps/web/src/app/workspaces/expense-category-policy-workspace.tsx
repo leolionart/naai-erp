@@ -99,7 +99,7 @@ export function ExpenseCategoryPolicyWorkspace() {
     setError("");
     try {
       const payload = await client.data<readonly Policy[] | { items?: readonly Policy[] }>(
-        "master-data/expense-categories?limit=200",
+        "master-data/expense-categories",
       );
       setRows(
         rowsFrom(payload).map((row) => normalizePolicy(row as unknown as Record<string, unknown>)),

@@ -37,7 +37,7 @@ export function DashboardFilters({
   useEffect(() => {
     if (!hydrated) return;
     client
-      .data<{ items: DimensionValue[] }>("master-data/dimensions?limit=100")
+      .data<{ items: DimensionValue[] }>("master-data/dimensions")
       .then((res) => {
         const items = Array.isArray(res)
           ? res
