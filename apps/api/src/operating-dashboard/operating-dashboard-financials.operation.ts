@@ -147,6 +147,7 @@ export async function financialsOperation(
     companyOwesOwnerMinor,
     ownerHoldsCompanyFundsMinor,
     ownerReceivableMinor,
+    ownerPersonalWithdrawalMinor,
     netOwnerPositionMinor,
     hasUnmigratedCustodyEntries,
   } = liquiditySnapshot;
@@ -155,6 +156,7 @@ export async function financialsOperation(
     companyCashOnHandMinor,
     ownerHoldsCompanyFundsMinor,
     cashAndBankMinor,
+    rawOwnerCustodyMinor: ownerCashCustodyMinor,
   });
   const actualOwnerPaidCompanyCostMinor = amount(expenseFunding.rows[0]?.owner_paid);
   const unclassifiedOwnerPaidCount = expenseFunding.rows[0]?.unclassified_count ?? 0;
@@ -244,10 +246,10 @@ export async function financialsOperation(
     ownerReceivableMinor: ownerReceivableMinor.toString(),
     netOwnerPositionMinor: netOwnerPositionMinor.toString(),
     negativeOwnerCustodyAlert: buildNegativeCustodyAlert(ownerCashCustodyMinor),
-    ownerPersonalWithdrawalMinor: "0",
-    netAvailableCashMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),
+    ownerPersonalWithdrawalMinor: ownerPersonalWithdrawalMinor.toString(),
+    netAvailableCashMinor: (companyFunds.totalMinor - companyOwesOwnerMinor).toString(),
     actualOwnerPaidCompanyCostMinor: actualOwnerPaidCompanyCostMinor.toString(),
-    netCompanyFundsMinor: (cashAndBankMinor - companyOwesOwnerMinor).toString(),
+    netCompanyFundsMinor: (companyFunds.totalMinor - companyOwesOwnerMinor).toString(),
     unclassifiedOwnerPaidCount,
     unclassifiedOwnerPaidMinor: unclassifiedOwnerPaidMinor.toString(),
     ownerPaidClassificationStatus,

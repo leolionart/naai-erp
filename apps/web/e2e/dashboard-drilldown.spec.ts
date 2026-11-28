@@ -591,45 +591,39 @@ test("@desktop shows ledger-derived bank cash owner payable and accounting profi
   await installOperatingDashboard(page);
   await page.goto("http://localhost:3000/dashboard?periodId=CAL-2026-08");
 
+  const profitCard = page.getByRole("link", { name: /Kết quả kinh doanh/ });
+  await expect(profitCard).toContainText("110.000.000 ₫");
+  await expect(profitCard).toContainText("Doanh thu 180.000.000 ₫");
+
   const companyFundsCard = page.getByRole("link", { name: /Tiền công ty hiện có/ });
   await expect(companyFundsCard).toContainText("620.000.000 ₫");
-  await expect(companyFundsCard).toContainText("ngân hàng 613.000.000 ₫");
-  await expect(companyFundsCard).toContainText("tiền mặt công ty 7.000.000 ₫");
+  await expect(companyFundsCard).toContainText("Ngân hàng 613.000.000 ₫");
   await expect(page.getByRole("link", { name: /Số dư ngân hàng khả dụng/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Quỹ tiền mặt công ty/ })).toHaveCount(0);
   const ownerPayableCard = page.getByRole("link", {
     name: /Công ty đang nợ chủ doanh nghiệp/,
   });
   await expect(ownerPayableCard).toContainText("30.000.000 ₫");
+  await expect(ownerPayableCard).toContainText("590.000.000 ₫");
   await expect(ownerPayableCard).toContainText("Nguồn: quyết toán đã xác nhận");
-  await expect(page.getByRole("link", { name: /Tiền công ty chủ đang giữ/ })).toContainText("0 ₫");
+  await expect(page.getByRole("link", { name: /Tiền công ty chủ đang giữ/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Tiền ròng thực còn/ })).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: /Số dư Owner Current trên Balance Sheet/ }),
   ).toHaveCount(0);
-  const netFundsCard = page.getByRole("link", { name: /Tiền ròng thực còn/ });
-  await expect(netFundsCard).toContainText("590.000.000 ₫");
-  await expect(netFundsCard).toContainText("620.000.000 ₫");
-  await expect(netFundsCard).toContainText("30.000.000 ₫");
   await expect(page.getByRole("link", { name: /^Runway/ })).toHaveCount(0);
-  const taxableProfitCard = page.getByRole("link", {
-    name: /Lợi nhuận tính thuế TNDN tạm tính/,
-  });
-  await expect(taxableProfitCard).toContainText("115.000.000 ₫");
-  await expect(taxableProfitCard).toContainText(
-    "Lợi nhuận kế toán 110.000.000 ₫ + chi phí CIT không được trừ 5.000.000 ₫",
-  );
   const citCard = page.getByRole("link", { name: /Thuế TNDN tạm tính/ });
   await expect(citCard).toContainText("23.000.000 ₫");
+  await expect(citCard).toContainText("115.000.000 ₫");
   await expect(citCard).toContainText("thuế suất đã duyệt 20%");
+  await expect(citCard).toContainText("25.000.000 ₫");
   const vatCard = page.getByRole("link", { name: /VAT phải nộp/ });
   await expect(vatCard).toContainText("15.000.000 ₫");
   await expect(vatCard).toContainText(
     "VAT đầu ra 21.000.000 ₫ − VAT đầu vào đủ điều kiện 6.000.000 ₫",
   );
-  await expect(page.getByRole("link", { name: /VAT đầu vào chờ review/ })).toContainText("0 ₫");
-  await expect(page.getByRole("link", { name: /Chi phí CIT chờ review/ })).toContainText(
-    "25.000.000 ₫",
-  );
+  await expect(page.getByRole("link", { name: /VAT đầu vào chờ review/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Chi phí CIT chờ review/ })).toHaveCount(0);
 });
 
 test("@desktop uses Owner Current as the single owner obligation even when the legacy operating split is zero", async ({
@@ -644,9 +638,7 @@ test("@desktop uses Owner Current as the single owner obligation even when the l
 
   const ownerCurrent = page.getByRole("link", { name: /Công ty đang nợ chủ doanh nghiệp/ });
   await expect(ownerCurrent).toContainText("30.000.000 ₫");
-  await expect(page.getByRole("link", { name: /Tiền ròng thực còn/ })).toContainText(
-    "590.000.000 ₫",
-  );
+  await expect(ownerCurrent).toContainText("590.000.000 ₫");
   await expect(page.getByText("Nghĩa vụ vận hành với chủ doanh nghiệp")).toHaveCount(0);
 });
 

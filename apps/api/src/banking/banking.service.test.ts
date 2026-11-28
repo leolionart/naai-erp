@@ -158,6 +158,27 @@ describe("ERP-876 owner-current classification", () => {
     });
   });
 
+  it("consumes dedicated 111-OWNER-CUSTODY cash first before leaving net company debt to owner", () => {
+    expect(
+      summarizeOwnerSettlement({
+        statutoryOwnerCurrentBalance: 312_312_781n,
+        ownerPaidCompanyCost: 217_000_000n,
+        ownerCustodyCash: 0n,
+        ownerPersonalWithdrawal: 0n,
+        ownerFunding: 0n,
+        review: 95_312_781n,
+        reviewCount: 10,
+        ledgerCustodyCash: 39_704_915n,
+      }),
+    ).toMatchObject({
+      confirmedSettlementBalanceMinor: "177295085",
+      companyOwesOwnerMinor: "177295085",
+      ownerHoldsCompanyFundsMinor: "0",
+      ownerCustodyCashMinor: "39704915",
+      statutoryOwnerCurrentBalanceMinor: "312312781",
+    });
+  });
+
   it("requires canonical source evidence before calling a credit owner-paid company cost", () => {
     expect(
       classifyOwnerCurrentMovement({

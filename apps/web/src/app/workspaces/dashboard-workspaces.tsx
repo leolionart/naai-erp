@@ -60,7 +60,6 @@ import {
   DashboardPreviewDialog,
   type DashboardPreview as Preview,
 } from "@/components/dashboard/dashboard-preview-dialog";
-import { StatusBadge } from "@/components/financial/status-badge";
 import { DashboardOperatingAlerts } from "@/components/dashboard/negative-custody-alert";
 import { PaymentEvidenceGapsCard } from "@/components/tax/payment-evidence-gaps-card";
 import { cn } from "@/lib/utils";
@@ -1039,7 +1038,6 @@ export function ExecutiveDashboardWorkspace() {
   const activeProjects = operating?.backlog.projects ?? [];
   const clientRows = operating?.clientConcentration.clients ?? [];
   const portfolioProgress = (operating?.backlog.portfolioProgressBps ?? 0) / 100;
-  const projectHighlights = operating?.backlog.projectHighlights ?? [];
   const baseMonthly = operating?.financials.monthly ?? [];
 
   const chartPoints: readonly Readonly<{ label: string; valueMinor: string }>[] = baseMonthly.map(
@@ -1112,23 +1110,6 @@ export function ExecutiveDashboardWorkspace() {
               endsOn={effectiveEndsOn(search)}
               compact
             />
-          ) : null}
-          {!loading && flagged > 0 ? (
-            <Alert>
-              <AlertTitle>{flagged} tín hiệu cần rà soát</AlertTitle>
-              <AlertDescription>
-                Mở Finance review để xem đúng các ngoại lệ kế toán và báo cáo đang được tính ở đây.
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {!loading && pendingImportRows > 0 ? (
-            <Alert>
-              <AlertTitle>{pendingImportRows} dòng dữ liệu nguồn đang chờ chuẩn hóa</AlertTitle>
-              <AlertDescription>
-                Đây là backlog import riêng, không được cộng vào số tín hiệu ngoại lệ kế toán phía
-                trên.
-              </AlertDescription>
-            </Alert>
           ) : null}
           {loading ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1300,12 +1281,15 @@ export function ExecutiveDashboardWorkspace() {
                           {pendingImportRows}
                         </Badge>
                       </Link>
-                      <div className="flex items-center justify-between gap-3 rounded-lg bg-card p-3 text-sm shadow-sm">
+                      <Link
+                        href={`/receivables?asOf=${search.get("asOfDate") ?? effectiveEndsOn(search)}`}
+                        className="flex items-center justify-between gap-3 rounded-lg bg-card p-3 text-sm shadow-sm transition-colors hover:bg-muted"
+                      >
                         <span>Khoản phải thu quá hạn</span>
                         <Badge variant={overdueCount ? "destructive" : "outline"}>
                           {overdueCount}
                         </Badge>
-                      </div>
+                      </Link>
                     </CardContent>
                     <CardFooter>
                       <Button asChild variant="outline" size="sm">
@@ -1314,100 +1298,6 @@ export function ExecutiveDashboardWorkspace() {
                     </CardFooter>
                   </Card>
                 </div>
-
-                {projectHighlights.length ? (
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {projectHighlights.map((project, index) => {
-                      const progress = (project.invoicedProgressBps ?? 0) / 100;
-                      return (
-                        <Card
-                          key={project.projectId ?? `${project.code}-${index}`}
-                          className={cn(
-                            "rounded-3xl border-border/60 shadow-sm transition-transform hover:-translate-y-1 hover:shadow-lg",
-                            index === 0 && "bg-foreground text-background",
-                            index === 1 && "bg-primary text-primary-foreground",
-                            index > 1 && "bg-card/75 backdrop-blur",
-                          )}
-                        >
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <CardTitle className="truncate text-base">
-                                  {project.name ?? project.code ?? "Dự án chưa đặt tên"}
-                                </CardTitle>
-                                <CardDescription
-                                  className={cn("truncate", index < 2 && "text-current/70")}
-                                >
-                                  {project.clientName ?? "Chưa gán khách hàng"}
-                                </CardDescription>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="flex items-center justify-between text-sm">
-                              <span
-                                className={index < 2 ? "text-current/70" : "text-muted-foreground"}
-                              >
-                                Đã xuất hóa đơn
-                              </span>
-                              <span className="font-medium tabular-nums">
-                                {new Intl.NumberFormat("vi-VN", {
-                                  maximumFractionDigits: 1,
-                                }).format(progress)}
-                                %
-                              </span>
-                            </div>
-                            <div
-                              className={cn(
-                                "h-2 overflow-hidden rounded-full",
-                                index < 2 ? "bg-current/20" : "bg-muted",
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  "h-full rounded-full transition-[width]",
-                                  index === 0
-                                    ? "bg-background"
-                                    : index === 1
-                                      ? "bg-primary-foreground"
-                                      : "bg-primary",
-                                )}
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                            <div
-                              className={cn(
-                                "flex items-center justify-between gap-3 text-xs",
-                                index < 2 ? "text-current/70" : "text-muted-foreground",
-                              )}
-                            >
-                              <span>{money(project.invoicedMinor, operating?.currency)}</span>
-                              <span>Còn {money(project.backlogMinor, operating?.currency)}</span>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="flex items-center justify-between gap-3">
-                            <StatusBadge status={project.state ?? "active"} />
-                            {project.projectId ? (
-                              <Button
-                                asChild
-                                variant={index < 2 ? "secondary" : "outline"}
-                                size="icon-sm"
-                                className="rounded-full"
-                              >
-                                <Link
-                                  href={`/projects/${encodeURIComponent(project.projectId)}`}
-                                  aria-label={`Mở dự án ${project.name ?? project.code ?? ""}`}
-                                >
-                                  <ArrowRight />
-                                </Link>
-                              </Button>
-                            ) : null}
-                          </CardFooter>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                ) : null}
               </section>
 
               <div className="flex items-center gap-2">
@@ -1415,35 +1305,104 @@ export function ExecutiveDashboardWorkspace() {
                 <div>
                   <h2 className="text-lg font-semibold">Sức khỏe tài chính</h2>
                   <p className="text-sm text-muted-foreground">
-                    Thuế, công nợ và dòng tiền lấy từ các báo cáo kế toán chuẩn.
+                    Kết quả kinh doanh, tiền công ty, quyết toán với chủ, công nợ và nghĩa vụ thuế.
                   </p>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <MetricCard
-                  title="Lợi nhuận tính thuế TNDN tạm tính"
-                  value={money(taxableProfitMinor, profitAndLoss?.currency)}
-                  description={`Lợi nhuận kế toán ${money(profitAndLoss?.profitBeforeTaxMinor, profitAndLoss?.currency)} + chi phí CIT không được trừ ${money(taxExpenses?.citIneligibleMinor, taxExpenses?.currency)}. Chi phí CIT chưa review: ${money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}.`}
+                  title="Kết quả kinh doanh"
+                  value={money(
+                    profitAndLoss?.profitBeforeTaxMinor ?? operating?.financials.netProfitMinor,
+                    profitAndLoss?.currency ?? operating?.currency,
+                  )}
+                  description={`Doanh thu ${money(operating?.financials.revenueMinor, operating?.currency)} − Chi phí ${money(operating?.financials.expenseMinor, operating?.currency)} · Biên lợi nhuận: ${operating?.financials.rosBps == null ? "N/A" : ratio(operating.financials.rosBps)}.`}
                   href={`/reports/financial-statements/profit-and-loss/current?${q}`}
-                  status={taxExpenses?.status}
-                  provisional={taxExpenses?.status !== "ready"}
+                  status={
+                    BigInt(
+                      profitAndLoss?.profitBeforeTaxMinor ??
+                        operating?.financials.netProfitMinor ??
+                        "0",
+                    ) < 0n
+                      ? "Đang lỗ kế toán"
+                      : "Có lãi kế toán"
+                  }
                   variant="surface"
                   trend={operating?.financials.monthly?.map((row) =>
                     Number(BigInt(row.netProfitMinor ?? "0")),
                   )}
                 />
                 <MetricCard
+                  title="Tiền công ty hiện có"
+                  value={money(totalCompanyFundsMinor, operating?.currency)}
+                  description={`Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)} · Tiền mặt két ${money(operating?.financials.companyCashOnHandMinor ?? "0", operating?.currency)}${BigInt(ownerHoldsCompanyFundsMinor) > 0n ? ` · Chủ còn giữ ${money(ownerHoldsCompanyFundsMinor, operating?.currency)}` : ""}.${BigInt(companyFundsReconciliationGapMinor) !== 0n ? ` Chênh lệch sổ: ${money(companyFundsReconciliationGapMinor, operating?.currency)}.` : ""}`}
+                  href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
+                  status={BigInt(totalCompanyFundsMinor) > 0n ? "Sẵn sàng chi" : "Đã cạn quỹ"}
+                  variant="primary"
+                  trend={operating?.financials.monthly?.map((row) =>
+                    Number(BigInt(row.revenueMinor ?? "0")),
+                  )}
+                />
+                <MetricCard
+                  title={
+                    BigInt(companyOwesOwnerMinor) > 0n
+                      ? "Công ty đang nợ chủ doanh nghiệp"
+                      : BigInt(ownerHoldsCompanyFundsMinor) > 0n
+                        ? "Tiền công ty chủ đang giữ"
+                        : "Quyết toán với chủ doanh nghiệp"
+                  }
+                  value={money(
+                    BigInt(companyOwesOwnerMinor) > 0n
+                      ? companyOwesOwnerMinor
+                      : ownerHoldsCompanyFundsMinor,
+                    operating?.currency ?? executive?.currency,
+                  )}
+                  description={
+                    BigInt(companyOwesOwnerMinor) > 0n
+                      ? `Đã tự động trừ hết tiền công ty chủ giữ hộ trước khi tính nợ · Tiền ròng thực còn sau nghĩa vụ với chủ: ${money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}.`
+                      : BigInt(ownerHoldsCompanyFundsMinor) > 0n
+                        ? "Phần tiền công ty giao chủ giữ còn dư sau khi đã cấn trừ hết các khoản chủ chi hộ (công ty nợ chủ: 0 ₫)."
+                        : "Đã cân bằng — công ty không nợ chủ và chủ không còn giữ tiền dư của công ty."
+                  }
+                  href="/banking/owner-current"
+                  status={
+                    BigInt(companyOwesOwnerMinor) > 0n
+                      ? "Nguồn: quyết toán đã xác nhận"
+                      : BigInt(ownerHoldsCompanyFundsMinor) > 0n
+                        ? "Chủ đang giữ tiền công ty"
+                        : "Đã cân bằng"
+                  }
+                  variant={
+                    showNetCompanyFunds && BigInt(netCompanyFundsMinor) < 0n ? "danger" : "surface"
+                  }
+                />
+                <MetricCard
+                  title="Công nợ cần thu"
+                  value={money(data.aging?.baseOutstandingTotalMinor, data.aging?.baseCurrency)}
+                  description={`Đã quá hạn ${money(overdueMinor, data.aging?.baseCurrency)} · DSO: ${dso}`}
+                  href={`/receivables?asOf=${search.get("asOfDate") ?? effectiveEndsOn(search)}`}
+                  status={overdueCount ? `${overdueCount} khoản quá hạn` : data.aging?.tieStatus}
+                  provisional={usingOperatingFallback}
+                  variant={overdueCount > 0 ? "danger" : "surface"}
+                />
+                <MetricCard
                   title="Thuế TNDN tạm tính"
                   value={money(corporateIncomeTaxMinor, profitAndLoss?.currency)}
-                  description={buildCitCardDescription({
+                  description={`${buildCitCardDescription({
                     taxableProfitFormatted: money(taxableProfitMinor, profitAndLoss?.currency),
                     financials: operating?.financials,
-                  })}
-                  href={`/reports/financial-statements/profit-and-loss/current?${q}`}
+                  })} · Chi phí không trừ CIT: ${money(taxExpenses?.citIneligibleMinor, taxExpenses?.currency)}${BigInt(taxExpenses?.citUnreviewedMinor ?? "0") > 0n ? ` · Chờ review CIT: ${money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}` : ""}.`}
+                  href={
+                    taxExpenses?.unreviewedItemIds.length
+                      ? `/reports/tax/expense-exceptions?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(q)), state: "unreviewed" }).toString()}`
+                      : `/reports/financial-statements/profit-and-loss/current?${q}`
+                  }
                   status={
                     operating?.financials.corporateIncomeTaxRateBps == null
                       ? "Thiếu chính sách thuế TNDN"
-                      : taxExpenses?.status
+                      : taxExpenses?.unreviewedItemIds.length
+                        ? `${taxExpenses.unreviewedItemIds.length} khoản chờ review CIT`
+                        : taxExpenses?.status
                   }
                   provisional={
                     taxExpenses?.status !== "ready" ||
@@ -1454,97 +1413,26 @@ export function ExecutiveDashboardWorkspace() {
                 <MetricCard
                   title="VAT phải nộp"
                   value={money(vat?.netVatPayableMinor, vat?.currency)}
-                  description={`VAT đầu ra ${money(vat?.outputVatMinor, vat?.currency)} − VAT đầu vào đủ điều kiện ${money(vat?.eligibleInputVatMinor, vat?.currency)}. VAT đầu vào chưa review: ${money(vat?.unreviewedInputVatMinor, vat?.currency)}.`}
-                  href={`/reports/tax/vat-reconciliation/current?${q}`}
-                  status={vat?.status}
-                  provisional={vat?.status !== "ready"}
-                  variant="surface"
-                />
-                <MetricCard
-                  title="VAT đầu vào chờ review"
-                  value={money(vat?.unreviewedInputVatMinor, vat?.currency)}
-                  description="Khoản VAT đầu vào chưa được khấu trừ; hoàn tất kiểm tra hóa đơn và hồ sơ để xác định số VAT được giảm"
+                  description={`VAT đầu ra ${money(vat?.outputVatMinor, vat?.currency)} − VAT đầu vào đủ điều kiện ${money(vat?.eligibleInputVatMinor, vat?.currency)}${BigInt(vat?.unreviewedInputVatMinor ?? "0") > 0n ? ` · VAT đầu vào chờ review: ${money(vat?.unreviewedInputVatMinor, vat?.currency)}` : ""}.`}
                   href={`/reports/tax/vat-reconciliation/current?${q}`}
                   status={
                     vat?.unreviewedItemIds.length
-                      ? `${vat.unreviewedItemIds.length} khoản`
-                      : "Đã review hết"
+                      ? `${vat.unreviewedItemIds.length} khoản chờ review VAT`
+                      : vat?.status
                   }
-                  provisional={Boolean(vat?.unreviewedItemIds.length)}
-                  variant="muted"
-                />
-                <MetricCard
-                  title="Chi phí CIT chờ review"
-                  value={money(taxExpenses?.citUnreviewedMinor, taxExpenses?.currency)}
-                  description="Chi phí chưa xác định được trừ khi tính thuế TNDN; cần bổ sung hóa đơn, chứng từ hoặc kết luận kế toán"
-                  href={`/reports/tax/expense-exceptions?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(q)), state: "unreviewed" }).toString()}`}
-                  status={
-                    taxExpenses?.unreviewedItemIds.length
-                      ? `${taxExpenses.unreviewedItemIds.length} khoản`
-                      : "Đã review hết"
-                  }
-                  provisional={Boolean(taxExpenses?.unreviewedItemIds.length)}
-                  variant="muted"
-                />
-                <MetricCard
-                  title="Công nợ cần thu"
-                  value={money(data.aging?.baseOutstandingTotalMinor, data.aging?.baseCurrency)}
-                  description={`Đã quá hạn ${money(overdueMinor, data.aging?.baseCurrency)} · DSO: ${dso}`}
-                  href={`/receivables?asOf=${search.get("asOfDate") ?? "2026-08-31"}`}
-                  status={overdueCount ? `${overdueCount} khoản quá hạn` : data.aging?.tieStatus}
-                  provisional={usingOperatingFallback}
-                  variant={overdueCount > 0 ? "danger" : "surface"}
-                />
-                <MetricCard
-                  title="Tiền công ty hiện có"
-                  value={money(totalCompanyFundsMinor, operating?.currency)}
-                  description={`Tổng tài sản tiền của công ty, gồm ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)}, tiền mặt công ty ${money(operating?.financials.companyCashOnHandMinor ?? operating?.financials.cashOnHandMinor, operating?.currency)} và tiền chủ đang giữ ${money(operating?.financials.ownerHoldsCompanyFundsMinor, operating?.currency)}. Chênh lệch provenance theo sổ: ${money(companyFundsReconciliationGapMinor, operating?.currency)}.`}
-                  href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                  status="Gồm tiền chủ đang giữ"
-                  variant="primary"
-                  trend={operating?.financials.monthly?.map((row) =>
-                    Number(BigInt(row.revenueMinor ?? "0")),
-                  )}
-                />
-                <MetricCard
-                  title="Công ty đang nợ chủ doanh nghiệp"
-                  value={money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}
-                  description="Số quyết toán dòng tiền đã xác nhận mà công ty còn phải trả chủ. Không hiển thị số âm như một khoản nợ."
-                  href="/banking/owner-current"
-                  status="Nguồn: quyết toán đã xác nhận"
+                  provisional={vat?.status !== "ready"}
                   variant="surface"
                 />
-                <MetricCard
-                  title="Tiền công ty chủ đang giữ"
-                  value={money(
-                    ownerHoldsCompanyFundsMinor,
-                    operating?.currency ?? executive?.currency,
-                  )}
-                  description="Phần tiền công ty đã giao hoặc rút cho chủ giữ vượt quá các khoản công ty còn nợ chủ. Đây là tài sản/tiền công ty, không phải nợ âm."
-                  href="/banking/owner-current"
-                  status="Chủ đang giữ tiền công ty"
-                  variant="muted"
-                />
-                {showNetCompanyFunds ? (
-                  <MetricCard
-                    title="Tiền ròng thực còn"
-                    value={money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}
-                    description={`Tổng tiền công ty ${money(operating?.financials.cashAndBankMinor, operating?.currency)} − số công ty đang nợ chủ ${money(companyOwesOwnerMinor, operating?.currency ?? executive?.currency)}.`}
-                    href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
-                    status="Sau nghĩa vụ với chủ"
-                    variant={BigInt(netCompanyFundsMinor) < 0n ? "danger" : "surface"}
-                  />
-                ) : null}
               </div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dự án đang tạo doanh thu</CardTitle>
-                  <CardDescription>
-                    So sánh hợp đồng, hóa đơn đã xuất và phần còn lại theo từng dự án.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {projectPipelineRows.length ? (
+              {projectPipelineRows.length ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dự án đang tạo doanh thu</CardTitle>
+                    <CardDescription>
+                      So sánh hợp đồng, hóa đơn đã xuất và phần còn lại theo từng dự án.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <div className="grid gap-5 md:grid-cols-2">
                       {projectPipelineRows.slice(0, 6).map((project) => {
                         const projectId = project.projectId ?? "";
@@ -1594,18 +1482,9 @@ export function ExecutiveDashboardWorkspace() {
                         );
                       })}
                     </div>
-                  ) : (
-                    <Empty>
-                      <EmptyHeader>
-                        <EmptyTitle>Chưa có dự án có giá trị thương mại</EmptyTitle>
-                        <EmptyDescription>
-                          Bổ sung hợp đồng hoặc phân bổ hóa đơn vào dự án để theo dõi tại đây.
-                        </EmptyDescription>
-                      </EmptyHeader>
-                    </Empty>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ) : null}
             </>
           )}
           <Card>

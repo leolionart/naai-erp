@@ -5,14 +5,17 @@ export function deriveCompanyFunds(input: {
   companyCashOnHandMinor: bigint;
   ownerHoldsCompanyFundsMinor: bigint;
   cashAndBankMinor: bigint;
+  rawOwnerCustodyMinor?: bigint;
 }) {
+  const positiveCompanyCash = input.companyCashOnHandMinor > 0n ? input.companyCashOnHandMinor : 0n;
   const totalMinor =
-    input.bankAvailableMinor +
-    (input.companyCashOnHandMinor > 0n ? input.companyCashOnHandMinor : 0n) +
-    input.ownerHoldsCompanyFundsMinor;
+    input.bankAvailableMinor + positiveCompanyCash + input.ownerHoldsCompanyFundsMinor;
+  const rawCustody = input.rawOwnerCustodyMinor ?? input.ownerHoldsCompanyFundsMinor;
+  const ledgerPartitionMinor =
+    input.bankAvailableMinor + positiveCompanyCash + (rawCustody > 0n ? rawCustody : 0n);
   return {
     totalMinor,
-    reconciliationGapMinor: input.cashAndBankMinor - totalMinor,
+    reconciliationGapMinor: input.cashAndBankMinor - ledgerPartitionMinor,
   };
 }
 
@@ -100,11 +103,11 @@ export function queryDashboardOwnerSettlement(pool: Pool, org: string, asOf: str
        select (select amount from eligible_owner_expenses)
          + (select funded from owner_bank_movements)
          - (select repaid from owner_bank_movements)
-         - (select amount from custody_incoming) settlement
+         - greatest((select amount from custody), 0) settlement
      )
      select settlement::text,
        greatest(settlement,0)::text company_owes_owner,
-       (select amount from custody)::text owner_holds_company_funds,
+       greatest(-settlement,0)::text owner_holds_company_funds,
        (select amount from custody)::text custody,
        '0'::text personal_withdrawals
      from totals`,

@@ -851,13 +851,17 @@ Branches: `ignored`, `needs_review`.
   reimbursement, withdrawal, owner loan settlement or equity movement without canonical metadata.
 - Missing decrease movements remain visible as a reconciliation warning; they are never fabricated
   from workbook notes or transaction descriptions.
-- The operating dashboard and the Owner Current page report the same confirmed owner settlement:
-  eligible owner-paid expenses plus posted owner bank funding minus owner repayments. The dashboard
-  exposes it as `companyOwesOwnerMinor` (never negative; `ownerPayableMinor` and
-  `ownerOperatingPayableMinor` carry the same value) next to `statutoryOwnerCurrentBalanceMinor`, which
-  stays the raw ledger balance of Owner Current. When the organization uses the dedicated
-  `111-OWNER-CUSTODY` account, custody cash is reported from that ledger account and is not deducted a
-  second time from the settlement.
+- The operating dashboard and the Owner Current page report the same single-bucket confirmed owner
+  settlement: eligible owner-paid expenses plus posted owner bank funding minus owner repayments,
+  owner personal withdrawals, and any positive owner-held company custody cash (`111-OWNER-CUSTODY`
+  when present, or `owner_custody_cash` transfers otherwise). Company cash in the owner's custody is
+  consumed first against confirmed owner outlays before leaving net company debt to the owner:
+  when the net settlement is positive (`companyOwesOwnerMinor > 0`), `ownerHoldsCompanyFundsMinor`
+  is `0` and `totalCompanyFundsMinor` includes only remaining company bank and company safe cash;
+  when negative, `companyOwesOwnerMinor` is `0` and the excess custody balance is reported as
+  `ownerHoldsCompanyFundsMinor` inside `totalCompanyFundsMinor`. Raw statutory ledger balances
+  (`ownerCashCustodyMinor`, `cashAndBankMinor`, `statutoryOwnerCurrentBalanceMinor`) remain intact
+  for Balance Sheet tie-out.
 - The confirmed timeline contains only actual cash-source movements: an explicitly owner-paid expense,
   owner funding into configured company bank/cash, or company bank/cash paid or withdrawn to clear
   Owner Current. A transfer between company bank and company cash remains internal and is excluded.

@@ -12,6 +12,7 @@ export type LedgerLiquidityAndOwnerSnapshot = Readonly<{
   companyOwesOwnerMinor: bigint;
   ownerHoldsCompanyFundsMinor: bigint;
   ownerReceivableMinor: bigint;
+  ownerPersonalWithdrawalMinor: bigint;
   netOwnerPositionMinor: bigint;
   hasUnmigratedCustodyEntries: boolean;
 }>;
@@ -34,6 +35,7 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
     owner_current_signed_minor: string;
     owner_receivable_minor: string;
     eligible_owner_expenses_minor: string;
+    personal_withdrawals_minor: string;
     has_unmigrated_custody: boolean;
   }>(
     `with workflow_policy as (
@@ -108,6 +110,12 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
          from owner_funding_movements m
          join journal_entries j on j.organization_id=m.organization_id and j.id=m.journal_id
         where m.organization_id=$1 and j.state='posted' and m.booking_date <= $2::date
+     ), owner_personal_withdrawals as (
+       select coalesce(sum(-bt.amount_minor), 0) as amount
+         from owner_cash_withdrawals ocw
+         join bank_transactions bt on bt.organization_id=ocw.organization_id and bt.id=ocw.bank_transaction_id
+         join journal_entries j on j.organization_id=ocw.organization_id and j.id=ocw.journal_id
+        where ocw.organization_id=$1 and j.state='posted' and bt.amount_minor < 0 and bt.booking_date <= $2::date
      ), migrated_keys as (
        select jl.dimensions->>'ownerCustodyMigrationSourceKey' as src_key
          from journal_entries je
@@ -173,7 +181,8 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
           where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date <= $2::date
             and l.account_code in (select account_code from receivable_accounts)
        ), 0)::text as owner_receivable_minor,
-       ((select amount from eligible_owner_expenses) + (select amount from owner_funding_net))::text as eligible_owner_expenses_minor,
+       ((select amount from eligible_owner_expenses) + (select amount from owner_funding_net) - (select amount from owner_personal_withdrawals))::text as eligible_owner_expenses_minor,
+       (select amount from owner_personal_withdrawals)::text as personal_withdrawals_minor,
        (select flag from unmigrated_custody) as has_unmigrated_custody`,
     [organizationId, asOf],
   );
@@ -186,11 +195,15 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
   const statutoryOwnerCurrentSignedMinor = BigInt(row?.owner_current_signed_minor ?? "0");
   const ownerPayableMinor =
     statutoryOwnerCurrentSignedMinor > 0n ? statutoryOwnerCurrentSignedMinor : 0n;
-  const confirmedOwnerSettlementMinor = BigInt(row?.eligible_owner_expenses_minor ?? "0");
+  const positiveCustodyMinor = ownerCashCustodyMinor > 0n ? ownerCashCustodyMinor : 0n;
+  const grossOwnerSettlementMinor = BigInt(row?.eligible_owner_expenses_minor ?? "0");
+  const confirmedOwnerSettlementMinor = grossOwnerSettlementMinor - positiveCustodyMinor;
   const companyOwesOwnerMinor =
     confirmedOwnerSettlementMinor > 0n ? confirmedOwnerSettlementMinor : 0n;
-  const ownerHoldsCompanyFundsMinor = ownerCashCustodyMinor > 0n ? ownerCashCustodyMinor : 0n;
+  const ownerHoldsCompanyFundsMinor =
+    confirmedOwnerSettlementMinor < 0n ? -confirmedOwnerSettlementMinor : 0n;
   const ownerReceivableMinor = BigInt(row?.owner_receivable_minor ?? "0");
+  const ownerPersonalWithdrawalMinor = BigInt(row?.personal_withdrawals_minor ?? "0");
   const netOwnerPositionMinor = statutoryOwnerCurrentSignedMinor - ownerReceivableMinor;
   return {
     bankAvailableMinor,
@@ -204,6 +217,7 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
     companyOwesOwnerMinor,
     ownerHoldsCompanyFundsMinor,
     ownerReceivableMinor,
+    ownerPersonalWithdrawalMinor,
     netOwnerPositionMinor,
     hasUnmigratedCustodyEntries: Boolean(row?.has_unmigrated_custody),
   };

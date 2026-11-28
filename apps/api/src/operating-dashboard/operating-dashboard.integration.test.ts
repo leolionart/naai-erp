@@ -308,15 +308,18 @@ suite("operating dashboard PostgreSQL API", () => {
     const financials = response.json().data.financials;
     expect(financials).toMatchObject({
       ownerCashCustodyMinor: "200",
-      ownerHoldsCompanyFundsMinor: "200",
+      ownerHoldsCompanyFundsMinor: "100",
+      companyOwesOwnerMinor: "0",
+      confirmedOwnerSettlementMinor: "-100",
       bankAvailableMinor: "210",
       companyCashOnHandMinor: "0",
       cashOnHandMinor: "200",
       cashAndBankMinor: "410",
-      totalCompanyFundsMinor: "410",
+      totalCompanyFundsMinor: "310",
+      netCompanyFundsMinor: "310",
       companyFundsReconciliationGapMinor: "0",
     });
-    expect(BigInt(financials.cashAndBankMinor)).toBe(
+    expect(BigInt(financials.totalCompanyFundsMinor)).toBe(
       BigInt(financials.bankAvailableMinor) +
         BigInt(financials.companyCashOnHandMinor) +
         BigInt(financials.ownerHoldsCompanyFundsMinor),

@@ -40,21 +40,16 @@ export type OwnerSettlementInput = {
 export function summarizeOwnerSettlement(input: OwnerSettlementInput) {
   const repayment = input.ownerRepayment ?? 0n;
   const ledgerCustody = input.ledgerCustodyCash ?? null;
-  // With a dedicated custody ledger, custody cash is already outside 3388 and is not deducted again.
+  const positiveLedgerCustody = ledgerCustody !== null && ledgerCustody > 0n ? ledgerCustody : 0n;
+  // Single-bucket net settlement: company cash held by the owner is consumed first against
+  // confirmed owner outlays/funding before leaving net company debt to the owner.
   const confirmed =
     input.ownerPaidCompanyCost +
     input.ownerFunding -
-    (ledgerCustody === null ? input.ownerCustodyCash : 0n) -
+    (ledgerCustody === null ? input.ownerCustodyCash : positiveLedgerCustody) -
     input.ownerPersonalWithdrawal -
     repayment;
-  const custodyFunds =
-    ledgerCustody === null
-      ? confirmed < 0n
-        ? -confirmed
-        : 0n
-      : ledgerCustody > 0n
-        ? ledgerCustody
-        : 0n;
+  const custodyFunds = confirmed < 0n ? -confirmed : 0n;
   return {
     statutoryOwnerCurrentBalanceMinor: input.statutoryOwnerCurrentBalance.toString(),
     confirmedSettlementBalanceMinor: confirmed.toString(),

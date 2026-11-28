@@ -300,25 +300,37 @@ export function OwnerCurrentWorkspace() {
       <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="min-w-0">
           <CardHeader>
-            <CardDescription>Công ty đang nợ chủ</CardDescription>
+            <CardDescription>
+              {BigInt(data?.summary.ownerHoldsCompanyFundsMinor ?? "0") > 0n
+                ? "Tiền công ty chủ đang giữ"
+                : BigInt(data?.summary.companyOwesOwnerMinor ?? "0") > 0n
+                  ? "Công ty đang nợ chủ"
+                  : "Vị thế quyết toán ròng"}
+            </CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.companyOwesOwnerMinor ?? "0"} />
+              <MoneyCell
+                minor={
+                  BigInt(data?.summary.ownerHoldsCompanyFundsMinor ?? "0") > 0n
+                    ? (data?.summary.ownerHoldsCompanyFundsMinor ?? "0")
+                    : (data?.summary.companyOwesOwnerMinor ?? "0")
+                }
+              />
             </CardTitle>
           </CardHeader>
         </Card>
         <Card className="min-w-0">
           <CardHeader>
-            <CardDescription>Tiền công ty chủ đang giữ</CardDescription>
+            <CardDescription>Chủ đã chi phí cho công ty</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.ownerHoldsCompanyFundsMinor ?? "0"} />
+              <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
         <Card className="min-w-0 sm:col-span-2 xl:col-span-1">
           <CardHeader>
-            <CardDescription>Chủ đã chi phí cho công ty</CardDescription>
+            <CardDescription>Số dư sổ cái 3388-OWNER (gồm HĐ thuế)</CardDescription>
             <CardTitle>
-              <MoneyCell minor={data?.summary.ownerPaidCompanyCostMinor ?? "0"} />
+              <MoneyCell minor={data?.summary.statutoryOwnerCurrentBalanceMinor ?? "0"} />
             </CardTitle>
           </CardHeader>
         </Card>
