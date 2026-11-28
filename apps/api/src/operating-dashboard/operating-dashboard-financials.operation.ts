@@ -78,10 +78,25 @@ export async function financialsOperation(
          where ml.statement='balance_sheet' and ml.line_code='owner_current'
          )
          select
-           coalesce(sum(l.gross_minor) filter (
+           (coalesce(sum(l.gross_minor) filter (
              where e.counter_account_code in (select account_code from owner_accounts)
                and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
-           ),0)::text owner_paid,
+           ),0) + coalesce((
+             select sum(dl.gross_minor)
+               from commercial_documents cd
+               join commercial_document_lines dl on dl.organization_id=cd.organization_id and dl.document_id=cd.id
+               join expense_categories ec on ec.organization_id=dl.organization_id
+                 and ec.code=coalesce(dl.category_code,dl.dimensions->>'category')
+                 and ec.is_active=true
+               join journal_entries cj on cj.organization_id=cd.organization_id and cj.id=cd.journal_id
+              where cd.organization_id=$1 and cd.type='purchase_invoice'
+                and cd.state in ('posted','partially_paid','paid')
+                and cj.state in ('posted','reversed')
+                and cd.document_date between $2::date and $3::date
+                and cd.control_account_code in (select account_code from owner_accounts)
+                and ec.funding_treatment='owner_paid_company_cost'
+                and (cd.funding_financial_account_id is null or cd.funding_financial_account_id <> (select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY'))
+           ),0))::text owner_paid,
            count(*) filter (
              where l.funding_treatment is null
                and e.counter_account_code in (select account_code from owner_accounts)

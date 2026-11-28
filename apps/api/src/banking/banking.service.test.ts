@@ -216,6 +216,26 @@ describe("ERP-876 owner-current classification", () => {
         sources: [{ sourceType: "purchase_invoice", fundingTreatments: [] }],
       }),
     ).toMatchObject({ movementType: "adjustment", needsReview: true });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 1_000n,
+        companyFundsDelta: 0n,
+        sources: [{ sourceType: "purchase_invoice", fundingTreatments: ["tax_only_non_cash"] }],
+      }),
+    ).toMatchObject({ movementType: "adjustment", needsReview: true });
+    expect(
+      classifyOwnerCurrentMovement({
+        ownerDelta: 1_000n,
+        companyFundsDelta: 0n,
+        sources: [
+          { sourceType: "purchase_invoice", fundingTreatments: ["owner_paid_company_cost"] },
+        ],
+      }),
+    ).toMatchObject({
+      movementType: "owner_paid_company_cost",
+      classificationBasis: "canonical_owner_paid_expense",
+      needsReview: false,
+    });
   });
 
   it("distinguishes company repayment and owner funding using both journal legs", () => {

@@ -54,6 +54,21 @@ export function queryDashboardOwnerSettlement(pool: Pool, org: string, asOf: str
          and e.counter_account_code in (select account_code from owner_accounts)
          and coalesce(l.funding_treatment,c.funding_treatment)='owner_paid_company_cost'
          and (e.funding_financial_account_id is null or e.funding_financial_account_id<> (select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY'))
+     ), eligible_owner_purchase_invoices as (
+       select coalesce(sum(dl.gross_minor),0) amount
+       from commercial_documents d
+       join commercial_document_lines dl on dl.organization_id=d.organization_id and dl.document_id=d.id
+       join expense_categories c on c.organization_id=dl.organization_id
+         and c.code=coalesce(dl.category_code,dl.dimensions->>'category')
+         and c.is_active=true
+       join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id
+       where d.organization_id=$1 and d.type='purchase_invoice'
+         and d.state in ('posted','partially_paid','paid')
+         and j.state in ('posted','reversed')
+         and d.document_date<=$2::date
+         and d.control_account_code in (select account_code from owner_accounts)
+         and c.funding_treatment='owner_paid_company_cost'
+         and (d.funding_financial_account_id is null or d.funding_financial_account_id<> (select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY'))
      ), custody_incoming as (
        select coalesce(sum(it.transfer_amount_minor),0) amount
        from internal_transfers it
@@ -101,6 +116,7 @@ export function queryDashboardOwnerSettlement(pool: Pool, org: string, asOf: str
          and m.booking_date<=$2::date
      ), totals as (
        select (select amount from eligible_owner_expenses)
+         + (select amount from eligible_owner_purchase_invoices)
          + (select funded from owner_bank_movements)
          - (select repaid from owner_bank_movements)
          - greatest((select amount from custody), 0) settlement

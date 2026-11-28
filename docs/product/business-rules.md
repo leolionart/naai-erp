@@ -250,6 +250,13 @@ These rules define the active release boundary. Historical rules remain valid fo
   `111-OWNER-CUSTODY`), recording a balanced `Dr 3388-OWNER / Cr 111-OWNER-CUSTODY` journal and
   reducing `confirmedOwnerSettlementMinor` in `owner_funding_net` so company funds can be drawn
   down to `0` before leaving net owner debt. `owner_funding` remains restricted to `bank` accounts.
+- Posted `purchase_invoice`s credited to `owner_current` (`3388-*`, not funded from `CASH-OWNER-CUSTODY`)
+  whose canonical line category has `expense_categories.funding_treatment = 'owner_paid_company_cost'`
+  are included in `ownerPaidCompanyCostMinor` and `confirmedOwnerSettlementMinor` alongside eligible
+  `expense`s, while `tax_only_non_cash` or uncategorized invoices remain excluded from cash settlement.
+- `POST /banking/transactions/{id}/mark-needs-review` may reopen both `imported` and `ignored` bank
+  transactions into `needs_review` with an audited reason so previously ignored statement lines can
+  be canonically reconciled via `owner-funding` without creating duplicate manual transactions.
 
 Expense and purchase-invoice records may carry an optional organization-scoped
 `fundingFinancialAccountId`. This provenance identifies the actual company bank/cash account used

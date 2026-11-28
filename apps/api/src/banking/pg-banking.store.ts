@@ -860,7 +860,7 @@ export class PgBankingStore implements BankingStore {
       const next = action === "ignore" ? "ignored" : "needs_review";
       const allowed =
         (action === "ignore" && ["imported", "needs_review"].includes(current.rows[0].state)) ||
-        (action === "mark-needs-review" && current.rows[0].state === "imported");
+        (action === "mark-needs-review" && ["imported", "ignored"].includes(current.rows[0].state));
       if (!allowed) throw new Error("INVALID_BANK_TRANSACTION_TRANSITION");
       const version = BigInt(current.rows[0].version) + 1n;
       await client.query(

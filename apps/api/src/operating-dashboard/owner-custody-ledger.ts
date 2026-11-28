@@ -103,6 +103,21 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
           and e.expense_date <= $2::date
           and e.counter_account_code in (select account_code from owner_accounts)
           and coalesce(l.funding_treatment, c.funding_treatment)='owner_paid_company_cost'
+     ), eligible_owner_purchase_invoices as (
+       select coalesce(sum(dl.gross_minor), 0) as amount
+         from commercial_documents d
+         join commercial_document_lines dl on dl.organization_id=d.organization_id and dl.document_id=d.id
+         join expense_categories c on c.organization_id=dl.organization_id
+           and c.code=coalesce(dl.category_code, dl.dimensions->>'category')
+           and c.is_active=true
+         join journal_entries j on j.organization_id=d.organization_id and j.id=d.journal_id
+        where d.organization_id=$1 and d.type='purchase_invoice'
+          and d.state in ('posted','partially_paid','paid')
+          and j.state in ('posted','reversed')
+          and d.document_date <= $2::date
+          and d.control_account_code in (select account_code from owner_accounts)
+          and c.funding_treatment='owner_paid_company_cost'
+          and (d.funding_financial_account_id is null or d.funding_financial_account_id <> (select id from financial_accounts where organization_id=$1 and code='CASH-OWNER-CUSTODY'))
      ), owner_funding_net as (
        -- Bank deposits the owner lent to the company minus repayments, from posted movements only.
        select coalesce(sum(case m.movement_type when 'owner_funding' then m.amount_minor
@@ -181,7 +196,7 @@ export async function readLedgerLiquidityAndOwnerSnapshot(
           where j.organization_id=$1 and j.state in ('posted','reversed') and j.journal_date <= $2::date
             and l.account_code in (select account_code from receivable_accounts)
        ), 0)::text as owner_receivable_minor,
-       ((select amount from eligible_owner_expenses) + (select amount from owner_funding_net) - (select amount from owner_personal_withdrawals))::text as eligible_owner_expenses_minor,
+       ((select amount from eligible_owner_expenses) + (select amount from eligible_owner_purchase_invoices) + (select amount from owner_funding_net) - (select amount from owner_personal_withdrawals))::text as eligible_owner_expenses_minor,
        (select amount from owner_personal_withdrawals)::text as personal_withdrawals_minor,
        (select flag from unmigrated_custody) as has_unmigrated_custody`,
     [organizationId, asOf],
