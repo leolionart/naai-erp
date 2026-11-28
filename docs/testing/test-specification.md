@@ -848,3 +848,8 @@ Năm YYYY`, `Quý Q/YYYY`, `Tháng MM/YYYY`, or custom range) and cumulative-bal
 - `T-CLI-ERP-1013-002`: First-party CLI `api-credentials` (`list`, `create`, `update`, `set-auto-record`, `rotate`, `revoke`) and `integration-sources` (`create` without `secretRef`, `rotate-secret`) align with OpenAPI and the golden routing table.
 - `T-E2E-ERP-1013-003`: Desktop and 390px mobile `/settings/automation` creates/rotates/revokes Service Keys and Inbound Webhooks with one-time secret banners, displays machine-native discovery endpoints (`/api/v1/capabilities`, `/api/v1/openapi.json`, `naai-erp discovery`), and never requests `/auth/automation-token`.
 - `T-DOC-ERP-1013-004`: `verify-docs.mjs` and `verify-solopreneur-gate-matrix.mjs` verify `ADR-014`, `BR-AI-007`, and all new OpenAPI mutations.
+
+### ERP-1014 — Resolved Telegram worker error suppression and recovery status
+
+- `T-UNIT-ERP-1014-001`: `buildTelegramDeliveryStats`, `TelegramSettingsService.sendTest`, and `describeTelegramFailureState` suppress `lastError` and destructive banners once a newer notification is delivered (`lastSentAt >= errorAt`) or settings/test verification succeeds (`updatedAt > errorAt`), rendering `Đã phục hồi` for historical 7-day failure counts while keeping `Cần kiểm tra` (`destructive`) for genuine unresolved failures (`telegram-settings.service.test.ts`, `telegram-settings-workspace.test.tsx`).
+- `T-INT-ERP-1014-002`: PostgreSQL `PgTelegramSettingsStore` reports `delivery.lastError` on active worker failures, clears `lastError` to `null` when newer `sent` rows or `acknowledgeTestSuccess` occur, and preserves live `delivery` stats on `upsert` (`pg-telegram-settings.integration.test.ts`).

@@ -3020,6 +3020,22 @@ tests:
     command: pnpm test:docs && node scripts/verify-solopreneur-gate-matrix.mjs
     blocking_gate: P17
 
+  - id: T-UNIT-ERP-1014-001
+    task: ERP-1014
+    rules: [BR-NOTIFY-004, BR-UI-008]
+    title: Resolved Telegram worker failures clear lastError after newer successful deliveries or settings/test verification and display recovered status
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/telegram-settings/telegram-settings.service.test.ts && pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/telegram-settings-workspace.test.tsx
+    blocking_gate: P17
+
+  - id: T-INT-ERP-1014-002
+    task: ERP-1014
+    rules: [BR-NOTIFY-004]
+    title: PostgreSQL Telegram settings store reports active worker failures and clears lastError after newer sent rows or test verification
+    layer: integration
+    command: RUN_DB_INTEGRATION=1 pnpm --filter @naai-erp/api exec vitest run src/telegram-settings/pg-telegram-settings.integration.test.ts
+    blocking_gate: P17
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

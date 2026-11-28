@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildTelegramDeliveryStats } from "./pg-telegram-settings.store.js";
 import { openSecret } from "./secret-box.js";
 import { TELEGRAM_SECRET_PURPOSE, TelegramSettingsService } from "./telegram-settings.service.js";
 import type { TelegramSettingsStore } from "./telegram-settings.types.js";
@@ -28,6 +29,7 @@ function setup(fetcher = vi.fn()) {
       saved = { ...view, raw: { ...patch } };
       return view;
     }),
+    acknowledgeTestSuccess: vi.fn(async () => undefined),
   };
   const service = new TelegramSettingsService(store, {} as never, fetcher);
   return { service, store, fetcher };
@@ -96,9 +98,11 @@ describe("TelegramSettingsService", () => {
       .fn()
       .mockResolvedValueOnce({ status: 200, text: async () => "{}" })
       .mockResolvedValueOnce({ status: 401, text: async () => `Unauthorized ${token}` });
-    const { service } = setup(fetcher);
+    const { service, store } = setup(fetcher);
     await service.update(owner, { botToken: token, chatId: "-100123", threadId: 5 });
     expect((await service.sendTest(owner)).data).toEqual({ ok: true, status: 200 });
+    expect(store.acknowledgeTestSuccess).toHaveBeenCalledTimes(1);
+    expect(store.acknowledgeTestSuccess).toHaveBeenCalledWith("org");
     expect(fetcher.mock.calls[0]![0]).toBe(`https://api.telegram.org/bot${token}/sendMessage`);
     expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toMatchObject({
       chat_id: "-100123",
@@ -106,10 +110,66 @@ describe("TelegramSettingsService", () => {
     });
     const failed = await service.sendTest(owner);
     expect(failed.data).toMatchObject({ ok: false, status: 401 });
+    expect(store.acknowledgeTestSuccess).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(failed)).not.toContain(token);
   });
 
   it("requires saved settings before testing", async () => {
     await expect(setup().service.sendTest(owner)).rejects.toThrow("TELEGRAM_SETTINGS_INCOMPLETE");
+  });
+
+  it("suppresses resolved historical worker errors while surfacing active failures (ERP-1014)", () => {
+    const oldFailAt = new Date("2026-11-26T14:54:42.000Z");
+    const newerSentAt = new Date("2026-11-28T12:24:01.901Z");
+    const initialConfigAt = new Date("2026-11-26T14:31:39.437Z");
+
+    expect(
+      buildTelegramDeliveryStats({
+        sent: 372,
+        pending: 0,
+        failed: 11,
+        lastSentAt: newerSentAt,
+        candidateError: "Telegram settings or bot token are unavailable",
+        candidateErrorAt: oldFailAt,
+        settingsUpdatedAt: initialConfigAt,
+      }),
+    ).toEqual({
+      sentLast7Days: 372,
+      pending: 0,
+      failed: 11,
+      lastSentAt: "2026-11-28T12:24:01.901Z",
+      lastError: null,
+    });
+
+    const activeFailAt = new Date("2026-11-28T15:00:00.000Z");
+    expect(
+      buildTelegramDeliveryStats({
+        sent: 372,
+        pending: 0,
+        failed: 12,
+        lastSentAt: newerSentAt,
+        candidateError: "Telegram HTTP 401: Unauthorized",
+        candidateErrorAt: activeFailAt,
+        settingsUpdatedAt: initialConfigAt,
+      }),
+    ).toMatchObject({
+      failed: 12,
+      lastError: "Telegram HTTP 401: Unauthorized",
+    });
+
+    expect(
+      buildTelegramDeliveryStats({
+        sent: 372,
+        pending: 0,
+        failed: 12,
+        lastSentAt: newerSentAt,
+        candidateError: "Telegram HTTP 401: Unauthorized",
+        candidateErrorAt: activeFailAt,
+        settingsUpdatedAt: new Date("2026-11-28T15:05:00.000Z"),
+      }),
+    ).toMatchObject({
+      failed: 12,
+      lastError: null,
+    });
   });
 });

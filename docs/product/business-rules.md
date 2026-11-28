@@ -1536,7 +1536,12 @@ No task may be marked done with orphan business rules or untested behavior.
   (not in the ledger yet); posting it later sends the normal posted message. Records that are
   auto-posted on creation produce only the posted message.
 - `BR-NOTIFY-004`: Telegram settings show delivery health for the last 7 days (sent, pending, failed,
-  last error) so a silent failure is visible without reading logs.
+  last error) so a silent failure is visible without reading logs. `lastError` reports only an
+  unresolved worker error (`failed` or retrying `pending` within the last 7 days) whose failure
+  timestamp is newer than both the latest successful delivery (`lastSentAt`) and the latest settings
+  save or successful test verification (`updatedAt`). Historical 7-day failures that were superseded
+  by newer successful deliveries or verified settings clear `lastError` to `null` and display as
+  recovered telemetry (`Đã phục hồi`) instead of a false active outage alert.
 
 ### Activity timeline
 

@@ -63,6 +63,7 @@ export type TelegramSettingsStore = Readonly<{
       notifyDrafts: boolean;
     },
   ): Promise<TelegramSettingsView>;
+  acknowledgeTestSuccess?(organizationId: string): Promise<void>;
 }>;
 
 export const TELEGRAM_SETTINGS_STORE = Symbol("TELEGRAM_SETTINGS_STORE");

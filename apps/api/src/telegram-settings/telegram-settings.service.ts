@@ -142,6 +142,7 @@ export class TelegramSettingsService {
       });
       const body = await response.text();
       const ok = response.status >= 200 && response.status < 300;
+      if (ok) await this.store.acknowledgeTestSuccess?.(context.organizationId);
       return this.envelope(context, {
         ok,
         status: response.status,

@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import pg from "pg";
 import type {
   StoredTelegramSettings,
+  TelegramDeliveryStats,
   TelegramSettingsContext,
   TelegramSettingsStore,
   TelegramSettingsView,
@@ -36,36 +37,83 @@ function view(row: Row): TelegramSettingsView {
   };
 }
 
+export function buildTelegramDeliveryStats(input: {
+  sent: number;
+  pending: number;
+  failed: number;
+  lastSentAt: Date | null;
+  candidateError: string | null;
+  candidateErrorAt: Date | null;
+  settingsUpdatedAt: Date | null;
+}): TelegramDeliveryStats {
+  const resolvedByNewerSend =
+    input.candidateErrorAt !== null &&
+    input.lastSentAt !== null &&
+    input.lastSentAt.getTime() >= input.candidateErrorAt.getTime();
+  const resolvedBySettingsVerify =
+    input.candidateErrorAt !== null &&
+    input.settingsUpdatedAt !== null &&
+    input.settingsUpdatedAt.getTime() > input.candidateErrorAt.getTime();
+  return {
+    sentLast7Days: input.sent,
+    pending: input.pending,
+    failed: input.failed,
+    lastSentAt: input.lastSentAt ? input.lastSentAt.toISOString() : null,
+    lastError:
+      input.candidateError && !resolvedByNewerSend && !resolvedBySettingsVerify
+        ? input.candidateError
+        : null,
+  };
+}
+
 @Injectable()
 export class PgTelegramSettingsStore implements TelegramSettingsStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-  private async delivery(organizationId: string) {
+  private async delivery(organizationId: string, settingsUpdatedAt: Date | null) {
     const result = await this.pool.query<{
       sent: number;
       pending: number;
       failed: number;
       last_sent_at: Date | null;
       last_error: string | null;
+      error_at: Date | null;
     }>(
-      `select count(*) filter (where state='sent' and sent_at>now()-interval '7 days')::int sent,
-              count(*) filter (where state='pending')::int pending,
-              count(*) filter (where state='failed' and created_at>now()-interval '7 days')::int failed,
-              max(sent_at) last_sent_at,
-              (select last_error from telegram_notifications
-                where organization_id=$1 and last_error is not null
-                order by created_at desc limit 1) last_error
-         from telegram_notifications where organization_id=$1`,
+      `with stats as (
+         select count(*) filter (where state='sent' and sent_at>now()-interval '7 days')::int sent,
+                count(*) filter (where state='pending')::int pending,
+                count(*) filter (where state='failed' and created_at>now()-interval '7 days')::int failed,
+                max(sent_at) last_sent_at
+           from telegram_notifications
+          where organization_id=$1
+       ),
+       latest_issue as (
+         select last_error,
+                least(now(), greatest(created_at, next_attempt_at - interval '5 minutes')) error_at
+           from telegram_notifications
+          where organization_id=$1
+            and last_error is not null
+            and state in ('failed','pending')
+            and created_at>now()-interval '7 days'
+          order by least(now(), greatest(created_at, next_attempt_at - interval '5 minutes')) desc,
+                   created_at desc
+          limit 1
+       )
+       select s.sent, s.pending, s.failed, s.last_sent_at, li.last_error, li.error_at
+         from stats s
+         left join latest_issue li on true`,
       [organizationId],
     );
     const row = result.rows[0];
-    return {
-      sentLast7Days: row?.sent ?? 0,
+    return buildTelegramDeliveryStats({
+      sent: row?.sent ?? 0,
       pending: row?.pending ?? 0,
       failed: row?.failed ?? 0,
-      lastSentAt: row?.last_sent_at ? row.last_sent_at.toISOString() : null,
-      lastError: row?.last_error ?? null,
-    };
+      lastSentAt: row?.last_sent_at ?? null,
+      candidateError: row?.last_error ?? null,
+      candidateErrorAt: row?.error_at ?? null,
+      settingsUpdatedAt,
+    });
   }
 
   async get(organizationId: string) {
@@ -86,7 +134,7 @@ export class PgTelegramSettingsStore implements TelegramSettingsStore {
       notifyExpense: row.notify_expense,
       notifyDrafts: row.notify_drafts,
     };
-    return { ...view(row), delivery: await this.delivery(organizationId), raw };
+    return { ...view(row), delivery: await this.delivery(organizationId, row.updated_at), raw };
   }
 
   async upsert(
@@ -140,12 +188,22 @@ export class PgTelegramSettingsStore implements TelegramSettingsStore {
         ],
       );
       await client.query("commit");
-      return view(row);
+      return {
+        ...view(row),
+        delivery: await this.delivery(context.organizationId, row.updated_at),
+      };
     } catch (error) {
       await client.query("rollback");
       throw error;
     } finally {
       client.release();
     }
+  }
+
+  async acknowledgeTestSuccess(organizationId: string) {
+    await this.pool.query(
+      "update telegram_settings set updated_at=now() where organization_id=$1",
+      [organizationId],
+    );
   }
 }

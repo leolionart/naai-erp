@@ -66,6 +66,33 @@ const Notice = (p: { v?: "default" | "destructive"; t: string; children: ReactNo
   </Alert>
 );
 
+export function describeTelegramFailureState(delivery?: DeliveryStats) {
+  const failed = delivery?.failed ?? 0;
+  const activeError = delivery?.lastError?.trim() ? delivery.lastError : null;
+  if (activeError) {
+    return {
+      failed,
+      activeError,
+      badge: ["Cần kiểm tra", "destructive"] as const,
+      subtitle: "Xem chi tiết lỗi bên dưới",
+    };
+  }
+  if (failed > 0) {
+    return {
+      failed,
+      activeError: null,
+      badge: ["Đã phục hồi", "secondary"] as const,
+      subtitle: "Lỗi cũ đã qua, hiện gửi bình thường",
+    };
+  }
+  return {
+    failed: 0,
+    activeError: null,
+    badge: ["Ổn định", "secondary"] as const,
+    subtitle: "Không có lỗi gửi",
+  };
+}
+
 export function TelegramSettingsWorkspace() {
   const { client, hasToken, hydrated } = useAuthenticatedApiClient();
   const [saved, setSaved] = useState<TelegramSettings>();
@@ -126,8 +153,12 @@ export function TelegramSettingsWorkspace() {
     try {
       const res = await client.data<TestResult>(`${PATH}/test`, { method: "POST", body: {} });
       setTestResult(res);
-      if (res.ok) toast.success("Đã gửi tin nhắn thử tới Telegram");
-      else toast.error(`${res.error ?? "Không rõ lỗi"} (HTTP ${res.status})`);
+      if (res.ok) {
+        setSaved((prev) =>
+          prev?.delivery ? { ...prev, delivery: { ...prev.delivery, lastError: null } } : prev,
+        );
+        toast.success("Đã gửi tin nhắn thử tới Telegram");
+      } else toast.error(`${res.error ?? "Không rõ lỗi"} (HTTP ${res.status})`);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : String(cause);
       setError(msg);
@@ -146,7 +177,8 @@ export function TelegramSettingsWorkspace() {
 
   const sent = saved?.delivery?.sentLast7Days ?? 0;
   const pending = saved?.delivery?.pending ?? 0;
-  const failed = saved?.delivery?.failed ?? 0;
+  const failureState = describeTelegramFailureState(saved?.delivery);
+  const failed = failureState.failed;
   const statusLabel = saved?.enabled ? "Đang bật" : "Đang tắt";
   const hint = saved?.botTokenHint ?? "****";
   const tokenSub = saved?.hasBotToken ? `Token đã lưu (…${hint})` : "Chưa cấu hình bot token";
@@ -159,16 +191,11 @@ export function TelegramSettingsWorkspace() {
     : "123456789:AA…";
   const topicPh = "Chỉ cần với nhóm có bật Topics";
   const botBadge = [statusLabel, saved?.enabled ? "default" : "secondary"] as const;
-  const failBadge = [
-    failed > 0 ? "Có lỗi" : "Ổn định",
-    failed > 0 ? "destructive" : "secondary",
-  ] as const;
-  const failSub = saved?.delivery?.failed ? "Xem chi tiết lỗi bên dưới" : "Không có lỗi gửi";
   const kpis = [
     ["Trạng thái bot", statusLabel, tokenSub, botBadge] as const,
     ["Đã gửi (7 ngày qua)", sent, sentSub, undefined] as const,
     ["Đang chờ gửi", pending, "Hàng đợi worker outbox", undefined] as const,
-    ["Lỗi gửi (7 ngày qua)", failed, failSub, failBadge] as const,
+    ["Lỗi gửi (7 ngày qua)", failed, failureState.subtitle, failureState.badge] as const,
   ];
   const inputs = [
     ["telegram-bot-token", "Bot token", "botToken", tokenPh, "password"],
@@ -222,9 +249,9 @@ export function TelegramSettingsWorkspace() {
               {error}
             </Notice>
           ) : null}
-          {saved?.delivery?.lastError ? (
+          {failureState.activeError ? (
             <Notice v="destructive" t="Lỗi gửi gần nhất từ worker">
-              {saved.delivery.lastError} — Hãy kiểm tra lại Bot token, Chat ID và bấm &ldquo;Gửi tin
+              {failureState.activeError} — Hãy kiểm tra lại Bot token, Chat ID và bấm &ldquo;Gửi tin
               nhắn thử&rdquo; để xác minh kết nối.
             </Notice>
           ) : null}

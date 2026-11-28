@@ -4741,6 +4741,32 @@ tasks:
       - apps/web/e2e/automation-api-dialog.spec.ts
       - docs/implementation/evidence/ERP-1013/
 
+  - id: ERP-1014
+    title: Suppress resolved historical Telegram worker errors after newer successful deliveries or settings verification
+    phase: P17
+    status: done
+    dependencies: [ERP-1013]
+    business_rules: [BR-NOTIFY-004, BR-UI-008, BR-SIZE-001]
+    tests: [T-UNIT-ERP-1014-001, T-INT-ERP-1014-002]
+    evidence: docs/implementation/evidence/ERP-1014/
+    agent: antigravity
+    started_at: 2026-11-28T22:40:00+07:00
+    completed_at: 2026-11-28T22:47:00+07:00
+    completion_basis: implemented_with_unit_pg_integration_ui_docs_and_repository_gates
+    planned_files:
+      - docs/product/business-rules.md
+      - docs/runbooks/telegram-notifications.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - apps/api/src/telegram-settings/telegram-settings.types.ts
+      - apps/api/src/telegram-settings/telegram-settings.service.ts
+      - apps/api/src/telegram-settings/pg-telegram-settings.store.ts
+      - apps/api/src/telegram-settings/telegram-settings.service.test.ts
+      - apps/api/src/telegram-settings/pg-telegram-settings.integration.test.ts
+      - apps/web/src/app/workspaces/telegram-settings-workspace.tsx
+      - apps/web/src/app/workspaces/telegram-settings-workspace.test.tsx
+      - docs/implementation/evidence/ERP-1014/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
