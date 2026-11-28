@@ -13,7 +13,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { OperatingDashboardWire } from "./dashboard-contracts";
-import { money, ratio } from "./dashboard-presentation";
+import {
+  formatDashboardBalanceScope,
+  formatDashboardPeriodScope,
+  money,
+  ratio,
+} from "./dashboard-presentation";
 import { effectiveEndsOn } from "./dashboard-queries";
 
 export function OperatingPulseSection({
@@ -30,6 +35,8 @@ export function OperatingPulseSection({
   const activeProjects = operating?.backlog.projects ?? [];
   const clientRows = operating?.clientConcentration.clients ?? [];
   const portfolioProgress = (operating?.backlog.portfolioProgressBps ?? 0) / 100;
+  const periodScope = formatDashboardPeriodScope(search);
+  const balanceScope = formatDashboardBalanceScope(search);
 
   return (
     <section aria-labelledby="operating-pulse-title" className="space-y-4">
@@ -39,7 +46,7 @@ export function OperatingPulseSection({
             Nhịp vận hành
           </h2>
           <p className="text-sm text-muted-foreground">
-            Công việc, khách hàng và dữ liệu cần chú ý trong cùng kỳ báo cáo.
+            Dự án và khách hàng theo kỳ lọc; hàng đợi rà soát phản ánh các mục đang mở hiện tại.
           </p>
         </div>
         <Badge variant={flagged + pendingImportRows > 0 ? "secondary" : "outline"}>
@@ -52,8 +59,16 @@ export function OperatingPulseSection({
       <div className="grid gap-4 lg:grid-cols-12">
         <Card className="overflow-hidden bg-primary text-primary-foreground lg:col-span-5">
           <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <Badge variant="secondary">Danh mục dự án</Badge>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="secondary">Danh mục dự án</Badge>
+                <Badge
+                  variant="outline"
+                  className="border-primary-foreground/30 bg-primary-foreground/15 text-[11px] font-medium text-primary-foreground"
+                >
+                  {periodScope}
+                </Badge>
+              </div>
               <BriefcaseBusiness aria-hidden="true" className="size-5 opacity-80" />
             </div>
             <CardTitle className="text-3xl tabular-nums">{activeProjects.length} dự án</CardTitle>
@@ -101,12 +116,18 @@ export function OperatingPulseSection({
 
         <Card className="lg:col-span-4">
           <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-base">Khách hàng trọng tâm</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <Badge
+                variant="outline"
+                className="border-primary/30 bg-primary/10 text-[11px] font-medium text-primary"
+              >
+                {periodScope}
+              </Badge>
               <Users aria-hidden="true" className="size-5 text-primary" />
             </div>
+            <CardTitle className="text-base">Khách hàng trọng tâm</CardTitle>
             <CardDescription>
-              Tỷ trọng doanh thu giúp nhận diện mức độ tập trung khách hàng.
+              Tỷ trọng doanh thu xuất hóa đơn trong kỳ giúp nhận diện mức độ tập trung khách hàng.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -151,11 +172,19 @@ export function OperatingPulseSection({
 
         <Card className="bg-accent/40 lg:col-span-3">
           <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-base">Hàng đợi rà soát</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <Badge
+                variant="outline"
+                className="border-amber-500/35 bg-amber-500/10 text-[11px] font-medium text-amber-900 dark:text-amber-200"
+              >
+                {balanceScope}
+              </Badge>
               <CircleAlert aria-hidden="true" className="size-5 text-accent-foreground" />
             </div>
-            <CardDescription>Những việc cần xử lý để số liệu đáng tin cậy hơn.</CardDescription>
+            <CardTitle className="text-base">Hàng đợi rà soát</CardTitle>
+            <CardDescription>
+              Những mục đang mở trên toàn sổ cần xử lý để số liệu tin cậy hơn.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Link

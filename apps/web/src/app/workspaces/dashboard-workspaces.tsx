@@ -1,9 +1,12 @@
 export {
+  formatDashboardBalanceScope,
+  formatDashboardPeriodScope,
+  formatDashboardPeriodShortLabel,
   metricCardVariantStyles,
   ownerSettlementDashboardAmounts,
   shouldShowNetCompanyFunds,
 } from "./dashboard/dashboard-presentation";
-export type { MetricCardVariant } from "./dashboard/dashboard-presentation";
+export type { MetricCardVariant, MetricScopeTone } from "./dashboard/dashboard-presentation";
 export {
   actualSummaryQuery,
   dashboardMetricDrilldownHref,

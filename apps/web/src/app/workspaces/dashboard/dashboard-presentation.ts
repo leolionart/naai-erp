@@ -71,6 +71,50 @@ export function formatStatusBadge(status?: string): string | null {
 }
 
 export type MetricCardVariant = "surface" | "primary" | "muted" | "danger";
+export type MetricScopeTone = "period" | "balance";
+
+function formatViDate(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return isoDate;
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+export function formatDashboardPeriodShortLabel(search: URLSearchParams): string {
+  const kind = search.get("periodKind") ?? "year";
+  const startsOn = search.get("startsOn") ?? "";
+  const endsOn = search.get("endsOn") ?? "";
+  const yearMatch = /^(\d{4})-01-01$/.exec(startsOn);
+  if (kind === "year" && yearMatch && endsOn === `${yearMatch[1]}-12-31`) {
+    return `Năm ${yearMatch[1]}`;
+  }
+  const startParts = /^(\d{4})-(\d{2})-01$/.exec(startsOn);
+  if (kind === "quarter" && startParts) {
+    const quarter = Math.floor((Number(startParts[2]) - 1) / 3) + 1;
+    return `Quý ${quarter}/${startParts[1]}`;
+  }
+  if (kind === "month" && startParts) {
+    return `Tháng ${startParts[2]}/${startParts[1]}`;
+  }
+  if (startsOn && endsOn) {
+    return `${formatViDate(startsOn)} – ${formatViDate(endsOn)}`;
+  }
+  return "Kỳ đang chọn";
+}
+
+export function formatDashboardPeriodScope(search: URLSearchParams): string {
+  return `Theo kỳ lọc · ${formatDashboardPeriodShortLabel(search)}`;
+}
+
+export function formatDashboardBalanceScope(
+  search: URLSearchParams,
+  todayIso = new Date().toISOString().slice(0, 10),
+): string {
+  const asOfDate = search.get("asOfDate") ?? "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(asOfDate) && asOfDate < todayIso) {
+    return `Số dư lũy kế đến ${formatViDate(asOfDate)}`;
+  }
+  return "Số dư toàn thời gian";
+}
 
 export const metricCardVariantStyles: Record<
   MetricCardVariant,

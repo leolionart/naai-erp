@@ -814,3 +814,11 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   `limit=` and `cursor=` query parameters so `createApiClient` follows `nextCursor` across all pages
   instead of truncating at the 100-item backend page cap and rendering raw `party-tax-...` IDs
   (`focused-record-shared.test.ts`).
+
+### ERP-1009 — Executive Dashboard period-vs-balance scope badges and aligned trend-card row
+
+- `T-UNIT-ERP-1009-001`: Dashboard scope formatters produce explicit period-filter labels (`Theo kỳ lọc ·
+Năm YYYY`, `Quý Q/YYYY`, `Tháng MM/YYYY`, or custom range) and cumulative-balance labels
+  (`Số dư toàn thời gian` when `asOfDate >= today` vs `Số dư lũy kế đến DD/MM/YYYY` for historical
+  cutoffs), while `FinancialHealthSection` places trend-line `MetricCard`s onto one shared row
+  separate from non-trend balance/tax cards (`dashboard-workspaces.test.ts`).

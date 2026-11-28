@@ -9,11 +9,13 @@ export function ExpenseOverviewChart({
   rows,
   currency = "VND",
   href,
+  scopeLabel,
   resolveCategoryName = getCategoryName,
 }: Readonly<{
   rows: readonly Record<string, unknown>[];
   currency?: string;
   href?: string;
+  scopeLabel?: string;
   resolveCategoryName?: (code?: string) => string;
 }>) {
   const points = useMemo(
@@ -23,7 +25,7 @@ export function ExpenseOverviewChart({
   return (
     <MonthlyCategoryStackedChart
       title="Tỷ trọng chi phí từng danh mục theo tháng"
-      description="Chi phí mua vào và chi phí không hóa đơn được tổng hợp theo cùng danh mục nghiệp vụ canonical."
+      description={`Chi phí mua vào và chi phí không hóa đơn tổng hợp theo danh mục nghiệp vụ${scopeLabel ? ` (${scopeLabel})` : ""}.`}
       points={points}
       currency={currency}
       href={href}

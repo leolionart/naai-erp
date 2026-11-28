@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { Activity } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildCitCardDescription } from "../cit-estimate-presentation";
 import type { DashboardData } from "./dashboard-contracts";
-import { money, ratio, shouldShowNetCompanyFunds } from "./dashboard-presentation";
+import {
+  formatDashboardBalanceScope,
+  formatDashboardPeriodScope,
+  money,
+  ratio,
+  shouldShowNetCompanyFunds,
+} from "./dashboard-presentation";
 import { effectiveEndsOn } from "./dashboard-queries";
 import { MetricCard } from "./metric-card";
 
@@ -42,6 +49,8 @@ export function FinancialHealthSection({
   const taxableProfitMinor = operating?.financials.taxableProfitMinor;
   const corporateIncomeTaxMinor = operating?.financials.corporateIncomeTaxMinor;
   const projectPipelineRows = operating?.backlog.projectPipeline ?? [];
+  const periodScope = formatDashboardPeriodScope(search);
+  const balanceScope = formatDashboardBalanceScope(search);
 
   return (
     <>
@@ -50,13 +59,16 @@ export function FinancialHealthSection({
         <div>
           <h2 className="text-lg font-semibold">Sức khỏe tài chính</h2>
           <p className="text-sm text-muted-foreground">
-            Kết quả kinh doanh, tiền công ty, quyết toán với chủ, công nợ và nghĩa vụ thuế.
+            Hàng trên gồm các thẻ kèm biểu đồ xu hướng; mỗi thẻ ghi rõ số liệu theo kỳ lọc hay số dư
+            lũy kế toàn thời gian.
           </p>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <MetricCard
           title="Kết quả kinh doanh"
+          scopeLabel={periodScope}
+          scopeTone="period"
           value={money(
             profitAndLoss?.profitBeforeTaxMinor ?? operating?.financials.netProfitMinor,
             profitAndLoss?.currency ?? operating?.currency,
@@ -74,9 +86,12 @@ export function FinancialHealthSection({
           trend={operating?.financials.monthly?.map((row) =>
             Number(BigInt(row.netProfitMinor ?? "0")),
           )}
+          trendLabel="Xu hướng lợi nhuận các tháng trong kỳ lọc"
         />
         <MetricCard
           title="Tiền công ty hiện có"
+          scopeLabel={balanceScope}
+          scopeTone="balance"
           value={money(totalCompanyFundsMinor, operating?.currency)}
           description={`Ngân hàng ${money(operating?.financials.bankAvailableMinor, operating?.currency)} · Tiền mặt két ${money(operating?.financials.companyCashOnHandMinor ?? "0", operating?.currency)}${BigInt(ownerHoldsCompanyFundsMinor) > 0n ? ` · Chủ còn giữ ${money(ownerHoldsCompanyFundsMinor, operating?.currency)}` : ""}.${BigInt(companyFundsReconciliationGapMinor) !== 0n ? ` Chênh lệch sổ: ${money(companyFundsReconciliationGapMinor, operating?.currency)}.` : ""}`}
           href={`/reports/financial-statements/balance-sheet/${search.get("asOfDate") ?? effectiveEndsOn(search)}?${q}`}
@@ -85,7 +100,10 @@ export function FinancialHealthSection({
           trend={operating?.financials.monthly?.map((row) =>
             Number(BigInt(row.revenueMinor ?? "0")),
           )}
+          trendLabel="Dòng doanh thu các tháng trong kỳ lọc"
         />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title={
             BigInt(companyOwesOwnerMinor) > 0n
@@ -94,6 +112,8 @@ export function FinancialHealthSection({
                 ? "Tiền công ty chủ đang giữ"
                 : "Quyết toán với chủ doanh nghiệp"
           }
+          scopeLabel={balanceScope}
+          scopeTone="balance"
           value={money(
             BigInt(companyOwesOwnerMinor) > 0n
               ? companyOwesOwnerMinor
@@ -102,7 +122,7 @@ export function FinancialHealthSection({
           )}
           description={
             BigInt(companyOwesOwnerMinor) > 0n
-              ? `Đã tự động trừ hết tiền công ty chủ giữ hộ trước khi tính nợ · Tiền ròng thực còn sau nghĩa vụ với chủ: ${money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}.`
+              ? `Đã tự động trừ hết tiền công ty chủ giữ hộ trước khi tính nợ · Quỹ ròng còn lại sau nghĩa vụ với chủ: ${money(netCompanyFundsMinor, operating?.currency ?? executive?.currency)}.`
               : BigInt(ownerHoldsCompanyFundsMinor) > 0n
                 ? "Phần tiền công ty giao chủ giữ còn dư sau khi đã cấn trừ hết các khoản chủ chi hộ (công ty nợ chủ: 0 ₫)."
                 : "Đã cân bằng — công ty không nợ chủ và chủ không còn giữ tiền dư của công ty."
@@ -119,6 +139,8 @@ export function FinancialHealthSection({
         />
         <MetricCard
           title="Công nợ cần thu"
+          scopeLabel={balanceScope}
+          scopeTone="balance"
           value={money(data.aging?.baseOutstandingTotalMinor, data.aging?.baseCurrency)}
           description={`Đã quá hạn ${money(overdueMinor, data.aging?.baseCurrency)} · DSO: ${dso}`}
           href={`/receivables?asOf=${search.get("asOfDate") ?? effectiveEndsOn(search)}`}
@@ -128,6 +150,8 @@ export function FinancialHealthSection({
         />
         <MetricCard
           title="Thuế TNDN tạm tính"
+          scopeLabel={periodScope}
+          scopeTone="period"
           value={money(corporateIncomeTaxMinor, profitAndLoss?.currency)}
           description={`${buildCitCardDescription({
             taxableProfitFormatted: money(taxableProfitMinor, profitAndLoss?.currency),
@@ -153,6 +177,8 @@ export function FinancialHealthSection({
         />
         <MetricCard
           title="VAT phải nộp"
+          scopeLabel={periodScope}
+          scopeTone="period"
           value={money(vat?.netVatPayableMinor, vat?.currency)}
           description={`VAT đầu ra ${money(vat?.outputVatMinor, vat?.currency)} − VAT đầu vào đủ điều kiện ${money(vat?.eligibleInputVatMinor, vat?.currency)}${BigInt(vat?.unreviewedInputVatMinor ?? "0") > 0n ? ` · VAT đầu vào chờ review: ${money(vat?.unreviewedInputVatMinor, vat?.currency)}` : ""}.`}
           href={`/reports/tax/vat-reconciliation/current?${q}`}
@@ -168,9 +194,15 @@ export function FinancialHealthSection({
       {projectPipelineRows.length ? (
         <Card>
           <CardHeader>
-            <CardTitle>Dự án đang tạo doanh thu</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle>Dự án đang tạo doanh thu</CardTitle>
+              <Badge variant="outline" className="text-xs font-normal">
+                {periodScope}
+              </Badge>
+            </div>
             <CardDescription>
-              So sánh hợp đồng, hóa đơn đã xuất và phần còn lại theo từng dự án.
+              Dự án hoạt động trong kỳ đang chọn; giá trị hợp đồng và hóa đơn tính lũy kế đến ngày
+              chốt.
             </CardDescription>
           </CardHeader>
           <CardContent>

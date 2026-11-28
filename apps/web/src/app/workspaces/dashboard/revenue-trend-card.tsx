@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -14,14 +15,16 @@ const ExecutiveTrendChart = dynamic(() => import("@/components/dashboard/executi
 export function RevenueTrendCard({
   points,
   currency,
+  scopeLabel,
 }: {
   points: readonly Readonly<{ label: string; valueMinor: string }>[];
   currency: string;
+  scopeLabel?: string;
 }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href="/documents?invoiceStatus=present"
             className="group/link flex items-center gap-1.5 transition-colors"
@@ -31,6 +34,14 @@ export function RevenueTrendCard({
             </CardTitle>
             <ArrowRight className="h-4 w-4 text-muted-foreground opacity-50 transition-all group-hover/link:translate-x-0.5 group-hover/link:text-primary group-hover/link:opacity-100" />
           </Link>
+          {scopeLabel ? (
+            <Badge
+              variant="outline"
+              className="border-primary/30 bg-primary/10 text-[11px] font-medium text-primary"
+            >
+              {scopeLabel}
+            </Badge>
+          ) : null}
         </div>
         <CardDescription className="text-xs">
           So sánh doanh thu thực tế, kế hoạch mục tiêu và số liệu dự báo theo kỳ.

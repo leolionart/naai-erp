@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ListChecks } from "lucide-react";
+import { CalendarRange, Layers, ListChecks } from "lucide-react";
 import {
   DashboardPreviewDialog,
   type DashboardPreview as Preview,
@@ -26,6 +26,11 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardFilters } from "./dashboard-filters-popover";
+import {
+  formatDashboardBalanceScope,
+  formatDashboardPeriodScope,
+  formatDashboardPeriodShortLabel,
+} from "./dashboard-presentation";
 import { effectiveEndsOn } from "./dashboard-queries";
 import { FinancialHealthSection } from "./financial-health-section";
 import { OperatingPulseSection } from "./operating-pulse-section";
@@ -63,6 +68,9 @@ export function ExecutiveDashboardWorkspace() {
     }),
   );
   const displayedChartPoints = chartPoints;
+  const periodShortLabel = formatDashboardPeriodShortLabel(search);
+  const periodScope = formatDashboardPeriodScope(search);
+  const balanceScope = formatDashboardBalanceScope(search);
 
   return (
     <ModulePage
@@ -107,6 +115,30 @@ export function ExecutiveDashboardWorkspace() {
               </Button>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-border/60 bg-background/70 px-3.5 py-2.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className="gap-1 border-primary/30 bg-primary/10 text-[11px] font-medium text-primary"
+              >
+                <CalendarRange aria-hidden="true" className="size-3" />
+                Theo kỳ lọc ({periodShortLabel})
+              </Badge>
+              <span>
+                Doanh thu, chi phí, lợi nhuận, thuế TNDN, VAT và biểu đồ thay đổi theo kỳ.
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className="gap-1 border-amber-500/35 bg-amber-500/10 text-[11px] font-medium text-amber-900 dark:text-amber-200"
+              >
+                <Layers aria-hidden="true" className="size-3" />
+                {balanceScope}
+              </Badge>
+              <span>Tiền công ty, quyết toán với chủ và công nợ là số dư tích lũy hiện hành.</span>
+            </span>
+          </div>
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Dashboard chưa sẵn sàng</AlertTitle>
@@ -149,6 +181,7 @@ export function ExecutiveDashboardWorkspace() {
           <RevenueTrendCard
             points={displayedChartPoints}
             currency={operating?.currency ?? performance?.currency ?? "VND"}
+            scopeLabel={periodScope}
           />
           {expenseOverview.error ? (
             <Alert variant="destructive">
@@ -160,6 +193,7 @@ export function ExecutiveDashboardWorkspace() {
             rows={expenseOverview.rows}
             currency={operating?.currency ?? data.projects?.currency ?? "VND"}
             href={`/expenses?${expenseHref}`}
+            scopeLabel={periodScope}
           />
         </div>
       </div>

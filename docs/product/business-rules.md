@@ -37,6 +37,7 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Invoices and expenses can be edited completely in-place within the Quick View Dialog without navigating away from the focused listing workspace.
 - Currency fields across forms display formatted numbers with thousand separators and the Vietnamese Dong (`₫`) symbol, ensuring high legibility while parsing back to exact integer/minor-unit amounts.
 - Financial report and dashboard workspaces support quick period selectors (MTD, YTD, full year) and respect URL-driven date range parameters.
+- Executive Dashboard cards and charts explicitly label whether each metric responds to the selected period filter (`Theo kỳ lọc · Năm YYYY` / `Quý Q/YYYY` / `Tháng MM/YYYY`) or reflects a cumulative ledger balance (`Số dư toàn thời gian` when `asOfDate >= today`, or `Số dư lũy kế đến DD/MM/YYYY` when an explicit historical cutoff is chosen), and metric cards with trend sparklines are grouped onto one horizontal row separate from non-trend metric cards (`BR-UI-004`).
 
 ### BR-MVP-007 — Revenue and expense management listings
 

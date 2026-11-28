@@ -3,6 +3,8 @@ import {
   actualSummaryQuery,
   dashboardMetricDrilldownHref,
   effectiveEndsOn,
+  formatDashboardBalanceScope,
+  formatDashboardPeriodScope,
   ownerSettlementDashboardAmounts,
   projectQuery,
   reportQuery,
@@ -127,5 +129,30 @@ describe("dashboard reporting cutoff", () => {
     expect(expensesPath).toBe("expenses?startsOn=2026-01-01&endsOn=2026-12-31&state=posted");
     expect(documentsPath).not.toContain("limit=");
     expect(expensesPath).not.toContain("limit=");
+  });
+
+  it("formats explicit period-filtered vs all-time cumulative balance scope badges for dashboard cards", () => {
+    expect(
+      formatDashboardPeriodScope(
+        new URLSearchParams("periodKind=year&startsOn=2024-01-01&endsOn=2024-12-31"),
+      ),
+    ).toBe("Theo kỳ lọc · Năm 2024");
+    expect(
+      formatDashboardPeriodScope(
+        new URLSearchParams("periodKind=quarter&startsOn=2026-07-01&endsOn=2026-09-30"),
+      ),
+    ).toBe("Theo kỳ lọc · Quý 3/2026");
+    expect(
+      formatDashboardPeriodScope(
+        new URLSearchParams("periodKind=month&startsOn=2026-08-01&endsOn=2026-08-31"),
+      ),
+    ).toBe("Theo kỳ lọc · Tháng 08/2026");
+
+    expect(
+      formatDashboardBalanceScope(new URLSearchParams("asOfDate=2026-11-28"), "2026-11-28"),
+    ).toBe("Số dư toàn thời gian");
+    expect(
+      formatDashboardBalanceScope(new URLSearchParams("asOfDate=2026-08-09"), "2026-11-28"),
+    ).toBe("Số dư lũy kế đến 09/08/2026");
   });
 });

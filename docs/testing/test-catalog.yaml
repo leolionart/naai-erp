@@ -2948,6 +2948,14 @@ tests:
     command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/focused-record-shared.test.ts
     blocking_gate: P17
 
+  - id: T-UNIT-ERP-1009-001
+    task: ERP-1009
+    rules: [BR-MVP-006, BR-UI-001, BR-UI-004]
+    title: Executive Dashboard labels period-filtered metrics versus all-time cumulative balances and groups trend cards on one row
+    layer: unit
+    command: pnpm --filter @naai-erp/web exec vitest run src/app/workspaces/dashboard-workspaces.test.ts
+    blocking_gate: P17
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

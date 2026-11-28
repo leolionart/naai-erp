@@ -4586,6 +4586,33 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-1008/
 
+  - id: ERP-1009
+    title: Executive Dashboard period-vs-balance scope annotations and aligned trend-card row
+    phase: P17
+    status: done
+    dependencies: [ERP-1008]
+    business_rules: [BR-MVP-006, BR-UI-001, BR-UI-004]
+    tests: [T-UNIT-ERP-1009-001]
+    evidence: docs/implementation/evidence/ERP-1009/
+    agent: antigravity
+    started_at: 2026-11-28T19:25:00+07:00
+    completed_at: 2026-11-28T19:42:00+07:00
+    completion_basis: implemented_with_unit_typecheck_size_and_doc_verification
+    planned_files:
+      - apps/web/src/app/workspaces/dashboard/dashboard-presentation.ts
+      - apps/web/src/app/workspaces/dashboard-workspaces.tsx
+      - apps/web/src/app/workspaces/dashboard-workspaces.test.ts
+      - apps/web/src/app/workspaces/dashboard/metric-card.tsx
+      - apps/web/src/app/workspaces/dashboard/financial-health-section.tsx
+      - apps/web/src/app/workspaces/dashboard/operating-pulse-section.tsx
+      - apps/web/src/app/workspaces/dashboard/revenue-trend-card.tsx
+      - apps/web/src/app/workspaces/dashboard/executive-dashboard-workspace.tsx
+      - apps/web/src/components/dashboard/expense-overview-chart.tsx
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-1009/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]
