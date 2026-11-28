@@ -4638,6 +4638,30 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-1010/
 
+  - id: ERP-1011
+    title: Resolve live master-data category display names on Dashboard expense chart and focused-record filters
+    phase: P17
+    status: done
+    dependencies: [ERP-1010]
+    business_rules: [BR-MVP-008, BR-UI-005, BR-UI-006, BR-SIZE-001]
+    tests: [T-UNIT-ERP-1011-001]
+    evidence: docs/implementation/evidence/ERP-1011/
+    agent: antigravity
+    started_at: 2026-11-28T20:28:00+07:00
+    completed_at: 2026-11-28T20:36:00+07:00
+    completion_basis: implemented_with_unit_typecheck_size_ratchet_and_live_dimension_sync
+    planned_files:
+      - apps/web/src/components/forms/category-catalog-defaults.ts
+      - apps/web/src/components/forms/document-expense-forms.tsx
+      - apps/web/src/components/dashboard/expense-overview-chart.tsx
+      - apps/web/src/app/workspaces/focused-record-filter-popover.tsx
+      - apps/web/src/app/workspaces/dashboard-workspaces.test.ts
+      - scripts/file-size-baseline.json
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-1011/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

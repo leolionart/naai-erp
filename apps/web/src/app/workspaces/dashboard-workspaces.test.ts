@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildCategoryNameLookup,
+  getCategoryName,
+} from "@/components/forms/category-catalog-defaults";
+import {
   actualSummaryQuery,
   dashboardMetricDrilldownHref,
   effectiveEndsOn,
@@ -154,5 +158,17 @@ describe("dashboard reporting cutoff", () => {
     expect(
       formatDashboardBalanceScope(new URLSearchParams("asOfDate=2026-08-09"), "2026-11-28"),
     ).toBe("Số dư lũy kế đến 09/08/2026");
+  });
+
+  it("resolves live master-data category names before static defaults so newly added categories never render raw codes", () => {
+    const liveLookup = buildCategoryNameLookup(
+      [{ code: "CUSTOM_NEW_CAT", name: "Chi phí Dịch vụ mới phát sinh" }],
+      [{ code: "FREELANCE_OUTSOURCE", name: "Chi phí Cộng tác viên & Gia công dự án" }],
+    );
+    expect(getCategoryName("FREELANCE_OUTSOURCE", liveLookup)).toBe(
+      "Chi phí Cộng tác viên & Gia công dự án",
+    );
+    expect(getCategoryName("CUSTOM_NEW_CAT", liveLookup)).toBe("Chi phí Dịch vụ mới phát sinh");
+    expect(getCategoryName("FREELANCE_OUTSOURCE")).toBe("Chi phí Cộng tác viên & Gia công dự án");
   });
 });

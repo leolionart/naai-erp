@@ -16,8 +16,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { INBOUND_CATEGORIES, OUTBOUND_CATEGORIES } from "@/components/forms/document-expense-forms";
+import { useAuthenticatedApiClient } from "@/lib/api";
 import type { Kind } from "./focused-record-shared";
-import { config, human } from "./focused-record-shared";
+import { CATEGORY_LOOKUP_ENDPOINTS, config, human } from "./focused-record-shared";
+
+type FilterCategoryOption = Readonly<{ code: string; name: string }>;
+
+function mergeCategoryOptions(
+  defaults: readonly FilterCategoryOption[],
+  liveItems: readonly Record<string, unknown>[],
+  expectedKind?: "revenue" | "expense",
+): FilterCategoryOption[] {
+  const byCode = new Map<string, string>();
+  for (const item of liveItems) {
+    const itemKind = String(item.kind ?? "expense");
+    if (expectedKind && item.kind !== undefined && itemKind !== expectedKind) continue;
+    const code = String(item.code ?? "").trim();
+    const name = String(item.name ?? "").trim();
+    if (code && name && !byCode.has(code)) byCode.set(code, name);
+  }
+  for (const fallback of defaults) {
+    if (!byCode.has(fallback.code)) byCode.set(fallback.code, fallback.name);
+  }
+  return [...byCode.entries()].map(([code, name]) => ({ code, name }));
+}
 
 export function FilterPopover({
   kind,
@@ -32,9 +54,30 @@ export function FilterPopover({
   params: URLSearchParams;
   onApply(data: FormData): void;
 }) {
+  const { client, hydrated, hasToken } = useAuthenticatedApiClient();
+  const [liveCategories, setLiveCategories] = useState<readonly Record<string, unknown>[]>([]);
   const [invoiceStatus, setInvoiceStatus] = useState(params.get("invoiceStatus") ?? "all");
   const [startsOn, setStartsOn] = useState(params.get("startsOn") ?? params.get("from") ?? "");
   const [endsOn, setEndsOn] = useState(params.get("endsOn") ?? params.get("to") ?? "");
+
+  useEffect(() => {
+    if (!open || !hydrated || !hasToken) return;
+    let active = true;
+    void Promise.allSettled(
+      CATEGORY_LOOKUP_ENDPOINTS.map((endpoint) =>
+        client.dataAll<Record<string, unknown>>(endpoint),
+      ),
+    ).then((results) => {
+      if (!active) return;
+      setLiveCategories(results.flatMap((res) => (res.status === "fulfilled" ? res.value : [])));
+    });
+    return () => {
+      active = false;
+    };
+  }, [client, hasToken, hydrated, open]);
+
+  const outboundOptions = mergeCategoryOptions(OUTBOUND_CATEGORIES, liveCategories, "revenue");
+  const inboundOptions = mergeCategoryOptions(INBOUND_CATEGORIES, liveCategories, "expense");
 
   useEffect(() => {
     if (open) {
@@ -167,7 +210,7 @@ export function FilterPopover({
                         <SelectContent>
                           <SelectGroup>
                             <SelectItem value="all">Tất cả</SelectItem>
-                            {OUTBOUND_CATEGORIES.map((cat) => (
+                            {outboundOptions.map((cat) => (
                               <SelectItem key={cat.code} value={cat.code}>
                                 {cat.name}
                               </SelectItem>
@@ -230,7 +273,7 @@ export function FilterPopover({
                     <SelectContent>
                       <SelectGroup>
                         <SelectItem value="all">Tất cả</SelectItem>
-                        {INBOUND_CATEGORIES.map((cat) => (
+                        {inboundOptions.map((cat) => (
                           <SelectItem key={cat.code} value={cat.code}>
                             {cat.name}
                           </SelectItem>

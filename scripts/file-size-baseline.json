@@ -20,7 +20,7 @@
   "apps/web/src/app/workspaces/report-export-workspaces.tsx": 988,
   "apps/web/src/app/workspaces/statement-session-workspace.tsx": 600,
   "apps/web/src/components/automation-api-dialog.tsx": 737,
-  "apps/web/src/components/forms/document-expense-forms.tsx": 1563,
+  "apps/web/src/components/forms/document-expense-forms.tsx": 1530,
   "apps/web/src/components/ui/sidebar.tsx": 613,
   "packages/domain/src/index.ts": 552,
   "packages/domain/src/internal-transfers.ts": 604,

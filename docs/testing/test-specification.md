@@ -829,3 +829,10 @@ Năm YYYY`, `Quý Q/YYYY`, `Tháng MM/YYYY`, or custom range) and cumulative-bal
   enforce the `20,000,000` VND threshold for documents and expenses dated before `2025-07-01` under the
   standard statutory policy and `5,000,000` VND from `2025-07-01` onward while preserving custom
   organization threshold overrides (`packages/domain/src/payment-evidence.test.ts`).
+
+### ERP-1011 — Live master-data category name resolution on Dashboard charts and filters
+
+- `T-UNIT-ERP-1011-001`: `ExpenseOverviewChart` and `FilterPopover` resolve category labels from live
+  `master-data/categories` and `master-data/expense-categories` catalogs via `buildCategoryNameLookup`
+  before falling back to `getCategoryName`, so newly added categories such as `FREELANCE_OUTSOURCE`
+  never render raw uppercase codes (`dashboard-workspaces.test.ts`).

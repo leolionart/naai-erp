@@ -88,7 +88,9 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Revenue and expense forms select only active, organization-scoped categories from the canonical
   `master-data/categories` resource; clients must not silently fall back to hardcoded demo values.
 - Each category has a stable code, display name, kind (`revenue` or `expense`) and optional default
-  account/tax mapping. The same catalog is used by validation, posting, reports and automation.
+  account/tax mapping. The same catalog is used by validation, posting, reports, dashboard expense-overview
+  charts, and focused-record filter popovers so newly declared live categories always render their canonical
+  display name instead of raw uppercase codes.
 - Category mutations are versioned, audited, idempotent and deactivation preserves existing history.
 
 ### BR-MVP-004 — Minimal report readiness
