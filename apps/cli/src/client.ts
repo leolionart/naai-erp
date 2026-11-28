@@ -110,8 +110,35 @@ export class NaaiErpClient {
       idempotencyKey,
     );
   }
+  async rotateIntegrationSourceSecret(
+    id: string,
+    input: Readonly<Record<string, unknown>> = {},
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    return requestIntegrationSettings(
+      this.fetchFn,
+      this.options,
+      `integration-sources/${encodeURIComponent(id)}/rotate-secret`,
+      "POST",
+      input,
+      idempotencyKey,
+    );
+  }
   async listApiCredentials(): Promise<unknown> {
     return requestIntegrationSettings(this.fetchFn, this.options, "api-credentials", "GET");
+  }
+  async createApiCredential(
+    input: Readonly<Record<string, unknown>>,
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    return requestIntegrationSettings(
+      this.fetchFn,
+      this.options,
+      "api-credentials",
+      "POST",
+      input,
+      idempotencyKey,
+    );
   }
   async updateApiCredential(
     id: string,
@@ -123,6 +150,20 @@ export class NaaiErpClient {
       this.options,
       `api-credentials/${encodeURIComponent(id)}`,
       "PATCH",
+      input,
+      idempotencyKey,
+    );
+  }
+  async rotateApiCredential(
+    id: string,
+    input: Readonly<Record<string, unknown>> = {},
+    idempotencyKey?: string,
+  ): Promise<unknown> {
+    return requestIntegrationSettings(
+      this.fetchFn,
+      this.options,
+      `api-credentials/${encodeURIComponent(id)}/rotate`,
+      "POST",
       input,
       idempotencyKey,
     );

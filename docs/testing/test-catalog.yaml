@@ -2988,6 +2988,38 @@ tests:
     command: pnpm test:docs
     blocking_gate: P17
 
+  - id: T-UNIT-ERP-1013-001
+    task: ERP-1013
+    rules: [BR-AI-002, BR-AI-007]
+    title: Service key creation/rotation/revocation, sealed webhook HMAC secrets, owner-credential isolation and retired automation-token route
+    layer: unit
+    command: pnpm --filter @naai-erp/api exec vitest run src/integration-settings/integration-settings.service.test.ts && pnpm --filter @naai-erp/web exec vitest run src/app/auth/automation-token/route.test.ts src/components/automation-api-dialog.test.ts
+    blocking_gate: P17
+
+  - id: T-CLI-ERP-1013-002
+    task: ERP-1013
+    rules: [BR-AI-001, BR-AI-007]
+    title: CLI supports self-service api-credentials and integration-sources lifecycle actions with golden route parity
+    layer: unit
+    command: pnpm --filter @naai-erp/cli exec vitest run src/integration-sources-cli.test.ts src/route-golden.test.ts
+    blocking_gate: P17
+
+  - id: T-E2E-ERP-1013-003
+    task: ERP-1013
+    rules: [BR-AI-007, BR-UI-008]
+    title: Unified /settings/automation manages service keys, self-service webhooks and AI-native discovery on desktop and mobile
+    layer: e2e
+    command: pnpm --filter @naai-erp/web exec playwright test e2e/automation-api-dialog.spec.ts
+    blocking_gate: P17
+
+  - id: T-DOC-ERP-1013-004
+    task: ERP-1013
+    rules: [BR-AI-007]
+    title: ADR-014, BR-AI-007 and solopreneur gate matrix match OpenAPI mutations
+    layer: documentation
+    command: pnpm test:docs && node scripts/verify-solopreneur-gate-matrix.mjs
+    blocking_gate: P17
+
 golden_fixtures:
   - GF-LEDGER-001
   - GF-SALES-001

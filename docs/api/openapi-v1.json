@@ -1647,7 +1647,14 @@
       "patch": {
         "operationId": "updateIntegrationSource",
         "tags": ["integrations"],
-        "summary": "Update mutable metadata and autoRecord flag on an organization-scoped inbound webhook integration source"
+        "summary": "Update mutable metadata, status and autoRecord flag on an organization-scoped inbound webhook integration source"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/integration-sources/{sourceId}/rotate-secret": {
+      "post": {
+        "operationId": "rotateIntegrationSourceSecret",
+        "tags": ["integrations"],
+        "summary": "Rotate and return a new one-time managed HMAC signing secret for an inbound webhook integration source"
       }
     },
     "/api/v1/organizations/{organizationId}/api-credentials": {
@@ -1655,13 +1662,25 @@
         "operationId": "listApiCredentials",
         "tags": ["integrations"],
         "summary": "List organization-scoped API credentials and service identities without exposing token hashes"
+      },
+      "post": {
+        "operationId": "createApiCredential",
+        "tags": ["integrations"],
+        "summary": "Create a non-owner organization-scoped service API credential and return its secretToken once"
       }
     },
     "/api/v1/organizations/{organizationId}/api-credentials/{credentialId}": {
       "patch": {
         "operationId": "updateApiCredential",
         "tags": ["integrations"],
-        "summary": "Update display name or autoRecord flag on an organization-scoped API credential with optimistic concurrency and audit"
+        "summary": "Update display name, autoRecord flag or revoked/active status on a non-owner service API credential with optimistic concurrency and audit"
+      }
+    },
+    "/api/v1/organizations/{organizationId}/api-credentials/{credentialId}/rotate": {
+      "post": {
+        "operationId": "rotateApiCredential",
+        "tags": ["integrations"],
+        "summary": "Rotate and return a new one-time secretToken for a non-owner service API credential"
       }
     },
     "/api/v1/organizations/{organizationId}/evidence": {

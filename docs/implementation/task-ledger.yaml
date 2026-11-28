@@ -4698,6 +4698,49 @@ tasks:
       - scripts/file-size-baseline.json
       - docs/implementation/evidence/ERP-1012/
 
+  - id: ERP-1013
+    title: Unify self-service integration identities, one-time secret issuance, session-token isolation and AI-native discovery
+    phase: P17
+    status: done
+    dependencies: [ERP-1012]
+    business_rules: [BR-AI-001, BR-AI-002, BR-AI-007, BR-UI-008, BR-SIZE-001]
+    tests: [T-UNIT-ERP-1013-001, T-CLI-ERP-1013-002, T-E2E-ERP-1013-003, T-DOC-ERP-1013-004]
+    evidence: docs/implementation/evidence/ERP-1013/
+    agent: antigravity
+    started_at: 2026-11-28T21:32:00+07:00
+    completed_at: 2026-11-28T22:01:00+07:00
+    completion_basis: implemented_with_api_cli_web_e2e_gate_matrix_and_repository_gates
+    planned_files:
+      - docs/architecture/ADR-014-service-identities-and-ai-native-discovery.md
+      - docs/architecture/README.md
+      - scripts/verify-docs.mjs
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/api/openapi-v1.json
+      - docs/implementation/solopreneur-gate-matrix.json
+      - apps/api/src/integration-settings/integration-secret.helper.ts
+      - apps/api/src/integration-settings/integration-settings.types.ts
+      - apps/api/src/integration-settings/integration-settings.controller.ts
+      - apps/api/src/integration-settings/integration-settings.service.ts
+      - apps/api/src/integration-settings/pg-integration-settings.store.ts
+      - apps/api/src/integration-settings/integration-settings.service.test.ts
+      - apps/api/src/inbound-webhooks/inbound-webhook.service.ts
+      - apps/cli/src/integration-sources-cli.ts
+      - apps/cli/src/integration-sources-cli.test.ts
+      - apps/cli/src/__fixtures__/route-golden.json
+      - apps/web/src/app/auth/automation-token/route.ts
+      - apps/web/src/app/auth/automation-token/route.test.ts
+      - apps/web/src/lib/navigation.ts
+      - apps/web/src/app/(app)/settings/automation/page.tsx
+      - apps/web/src/app/workspaces/integration-settings-workspace.tsx
+      - apps/web/src/app/workspaces/integration-settings-tables.tsx
+      - apps/web/src/app/workspaces/integration-settings-dialogs.tsx
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/automation-api-dialog.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - docs/implementation/evidence/ERP-1013/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

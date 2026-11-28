@@ -2,12 +2,26 @@ import { createHash, randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import pg, { type PoolClient } from "pg";
 import { resolveOrganizationWorkflowPolicy } from "../workflow-policy/organization-workflow-policy.service.js";
+import {
+  createApiCredentialInStore,
+  describeSecretRef,
+  generateWebhookSigningSecret,
+  insertAuditEvent,
+  rotateApiCredentialInStore,
+  runSecretTx,
+  slugifyIdentity,
+} from "./integration-secret.helper.js";
 import type {
   ApiCredentialSummary,
+  CreateApiCredentialInput,
   CreateWebhookSourceInput,
+  CredentialRow,
   IntegrationSettingsContext,
+  RotateSecretInput,
+  StoreMutationDeps,
   UpdateApiCredentialInput,
   UpdateWebhookSourceInput,
+  WebhookRow,
   WebhookSourceSummary,
 } from "./integration-settings.types.js";
 
@@ -18,49 +32,22 @@ const DEFAULT_ALLOWED_EVENTS = [
   "credit_note.create",
 ] as const;
 
-type WebhookRow = {
-  id: string;
-  public_id: string;
-  name: string;
-  actor_id: string;
-  secret_ref: string;
-  status: "active" | "suspended" | "revoked";
-  allowed_event_types: string[];
-  timestamp_tolerance_seconds: number;
-  max_attempts: number;
-  auto_record: boolean;
-  version: string;
-  created_by: string;
-  created_at: Date | string;
-  updated_at: Date | string;
-};
+const WEBHOOK_COLS = `id, public_id, name, actor_id, secret_ref, status, allowed_event_types, timestamp_tolerance_seconds, max_attempts, auto_record, version::text, created_by, created_at, updated_at`;
+const CREDENTIAL_COLS = `id, name, actor_id, roles, status, auto_record, version::text, expires_at, created_at, updated_at`;
 
-type CredentialRow = {
-  id: string;
-  name: string | null;
-  actor_id: string;
-  roles: string[];
-  status: "active" | "revoked";
-  auto_record: boolean;
-  version: string;
-  expires_at: Date | string | null;
-  created_at: Date | string;
-  updated_at: Date | string;
-};
-
-function toIso(value: Date | string | null): string | null {
-  if (!value) return null;
-  return value instanceof Date ? value.toISOString() : String(value);
-}
+const toIso = (v: Date | string | null) =>
+  !v ? null : v instanceof Date ? v.toISOString() : String(v);
 
 function mapWebhookRow(row: WebhookRow): WebhookSourceSummary {
+  const secret = describeSecretRef(row.secret_ref);
   return {
     kind: "webhook_source",
     id: row.id,
     publicId: row.public_id,
     name: row.name,
     actorId: row.actor_id,
-    secretRef: row.secret_ref,
+    secretRef: secret.secretRef,
+    secretMode: secret.secretMode,
     status: row.status,
     allowedEventTypes: row.allowed_event_types ?? [],
     timestampToleranceSeconds: Number(row.timestamp_tolerance_seconds),
@@ -95,24 +82,26 @@ function mapCredentialRow(row: CredentialRow): ApiCredentialSummary {
 export class PgIntegrationSettingsStore {
   private readonly pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
+  private get helperDeps(): StoreMutationDeps {
+    return {
+      credentialCols: CREDENTIAL_COLS,
+      webhookCols: WEBHOOK_COLS,
+      lockReplay: this.lockReplay.bind(this),
+      saveReplay: this.saveReplay.bind(this),
+      mapCredentialRow,
+      mapWebhookRow,
+    };
+  }
+
   async listOverview(organizationId: string) {
     const [policy, webhooksRes, credsRes] = await Promise.all([
       resolveOrganizationWorkflowPolicy(organizationId, this.pool),
       this.pool.query<WebhookRow>(
-        `select id, public_id, name, actor_id, secret_ref, status, allowed_event_types,
-                timestamp_tolerance_seconds, max_attempts, auto_record, version::text,
-                created_by, created_at, updated_at
-           from integration_sources
-          where organization_id = $1
-          order by created_at asc, id asc`,
+        `select ${WEBHOOK_COLS} from integration_sources where organization_id = $1 order by created_at asc, id asc`,
         [organizationId],
       ),
       this.pool.query<CredentialRow>(
-        `select id, name, actor_id, roles, status, auto_record, version::text,
-                expires_at, created_at, updated_at
-           from api_credentials
-          where organization_id = $1
-          order by created_at asc, id asc`,
+        `select ${CREDENTIAL_COLS} from api_credentials where organization_id = $1 order by created_at asc, id asc`,
         [organizationId],
       ),
     ]);
@@ -128,12 +117,7 @@ export class PgIntegrationSettingsStore {
 
   async getWebhookSource(organizationId: string, id: string): Promise<WebhookSourceSummary | null> {
     const res = await this.pool.query<WebhookRow>(
-      `select id, public_id, name, actor_id, secret_ref, status, allowed_event_types,
-              timestamp_tolerance_seconds, max_attempts, auto_record, version::text,
-              created_by, created_at, updated_at
-         from integration_sources
-        where organization_id = $1 and (id = $2 or public_id = $2)
-        limit 1`,
+      `select ${WEBHOOK_COLS} from integration_sources where organization_id = $1 and (id = $2 or public_id = $2) limit 1`,
       [organizationId, id],
     );
     return res.rows[0] ? mapWebhookRow(res.rows[0]) : null;
@@ -141,11 +125,7 @@ export class PgIntegrationSettingsStore {
 
   async listApiCredentials(organizationId: string): Promise<readonly ApiCredentialSummary[]> {
     const res = await this.pool.query<CredentialRow>(
-      `select id, name, actor_id, roles, status, auto_record, version::text,
-              expires_at, created_at, updated_at
-         from api_credentials
-        where organization_id = $1
-        order by created_at asc, id asc`,
+      `select ${CREDENTIAL_COLS} from api_credentials where organization_id = $1 order by created_at asc, id asc`,
       [organizationId],
     );
     return res.rows.map(mapCredentialRow);
@@ -156,8 +136,11 @@ export class PgIntegrationSettingsStore {
     input: CreateWebhookSourceInput,
     idempotencyKey: string,
   ) {
-    const id = input.id?.trim() || randomUUID();
-    const publicId = input.publicId?.trim() || `wh-${randomUUID().slice(0, 12)}`;
+    const reqId = input.id?.trim() || null;
+    const reqPub = input.publicId?.trim() || null;
+    const name = input.name.trim();
+    const reqActor = input.actorId?.trim() || null;
+    const providedSecretRef = input.secretRef?.trim() || null;
     const status = input.status ?? "active";
     const allowedEventTypes = input.allowedEventTypes?.length
       ? [...input.allowedEventTypes]
@@ -166,23 +149,20 @@ export class PgIntegrationSettingsStore {
     const maxAttempts = input.maxAttempts ?? 5;
     const autoRecord = Boolean(input.autoRecord);
     const reason = input.reason?.trim() || "Tạo nguồn tích hợp webhook";
-    const requestHash = createHash("sha256")
-      .update(
-        JSON.stringify({
-          op: "integration-source:create",
-          id,
-          publicId,
-          name: input.name,
-          actorId: input.actorId,
-          secretRef: input.secretRef,
-          status,
-          allowedEventTypes,
-          tolerance,
-          maxAttempts,
-          autoRecord,
-        }),
-      )
-      .digest("hex");
+    const hashPayload = {
+      op: "integration-source:create",
+      id: reqId,
+      publicId: reqPub,
+      name,
+      actorId: reqActor,
+      secretRef: providedSecretRef,
+      status,
+      allowedEventTypes,
+      tolerance,
+      maxAttempts,
+      autoRecord,
+    };
+    const requestHash = createHash("sha256").update(JSON.stringify(hashPayload)).digest("hex");
 
     const client = await this.pool.connect();
     try {
@@ -195,47 +175,38 @@ export class PgIntegrationSettingsStore {
       );
       if (replay) {
         await client.query("rollback");
-        return { ...replay, idempotencyReplayed: true };
+        const extra = providedSecretRef ? {} : { secretRedactedOnReplay: true };
+        return { ...replay, signingSecret: null, ...extra, idempotencyReplayed: true };
       }
 
+      const generated = providedSecretRef ? null : generateWebhookSigningSecret();
+      const actorId = reqActor || slugifyIdentity("wh", name);
+      const secretRef = providedSecretRef ?? generated!.storedSecretRef;
+      const pubId = reqPub || `wh-${randomUUID().slice(0, 12)}`;
+      const vals = [
+        context.organizationId,
+        reqId || randomUUID(),
+        pubId,
+        name,
+        actorId,
+        secretRef,
+        status,
+        JSON.stringify(allowedEventTypes),
+        tolerance,
+        maxAttempts,
+        autoRecord,
+        context.actorId,
+      ];
       const inserted = await client.query<WebhookRow>(
-        `insert into integration_sources
-           (organization_id, id, public_id, name, actor_id, secret_ref, status,
-            allowed_event_types, timestamp_tolerance_seconds, max_attempts, auto_record, created_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12)
-         returning id, public_id, name, actor_id, secret_ref, status, allowed_event_types,
-                   timestamp_tolerance_seconds, max_attempts, auto_record, version::text,
-                   created_by, created_at, updated_at`,
-        [
-          context.organizationId,
-          id,
-          publicId,
-          input.name.trim(),
-          input.actorId.trim(),
-          input.secretRef.trim(),
-          status,
-          JSON.stringify(allowedEventTypes),
-          tolerance,
-          maxAttempts,
-          autoRecord,
-          context.actorId,
-        ],
+        `insert into integration_sources (organization_id, id, public_id, name, actor_id, secret_ref, status, allowed_event_types, timestamp_tolerance_seconds, max_attempts, auto_record, created_by) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12) returning ${WEBHOOK_COLS}`,
+        vals,
       );
       const source = mapWebhookRow(inserted.rows[0]!);
-      const auditEventId = randomUUID();
-      await client.query(
-        `insert into resource_audit_events
-           (organization_id, id, resource_type, resource_key, resource_version, action, actor_id, correlation_id, after_state)
-         values ($1, $2, 'integration_source', $3, 1, 'create', $4, $5, $6)`,
-        [
-          context.organizationId,
-          auditEventId,
-          source.id,
-          context.actorId,
-          context.correlationId,
-          { ...source, reason },
-        ],
-      );
+      const auditTarget = ["integration_source", source.id, 1, "create"] as const;
+      const auditEventId = await insertAuditEvent(client, context, auditTarget, [
+        null,
+        { ...source, reason },
+      ]);
       const response = { source, resourceVersion: source.version, auditEventId };
       await this.saveReplay(
         client,
@@ -246,7 +217,11 @@ export class PgIntegrationSettingsStore {
         response,
       );
       await client.query("commit");
-      return { ...response, idempotencyReplayed: false };
+      return {
+        ...response,
+        signingSecret: generated?.signingSecret ?? null,
+        idempotencyReplayed: false,
+      };
     } catch (error) {
       await client.query("rollback").catch(() => {});
       throw error;
@@ -255,205 +230,227 @@ export class PgIntegrationSettingsStore {
     }
   }
 
-  async updateWebhookSource(
+  updateWebhookSource(
     context: IntegrationSettingsContext,
     id: string,
     input: UpdateWebhookSourceInput,
     expectedVersion: string | undefined,
     idempotencyKey: string,
   ) {
-    const requestHash = createHash("sha256")
-      .update(JSON.stringify({ op: "integration-source:update", id, expectedVersion, input }))
-      .digest("hex");
+    return this.runUpdateTx(
+      context.organizationId,
+      idempotencyKey,
+      "integration-source:update",
+      { id, expectedVersion, input },
+      async (client) => {
+        const existing = (
+          await client.query<WebhookRow>(
+            `select ${WEBHOOK_COLS} from integration_sources where organization_id = $1 and (id = $2 or public_id = $2) for update`,
+            [context.organizationId, id],
+          )
+        ).rows[0];
+        if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+        if (expectedVersion && String(existing.version) !== expectedVersion)
+          throw new Error("VERSION_CONFLICT");
 
-    const client = await this.pool.connect();
-    try {
-      await client.query("begin");
-      const replay = await this.lockReplay(
-        client,
-        context.organizationId,
-        idempotencyKey,
-        requestHash,
-      );
-      if (replay) {
-        await client.query("rollback");
-        return { ...replay, idempotencyReplayed: true };
-      }
-
-      const existingRes = await client.query<WebhookRow>(
-        `select id, public_id, name, actor_id, secret_ref, status, allowed_event_types,
-                timestamp_tolerance_seconds, max_attempts, auto_record, version::text,
-                created_by, created_at, updated_at
-           from integration_sources
-          where organization_id = $1 and (id = $2 or public_id = $2)
-          for update`,
-        [context.organizationId, id],
-      );
-      const existing = existingRes.rows[0];
-      if (!existing) throw new Error("RESOURCE_NOT_FOUND");
-      if (expectedVersion && String(existing.version) !== expectedVersion) {
-        throw new Error("VERSION_CONFLICT");
-      }
-
-      const nextName = input.name?.trim() ?? existing.name;
-      const nextActor = input.actorId?.trim() ?? existing.actor_id;
-      const nextSecretRef = input.secretRef?.trim() ?? existing.secret_ref;
-      const nextStatus = input.status ?? existing.status;
-      const nextAllowed = input.allowedEventTypes
-        ? [...input.allowedEventTypes]
-        : existing.allowed_event_types;
-      const nextTolerance = input.timestampToleranceSeconds ?? existing.timestamp_tolerance_seconds;
-      const nextMaxAttempts = input.maxAttempts ?? existing.max_attempts;
-      const nextAutoRecord =
-        input.autoRecord !== undefined ? Boolean(input.autoRecord) : Boolean(existing.auto_record);
-      const nextVersion = (BigInt(existing.version) + 1n).toString();
-      const reason = input.reason?.trim() || "Cập nhật cấu hình nguồn tích hợp";
-
-      const updatedRes = await client.query<WebhookRow>(
-        `update integration_sources set
-           name = $3, actor_id = $4, secret_ref = $5, status = $6,
-           allowed_event_types = $7::jsonb, timestamp_tolerance_seconds = $8,
-           max_attempts = $9, auto_record = $10, version = $11::bigint, updated_at = now()
-         where organization_id = $1 and id = $2
-         returning id, public_id, name, actor_id, secret_ref, status, allowed_event_types,
-                   timestamp_tolerance_seconds, max_attempts, auto_record, version::text,
-                   created_by, created_at, updated_at`,
-        [
+        const reqRef = input.secretRef?.trim();
+        const keepSealed =
+          reqRef === undefined ||
+          (reqRef === "managed" && existing.secret_ref.startsWith("sealed:"));
+        const nextAllowed = input.allowedEventTypes
+          ? [...input.allowedEventTypes]
+          : existing.allowed_event_types;
+        const nextAuto =
+          input.autoRecord !== undefined
+            ? Boolean(input.autoRecord)
+            : Boolean(existing.auto_record);
+        const nextVer = (BigInt(existing.version) + 1n).toString();
+        const reason = input.reason?.trim() || "Cập nhật cấu hình nguồn tích hợp";
+        const vals = [
           context.organizationId,
           existing.id,
-          nextName,
-          nextActor,
-          nextSecretRef,
-          nextStatus,
+          input.name?.trim() ?? existing.name,
+          input.actorId?.trim() ?? existing.actor_id,
+          keepSealed ? existing.secret_ref : reqRef,
+          input.status ?? existing.status,
           JSON.stringify(nextAllowed),
-          nextTolerance,
-          nextMaxAttempts,
-          nextAutoRecord,
-          nextVersion,
-        ],
-      );
-      const before = mapWebhookRow(existing);
-      const source = mapWebhookRow(updatedRes.rows[0]!);
-      const auditEventId = randomUUID();
-      await client.query(
-        `insert into resource_audit_events
-           (organization_id, id, resource_type, resource_key, resource_version, action, actor_id, correlation_id, before_state, after_state)
-         values ($1, $2, 'integration_source', $3, $4::bigint, 'update', $5, $6, $7, $8)`,
-        [
-          context.organizationId,
-          auditEventId,
-          source.id,
-          nextVersion,
-          context.actorId,
-          context.correlationId,
-          before,
+          input.timestampToleranceSeconds ?? existing.timestamp_tolerance_seconds,
+          input.maxAttempts ?? existing.max_attempts,
+          nextAuto,
+          nextVer,
+        ];
+        const updatedRes = await client.query<WebhookRow>(
+          `update integration_sources set name = $3, actor_id = $4, secret_ref = $5, status = $6, allowed_event_types = $7::jsonb, timestamp_tolerance_seconds = $8, max_attempts = $9, auto_record = $10, version = $11::bigint, updated_at = now() where organization_id = $1 and id = $2 returning ${WEBHOOK_COLS}`,
+          vals,
+        );
+        const source = mapWebhookRow(updatedRes.rows[0]!);
+        const auditTarget = ["integration_source", source.id, nextVer, "update"] as const;
+        const auditEventId = await insertAuditEvent(client, context, auditTarget, [
+          mapWebhookRow(existing),
           { ...source, reason },
-        ],
-      );
-      const response = { source, resourceVersion: source.version, auditEventId };
-      await this.saveReplay(
-        client,
-        context.organizationId,
-        idempotencyKey,
-        "integration-source:update",
-        requestHash,
-        response,
-      );
-      await client.query("commit");
-      return { ...response, idempotencyReplayed: false };
-    } catch (error) {
-      await client.query("rollback").catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
+        ]);
+        return { source, resourceVersion: source.version, auditEventId };
+      },
+    );
   }
 
-  async updateApiCredential(
+  rotateWebhookSecret(
+    context: IntegrationSettingsContext,
+    id: string,
+    input: RotateSecretInput,
+    expectedVersion: string | undefined,
+    idempotencyKey: string,
+  ) {
+    const reason = input.reason?.trim() || "Xoay vòng secret ký webhook";
+    const payload = {
+      id,
+      expectedVersion: expectedVersion ?? null,
+      reason: input.reason?.trim() || null,
+    };
+    return runSecretTx(
+      this.pool,
+      this.helperDeps,
+      [
+        context.organizationId,
+        idempotencyKey,
+        "integration-source:rotate-secret",
+        payload,
+        "signingSecret",
+      ],
+      async (client) => {
+        const existing = (
+          await client.query<WebhookRow>(
+            `select ${WEBHOOK_COLS} from integration_sources where organization_id = $1 and (id = $2 or public_id = $2) for update`,
+            [context.organizationId, id],
+          )
+        ).rows[0];
+        if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+        if (expectedVersion && String(existing.version) !== expectedVersion)
+          throw new Error("VERSION_CONFLICT");
+
+        const { signingSecret, storedSecretRef } = generateWebhookSigningSecret();
+        const nextVer = (BigInt(existing.version) + 1n).toString();
+        const updated = await client.query<WebhookRow>(
+          `update integration_sources set secret_ref = $3, version = $4::bigint, updated_at = now() where organization_id = $1 and id = $2 returning ${WEBHOOK_COLS}`,
+          [context.organizationId, existing.id, storedSecretRef, nextVer],
+        );
+        const source = mapWebhookRow(updated.rows[0]!);
+        const auditTarget = ["integration_source", source.id, nextVer, "rotate_secret"] as const;
+        const auditEventId = await insertAuditEvent(client, context, auditTarget, [
+          mapWebhookRow(existing),
+          { ...source, reason },
+        ]);
+        return {
+          saved: { source, resourceVersion: source.version, auditEventId },
+          secret: { signingSecret },
+        };
+      },
+    );
+  }
+
+  createApiCredential(
+    context: IntegrationSettingsContext,
+    input: CreateApiCredentialInput,
+    idempotencyKey: string,
+  ) {
+    return createApiCredentialInStore(this.pool, this.helperDeps, context, input, idempotencyKey);
+  }
+
+  updateApiCredential(
     context: IntegrationSettingsContext,
     id: string,
     input: UpdateApiCredentialInput,
     expectedVersion: string | undefined,
     idempotencyKey: string,
   ) {
-    const requestHash = createHash("sha256")
-      .update(JSON.stringify({ op: "api-credential:update", id, expectedVersion, input }))
-      .digest("hex");
+    return this.runUpdateTx(
+      context.organizationId,
+      idempotencyKey,
+      "api-credential:update",
+      { id, expectedVersion, input },
+      async (client) => {
+        const existing = (
+          await client.query<CredentialRow>(
+            `select ${CREDENTIAL_COLS} from api_credentials where organization_id = $1 and id = $2 for update`,
+            [context.organizationId, id],
+          )
+        ).rows[0];
+        if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+        if (Array.isArray(existing.roles) && existing.roles.includes("owner"))
+          throw new Error("VALIDATION_FAILED");
+        if (expectedVersion && String(existing.version) !== expectedVersion)
+          throw new Error("VERSION_CONFLICT");
 
+        const nextName =
+          input.name === undefined
+            ? existing.name
+            : input.name === null
+              ? null
+              : input.name.trim() || null;
+        const nextAuto =
+          input.autoRecord !== undefined
+            ? Boolean(input.autoRecord)
+            : Boolean(existing.auto_record);
+        const nextVer = (BigInt(existing.version) + 1n).toString();
+        const reason = input.reason?.trim() || "Cập nhật khóa dịch vụ tích hợp";
+
+        const updatedRes = await client.query<CredentialRow>(
+          `update api_credentials set name = $3, auto_record = $4, status = $5, version = $6::bigint, updated_at = now() where organization_id = $1 and id = $2 returning ${CREDENTIAL_COLS}`,
+          [
+            context.organizationId,
+            id,
+            nextName,
+            nextAuto,
+            input.status ?? existing.status,
+            nextVer,
+          ],
+        );
+        const credential = mapCredentialRow(updatedRes.rows[0]!);
+        const auditTarget = ["api_credential", credential.id, nextVer, "update"] as const;
+        const auditEventId = await insertAuditEvent(client, context, auditTarget, [
+          mapCredentialRow(existing),
+          { ...credential, reason },
+        ]);
+        return { credential, resourceVersion: credential.version, auditEventId };
+      },
+    );
+  }
+
+  rotateApiCredential(
+    context: IntegrationSettingsContext,
+    id: string,
+    input: RotateSecretInput,
+    expectedVersion: string | undefined,
+    idempotencyKey: string,
+  ) {
+    return rotateApiCredentialInStore(this.pool, this.helperDeps, context, {
+      id,
+      input,
+      expectedVersion,
+      key: idempotencyKey,
+    });
+  }
+
+  private async runUpdateTx<T extends Record<string, unknown>>(
+    orgId: string,
+    key: string,
+    op: string,
+    payload: Record<string, unknown>,
+    fn: (client: PoolClient) => Promise<T>,
+  ) {
+    const hash = createHash("sha256")
+      .update(JSON.stringify({ op, ...payload }))
+      .digest("hex");
     const client = await this.pool.connect();
     try {
       await client.query("begin");
-      const replay = await this.lockReplay(
-        client,
-        context.organizationId,
-        idempotencyKey,
-        requestHash,
-      );
+      const replay = await this.lockReplay(client, orgId, key, hash);
       if (replay) {
         await client.query("rollback");
         return { ...replay, idempotencyReplayed: true };
       }
-
-      const existingRes = await client.query<CredentialRow>(
-        `select id, name, actor_id, roles, status, auto_record, version::text,
-                expires_at, created_at, updated_at
-           from api_credentials
-          where organization_id = $1 and id = $2
-          for update`,
-        [context.organizationId, id],
-      );
-      const existing = existingRes.rows[0];
-      if (!existing) throw new Error("RESOURCE_NOT_FOUND");
-      if (expectedVersion && String(existing.version) !== expectedVersion) {
-        throw new Error("VERSION_CONFLICT");
-      }
-
-      const nextName =
-        input.name === undefined
-          ? existing.name
-          : input.name === null
-            ? null
-            : input.name.trim() || null;
-      const nextAutoRecord =
-        input.autoRecord !== undefined ? Boolean(input.autoRecord) : Boolean(existing.auto_record);
-      const nextVersion = (BigInt(existing.version) + 1n).toString();
-      const reason = input.reason?.trim() || "Cập nhật cờ tự động ghi sổ cho token tích hợp";
-
-      const updatedRes = await client.query<CredentialRow>(
-        `update api_credentials set
-           name = $3, auto_record = $4, version = $5::bigint, updated_at = now()
-         where organization_id = $1 and id = $2
-         returning id, name, actor_id, roles, status, auto_record, version::text,
-                   expires_at, created_at, updated_at`,
-        [context.organizationId, id, nextName, nextAutoRecord, nextVersion],
-      );
-      const before = mapCredentialRow(existing);
-      const credential = mapCredentialRow(updatedRes.rows[0]!);
-      const auditEventId = randomUUID();
-      await client.query(
-        `insert into resource_audit_events
-           (organization_id, id, resource_type, resource_key, resource_version, action, actor_id, correlation_id, before_state, after_state)
-         values ($1, $2, 'api_credential', $3, $4::bigint, 'update', $5, $6, $7, $8)`,
-        [
-          context.organizationId,
-          auditEventId,
-          credential.id,
-          nextVersion,
-          context.actorId,
-          context.correlationId,
-          before,
-          { ...credential, reason },
-        ],
-      );
-      const response = { credential, resourceVersion: credential.version, auditEventId };
-      await this.saveReplay(
-        client,
-        context.organizationId,
-        idempotencyKey,
-        "api-credential:update",
-        requestHash,
-        response,
-      );
+      const response = await fn(client);
+      await this.saveReplay(client, orgId, key, op, hash, response);
       await client.query("commit");
       return { ...response, idempotencyReplayed: false };
     } catch (error) {
@@ -477,9 +474,7 @@ export class PgIntegrationSettingsStore {
       request_hash: string;
       response_body: Record<string, unknown>;
     }>(
-      `select request_hash, response_body from api_idempotency_records
-        where organization_id = $1 and idempotency_key = $2
-        for update`,
+      `select request_hash, response_body from api_idempotency_records where organization_id = $1 and idempotency_key = $2 for update`,
       [organizationId, idempotencyKey],
     );
     if (!replay.rows[0]) return undefined;
@@ -496,9 +491,7 @@ export class PgIntegrationSettingsStore {
     response: unknown,
   ) {
     return client.query(
-      `insert into api_idempotency_records
-         (organization_id, idempotency_key, operation, request_hash, response_body)
-       values ($1, $2, $3, $4, $5)`,
+      `insert into api_idempotency_records (organization_id, idempotency_key, operation, request_hash, response_body) values ($1, $2, $3, $4, $5)`,
       [organizationId, idempotencyKey, operation, requestHash, response],
     );
   }

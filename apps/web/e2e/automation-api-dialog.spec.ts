@@ -1,101 +1,244 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
-async function install(page: Page, tokenRequests: { count: number }) {
+type MockState = {
+  tokenRequests: number;
+  webhookCreateBodies: Array<Record<string, unknown>>;
+  apiCredentials: Array<{
+    kind: "api_credential";
+    id: string;
+    name: string | null;
+    actorId: string;
+    roles: string[];
+    status: "active" | "revoked";
+    autoRecord: boolean;
+    isOwnerCredential: boolean;
+    version: string;
+  }>;
+  webhookSources: Array<{
+    kind: "webhook_source";
+    id: string;
+    publicId: string;
+    name: string;
+    actorId: string;
+    secretRef: string;
+    secretMode?: "managed" | "env";
+    status: "active" | "revoked";
+    allowedEventTypes: string[];
+    autoRecord: boolean;
+    version: string;
+  }>;
+};
+
+async function installIntegrationMocks(page: Page): Promise<MockState> {
+  const state: MockState = {
+    tokenRequests: 0,
+    webhookCreateBodies: [],
+    apiCredentials: [
+      {
+        kind: "api_credential",
+        id: "cred-owner-internal",
+        name: "Internal Owner Login Session",
+        actorId: "owner-session-actor",
+        roles: ["owner"],
+        status: "active",
+        autoRecord: true,
+        isOwnerCredential: true,
+        version: "1",
+      },
+    ],
+    webhookSources: [],
+  };
+
   await page.route("**/auth/automation-token", (route) => {
-    tokenRequests.count += 1;
+    state.tokenRequests += 1;
+    return route.fulfill({
+      status: 410,
+      contentType: "application/json",
+      headers: { "Cache-Control": "no-store, private" },
+      body: JSON.stringify({
+        error: {
+          code: "OWNER_SESSION_TOKEN_RETIRED",
+          message: "Retired",
+        },
+      }),
+    });
+  });
+
+  const handleApiRoute = async (route: Route) => {
+    const req = route.request();
+    const method = req.method();
+    const pathname = new URL(req.url()).pathname;
+
+    if (method === "GET" && pathname.endsWith("/integration-sources")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            operatingMode: "solopreneur",
+            webhookSources: state.webhookSources,
+            apiCredentials: state.apiCredentials,
+          },
+        }),
+      });
+    }
+
+    if (method === "POST" && pathname.endsWith("/api-credentials")) {
+      const body = (req.postDataJSON() ?? {}) as Record<string, unknown>;
+      const created = {
+        kind: "api_credential" as const,
+        id: `cred-${state.apiCredentials.length + 1}`,
+        name: String(body.name ?? "Service Key"),
+        actorId: String(body.actorId ?? "claude-code-agent"),
+        roles: Array.isArray(body.roles) ? body.roles.map(String) : ["accountant"],
+        status: "active" as const,
+        autoRecord: Boolean(body.autoRecord),
+        isOwnerCredential: false,
+        version: "1",
+      };
+      state.apiCredentials.push(created);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            credential: created,
+            secretToken: "naai_sk_e2e_one_time_secret",
+          },
+        }),
+      });
+    }
+
+    if (method === "POST" && pathname.endsWith("/integration-sources")) {
+      const body = (req.postDataJSON() ?? {}) as Record<string, unknown>;
+      state.webhookCreateBodies.push(body);
+      const created = {
+        kind: "webhook_source" as const,
+        id: `wh-${state.webhookSources.length + 1}`,
+        publicId: "pub_paperless_ocr",
+        name: String(body.name ?? "Paperless OCR"),
+        actorId: String(body.actorId ?? "paperless-ocr"),
+        secretRef: "managed",
+        secretMode: "managed" as const,
+        status: "active" as const,
+        allowedEventTypes: ["purchase_invoice.create"],
+        autoRecord: Boolean(body.autoRecord),
+        version: "1",
+      };
+      state.webhookSources.push(created);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            source: created,
+            signingSecret: "naai_whsec_e2e_one_time_secret",
+          },
+        }),
+      });
+    }
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      headers: { "Cache-Control": "no-store, private" },
-      body: JSON.stringify({ organizationId: "naai", apiToken: "e2e-stable-token" }),
+      body: JSON.stringify({ data: { items: [] } }),
     });
-  });
-  await page.route("**/dev-api/**", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        data: { operatingMode: "solopreneur", webhookSources: [], apiCredentials: [] },
-      }),
-    }),
-  );
+  };
+
+  await page.route("**/dev-api/**", handleApiRoute);
+  await page.route("**/api/v1/organizations/**", handleApiRoute);
+
+  return state;
 }
 
-test("@desktop /settings/automation renders inline REST API & automation reference without header popup buttons", async ({
+test("@desktop /settings/automation manages self-service Service Keys, Webhooks, and AI-native discovery without session token leakage", async ({
   page,
 }) => {
-  const tokenRequests = { count: 0 };
-  await install(page, tokenRequests);
-
-  for (const route of ["/expenses", "/revenue", "/customers", "/projects"]) {
-    await page.goto(route);
-    await expect(page.getByRole("button", { name: "API & tự động hóa" })).toHaveCount(0);
-  }
+  const state = await installIntegrationMocks(page);
 
   await page.goto("/settings/automation");
-  await expect(page.getByRole("button", { name: "API & tự động hóa" })).toHaveCount(0);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+
   await expect(
-    page.getByText("Kết nối REST API & Tài liệu tự động hóa", { exact: true }),
+    page.getByRole("heading", { name: "Kết nối tích hợp & Khóa dịch vụ" }),
   ).toBeVisible();
-  await expect.poll(() => tokenRequests.count).toBe(1);
+  await expect(page.getByText("Doanh nghiệp một người", { exact: true })).toBeVisible();
 
-  const apiKeyBox = page.getByRole("region", { name: "API key" });
-  await expect(apiKeyBox.getByText("API key của tổ chức")).toBeVisible();
-  await expect(apiKeyBox.getByText("Org: naai")).toBeVisible();
-  await expect(apiKeyBox.getByText("e2e-stable-token", { exact: true })).toHaveCount(0);
+  // Internal owner session credential is strictly excluded from the Service Keys table
+  await expect(page.getByText("Internal Owner Login Session")).toHaveCount(0);
+  await expect(page.getByText("owner-session-actor")).toHaveCount(0);
+  await expect(page.getByText(/Chưa có khóa kết nối dịch vụ nào/)).toBeVisible();
 
-  await apiKeyBox.getByLabel("Hiện API key").click();
-  await expect(apiKeyBox.getByText("e2e-stable-token", { exact: true })).toBeVisible();
-  await apiKeyBox.getByLabel("Ẩn API key").click();
-  await expect(apiKeyBox.getByText("e2e-stable-token", { exact: true })).toHaveCount(0);
+  // Create a Service Key and verify one-time secret banner lifecycle
+  await page.getByRole("button", { name: "+ Tạo khóa kết nối" }).click();
+  const keyDialog = page.getByRole("dialog", { name: "Tạo khóa kết nối dịch vụ" });
+  await expect(keyDialog).toBeVisible();
+  await keyDialog.getByLabel("Tên kết nối").fill("Claude Code Agent");
+  await keyDialog.getByLabel("Bật tự động ghi sổ (autoRecord)").click();
+  await keyDialog.getByRole("button", { name: "Khởi tạo khóa" }).click();
 
+  const secretBanner = page.getByTestId("issued-secret-banner");
+  await expect(secretBanner).toBeVisible();
+  await expect(secretBanner).toContainText(
+    "Khóa bí mật vừa khởi tạo (chỉ hiển thị một lần duy nhất)",
+  );
+  await expect(secretBanner).toContainText("naai_sk_e2e_one_time_secret");
+  await expect(page.getByRole("cell", { name: "Claude Code Agent", exact: true })).toBeVisible();
+
+  await secretBanner.getByRole("button", { name: "Đã lưu an toàn" }).click();
+  await expect(page.getByTestId("issued-secret-banner")).toHaveCount(0);
+  await expect(page.getByText("naai_sk_e2e_one_time_secret")).toHaveCount(0);
+
+  // Create a self-service Webhook Source with zero server env var input
+  await page.getByRole("button", { name: "+ Tạo nguồn Webhook" }).click();
+  const webhookDialog = page.getByRole("dialog", { name: "Tạo nguồn Webhook đầu vào" });
+  await expect(webhookDialog).toBeVisible();
+  await expect(webhookDialog.getByLabel(/Biến môi trường|secretRef/i)).toHaveCount(0);
+  await expect(webhookDialog.getByRole("textbox")).toHaveCount(2);
+  await webhookDialog.getByLabel("Tên nguồn").fill("Paperless OCR");
+  await webhookDialog.getByLabel("Bật tự động ghi sổ (autoRecord)").click();
+  await webhookDialog.getByRole("button", { name: "Tạo nguồn Webhook" }).click();
+
+  expect(state.webhookCreateBodies).toHaveLength(1);
+  expect(state.webhookCreateBodies[0]).not.toHaveProperty("secretRef");
+
+  await expect(secretBanner).toBeVisible();
+  await expect(secretBanner).toContainText("naai_whsec_e2e_one_time_secret");
+  await expect(secretBanner).toContainText("/api/v1/webhooks/inbound/pub_paperless_ocr");
+  await secretBanner.getByRole("button", { name: "Đã lưu an toàn" }).click();
+  await expect(page.getByText("naai_whsec_e2e_one_time_secret")).toHaveCount(0);
+  await expect(page.getByRole("cell", { name: "Paperless OCR", exact: true })).toBeVisible();
+  await expect(page.getByText("Quản lý tự động", { exact: true })).toBeVisible();
+
+  // Verify AI-Native Discovery Card
   await expect(
-    page.getByText("Tạo khách hàng và gán vai trò client", { exact: true }),
+    page.getByText("Tự khám phá hợp đồng máy (AI-Native Discovery)", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Chuẩn hóa dữ liệu OCR (n8n Expression)", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator("code", { hasText: "/api/v1/capabilities" })).toBeVisible();
+  await expect(page.locator("code", { hasText: "/api/v1/openapi.json" })).toBeVisible();
+  await expect(page.locator("code", { hasText: "naai-erp discovery capabilities" })).toBeVisible();
 
-  const filterGroup = page.getByRole("group", { name: "Bộ lọc phân hệ API" });
-  await filterGroup.getByRole("button", { name: "Khách hàng", exact: true }).click();
-  await expect(
-    page.getByText("Tạo khách hàng và gán vai trò client", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Chuẩn hóa dữ liệu OCR (n8n Expression)", { exact: true }),
-  ).toHaveCount(0);
-
-  await filterGroup.getByRole("button", { name: "Chi phí & Hóa đơn mua", exact: true }).click();
-  await expect(
-    page.getByText("Chuẩn hóa dữ liệu OCR (n8n Expression)", { exact: true }),
-  ).toBeVisible();
-
-  await page.getByRole("button", { name: "Xem expression" }).click();
-  const expression = page.locator("pre code").first();
-  await expect(expression).toContainText("$json.output");
-  await expect(expression).toContainText('"supplierTaxId": taxNumber');
-  await expect(expression).toContainText('"documentDate": documentDate');
-  await expect(expression).toContainText('"grossMinor": totalPaymentMinor');
-  expect(tokenRequests.count).toBe(1);
+  expect(state.tokenRequests).toBe(0);
 });
 
-test("@mobile /settings/automation inline API reference remains responsive with one-request ingestion", async ({
+test("@mobile /settings/automation renders cleanly at 390px with zero horizontal overflow and zero session token calls", async ({
   page,
 }) => {
-  const tokenRequests = { count: 0 };
-  await install(page, tokenRequests);
-  await page.goto("/settings/automation");
-  await expect(page.getByRole("button", { name: "API & tự động hóa" })).toHaveCount(0);
-  await expect.poll(() => tokenRequests.count).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installIntegrationMocks(page);
 
-  await page.getByRole("button", { name: /Tạo hóa đơn đầu vào/ }).click();
+  await page.goto("/settings/automation");
+
   await expect(
-    page.locator("code", { hasText: "/commercial-documents/purchase-invoice-ingestion" }).first(),
+    page.getByRole("heading", { name: "Kết nối tích hợp & Khóa dịch vụ" }),
   ).toBeVisible();
-  await expect(page.getByText("supplierName hoặc supplierTaxId", { exact: true })).toBeVisible();
-  await expect(page.getByText("externalReference", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("/master-data/parties")).toHaveCount(0);
+  await expect(
+    page.getByText("Tự khám phá hợp đồng máy (AI-Native Discovery)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("code", { hasText: "/api/v1/capabilities" })).toBeVisible();
+  await expect(page.locator("code", { hasText: "/api/v1/openapi.json" })).toBeVisible();
+  await expect(page.getByText("Internal Owner Login Session")).toHaveCount(0);
+
+  expect(state.tokenRequests).toBe(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth + 1),
   );

@@ -13,6 +13,7 @@ const requiredAdrs = [
   "ADR-011-ai-data-relationships-and-ingestion.md",
   "ADR-012-portable-organization-data-package.md",
   "ADR-013-design-language-system-and-interaction-standards.md",
+  "ADR-014-service-identities-and-ai-native-discovery.md",
 ];
 
 const requiredRuleReferences = [
@@ -27,6 +28,7 @@ const requiredRuleReferences = [
   "BR-AI-003",
   "BR-AI-004",
   "BR-AI-005",
+  "BR-AI-007",
   "BR-EXPOR-002",
   "BR-UI-008",
 ];

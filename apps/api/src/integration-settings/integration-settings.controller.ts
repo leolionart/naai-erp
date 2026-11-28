@@ -2,7 +2,9 @@ import { Body, Controller, Get, Headers, Inject, Param, Patch, Post } from "@nes
 import { randomUUID } from "node:crypto";
 import { IntegrationSettingsService } from "./integration-settings.service.js";
 import type {
+  CreateApiCredentialInput,
   CreateWebhookSourceInput,
+  RotateSecretInput,
   UpdateApiCredentialInput,
   UpdateWebhookSourceInput,
 } from "./integration-settings.types.js";
@@ -85,6 +87,25 @@ export class IntegrationSettingsController {
     );
   }
 
+  @Post("integration-sources/:id/rotate-secret")
+  async rotateWebhookSecret(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers("authorization") authorization?: string,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.rotateWebhookSecret(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      unwrapDataPayload<RotateSecretInput>(body),
+      expectedVersion,
+      idempotencyKey,
+    );
+  }
+
   @Get("api-credentials")
   async listApiCredentials(
     @Param("organizationId") organizationId: string,
@@ -93,6 +114,21 @@ export class IntegrationSettingsController {
   ) {
     return this.service.listApiCredentials(
       await this.context(organizationId, authorization, correlationId),
+    );
+  }
+
+  @Post("api-credentials")
+  async createApiCredential(
+    @Param("organizationId") organizationId: string,
+    @Body() body: unknown,
+    @Headers("authorization") authorization?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.createApiCredential(
+      await this.context(organizationId, authorization, correlationId),
+      unwrapDataPayload<CreateApiCredentialInput>(body),
+      idempotencyKey,
     );
   }
 
@@ -110,6 +146,25 @@ export class IntegrationSettingsController {
       await this.context(organizationId, authorization, correlationId),
       id,
       unwrapDataPayload<UpdateApiCredentialInput>(body),
+      expectedVersion,
+      idempotencyKey,
+    );
+  }
+
+  @Post("api-credentials/:id/rotate")
+  async rotateApiCredential(
+    @Param("organizationId") organizationId: string,
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers("authorization") authorization?: string,
+    @Headers("if-match") expectedVersion?: string,
+    @Headers("idempotency-key") idempotencyKey?: string,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return this.service.rotateApiCredential(
+      await this.context(organizationId, authorization, correlationId),
+      id,
+      unwrapDataPayload<RotateSecretInput>(body),
       expectedVersion,
       idempotencyKey,
     );

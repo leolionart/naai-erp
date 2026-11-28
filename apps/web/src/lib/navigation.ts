@@ -357,9 +357,9 @@ export const adminNavigation = [
       },
       {
         key: "automation-settings",
-        label: "Nguồn tích hợp & Tự ghi sổ",
+        label: "Kết nối tích hợp & AI",
         description:
-          "Cấu hình cờ autoRecord cho token tích hợp và nguồn webhook đầu vào để tự động ghi sổ.",
+          "Cấp khóa kết nối dịch vụ cho AI/CLI/n8n, quản lý nguồn Webhook và cờ tự động ghi sổ.",
         href: "/settings/automation",
         icon: "review",
         status: "available",

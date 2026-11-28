@@ -12,6 +12,7 @@ import {
   isForeignCurrencyNotSupportedError,
 } from "../common/base-currency-guard.js";
 import { ExpenseService } from "../expenses/expense.service.js";
+import { resolveWebhookSigningSecret } from "../integration-settings/integration-secret.helper.js";
 import { MasterDataService } from "../master-data/master-data.service.js";
 import { PgInboundWebhookStore } from "./pg-inbound-webhook.store.js";
 import type {
@@ -212,7 +213,7 @@ export class InboundWebhookService {
     }
   }
   private verify(source: IntegrationSource, timestamp: string, raw: Buffer, signature: string) {
-    const secret = process.env[source.secretRef];
+    const secret = resolveWebhookSigningSecret(source.secretRef);
     if (!secret) throw new Error("WEBHOOK_SOURCE_UNAUTHORIZED");
     const expected = createHmac("sha256", secret).update(`${timestamp}.`).update(raw).digest("hex");
     const provided = signature.startsWith("sha256=") ? signature.slice(7) : "";

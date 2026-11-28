@@ -841,3 +841,10 @@ Năm YYYY`, `Quý Q/YYYY`, `Tháng MM/YYYY`, or custom range) and cumulative-bal
 
 - `T-UNIT-ERP-1012-001`: Automated DLS static & rendering compliance gate verifies that no workspace, page or feature component outside `components/ui/` uses raw `<input>` (except `type="hidden"` / `type="file"`), `<select>`, `<textarea>`, blocking `window.confirm` / `window.prompt` / `window.alert`, narrow root `max-w-xl`/`max-w-2xl` workspace wrappers, or hardcoded `slate-950` terminal palettes, and verifies `TelegramSettingsWorkspace` and inline `AutomationApiReferenceSection` render accessible `Switch` controls, KPI cards, and inline API reference sections (`dls-compliance.test.ts`).
 - `T-DOC-ERP-1012-002`: `verify-docs.mjs` verifies `ADR-013-design-language-system-and-interaction-standards.md` is Accepted and references `BR-UI-008` alongside `docs/design/dls-specification.md`.
+
+### ERP-1013 — Isolated service identities, one-time secret issuance and AI-native discovery
+
+- `T-UNIT-ERP-1013-001`: `IntegrationSettingsService`, `integration-secret.helper`, and `InboundWebhookService` issue one-time `naai_sk_...` service keys (rejecting `"owner"` role and protecting `isOwnerCredential` rows from mutation/rotation/revocation), issue and verify AES-256-GCM `sealed:` webhook HMAC secrets alongside legacy env `secretRef` bindings without leaking secrets on `GET` or replay, and retire `/auth/automation-token` (`410 Gone`).
+- `T-CLI-ERP-1013-002`: First-party CLI `api-credentials` (`list`, `create`, `update`, `set-auto-record`, `rotate`, `revoke`) and `integration-sources` (`create` without `secretRef`, `rotate-secret`) align with OpenAPI and the golden routing table.
+- `T-E2E-ERP-1013-003`: Desktop and 390px mobile `/settings/automation` creates/rotates/revokes Service Keys and Inbound Webhooks with one-time secret banners, displays machine-native discovery endpoints (`/api/v1/capabilities`, `/api/v1/openapi.json`, `naai-erp discovery`), and never requests `/auth/automation-token`.
+- `T-DOC-ERP-1013-004`: `verify-docs.mjs` and `verify-solopreneur-gate-matrix.mjs` verify `ADR-014`, `BR-AI-007`, and all new OpenAPI mutations.

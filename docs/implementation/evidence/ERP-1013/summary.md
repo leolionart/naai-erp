@@ -1,0 +1,9 @@
+# ERP-1013 — Summary
+
+- Authored and accepted `docs/architecture/ADR-014-service-identities-and-ai-native-discovery.md` and `BR-AI-007` in `docs/product/business-rules.md`, enforcing strict separation between human browser sessions (`HttpOnly` cookies) and external machine credentials (`api_credentials` and `integration_sources`).
+- Retired `POST/GET /auth/automation-token` (`410 Gone`, `OWNER_SESSION_TOKEN_RETIRED`), eliminating macOS Keychain reads and owner session-cookie token extraction from the Web app.
+- Extended `@naai-erp/api` (`integration-secret.helper.ts`, `integration-settings.controller.ts`, `integration-settings.service.ts`, `pg-integration-settings.store.ts`, `inbound-webhook.service.ts`) with:
+  - Self-service non-owner Service Key creation (`POST /api-credentials`), rotation (`POST /api-credentials/:id/rotate`), and revocation (`PATCH /api-credentials/:id` with `status: "revoked"`), issuing `naai_sk_...` tokens once and protecting internal `isOwnerCredential` rows from mutation.
+  - Self-service Webhook HMAC signing secret issuance (`POST /integration-sources` without `secretRef`, `POST /integration-sources/:id/rotate-secret`), sealing `naai_whsec_...` with AES-256-GCM (`sealed:v1...`) while preserving backwards compatibility with legacy environment-variable `secretRef` bindings.
+- Extended `@naai-erp/cli` (`integration-sources-cli.ts`, `client.ts`, `route-golden.json`) with `api-credentials` (`create`, `rotate`, `revoke`) and `integration-sources` (`rotate-secret`, `revoke`).
+- Redesigned `/settings/automation` (`integration-settings-workspace.tsx`, `integration-settings-dialogs.tsx`, `automation-api-dialog.tsx`) into a unified DLS **Kết nối tích hợp & Khóa dịch vụ** workspace with one-time secret banners and a concise **AI-Native Discovery** card (`/api/v1/capabilities`, `/api/v1/openapi.json`, `naai-erp discovery`), removing the hardcoded cURL/JS wall (`automation-api-examples.ts`) from the Web UI bundle.

@@ -37,9 +37,17 @@ export function resolveIntegrationSourcesCliRoute(input: {
     if (action === "create") {
       return { method: "POST", url: base, includeBody: true };
     }
-    if (action === "update" || action === "set-auto-record") {
+    if (action === "update" || action === "set-auto-record" || action === "revoke") {
       if (!key) throw new Error(`integration-sources ${action} requires --key <source-id>`);
       return { method: "PATCH", url: `${base}/${encodeURIComponent(key)}`, includeBody: true };
+    }
+    if (action === "rotate-secret") {
+      if (!key) throw new Error("integration-sources rotate-secret requires --key <source-id>");
+      return {
+        method: "POST",
+        url: `${base}/${encodeURIComponent(key)}/rotate-secret`,
+        includeBody: true,
+      };
     }
     throw new Error(`Unsupported integration-sources action: ${action}`);
   }
@@ -49,9 +57,20 @@ export function resolveIntegrationSourcesCliRoute(input: {
     if (action === "list") {
       return { method: "GET", url: base, includeBody: false };
     }
-    if (action === "update" || action === "set-auto-record") {
+    if (action === "create") {
+      return { method: "POST", url: base, includeBody: true };
+    }
+    if (action === "update" || action === "set-auto-record" || action === "revoke") {
       if (!key) throw new Error(`api-credentials ${action} requires --key <credential-id>`);
       return { method: "PATCH", url: `${base}/${encodeURIComponent(key)}`, includeBody: true };
+    }
+    if (action === "rotate") {
+      if (!key) throw new Error("api-credentials rotate requires --key <credential-id>");
+      return {
+        method: "POST",
+        url: `${base}/${encodeURIComponent(key)}/rotate`,
+        includeBody: true,
+      };
     }
     throw new Error(`Unsupported api-credentials action: ${action}`);
   }
@@ -82,6 +101,9 @@ export async function buildIntegrationSourcesCliPayload(
   if (autoRecord !== undefined) base.autoRecord = autoRecord;
   if (flags.name !== undefined) base.name = flags.name.trim();
   if (flags.reason?.trim()) base.reason = flags.reason.trim();
+  if (action === "revoke" && base.status === undefined) {
+    base.status = "revoked";
+  }
   return base;
 }
 

@@ -1,10 +1,13 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { API_VERSION } from "@naai-erp/contracts";
 import { MasterDataService } from "../master-data/master-data.service.js";
+import { ALLOWED_SERVICE_ROLES } from "./integration-secret.helper.js";
 import { PgIntegrationSettingsStore } from "./pg-integration-settings.store.js";
 import type {
+  CreateApiCredentialInput,
   CreateWebhookSourceInput,
   IntegrationSettingsContext,
+  RotateSecretInput,
   UpdateApiCredentialInput,
   UpdateWebhookSourceInput,
 } from "./integration-settings.types.js";
@@ -73,9 +76,10 @@ export class IntegrationSettingsService {
     if (
       !input ||
       typeof input !== "object" ||
-      !input.name?.trim() ||
-      !input.actorId?.trim() ||
-      !input.secretRef?.trim()
+      typeof input.name !== "string" ||
+      !input.name.trim() ||
+      (input.actorId !== undefined && typeof input.actorId !== "string") ||
+      (input.secretRef !== undefined && typeof input.secretRef !== "string")
     ) {
       throw new Error("VALIDATION_FAILED");
     }
@@ -177,11 +181,89 @@ export class IntegrationSettingsService {
     );
   }
 
+  async rotateWebhookSecret(
+    context: IntegrationSettingsContext,
+    id: string,
+    input: RotateSecretInput,
+    expectedVersion?: string,
+    idempotencyKey?: string,
+  ) {
+    this.assertWrite(context);
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    const normalized: RotateSecretInput = input && typeof input === "object" ? input : {};
+    if (normalized.reason !== undefined && typeof normalized.reason !== "string") {
+      throw new Error("VALIDATION_FAILED");
+    }
+    return this.envelope(
+      context,
+      await this.store.rotateWebhookSecret(
+        context,
+        id,
+        normalized,
+        expectedVersion?.trim() || undefined,
+        idempotencyKey,
+      ),
+    );
+  }
+
   async listApiCredentials(context: IntegrationSettingsContext) {
     this.assertRead(context);
     return this.envelope(context, {
       items: await this.store.listApiCredentials(context.organizationId),
     });
+  }
+
+  async createApiCredential(
+    context: IntegrationSettingsContext,
+    input: CreateApiCredentialInput,
+    idempotencyKey?: string,
+  ) {
+    this.assertWrite(context);
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    if (
+      !input ||
+      typeof input !== "object" ||
+      typeof input.name !== "string" ||
+      !input.name.trim() ||
+      (input.id !== undefined && typeof input.id !== "string") ||
+      (input.actorId !== undefined && typeof input.actorId !== "string")
+    ) {
+      throw new Error("VALIDATION_FAILED");
+    }
+    const rawRoles = input.roles === undefined ? ["accountant"] : input.roles;
+    if (
+      !Array.isArray(rawRoles) ||
+      rawRoles.length === 0 ||
+      rawRoles.some((role) => typeof role !== "string" || !ALLOWED_SERVICE_ROLES.has(role))
+    ) {
+      throw new Error("VALIDATION_FAILED");
+    }
+    if (input.autoRecord !== undefined && typeof input.autoRecord !== "boolean") {
+      throw new Error("VALIDATION_FAILED");
+    }
+    let normalizedExpiresAt: string | null = null;
+    if (input.expiresAt !== undefined && input.expiresAt !== null) {
+      if (typeof input.expiresAt !== "string") throw new Error("VALIDATION_FAILED");
+      const trimmed = input.expiresAt.trim();
+      if (trimmed) {
+        const parsed = Date.parse(trimmed);
+        if (!Number.isFinite(parsed)) throw new Error("VALIDATION_FAILED");
+        normalizedExpiresAt = new Date(parsed).toISOString();
+      }
+    }
+    return this.envelope(
+      context,
+      await this.store.createApiCredential(
+        context,
+        {
+          ...input,
+          name: input.name.trim(),
+          roles: [...new Set(rawRoles)],
+          expiresAt: normalizedExpiresAt,
+        },
+        idempotencyKey,
+      ),
+    );
   }
 
   async updateApiCredential(
@@ -194,7 +276,7 @@ export class IntegrationSettingsService {
     this.assertWrite(context);
     if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
     if (!input || typeof input !== "object") throw new Error("VALIDATION_FAILED");
-    if (input.autoRecord === undefined && input.name === undefined) {
+    if (input.autoRecord === undefined && input.name === undefined && input.status === undefined) {
       throw new Error("VALIDATION_FAILED");
     }
     if (input.autoRecord !== undefined && typeof input.autoRecord !== "boolean") {
@@ -203,12 +285,40 @@ export class IntegrationSettingsService {
     if (input.name !== undefined && input.name !== null && typeof input.name !== "string") {
       throw new Error("VALIDATION_FAILED");
     }
+    if (input.status !== undefined && input.status !== "active" && input.status !== "revoked") {
+      throw new Error("VALIDATION_FAILED");
+    }
     return this.envelope(
       context,
       await this.store.updateApiCredential(
         context,
         id,
         input,
+        expectedVersion?.trim() || undefined,
+        idempotencyKey,
+      ),
+    );
+  }
+
+  async rotateApiCredential(
+    context: IntegrationSettingsContext,
+    id: string,
+    input: RotateSecretInput,
+    expectedVersion?: string,
+    idempotencyKey?: string,
+  ) {
+    this.assertWrite(context);
+    if (!idempotencyKey) throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+    const normalized: RotateSecretInput = input && typeof input === "object" ? input : {};
+    if (normalized.reason !== undefined && typeof normalized.reason !== "string") {
+      throw new Error("VALIDATION_FAILED");
+    }
+    return this.envelope(
+      context,
+      await this.store.rotateApiCredential(
+        context,
+        id,
+        normalized,
         expectedVersion?.trim() || undefined,
         idempotencyKey,
       ),

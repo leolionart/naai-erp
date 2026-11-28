@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "task": "ERP-900",
   "source": "docs/api/openapi-v1.json",
-  "mutationCount": 141,
+  "mutationCount": 144,
   "effectEnum": ["none", "draft", "posted", "correction", "destructive"],
   "policy": {
     "solopreneurOwner": "may compress eligible nonfinancial and draft-only workflow steps",
@@ -15,6 +15,7 @@
     "account-plans/dry-run",
     "accountant-exports",
     "accountant-exports/{id}",
+    "api-credentials",
     "api-credentials/{credentialId}",
     "banking/accounts",
     "banking/cash-counts",
@@ -1404,6 +1405,46 @@
       "uiActionFamily": "integration-sources/{sourceId}"
     },
     {
+      "id": "POST:/api/v1/organizations/{organizationId}/integration-sources/{sourceId}/rotate-secret",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/integration-sources/{sourceId}/rotate-secret",
+      "operationId": "rotateIntegrationSourceSecret",
+      "resource": "integration-sources",
+      "action": "rotate-secret",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "integration-sources/{sourceId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/api-credentials",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/api-credentials",
+      "operationId": "createApiCredential",
+      "resource": "api-credentials",
+      "action": "api-credentials",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "api-credentials"
+    },
+    {
       "id": "PATCH:/api/v1/organizations/{organizationId}/api-credentials/{credentialId}",
       "method": "PATCH",
       "path": "/api/v1/organizations/{organizationId}/api-credentials/{credentialId}",
@@ -1417,6 +1458,26 @@
         "reason": "endpoint-defined",
         "checker": "endpoint-defined",
         "version": "required-or-resource-specific",
+        "idempotency": "required"
+      },
+      "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",
+      "retainedSafeguards": ["organization_scope", "rbac", "audit", "idempotency"],
+      "uiActionFamily": "api-credentials/{credentialId}"
+    },
+    {
+      "id": "POST:/api/v1/organizations/{organizationId}/api-credentials/{credentialId}/rotate",
+      "method": "POST",
+      "path": "/api/v1/organizations/{organizationId}/api-credentials/{credentialId}/rotate",
+      "operationId": "rotateApiCredential",
+      "resource": "api-credentials",
+      "action": "rotate",
+      "possibleActions": [],
+      "financialEffect": "none",
+      "current": {
+        "lifecycleStates": ["endpoint-defined"],
+        "reason": "endpoint-defined",
+        "checker": "endpoint-defined",
+        "version": "endpoint-defined",
         "idempotency": "required"
       },
       "desiredSolopreneurBehavior": "eligible-for-one-click-or-canonical-default-review",

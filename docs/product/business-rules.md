@@ -169,16 +169,6 @@ These rules define the active release boundary. Historical rules remain valid fo
   mapping, reason or version invalidates the plan.
 - Issued/posted document and posted-expense backfills reverse the original accounting effect and
   create a linked replacement draft. They never update allocations or journals in place.
-- The focused expense screen exposes an owner-only automation protocol dialog from its page header.
-  It documents the canonical complete purchase-invoice and purchase-product requests and may reveal
-  the stable API credential already sealed in the authenticated server session only after an
-  explicit same-origin action. The response is never cached, the token is never compiled into the
-  browser bundle or committed to source, and operators are instructed to store it as an n8n
-  credential rather than inside workflow JSON or logs.
-- Production-backed native development may reveal the server-only upstream credential injected by
-  the approved data-source launcher or read the same credential from the operator's macOS Keychain.
-  Production itself still requires a valid encrypted login session; neither path reads a public
-  browser environment variable.
 - Purchase-invoice automation uses `commercial-documents`, not the descriptive expense-metadata
 
 ### BR-AI-006 — Unified business metadata correction
@@ -244,6 +234,14 @@ These rules define the active release boundary. Historical rules remain valid fo
   treatment and must not recognize revenue twice.
 - When no canonical API exists for a classified movement, AI stops and reports the missing workflow;
   it does not fall back to direct SQL or an unreviewed manual journal.
+
+### BR-AI-007 — Isolated service identities, one-time secret issuance and machine-native discovery
+
+- Human web sessions (`HttpOnly` cookies) and machine credentials (`api_credentials` / `integration_sources`) are strictly isolated. Browser routes must never unseal or disclose human session tokens (`/auth/automation-token` returns HTTP `410 Gone`).
+- External integrations (AI agents, CLI profiles, n8n HTTP callers) authenticate with organization-scoped Service Keys created via `POST /api-credentials`, assignable only to non-owner roles (`accountant`, `finance_admin`, `approver`, `viewer`), rotatable via `POST /api-credentials/:id/rotate`, and revocable via `PATCH /api-credentials/:id` (`status: "revoked"`). Internal owner session rows (`isOwnerCredential`) reject mutation, rotation, and revocation through integration endpoints.
+- Service-key tokens (`naai_sk_...`) and self-service webhook HMAC secrets (`naai_whsec_...`) are returned once at creation/rotation, never written in plaintext to audit or idempotency replay tables, and never disclosed on subsequent `GET` reads (`api_credentials` stores SHA-256 `token_hash`; managed `integration_sources` store AES-256-GCM `sealed:` secrets while keeping legacy environment-variable `secretRef` bindings working).
+- The Web integration workspace (`/settings/automation`) exposes self-service Service Key and Inbound Webhook lifecycle controls plus concise machine-discovery endpoints (`/api/v1/capabilities`, `/api/v1/openapi.json`, `naai-erp discovery`), rather than embedding static per-resource cURL walls in UI code.
+- Required tests: `T-UNIT-ERP-1013-001`, `T-CLI-ERP-1013-002`, `T-E2E-ERP-1013-003`, `T-DOC-ERP-1013-004`.
 
 ### BR-DEBT-001 — Owner debt waiver and customer bad-debt write-off
 

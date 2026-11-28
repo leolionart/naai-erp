@@ -3,59 +3,36 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuthenticatedApiClient } from "@/lib/api";
-
-type WebhookSourceItem = Readonly<{
-  kind: "webhook_source";
-  id: string;
-  publicId: string;
-  name: string;
-  actorId: string;
-  secretRef: string;
-  status: string;
-  allowedEventTypes: readonly string[];
-  autoRecord: boolean;
-  version: string;
-}>;
-
-type ApiCredentialItem = Readonly<{
-  kind: "api_credential";
-  id: string;
-  name: string | null;
-  actorId: string;
-  roles: readonly string[];
-  status: string;
-  autoRecord: boolean;
-  isOwnerCredential: boolean;
-  version: string;
-}>;
+import {
+  ConfirmIntegrationActionDialog,
+  CreateServiceKeyDialog,
+  CreateWebhookDialog,
+  IssuedSecretBanner,
+  type CreateServiceKeyInput,
+  type CreateWebhookInput,
+  type IssuedSecretInfo,
+  type PendingIntegrationAction,
+} from "./integration-settings-dialogs";
+import {
+  ServiceKeysCard,
+  WebhookSourcesCard,
+  type ApiCredentialItem,
+  type WebhookSourceItem,
+} from "./integration-settings-tables";
 
 type IntegrationOverview = Readonly<{
   operatingMode: "controlled" | "solopreneur";
   webhookSources: readonly WebhookSourceItem[];
   apiCredentials: readonly ApiCredentialItem[];
+}>;
+type IssuedCredentialResponse = Readonly<{ secretToken: string; credential?: ApiCredentialItem }>;
+type IssuedWebhookResponse = Readonly<{
+  signingSecret?: string;
+  publicId?: string;
+  source?: WebhookSourceItem;
 }>;
 
 export function IntegrationAutoRecordSection() {
@@ -64,25 +41,24 @@ export function IntegrationAutoRecordSection() {
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newActorId, setNewActorId] = useState("paperless-n8n");
-  const [newSecretRef, setNewSecretRef] = useState("PAPERLESS_WEBHOOK_SECRET");
-  const [newAutoRecord, setNewAutoRecord] = useState(false);
+  const [issuedSecret, setIssuedSecret] = useState<IssuedSecretInfo | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingIntegrationAction | null>(null);
 
   const load = useCallback(async () => {
     if (!hydrated) return;
     if (!hasToken) {
-      setError("Cần API token để quản lý cấu hình nguồn tích hợp.");
+      setError("Cần phiên đăng nhập hợp lệ để quản lý kết nối tích hợp.");
       setLoading(false);
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const data = await client.data<IntegrationOverview>("integration-sources");
-      setOverview(data);
+      setOverview(await client.data<IntegrationOverview>("integration-sources"));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể tải danh sách nguồn tích hợp.");
+      setError(
+        cause instanceof Error ? cause.message : "Không thể tải danh sách kết nối tích hợp.",
+      );
     } finally {
       setLoading(false);
     }
@@ -90,320 +66,228 @@ export function IntegrationAutoRecordSection() {
 
   useEffect(() => void load(), [load]);
 
-  async function toggleCredential(item: ApiCredentialItem) {
-    const key = `cred:${item.id}`;
-    setBusyKey(key);
+  const externalCredentials = (overview?.apiCredentials ?? []).filter((c) => !c.isOwnerCredential);
+  const webhookSources = overview?.webhookSources ?? [];
+  const activeKeys = externalCredentials.filter((c) => c.status === "active").length;
+  const activeWebhooks = webhookSources.filter((w) => w.status === "active").length;
+  const activeAutoRecord =
+    externalCredentials.filter((c) => c.status === "active" && c.autoRecord).length +
+    webhookSources.filter((w) => w.status === "active" && w.autoRecord).length;
+
+  function applyWebhookSecret(
+    label: string,
+    res: IssuedWebhookResponse,
+    fallbackPublicId?: string,
+  ) {
+    const publicId = res.source?.publicId ?? res.publicId ?? fallbackPublicId;
+    if (!res.signingSecret) return;
+    setIssuedSecret({
+      kind: "webhook_secret",
+      label,
+      secret: res.signingSecret,
+      ...(publicId ? { webhookUrl: `/api/v1/webhooks/inbound/${publicId}` } : {}),
+    });
+  }
+
+  async function handleCreateServiceKey(input: CreateServiceKeyInput) {
+    setError("");
+    const res = await client.data<IssuedCredentialResponse>("api-credentials", {
+      method: "POST",
+      body: {
+        name: input.name,
+        roles: [input.role],
+        ...(input.actorId ? { actorId: input.actorId } : {}),
+        autoRecord: input.autoRecord,
+      },
+    });
+    setIssuedSecret({ kind: "service_key", label: input.name, secret: res.secretToken });
+    toast.success(`Đã tạo khóa kết nối "${input.name}"`);
+    await load();
+  }
+
+  async function handleCreateWebhook(input: CreateWebhookInput) {
+    setError("");
+    const res = await client.data<IssuedWebhookResponse>("integration-sources", {
+      method: "POST",
+      body: {
+        name: input.name,
+        ...(input.actorId ? { actorId: input.actorId } : {}),
+        autoRecord: input.autoRecord,
+      },
+    });
+    applyWebhookSecret(input.name, res);
+    toast.success(`Đã tạo nguồn Webhook "${input.name}"`);
+    await load();
+  }
+
+  async function toggleAutoRecord(
+    resource: "api-credentials" | "integration-sources",
+    id: string,
+    version: string,
+    current: boolean,
+    label: string,
+  ) {
+    setBusyKey(`${resource}:${id}`);
     setError("");
     try {
-      await client.data(`api-credentials/${encodeURIComponent(item.id)}`, {
+      const reason = !current
+        ? `Bật tự động ghi sổ cho ${label}`
+        : `Tắt tự động ghi sổ cho ${label}`;
+      await client.data(`${resource}/${encodeURIComponent(id)}`, {
         method: "PATCH",
-        expectedVersion: item.version,
-        body: {
-          autoRecord: !item.autoRecord,
-          reason: !item.autoRecord
-            ? "Bật tự động ghi sổ cho token tích hợp"
-            : "Tắt tự động ghi sổ cho token tích hợp",
-        },
+        expectedVersion: version,
+        body: { autoRecord: !current, reason },
       });
       toast.success(
-        !item.autoRecord
-          ? `Đã bật tự động ghi sổ cho ${item.name || item.actorId}`
-          : `Đã tắt tự động ghi sổ cho ${item.name || item.actorId}`,
+        !current ? `Đã bật tự động ghi sổ cho ${label}` : `Đã tắt tự động ghi sổ cho ${label}`,
       );
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể cập nhật token tích hợp.");
+      setError(cause instanceof Error ? cause.message : "Không thể cập nhật cờ tự động ghi sổ.");
     } finally {
       setBusyKey("");
     }
   }
 
-  async function toggleWebhook(item: WebhookSourceItem) {
-    const key = `wh:${item.id}`;
-    setBusyKey(key);
+  async function executeConfirmedAction(action: PendingIntegrationAction) {
+    setBusyKey(`${action.kind}:${action.id}`);
     setError("");
+    const id = encodeURIComponent(action.id);
     try {
-      await client.data(`integration-sources/${encodeURIComponent(item.id)}`, {
-        method: "PATCH",
-        expectedVersion: item.version,
-        body: {
-          autoRecord: !item.autoRecord,
-          reason: !item.autoRecord
-            ? "Bật tự động ghi sổ cho nguồn webhook"
-            : "Tắt tự động ghi sổ cho nguồn webhook",
-        },
-      });
-      toast.success(
-        !item.autoRecord
-          ? `Đã bật tự động ghi sổ cho ${item.name}`
-          : `Đã tắt tự động ghi sổ cho ${item.name}`,
-      );
+      if (action.kind === "rotate_key") {
+        const res = await client.data<IssuedCredentialResponse>(`api-credentials/${id}/rotate`, {
+          method: "POST",
+          expectedVersion: action.version,
+          body: { reason: "Cấp lại khóa kết nối dịch vụ" },
+        });
+        setIssuedSecret({ kind: "service_key", label: action.label, secret: res.secretToken });
+        toast.success(`Đã cấp lại khóa cho "${action.label}"`);
+      } else if (action.kind === "revoke_key") {
+        await client.data(`api-credentials/${id}`, {
+          method: "PATCH",
+          expectedVersion: action.version,
+          body: { status: "revoked", reason: "Thu hồi khóa kết nối dịch vụ" },
+        });
+        toast.success(`Đã thu hồi khóa "${action.label}"`);
+      } else if (action.kind === "rotate_webhook") {
+        const res = await client.data<IssuedWebhookResponse>(
+          `integration-sources/${id}/rotate-secret`,
+          {
+            method: "POST",
+            expectedVersion: action.version,
+            body: { reason: "Cấp lại secret nguồn webhook" },
+          },
+        );
+        applyWebhookSecret(action.label, res, action.publicId);
+        toast.success(`Đã cấp lại secret cho "${action.label}"`);
+      } else {
+        await client.data(`integration-sources/${id}`, {
+          method: "PATCH",
+          expectedVersion: action.version,
+          body: { status: "revoked", reason: "Thu hồi nguồn webhook" },
+        });
+        toast.success(`Đã thu hồi nguồn Webhook "${action.label}"`);
+      }
+      setPendingAction(null);
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể cập nhật nguồn webhook.");
+      setError(cause instanceof Error ? cause.message : "Không thể thực hiện thao tác.");
     } finally {
       setBusyKey("");
     }
   }
 
-  async function createWebhookSource() {
-    if (!newName.trim() || !newActorId.trim() || !newSecretRef.trim()) return;
-    setBusyKey("create-webhook");
-    setError("");
-    try {
-      await client.data("integration-sources", {
-        method: "POST",
-        body: {
-          name: newName.trim(),
-          actorId: newActorId.trim(),
-          secretRef: newSecretRef.trim(),
-          autoRecord: newAutoRecord,
-        },
-      });
-      setNewName("");
-      setNewAutoRecord(false);
-      toast.success("Đã tạo nguồn webhook tích hợp");
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể tạo nguồn webhook.");
-    } finally {
-      setBusyKey("");
-    }
+  async function copyEndpoint(endpointPath: string) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    await navigator.clipboard.writeText(`${origin}${endpointPath}`);
+    toast.success("Đã sao chép địa chỉ Webhook.");
   }
+
+  const kpiItems = [
+    [
+      "Chế độ vận hành",
+      overview?.operatingMode === "solopreneur"
+        ? "Doanh nghiệp một người"
+        : "Kiểm soát (Maker-Checker)",
+    ],
+    ["Khóa kết nối dịch vụ", `${activeKeys} đang hoạt động`],
+    ["Nguồn Webhook đầu vào", `${activeWebhooks} đang hoạt động`],
+    ["Tự động ghi sổ (autoRecord)", `${activeAutoRecord} kết nối đang bật`],
+  ] as const;
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Tự động ghi sổ theo nguồn tích hợp (autoRecord)</CardTitle>
-          <CardDescription>
-            Khi bật <strong>autoRecord</strong> ở chế độ <strong>Doanh nghiệp một người</strong>,
-            chi phí và hóa đơn đủ điều kiện gửi từ token tích hợp (n8n/API) hoặc webhook được ghi sổ
-            nguyên tử ngay khi nhập và lưu vết dưới danh tính tích hợp (không cần cấp token owner).
-            Bản ghi chưa đủ điều kiện sẽ giữ ở trạng thái nháp kèm lý do rõ ràng.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid min-w-0 gap-4">
-          {overview && overview.operatingMode !== "solopreneur" ? (
-            <Alert>
-              <AlertTitle>Đang ở chế độ kiểm soát (controlled)</AlertTitle>
-              <AlertDescription>
-                Cờ <code>autoRecord</code> được lưu cấu hình nhưng chỉ kích hoạt tự động ghi sổ khi
-                tổ chức bật chế độ <strong>Doanh nghiệp một người</strong>.
-              </AlertDescription>
-            </Alert>
-          ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {loading && !overview
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            ))
+          : kpiItems.map(([label, value]) => (
+              <Card key={label} size="sm">
+                <CardHeader>
+                  <CardDescription>{label}</CardDescription>
+                  <CardTitle>{value}</CardTitle>
+                </CardHeader>
+              </Card>
+            ))}
+      </div>
 
-          {error ? (
-            <Alert variant="destructive">
-              <AlertTitle>Lỗi cấu hình nguồn tích hợp</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
+      {issuedSecret ? (
+        <IssuedSecretBanner issued={issuedSecret} onDismiss={() => setIssuedSecret(null)} />
+      ) : null}
 
-          {loading ? (
-            <Skeleton className="h-40 w-full" />
-          ) : (
-            <>
-              <div className="grid min-w-0 gap-2">
-                <h3 className="text-sm font-semibold">Token API & Danh tính dịch vụ</h3>
-                {overview?.apiCredentials.length ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Định danh</TableHead>
-                        <TableHead>Actor</TableHead>
-                        <TableHead>Vai trò</TableHead>
-                        <TableHead>Trạng thái</TableHead>
-                        <TableHead>Tự động ghi sổ</TableHead>
-                        <TableHead className="text-right">Thao tác</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {overview.apiCredentials.map((cred) => (
-                        <TableRow key={cred.id}>
-                          <TableCell className="font-medium">{cred.name || cred.id}</TableCell>
-                          <TableCell>{cred.actorId}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {cred.roles.map((role) => (
-                                <Badge key={role} variant="outline">
-                                  {role}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={cred.status === "active" ? "secondary" : "outline"}>
-                              {cred.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {cred.isOwnerCredential ? (
-                              <span className="text-xs text-muted-foreground">
-                                Mặc định theo owner
-                              </span>
-                            ) : (
-                              <Badge variant={cred.autoRecord ? "default" : "outline"}>
-                                {cred.autoRecord ? "Đang bật" : "Đang tắt"}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {cred.isOwnerCredential ? null : (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={cred.autoRecord ? "outline" : "default"}
-                                disabled={busyKey !== "" || cred.status !== "active"}
-                                onClick={() => void toggleCredential(cred)}
-                              >
-                                {busyKey === `cred:${cred.id}`
-                                  ? "Đang lưu…"
-                                  : cred.autoRecord
-                                    ? "Tắt autoRecord"
-                                    : "Bật autoRecord"}
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Chưa có token API nào.</p>
-                )}
-              </div>
+      {overview && overview.operatingMode !== "solopreneur" ? (
+        <Alert>
+          <AlertTitle>Đang ở chế độ Kiểm soát (Maker-Checker)</AlertTitle>
+          <AlertDescription>
+            Cờ <code>autoRecord</code> vẫn được lưu trên từng kết nối nhưng chỉ tự động ghi sổ khi
+            tổ chức vận hành ở chế độ <strong>Doanh nghiệp một người</strong>.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-              <div className="grid min-w-0 gap-3 border-t pt-4">
-                <h3 className="text-sm font-semibold">Nguồn Webhook đầu vào (Paperless / n8n)</h3>
-                {overview?.webhookSources.length ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tên nguồn</TableHead>
-                        <TableHead>Public ID</TableHead>
-                        <TableHead>Actor</TableHead>
-                        <TableHead>Trạng thái</TableHead>
-                        <TableHead>Tự động ghi sổ</TableHead>
-                        <TableHead className="text-right">Thao tác</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {overview.webhookSources.map((src) => (
-                        <TableRow key={src.id}>
-                          <TableCell className="font-medium">{src.name}</TableCell>
-                          <TableCell className="font-mono text-xs">{src.publicId}</TableCell>
-                          <TableCell>{src.actorId}</TableCell>
-                          <TableCell>
-                            <Badge variant={src.status === "active" ? "secondary" : "outline"}>
-                              {src.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={src.autoRecord ? "default" : "outline"}>
-                              {src.autoRecord ? "Đang bật" : "Đang tắt"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={src.autoRecord ? "outline" : "default"}
-                              disabled={busyKey !== "" || src.status !== "active"}
-                              onClick={() => void toggleWebhook(src)}
-                            >
-                              {busyKey === `wh:${src.id}`
-                                ? "Đang lưu…"
-                                : src.autoRecord
-                                  ? "Tắt autoRecord"
-                                  : "Bật autoRecord"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Chưa khai báo nguồn webhook đầu vào nào.
-                  </p>
-                )}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Lỗi cấu hình kết nối tích hợp</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
-                <Card size="sm" className="bg-muted/10">
-                  <form
-                    className="flex flex-col gap-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void createWebhookSource();
-                    }}
-                  >
-                    <CardHeader>
-                      <CardTitle>Thêm nguồn webhook mới</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <FieldGroup className="grid gap-3 sm:grid-cols-3">
-                        <Field>
-                          <FieldLabel htmlFor="new-webhook-name">Tên nguồn</FieldLabel>
-                          <Input
-                            id="new-webhook-name"
-                            value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
-                            placeholder="Paperless OCR"
-                          />
-                        </Field>
-                        <Field>
-                          <FieldLabel htmlFor="new-webhook-actor">Actor ID</FieldLabel>
-                          <Input
-                            id="new-webhook-actor"
-                            value={newActorId}
-                            onChange={(e) => setNewActorId(e.target.value)}
-                          />
-                        </Field>
-                        <Field>
-                          <FieldLabel htmlFor="new-webhook-secret">Biến môi trường HMAC</FieldLabel>
-                          <Input
-                            id="new-webhook-secret"
-                            value={newSecretRef}
-                            onChange={(e) => setNewSecretRef(e.target.value)}
-                          />
-                        </Field>
-                      </FieldGroup>
-                    </CardContent>
-                    <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="new-webhook-auto-record"
-                          checked={newAutoRecord}
-                          onCheckedChange={setNewAutoRecord}
-                        />
-                        <FieldLabel
-                          htmlFor="new-webhook-auto-record"
-                          className="cursor-pointer font-normal"
-                        >
-                          Bật tự động ghi sổ (autoRecord) ngay khi tạo
-                        </FieldLabel>
-                      </div>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        disabled={
-                          busyKey !== "" ||
-                          !newName.trim() ||
-                          !newActorId.trim() ||
-                          !newSecretRef.trim()
-                        }
-                      >
-                        {busyKey === "create-webhook" ? "Đang tạo…" : "Tạo nguồn webhook"}
-                      </Button>
-                    </CardFooter>
-                  </form>
-                </Card>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <ServiceKeysCard
+        items={externalCredentials}
+        loading={loading && !overview}
+        busy={busyKey !== ""}
+        action={<CreateServiceKeyDialog onCreate={handleCreateServiceKey} />}
+        onToggleAutoRecord={(cred, label) =>
+          void toggleAutoRecord("api-credentials", cred.id, cred.version, cred.autoRecord, label)
+        }
+        onRequestAction={setPendingAction}
+      />
+
+      <WebhookSourcesCard
+        items={webhookSources}
+        loading={loading && !overview}
+        busy={busyKey !== ""}
+        action={<CreateWebhookDialog onCreate={handleCreateWebhook} />}
+        onCopyEndpoint={(endpoint) => void copyEndpoint(endpoint)}
+        onToggleAutoRecord={(src) =>
+          void toggleAutoRecord(
+            "integration-sources",
+            src.id,
+            src.version,
+            src.autoRecord,
+            src.name,
+          )
+        }
+        onRequestAction={setPendingAction}
+      />
+
+      <ConfirmIntegrationActionDialog
+        action={pendingAction}
+        busy={busyKey !== ""}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={executeConfirmedAction}
+      />
     </div>
   );
 }

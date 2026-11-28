@@ -17,3 +17,4 @@ authority for architectural constraints and trade-offs.
 11. [ADR-011: AI Data Relationships and Ingestion Contract](./ADR-011-ai-data-relationships-and-ingestion.md)
 12. [ADR-012: Portable Organization Data Package](./ADR-012-portable-organization-data-package.md)
 13. [ADR-013: Design Language System (DLS) and Interaction Standards](./ADR-013-design-language-system-and-interaction-standards.md)
+14. [ADR-014: Isolated Service Identities, One-Time Secret Issuance and AI-Native Discovery](./ADR-014-service-identities-and-ai-native-discovery.md)
