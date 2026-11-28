@@ -120,15 +120,17 @@ export async function requireActiveBankAccount(
   client: PoolClient,
   organizationId: string,
   financialAccountId: string,
+  options?: { allowOwnerCustodyCash?: boolean },
 ) {
   const result = await client.query<{
     id: string;
+    code: string;
     kind: string;
     status: string;
     currency: string;
     ledger_account_code: string;
   }>(
-    `select id, kind::text kind, status::text status, currency, ledger_account_code
+    `select id, code, kind::text kind, status::text status, currency, ledger_account_code
        from financial_accounts
       where organization_id = $1 and id = $2
       for update`,
@@ -137,7 +139,13 @@ export async function requireActiveBankAccount(
   const account = result.rows[0];
   if (!account) throw new Error("FINANCIAL_ACCOUNT_NOT_FOUND");
   if (account.status !== "active") throw new Error("FINANCIAL_ACCOUNT_INACTIVE");
-  if (account.kind !== "bank") throw new Error("OWNER_FUNDING_BANK_ACCOUNT_REQUIRED");
+  const isOwnerCustodyCash =
+    Boolean(options?.allowOwnerCustodyCash) &&
+    account.kind === "cash" &&
+    (account.code === "CASH-OWNER-CUSTODY" || account.ledger_account_code === "111-OWNER-CUSTODY");
+  if (account.kind !== "bank" && !isOwnerCustodyCash) {
+    throw new Error("OWNER_FUNDING_BANK_ACCOUNT_REQUIRED");
+  }
   return account;
 }
 

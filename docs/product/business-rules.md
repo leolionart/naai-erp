@@ -242,6 +242,15 @@ These rules define the active release boundary. Historical rules remain valid fo
   remaining outstanding balance, updates the invoice lifecycle state (`paid` when fully written off,
   `partially_paid` otherwise), and reduces AR aging outstanding balances accordingly.
 
+### BR-FUND-002 — Owner repayment from owner-held company cash custody
+
+- Manual `owner_repayment` movements (`POST /api/v1/organizations/{organizationId}/banking/owner-funding`
+  with `movementType: "owner_repayment"`) may settle `3388-OWNER` from either an active company `bank`
+  account (`112-*`) or the owner-held company cash custody account (`CASH-OWNER-CUSTODY` /
+  `111-OWNER-CUSTODY`), recording a balanced `Dr 3388-OWNER / Cr 111-OWNER-CUSTODY` journal and
+  reducing `confirmedOwnerSettlementMinor` in `owner_funding_net` so company funds can be drawn
+  down to `0` before leaving net owner debt. `owner_funding` remains restricted to `bank` accounts.
+
 Expense and purchase-invoice records may carry an optional organization-scoped
 `fundingFinancialAccountId`. This provenance identifies the actual company bank/cash account used
 for settlement (including the owner's custody cash account) and is retained independently from the

@@ -199,6 +199,7 @@ export class PgOwnerFundingStore implements OwnerFundingStore {
           client,
           context.organizationId,
           canonicalRequest.financialAccountId!,
+          { allowOwnerCustodyCash: input.movementType === "owner_repayment" },
         );
         currency = canonicalRequest.currency ?? account.currency;
         if (currency !== account.currency) throw new Error("BANK_TRANSACTION_CURRENCY_MISMATCH");
