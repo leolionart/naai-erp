@@ -55,6 +55,13 @@ These rules define the active release boundary. Historical rules remain valid fo
 - Expense Management shows purchase invoices and non-invoice expense records in one listing. Every
   row retains its canonical source type, endpoint, lifecycle and correction form; the UI never fuzzy
   deduplicates supplier/date/amount matches.
+- Expense Management exposes a one-click URL-backed `costMode` quick-select filter (`all`,
+  `company_real`, `tax_only`) alongside a live posted/active total badge so owners can immediately
+  separate real company cash/owner-paid operating expenses (`111`/`112`/financial-account funded or
+  `3388-OWNER` records whose canonical category treatment is `owner_paid_company_cost` /
+  `company_funds`) from non-cash/personal tax-deduction invoices (`tax_only_non_cash`). Period
+  filtering on Expense Management evaluates canonical activity dates (`document_date` for purchase
+  invoices and `expense_date` for non-invoice expenses) rather than record creation timestamps.
 - Expense rows normalize both camelCase and snake_case API compatibility fields into one presentation
   model for date, payee, category, description and amount; a missing camelCase alias must not blank a
   value that is present in the canonical API payload.

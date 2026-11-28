@@ -9,13 +9,22 @@ import { PeriodRangeNavigator } from "@/components/layout/period-range-navigator
 import { Spinner } from "@/components/ui/spinner";
 import { TableHead } from "@/components/ui/table";
 import { FilterPopover } from "./focused-record-filter-popover";
-import type { Kind } from "./focused-record-shared";
+import {
+  EXPENSE_COST_MODE_OPTIONS,
+  type ExpenseCostMode,
+  type FilteredExpenseSummary,
+} from "./focused-record-cost-mode";
+import { money, type Kind } from "./focused-record-shared";
 
 export function FocusedRecordToolbar({
   kind,
   totalCount,
+  unfilteredCount,
   visibleCount,
   paramsKey,
+  costMode = "all",
+  onCostModeChange,
+  expenseSummary,
   filtersOpen,
   onFiltersOpenChange,
   onApplyFilters,
@@ -27,8 +36,12 @@ export function FocusedRecordToolbar({
 }: {
   kind: Kind;
   totalCount: number;
+  unfilteredCount?: number;
   visibleCount: number;
   paramsKey: string;
+  costMode?: ExpenseCostMode;
+  onCostModeChange?(mode: ExpenseCostMode): void;
+  expenseSummary?: FilteredExpenseSummary;
   filtersOpen: boolean;
   onFiltersOpenChange(open: boolean): void;
   onApplyFilters(data: FormData): void;
@@ -45,13 +58,57 @@ export function FocusedRecordToolbar({
     setSearchValue(urlQuery);
   }, [urlQuery]);
 
+  const countText =
+    visibleCount < totalCount
+      ? `${visibleCount} / ${totalCount}`
+      : unfilteredCount !== undefined && totalCount < unfilteredCount
+        ? `${totalCount} / ${unfilteredCount}`
+        : `${totalCount}`;
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge variant="secondary" className="text-xs font-normal">
-          {visibleCount < totalCount ? `${visibleCount} / ${totalCount}` : totalCount} bản ghi
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Badge variant="secondary" className="text-xs font-normal tabular-nums">
+          {countText} bản ghi
         </Badge>
+        {kind === "expenses" && expenseSummary ? (
+          <Badge
+            variant="outline"
+            className="text-xs font-medium tabular-nums"
+            title={
+              expenseSummary.postedMinor !== expenseSummary.totalMinor
+                ? `Tổng gồm bản chưa ghi sổ: ${money(expenseSummary.totalMinor.toString())}`
+                : undefined
+            }
+          >
+            {expenseSummary.postedMinor === expenseSummary.totalMinor
+              ? `Tổng: ${money(expenseSummary.totalMinor.toString())}`
+              : `Đã ghi sổ: ${money(expenseSummary.postedMinor.toString())}`}
+          </Badge>
+        ) : null}
         <PeriodRangeNavigator />
+        {kind === "expenses" && onCostModeChange ? (
+          <div
+            role="group"
+            aria-label="Chế độ xem chi phí"
+            className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border bg-muted/40 p-0.5"
+          >
+            {EXPENSE_COST_MODE_OPTIONS.map((option) => {
+              const active = costMode === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onCostModeChange(option.value)}
+                  className="min-h-7 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&[aria-pressed=true]]:bg-background [&[aria-pressed=true]]:text-foreground [&[aria-pressed=true]]:shadow-xs"
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
       <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
         <form

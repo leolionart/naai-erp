@@ -799,3 +799,11 @@ cutover and hypercare are not part of this MVP and require new ledger/catalog en
   persisted structured `reasons` visible on API list/detail reads and cleared once recorded, and `controlled` mode
   preserves draft gating (`auto-record.integration.test.ts`, `integration-sources-cli.test.ts`,
   `draft-reasons-banner.test.ts`).
+
+### ERP-1005 — Expense Management quick-select real company cost filter
+
+- `T-UNIT-ERP-1005-001`: `costMode` (`all`, `company_real`, `tax_only`) deterministically separates
+  bank/cash/custody-funded expenses and `owner_paid_company_cost` / `company_funds` `3388-OWNER`
+  expenses and purchase invoices from `tax_only_non_cash` and unconfirmed `3388-OWNER` records,
+  preserves URL state across filter submissions, evaluates canonical `document_date` / `expense_date`
+  activity dates, and computes exact posted/active minor-unit totals (`focused-record-cost-mode.test.ts`).

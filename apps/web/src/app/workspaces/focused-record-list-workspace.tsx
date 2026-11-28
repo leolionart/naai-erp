@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ApiClientError, formatApiErrorMessage, useAuthenticatedApiClient } from "@/lib/api";
+import { formatApiErrorMessage, useAuthenticatedApiClient } from "@/lib/api";
 import {
   DocumentForm,
   ExpenseForm,
@@ -45,7 +45,7 @@ import { presentRevenueRecord } from "./focused-record-presentation";
 import { presentExpenseRecord } from "./focused-expense-presentation";
 import { recordCategory } from "@/lib/records/category";
 import { sortRecordsNewestFirst } from "./focused-record-sorting";
-import type { Kind, Row, TaggedRow, FundingOption } from "./focused-record-shared";
+import type { Kind, Row, TaggedRow } from "./focused-record-shared";
 import {
   CATEGORY_LOOKUP_ENDPOINTS,
   FOCUSED_RECORD_MASTER_DATA_ENDPOINTS,
@@ -56,7 +56,6 @@ import {
   money,
   human,
   partiesByRole,
-  FUNDING_OPTIONS,
   findFundingOption,
   fundingLabel,
   fundingOptionValue,
@@ -68,6 +67,14 @@ import {
   tagRow,
   queryFor,
 } from "./focused-record-shared";
+import {
+  buildReclassifyFundingOptions,
+  downloadFocusedWorkbook,
+  extractCategoryCatalog,
+  matchesExpenseCostMode,
+  parseExpenseCostMode,
+  summarizeFilteredExpenseAmounts,
+} from "./focused-record-cost-mode";
 import { FocusedRecordErrorAlert } from "./focused-record-alerts";
 import { QuickViewOneClickRecordBar } from "./focused-record-action-bar";
 import { canRecordInOneClick, formatRecordActionError } from "./focused-record-actions";
@@ -110,6 +117,9 @@ export function FocusedRecordListWorkspace({
   const [projects, setProjects] = useState<Row[]>([]);
   const [financialAccounts, setFinancialAccounts] = useState<Row[] | undefined>();
   const [categoryNames, setCategoryNames] = useState<Readonly<Record<string, string>>>({});
+  const [categoryTreatments, setCategoryTreatments] = useState<Readonly<Record<string, string>>>(
+    {},
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -127,31 +137,25 @@ export function FocusedRecordListWorkspace({
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [workflowCapabilities, setWorkflowCapabilities] = useState<WorkflowCreateCapabilities>();
-  const reclassifyFundingOptions = useMemo<readonly FundingOption[]>(() => {
-    // Keep the canonical choices visible while the account catalog is loading.
-    // Once loaded, organization-scoped active accounts become the source of truth.
-    if (financialAccounts === undefined) return FUNDING_OPTIONS;
-    const options: FundingOption[] = [];
-    const seenIds = new Set<string>();
-    for (const account of financialAccounts) {
-      const status = text(account, "status");
-      if (status && status !== "active") continue;
-      const code = text(account, "ledgerAccountCode", "ledger_account_code");
-      const id = text(account, "id");
-      if (!code || !id || seenIds.has(id)) continue;
-      seenIds.add(id);
-      const displayName = text(account, "displayName", "display_name", "name") || code;
-      options.push({ code, label: `${displayName} (${code})`, financialAccountId: id });
-    }
-    // Owner-paid is a control source rather than a financial account, so it is
-    // intentionally added separately from the organization account catalog.
-    if (!options.some((option) => option.code === "3388-OWNER" && !option.financialAccountId))
-      options.push({ code: "3388-OWNER", label: "Chủ doanh nghiệp chi hộ (TK 3388)" });
-    return options;
-  }, [financialAccounts]);
+  const reclassifyFundingOptions = useMemo(
+    () => buildReclassifyFundingOptions(financialAccounts),
+    [financialAccounts],
+  );
   const key = params.toString();
   const invoiceStatus = params.get("invoiceStatus") ?? "all";
+  const costMode = kind === "expenses" ? parseExpenseCostMode(params.get("costMode")) : "all";
   const current = config[kind];
+  const filteredRows = useMemo(
+    () =>
+      kind === "expenses" && costMode !== "all"
+        ? rows.filter((row) => matchesExpenseCostMode(row, costMode, categoryTreatments))
+        : rows,
+    [categoryTreatments, costMode, kind, rows],
+  );
+  const expenseSummary = useMemo(
+    () => (kind === "expenses" ? summarizeFilteredExpenseAmounts(filteredRows) : undefined),
+    [filteredRows, kind],
+  );
   const sortedRows = useMemo(() => {
     const valueFor = (row: Row, key: typeof sortKey): string => {
       if (key === "date") {
@@ -175,7 +179,7 @@ export function FocusedRecordListWorkspace({
       if (key === "amount") return text(row, "grossMinor", "amountMinor", "amount");
       return text(row, "state");
     };
-    return [...rows].sort((left, right) => {
+    return [...filteredRows].sort((left, right) => {
       const a = valueFor(left, sortKey);
       const b = valueFor(right, sortKey);
       let comparison: number;
@@ -194,7 +198,7 @@ export function FocusedRecordListWorkspace({
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [kind, parties, projects, rows, sortDirection, sortKey]);
+  }, [filteredRows, kind, parties, projects, sortDirection, sortKey]);
   const toggleSort = (next: typeof sortKey) => {
     if (sortKey === next) setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
     else {
@@ -275,6 +279,7 @@ export function FocusedRecordListWorkspace({
         rolesRes,
         projectsRes,
         workflowResult,
+        categoryPayloads,
       ] = await Promise.all([
         includePresent
           ? client.dataAll<Row>(`commercial-documents?${queryFor("documents", documentParams)}`)
@@ -295,8 +300,16 @@ export function FocusedRecordListWorkspace({
           .data<{ items?: Row[] } | Row[]>(FOCUSED_RECORD_MASTER_DATA_ENDPOINTS.projects)
           .catch(() => []),
         client.data<WorkflowCreateCapabilities>("organization-workflow-policy").catch(() => ({})),
+        Promise.all(
+          CATEGORY_LOOKUP_ENDPOINTS.map((endpoint) =>
+            client.data<readonly Row[] | { items?: readonly Row[] }>(endpoint).catch(() => []),
+          ),
+        ),
       ]);
       setWorkflowCapabilities(workflowResult);
+      const catalog = extractCategoryCatalog(categoryPayloads);
+      setCategoryNames(catalog.names);
+      setCategoryTreatments(catalog.treatments);
       const listedDocuments = documentsResult.filter((row) =>
         kind === "expenses"
           ? text(row, "type") === "purchase_invoice"
@@ -338,7 +351,7 @@ export function FocusedRecordListWorkspace({
                   Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
                   Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
                 ).activityDate
-              : text(row, "expenseDate", "createdAt");
+              : presentExpenseRecord(row).activityDate || text(row, "createdAt");
           if (!dateVal) return true;
           if (startsOn && dateVal < startsOn) return false;
           if (endsOn && dateVal > endsOn) return false;
@@ -427,7 +440,7 @@ export function FocusedRecordListWorkspace({
               Array.isArray(projectsRes) ? projectsRes : (projectsRes.items ?? []),
               Array.isArray(partiesRes) ? partiesRes : (partiesRes.items ?? []),
             ).activityDate
-          : text(row, "expenseDate", "createdAt");
+          : presentExpenseRecord(row).activityDate || text(row, "createdAt");
       rawItems = sortRecordsNewestFirst(rawItems, presentationDate);
       setRows(rawItems);
       const listedParties = [...items(partiesRes)];
@@ -463,29 +476,11 @@ export function FocusedRecordListWorkspace({
     void client
       .data<readonly Row[] | { items?: readonly Row[] }>("banking/accounts")
       .then((payload) => {
-        if (cancelled) return;
-        setFinancialAccounts([...items(payload)]);
+        if (!cancelled) setFinancialAccounts([...items(payload)]);
       })
       .catch(() => {
         if (!cancelled) setFinancialAccounts([]);
       });
-    void Promise.allSettled(
-      CATEGORY_LOOKUP_ENDPOINTS.map((endpoint) =>
-        client.data<readonly Row[] | { items?: readonly Row[] }>(endpoint),
-      ),
-    ).then((results) => {
-      if (cancelled) return;
-      const next: Record<string, string> = {};
-      for (const result of results) {
-        if (result.status !== "fulfilled") continue;
-        for (const row of items(result.value)) {
-          const code = text(row, "code");
-          const name = text(row, "name");
-          if (code && name) next[code] = name;
-        }
-      }
-      setCategoryNames(next);
-    });
     return () => {
       cancelled = true;
     };
@@ -526,61 +521,26 @@ export function FocusedRecordListWorkspace({
       const value = String(form.get(name) ?? "").trim();
       if (value && value !== "all") query.set(name, value);
     }
-    router.replace(`${pathname}?${query}`);
+    if (kind === "expenses" && costMode !== "all") query.set("costMode", costMode);
+    const currentQ = params.get("q")?.trim();
+    if (currentQ) query.set("q", currentQ);
+    const nextQuery = query.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     setFilters(false);
   }
   async function exportWorkbook() {
     setExporting(true);
     setExportError("");
     try {
-      const currentParams = new URLSearchParams(key);
-      const query = new URLSearchParams();
-      for (const name of ["startsOn", "endsOn", "state", "projectId"]) {
-        const value = currentParams.get(name);
-        if (value) query.set(name, value);
-      }
-      const partyKey = kind === "documents" ? "partyId" : "payeePartyId";
-      const partyValue = currentParams.get(partyKey);
-      if (partyValue) query.set(partyKey, partyValue);
-      const presence = currentParams.get("invoiceStatus");
-      if (presence && presence !== "all") query.set("invoicePresence", presence);
-      if (initialProjectId && !query.has("projectId")) query.set("projectId", initialProjectId);
-      if (initialPartyId) {
-        if (!query.has(partyKey)) query.set(partyKey, initialPartyId);
-      }
-      const exportPath =
-        kind === "documents"
-          ? "accounting-list-exports/sales-invoices"
-          : "accounting-list-exports/purchase-invoices-expenses";
-      const response = await fetch(
-        `${connection.baseUrl}/api/v1/organizations/${encodeURIComponent(connection.organizationId)}/${exportPath}?${query}`,
-        {
-          headers: {
-            accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            authorization: `Bearer ${token}`,
-            "x-correlation-id": crypto.randomUUID(),
-          },
-        },
-      );
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => undefined)) as
-          { error?: { code?: string; message?: string } } | undefined;
-        throw new ApiClientError({
-          status: response.status,
-          code: payload?.error?.code,
-          message: payload?.error?.message ?? `Không thể export XLSX (HTTP ${response.status}).`,
-        });
-      }
-      const disposition = response.headers.get("content-disposition");
-      const serverFilename = disposition?.match(/filename="?([^";]+)"?/i)?.[1];
-      const range = [query.get("startsOn"), query.get("endsOn")].filter(Boolean).join("_");
-      const fallbackFilename = `naai-erp-${kind === "documents" ? "doanh-thu" : "chi-phi"}${range ? `-${range}` : ""}.xlsx`;
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = serverFilename ?? fallbackFilename;
-      anchor.click();
-      URL.revokeObjectURL(url);
+      await downloadFocusedWorkbook({
+        kind,
+        paramsKey: key,
+        initialProjectId,
+        initialPartyId,
+        baseUrl: connection.baseUrl,
+        organizationId: connection.organizationId,
+        token,
+      });
     } catch (cause) {
       setExportError(formatApiErrorMessage(cause, "Không thể export workbook."));
     } finally {
@@ -756,20 +716,23 @@ export function FocusedRecordListWorkspace({
       setQuickBusy(false);
     }
   }
-  const resolveCategoryName = (code?: string) => {
-    if (!code) return "";
-    return categoryNames[code] || getCategoryName(code);
-  };
+  const resolveCategoryName = useCallback(
+    (code?: string) => {
+      if (!code) return "";
+      return categoryNames[code] || getCategoryName(code);
+    },
+    [categoryNames],
+  );
   const points: readonly StackedCategoryPoint[] = buildFocusedRecordChartPoints(
-    rows,
+    filteredRows,
     resolveCategoryName,
   );
 
   return (
     <div className="flex flex-col gap-6">
-      {!loading && rows.length > 0 ? (
+      {!loading && filteredRows.length > 0 ? (
         kind === "expenses" ? (
-          <ExpenseOverviewChart rows={rows} />
+          <ExpenseOverviewChart rows={filteredRows} resolveCategoryName={resolveCategoryName} />
         ) : (
           <MonthlyCategoryStackedChart
             title="Hoạt động doanh thu theo tháng"
@@ -781,9 +744,19 @@ export function FocusedRecordListWorkspace({
 
       <FocusedRecordToolbar
         kind={kind}
-        totalCount={rows.length}
+        totalCount={filteredRows.length}
+        unfilteredCount={rows.length}
         visibleCount={Math.min(visibleLimit, sortedRows.length)}
         paramsKey={key}
+        costMode={costMode}
+        onCostModeChange={(nextMode) => {
+          const next = new URLSearchParams(key);
+          if (nextMode === "all") next.delete("costMode");
+          else next.set("costMode", nextMode);
+          const query = next.toString();
+          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+        }}
+        expenseSummary={expenseSummary}
         filtersOpen={filters}
         onFiltersOpenChange={setFilters}
         onApplyFilters={apply}
@@ -842,7 +815,7 @@ export function FocusedRecordListWorkspace({
         <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <Skeleton className="h-64 w-full" />
-          ) : rows.length ? (
+          ) : sortedRows.length ? (
             <>
               <Table>
                 <TableHeader>

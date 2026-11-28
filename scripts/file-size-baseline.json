@@ -11,7 +11,7 @@
   "apps/web/src/app/workspaces/dashboard-workspaces.tsx": 1752,
   "apps/web/src/app/workspaces/executive-metrics-workspaces.tsx": 583,
   "apps/web/src/app/workspaces/financial-statement-workspaces.tsx": 1818,
-  "apps/web/src/app/workspaces/focused-record-list-workspace.tsx": 1192,
+  "apps/web/src/app/workspaces/focused-record-list-workspace.tsx": 1169,
   "apps/web/src/app/workspaces/forecast-composition-workspace.tsx": 726,
   "apps/web/src/app/workspaces/internal-transfer-workspace.tsx": 554,
   "apps/web/src/app/workspaces/ledger-master-workspace.tsx": 834,

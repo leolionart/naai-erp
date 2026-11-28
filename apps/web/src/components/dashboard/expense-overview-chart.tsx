@@ -9,12 +9,17 @@ export function ExpenseOverviewChart({
   rows,
   currency = "VND",
   href,
+  resolveCategoryName = getCategoryName,
 }: Readonly<{
   rows: readonly Record<string, unknown>[];
   currency?: string;
   href?: string;
+  resolveCategoryName?: (code?: string) => string;
 }>) {
-  const points = useMemo(() => buildFocusedRecordChartPoints(rows, getCategoryName), [rows]);
+  const points = useMemo(
+    () => buildFocusedRecordChartPoints(rows, resolveCategoryName),
+    [resolveCategoryName, rows],
+  );
   return (
     <MonthlyCategoryStackedChart
       title="Tỷ trọng chi phí từng danh mục theo tháng"
