@@ -5,7 +5,7 @@
   "apps/api/src/report-exports/pg-report-export.store.ts": 1650,
   "apps/web/src/app/workspaces/banking-workspace.tsx": 804,
   "apps/web/src/app/workspaces/business-directory-workspace.tsx": 1344,
-  "apps/web/src/app/workspaces/customer-subscription-workspace.tsx": 1269,
+  "apps/web/src/app/workspaces/customer-subscription-workspace.tsx": 1265,
   "apps/web/src/app/workspaces/executive-metrics-workspaces.tsx": 583,
   "apps/web/src/app/workspaces/focused-record-list-workspace.tsx": 1156,
   "apps/web/src/app/workspaces/forecast-composition-workspace.tsx": 726,
