@@ -836,3 +836,8 @@ Năm YYYY`, `Quý Q/YYYY`, `Tháng MM/YYYY`, or custom range) and cumulative-bal
   `master-data/categories` and `master-data/expense-categories` catalogs via `buildCategoryNameLookup`
   before falling back to `getCategoryName`, so newly added categories such as `FREELANCE_OUTSOURCE`
   never render raw uppercase codes (`dashboard-workspaces.test.ts`).
+
+### ERP-1012 — ADR-013 Design Language System, inline API connection workspace and settings UI parity
+
+- `T-UNIT-ERP-1012-001`: Automated DLS static & rendering compliance gate verifies that no workspace, page or feature component outside `components/ui/` uses raw `<input>` (except `type="hidden"` / `type="file"`), `<select>`, `<textarea>`, blocking `window.confirm` / `window.prompt` / `window.alert`, narrow root `max-w-xl`/`max-w-2xl` workspace wrappers, or hardcoded `slate-950` terminal palettes, and verifies `TelegramSettingsWorkspace` and inline `AutomationApiReferenceSection` render accessible `Switch` controls, KPI cards, and inline API reference sections (`dls-compliance.test.ts`).
+- `T-DOC-ERP-1012-002`: `verify-docs.mjs` verifies `ADR-013-design-language-system-and-interaction-standards.md` is Accepted and references `BR-UI-008` alongside `docs/design/dls-specification.md`.

@@ -12,6 +12,7 @@ const requiredAdrs = [
   "ADR-010-quick-view-editing-and-financial-controls.md",
   "ADR-011-ai-data-relationships-and-ingestion.md",
   "ADR-012-portable-organization-data-package.md",
+  "ADR-013-design-language-system-and-interaction-standards.md",
 ];
 
 const requiredRuleReferences = [
@@ -27,6 +28,7 @@ const requiredRuleReferences = [
   "BR-AI-004",
   "BR-AI-005",
   "BR-EXPOR-002",
+  "BR-UI-008",
 ];
 
 const contents = [];

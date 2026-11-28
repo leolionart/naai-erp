@@ -4662,6 +4662,42 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-1011/
 
+  - id: ERP-1012
+    title: Establish ADR-013 Design Language System, automated DLS compliance gate, inline API connection workspace and Telegram/settings UI refactor
+    phase: P17
+    status: done
+    dependencies: [ERP-1011]
+    business_rules: [BR-UI-004, BR-UI-007, BR-UI-008, BR-SIZE-001]
+    tests: [T-UNIT-ERP-1012-001, T-DOC-ERP-1012-002]
+    evidence: docs/implementation/evidence/ERP-1012/
+    agent: antigravity
+    started_at: 2026-11-28T20:50:00+07:00
+    completed_at: 2026-11-28T21:09:00+07:00
+    completion_basis: implemented_with_dls_gate_e2e_docs_size_ratchet_and_repository_gates
+    planned_files:
+      - docs/architecture/ADR-013-design-language-system-and-interaction-standards.md
+      - docs/design/dls-specification.md
+      - scripts/verify-docs.mjs
+      - AGENTS.md
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - apps/web/src/components/ui/switch.tsx
+      - apps/web/src/components/ui/checkbox.tsx
+      - apps/web/src/app/workspaces/telegram-settings-workspace.tsx
+      - apps/web/src/app/workspaces/integration-settings-workspace.tsx
+      - apps/web/src/app/(app)/settings/automation/page.tsx
+      - apps/web/src/components/automation-api-examples.ts
+      - apps/web/src/components/automation-api-dialog.tsx
+      - apps/web/src/components/login-form.tsx
+      - apps/web/src/app/workspaces/background-activity-workspace.tsx
+      - apps/web/src/app/workspaces/ledger-master-workspace.tsx
+      - apps/web/src/app/workspaces/ledger-master-dialogs.tsx
+      - apps/web/src/components/dls-compliance.test.ts
+      - apps/web/e2e/automation-api-dialog.spec.ts
+      - scripts/file-size-baseline.json
+      - docs/implementation/evidence/ERP-1012/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

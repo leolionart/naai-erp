@@ -99,6 +99,13 @@ Any implementation that violates an invariant must stop; do not weaken a test to
 - User-facing financial flows require E2E drill-down evidence.
 - Docker/release changes require Compose validation and smoke tests.
 
+## Design Language System (DLS) rule
+
+- Every web UI screen and component must follow `docs/architecture/ADR-013-design-language-system-and-interaction-standards.md` and `docs/design/dls-specification.md` (`BR-UI-008`).
+- Use `@/components/ui/*` primitives (`Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Button`, `Field`, `FieldLabel`, `Card`, `CardFooter`, `Dialog`, `AlertDialog`, `Alert`, `Badge`, `Table`) instead of raw `<input>` (except `type="hidden"` or file inputs), `<select>`, `<textarea>`, or browser `window.confirm` / `window.prompt` / `window.alert`.
+- Do not cap full-page workspace roots inside `ModulePage` with narrow `max-w-xl` / `max-w-2xl` wrappers; use responsive multi-column `Card` grids and KPI summary strips, keep form actions inside `CardFooter` / `DialogFooter`, and render dedicated settings/API connection screens inline rather than hiding screen content behind header popup buttons.
+- `apps/web/src/components/dls-compliance.test.ts` enforces these invariants automatically during `pnpm check`.
+
 ## Code size rule
 
 - Keep every new TypeScript/JavaScript source file at or below 500 lines (excluding blank lines and comments; enforced as a `max-lines` warning in `eslint.config.mjs`).

@@ -5,10 +5,18 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -175,7 +183,7 @@ export function IntegrationAutoRecordSection() {
             Bản ghi chưa đủ điều kiện sẽ giữ ở trạng thái nháp kèm lý do rõ ràng.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid min-w-0 gap-4">
           {overview && overview.operatingMode !== "solopreneur" ? (
             <Alert>
               <AlertTitle>Đang ở chế độ kiểm soát (controlled)</AlertTitle>
@@ -197,7 +205,7 @@ export function IntegrationAutoRecordSection() {
             <Skeleton className="h-40 w-full" />
           ) : (
             <>
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 <h3 className="text-sm font-semibold">Token API & Danh tính dịch vụ</h3>
                 {overview?.apiCredentials.length ? (
                   <Table>
@@ -267,7 +275,7 @@ export function IntegrationAutoRecordSection() {
                 )}
               </div>
 
-              <div className="grid gap-3 border-t pt-4">
+              <div className="grid min-w-0 gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold">Nguồn Webhook đầu vào (Paperless / n8n)</h3>
                 {overview?.webhookSources.length ? (
                   <Table>
@@ -322,64 +330,75 @@ export function IntegrationAutoRecordSection() {
                   </p>
                 )}
 
-                <div className="rounded-lg border p-3">
-                  <p className="mb-2 text-sm font-medium">Thêm nguồn webhook mới</p>
-                  <FieldGroup className="grid gap-3 sm:grid-cols-3">
-                    <Field>
-                      <FieldLabel htmlFor="new-webhook-name">Tên nguồn</FieldLabel>
-                      <Input
-                        id="new-webhook-name"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        placeholder="Paperless OCR"
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="new-webhook-actor">Actor ID</FieldLabel>
-                      <Input
-                        id="new-webhook-actor"
-                        value={newActorId}
-                        onChange={(e) => setNewActorId(e.target.value)}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="new-webhook-secret">Biến môi trường HMAC</FieldLabel>
-                      <Input
-                        id="new-webhook-secret"
-                        value={newSecretRef}
-                        onChange={(e) => setNewSecretRef(e.target.value)}
-                      />
-                    </Field>
-                  </FieldGroup>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <label
-                      htmlFor="new-webhook-auto-record"
-                      className="flex cursor-pointer items-center gap-2 text-sm"
-                    >
-                      <input
-                        id="new-webhook-auto-record"
-                        type="checkbox"
-                        className="size-4 accent-current"
-                        checked={newAutoRecord}
-                        onChange={(e) => setNewAutoRecord(e.target.checked)}
-                      />
-                      <span>Bật tự động ghi sổ (autoRecord) ngay khi tạo</span>
-                    </label>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={
-                        busyKey !== "" ||
-                        !newName.trim() ||
-                        !newActorId.trim() ||
-                        !newSecretRef.trim()
-                      }
-                      onClick={() => void createWebhookSource()}
-                    >
-                      {busyKey === "create-webhook" ? "Đang tạo…" : "Tạo nguồn webhook"}
-                    </Button>
-                  </div>
-                </div>
+                <Card size="sm" className="bg-muted/10">
+                  <form
+                    className="flex flex-col gap-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void createWebhookSource();
+                    }}
+                  >
+                    <CardHeader>
+                      <CardTitle>Thêm nguồn webhook mới</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <FieldGroup className="grid gap-3 sm:grid-cols-3">
+                        <Field>
+                          <FieldLabel htmlFor="new-webhook-name">Tên nguồn</FieldLabel>
+                          <Input
+                            id="new-webhook-name"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            placeholder="Paperless OCR"
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="new-webhook-actor">Actor ID</FieldLabel>
+                          <Input
+                            id="new-webhook-actor"
+                            value={newActorId}
+                            onChange={(e) => setNewActorId(e.target.value)}
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="new-webhook-secret">Biến môi trường HMAC</FieldLabel>
+                          <Input
+                            id="new-webhook-secret"
+                            value={newSecretRef}
+                            onChange={(e) => setNewSecretRef(e.target.value)}
+                          />
+                        </Field>
+                      </FieldGroup>
+                    </CardContent>
+                    <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="new-webhook-auto-record"
+                          checked={newAutoRecord}
+                          onCheckedChange={setNewAutoRecord}
+                        />
+                        <FieldLabel
+                          htmlFor="new-webhook-auto-record"
+                          className="cursor-pointer font-normal"
+                        >
+                          Bật tự động ghi sổ (autoRecord) ngay khi tạo
+                        </FieldLabel>
+                      </div>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={
+                          busyKey !== "" ||
+                          !newName.trim() ||
+                          !newActorId.trim() ||
+                          !newSecretRef.trim()
+                        }
+                      >
+                        {busyKey === "create-webhook" ? "Đang tạo…" : "Tạo nguồn webhook"}
+                      </Button>
+                    </CardFooter>
+                  </form>
+                </Card>
               </div>
             </>
           )}

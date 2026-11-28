@@ -1186,6 +1186,14 @@ Opening cash + expected collections + financing − payroll − AP due − recur
 - Tabs remain valid only when they switch content sections within the same route and preserve one
   workspace identity.
 
+### BR-UI-008 — Design Language System (DLS) and inline workspace composition
+
+- Every route under `apps/web/src/app/(app)/` composes inside `ModulePage` (or `PageHeader`) using full-width responsive grids (`grid gap-4` / `lg:grid-cols-2` / `xl:grid-cols-4` KPI summary strips); workspace roots must not wrap full-page content in narrow `max-w-md`..`max-w-2xl` containers.
+- Dedicated configuration routes (such as `/settings/automation` and `/settings/telegram`) render connection credentials, operational telemetry, settings toggles, and REST/n8n endpoint guides directly inline as structured `Card` sections instead of hiding primary screen content behind header popup buttons.
+- Workspaces and feature components outside `apps/web/src/components/ui/` must use shared accessible primitives (`Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Button`, `Field`, `FieldLabel`, `Dialog`, `AlertDialog`, `Alert`, `Badge`, `Table`). Raw `<input>` (other than `type="hidden"` or file-upload inputs), `<select>`, `<textarea>`, and native blocking `window.confirm` / `window.prompt` / `window.alert` dialogs are prohibited.
+- Form actions belong in `CardFooter` or `DialogFooter` with explicit busy/dirty disabling, inline `Alert` error display, `Skeleton` initial loading states, and `sonner` toast confirmation; surfaces use semantic theme tokens without hardcoded dark-slate terminal overrides (`bg-slate-950`, `border-slate-800`).
+- Required tests: `T-UNIT-ERP-1012-001`, `T-DOC-ERP-1012-002`.
+
 ### BR-RPT-001 — Trial Balance and General Ledger
 
 - Trial Balance balances to zero net debit/credit difference.

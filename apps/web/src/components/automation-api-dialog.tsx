@@ -1,578 +1,97 @@
 "use client";
 
-import { useState } from "react";
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  ClipboardIcon,
-  CodeXmlIcon,
-  EyeIcon,
-  EyeOffIcon,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckIcon, ChevronRightIcon, ClipboardIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
+import * as Examples from "./automation-api-examples";
 
-type RevealedCredential = Readonly<{ organizationId: string; apiToken: string }>;
-export type AutomationResource =
-  "customers" | "projects" | "subscriptions" | "purchase-products" | "revenue" | "expenses";
+export * from "./automation-api-examples";
 
-type CurlDefinition = Readonly<{
-  title: string;
-  description: string;
-  value: string;
-  kind?: "curl" | "n8n-expression";
-  method?: string;
-  path?: string;
-  required?: readonly string[];
-  optional?: readonly string[];
-  response?: string;
-}>;
-
-function masterDataCreateCurl(
-  credential: RevealedCredential,
-  resource: string,
-  idempotencyKey: string,
-  data: Record<string, unknown>,
-) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/master-data/${resource}' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: ${idempotencyKey}' \\
-  --header 'X-Correlation-Id: ${idempotencyKey}' \\
-  --data '${JSON.stringify({ data }, null, 2)}'`;
-}
-
-export function customerCurl(credential: RevealedCredential) {
-  const party = masterDataCreateCurl(credential, "parties", "n8n-customer-naai-demo-v1", {
-    id: "party-customer-naai-demo",
-    display_name: "Công ty Khách hàng Demo",
-    legal_name: "CÔNG TY TNHH KHÁCH HÀNG DEMO",
-    normalized_tax_id: "0312345678",
-    registered_address: "Thành phố Hồ Chí Minh",
-    email: "contact@example.com",
-    phone: "0900000000",
-    website: "https://example.com",
-    status: "active",
-  });
-  const role = masterDataCreateCurl(credential, "party-roles", "n8n-customer-naai-demo-role-v1", {
-    party_id: "party-customer-naai-demo",
-    role: "client",
-  });
-  return `${party}\n\n${role}`;
-}
-
-export function projectCurl(credential: RevealedCredential) {
-  return masterDataCreateCurl(credential, "projects", "n8n-project-naai-demo-v1", {
-    id: "project-naai-demo",
-    code: "NAAI-DEMO",
-    name: "Dự án NAAI Demo",
-    client_party_id: "party-customer-naai-demo",
-    owner_user_id: "owner-user-id",
-    contract_type: "fixed_fee",
-    currency: "VND",
-    budget_minor: "50000000",
-    default_service_line_code: "SOFTWARE_DEV",
-    starts_on: "2026-08-12",
-    ends_on: "2026-12-31",
-    state: "planned",
-  });
-}
-
-export function servicePlanCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/service-plans' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-service-plan-website-care-v1' \\
-  --data '{
-    "schemaVersion": 1,
-    "id": "service-plan-website-care",
-    "code": "WEBSITE_CARE",
-    "name": "Chăm sóc website định kỳ",
-    "serviceLineCode": "SOFTWARE_DEV",
-    "defaultUnitPriceMinor": "5000000",
-    "currency": "VND",
-    "recurrence": { "frequency": "month", "interval": 1, "billingDay": 1 },
-    "reason": "Đồng bộ danh mục gói dịch vụ từ n8n"
-  }'`;
-}
-
-export function subscriptionCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/customer-service-subscriptions' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-subscription-customer-demo-v1' \\
-  --data '{
-    "schemaVersion": 1,
-    "id": "subscription-customer-demo",
-    "customerPartyId": "party-customer-naai-demo",
-    "servicePlanId": "service-plan-website-care",
-    "projectId": "project-naai-demo",
-    "startsOn": "2026-08-12",
-    "endsOn": null,
-    "quantity": "1",
-    "unitPriceMinor": "5000000",
-    "currency": "VND",
-    "recurrence": { "frequency": "month", "interval": 1, "billingDay": 1 },
-    "reason": "Khách hàng đăng ký dịch vụ định kỳ"
-  }'`;
-}
-
-export function salesInvoiceCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-sales-invoice-2026-0001' \\
-  --data '{
-    "id": "sales-invoice-2026-0001",
-    "type": "sales_invoice",
-    "documentNumber": "00000001",
-    "series": "1C26TAA",
-    "fiscalYear": 2026,
-    "partyId": "party-customer-naai-demo",
-    "documentDate": "2026-08-12",
-    "dueDate": "2026-08-26",
-    "currency": "VND",
-    "netMinor": "10000000",
-    "taxMinor": "1000000",
-    "grossMinor": "11000000",
-    "controlAccountCode": "131-AR",
-    "lines": [{
-      "description": "Dịch vụ phát triển phần mềm",
-      "quantity": "1",
-      "unitPriceMinor": "10000000",
-      "netMinor": "10000000",
-      "taxMinor": "1000000",
-      "grossMinor": "11000000",
-      "primaryAccountCode": "511-REV",
-      "taxAccountCode": "3331-VAT-OUT",
-      "taxCode": "VAT10",
-      "allocations": [{
-        "id": "sales-invoice-2026-0001-line-1",
-        "amountMinor": "10000000",
-        "dimensions": { "projectId": "project-naai-demo" }
-      }]
-    }],
-    "externalReference": {
-      "system": "n8n",
-      "externalId": "sales-invoice-source-0001",
-      "version": "1"
-    }
-  }'`;
-}
-
-/** One-call revenue ingestion: the backend resolves the customer and posting defaults. */
-export function quickRevenueIngestionCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/sales-invoice-ingestion' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' --header 'Idempotency-Key: revenue-{{$json.id}}' \\
-  --data '{
-    "customerTaxId": "0312345678",
-    "customerName": "CÔNG TY TNHH KHÁCH HÀNG DEMO",
-    "documentNumber": "00000001",
-    "documentDate": "2026-08-12",
-    "description": "Dịch vụ phát triển phần mềm",
-    "grossMinor": "11000000"
-  }'`;
-}
-
-export function directExpenseCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/expenses' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-direct-expense-2026-0001' \\
-  --data '{
-    "id": "direct-expense-2026-0001",
-    "payeePartyId": "party-supplier-id",
-    "expenseClass": "receipt_backed",
-    "expenseDate": "2026-08-12",
-    "businessPurpose": "Chi phí vận hành có chứng từ nhưng không phải hóa đơn VAT",
-    "grossMinor": "500000",
-    "lines": [{
-      "description": "Chi phí vận hành",
-      "netMinor": "500000",
-      "vatMinor": "0",
-      "grossMinor": "500000",
-      "postingAccountCode": "642-OPEX",
-      "allocations": [{ "id": "direct-expense-2026-0001-line-1", "amountMinor": "500000", "dimensions": { "projectId": "project-id" } }]
-    }],
-    "externalReference": { "system": "n8n", "externalId": "direct-expense-2026-0001" }
-  }'`;
-}
-
-export function purchaseInvoiceCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-paperless-invoice-2026-0001' \\
-  --header 'X-Correlation-Id: n8n-paperless-invoice-2026-0001' \\
-  --data '{
-    "id": "paperless-invoice-2026-0001",
-    "type": "purchase_invoice",
-    "documentNumber": "00001234",
-    "series": "1C26TAA",
-    "fiscalYear": 2026,
-    "partyId": "supplier-party-id",
-    "documentDate": "2026-08-11",
-    "dueDate": "2026-08-11",
-    "currency": "VND",
-    "netMinor": "1000000",
-    "taxMinor": "100000",
-    "grossMinor": "1100000",
-    "controlAccountCode": "331-AP",
-    "fundingSource": {
-      "type": "financial_account",
-      "financialAccountId": "company-bank-account-id"
-    },
-    "lines": [{
-      "description": "Dịch vụ phục vụ hoạt động doanh nghiệp",
-      "quantity": "1",
-      "unitPriceMinor": "1000000",
-      "netMinor": "1000000",
-      "taxMinor": "100000",
-      "grossMinor": "1100000",
-      "primaryAccountCode": "642-COST",
-      "taxAccountCode": "1331-VAT-IN",
-      "taxCode": "VAT10",
-      "dimensions": { "category": "BUSINESS_SERVICE" },
-      "allocations": [{
-        "id": "paperless-invoice-2026-0001-line-1",
-        "amountMinor": "1000000",
-        "dimensions": { "projectId": "project-id" }
-      }]
-    }],
-    "externalReference": {
-      "system": "paperless-ngx",
-      "externalId": "paperless-document-1234",
-      "canonicalUrl": "https://paperless.example/documents/1234",
-      "checksum": "sha256-of-source-file",
-      "version": "1",
-      "syncedAt": "2026-08-11T16:00:00Z",
-      "metadata": { "n8nWorkflow": "purchase-invoice-ingestion" }
-    }
-  }'`;
-}
-
-export function quickOcrPurchaseInvoiceIngestionCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/purchase-invoice-ingestion' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' --header 'Idempotency-Key: purchase-{{$json.id}}' \\
-  --data '{
-    "supplierTaxId": "0110660175",
-    "supplierName": "CÔNG TY CỔ PHẦN PHÁT TRIỂN TRẠM SẠC TOÀN CẦU V-GREEN",
-    "documentNumber": "00250571",
-    "documentDate": "2026-07-27",
-    "category": "EV_BATTERY_CHARGING",
-    "description": "Phí dịch vụ trạm sạc tháng 7 năm 2026",
-    "netMinor": "371455",
-    "taxMinor": "37146",
-    "grossMinor": "408601",
-    "taxAccountCode": "1331-VAT-IN",
-    "taxCode": "VAT10_IN",
-    "vatState": "unreviewed",
-    "currency": "VND",
-    "externalReference": { "system": "paperless-ngx", "externalId": "{{$json.id}}" }
-  }'`;
-}
-
-export function discardDraftPurchaseInvoiceCurl(credential: RevealedCredential) {
-  return `curl --request DELETE \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/commercial-documents/{{$json["data"]["document"]["documentId"]}}' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'If-Match: {{$json["data"]["document"]["resourceVersion"]}}' \\
-  --header 'Idempotency-Key: discard-paperless-invoice-246-v1' \\
-  --header 'X-Correlation-Id: discard-paperless-invoice-246-v1' \\
-  --data '{
-    "reason": "Xóa hóa đơn nháp tạo dư do workflow n8n nhập nhầm"
-  }'`;
-}
-
-export function n8nOcrMappingExpression() {
-  return `{{
-  (() => {
-    const output = $json.output ?? {};
-    const text = (value) => value == null ? "" : String(value).trim();
-    const digits = (value) => text(value).replace(/[^0-9]/g, "");
-    const moneyMinor = (value) => {
-      const raw = text(value)
-        .replace(/(?:VND|VNĐ|₫)/gi, "")
-        .replace(/\\s/g, "")
-        .replace(/([.,]00)$/, "");
-      const normalized = digits(raw);
-      return normalized || null;
-    };
-    const isoDate = (value) => {
-      const raw = text(value);
-      const parts = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})(?:[ T].*)?$/);
-      if (parts) return parts[3] + "-" + parts[2].padStart(2, "0") + "-" + parts[1].padStart(2, "0");
-      const iso = raw.match(/^(\\d{4}-\\d{2}-\\d{2})(?:[ T].*)?$/);
-      return iso ? iso[1] : null;
-    };
-    const taxNumber = digits(output["Mã số thuế (Tax code)"] ?? output["Mã số thuế"]);
-    const supplierName = text(output["Ký bởi"] ?? output["Tên người bán"] ?? output["Đơn vị bán hàng"]);
-    const documentDate = isoDate(output["Ký ngày"] ?? output["Ngày hóa đơn"] ?? output["Ngày lập"]);
-    const content = text($json.content);
-    const invoiceNumber = text(
-      output["Số hóa đơn"] ??
-      output["Số (Inv No.)"] ??
-      output["Invoice No."] ??
-      ((content.match(/(?:Số \\(Inv No\\.\\)|Số hóa đơn|Invoice No\\.)[^0-9]*(\\d{5,12})/i) ?? [])[1])
-    );
-    const sourceDocumentId = text($json.id);
-    const totalPaymentMinor = moneyMinor(output["Tổng cộng tiền thanh toán"]);
-    const explicitNetMinor = moneyMinor(output["Tiền hàng"] ?? output["Cộng tiền hàng"] ?? output["Giá tính thuế"] ?? output["Tổng tiền trước thuế"]);
-    const explicitTaxMinor = moneyMinor(output["Tiền thuế GTGT"] ?? output["Tiền thuế"] ?? output["Thuế GTGT"] ?? output["VAT"]);
-    const taxCode = text(output["Mã thuế"] ?? output["Mã số thuế suất"] ?? output["VAT code"]);
-    const taxAccountCode = text(output["Tài khoản thuế"] ?? output["VAT account"]);
-    const netMinor = explicitNetMinor || (totalPaymentMinor && explicitTaxMinor
-      ? String(BigInt(totalPaymentMinor) - BigInt(explicitTaxMinor))
-      : null);
-    const series = text(output["Ký hiệu (Serial)"] ?? output["Ký hiệu"] ?? output["Serial"]).replace(/\\s/g, "");
-    const category = text(output["Hạng mục"] ?? output["Danh mục"] ?? output["Loại chi phí"]);
-    const description = text(output["Tên hàng hóa, dịch vụ"] ?? output["Nội dung"] ?? output["Diễn giải"]);
-    const canonicalUrl = text($json.url ?? $json.canonical_url) ||
-      (sourceDocumentId ? "https://paper.naai.studio/api/documents/" + sourceDocumentId + "/download/" : "");
-
-    return {
-      "schemaVersion": 1,
-      "supplierTaxId": taxNumber,
-      ...(supplierName ? { "supplierName": supplierName } : {}),
-      "documentNumber": invoiceNumber,
-      ...(series ? { "series": series } : {}),
-      "documentDate": documentDate,
-      ...(category ? { "category": category } : {}),
-      "description": description,
-      ...(netMinor && explicitTaxMinor ? { "netMinor": netMinor, "taxMinor": explicitTaxMinor } : {}),
-      ...(taxAccountCode ? { "taxAccountCode": taxAccountCode } : {}),
-      ...(taxCode ? { "taxCode": taxCode } : {}),
-      "grossMinor": totalPaymentMinor,
-      "currency": "VND",
-      "externalReference": {
-        system: "paperless-ngx",
-        externalId: sourceDocumentId,
-        ...(canonicalUrl ? { canonicalUrl } : {}),
-        ...(text($json.checksum) ? { checksum: text($json.checksum) } : {}),
-        version: "1",
-        metadata: {
-          sourceTitle: text($json.title),
-          originalFileName: text($json.original_file_name),
-          archivedFileName: text($json.archived_file_name),
-          rawCategory: category || null,
-          rawNetMinor: explicitNetMinor,
-          rawTaxMinor: explicitTaxMinor,
-          rawTaxCode: taxCode || null,
-          sourceCreatedAt: text($json.created),
-          sourceModifiedAt: text($json.modified)
-        }
-      }
-    };
-  })()
-}}`;
-}
-
-export function purchaseProductCurl(credential: RevealedCredential) {
-  return `curl --request POST \\
-  'https://erp.naai.studio/api/v1/organizations/${credential.organizationId}/master-data/purchase-products' \\
-  --header 'Authorization: Bearer ${credential.apiToken}' \\
-  --header 'Content-Type: application/json' \\
-  --header 'Idempotency-Key: n8n-purchase-product-business-service-v1' \\
-  --data '{
-    "data": {
-      "code": "BUSINESS_SERVICE_10",
-      "name": "Dịch vụ phục vụ hoạt động doanh nghiệp",
-      "vat_rate_percent": 10,
-      "is_active": true
-    }
-  }'`;
-}
-
-function definitionsFor(
-  credential: RevealedCredential,
-  resources: readonly AutomationResource[],
-): CurlDefinition[] {
-  const definitions: Record<AutomationResource, CurlDefinition[]> = {
-    customers: [
-      {
-        title: "Tạo khách hàng và gán vai trò client",
-        description: "Tạo party trước, sau đó dùng đúng party ID để gán vai trò khách hàng.",
-        value: customerCurl(credential),
-      },
-    ],
-    projects: [
-      {
-        title: "Tạo dự án liên kết khách hàng",
-        description:
-          "client_party_id phải là party đã có vai trò client; owner_user_id phải tồn tại trong tổ chức.",
-        value: projectCurl(credential),
-      },
-    ],
-    subscriptions: [
-      {
-        title: "Tạo gói dịch vụ",
-        description: "Tạo service plan trước để nhận servicePlanId ổn định.",
-        value: servicePlanCurl(credential),
-      },
-      {
-        title: "Gán subscription cho khách hàng",
-        description: "Liên kết customerPartyId, servicePlanId và projectId đã tồn tại.",
-        value: subscriptionCurl(credential),
-      },
-    ],
-    "purchase-products": [
-      {
-        title: "Thêm sản phẩm mua vào",
-        description: "Tạo danh mục gợi ý cho n8n phân loại dòng hóa đơn. VAT chỉ nhận 8 hoặc 10.",
-        value: purchaseProductCurl(credential),
-      },
-    ],
-    revenue: [
-      {
-        title: "Tạo doanh thu",
-        description:
-          "Tạo một khoản doanh thu bằng một request tối thiểu. ERP tự resolve khách hàng và tài khoản mặc định theo danh mục.",
-        value: quickRevenueIngestionCurl(credential),
-        method: "POST",
-        path: "/commercial-documents/sales-invoice-ingestion",
-        required: ["customerName", "documentNumber", "documentDate", "description", "grossMinor"],
-        optional: [
-          "customerTaxId",
-          "category",
-          "project",
-          "dueDate",
-          "currency",
-          "externalReference",
-        ],
-        response: '{ "data": { "documentId": "…", "status": "draft" } }',
-      },
-    ],
-    expenses: [
-      {
-        title: "Chuẩn hóa dữ liệu OCR (n8n Expression)",
-        description:
-          "Tùy chọn cho workflow n8n: chuyển output OCR thành JSON chuẩn trước khi gọi API. Đây không phải request REST và không dùng cURL.",
-        value: n8nOcrMappingExpression(),
-        kind: "n8n-expression",
-      },
-      {
-        title: "Tạo hóa đơn đầu vào",
-        description:
-          "Request REST cho hóa đơn mua vào. ERP tự tìm hoặc tạo nhà cung cấp và áp dụng danh mục đã khai báo. Nếu Paperless có tiền trước thuế, VAT và mã thuế, hãy gửi thêm netMinor, taxMinor, taxAccountCode và taxCode để không bị ghi nhận thành VAT 0.",
-        value: quickOcrPurchaseInvoiceIngestionCurl(credential),
-        method: "POST",
-        path: "/commercial-documents/purchase-invoice-ingestion",
-        required: [
-          "supplierName hoặc supplierTaxId",
-          "documentNumber",
-          "documentDate",
-          "description",
-          "grossMinor",
-        ],
-        optional: [
-          "category",
-          "dueDate",
-          "currency",
-          "netMinor",
-          "taxMinor",
-          "taxAccountCode",
-          "taxCode",
-          "vatState",
-          "vatEligibleMinor",
-          "externalReference",
-        ],
-        response: '{ "data": { "documentId": "…", "status": "draft" } }',
-      },
-      {
-        title: "Tạo chi phí trực tiếp",
-        description:
-          "Dùng cho khoản chi không có hóa đơn VAT. Request giữ ở mức tối thiểu; các thông tin kế toán nâng cao do ERP xử lý theo cấu hình.",
-        value: directExpenseCurl(credential),
-        method: "POST",
-        path: "/expenses",
-        required: ["payeePartyId", "expenseDate", "businessPurpose", "grossMinor"],
-        optional: ["category", "project", "VAT", "currency", "evidence", "externalReference"],
-        response: '{ "data": { "expenseId": "…", "status": "draft" } }',
-      },
-    ],
-  };
-  return resources.flatMap((resource) => definitions[resource]);
-}
-
-export function AutomationApiDialog({
-  resources,
-}: Readonly<{ resources: readonly AutomationResource[] }>) {
-  const [credential, setCredential] = useState<RevealedCredential | null>(null);
+export function AutomationApiReferenceSection({
+  resources = Examples.ALL_AUTOMATION_RESOURCES,
+}: Readonly<{ resources?: readonly Examples.AutomationResource[] }>) {
+  const [credential, setCredential] = useState<Examples.RevealedCredential | null>(null);
   const [showCredential, setShowCredential] = useState(false);
   const [copiedCredential, setCopiedCredential] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [activeResource, setActiveResource] = useState<Examples.ResourceFilter>("all");
+  const fetchedRef = useRef(false);
 
   async function reveal() {
     setLoading(true);
+    setLoadError("");
     try {
       const response = await fetch("/auth/automation-token", { method: "POST", cache: "no-store" });
       if (!response.ok) throw new Error("Không thể lấy token từ phiên đăng nhập.");
-      setCredential((await response.json()) as RevealedCredential);
+      setCredential((await response.json()) as Examples.RevealedCredential);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không thể lấy token.");
+      const message = error instanceof Error ? error.message : "Không thể lấy token.";
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function copy(value: string) {
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    void reveal();
+  }, []);
+
+  async function copy(value: string, isApiKey = false) {
     await navigator.clipboard.writeText(value);
-    toast.success("Đã sao chép vào clipboard.");
+    toast.success(isApiKey ? "Đã sao chép API key." : "Đã sao chép vào clipboard.");
+    if (isApiKey) {
+      setCopiedCredential(true);
+      window.setTimeout(() => setCopiedCredential(false), 1800);
+    }
   }
 
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen);
-        if (nextOpen && !credential && !loading) void reveal();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <CodeXmlIcon data-icon="inline-start" />
-          API & tự động hóa
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[90svh] min-w-0 overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>REST API &amp; tự động hóa</DialogTitle>
-          <DialogDescription>
-            Tài liệu nhanh cho endpoint đang dùng: xác thực, tham số, request cURL và phản hồi mẫu.
-          </DialogDescription>
-        </DialogHeader>
+  const filterKeys: Examples.ResourceFilter[] = ["all", ...resources];
+  const selected =
+    activeResource === "all" ? resources : resources.filter((item) => item === activeResource);
+  const definitions = credential ? Examples.definitionsFor(credential, selected) : [];
+  const curlExamples = definitions.filter((item) => item.kind !== "n8n-expression");
+  const n8nExamples = definitions.filter((item) => item.kind === "n8n-expression");
+  const toggleLabel = showCredential ? "Ẩn API key" : "Hiện API key";
+  const maskedToken = showCredential
+    ? credential?.apiToken
+    : "•".repeat(Math.min(32, credential?.apiToken.length ?? 0));
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner /> Đang tải ví dụ API…
-          </div>
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Kết nối REST API &amp; Tài liệu tự động hóa</CardTitle>
+        <CardDescription>
+          Khóa API của tổ chức, biểu thức chuẩn hóa OCR cho n8n và mẫu request cURL một bước cho
+          từng phân hệ nghiệp vụ.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex min-w-0 flex-col gap-4">
+        {loading ? <Skeleton className="h-40 w-full" /> : null}
+
+        {!loading && loadError && !credential ? (
+          <Alert variant="destructive">
+            <AlertTitle>Không thể tải thông tin kết nối API</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+              <span>{loadError}</span>
+              <Button variant="outline" size="sm" onClick={() => void reveal()}>
+                Tải lại thông tin kết nối API
+              </Button>
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         {credential ? (
-          <div className="flex min-w-0 flex-col gap-3">
-            <section className="rounded-xl border bg-muted/20 p-3" aria-label="API key">
+          <>
+            <section className="min-w-0 rounded-xl border bg-muted/20 p-3" aria-label="API key">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">API key của tổ chức</p>
@@ -587,109 +106,101 @@ export function AutomationApiDialog({
               </div>
               <div className="mt-3 flex min-w-0 gap-2">
                 <code className="min-w-0 flex-1 overflow-x-auto rounded-md border bg-background px-3 py-2 text-xs">
-                  {showCredential
-                    ? credential.apiToken
-                    : "•".repeat(Math.min(32, credential.apiToken.length))}
+                  {maskedToken}
                 </code>
                 <Button
-                  type="button"
                   variant="outline"
                   size="icon"
-                  aria-label={showCredential ? "Ẩn API key" : "Hiện API key"}
-                  onClick={() => setShowCredential((visible) => !visible)}
+                  aria-label={toggleLabel}
+                  onClick={() => setShowCredential((v) => !v)}
                 >
                   {showCredential ? <EyeOffIcon /> : <EyeIcon />}
                 </Button>
                 <Button
-                  type="button"
                   variant="outline"
                   size="icon"
                   aria-label="Sao chép API key"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(credential.apiToken).then(() => {
-                      setCopiedCredential(true);
-                      toast.success("Đã sao chép API key.");
-                      window.setTimeout(() => setCopiedCredential(false), 1800);
-                    });
-                  }}
+                  onClick={() => void copy(credential.apiToken, true)}
                 >
                   {copiedCredential ? <CheckIcon /> : <ClipboardIcon />}
                 </Button>
               </div>
             </section>
-            {definitionsFor(credential, resources)
-              .filter((definition) => definition.kind !== "n8n-expression")
-              .map((definition) => (
-                <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
+
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Bộ lọc phân hệ API">
+              {filterKeys.map((key) => (
+                <Button
+                  key={key}
+                  size="sm"
+                  variant={activeResource === key ? "default" : "outline"}
+                  aria-pressed={activeResource === key}
+                  onClick={() => setActiveResource(key)}
+                >
+                  {Examples.AUTOMATION_FILTER_LABELS[key]}
+                </Button>
               ))}
-            {definitionsFor(credential, resources).some(
-              (definition) => definition.kind === "n8n-expression",
-            ) ? (
-              <section className="mt-3 border-t pt-3">
-                <p className="mb-2 text-sm font-medium">Nâng cao cho n8n</p>
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Expression chỉ dùng trong node HTTP Request ở chế độ Expression, không phải cURL.
-                </p>
-                {definitionsFor(credential, resources)
-                  .filter((definition) => definition.kind === "n8n-expression")
-                  .map((definition) => (
-                    <ProtocolExample key={definition.title} {...definition} onCopy={copy} />
-                  ))}
-              </section>
-            ) : null}
-          </div>
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-3">
+              {curlExamples.map((item) => (
+                <ProtocolExample key={item.title} item={item} onCopy={copy} />
+              ))}
+              {n8nExamples.length > 0 ? (
+                <section className="mt-2 border-t pt-3">
+                  <p className="mb-1 text-sm font-medium">Nâng cao cho n8n</p>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Expression chỉ dùng trong node HTTP Request ở chế độ Expression, không phải
+                    cURL.
+                  </p>
+                  <div className="flex min-w-0 flex-col gap-3">
+                    {n8nExamples.map((item) => (
+                      <ProtocolExample key={item.title} item={item} onCopy={copy} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          </>
         ) : null}
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   );
 }
 
 function ProtocolExample({
-  title,
-  description,
-  value,
-  kind = "curl",
-  method,
-  path,
-  required,
-  optional,
-  response,
+  item,
   onCopy,
-}: Readonly<{
-  title: string;
-  description: string;
-  value: string;
-  kind?: "curl" | "n8n-expression";
-  method?: string;
-  path?: string;
-  required?: readonly string[];
-  optional?: readonly string[];
-  response?: string;
-  onCopy: (value: string) => Promise<void>;
-}>) {
-  if (kind === "n8n-expression") {
+}: Readonly<{ item: Examples.ExampleDefinition; onCopy: (value: string) => Promise<void> }>) {
+  if (item.kind === "n8n-expression") {
     return (
-      <section className="rounded-xl border border-dashed bg-muted/10 p-4">
+      <section className="min-w-0 rounded-xl border border-dashed bg-muted/10 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="font-medium">{title}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+          <div className="min-w-0">
+            <p className="font-medium">{item.title}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void onCopy(value)}>
+          <Button variant="outline" size="sm" onClick={() => void onCopy(item.value)}>
             <ClipboardIcon data-icon="inline-start" /> Sao chép expression
           </Button>
         </div>
-        <details className="mt-3 rounded-lg border bg-background">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Xem expression</summary>
-          <pre className="max-h-[40svh] overflow-auto border-t bg-muted/40 p-4 text-xs leading-relaxed">
-            <code>{value}</code>
-          </pre>
-        </details>
+        <Collapsible className="group mt-3 min-w-0">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm">
+              <ChevronRightIcon className="transition-transform group-data-[state=open]:rotate-90" />
+              Xem expression
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 overflow-hidden rounded-lg border bg-background">
+            <pre className="max-h-[40svh] overflow-auto bg-muted/40 p-4 text-xs leading-relaxed">
+              <code>{item.value}</code>
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
       </section>
     );
   }
   return (
-    <Collapsible className="group rounded-xl border">
+    <Collapsible className="group min-w-0 rounded-xl border">
       <div className="flex min-w-0 flex-col items-stretch gap-2 p-3 sm:flex-row sm:items-start">
         <CollapsibleTrigger asChild>
           <Button
@@ -698,8 +209,8 @@ function ProtocolExample({
           >
             <ChevronRightIcon className="transition-transform group-data-[state=open]:rotate-90" />
             <span className="flex min-w-0 flex-col items-start gap-1">
-              <span className="font-medium">{title}</span>
-              <span className="text-xs font-normal text-muted-foreground">{description}</span>
+              <span className="font-medium">{item.title}</span>
+              <span className="text-xs font-normal text-muted-foreground">{item.description}</span>
             </span>
           </Button>
         </CollapsibleTrigger>
@@ -707,39 +218,38 @@ function ProtocolExample({
           variant="outline"
           size="sm"
           className="w-full sm:w-auto"
-          onClick={() => void onCopy(value)}
+          onClick={() => void onCopy(item.value)}
         >
-          <ClipboardIcon data-icon="inline-start" /> Sao chép{" "}
-          {kind === "curl" ? "cURL" : "expression"}
+          <ClipboardIcon data-icon="inline-start" /> Sao chép cURL
         </Button>
       </div>
       <CollapsibleContent>
-        {method && path ? (
+        {item.method && item.path ? (
           <div className="space-y-3 border-t px-4 py-3 text-xs">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded bg-primary px-2 py-1 font-semibold text-primary-foreground">
-                {method}
+                {item.method}
               </span>
-              <code className="text-muted-foreground">
-                /api/v1/organizations/:organizationId{path}
+              <code className="break-all text-muted-foreground">
+                /api/v1/organizations/:organizationId{item.path}
               </code>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <FieldList title="Bắt buộc" values={required} />
-              <FieldList title="Tùy chọn" values={optional} />
+              <FieldList title="Bắt buộc" values={item.required} />
+              <FieldList title="Tùy chọn" values={item.optional} />
             </div>
-            {response ? (
+            {item.response ? (
               <div>
                 <p className="mb-1 font-medium">Phản hồi thành công</p>
                 <pre className="overflow-auto rounded-md bg-muted/40 p-3">
-                  <code>{response}</code>
+                  <code>{item.response}</code>
                 </pre>
               </div>
             ) : null}
           </div>
         ) : null}
         <pre className="max-h-[45svh] overflow-auto border-t bg-muted/40 p-4 text-xs leading-relaxed">
-          <code>{value}</code>
+          <code>{item.value}</code>
         </pre>
       </CollapsibleContent>
     </Collapsible>
@@ -749,12 +259,12 @@ function ProtocolExample({
 function FieldList({ title, values }: Readonly<{ title: string; values?: readonly string[] }>) {
   if (!values?.length) return null;
   return (
-    <div>
+    <div className="min-w-0">
       <p className="mb-1 font-medium">{title}</p>
       <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
-        {values.map((value) => (
-          <li key={value}>
-            <code>{value}</code>
+        {values.map((v) => (
+          <li key={v} className="break-words">
+            <code>{v}</code>
           </li>
         ))}
       </ul>

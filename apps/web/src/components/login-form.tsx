@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_API_CONNECTION, saveConnectionSettings } from "@/lib/api";
@@ -143,17 +144,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                 {error ? <FieldError>{error}</FieldError> : null}
               </Field>
               <Field>
-                <label htmlFor="remember" className="flex cursor-pointer items-start gap-3 text-sm">
-                  <input
-                    id="remember"
-                    name="remember"
-                    type="checkbox"
-                    className="mt-0.5 size-4 accent-primary"
-                  />
-                  <span>
-                    <span className="font-medium">Lưu đăng nhập</span>
-                  </span>
-                </label>
+                <div className="flex items-center gap-2.5">
+                  <Checkbox id="remember" name="remember" value="on" />
+                  <FieldLabel htmlFor="remember" className="cursor-pointer font-medium">
+                    Lưu đăng nhập
+                  </FieldLabel>
+                </div>
               </Field>
               <Field>
                 <Button type="submit" size="lg" className="w-full" disabled={submitting}>

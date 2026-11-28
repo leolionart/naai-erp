@@ -1,7 +1,7 @@
 "use client";
 
 import { fetchAllPages } from "@/lib/api/paging";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,15 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -40,6 +31,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  CreateAccountDialog,
+  CreateJournalDialog,
+  DeactivateAccountDialog,
+  JournalReasonDialog,
+  type PendingJournalReasonAction,
+} from "./ledger-master-dialogs";
 
 type Section = "journals" | "reports" | "accounts" | "resources";
 type ApiRow = Record<string, unknown>;
@@ -127,6 +125,8 @@ export function LedgerMasterWorkspace({
   const [resourceRows, setResourceRows] = useState<ApiRow[]>([]);
   const [selectedJournal, setSelectedJournal] = useState<ApiRow>();
   const [selectedAccount, setSelectedAccount] = useState<ApiRow>();
+  const [pendingJournalReason, setPendingJournalReason] = useState<PendingJournalReasonAction>();
+  const [deactivatingAccountCode, setDeactivatingAccountCode] = useState<string>();
   const [trialBalance, setTrialBalance] = useState<ApiRow[]>([]);
   const [generalLedger, setGeneralLedger] = useState<ApiRow[]>([]);
   const [reportRange, setReportRange] = useState({
@@ -264,18 +264,17 @@ export function LedgerMasterWorkspace({
     if (token) void loadCurrent();
   }, [section, resourceName, token]);
 
-  async function journalAction(action: "approve" | "post" | "reverse") {
-    const id = String(selectedJournal?.id ?? "");
-    if (!id) return;
-    const reason =
-      action === "post" ? undefined : window.prompt("Lý do nghiệp vụ (được lưu audit):")?.trim();
-    if (action !== "post" && !reason) return;
+  async function executeJournalAction(
+    journalId: string,
+    action: "approve" | "post" | "reverse",
+    reason?: string,
+  ) {
     await run(async () => {
-      await request(`journals/${encodeURIComponent(id)}/${action}`, {
+      await request(`journals/${encodeURIComponent(journalId)}/${action}`, {
         method: "POST",
         body:
           action === "reverse"
-            ? { reason, reversalDate: TODAY, reversalJournalId: `${id}-reversal` }
+            ? { reason, reversalDate: TODAY, reversalJournalId: `${journalId}-reversal` }
             : action === "approve"
               ? { reason }
               : {},
@@ -285,9 +284,24 @@ export function LedgerMasterWorkspace({
     });
   }
 
-  async function deactivateAccount() {
+  function journalAction(action: "approve" | "post" | "reverse") {
+    const id = String(selectedJournal?.id ?? "");
+    if (!id) return;
+    if (action === "post") {
+      void executeJournalAction(id, "post");
+      return;
+    }
+    setPendingJournalReason({ action, journalId: id });
+  }
+
+  function requestDeactivateAccount() {
     const code = String(field(selectedAccount ?? {}, "code") ?? "");
-    if (!code || !window.confirm(`Ngừng sử dụng tài khoản ${code}?`)) return;
+    if (!code) return;
+    setDeactivatingAccountCode(code);
+  }
+
+  async function confirmDeactivateAccount(code: string) {
+    setDeactivatingAccountCode(undefined);
     await run(async () => {
       await request(
         `master-data/accounts/${encodeURIComponent(encodedMasterDataKey({ code }))}/deactivate`,
@@ -317,6 +331,7 @@ export function LedgerMasterWorkspace({
           )}
           {section === "journals" && (
             <CreateJournalDialog
+              defaultDate={TODAY}
               onCreate={(body) =>
                 run(async () => {
                   await request("journals", { method: "POST", body });
@@ -385,7 +400,7 @@ export function LedgerMasterWorkspace({
             selected={selectedAccount}
             busy={busy}
             onSelect={setSelectedAccount}
-            onDeactivate={deactivateAccount}
+            onDeactivate={requestDeactivateAccount}
           />
         ) : (
           <ResourceSection
@@ -397,6 +412,27 @@ export function LedgerMasterWorkspace({
             busy={busy}
           />
         )}
+        <JournalReasonDialog
+          pending={pendingJournalReason}
+          busy={busy}
+          onClose={() => setPendingJournalReason(undefined)}
+          onConfirm={(reason) => {
+            if (!pendingJournalReason) return;
+            const current = pendingJournalReason;
+            setPendingJournalReason(undefined);
+            void executeJournalAction(current.journalId, current.action, reason);
+          }}
+        />
+        <DeactivateAccountDialog
+          accountCode={deactivatingAccountCode}
+          busy={busy}
+          onClose={() => setDeactivatingAccountCode(undefined)}
+          onConfirm={() => {
+            if (deactivatingAccountCode) {
+              void confirmDeactivateAccount(deactivatingAccountCode);
+            }
+          }}
+        />
       </CardContent>
     </Card>
   );
@@ -686,182 +722,5 @@ function SimpleTable({
         </Empty>
       )}
     </div>
-  );
-}
-
-function CreateJournalDialog({
-  onCreate,
-  busy,
-}: {
-  onCreate: (body: ApiRow) => void;
-  busy: boolean;
-}) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    id: "",
-    date: TODAY,
-    description: "",
-    currency: "VND",
-    debitAccount: "",
-    creditAccount: "",
-    amount: "",
-  });
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!/^\d+$/.test(form.amount) || BigInt(form.amount) <= 0n) return;
-    onCreate({
-      ...(form.id.trim() ? { id: form.id.trim() } : {}),
-      journalDate: form.date,
-      description: form.description,
-      currency: form.currency,
-      lines: [
-        { accountCode: form.debitAccount, debitMinor: form.amount },
-        { accountCode: form.creditAccount, creditMinor: form.amount },
-      ],
-    });
-    setShowForm(false);
-  }
-  return (
-    <Dialog open={showForm} onOpenChange={setShowForm}>
-      <DialogTrigger asChild>
-        <Button type="button">+ Bút toán nháp</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[700px]">
-        <DialogHeader>
-          <DialogTitle>Tạo bút toán nháp</DialogTitle>
-          <DialogDescription>
-            Nhập thông tin bút toán mới. Bút toán sẽ ở trạng thái nháp (draft) chờ duyệt.
-          </DialogDescription>
-        </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={submit}>
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <LabeledField label="ID tùy chọn">
-              <Input
-                value={form.id}
-                onChange={(e) => setForm((v) => ({ ...v, id: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Ngày hạch toán">
-              <Input
-                type="date"
-                required
-                value={form.date}
-                onChange={(e) => setForm((v) => ({ ...v, date: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Diễn giải">
-              <Input
-                required
-                value={form.description}
-                onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Tài khoản Nợ">
-              <Input
-                required
-                value={form.debitAccount}
-                onChange={(e) => setForm((v) => ({ ...v, debitAccount: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Tài khoản Có">
-              <Input
-                required
-                value={form.creditAccount}
-                onChange={(e) => setForm((v) => ({ ...v, creditAccount: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Số tiền minor units">
-              <Input
-                required
-                inputMode="numeric"
-                value={form.amount}
-                onChange={(e) => setForm((v) => ({ ...v, amount: e.target.value }))}
-              />
-            </LabeledField>
-          </FieldGroup>
-          <DialogFooter>
-            <Button disabled={busy}>Lưu bản nháp</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CreateAccountDialog({
-  onCreate,
-  busy,
-}: {
-  onCreate: (data: ApiRow) => void;
-  busy: boolean;
-}) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ code: "", name: "", rootType: "expense" });
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    onCreate({
-      code: form.code,
-      name: form.name,
-      root_type: form.rootType,
-      is_control_account: false,
-      allow_manual_posting: true,
-      is_active: true,
-    });
-    setShowForm(false);
-  }
-  return (
-    <Dialog open={showForm} onOpenChange={setShowForm}>
-      <DialogTrigger asChild>
-        <Button type="button">+ Tạo tài khoản</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Tạo tài khoản mới</DialogTitle>
-          <DialogDescription>
-            Thêm một tài khoản mới vào hệ thống tài khoản (COA).
-          </DialogDescription>
-        </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={submit}>
-          <FieldGroup className="grid gap-4">
-            <LabeledField label="Mã tài khoản">
-              <Input
-                required
-                value={form.code}
-                onChange={(e) => setForm((v) => ({ ...v, code: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Tên tài khoản">
-              <Input
-                required
-                value={form.name}
-                onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
-              />
-            </LabeledField>
-            <LabeledField label="Nhóm">
-              <Select
-                value={form.rootType}
-                onValueChange={(value) => setForm((v) => ({ ...v, rootType: value }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="asset">Tài sản</SelectItem>
-                    <SelectItem value="liability">Nợ phải trả</SelectItem>
-                    <SelectItem value="equity">Vốn chủ</SelectItem>
-                    <SelectItem value="revenue">Doanh thu</SelectItem>
-                    <SelectItem value="expense">Chi phí</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </LabeledField>
-          </FieldGroup>
-          <DialogFooter>
-            <Button disabled={busy}>Tạo tài khoản</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

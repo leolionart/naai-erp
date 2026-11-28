@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
   operationalLogsApi,
@@ -231,20 +233,27 @@ export function OperationalLogWorkspace() {
                 void load(true);
               }
             }}
-            className="max-h-[70vh] overflow-y-auto rounded-lg border bg-slate-950 text-slate-100 shadow-inner"
+            className="max-h-[70vh] overflow-y-auto rounded-xl border bg-muted/20 text-foreground"
             aria-live="polite"
           >
             {loading ? (
-              <div className="px-4 py-8 text-center font-mono text-sm text-slate-400">
-                Đang tải log…
+              <div className="flex flex-col gap-2 p-4">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
               </div>
             ) : null}
             {!loading && error ? (
-              <div className="px-4 py-8 font-mono text-sm text-red-300">[error] {error}</div>
+              <div className="p-4">
+                <Alert variant="destructive">
+                  <AlertTitle>Không tải được nhật ký</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              </div>
             ) : null}
             {!loading && !error && (page?.items ?? []).length === 0 ? (
-              <div className="px-4 py-8 text-center font-mono text-sm text-slate-400">
-                Chưa có log.
+              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                Chưa có nhật ký hoạt động phù hợp bộ lọc.
               </div>
             ) : null}
             {!loading && !error
@@ -253,39 +262,40 @@ export function OperationalLogWorkspace() {
                   const isFailed = item.status === "failed";
                   return (
                     <div
-                      className="border-b border-slate-800 px-4 py-3 last:border-b-0"
+                      className="border-b border-border/70 px-4 py-3 last:border-b-0 hover:bg-muted/30"
                       key={item.id}
                     >
-                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-xs leading-relaxed">
-                        <span className="shrink-0 text-slate-500">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs leading-relaxed">
+                        <span className="shrink-0 text-muted-foreground">
                           {formatDateTime(item.occurred_at || item.started_at)}
                         </span>
-                        <span
-                          className={
+                        <Badge
+                          variant={
                             isFailed
-                              ? "text-red-400"
+                              ? "destructive"
                               : item.severity === "warning" || item.status === "running"
-                                ? "text-amber-300"
-                                : "text-emerald-400"
+                                ? "secondary"
+                                : "outline"
                           }
+                          className="font-mono text-[11px]"
                         >
-                          [{item.status}
-                          {item.severity === "warning" ? " · warning" : ""}]
-                        </span>
-                        <span className="font-semibold text-slate-100">
+                          {item.status}
+                          {item.severity === "warning" ? " · warning" : ""}
+                        </Badge>
+                        <span className="font-semibold text-foreground">
                           {item.source || item.service || "system"}
                         </span>
-                        <span className="text-slate-300">
+                        <span className="text-foreground/90">
                           {item.event_type || item.operation || "activity"}
                         </span>
-                        <span className="text-slate-400">
+                        <span className="text-muted-foreground">
                           — {item.summary || (isFailed ? "Có lỗi khi xử lý" : "Hoàn tất")}
                         </span>
                         {item.worker_id ? (
-                          <span className="text-slate-500">worker={item.worker_id}</span>
+                          <span className="text-muted-foreground">worker={item.worker_id}</span>
                         ) : null}
                         {item.completed_at ? (
-                          <span className="text-slate-500">
+                          <span className="text-muted-foreground">
                             duration=
                             {formatDuration(
                               Math.max(
@@ -300,7 +310,7 @@ export function OperationalLogWorkspace() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 px-2 font-sans text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
+                            className="h-6 px-2 font-sans text-xs"
                             aria-expanded={expanded.has(item.id)}
                             onClick={() =>
                               setExpanded((current) => {
@@ -317,7 +327,7 @@ export function OperationalLogWorkspace() {
                       </div>
                       {expanded.has(item.id) ? (
                         <ol
-                          className="mt-2 border-l border-slate-700 pl-4 font-mono text-xs text-slate-400"
+                          className="mt-2 border-l-2 border-border pl-4 font-mono text-xs text-muted-foreground"
                           aria-label="Chi tiết quá trình"
                         >
                           {timeline.map((event, index) => (
@@ -340,7 +350,7 @@ export function OperationalLogWorkspace() {
                 })
               : null}
             {!loading && !error && loadingMore ? (
-              <div className="px-4 py-3 text-center font-mono text-xs text-slate-400">
+              <div className="px-4 py-3 text-center font-mono text-xs text-muted-foreground">
                 Đang tải thêm log…
               </div>
             ) : null}
