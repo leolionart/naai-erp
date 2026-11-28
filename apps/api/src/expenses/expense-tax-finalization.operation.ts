@@ -51,6 +51,7 @@ export async function commitTaxFinalizationOperation(
            cit_eligible_minor=case when cit_state='unreviewed' then $6 else cit_eligible_minor end,
            vat_state=case when vat_state='unreviewed' then $7::eligibility_state else vat_state end,
            vat_eligible_minor=case when vat_state='unreviewed' then $8 else vat_eligible_minor end,
+           payment_evidence_missing=false,
            reviewed_by=$9,reviewed_at=now(),review_reason=$10,review_reference='solopreneur_policy'
          where organization_id=$1 and ${idColumn}=$2 and line_number=$3`,
         [
@@ -72,7 +73,24 @@ export async function commitTaxFinalizationOperation(
         items.filter((item) => item.sourceType === "expense").map((item) => item.sourceId),
       ),
     ];
-    for (const id of expenseIds) await this.refreshSummary(c, context.organizationId, id);
+    for (const id of expenseIds) {
+      await c.query(
+        `update expenses set payment_evidence_missing=coalesce((select bool_or(payment_evidence_missing) from expense_lines where organization_id=$1 and expense_id=$2),false) where organization_id=$1 and id=$2`,
+        [context.organizationId, id],
+      );
+      await this.refreshSummary(c, context.organizationId, id);
+    }
+    const documentIds = [
+      ...new Set(
+        items.filter((item) => item.sourceType === "purchase_invoice").map((item) => item.sourceId),
+      ),
+    ];
+    for (const id of documentIds) {
+      await c.query(
+        `update commercial_documents set payment_evidence_missing=coalesce((select bool_or(payment_evidence_missing) from commercial_document_lines where organization_id=$1 and document_id=$2),false) where organization_id=$1 and id=$2`,
+        [context.organizationId, id],
+      );
+    }
     const auditId = randomUUID();
     const result = {
       ...this.taxFinalizationResult(items, planHash, false),

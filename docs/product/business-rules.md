@@ -1619,12 +1619,16 @@ other | unpaid`, default `unpaid`), optional `paid_on`, optional `payment_eviden
   Bank-reconciled outgoing bank payments automatically infer `bank_transfer`, `paid_on` and bank reference,
   and unreconciling reverts bank-inferred values.
 - `BR-PAY-002`: in solopreneur mode, a purchase of `non_cash_threshold_minor` or more (default 5,000,000 VND
-  gross including VAT; same-day purchase invoices and expenses from the same supplier are aggregated for VAT)
+  gross including VAT from `2025-07-01` under Law on VAT 48/2024/QH15 + Decree 181/2025/ND-CP, and 20,000,000 VND
+  for purchases dated before `2025-07-01` when using the standard statutory policy; same-day purchase invoices and
+  expenses from the same supplier are aggregated for VAT)
   is not defaulted to `eligible` for CIT or VAT unless settled by qualifying non-cash payment (`bank_transfer`
   or `card`, requiring `payment_evidence_ref` when `owner_paid`, or reconciled bank payment); gated lines keep
   deductible amount `0` (`unreviewed`), set `payment_evidence_missing = true`, surface in
   `GET /reports/tax/payment-evidence-gaps`, VAT/expense-exception tax reports and the operating dashboard, and
-  re-evaluate automatically when payment evidence or bank reconciliation changes. Threshold is configurable per
+  re-evaluate automatically when payment evidence or bank reconciliation changes. Batch tax finalization
+  (`POST /expenses/tax-finalization/commit`) clears stale `payment_evidence_missing` flags on lines and headers
+  that satisfy the effective statutory threshold. Threshold is configurable per
   organization via `PATCH /organization-workflow-policy`. Only audited `accountant_override` with a mandatory
   `reference` can override eligibility without payment evidence; standard review and batch tax-finalization
   reject or skip gated lines.

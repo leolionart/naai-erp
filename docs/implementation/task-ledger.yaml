@@ -4613,6 +4613,31 @@ tasks:
       - docs/testing/test-catalog.yaml
       - docs/implementation/evidence/ERP-1009/
 
+  - id: ERP-1010
+    title: Date-effective 20M VND pre-2025-07-01 vs 5M VND post-2025-07-01 statutory non-cash payment threshold
+    phase: P17
+    status: done
+    dependencies: [ERP-982, ERP-1009]
+    business_rules: [BR-PAY-002, BR-FUND-009]
+    tests: [T-UNIT-ERP-1010-001, T-UNIT-PAY-003]
+    evidence: docs/implementation/evidence/ERP-1010/
+    agent: antigravity
+    started_at: 2026-11-28T20:11:00+07:00
+    completed_at: 2026-11-28T20:20:00+07:00
+    completion_basis: implemented_with_domain_api_unit_and_doc_verification
+    planned_files:
+      - packages/domain/src/payment-evidence.ts
+      - packages/domain/src/payment-evidence.test.ts
+      - apps/api/src/payment-evidence/payment-evidence-evaluator.ts
+      - apps/api/src/payment-evidence/payment-evidence-gaps.query.ts
+      - apps/api/src/expenses/expense-tax-finalization.helper.ts
+      - apps/api/src/expenses/expense-tax-finalization.operation.ts
+      - apps/api/src/draft-recording/draft-recording-checks.helper.ts
+      - docs/product/business-rules.md
+      - docs/testing/test-specification.md
+      - docs/testing/test-catalog.yaml
+      - docs/implementation/evidence/ERP-1010/
+
 gates:
   G0: [ERP-001, ERP-002, ERP-003, ERP-004]
   G1: [ERP-100, ERP-110, ERP-120, ERP-130, ERP-140]

@@ -139,6 +139,7 @@ export async function buildTaxFinalizationPlan(
       grossMinor: BigInt(row.gross_minor),
       hasInputVat,
       thresholdMinor,
+      recordDate: row.record_date,
       paymentMethod: asPaymentMethod(row.payment_method),
       paidOn: row.paid_on,
       paymentEvidenceRef: row.payment_evidence_ref,

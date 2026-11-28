@@ -822,3 +822,10 @@ Năm YYYY`, `Quý Q/YYYY`, `Tháng MM/YYYY`, or custom range) and cumulative-bal
   (`Số dư toàn thời gian` when `asOfDate >= today` vs `Số dư lũy kế đến DD/MM/YYYY` for historical
   cutoffs), while `FinancialHealthSection` places trend-line `MetricCard`s onto one shared row
   separate from non-trend balance/tax cards (`dashboard-workspaces.test.ts`).
+
+### ERP-1010 — Date-effective 20M vs 5M statutory non-cash payment threshold (`2025-07-01`)
+
+- `T-UNIT-ERP-1010-001`: `resolveStatutoryNonCashThresholdMinor` and `evaluatePaymentDeductibility`
+  enforce the `20,000,000` VND threshold for documents and expenses dated before `2025-07-01` under the
+  standard statutory policy and `5,000,000` VND from `2025-07-01` onward while preserving custom
+  organization threshold overrides (`packages/domain/src/payment-evidence.test.ts`).

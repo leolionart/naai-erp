@@ -161,6 +161,7 @@ export async function queryPaymentEvidenceGapsReport(
       grossMinor: BigInt(row.gross_minor),
       hasInputVat,
       thresholdMinor,
+      recordDate: row.record_date,
       paymentMethod: slice.paymentMethod,
       paidOn: slice.paidOn,
       paymentEvidenceRef: slice.paymentEvidenceRef,

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_NON_CASH_THRESHOLD_MINOR,
+  NON_CASH_5M_EFFECTIVE_DATE,
+  PRE_JULY_2025_NON_CASH_THRESHOLD_MINOR,
   computeSameDaySupplierTotals,
   evaluatePaymentDeductibility,
   hasQualifyingNonCashPayment,
   normalizePaymentEvidenceInput,
   resolveEffectivePaymentState,
+  resolveStatutoryNonCashThresholdMinor,
 } from "./payment-evidence.js";
 
 describe("T-UNIT-PAY-003 payment evidence and same-day supplier VAT aggregation", () => {
@@ -206,5 +209,55 @@ describe("T-UNIT-PAY-003 payment evidence and same-day supplier VAT aggregation"
         isBankReconciled: true,
       }),
     ).toBe(true);
+  });
+
+  it("applies the 20,000,000 VND statutory non-cash threshold before 2025-07-01 and 5,000,000 VND from 2025-07-01", () => {
+    expect(PRE_JULY_2025_NON_CASH_THRESHOLD_MINOR).toBe(20_000_000n);
+    expect(NON_CASH_5M_EFFECTIVE_DATE).toBe("2025-07-01");
+    expect(resolveStatutoryNonCashThresholdMinor({ recordDate: "2025-06-30" })).toBe(20_000_000n);
+    expect(resolveStatutoryNonCashThresholdMinor({ recordDate: "2025-07-01" })).toBe(5_000_000n);
+    expect(
+      resolveStatutoryNonCashThresholdMinor({
+        configuredThresholdMinor: 1_000_000n,
+        recordDate: "2024-06-03",
+      }),
+    ).toBe(1_000_000n);
+
+    const preJuly2025Under20M = evaluatePaymentDeductibility({
+      grossMinor: 14_200_000n,
+      hasInputVat: true,
+      recordDate: "2025-04-07",
+      paymentMethod: "unpaid",
+      paidOn: null,
+      isOwnerPaid: true,
+    });
+    expect(preJuly2025Under20M.citGatedByPayment).toBe(false);
+    expect(preJuly2025Under20M.vatGatedByPayment).toBe(false);
+    expect(preJuly2025Under20M.paymentEvidenceMissing).toBe(false);
+
+    const preJuly2025SameDayOver20M = evaluatePaymentDeductibility({
+      grossMinor: 14_990_000n,
+      hasInputVat: true,
+      recordDate: "2024-06-03",
+      paymentMethod: "unpaid",
+      paidOn: null,
+      isOwnerPaid: true,
+      sameDaySupplierGrossMinor: 27_980_000n,
+    });
+    expect(preJuly2025SameDayOver20M.citGatedByPayment).toBe(false);
+    expect(preJuly2025SameDayOver20M.vatGatedByPayment).toBe(true);
+    expect(preJuly2025SameDayOver20M.paymentEvidenceMissing).toBe(true);
+
+    const postJuly2025Over5M = evaluatePaymentDeductibility({
+      grossMinor: 5_000_000n,
+      hasInputVat: true,
+      recordDate: "2025-07-01",
+      paymentMethod: "unpaid",
+      paidOn: null,
+      isOwnerPaid: true,
+    });
+    expect(postJuly2025Over5M.citGatedByPayment).toBe(true);
+    expect(postJuly2025Over5M.vatGatedByPayment).toBe(true);
+    expect(postJuly2025Over5M.paymentEvidenceMissing).toBe(true);
   });
 });

@@ -12,6 +12,24 @@ export const TRANSACTION_EVIDENCE_TYPES = [
 export type TransactionEvidence = (typeof TRANSACTION_EVIDENCE_TYPES)[number];
 
 export const DEFAULT_NON_CASH_THRESHOLD_MINOR = 5_000_000n;
+export const PRE_JULY_2025_NON_CASH_THRESHOLD_MINOR = 20_000_000n;
+export const NON_CASH_5M_EFFECTIVE_DATE = "2025-07-01";
+
+export function resolveStatutoryNonCashThresholdMinor(input: {
+  configuredThresholdMinor?: bigint | undefined;
+  recordDate?: string | null | undefined;
+}): bigint {
+  const configured = input.configuredThresholdMinor ?? DEFAULT_NON_CASH_THRESHOLD_MINOR;
+  if (
+    input.recordDate &&
+    ISO_DATE.test(input.recordDate) &&
+    input.recordDate < NON_CASH_5M_EFFECTIVE_DATE &&
+    configured === DEFAULT_NON_CASH_THRESHOLD_MINOR
+  ) {
+    return PRE_JULY_2025_NON_CASH_THRESHOLD_MINOR;
+  }
+  return configured;
+}
 
 export type PaymentEvidenceFields = Readonly<{
   paymentMethod: PaymentMethod;
@@ -204,6 +222,7 @@ export function evaluatePaymentDeductibility(input: {
   grossMinor: bigint;
   hasInputVat: boolean;
   thresholdMinor?: bigint | undefined;
+  recordDate?: string | null | undefined;
   paymentMethod: PaymentMethod;
   paidOn: string | null;
   paymentEvidenceRef?: string | null | undefined;
@@ -212,7 +231,10 @@ export function evaluatePaymentDeductibility(input: {
   reconciledBankPaidOn?: string | null | undefined;
   sameDaySupplierGrossMinor?: bigint | undefined;
 }): PaymentDeductibilityDecision {
-  const threshold = input.thresholdMinor ?? DEFAULT_NON_CASH_THRESHOLD_MINOR;
+  const threshold = resolveStatutoryNonCashThresholdMinor({
+    configuredThresholdMinor: input.thresholdMinor,
+    recordDate: input.recordDate,
+  });
   if (threshold < 0n || input.grossMinor < 0n) throw new Error("VALIDATION_FAILED");
   const effective = resolveEffectivePaymentState({
     paymentMethod: input.paymentMethod,
